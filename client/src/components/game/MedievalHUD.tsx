@@ -4,6 +4,7 @@ import { useCivilizations } from "../../lib/stores/useCivilizations";
 import { useMap } from "../../lib/stores/useMap";
 import { useAudio } from "../../lib/stores/useAudio";
 import { usePlayer } from "../../lib/stores/usePlayer";
+import { useReputation } from "../../lib/stores/useReputation";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { MiniMap } from "./MiniMap";
@@ -19,6 +20,9 @@ import { HelpPanel } from "./HelpPanel";
 import { CharacterSelector, CharacterOption } from "./CharacterSelector";
 import { CompetenceTree } from "./CompetenceTree";
 import { TileInfoPanel } from "./TileInfoPanel";
+import { ReputationPanel } from "./ReputationPanel";
+import { FactionPanel } from "./FactionPanel";
+import { ActionButtons } from "./ActionButtons";
 
 type MenuSection = 
   | 'treasury' 
@@ -30,7 +34,10 @@ type MenuSection =
   | 'announcements' 
   | 'guide' 
   | 'help'
-  | 'competences';
+  | 'competences'
+  | 'reputation'
+  | 'factions'
+  | 'actions';
 
 export function MedievalHUD() {
   const { gamePhase, currentTurn, endTurn } = useGameState();
@@ -53,7 +60,10 @@ export function MedievalHUD() {
     { id: 'events' as MenuSection, label: 'ÉVÉNEMENT', icon: '🎭' },
     { id: 'announcements' as MenuSection, label: 'ANNONCE PUBLIQUE', icon: '📢' },
     { id: 'guide' as MenuSection, label: 'GUIDE DE JEUX', icon: '📖' },
-    { id: 'help' as MenuSection, label: 'AIDE', icon: '❓' }
+    { id: 'help' as MenuSection, label: 'AIDE', icon: '❓' },
+    { id: 'reputation' as MenuSection, label: 'RÉPUTATION', icon: '⚡' },
+    { id: 'factions' as MenuSection, label: 'FACTIONS', icon: '🏛️' },
+    { id: 'actions' as MenuSection, label: 'ACTIONS', icon: '🎯' }
   ];
 
   const handleCharacterSelect = (character: CharacterOption) => {
@@ -289,6 +299,9 @@ export function MedievalHUD() {
               {activeSection === 'guide' && <GameGuidePanel />}
               {activeSection === 'help' && <HelpPanel />}
               {activeSection === 'competences' && <CompetenceTree />}
+              {activeSection === 'reputation' && <ReputationPanel />}
+              {activeSection === 'factions' && <FactionPanel />}
+              {activeSection === 'actions' && <ActionButtons />}
             </div>
           </div>
         </div>

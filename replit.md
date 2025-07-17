@@ -1,6 +1,14 @@
 # Overview
 
-This is a Civilization-style strategy game built with React, TypeScript, and Express. The application features a hexagonal tile-based map, turn-based gameplay, multiple civilizations, and classic 4X game mechanics (explore, expand, exploit, exterminate). The game includes city management, unit control, technology research, and basic diplomacy systems.
+This is Nova Imperium, a strategic role-playing game built with React, TypeScript, and Express. Initially developed as a Civilization-style foundation, the game is evolving toward a dynamic world where player choices, alliances, and betrayals shape destiny. The application features a hexagonal tile-based map, faction-based gameplay, reputation systems, and immersive world-building mechanics. The game includes territory management, character progression, faction creation, and a complex honor/dishonor system overseen by the Guilde de Pandem.
+
+## Nova Imperium Vision
+- Dynamic reputation system affecting available actions and alliances
+- Player-created factions that emerge from actions, not preset kingdoms
+- The Guilde de Pandem as the omnipresent overseeing faction
+- Real consequences for choices, promises, and betrayals
+- Evolving world where characters start humble but can rise or fall
+- Immersive experience combining strategy, roleplay, and world-building
 
 ## User Preferences
 
@@ -59,6 +67,14 @@ Preferred communication style: Simple, everyday language.
 - Positioned under player info window to avoid UI overlap
 - Includes close button to dismiss the panel
 - Enhanced tile data structure with commerce values for complete economic information
+
+### Nova Imperium Evolution (January 17, 2025)
+- Project direction clarified: evolving from Civilization clone to Nova Imperium
+- Civilization mechanics serve as foundation for faction-based gameplay
+- Competence tree system aligns with character progression in Nova Imperium
+- Hex-based map and territory control provide strategic foundation
+- Current systems (cities, units, resources) will adapt to support reputation and faction mechanics
+- Preparing for implementation of Guilde de Pandem oversight system
 
 ## System Architecture
 
