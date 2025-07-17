@@ -173,14 +173,6 @@ export function TileInfoPanel() {
             <span className="text-amber-700">Nourriture: {selectedHex.food}</span>
           </div>
           <div className="flex items-center gap-1">
-            <span className="text-orange-600">🔨</span>
-            <span className="text-amber-700">Production: {selectedHex.production}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-blue-600">🔬</span>
-            <span className="text-amber-700">Science: {selectedHex.science}</span>
-          </div>
-          <div className="flex items-center gap-1">
             <span className="text-yellow-600">💰</span>
             <span className="text-amber-700">Commerce: {selectedHex.commerce}</span>
           </div>
@@ -278,24 +270,7 @@ export function TileInfoPanel() {
         </div>
       )}
 
-      {/* Production Information (if it's a productive tile) */}
-      <div className="bg-amber-50 border border-amber-700 rounded p-2">
-        <div className="text-amber-900 font-semibold mb-2">📊 Production</div>
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <div className="text-amber-700">
-            🌾 Nourriture: {selectedHex.food || 0}
-          </div>
-          <div className="text-amber-700">
-            🔨 Production: {selectedHex.production || 0}
-          </div>
-          <div className="text-amber-700">
-            💰 Commerce: {selectedHex.commerce || 0}
-          </div>
-          <div className="text-amber-700">
-            🧪 Science: {selectedHex.science || 0}
-          </div>
-        </div>
-      </div>
+
     </div>
   );
 }
