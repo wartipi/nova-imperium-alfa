@@ -85,7 +85,7 @@ const createInitialNovaImperiums = (): NovaImperium[] => {
       ],
       resources: {
         food: 40,
-        production: 25,
+        action_points: 25,
         gold: 80,
         science: 15,
         culture: 10,
@@ -147,7 +147,7 @@ const createInitialNovaImperiums = (): NovaImperium[] => {
       ],
       resources: {
         food: 30,
-        production: 20,
+        action_points: 20,
         gold: 60,
         science: 10,
         culture: 8,

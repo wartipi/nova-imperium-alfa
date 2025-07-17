@@ -175,8 +175,8 @@ export function TileInfoPanel() {
               <span className="text-amber-700">Nourriture: {selectedHex.food}</span>
             </div>
             <div className="flex items-center gap-1">
-              <span className="text-orange-600">🔨</span>
-              <span className="text-amber-700">Production: {selectedHex.production}</span>
+              <span className="text-orange-600">⚡</span>
+              <span className="text-amber-700">Points d'Action: {selectedHex.action_points}</span>
             </div>
             <div className="flex items-center gap-1">
               <span className="text-yellow-600">💰</span>

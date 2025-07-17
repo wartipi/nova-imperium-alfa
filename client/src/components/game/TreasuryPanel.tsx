@@ -28,75 +28,6 @@ export function TreasuryPanel() {
   }
 
   const resources = currentNovaImperium.resources;
-  
-  // Calculate income from cities and buildings
-  const calculateIncome = () => {
-    let income = {
-      food: 0,
-      production: 0,
-      science: 0,
-      culture: 0,
-      gold: 0
-    };
-
-    currentNovaImperium.cities.forEach(city => {
-      // Base city yields
-      income.food += city.foodPerTurn;
-      income.production += city.productionPerTurn;
-      income.science += city.sciencePerTurn;
-      income.culture += city.culturePerTurn;
-      income.gold += Math.floor(city.population * 0.5); // Base gold from population
-      
-      // Building yields
-      city.buildings.forEach(buildingType => {
-        const building = buildingData[buildingType];
-        if (building) {
-          income.food += building.yields.food || 0;
-          income.production += building.yields.production || 0;
-          income.science += building.yields.science || 0;
-          income.culture += building.yields.culture || 0;
-          income.gold += building.yields.gold || 0;
-        }
-      });
-    });
-
-    return income;
-  };
-
-  // Calculate expenses
-  const calculateExpenses = () => {
-    let expenses = {
-      buildingMaintenance: 0,
-      unitMaintenance: 0,
-      total: 0
-    };
-
-    // Building maintenance
-    currentNovaImperium.cities.forEach(city => {
-      city.buildings.forEach(buildingType => {
-        const building = buildingData[buildingType];
-        if (building) {
-          expenses.buildingMaintenance += building.maintenance;
-        }
-      });
-    });
-
-    // Unit maintenance (1 gold per unit after first 2 units)
-    expenses.unitMaintenance = Math.max(0, currentNovaImperium.units.length - 2);
-
-    expenses.total = expenses.buildingMaintenance + expenses.unitMaintenance;
-    return expenses;
-  };
-
-  const income = calculateIncome();
-  const expenses = calculateExpenses();
-  const netIncome = {
-    food: income.food,
-    production: income.production,
-    science: income.science,
-    culture: income.culture,
-    gold: income.gold - expenses.total
-  };
 
   return (
     <div className="space-y-4">
@@ -126,9 +57,9 @@ export function TreasuryPanel() {
           </div>
           <div className="bg-amber-50 border border-amber-700 rounded p-2">
             <div className="text-center">
-              <div className="text-xl mb-1">🔨</div>
-              <div className="text-xs font-medium">Production</div>
-              <div className="text-sm font-bold text-amber-900">{resources.production}</div>
+              <div className="text-xl mb-1">⚡</div>
+              <div className="text-xs font-medium">Points d'Action</div>
+              <div className="text-sm font-bold text-amber-900">{resources.action_points}</div>
             </div>
           </div>
           <div className="bg-amber-50 border border-amber-700 rounded p-2">
@@ -210,86 +141,16 @@ export function TreasuryPanel() {
         </div>
       </div>
 
-      {/* Income Per Turn */}
-      <div className="bg-gradient-to-b from-green-200 to-green-300 border-2 border-green-800 rounded-lg p-4">
-        <div className="text-center mb-3">
-          <h5 className="font-bold text-green-900">Revenus par Tour</h5>
-        </div>
-        <div className="space-y-2">
-          <div className="flex justify-between items-center">
-            <span className="text-sm">💰 Or:</span>
-            <span className="text-sm font-bold text-green-800">+{income.gold}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-sm">🌾 Nourriture:</span>
-            <span className="text-sm font-bold text-green-800">+{income.food}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-sm">🔨 Production:</span>
-            <span className="text-sm font-bold text-green-800">+{income.production}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-sm">🔬 Science:</span>
-            <span className="text-sm font-bold text-green-800">+{income.science}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-sm">🎭 Culture:</span>
-            <span className="text-sm font-bold text-green-800">+{income.culture}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Expenses Per Turn */}
-      <div className="bg-gradient-to-b from-red-200 to-red-300 border-2 border-red-800 rounded-lg p-4">
-        <div className="text-center mb-3">
-          <h5 className="font-bold text-red-900">Dépenses par Tour</h5>
-        </div>
-        <div className="space-y-2">
-          <div className="flex justify-between items-center">
-            <span className="text-sm">🏛️ Maintenance Bâtiments:</span>
-            <span className="text-sm font-bold text-red-800">-{expenses.buildingMaintenance}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-sm">⚔️ Maintenance Unités:</span>
-            <span className="text-sm font-bold text-red-800">-{expenses.unitMaintenance}</span>
-          </div>
-          <div className="border-t border-red-600 pt-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-bold">Total Dépenses:</span>
-              <span className="text-sm font-bold text-red-800">-{expenses.total}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Net Income */}
+      {/* Resource Information */}
       <div className="bg-gradient-to-b from-blue-200 to-blue-300 border-2 border-blue-800 rounded-lg p-4">
         <div className="text-center mb-3">
-          <h5 className="font-bold text-blue-900">Revenus Nets par Tour</h5>
+          <h5 className="font-bold text-blue-900">Informations sur les Ressources</h5>
         </div>
-        <div className="space-y-2">
-          <div className="flex justify-between items-center">
-            <span className="text-sm">💰 Or Net:</span>
-            <span className={`text-sm font-bold ${netIncome.gold >= 0 ? 'text-green-800' : 'text-red-800'}`}>
-              {netIncome.gold >= 0 ? '+' : ''}{netIncome.gold}
-            </span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-sm">🌾 Nourriture Net:</span>
-            <span className="text-sm font-bold text-green-800">+{netIncome.food}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-sm">🔨 Production Net:</span>
-            <span className="text-sm font-bold text-green-800">+{netIncome.production}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-sm">🔬 Science Net:</span>
-            <span className="text-sm font-bold text-green-800">+{netIncome.science}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-sm">🎭 Culture Net:</span>
-            <span className="text-sm font-bold text-green-800">+{netIncome.culture}</span>
-          </div>
+        <div className="text-sm text-blue-800 space-y-2">
+          <div>• Les ressources sont collectées depuis les cases travaillées par vos villes</div>
+          <div>• Chaque type de terrain produit des ressources différentes</div>
+          <div>• Les ressources stratégiques et magiques sont particulièrement importantes pour Nova Imperium</div>
+          <div>• Utilisez les ressources pour construire des bâtiments et recruter des unités</div>
         </div>
       </div>
 

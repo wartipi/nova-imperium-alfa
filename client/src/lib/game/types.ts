@@ -69,7 +69,7 @@ export type ResourceType =
 
 export interface Resources {
   food: number;
-  production: number;
+  action_points: number;
   gold: number;
   science: number;
   culture: number;
@@ -88,7 +88,7 @@ export interface HexTile {
   y: number;
   terrain: TerrainType;
   food: number;
-  production: number;
+  action_points: number;
   gold: number;
   science: number;
   culture: number;
