@@ -49,6 +49,17 @@ Preferred communication style: Simple, everyday language.
 - Added visual feedback with crosshair cursor on minimap hover
 - Seamless integration with existing camera controls (drag, keyboard, zoom)
 
+### Tile Information Panel (January 17, 2025)
+- Comprehensive tile information display when clicking on any tile
+- Shows coordinates, terrain type with color coding, and resources
+- Displays city details including population, buildings, and civilization
+- Shows all units on tile with combat stats (attack/defense, health, movement, experience)
+- Production values display (food, production, commerce, science)
+- Special features like rivers are highlighted
+- Positioned under player info window to avoid UI overlap
+- Includes close button to dismiss the panel
+- Enhanced tile data structure with commerce values for complete economic information
+
 ## System Architecture
 
 ### Frontend Architecture
