@@ -172,7 +172,6 @@ export const useCivilizations = create<CivilizationState>()(
     
     initializeCivilizations: () => {
       const initialCivilizations = createInitialCivilizations();
-      console.log('Initializing civilizations:', initialCivilizations);
       set({ civilizations: initialCivilizations });
     },
     

@@ -19,6 +19,17 @@ Preferred communication style: Simple, everyday language.
 - Fixed character selection confirm button by replacing UI library buttons with native HTML elements
 - Fully functional character selection system with proper event handling
 
+### Treasury System Enhancement (January 17, 2025)
+- Implemented comprehensive treasury panel with complete financial overview
+- Current stockpile display for all resources (gold, food, production, science, culture)
+- Income calculation from cities, population, and building bonuses
+- Expense tracking for building maintenance and unit upkeep
+- Net income calculations with color-coded display (green for positive, red for negative)
+- Detailed city-by-city breakdown showing production and buildings
+- Building economic data system with maintenance costs and yield bonuses
+- Fixed civilization data access issues in Zustand store
+- Color-coded sections: amber for stockpile, green for income, red for expenses, blue for net totals
+
 ## System Architecture
 
 ### Frontend Architecture

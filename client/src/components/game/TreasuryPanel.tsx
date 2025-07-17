@@ -16,27 +16,20 @@ const buildingData: Record<BuildingType, { cost: number; maintenance: number; yi
 export function TreasuryPanel() {
   const { civilizations, currentCivilizationId } = useCivilizations();
 
-  console.log('TreasuryPanel: civilizations:', civilizations);
-  console.log('TreasuryPanel: currentCivilizationId:', currentCivilizationId);
-
   const currentCivilization = civilizations.find(civ => civ.id === currentCivilizationId) || null;
-  console.log('TreasuryPanel: currentCivilization:', currentCivilization);
 
   if (!currentCivilization) {
-    console.log('TreasuryPanel: No current civilization found');
     return (
       <div className="text-center p-4">
         <div className="text-amber-900 font-bold mb-2">Chargement des données...</div>
         <div className="text-sm text-amber-700">
-          Civilisations: {civilizations.length} | 
-          ID actuel: {currentCivilizationId}
+          Initialisation en cours...
         </div>
       </div>
     );
   }
 
   const resources = currentCivilization.resources;
-  console.log('TreasuryPanel: resources:', resources);
   
   // Calculate income from cities and buildings
   const calculateIncome = () => {

@@ -18,8 +18,6 @@ function GameApp() {
   const { setBackgroundMusic } = useAudio();
 
   useEffect(() => {
-    console.log('App: Starting game initialization...');
-    
     // Initialize background music
     const audio = new Audio("/sounds/background.mp3");
     audio.loop = true;
@@ -27,16 +25,9 @@ function GameApp() {
     setBackgroundMusic(audio);
 
     // Initialize game
-    console.log('App: Generating map...');
     generateMap(50, 30); // Generate 50x30 hex map
-    
-    console.log('App: Initializing civilizations...');
     initializeCivilizations();
-    
-    console.log('App: Initializing game state...');
     initializeGame();
-    
-    console.log('App: Game initialization complete');
   }, []);
 
   if (gamePhase === "loading") {
