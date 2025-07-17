@@ -28,15 +28,15 @@ interface PlayerState {
 }
 
 export const usePlayer = create<PlayerState>((set, get) => ({
-  selectedCharacter: null,
+  selectedCharacter: { id: 'knight', name: 'Chevalier', image: '🛡️' }, // Default character
   playerName: "Joueur",
   competences: [],
   competencePoints: 50,
   // Action Points - starts with 25 AP and max of 100
   actionPoints: 25,
   maxActionPoints: 100,
-  // Avatar defaults - start at map center
-  avatarPosition: { x: 25, y: 0, z: 15 },
+  // Avatar defaults - start at map center (adjust for better initial position)
+  avatarPosition: { x: 5, y: 0, z: 5 },
   avatarRotation: { x: 0, y: 0, z: 0 },
   isMoving: false,
   movementSpeed: 2,

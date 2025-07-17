@@ -14,7 +14,7 @@ export class GameEngine {
   private lastMouseX = 0;
   private lastMouseY = 0;
   // Player avatar properties
-  private avatarPosition: { x: number; y: number; z: number } = { x: 25, y: 0, z: 15 };
+  private avatarPosition: { x: number; y: number; z: number } = { x: 5, y: 0, z: 5 };
   private avatarRotation: { x: number; y: number; z: number } = { x: 0, y: 0, z: 0 };
   private isAvatarMoving = false;
   private selectedCharacter: any = null;
@@ -334,8 +334,7 @@ export class GameEngine {
   }
 
   private renderAvatar() {
-    if (!this.selectedCharacter) return;
-    
+    // Always render avatar, even without character selected for debugging
     const hexHeight = this.hexSize * Math.sqrt(3);
     // Convert avatar world position to screen position
     const screenX = this.avatarPosition.x * (this.hexSize * 1.5);
@@ -345,7 +344,7 @@ export class GameEngine {
     const avatarSprite = this.createAvatarSprite();
     
     // Draw avatar with proper scaling
-    const spriteSize = 32; // Scale up for better visibility
+    const spriteSize = 48; // Increased size for better visibility
     this.ctx.save();
     
     // Handle rotation
@@ -359,17 +358,25 @@ export class GameEngine {
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
     this.ctx.fillRect(screenX - spriteSize/2, screenY + spriteSize/2 - 4, spriteSize, 8);
     
-    // Draw avatar sprite
+    // Draw avatar sprite with pixel-perfect scaling
+    this.ctx.imageSmoothingEnabled = false; // Preserve pixel art style
     this.ctx.drawImage(avatarSprite, screenX - spriteSize/2, screenY - spriteSize/2, spriteSize, spriteSize);
     
     // Draw movement indicator if moving
     if (this.isAvatarMoving) {
       this.ctx.strokeStyle = '#FFD700';
-      this.ctx.lineWidth = 2;
+      this.ctx.lineWidth = 3;
       this.ctx.beginPath();
       this.ctx.arc(screenX, screenY, spriteSize/2 + 8, 0, Math.PI * 2);
       this.ctx.stroke();
     }
+    
+    // Draw selection indicator (subtle glow)
+    this.ctx.strokeStyle = '#FFFFFF';
+    this.ctx.lineWidth = 1;
+    this.ctx.beginPath();
+    this.ctx.arc(screenX, screenY, spriteSize/2 + 4, 0, Math.PI * 2);
+    this.ctx.stroke();
     
     this.ctx.restore();
   }
@@ -384,7 +391,7 @@ export class GameEngine {
     const getCharacterColors = () => {
       if (!this.selectedCharacter) return { skin: '#FFDBAC', hair: '#8B4513', clothes: '#4169E1' };
       
-      switch (this.selectedCharacter.id) {
+      switch (this.selectedCharacter?.id) {
         case 'knight': return { skin: '#FFDBAC', hair: '#8B4513', clothes: '#C0C0C0' };
         case 'wizard': return { skin: '#FFDBAC', hair: '#FFFFFF', clothes: '#800080' };
         case 'archer': return { skin: '#FFDBAC', hair: '#228B22', clothes: '#8B4513' };
@@ -438,6 +445,9 @@ export class GameEngine {
 
   // Method to move avatar to hex position
   moveAvatarToHex(hexX: number, hexY: number) {
+    const oldX = this.avatarPosition.x;
+    const oldZ = this.avatarPosition.z;
+    
     const worldX = hexX * 1.5;
     const worldZ = hexY * Math.sqrt(3) * 0.5;
     
@@ -445,28 +455,34 @@ export class GameEngine {
     this.isAvatarMoving = true;
     
     // Calculate rotation to face movement direction
-    const deltaX = worldX - this.avatarPosition.x;
-    const deltaZ = worldZ - this.avatarPosition.z;
+    const deltaX = worldX - oldX;
+    const deltaZ = worldZ - oldZ;
     this.avatarRotation.y = Math.atan2(deltaX, deltaZ);
+    
+    console.log('Avatar moved to:', hexX, hexY, 'World pos:', worldX, worldZ);
     
     // Stop moving after animation
     setTimeout(() => {
       this.isAvatarMoving = false;
+      this.render(); // Re-render to update movement indicator
     }, 1000);
   }
 
-  // Method to check if click is on avatar
-  isClickOnAvatar(x: number, y: number): boolean {
+  // Check if a click is on the avatar
+  isClickOnAvatar(mouseX: number, mouseY: number): boolean {
     const hexHeight = this.hexSize * Math.sqrt(3);
     const screenX = this.avatarPosition.x * (this.hexSize * 1.5);
     const screenY = this.avatarPosition.z * hexHeight + (Math.floor(this.avatarPosition.x) % 2) * (hexHeight / 2);
     
-    // Transform screen coordinates to world coordinates
-    const worldX = (x - this.canvas.width / 2) / this.zoom + this.cameraX;
-    const worldY = (y - this.canvas.height / 2) / this.zoom + this.cameraY;
+    // Transform avatar world position to screen coordinates
+    const avatarScreenX = (screenX - this.cameraX) * this.zoom + this.canvas.width / 2;
+    const avatarScreenY = (screenY - this.cameraY) * this.zoom + this.canvas.height / 2;
     
-    const spriteSize = 32;
-    const distance = Math.sqrt(Math.pow(worldX - screenX, 2) + Math.pow(worldY - screenY, 2));
+    const spriteSize = 48;
+    const distance = Math.sqrt(
+      Math.pow(mouseX - avatarScreenX, 2) + 
+      Math.pow(mouseY - avatarScreenY, 2)
+    );
     
     return distance <= spriteSize / 2;
   }
