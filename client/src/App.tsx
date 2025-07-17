@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GameCanvas } from "./components/game/GameCanvas";
-import { GameUI } from "./components/game/GameUI";
+import { MedievalHUD } from "./components/game/MedievalHUD";
 import { useGameState } from "./lib/stores/useGameState";
 import { useMap } from "./lib/stores/useMap";
 import { useCivilizations } from "./lib/stores/useCivilizations";
@@ -41,7 +41,7 @@ function GameApp() {
   return (
     <div className="w-full h-full relative overflow-hidden bg-gray-900">
       <GameCanvas />
-      <GameUI />
+      <MedievalHUD />
     </div>
   );
 }
