@@ -122,6 +122,14 @@ Preferred communication style: Simple, everyday language.
 - Only permanent HUD elements (player info, minimap, controls) lack close buttons
 - Consistent user experience with appropriate close controls throughout interface
 
+### Construction & Recruitment Panel Expansion (January 17, 2025)
+- Expanded ConstructionPanel with all 22 available building types organized by category
+- Building categories: Transport, Agriculture, Défense, Culture, Magie, Ancien
+- Each building has detailed description, cost, and thematic icon
+- Expanded RecruitmentPanel with 16 unit types across 6 categories
+- Unit categories: Infanterie, Distance, Siège, Cavalerie, Marine, Spécial
+- Both panels now show comprehensive options with category organization for better navigation
+
 ### UI Layout Updates (January 17, 2025)
 - Moved minimap to lower right corner as requested for better HUD organization
 - Control buttons (sound toggle) now positioned in lower left corner
