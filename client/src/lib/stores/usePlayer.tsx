@@ -128,5 +128,8 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     return state.isGameMaster || state.visibleHexes.has(`${hexX},${hexY}`);
   },
   
-  setGameMaster: (isGM) => set({ isGameMaster: isGM })
+  setGameMaster: (isGM) => {
+    console.log('Setting game master mode:', isGM);
+    set({ isGameMaster: isGM });
+  }
 }));

@@ -276,7 +276,11 @@ export function MedievalHUD() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setGameMaster(!isGameMaster)}
+            onClick={(e) => {
+              e.stopPropagation();
+              console.log('Basculer mode MJ:', !isGameMaster);
+              setGameMaster(!isGameMaster);
+            }}
             className={`${isGameMaster ? 'bg-red-100 border-red-800 text-red-800 hover:bg-red-200' : 'bg-gray-100 border-gray-800 text-gray-800 hover:bg-gray-200'}`}
           >
             {isGameMaster ? "👁️ MJ" : "👤 PJ"}
