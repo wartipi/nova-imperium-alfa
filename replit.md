@@ -105,6 +105,15 @@ Preferred communication style: Simple, everyday language.
 - Cleaned up MapGenerator to generate only food yields
 - Preparing for future rebuild of resource systems aligned with Nova Imperium vision
 
+### Game Guide Enhancement (January 17, 2025)
+- Updated GameGuidePanel with Nova Imperium-specific content
+- Added comprehensive "Types de Terrains" section showing all 14 terrain types
+- Each terrain displays emoji, food yield, and detailed description
+- Updated sections: Bases de Nova Imperium, Combat System, Competence Tree
+- Removed Guild of Pandem references for now
+- Enhanced tips and keyboard shortcuts for current game systems
+- Guide accessible through HUD interface with tabbed navigation
+
 ### UI Layout Updates (January 17, 2025)
 - Moved minimap to lower right corner as requested for better HUD organization
 - Control buttons (sound toggle) now positioned in lower left corner
