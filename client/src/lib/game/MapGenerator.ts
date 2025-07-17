@@ -1,12 +1,32 @@
-import type { HexTile, TerrainType } from "./types";
+import type { HexTile, TerrainType, BuildingType } from "./types";
 
 export class MapGenerator {
   private static readonly TERRAIN_TYPES: TerrainType[] = [
-    'grassland', 'plains', 'desert', 'tundra', 'snow', 'ocean', 'coast', 'hills', 'mountains', 'forest', 'jungle'
+    'wasteland', 'forest', 'mountains', 'fertile_land', 'hills', 'shallow_water', 
+    'deep_water', 'swamp', 'desert', 'sacred_plains', 'caves', 'ancient_ruins', 
+    'volcano', 'enchanted_meadow'
   ];
 
+  private static readonly TERRAIN_COLORS = {
+    wasteland: '#F5F5DC',        // Beige pâle
+    forest: '#228B22',           // Vert foncé
+    mountains: '#708090',        // Gris pierre
+    fertile_land: '#90EE90',     // Vert clair
+    hills: '#D2B48C',            // Brun clair
+    shallow_water: '#87CEEB',    // Bleu clair
+    deep_water: '#191970',       // Bleu foncé
+    swamp: '#556B2F',            // Vert olive foncé
+    desert: '#FFD700',           // Jaune doré
+    sacred_plains: '#F0E68C',    // Blanc doré / beige lumineux
+    caves: '#2F2F2F',            // Gris très foncé
+    ancient_ruins: '#8B7355',    // Brun-gris
+    volcano: '#B22222',          // Rouge foncé
+    enchanted_meadow: '#50C878'  // Vert émeraude
+  };
+
   private static readonly RESOURCES = [
-    'wheat', 'cattle', 'fish', 'stone', 'copper', 'iron', 'gold', 'oil', 'coal', 'uranium'
+    'wheat', 'cattle', 'fish', 'stone', 'copper', 'iron', 'gold', 'oil', 'coal', 'uranium',
+    'herbs', 'crystals', 'sacred_stones', 'ancient_artifacts'
   ];
 
   static generateMap(width: number, height: number): HexTile[][] {
@@ -43,48 +63,77 @@ export class MapGenerator {
     let commerce = 0;
     
     // Determine terrain based on elevation, temperature, and moisture
-    if (elevation < 0.3) {
-      terrain = 'ocean';
+    if (elevation < 0.25) {
+      terrain = 'deep_water';
       food = 1;
-      commerce = 2;
-    } else if (elevation < 0.4) {
-      terrain = 'coast';
-      food = 2;
       commerce = 1;
-    } else if (elevation > 0.8) {
+    } else if (elevation < 0.35) {
+      terrain = 'shallow_water';
+      food = 2;
+      commerce = 2;
+    } else if (elevation > 0.85) {
       terrain = 'mountains';
-      production = 2;
-    } else if (elevation > 0.6) {
+      production = 3;
+    } else if (elevation > 0.7) {
       terrain = 'hills';
-      production = 1;
+      production = 2;
       food = 1;
     } else {
       // Land terrain based on temperature and moisture
-      if (temperature < 0.3) {
-        terrain = moisture > 0.5 ? 'tundra' : 'snow';
-        food = terrain === 'tundra' ? 1 : 0;
-      } else if (temperature > 0.7) {
+      if (temperature < 0.2) {
+        terrain = 'wasteland';
+        food = 0;
+        production = 0;
+      } else if (temperature > 0.8) {
         if (moisture < 0.3) {
           terrain = 'desert';
           food = 0;
-        } else if (moisture > 0.7) {
-          terrain = 'jungle';
+          commerce = 1;
+        } else if (moisture > 0.8) {
+          terrain = 'swamp';
           food = 1;
-          production = 1;
+          production = 0;
         } else {
-          terrain = 'plains';
-          food = 1;
+          terrain = 'fertile_land';
+          food = 3;
           production = 1;
         }
       } else {
-        if (moisture > 0.6) {
-          terrain = 'forest';
-          food = 1;
-          production = 1;
-        } else {
-          terrain = 'grassland';
-          food = 2;
+        // Special terrain chances
+        const rand = Math.random();
+        if (rand < 0.02) {
+          terrain = 'volcano';
+          production = 4;
+          food = 0;
+        } else if (rand < 0.04) {
+          terrain = 'ancient_ruins';
+          science = 2;
           commerce = 1;
+        } else if (rand < 0.06) {
+          terrain = 'sacred_plains';
+          food = 2;
+          science = 2;
+          commerce = 1;
+        } else if (rand < 0.08) {
+          terrain = 'enchanted_meadow';
+          food = 2;
+          science = 1;
+          commerce = 2;
+        } else if (rand < 0.1) {
+          terrain = 'caves';
+          production = 2;
+          food = 0;
+        } else {
+          // Normal terrain
+          if (moisture > 0.6) {
+            terrain = 'forest';
+            food = 1;
+            production = 2;
+          } else {
+            terrain = 'fertile_land';
+            food = 2;
+            production = 1;
+          }
         }
       }
     }
@@ -201,20 +250,28 @@ export class MapGenerator {
 
   private static getSuitableResources(terrain: TerrainType): string[] {
     const resourceMap = {
-      grassland: ['wheat', 'cattle'],
-      plains: ['wheat', 'cattle', 'stone'],
-      desert: ['oil', 'gold'],
+      wasteland: ['stone', 'oil'],
+      forest: ['deer', 'fur', 'herbs'],
+      mountains: ['copper', 'iron', 'gold', 'coal', 'stone'],
+      fertile_land: ['wheat', 'cattle', 'herbs'],
       hills: ['stone', 'copper', 'iron'],
-      mountains: ['copper', 'iron', 'gold', 'coal'],
-      forest: ['deer', 'fur'],
-      jungle: ['spices', 'gems'],
-      ocean: ['fish', 'whales'],
-      coast: ['fish', 'crabs'],
-      tundra: ['fur', 'oil'],
-      snow: ['oil']
+      shallow_water: ['fish', 'crabs'],
+      deep_water: ['fish', 'whales'],
+      swamp: ['herbs', 'oil'],
+      desert: ['oil', 'gold'],
+      sacred_plains: ['sacred_stones', 'herbs'],
+      caves: ['iron', 'copper', 'crystals'],
+      ancient_ruins: ['ancient_artifacts', 'gold'],
+      volcano: ['sulfur', 'obsidian', 'iron'],
+      enchanted_meadow: ['crystals', 'herbs', 'sacred_stones']
     };
     
     return resourceMap[terrain] || [];
+  }
+
+  // Helper method to get terrain color for rendering
+  static getTerrainColor(terrain: TerrainType): string {
+    return this.TERRAIN_COLORS[terrain] || '#FFFFFF';
   }
 
   private static applyResourceYields(hex: HexTile, resource: string) {

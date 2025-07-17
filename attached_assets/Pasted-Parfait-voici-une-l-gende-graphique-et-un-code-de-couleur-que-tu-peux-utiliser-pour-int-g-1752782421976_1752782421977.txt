@@ -1,0 +1,67 @@
+Parfait, voici une **légende graphique** et un **code de couleur** que tu peux utiliser pour **intégrer les types de terrain et les bâtiments** sur ta carte hexagonale (virtuellement ou sur papier). Je te propose un système cohérent, lisible et extensible pour plus tard.
+
+---
+
+## 🧭 **LÉGENDE GRAPHIQUE ET CODE COULEUR : TERRAINS**
+
+| Code Terrain Couleur principale Texture / Motif suggéré Symbole (optionnel) |                             |                             |                                       |                             |
+| --------------------------------------------------------------------------- | --------------------------- | --------------------------- | ------------------------------------- | --------------------------- |
+| 1                                                                           | Terre en friche             | Beige pâle                  | Lisse / aucun motif                   | Aucune                      |
+| 2                                                                           | Forêt                       | Vert foncé                  | Taches feuillues ou arbres dessinés   | 🌲 ou des mini-arbres       |
+| 3                                                                           | Montagne                    | Gris pierre                 | Contours en zigzag / pics triangulés  | ⛰️ ou traits noirs hachurés |
+| 4                                                                           | Terre fertile               | Vert clair                  | Motif de champs ou courbes agricoles  | 🌾 ou carré de labour       |
+| 5                                                                           | Colline                     | Brun clair                  | Ondulations / vagues douces           | 🟤 ou demi-cercles          |
+| 6                                                                           | Eau peu profonde (littoral) | Bleu clair                  | Lignes ondulées / vagues fines        | 🌊 ou ∿                     |
+| 7                                                                           | Eau profonde                | Bleu foncé                  | Uniforme avec effet de profondeur     | ⚓ ou cercles concentriques  |
+| 8                                                                           | Marais                      | Vert olive foncé            | Zones floues, bulleuses               | 🐸 ou \~\~\~                |
+| 9                                                                           | Désert                      | Jaune doré                  | Pointillés fins, effet de vague sèche | 🏜️ ou petits points        |
+| 10                                                                          | Plaine sacrée               | Blanc doré / beige lumineux | Symboles runiques en transparence     | ✨ ou ⭕ mystique             |
+| 11                                                                          | Grotte / Souterrain         | Gris très foncé             | Motif de fissure ou entrée sombre     | 🕳️ ou cave noire           |
+| 12                                                                          | Ruines anciennes            | Brun-gris                   | Murs effondrés, colonnes cassées      | 🏚️ ou 🧱                   |
+| 13                                                                          | Volcan                      | Rouge foncé / noir          | Cônes fumants, fissures rouges        | 🌋 ou triangle rouge        |
+| 14                                                                          | Prairie enchantée           | Vert émeraude               | Paillettes, plantes lumineuses        | 🌸 ou ✨                     |
+
+---
+
+## 🏗️ **LÉGENDE GRAPHIQUE ET CODE COULEUR : BÂTIMENTS**
+
+### 🔸 **Code couleur des bâtiments (contour ou icône dans l’hexagone)**
+
+| Couleur Catégorie de bâtiment Exemple(s) |                                        |                                                 |
+| ---------------------------------------- | -------------------------------------- | ----------------------------------------------- |
+| 🟦 Bleu                                  | Infrastructure de transport/commercial | Port, marché, route, chantier naval             |
+| 🟩 Vert                                  | Agriculture et nature                  | Ferme, scierie, jardin d’éveil                  |
+| 🟥 Rouge                                 | Défense et militaire                   | Forteresse, tour de guet, fortifications        |
+| 🟨 Jaune                                 | Culture et savoir                      | Bibliothèque, temple, sanctuaire, obélisque     |
+| 🟪 Violet                                | Magie et spécial                       | Portail mystique, forge légendaire, laboratoire |
+| ⚫ Noir                                   | Ruines, grottes, bâtiments anciens     | Hall antique, base souterraine, cave            |
+
+### 🔹 **Icônes ou symboles simples pour bâtiments (en surimpression)**
+
+| Symbole Représente |                                |
+| ------------------ | ------------------------------ |
+| 🏠                 | Colonie / ville principale     |
+| 🏕️                | Campement / avant-poste        |
+| 🏰                 | Fortification                  |
+| 🛖                 | Bâtiment rural / tribu         |
+| ⚒️                 | Mine ou forge                  |
+| ⛪                  | Temple ou structure religieuse |
+| 📚                 | Savoir / bibliothèque          |
+| ✨                  | Magie / bâtiment occulte       |
+| ⚓                  | Port ou infrastructure navale  |
+
+---
+
+## ✅ **Mise en pratique sur ta carte**
+
+* Tu peux utiliser **un fond coloré + un petit pictogramme** pour chaque case concernée.
+* Si une case a un **bâtiment construit**, tu places l’icône dans un coin de la case (ou au centre si seul bâtiment).
+* Pour faciliter la lecture :
+
+  * Un **filtre translucide** peut servir à teinter une case selon son type.
+  * Tu peux aussi utiliser **un double contour** : couleur extérieure = terrain, couleur intérieure = bâtiment.
+
+---
+
+Souhaites-tu que je t’en fasse un **modèle visuel (image ou grille exemple)** à partir de cette légende ?
+Ou veux-tu directement que je te propose un **système de rendu automatique dans Unity** pour ces hexagones ?

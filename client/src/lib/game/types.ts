@@ -1,15 +1,18 @@
 export type TerrainType = 
-  | 'grassland' 
-  | 'plains' 
-  | 'desert' 
-  | 'tundra' 
-  | 'snow' 
-  | 'ocean' 
-  | 'coast' 
-  | 'hills' 
-  | 'mountains' 
-  | 'forest' 
-  | 'jungle';
+  | 'wasteland'        // 1 - Terre en friche
+  | 'forest'           // 2 - Forêt
+  | 'mountains'        // 3 - Montagne
+  | 'fertile_land'     // 4 - Terre fertile
+  | 'hills'            // 5 - Colline
+  | 'shallow_water'    // 6 - Eau peu profonde (littoral)
+  | 'deep_water'       // 7 - Eau profonde
+  | 'swamp'            // 8 - Marais
+  | 'desert'           // 9 - Désert
+  | 'sacred_plains'    // 10 - Plaine sacrée
+  | 'caves'            // 11 - Grotte / Souterrain
+  | 'ancient_ruins'    // 12 - Ruines anciennes
+  | 'volcano'          // 13 - Volcan
+  | 'enchanted_meadow' // 14 - Prairie enchantée
 
 export type UnitType = 
   | 'warrior' 
@@ -21,14 +24,32 @@ export type UnitType =
   | 'catapult';
 
 export type BuildingType = 
-  | 'palace' 
-  | 'granary' 
-  | 'library' 
-  | 'barracks' 
+  // Transport/Commercial (Blue)
+  | 'port' 
   | 'market' 
+  | 'road' 
+  | 'shipyard'
+  // Agriculture/Nature (Green)
+  | 'farm' 
+  | 'sawmill' 
+  | 'garden'
+  // Defense/Military (Red)
+  | 'fortress' 
+  | 'watchtower' 
+  | 'fortifications'
+  // Culture/Knowledge (Yellow)
+  | 'library' 
   | 'temple' 
-  | 'courthouse' 
-  | 'university';
+  | 'sanctuary' 
+  | 'obelisk'
+  // Magic/Special (Purple)
+  | 'mystic_portal' 
+  | 'legendary_forge' 
+  | 'laboratory'
+  // Ancient/Ruins (Black)
+  | 'ancient_hall' 
+  | 'underground_base' 
+  | 'cave_dwelling';
 
 export type ImprovementType = 
   | 'farm' 

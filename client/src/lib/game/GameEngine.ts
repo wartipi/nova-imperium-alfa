@@ -239,17 +239,20 @@ export class GameEngine {
 
   private getTerrainColor(terrain: string): string {
     const colors = {
-      grassland: '#90EE90',
-      plains: '#DEB887',
-      desert: '#F4A460',
-      tundra: '#B0C4DE',
-      snow: '#FFFAFA',
-      ocean: '#4682B4',
-      coast: '#87CEEB',
-      hills: '#8B7355',
-      mountains: '#696969',
-      forest: '#228B22',
-      jungle: '#006400'
+      wasteland: '#F5F5DC',        // Beige pâle
+      forest: '#228B22',           // Vert foncé
+      mountains: '#708090',        // Gris pierre
+      fertile_land: '#90EE90',     // Vert clair
+      hills: '#D2B48C',            // Brun clair
+      shallow_water: '#87CEEB',    // Bleu clair
+      deep_water: '#191970',       // Bleu foncé
+      swamp: '#556B2F',            // Vert olive foncé
+      desert: '#FFD700',           // Jaune doré
+      sacred_plains: '#F0E68C',    // Blanc doré / beige lumineux
+      caves: '#2F2F2F',            // Gris très foncé
+      ancient_ruins: '#8B7355',    // Brun-gris
+      volcano: '#B22222',          // Rouge foncé
+      enchanted_meadow: '#50C878'  // Vert émeraude
     };
     
     return colors[terrain as keyof typeof colors] || '#808080';
