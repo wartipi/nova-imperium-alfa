@@ -4,6 +4,7 @@ import { GameCanvas } from "./components/game/GameCanvas";
 import { GameUI } from "./components/game/GameUI";
 import { useGameState } from "./lib/stores/useGameState";
 import { useMap } from "./lib/stores/useMap";
+import { useCivilizations } from "./lib/stores/useCivilizations";
 import { useAudio } from "./lib/stores/useAudio";
 import "@fontsource/inter";
 import "./index.css";
@@ -13,6 +14,7 @@ const queryClient = new QueryClient();
 function GameApp() {
   const { initializeGame, gamePhase } = useGameState();
   const { generateMap } = useMap();
+  const { initializeCivilizations } = useCivilizations();
   const { setBackgroundMusic } = useAudio();
 
   useEffect(() => {
@@ -24,6 +26,7 @@ function GameApp() {
 
     // Initialize game
     generateMap(50, 30); // Generate 50x30 hex map
+    initializeCivilizations();
     initializeGame();
   }, []);
 

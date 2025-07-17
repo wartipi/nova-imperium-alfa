@@ -10,11 +10,18 @@ export class GameEngine {
   private cameraY = 0;
   private hexSize = 20;
   private zoom = 1;
+  private isDragging = false;
+  private lastMouseX = 0;
+  private lastMouseY = 0;
 
   constructor(canvas: HTMLCanvasElement, mapData: HexTile[][]) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d')!;
     this.mapData = mapData;
+    
+    // Set initial camera position to center of map
+    this.cameraX = (mapData[0].length * this.hexSize * 1.5) / 2;
+    this.cameraY = (mapData.length * this.hexSize * Math.sqrt(3)) / 2;
     
     // Set up canvas
     this.resizeCanvas();
@@ -24,9 +31,79 @@ export class GameEngine {
     this.canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
       const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-      this.zoom = Math.max(0.5, Math.min(2, this.zoom * zoomFactor));
+      this.zoom = Math.max(0.5, Math.min(3, this.zoom * zoomFactor));
       this.render();
     });
+
+    // Add mouse drag controls for camera movement
+    this.canvas.addEventListener('mousedown', (e) => {
+      if (e.button === 0) { // Left mouse button
+        this.isDragging = true;
+        this.lastMouseX = e.clientX;
+        this.lastMouseY = e.clientY;
+        this.canvas.style.cursor = 'grabbing';
+      }
+    });
+
+    this.canvas.addEventListener('mousemove', (e) => {
+      if (this.isDragging) {
+        const deltaX = e.clientX - this.lastMouseX;
+        const deltaY = e.clientY - this.lastMouseY;
+        
+        this.cameraX -= deltaX / this.zoom;
+        this.cameraY -= deltaY / this.zoom;
+        
+        this.lastMouseX = e.clientX;
+        this.lastMouseY = e.clientY;
+        
+        this.render();
+      }
+    });
+
+    this.canvas.addEventListener('mouseup', () => {
+      this.isDragging = false;
+      this.canvas.style.cursor = 'default';
+    });
+
+    this.canvas.addEventListener('mouseleave', () => {
+      this.isDragging = false;
+      this.canvas.style.cursor = 'default';
+    });
+
+    // Add keyboard controls for camera movement
+    this.setupKeyboardControls();
+  }
+
+  private setupKeyboardControls() {
+    let keysPressed = new Set<string>();
+    
+    window.addEventListener('keydown', (e) => {
+      keysPressed.add(e.key.toLowerCase());
+      this.updateCameraFromKeys(keysPressed);
+    });
+
+    window.addEventListener('keyup', (e) => {
+      keysPressed.delete(e.key.toLowerCase());
+    });
+  }
+
+  private updateCameraFromKeys(keysPressed: Set<string>) {
+    const moveSpeed = 10 / this.zoom;
+    
+    if (keysPressed.has('w') || keysPressed.has('arrowup')) {
+      this.cameraY -= moveSpeed;
+    }
+    if (keysPressed.has('s') || keysPressed.has('arrowdown')) {
+      this.cameraY += moveSpeed;
+    }
+    if (keysPressed.has('a') || keysPressed.has('arrowleft')) {
+      this.cameraX -= moveSpeed;
+    }
+    if (keysPressed.has('d') || keysPressed.has('arrowright')) {
+      this.cameraX += moveSpeed;
+    }
+    
+    this.render();
   }
 
   private resizeCanvas() {
@@ -40,6 +117,21 @@ export class GameEngine {
 
   setSelectedHex(hex: HexTile | null) {
     this.selectedHex = hex;
+  }
+
+  centerCameraOnPosition(x: number, y: number) {
+    const hexHeight = this.hexSize * Math.sqrt(3);
+    this.cameraX = x * (this.hexSize * 1.5);
+    this.cameraY = y * hexHeight + (x % 2) * (hexHeight / 2);
+    this.render();
+  }
+
+  centerCameraOnPlayerStart() {
+    const playerCiv = this.civilizations.find(civ => civ.isPlayer);
+    if (playerCiv && playerCiv.cities.length > 0) {
+      const capital = playerCiv.cities[0];
+      this.centerCameraOnPosition(capital.x, capital.y);
+    }
   }
 
   getHexAtPosition(screenX: number, screenY: number): HexTile | null {

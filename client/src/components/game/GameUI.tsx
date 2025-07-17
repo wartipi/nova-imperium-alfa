@@ -138,6 +138,9 @@ export function GameUI() {
           <div>
             {currentCivilization?.name} - Population: {currentCivilization?.cities.reduce((sum, city) => sum + city.population, 0)}
           </div>
+          <div className="text-center text-xs text-gray-400">
+            Navigate: WASD or Arrow Keys | Mouse: Drag to pan, Wheel to zoom, Click to select
+          </div>
           <div>
             Cities: {currentCivilization?.cities.length} | Units: {currentCivilization?.units.length}
           </div>
