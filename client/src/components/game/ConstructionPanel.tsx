@@ -4,10 +4,13 @@ import { Button } from "../ui/button";
 import { getBuildingCost, canAffordAction } from "../../lib/game/ActionPointsCosts";
 import { getBuildingAPGeneration, getBuildingMaxAPIncrease } from "../../lib/game/ActionPointsGeneration";
 import { Resources } from "../../lib/game/types";
+import { useState } from "react";
 
 export function ConstructionPanel() {
   const { currentNovaImperium, buildInCity } = useNovaImperium();
   const { actionPoints, spendActionPoints } = usePlayer();
+  const [hoveredBuilding, setHoveredBuilding] = useState<string | null>(null);
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
 
   if (!currentNovaImperium) return null;
 
@@ -99,6 +102,21 @@ export function ConstructionPanel() {
     }
   };
 
+  const handleMouseEnter = (buildingId: string, event: React.MouseEvent) => {
+    setHoveredBuilding(buildingId);
+    setTooltipPosition({ x: event.clientX, y: event.clientY });
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredBuilding(null);
+  };
+
+  const handleMouseMove = (event: React.MouseEvent) => {
+    if (hoveredBuilding) {
+      setTooltipPosition({ x: event.clientX, y: event.clientY });
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="text-center">
@@ -137,7 +155,13 @@ export function ConstructionPanel() {
                     {category}
                   </div>
                   {categoryBuildings.map(building => (
-                    <div key={building.id} className="flex items-center justify-between">
+                    <div 
+                      key={building.id} 
+                      className="flex items-center justify-between"
+                      onMouseEnter={(e) => handleMouseEnter(building.id, e)}
+                      onMouseLeave={handleMouseLeave}
+                      onMouseMove={handleMouseMove}
+                    >
                       <div className="flex items-center space-x-2">
                         <span className="text-sm">{building.icon}</span>
                         <div>
@@ -147,9 +171,6 @@ export function ConstructionPanel() {
                           </div>
                           <div className="text-xs text-purple-600">
                             🕐 {building.constructionTime} tour{building.constructionTime > 1 ? 's' : ''}
-                          </div>
-                          <div className="text-xs text-amber-600 mt-1">
-                            {building.description}
                           </div>
                           <div className="text-xs text-blue-600">
                             Génère {getBuildingAPGeneration(building.id)} PA/tour
@@ -180,6 +201,22 @@ export function ConstructionPanel() {
           </div>
         </div>
       ))}
+      
+      {/* Tooltip */}
+      {hoveredBuilding && (
+        <div 
+          className="fixed z-50 bg-gray-800 text-white p-2 rounded shadow-lg max-w-xs pointer-events-none"
+          style={{
+            left: tooltipPosition.x + 10,
+            top: tooltipPosition.y - 10,
+            transform: 'translateY(-100%)'
+          }}
+        >
+          <div className="text-sm">
+            {buildings.find(b => b.id === hoveredBuilding)?.description}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
