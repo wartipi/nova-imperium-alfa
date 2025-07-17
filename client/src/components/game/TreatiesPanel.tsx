@@ -8,9 +8,7 @@ type TreatyType =
   | 'alliance_militaire'
   | 'accord_commercial' 
   | 'pacte_non_agression'
-  | 'defense_mutuelle'
-  | 'echange_culturel'
-  | 'cooperation_scientifique';
+  | 'defense_mutuelle';
 
 interface TreatyProperties {
   alliance_militaire?: {
@@ -39,18 +37,7 @@ interface TreatyProperties {
     sharedTerritories: boolean;
     emergencyContact: boolean;
   };
-  echange_culturel?: {
-    cultureBonusPerTurn: number;
-    sharedTechnologies: boolean;
-    diplomaticImmunity: boolean;
-    languageExchange: boolean;
-  };
-  cooperation_scientifique?: {
-    researchBonus: number;
-    sharedResearch: boolean;
-    technologyExchange: boolean;
-    jointProjects: string[];
-  };
+
 }
 
 interface Treaty {
@@ -142,8 +129,6 @@ export function TreatiesPanel() {
       case 'accord_commercial': return 'text-yellow-600';
       case 'pacte_non_agression': return 'text-blue-600';
       case 'defense_mutuelle': return 'text-purple-600';
-      case 'echange_culturel': return 'text-pink-600';
-      case 'cooperation_scientifique': return 'text-indigo-600';
       default: return 'text-gray-600';
     }
   };

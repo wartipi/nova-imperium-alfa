@@ -5,9 +5,7 @@ export type TreatyType =
   | 'alliance_militaire'
   | 'accord_commercial' 
   | 'pacte_non_agression'
-  | 'defense_mutuelle'
-  | 'echange_culturel'
-  | 'cooperation_scientifique';
+  | 'defense_mutuelle';
 
 // Propriétés spécifiques à chaque type de traité
 interface TreatyProperties {
@@ -43,22 +41,6 @@ interface TreatyProperties {
     supportLevel: 'troops' | 'resources' | 'both';
     sharedTerritories: boolean;
     emergencyContact: boolean;
-  };
-  
-  // Échange culturel
-  echange_culturel?: {
-    cultureBonusPerTurn: number;
-    sharedTechnologies: boolean;
-    diplomaticImmunity: boolean;
-    languageExchange: boolean;
-  };
-  
-  // Coopération scientifique
-  cooperation_scientifique?: {
-    researchBonus: number; // Bonus en science par tour
-    sharedResearch: boolean;
-    technologyExchange: boolean;
-    jointProjects: string[]; // IDs des projets communs
   };
 }
 
@@ -246,12 +228,6 @@ class TreatyService {
       case 'defense_mutuelle':
         this.activateMutualDefense(treaty);
         break;
-      case 'echange_culturel':
-        this.activateCulturalExchange(treaty);
-        break;
-      case 'cooperation_scientifique':
-        this.activateScientificCooperation(treaty);
-        break;
     }
   }
 
@@ -349,39 +325,7 @@ class TreatyService {
     }
   }
 
-  // Activer l'échange culturel
-  private activateCulturalExchange(treaty: Treaty): void {
-    const props = treaty.properties.echange_culturel;
-    if (!props) return;
 
-    console.log(`Échange culturel activé entre ${treaty.parties.join(', ')}`);
-    
-    // Effets de l'échange culturel
-    if (props.cultureBonusPerTurn > 0) {
-      this.applyCultureBonus(treaty.parties, props.cultureBonusPerTurn);
-    }
-    
-    if (props.sharedTechnologies) {
-      this.enableTechnologySharing(treaty.parties);
-    }
-  }
-
-  // Activer la coopération scientifique
-  private activateScientificCooperation(treaty: Treaty): void {
-    const props = treaty.properties.cooperation_scientifique;
-    if (!props) return;
-
-    console.log(`Coopération scientifique activée entre ${treaty.parties.join(', ')}`);
-    
-    // Effets de la coopération scientifique
-    if (props.researchBonus > 0) {
-      this.applyResearchBonus(treaty.parties, props.researchBonus);
-    }
-    
-    if (props.sharedResearch) {
-      this.enableSharedResearch(treaty.parties);
-    }
-  }
 
   // Méthodes d'activation des effets (à implémenter selon la logique du jeu)
   private enableMutualDefense(parties: string[]): void {
@@ -444,25 +388,7 @@ class TreatyService {
     console.log(`Contact d'urgence activé pour: ${parties.join(', ')}`);
   }
 
-  private applyCultureBonus(parties: string[], bonus: number): void {
-    // Logique de bonus culturel
-    console.log(`Bonus culturel (${bonus} par tour) activé pour: ${parties.join(', ')}`);
-  }
 
-  private enableTechnologySharing(parties: string[]): void {
-    // Logique de partage technologique
-    console.log(`Partage technologique activé pour: ${parties.join(', ')}`);
-  }
-
-  private applyResearchBonus(parties: string[], bonus: number): void {
-    // Logique de bonus de recherche
-    console.log(`Bonus de recherche (${bonus} par tour) activé pour: ${parties.join(', ')}`);
-  }
-
-  private enableSharedResearch(parties: string[]): void {
-    // Logique de recherche partagée
-    console.log(`Recherche partagée activée pour: ${parties.join(', ')}`);
-  }
 
   // Obtenir les informations sur les types de traités
   getTreatyTypes(): Array<{
@@ -500,20 +426,6 @@ class TreatyService {
         description: 'Soutien défensif, territoires partagés, contact d\'urgence',
         cost: 20,
         icon: '🛡️'
-      },
-      {
-        type: 'echange_culturel',
-        name: 'Échange Culturel',
-        description: 'Bonus culturel, partage technologique, immunité diplomatique',
-        cost: 12,
-        icon: '🎭'
-      },
-      {
-        type: 'cooperation_scientifique',
-        name: 'Coopération Scientifique',
-        description: 'Bonus de recherche, projets communs, échange technologique',
-        cost: 18,
-        icon: '🔬'
       }
     ];
   }

@@ -136,15 +136,17 @@ Preferred communication style: Simple, everyday language.
 
 ### Treaty System Implementation (January 17, 2025)
 - Created comprehensive treaty system for formal player agreements
-- 6 treaty types: Alliance Militaire, Accord Commercial, Pacte de Non-Agression, Défense Mutuelle, Échange Culturel, Coopération Scientifique
+- 4 treaty types aligned with game mechanics: Alliance Militaire (25 PA), Accord Commercial (15 PA), Pacte de Non-Agression (10 PA), Défense Mutuelle (20 PA)
+- Removed cultural and scientific treaty types as they don't align with current resource system
 - Treaty creation form with title, type, participants, and terms
-- Cost system: 5 Action Points to create a treaty
+- Variable cost system based on treaty type and complexity
 - Multi-party signature system with automatic activation when all parties sign
 - Treaty status tracking: draft, proposed, active, expired, broken
 - Backend treatyService for persistent treaty management
 - Real-time updates every 10 seconds for treaty status changes
 - Statistics panel showing active, proposed, and created treaties
 - Complete API integration with CRUD operations for treaties
+- Military alliance treaties include detailed configuration: mutual defense, intelligence sharing, joint operations, resource sharing percentage, military support level
 
 ### Enhanced Reputation System & Game Mechanics (January 17, 2025)
 - Updated reputation system with 6 clear levels: Banni, Méprisé, Suspect, Neutre, Honorable, Saint
