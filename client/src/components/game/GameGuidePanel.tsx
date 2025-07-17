@@ -5,53 +5,62 @@ export function GameGuidePanel() {
 
   const sections = {
     basics: {
-      title: "Bases du Jeu",
+      title: "Bases de Nova Imperium",
       content: [
-        "🏰 Construisez des villes pour développer votre civilisation",
+        "🏰 Construisez des villes sur les îles de l'archipel",
         "⚔️ Recrutez des unités pour défendre votre territoire",
-        "🔬 Recherchez des technologies pour débloquer de nouvelles capacités",
-        "💰 Gérez vos ressources pour maintenir votre économie",
-        "🤝 Établissez des relations diplomatiques avec d'autres civilisations"
+        "🌾 Gérez la nourriture, seule ressource du monde",
+        "🏛️ Développez votre personnage avec l'arbre de compétences",
+        "🗺️ Explorez le monde archipel et ses 14 terrains différents"
       ]
     },
     combat: {
       title: "Système de Combat",
       content: [
-        "⚔️ Chaque unité a une valeur de force et des points de vie",
-        "🛡️ Certaines unités sont plus efficaces contre d'autres",
+        "⚔️ Chaque unité a une valeur d'attaque et de défense",
+        "❤️ Les unités ont des points de vie et peuvent être blessées",
         "🏔️ Le terrain peut influencer les combats",
         "⭐ Les unités gagnent de l'expérience en combattant",
-        "🏥 Les unités endommagées peuvent être soignées"
+        "🏥 Les unités endommagées peuvent être soignées en territoire ami"
       ]
     },
-    economy: {
-      title: "Économie",
+    competences: {
+      title: "Arbre de Compétences",
       content: [
-        "🌾 La nourriture permet la croissance des villes",
-        "🔨 La production permet de construire bâtiments et unités",
-        "💰 L'or finance le maintien des unités et les achats",
-        "🔬 La science accélère la recherche technologique",
-        "🎭 La culture influence l'expansion des frontières"
+        "🎯 5 branches: Politique, Militaire, Économique, Stratégique, Occulte",
+        "⭐ Commencez avec 50 points à répartir",
+        "🔓 Débloquez de nouvelles compétences avec des prérequis",
+        "📈 Améliorez vos capacités selon votre style de jeu",
+        "💫 Certaines compétences ouvrent des actions spéciales"
       ]
     },
-    diplomacy: {
-      title: "Diplomatie",
+    world: {
+      title: "Monde Archipel",
       content: [
-        "🤝 Établissez des relations avec d'autres civilisations",
-        "📜 Négociez des accords commerciaux",
-        "⚖️ Formez des alliances pour la protection mutuelle",
-        "⚔️ Déclarez la guerre si nécessaire",
-        "🕊️ Négociez la paix pour mettre fin aux conflits"
+        "🏝️ 14 terrains différents répartis sur des îles",
+        "🌊 Naviguez entre eaux profondes et eaux peu profondes",
+        "🏔️ Explorez montagnes, volcans, ruines anciennes",
+        "🌿 Découvrez prés sacrés, prairies enchantées, marécages",
+        "💎 Chaque terrain produit différents niveaux de nourriture"
       ]
     },
-    victory: {
-      title: "Conditions de Victoire",
+    terrains: {
+      title: "Types de Terrains",
       content: [
-        "🏆 Victoire par Domination: Contrôlez toutes les capitales",
-        "🔬 Victoire Scientifique: Terminez le projet spatial",
-        "🎭 Victoire Culturelle: Dominez culturellement le monde",
-        "🤝 Victoire Diplomatique: Soyez élu leader mondial",
-        "⏰ Victoire par Score: Ayez le meilleur score à la fin"
+        "🌊 Eaux Profondes (🌾1) - Océan navigable, base de l'archipel",
+        "🏖️ Eaux Peu Profondes (🌾2) - Zones côtières autour des îles",
+        "🏔️ Montagnes (🌾0) - Pics rocheux, difficiles à traverser",
+        "⛰️ Collines (🌾1) - Terrains élevés, bonne défense",
+        "🏜️ Désert (🌾0) - Terres arides et stériles",
+        "🌾 Terres Fertiles (🌾3) - Sols riches, excellents pour l'agriculture",
+        "🌲 Forêt (🌾1) - Bois dense, ressources naturelles",
+        "🏞️ Terres Désolées (🌾0) - Terrains stériles et abandonnés",
+        "🌿 Marécages (🌾1) - Zones humides, difficiles à développer",
+        "🌋 Volcans (🌾0) - Terrains dangereux mais potentiellement précieux",
+        "🏛️ Ruines Anciennes (🌾1) - Vestiges de civilisations passées",
+        "✨ Prés Sacrés (🌾2) - Terres bénies, spirituellement importantes",
+        "🦋 Prairies Enchantées (🌾2) - Terrains magiques et fertiles",
+        "🕳️ Grottes (🌾0) - Cavernes profondes, cachent des secrets"
       ]
     }
   };
@@ -98,16 +107,16 @@ export function GameGuidePanel() {
         <div className="font-medium text-sm mb-2">Conseils Rapides</div>
         <div className="space-y-1 text-xs">
           <div className="p-2 bg-amber-100 rounded">
-            💡 Explorez rapidement pour trouver de bonnes positions de villes
+            💡 Explorez les îles pour trouver des terres fertiles (🌾3)
           </div>
           <div className="p-2 bg-amber-100 rounded">
-            💡 Équilibrez croissance économique et force militaire
+            💡 Naviguez entre les îles pour étendre votre territoire
           </div>
           <div className="p-2 bg-amber-100 rounded">
-            💡 Adaptez votre stratégie selon vos voisins
+            💡 Investissez dans l'arbre de compétences selon votre style
           </div>
           <div className="p-2 bg-amber-100 rounded">
-            💡 N'oubliez pas d'améliorer vos terres avec des ouvriers
+            💡 Équilibrez croissance des villes et force militaire
           </div>
         </div>
       </div>
