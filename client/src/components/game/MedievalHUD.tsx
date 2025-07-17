@@ -13,6 +13,7 @@ import { ConstructionPanel } from "./ConstructionPanel";
 import { RecruitmentPanel } from "./RecruitmentPanel";
 import { ActivityReportPanel } from "./ActivityReportPanel";
 import { CouriersPanel } from "./CouriersPanel";
+import { TreatiesPanel } from "./TreatiesPanel";
 import { EventPanel } from "./EventPanel";
 import { PublicAnnouncementPanel } from "./PublicAnnouncementPanel";
 import { GameGuidePanel } from "./GameGuidePanel";
@@ -31,6 +32,7 @@ type MenuSection =
   | 'recruitment' 
   | 'activities' 
   | 'courier' 
+  | 'treaties'
   | 'events' 
   | 'announcements' 
   | 'guide' 
@@ -60,6 +62,7 @@ export function MedievalHUD() {
     { id: 'recruitment' as MenuSection, label: 'RECRUTEMENT', icon: '⚔️' },
     { id: 'activities' as MenuSection, label: 'RAPPORT D\'ACTIVITÉS', icon: '📊' },
     { id: 'courier' as MenuSection, label: 'COURRIER', icon: '📮' },
+    { id: 'treaties' as MenuSection, label: 'TRAITÉS', icon: '📜' },
     { id: 'events' as MenuSection, label: 'ÉVÉNEMENT', icon: '🎭' },
     { id: 'announcements' as MenuSection, label: 'ANNONCE PUBLIQUE', icon: '📢' },
     { id: 'guide' as MenuSection, label: 'GUIDE DE JEUX', icon: '📖' },
@@ -315,6 +318,7 @@ export function MedievalHUD() {
               {activeSection === 'recruitment' && <RecruitmentPanel />}
               {activeSection === 'activities' && <ActivityReportPanel />}
               {activeSection === 'courier' && <CouriersPanel />}
+              {activeSection === 'treaties' && <TreatiesPanel />}
               {activeSection === 'events' && <EventPanel />}
               {activeSection === 'announcements' && <PublicAnnouncementPanel />}
               {activeSection === 'guide' && <GameGuidePanel />}
