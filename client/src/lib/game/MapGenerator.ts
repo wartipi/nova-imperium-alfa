@@ -25,9 +25,27 @@ export class MapGenerator {
   };
 
   private static readonly RESOURCES = [
-    'wheat', 'cattle', 'fish', 'stone', 'copper', 'iron', 'gold', 'oil', 'coal', 'uranium',
-    'herbs', 'crystals', 'sacred_stones', 'ancient_artifacts'
+    'wheat', 'cattle', 'fish', 'stone', 'copper', 'iron', 'gold', 'wood', 'oil', 'coal', 'uranium',
+    'silk', 'spices', 'gems', 'ivory', 'herbs', 'crystals', 'sacred_stones', 'ancient_artifacts',
+    'mana_stones', 'enchanted_wood'
   ];
+
+  private static readonly TERRAIN_YIELDS = {
+    wasteland: { food: 0, production: 1, gold: 0, science: 0, culture: 0 },
+    forest: { food: 1, production: 2, gold: 0, science: 0, culture: 0 },
+    mountains: { food: 0, production: 3, gold: 1, science: 0, culture: 0 },
+    fertile_land: { food: 3, production: 0, gold: 1, science: 0, culture: 0 },
+    hills: { food: 1, production: 2, gold: 0, science: 0, culture: 0 },
+    shallow_water: { food: 2, production: 0, gold: 1, science: 0, culture: 0 },
+    deep_water: { food: 1, production: 0, gold: 2, science: 0, culture: 0 },
+    swamp: { food: 1, production: 0, gold: 0, science: 0, culture: 0 },
+    desert: { food: 0, production: 0, gold: 1, science: 0, culture: 0 },
+    sacred_plains: { food: 2, production: 1, gold: 0, science: 1, culture: 2 },
+    caves: { food: 0, production: 1, gold: 0, science: 2, culture: 0 },
+    ancient_ruins: { food: 0, production: 0, gold: 1, science: 3, culture: 2 },
+    volcano: { food: 0, production: 2, gold: 0, science: 0, culture: 0 },
+    enchanted_meadow: { food: 2, production: 0, gold: 0, science: 1, culture: 3 }
+  };
 
   static generateMap(width: number, height: number): HexTile[][] {
     const map: HexTile[][] = [];
@@ -36,11 +54,16 @@ export class MapGenerator {
     for (let y = 0; y < height; y++) {
       const row: HexTile[] = [];
       for (let x = 0; x < width; x++) {
+        const yields = this.TERRAIN_YIELDS['deep_water'];
         row.push({
           x,
           y,
           terrain: 'deep_water',
-          food: 1,
+          food: yields.food,
+          production: yields.production,
+          gold: yields.gold,
+          science: yields.science,
+          culture: yields.culture,
           resource: null,
           hasRiver: false,
           hasRoad: false,
@@ -97,11 +120,16 @@ export class MapGenerator {
             map[y][x] = this.generateHex(x, y, elevation, temperature, moisture);
           } else if (distance <= maxRadius) {
             // Shallow water around island
+            const yields = this.TERRAIN_YIELDS['shallow_water'];
             map[y][x] = {
               x,
               y,
               terrain: 'shallow_water',
-              food: 2,
+              food: yields.food,
+              production: yields.production,
+              gold: yields.gold,
+              science: yields.science,
+              culture: yields.culture,
               resource: null,
               hasRiver: false,
               hasRoad: false,
@@ -117,73 +145,62 @@ export class MapGenerator {
 
   private static generateHex(x: number, y: number, elevation: number, temperature: number, moisture: number): HexTile {
     let terrain: TerrainType;
-    let food = 0;
     
     // Determine terrain based on elevation, temperature, and moisture
     if (elevation < 0.25) {
       terrain = 'deep_water';
-      food = 1;
     } else if (elevation < 0.35) {
       terrain = 'shallow_water';
-      food = 2;
     } else if (elevation > 0.85) {
       terrain = 'mountains';
-      food = 0;
     } else if (elevation > 0.7) {
       terrain = 'hills';
-      food = 1;
     } else {
       // Land terrain based on temperature and moisture
       if (temperature < 0.2) {
         terrain = 'wasteland';
-        food = 0;
       } else if (temperature > 0.8) {
         if (moisture < 0.3) {
           terrain = 'desert';
-          food = 0;
         } else if (moisture > 0.8) {
           terrain = 'swamp';
-          food = 1;
         } else {
           terrain = 'fertile_land';
-          food = 3;
         }
       } else {
         // Special terrain chances
         const rand = Math.random();
         if (rand < 0.02) {
           terrain = 'volcano';
-          food = 0;
         } else if (rand < 0.04) {
           terrain = 'ancient_ruins';
-          food = 1;
         } else if (rand < 0.06) {
           terrain = 'sacred_plains';
-          food = 2;
         } else if (rand < 0.08) {
           terrain = 'enchanted_meadow';
-          food = 2;
         } else if (rand < 0.1) {
           terrain = 'caves';
-          food = 0;
         } else {
           // Normal terrain
           if (moisture > 0.6) {
             terrain = 'forest';
-            food = 1;
           } else {
             terrain = 'fertile_land';
-            food = 2;
           }
         }
       }
     }
     
+    const yields = this.TERRAIN_YIELDS[terrain];
     return {
       x,
       y,
       terrain,
-      food,
+      food: yields.food,
+      production: yields.production,
+      gold: yields.gold,
+      science: yields.science,
+      culture: yields.culture,
       resource: null,
       hasRiver: false,
       hasRoad: false,

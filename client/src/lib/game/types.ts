@@ -59,12 +59,40 @@ export type ImprovementType =
   | 'plantation' 
   | 'quarry';
 
+export type ResourceType = 
+  // Basic Resources
+  | 'wheat' | 'cattle' | 'fish' | 'stone' | 'copper' | 'iron' | 'gold' | 'wood'
+  // Strategic Resources  
+  | 'oil' | 'coal' | 'uranium' | 'silk' | 'spices' | 'gems' | 'ivory'
+  // Magical Resources (Nova Imperium specific)
+  | 'herbs' | 'crystals' | 'sacred_stones' | 'ancient_artifacts' | 'mana_stones' | 'enchanted_wood';
+
+export interface Resources {
+  food: number;
+  production: number;
+  gold: number;
+  science: number;
+  culture: number;
+  // Strategic resources
+  iron: number;
+  stone: number;
+  wood: number;
+  // Magical resources for Nova Imperium
+  mana: number;
+  crystals: number;
+  ancient_knowledge: number;
+}
+
 export interface HexTile {
   x: number;
   y: number;
   terrain: TerrainType;
   food: number;
-  resource: string | null;
+  production: number;
+  gold: number;
+  science: number;
+  culture: number;
+  resource: ResourceType | null;
   hasRiver: boolean;
   hasRoad: boolean;
   improvement: ImprovementType | null;
@@ -134,13 +162,7 @@ export interface NovaImperium {
   isDefeated: boolean;
   cities: City[];
   units: Unit[];
-  resources: {
-    food: number;
-    production: number;
-    science: number;
-    culture: number;
-    gold: number;
-  };
+  resources: Resources;
   researchedTechnologies: string[];
   currentResearch: Technology | null;
   researchProgress: number;

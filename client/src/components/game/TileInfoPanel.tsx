@@ -168,9 +168,28 @@ export function TileInfoPanel() {
         
         {/* Production Values */}
         <div className="mt-3 text-xs">
-          <div className="flex items-center gap-1">
-            <span className="text-green-600">🌾</span>
-            <span className="text-amber-700">Nourriture: {selectedHex.food}</span>
+          <div className="text-amber-800 font-medium mb-1">📈 Rendements</div>
+          <div className="grid grid-cols-2 gap-1">
+            <div className="flex items-center gap-1">
+              <span className="text-green-600">🌾</span>
+              <span className="text-amber-700">Nourriture: {selectedHex.food}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-orange-600">🔨</span>
+              <span className="text-amber-700">Production: {selectedHex.production}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-yellow-600">💰</span>
+              <span className="text-amber-700">Or: {selectedHex.gold}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-blue-600">🔬</span>
+              <span className="text-amber-700">Science: {selectedHex.science}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-purple-600">🎭</span>
+              <span className="text-amber-700">Culture: {selectedHex.culture}</span>
+            </div>
           </div>
         </div>
         

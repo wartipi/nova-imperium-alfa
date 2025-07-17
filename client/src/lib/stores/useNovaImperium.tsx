@@ -86,9 +86,17 @@ const createInitialNovaImperiums = (): NovaImperium[] => {
       resources: {
         food: 40,
         production: 25,
+        gold: 80,
         science: 15,
         culture: 10,
-        gold: 80
+        // Strategic resources
+        iron: 5,
+        stone: 10,
+        wood: 15,
+        // Magical resources for Nova Imperium
+        mana: 20,
+        crystals: 3,
+        ancient_knowledge: 5
       },
       researchedTechnologies: ["agriculture"],
       currentResearch: null,
@@ -140,9 +148,17 @@ const createInitialNovaImperiums = (): NovaImperium[] => {
       resources: {
         food: 30,
         production: 20,
+        gold: 60,
         science: 10,
         culture: 8,
-        gold: 60
+        // Strategic resources
+        iron: 3,
+        stone: 6,
+        wood: 12,
+        // Magical resources for Nova Imperium
+        mana: 15,
+        crystals: 2,
+        ancient_knowledge: 3
       },
       researchedTechnologies: ["agriculture"],
       currentResearch: null,

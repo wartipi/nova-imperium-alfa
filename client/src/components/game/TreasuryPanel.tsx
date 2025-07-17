@@ -148,6 +148,66 @@ export function TreasuryPanel() {
             </div>
           </div>
         </div>
+        
+        {/* Strategic Resources */}
+        <div className="mt-3 pt-3 border-t border-amber-600">
+          <div className="text-center mb-2">
+            <h6 className="font-bold text-xs text-amber-800">📦 Ressources Stratégiques</h6>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-amber-50 border border-amber-700 rounded p-2">
+              <div className="text-center">
+                <div className="text-lg mb-1">⚔️</div>
+                <div className="text-xs font-medium">Fer</div>
+                <div className="text-sm font-bold text-amber-900">{resources.iron}</div>
+              </div>
+            </div>
+            <div className="bg-amber-50 border border-amber-700 rounded p-2">
+              <div className="text-center">
+                <div className="text-lg mb-1">🪨</div>
+                <div className="text-xs font-medium">Pierre</div>
+                <div className="text-sm font-bold text-amber-900">{resources.stone}</div>
+              </div>
+            </div>
+            <div className="bg-amber-50 border border-amber-700 rounded p-2">
+              <div className="text-center">
+                <div className="text-lg mb-1">🪵</div>
+                <div className="text-xs font-medium">Bois</div>
+                <div className="text-sm font-bold text-amber-900">{resources.wood}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Magical Resources */}
+        <div className="mt-3 pt-3 border-t border-amber-600">
+          <div className="text-center mb-2">
+            <h6 className="font-bold text-xs text-purple-800">✨ Ressources Magiques</h6>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-purple-50 border border-purple-700 rounded p-2">
+              <div className="text-center">
+                <div className="text-lg mb-1">🔮</div>
+                <div className="text-xs font-medium">Mana</div>
+                <div className="text-sm font-bold text-purple-900">{resources.mana}</div>
+              </div>
+            </div>
+            <div className="bg-purple-50 border border-purple-700 rounded p-2">
+              <div className="text-center">
+                <div className="text-lg mb-1">💎</div>
+                <div className="text-xs font-medium">Cristaux</div>
+                <div className="text-sm font-bold text-purple-900">{resources.crystals}</div>
+              </div>
+            </div>
+            <div className="bg-purple-50 border border-purple-700 rounded p-2">
+              <div className="text-center">
+                <div className="text-lg mb-1">📜</div>
+                <div className="text-xs font-medium">Savoir</div>
+                <div className="text-sm font-bold text-purple-900">{resources.ancient_knowledge}</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Income Per Turn */}
