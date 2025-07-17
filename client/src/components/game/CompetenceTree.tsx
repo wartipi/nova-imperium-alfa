@@ -161,11 +161,11 @@ const categoryTitles = {
 };
 
 export function CompetenceTree() {
-  const { player, updatePlayer } = usePlayer();
+  const { competences, competencePoints, updatePlayer } = usePlayer();
   const [selectedCompetence, setSelectedCompetence] = useState<Competence | null>(null);
 
-  const availablePoints = player.competencePoints || 50; // Starting points
-  const learnedCompetences = player.competences || [];
+  const availablePoints = competencePoints || 50; // Starting points
+  const learnedCompetences = competences || [];
 
   const groupedCompetences = competences.reduce((acc, comp) => {
     if (!acc[comp.category]) acc[comp.category] = [];
