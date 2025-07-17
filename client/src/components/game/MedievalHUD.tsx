@@ -23,6 +23,7 @@ import { TileInfoPanel } from "./TileInfoPanel";
 import { ReputationPanel } from "./ReputationPanel";
 import { FactionPanel } from "./FactionPanel";
 import { ActionButtons } from "./ActionButtons";
+import { ActionPointsPanel } from "./ActionPointsPanel";
 
 type MenuSection = 
   | 'treasury' 
@@ -36,14 +37,15 @@ type MenuSection =
   | 'help'
   | 'competences'
   | 'factions'
-  | 'actions';
+  | 'actions'
+  | 'action_points';
 
 export function MedievalHUD() {
   const { gamePhase, currentTurn, endTurn } = useGameState();
   const { novaImperiums, currentNovaImperium } = useNovaImperium();
   const { selectedHex } = useMap();
   const { isMuted, toggleMute } = useAudio();
-  const { selectedCharacter, playerName, setSelectedCharacter, setPlayerName, competences, competencePoints } = usePlayer();
+  const { selectedCharacter, playerName, setSelectedCharacter, setPlayerName, competences, competencePoints, actionPoints, maxActionPoints } = usePlayer();
   const { honor, reputation, getReputationLevel } = useReputation();
   const [activeSection, setActiveSection] = useState<MenuSection | null>(null);
   const [showCharacterSelector, setShowCharacterSelector] = useState(false);
@@ -63,7 +65,8 @@ export function MedievalHUD() {
     { id: 'guide' as MenuSection, label: 'GUIDE DE JEUX', icon: '📖' },
     { id: 'help' as MenuSection, label: 'AIDE', icon: '❓' },
     { id: 'factions' as MenuSection, label: 'FACTIONS', icon: '🏛️' },
-    { id: 'actions' as MenuSection, label: 'ACTIONS', icon: '🎯' }
+    { id: 'actions' as MenuSection, label: 'ACTIONS', icon: '🎯' },
+    { id: 'action_points' as MenuSection, label: 'POINTS D\'ACTION', icon: '⚡' }
   ];
 
   const handleCharacterSelect = (character: CharacterOption) => {
@@ -145,8 +148,8 @@ export function MedievalHUD() {
               />
               <div className="text-xs text-amber-700 mt-1">RANG</div>
               <div>{selectedCharacter?.name || 'Empereur'}</div>
-              <div className="text-xs text-amber-700 mt-1">POINT D'ACTION</div>
-              <div className="text-green-600">{currentNovaImperium?.resources.gold || 0}</div>
+              <div className="text-xs text-amber-700 mt-1">POINTS D'ACTION</div>
+              <div className="text-blue-600">{actionPoints}/{maxActionPoints}</div>
               <div className="text-xs text-amber-700 mt-1">RÉPUTATION</div>
               <div 
                 className="flex items-center justify-between cursor-pointer hover:bg-amber-200 rounded px-1 py-0.5 transition-colors"
@@ -319,6 +322,7 @@ export function MedievalHUD() {
               {activeSection === 'competences' && <CompetenceTree />}
               {activeSection === 'factions' && <FactionPanel />}
               {activeSection === 'actions' && <ActionButtons />}
+              {activeSection === 'action_points' && <ActionPointsPanel onClose={() => setActiveSection(null)} />}
             </div>
           </div>
         </div>

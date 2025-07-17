@@ -140,6 +140,22 @@ Preferred communication style: Simple, everyday language.
 - Treasury panel now shows only relevant resources without science/culture clutter
 - Strategic resources section reorganized with 2-column grid to accommodate precious metals
 
+### Action Points Mechanic Implementation (January 17, 2025)
+- Implemented comprehensive Action Points system based on Nova Imperium prototype
+- Player store enhanced with Action Points tracking (current/max, spending, adding, limits)
+- Action Points displayed in player info panel (25/100 starting values)
+- Created ActionPointsCosts system defining costs for all game actions:
+  - Building construction costs (4-25 PA depending on building type)
+  - Unit movement costs (1-4 PA per tile, with 5x maximum)
+  - Special actions: exploration (5 PA), diplomacy (3 PA), research (8 PA)
+- Created ActionPointsGeneration system for building-based AP generation:
+  - Buildings generate 1-8 PA per turn based on type and strategic value
+  - Special buildings increase maximum AP capacity (8-20 bonus)
+  - Magical/ancient buildings provide highest generation rates
+- ActionPointsPanel interface showing costs, generation, and management options
+- System bridges live GN events with online platform actions
+- Integrated with existing game mechanics for construction and movement
+
 ### Game Guide Enhancement (January 17, 2025)
 - Updated GameGuidePanel with Nova Imperium-specific content
 - Added comprehensive "Types de Terrains" section showing all 14 terrain types
