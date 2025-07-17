@@ -40,14 +40,17 @@ export class MapGenerator {
     let food = 0;
     let production = 0;
     let science = 0;
+    let commerce = 0;
     
     // Determine terrain based on elevation, temperature, and moisture
     if (elevation < 0.3) {
       terrain = 'ocean';
       food = 1;
+      commerce = 2;
     } else if (elevation < 0.4) {
       terrain = 'coast';
       food = 2;
+      commerce = 1;
     } else if (elevation > 0.8) {
       terrain = 'mountains';
       production = 2;
@@ -81,6 +84,7 @@ export class MapGenerator {
         } else {
           terrain = 'grassland';
           food = 2;
+          commerce = 1;
         }
       }
     }
@@ -92,6 +96,7 @@ export class MapGenerator {
       food,
       production,
       science,
+      commerce,
       resource: null,
       hasRiver: false,
       hasRoad: false,

@@ -45,6 +45,7 @@ export interface HexTile {
   food: number;
   production: number;
   science: number;
+  commerce: number;
   resource: string | null;
   hasRiver: boolean;
   hasRoad: boolean;
@@ -60,6 +61,8 @@ export interface Unit {
   x: number;
   y: number;
   strength: number;
+  attack: number;
+  defense: number;
   health: number;
   maxHealth: number;
   movement: number;

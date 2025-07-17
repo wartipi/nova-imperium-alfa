@@ -18,6 +18,7 @@ import { GameGuidePanel } from "./GameGuidePanel";
 import { HelpPanel } from "./HelpPanel";
 import { CharacterSelector, CharacterOption } from "./CharacterSelector";
 import { CompetenceTree } from "./CompetenceTree";
+import { TileInfoPanel } from "./TileInfoPanel";
 
 type MenuSection = 
   | 'treasury' 
@@ -370,7 +371,8 @@ export function MedievalHUD() {
         </div>
       )}
 
-
+      {/* Tile Information Panel */}
+      <TileInfoPanel />
     </div>
   );
 }
