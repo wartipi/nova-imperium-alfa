@@ -81,7 +81,7 @@ export function CharacterSelector({ onSelect, onClose }: CharacterSelectorProps)
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
       <div className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-4 border-amber-800 rounded-lg shadow-2xl p-8 w-96 max-h-[80vh] overflow-y-auto">
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold text-amber-900 mb-2">Choisissez votre Chef</h2>

@@ -71,7 +71,7 @@ export function MedievalHUD() {
   };
 
   return (
-    <div className="absolute inset-0 pointer-events-none">
+    <div className="absolute inset-0 pointer-events-none z-10">
       {/* Parchment Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-amber-50 to-amber-100 opacity-90"></div>
       
@@ -79,7 +79,12 @@ export function MedievalHUD() {
       <div className="absolute top-4 left-1/2 transform -translate-x-1/2 pointer-events-auto">
         <div className="relative">
           {/* Scroll Banner Background */}
-          <div className="bg-gradient-to-r from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-lg px-8 py-4">
+          <div 
+            className="bg-gradient-to-r from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-lg px-8 py-4"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onMouseUp={(e) => e.stopPropagation()}
+          >
             <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-amber-800"></div>
             <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-amber-800"></div>
             
@@ -105,7 +110,12 @@ export function MedievalHUD() {
       <div className="absolute top-4 right-4 pointer-events-auto">
         <div className="flex items-center space-x-4">
           {/* Player Info */}
-          <div className="bg-gradient-to-r from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-lg px-6 py-3">
+          <div 
+            className="bg-gradient-to-r from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-lg px-6 py-3"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onMouseUp={(e) => e.stopPropagation()}
+          >
             <div className="text-amber-900 font-bold text-sm">
               <div className="text-xs text-amber-700">NOM DU JOUEUR</div>
               <input
@@ -115,6 +125,9 @@ export function MedievalHUD() {
                 className="bg-transparent border-none text-amber-900 font-bold focus:outline-none focus:bg-amber-100 rounded px-1 py-0.5 w-full text-sm"
                 placeholder="Nom du joueur"
                 maxLength={20}
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                onMouseUp={(e) => e.stopPropagation()}
               />
               <div className="text-xs text-amber-700 mt-1">RANG</div>
               <div>{selectedCharacter?.name || 'Empereur'}</div>
@@ -140,7 +153,12 @@ export function MedievalHUD() {
       <div className="absolute top-20 left-4 pointer-events-auto">
         <div className="relative">
           {/* Scroll Background */}
-          <div className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-lg p-6 w-64">
+          <div 
+            className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-lg p-6 w-64"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onMouseUp={(e) => e.stopPropagation()}
+          >
             {/* Decorative scroll edges */}
             <div className="absolute -top-1 -left-1 w-4 h-4 bg-amber-800 rounded-full"></div>
             <div className="absolute -top-1 -right-1 w-4 h-4 bg-amber-800 rounded-full"></div>
@@ -168,12 +186,22 @@ export function MedievalHUD() {
       </div>
 
       {/* MiniMap */}
-      <div className="absolute bottom-4 left-4 pointer-events-auto">
+      <div 
+        className="absolute bottom-4 left-4 pointer-events-auto"
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        onMouseUp={(e) => e.stopPropagation()}
+      >
         <MiniMap />
       </div>
 
       {/* Control Buttons */}
-      <div className="absolute bottom-4 right-4 pointer-events-auto">
+      <div 
+        className="absolute bottom-4 right-4 pointer-events-auto"
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        onMouseUp={(e) => e.stopPropagation()}
+      >
         <div className="flex space-x-2">
           <Button
             variant="outline"
@@ -188,15 +216,20 @@ export function MedievalHUD() {
 
       {/* Active Section Panel */}
       {activeSection && (
-        <div className="absolute top-20 left-72 pointer-events-auto">
-          <div className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-lg p-6 w-80 max-h-96 overflow-y-auto">
+        <div className="absolute top-20 left-72 pointer-events-auto z-50">
+          <div 
+            className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-2xl p-6 w-80 max-h-96 overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onMouseUp={(e) => e.stopPropagation()}
+          >
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-amber-900 font-bold text-lg">
                 {menuItems.find(item => item.id === activeSection)?.label}
               </h3>
               <button
                 onClick={() => setActiveSection(null)}
-                className="text-amber-800 hover:text-amber-900"
+                className="text-amber-800 hover:text-amber-900 text-xl font-bold px-2 py-1 rounded hover:bg-amber-300 transition-colors"
               >
                 ✕
               </button>
@@ -219,10 +252,12 @@ export function MedievalHUD() {
 
       {/* Character Selector Modal */}
       {showCharacterSelector && (
-        <CharacterSelector
-          onSelect={handleCharacterSelect}
-          onClose={() => setShowCharacterSelector(false)}
-        />
+        <div className="z-[100]">
+          <CharacterSelector
+            onSelect={handleCharacterSelect}
+            onClose={() => setShowCharacterSelector(false)}
+          />
+        </div>
       )}
 
 
