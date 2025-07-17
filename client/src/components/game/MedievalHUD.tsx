@@ -12,7 +12,7 @@ import { TreasuryPanel } from "./TreasuryPanel";
 import { ConstructionPanel } from "./ConstructionPanel";
 import { RecruitmentPanel } from "./RecruitmentPanel";
 import { ActivityReportPanel } from "./ActivityReportPanel";
-import { CourierPanel } from "./CourierPanel";
+import { CouriersPanel } from "./CouriersPanel";
 import { EventPanel } from "./EventPanel";
 import { PublicAnnouncementPanel } from "./PublicAnnouncementPanel";
 import { GameGuidePanel } from "./GameGuidePanel";
@@ -314,7 +314,7 @@ export function MedievalHUD() {
               {activeSection === 'construction' && <ConstructionPanel />}
               {activeSection === 'recruitment' && <RecruitmentPanel />}
               {activeSection === 'activities' && <ActivityReportPanel />}
-              {activeSection === 'courier' && <CourierPanel />}
+              {activeSection === 'courier' && <CouriersPanel />}
               {activeSection === 'events' && <EventPanel />}
               {activeSection === 'announcements' && <PublicAnnouncementPanel />}
               {activeSection === 'guide' && <GameGuidePanel />}
