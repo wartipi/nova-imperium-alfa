@@ -243,7 +243,11 @@ export function CompetenceTree() {
                           ? `${categoryColors[competence.category]} hover:shadow-md`
                           : 'bg-gray-100 border-gray-300 opacity-50'
                     }`}
-                    onClick={() => setSelectedCompetence(competence)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      console.log('Competence card clicked:', competence.name);
+                      setSelectedCompetence(competence);
+                    }}
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
@@ -268,9 +272,20 @@ export function CompetenceTree() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
+                            e.preventDefault();
+                            console.log('Learning competence:', competence.name);
                             learnCompetence(competence);
                           }}
-                          className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white text-xs rounded"
+                          onMouseDown={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                          }}
+                          onMouseUp={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                          }}
+                          className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white text-xs rounded cursor-pointer"
+                          type="button"
                         >
                           Apprendre
                         </button>
@@ -307,11 +322,15 @@ export function CompetenceTree() {
               </button>
               {canLearnCompetence(selectedCompetence) && !learnedCompetences.includes(selectedCompetence.id) && (
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    console.log('Learning competence from modal:', selectedCompetence.name);
                     learnCompetence(selectedCompetence);
                     setSelectedCompetence(null);
                   }}
-                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded"
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded cursor-pointer"
+                  type="button"
                 >
                   Apprendre ({selectedCompetence.cost} pts)
                 </button>
