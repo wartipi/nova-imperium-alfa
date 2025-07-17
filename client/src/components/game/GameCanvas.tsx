@@ -2,8 +2,10 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import { useMap } from "../../lib/stores/useMap";
 import { useGameState } from "../../lib/stores/useGameState";
 import { useNovaImperium } from "../../lib/stores/useNovaImperium";
+import { usePlayer } from "../../lib/stores/usePlayer";
 import { GameEngine } from "../../lib/game/GameEngine";
 import { useGameEngine } from "../../lib/contexts/GameEngineContext";
+import { AvatarActionMenu } from "./AvatarActionMenu";
 
 export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -11,7 +13,10 @@ export function GameCanvas() {
   const { mapData, selectedHex, setSelectedHex } = useMap();
   const { gamePhase } = useGameState();
   const { novaImperiums, selectedUnit, moveUnit } = useNovaImperium();
+  const { avatarPosition, avatarRotation, isMoving, selectedCharacter, moveAvatarToHex } = usePlayer();
   const [mouseDownPos, setMouseDownPos] = useState<{ x: number; y: number } | null>(null);
+  const [showAvatarMenu, setShowAvatarMenu] = useState(false);
+  const [avatarMenuPosition, setAvatarMenuPosition] = useState({ x: 0, y: 0 });
 
   // Initialize game engine
   useEffect(() => {
@@ -50,6 +55,15 @@ export function GameCanvas() {
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
 
+      // Check if click is on avatar first
+      if (gameEngineRef.current.isClickOnAvatar(x, y)) {
+        const avatarScreenPos = gameEngineRef.current.getAvatarScreenPosition();
+        setAvatarMenuPosition(avatarScreenPos);
+        setShowAvatarMenu(true);
+        setMouseDownPos(null);
+        return;
+      }
+
       const hex = gameEngineRef.current.getHexAtPosition(x, y);
       if (hex) {
         setSelectedHex(hex);
@@ -58,17 +72,21 @@ export function GameCanvas() {
         if (selectedUnit && (hex.x !== selectedUnit.x || hex.y !== selectedUnit.y)) {
           moveUnit(selectedUnit.id, hex.x, hex.y);
         }
+        
+        // Move avatar to clicked hex
+        moveAvatarToHex(hex.x, hex.y);
       }
     }
     
     setMouseDownPos(null);
-  }, [selectedUnit, setSelectedHex, moveUnit, mouseDownPos]);
+  }, [selectedUnit, setSelectedHex, moveUnit, mouseDownPos, moveAvatarToHex]);
 
   // Update rendering when game state changes
   useEffect(() => {
     if (gameEngineRef.current) {
       gameEngineRef.current.updateCivilizations(novaImperiums);
       gameEngineRef.current.setSelectedHex(selectedHex);
+      gameEngineRef.current.updateAvatar(avatarPosition, avatarRotation, isMoving, selectedCharacter);
       gameEngineRef.current.render();
       
       // Center on player start position when nova imperiums are first loaded
@@ -76,17 +94,26 @@ export function GameCanvas() {
         gameEngineRef.current.centerCameraOnPlayerStart();
       }
     }
-  }, [novaImperiums, selectedHex]);
+  }, [novaImperiums, selectedHex, avatarPosition, avatarRotation, isMoving, selectedCharacter]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={window.innerWidth}
-      height={window.innerHeight}
-      onMouseDown={handleMouseDown}
-      onClick={handleCanvasClick}
-      className="block cursor-pointer"
-      style={{ touchAction: 'none', pointerEvents: 'auto' }}
-    />
+    <>
+      <canvas
+        ref={canvasRef}
+        width={window.innerWidth}
+        height={window.innerHeight}
+        onMouseDown={handleMouseDown}
+        onClick={handleCanvasClick}
+        className="block cursor-pointer"
+        style={{ touchAction: 'none', pointerEvents: 'auto' }}
+      />
+      
+      {showAvatarMenu && (
+        <AvatarActionMenu
+          position={avatarMenuPosition}
+          onClose={() => setShowAvatarMenu(false)}
+        />
+      )}
+    </>
   );
 }

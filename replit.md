@@ -181,6 +181,23 @@ Preferred communication style: Simple, everyday language.
 - Cartography statistics tracking: regions discovered, maps created, trading values
 - Maps become unique tradeable objects with strategic and commercial value
 
+### Player Avatar System (January 17, 2025)
+- Implemented 8-bit style 2D avatar system for player representation in the world
+- Avatar sprites created with pixel art style matching old-school games aesthetic
+- Character-specific avatar colors and appearances based on selected character type
+- Avatar movement system with animation (walking animation, rotation, shadow effects)
+- Avatar positioning integrated with hexagonal map coordinates
+- Click-to-move functionality: clicking on map moves avatar to that hex position
+- Avatar action menu system accessible by clicking directly on the avatar
+- Comprehensive action system with multiple categories:
+  - Base actions: move, explore, rest (available to all players)
+  - Competence-based actions: negotiate, command, trade, plan, ritual
+  - Character-specific actions: knight charge, wizard spells, archer precision, priest blessings, rogue stealth
+  - Reputation-based actions: inspire (Honorable), miracles (Saint), underground activities (Banished)
+- Action Point costs integrated with avatar actions
+- Visual feedback for avatar movement and available actions
+- Avatar serves as main interface for player interaction with the world
+
 ### Enhanced Reputation System & Game Mechanics (January 17, 2025)
 - Updated reputation system with 6 clear levels: Banni, Méprisé, Suspect, Neutre, Honorable, Saint
 - Added GN participation tracking and season pass system for faction creation requirements
