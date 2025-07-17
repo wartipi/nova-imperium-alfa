@@ -3,6 +3,7 @@ import { useGameState } from "../../lib/stores/useGameState";
 import { useCivilizations } from "../../lib/stores/useCivilizations";
 import { useMap } from "../../lib/stores/useMap";
 import { useAudio } from "../../lib/stores/useAudio";
+import { usePlayer } from "../../lib/stores/usePlayer";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { MiniMap } from "./MiniMap";
@@ -15,6 +16,7 @@ import { EventPanel } from "./EventPanel";
 import { PublicAnnouncementPanel } from "./PublicAnnouncementPanel";
 import { GameGuidePanel } from "./GameGuidePanel";
 import { HelpPanel } from "./HelpPanel";
+import { CharacterSelector, CharacterOption } from "./CharacterSelector";
 
 type MenuSection = 
   | 'treasury' 
@@ -32,7 +34,9 @@ export function MedievalHUD() {
   const { civilizations, currentCivilization } = useCivilizations();
   const { selectedHex } = useMap();
   const { isMuted, toggleMute } = useAudio();
+  const { selectedCharacter, playerName, setSelectedCharacter, setPlayerName } = usePlayer();
   const [activeSection, setActiveSection] = useState<MenuSection | null>(null);
+  const [showCharacterSelector, setShowCharacterSelector] = useState(false);
 
   if (gamePhase !== "playing") return null;
 
@@ -47,6 +51,15 @@ export function MedievalHUD() {
     { id: 'guide' as MenuSection, label: 'GUIDE DE JEUX', icon: '📖' },
     { id: 'help' as MenuSection, label: 'AIDE', icon: '❓' }
   ];
+
+  const handleCharacterSelect = (character: CharacterOption) => {
+    setSelectedCharacter(character);
+    // Apply character bonus to civilization
+    if (currentCivilization) {
+      // This would be implemented in the civilization store
+      console.log('Character selected:', character);
+    }
+  };
 
   return (
     <div className="absolute inset-0 pointer-events-none">
@@ -86,17 +99,33 @@ export function MedievalHUD() {
           <div className="bg-gradient-to-r from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-lg px-6 py-3">
             <div className="text-amber-900 font-bold text-sm">
               <div className="text-xs text-amber-700">NOM DU JOUEUR</div>
-              <div>{currentCivilization?.name || 'Joueur'}</div>
+              <input
+                type="text"
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+                className="bg-transparent border-none text-amber-900 font-bold focus:outline-none focus:bg-amber-100 rounded px-1 py-0.5 w-full text-sm"
+                placeholder="Nom du joueur"
+                maxLength={20}
+              />
               <div className="text-xs text-amber-700 mt-1">RANG</div>
-              <div>Empereur</div>
+              <div>{selectedCharacter?.name || 'Empereur'}</div>
               <div className="text-xs text-amber-700 mt-1">POINT D'ACTION</div>
               <div className="text-green-600">{currentCivilization?.resources.gold || 0}</div>
+              {selectedCharacter?.bonus && (
+                <div className="text-xs text-blue-600 mt-1">{selectedCharacter.bonus}</div>
+              )}
             </div>
           </div>
           
-          {/* Shield Emblem */}
-          <div className="w-16 h-20 bg-gradient-to-b from-amber-200 to-amber-300 border-2 border-amber-800 rounded-t-full rounded-b-sm shadow-lg flex items-center justify-center">
-            <div className="text-2xl">🛡️</div>
+          {/* Shield Emblem - Character Display */}
+          <div 
+            className="w-16 h-20 bg-gradient-to-b from-amber-200 to-amber-300 border-2 border-amber-800 rounded-t-full rounded-b-sm shadow-lg flex items-center justify-center cursor-pointer hover:bg-gradient-to-b hover:from-amber-300 hover:to-amber-400 transition-colors"
+            onClick={() => setShowCharacterSelector(true)}
+            title="Cliquez pour changer de personnage"
+          >
+            <div className="text-2xl">
+              {selectedCharacter?.image || '🛡️'}
+            </div>
           </div>
         </div>
       </div>
@@ -187,6 +216,16 @@ export function MedievalHUD() {
           </div>
         </div>
       )}
+
+      {/* Character Selector Modal */}
+      {showCharacterSelector && (
+        <CharacterSelector
+          onSelect={handleCharacterSelect}
+          onClose={() => setShowCharacterSelector(false)}
+        />
+      )}
+
+
     </div>
   );
 }
