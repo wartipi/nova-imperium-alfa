@@ -97,8 +97,16 @@ export interface City {
   population: number;
   populationCap: number;
   foodPerTurn: number;
+  productionPerTurn: number;
+  sciencePerTurn: number;
   culturePerTurn: number;
   buildings: BuildingType[];
+  currentProduction: {
+    type: 'building' | 'unit';
+    name: string;
+    cost: number;
+  } | null;
+  productionProgress: number;
   workingHexes: { x: number; y: number }[];
 }
 

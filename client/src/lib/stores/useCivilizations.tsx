@@ -8,6 +8,7 @@ interface CivilizationState {
   currentCivilizationId: string;
   selectedUnit: Unit | null;
   selectedCity: City | null;
+  currentCivilization: Civilization | null;
   
   // Actions
   initializeCivilizations: () => void;
@@ -173,26 +174,32 @@ export const useCivilizations = create<CivilizationState>()(
     currentCivilizationId: "player",
     selectedUnit: null,
     selectedCity: null,
-    
+    currentCivilization: null,
 
     
     initializeCivilizations: () => {
       const initialCivilizations = createInitialCivilizations();
-      set({ civilizations: initialCivilizations });
+      const currentCiv = initialCivilizations.find(civ => civ.id === "player") || null;
+      set({ 
+        civilizations: initialCivilizations,
+        currentCivilization: currentCiv 
+      });
     },
     
     selectUnit: (unitId: string) => {
-      const { currentCivilization } = get();
-      if (currentCivilization) {
-        const unit = currentCivilization.units.find(u => u.id === unitId);
+      const state = get();
+      const currentCiv = state.civilizations.find(civ => civ.id === state.currentCivilizationId);
+      if (currentCiv) {
+        const unit = currentCiv.units.find(u => u.id === unitId);
         set({ selectedUnit: unit || null });
       }
     },
     
     selectCity: (cityId: string) => {
-      const { currentCivilization } = get();
-      if (currentCivilization) {
-        const city = currentCivilization.cities.find(c => c.id === cityId);
+      const state = get();
+      const currentCiv = state.civilizations.find(civ => civ.id === state.currentCivilizationId);
+      if (currentCiv) {
+        const city = currentCiv.cities.find(c => c.id === cityId);
         set({ selectedCity: city || null });
       }
     },
@@ -222,16 +229,26 @@ export const useCivilizations = create<CivilizationState>()(
     
     buildInCity: (cityId: string, buildingType: string) => {
       const buildingCosts = {
-        granary: 60,
-        library: 90,
-        barracks: 80,
-        market: 100
+        // Basic buildings
+        granary: 60, library: 90, barracks: 80, market: 100,
+        // Transport/Commercial
+        port: 80, road: 40, shipyard: 120,
+        // Agriculture/Nature
+        farm: 50, sawmill: 70, garden: 60,
+        // Defense/Military
+        fortress: 150, watchtower: 80, fortifications: 120,
+        // Culture/Knowledge
+        temple: 120, sanctuary: 100, obelisk: 80,
+        // Magic/Special
+        mystic_portal: 200, legendary_forge: 180, laboratory: 160,
+        // Ancient/Ruins
+        ancient_hall: 140, underground_base: 130, cave_dwelling: 90
       };
       
       const cost = buildingCosts[buildingType as keyof typeof buildingCosts] || 50;
       
-      set(state => ({
-        civilizations: state.civilizations.map(civ => 
+      set(state => {
+        const updatedCivs = state.civilizations.map(civ => 
           civ.id === state.currentCivilizationId ? {
             ...civ,
             cities: civ.cities.map(city => 
@@ -246,22 +263,37 @@ export const useCivilizations = create<CivilizationState>()(
               } : city
             )
           } : civ
-        )
-      }));
+        );
+        
+        const updatedCurrentCiv = updatedCivs.find(civ => civ.id === state.currentCivilizationId) || null;
+        
+        return {
+          civilizations: updatedCivs,
+          currentCivilization: updatedCurrentCiv
+        };
+      });
     },
     
     trainUnit: (cityId: string, unitType: string) => {
       const unitCosts = {
-        warrior: 40,
-        archer: 50,
-        settler: 100,
-        scout: 30
+        // Basic Infantry
+        warrior: 40, spearman: 60, swordsman: 80,
+        // Ranged Units
+        archer: 50, crossbowman: 70,
+        // Siege Units
+        catapult: 120, trebuchet: 150,
+        // Cavalry
+        horseman: 100, knight: 140,
+        // Naval Units
+        galley: 90, warship: 130,
+        // Special Units
+        scout: 30, settler: 100, diplomat: 80, spy: 90
       };
       
       const cost = unitCosts[unitType as keyof typeof unitCosts] || 40;
       
-      set(state => ({
-        civilizations: state.civilizations.map(civ => 
+      set(state => {
+        const updatedCivs = state.civilizations.map(civ => 
           civ.id === state.currentCivilizationId ? {
             ...civ,
             cities: civ.cities.map(city => 
@@ -276,8 +308,15 @@ export const useCivilizations = create<CivilizationState>()(
               } : city
             )
           } : civ
-        )
-      }));
+        );
+        
+        const updatedCurrentCiv = updatedCivs.find(civ => civ.id === state.currentCivilizationId) || null;
+        
+        return {
+          civilizations: updatedCivs,
+          currentCivilization: updatedCurrentCiv
+        };
+      });
     },
     
     researchTechnology: (techId: string) => {
