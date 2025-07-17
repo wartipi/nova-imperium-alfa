@@ -41,6 +41,14 @@ Preferred communication style: Simple, everyday language.
 - Persistent competence tracking through Zustand player store
 - Fixed modal click-through issues and proper event handling
 
+### Camera Movement from Minimap (January 17, 2025)
+- Implemented clickable minimap for camera navigation
+- Created GameEngine context to share game engine instance between components
+- Added click handling to minimap canvas with proper coordinate conversion
+- Minimap clicks now move the main camera to the clicked location
+- Added visual feedback with crosshair cursor on minimap hover
+- Seamless integration with existing camera controls (drag, keyboard, zoom)
+
 ## System Architecture
 
 ### Frontend Architecture
