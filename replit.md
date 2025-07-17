@@ -6,6 +6,17 @@ This is a Civilization-style strategy game built with React, TypeScript, and Exp
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+### Character System (January 17, 2025)
+- Removed character stat bonuses - characters are now purely cosmetic avatars
+- Added 9 different character options with medieval themes
+- Shield in HUD now displays selected character image and is clickable
+- Character selector opens when clicking the shield
+- Player name is editable directly in the player info panel
+- Removed end turn button - game will use time-based turns (12 turns per year, one per month)
+- Updated date display to show month/year format (e.g., "Jan 1000") instead of turn numbers
+
 ## System Architecture
 
 ### Frontend Architecture

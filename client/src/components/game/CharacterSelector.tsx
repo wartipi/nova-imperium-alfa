@@ -11,7 +11,6 @@ export interface CharacterOption {
   name: string;
   description: string;
   image: string;
-  bonus: string;
 }
 
 export function CharacterSelector({ onSelect, onClose }: CharacterSelectorProps) {
@@ -22,43 +21,55 @@ export function CharacterSelector({ onSelect, onClose }: CharacterSelectorProps)
       id: "emperor",
       name: "Empereur Auguste",
       description: "Leader sage et expérimenté",
-      image: "👑",
-      bonus: "+10% revenus d'or"
+      image: "👑"
     },
     {
       id: "warrior-king",
       name: "Roi Guerrier",
       description: "Combattant redoutable",
-      image: "⚔️",
-      bonus: "+2 force pour toutes les unités"
+      image: "⚔️"
     },
     {
       id: "scholar",
       name: "Érudit Royal",
       description: "Maître des sciences",
-      image: "🎓",
-      bonus: "+15% vitesse de recherche"
+      image: "🎓"
     },
     {
       id: "merchant",
       name: "Marchand Prince",
       description: "Expert en commerce",
-      image: "💰",
-      bonus: "+20% revenus commerciaux"
+      image: "💰"
     },
     {
       id: "architect",
       name: "Architecte Impérial",
       description: "Bâtisseur légendaire",
-      image: "🏗️",
-      bonus: "+15% vitesse de construction"
+      image: "🏗️"
     },
     {
       id: "diplomat",
       name: "Diplomate Royal",
       description: "Négociateur habile",
-      image: "🤝",
-      bonus: "+1 relation avec tous les voisins"
+      image: "🤝"
+    },
+    {
+      id: "knight",
+      name: "Chevalier Noble",
+      description: "Défenseur du royaume",
+      image: "🛡️"
+    },
+    {
+      id: "mage",
+      name: "Mage Mystique",
+      description: "Maître des arcanes",
+      image: "🔮"
+    },
+    {
+      id: "queen",
+      name: "Reine Majestueuse",
+      description: "Souveraine gracieuse",
+      image: "👸"
     }
   ];
 
@@ -77,11 +88,11 @@ export function CharacterSelector({ onSelect, onClose }: CharacterSelectorProps)
           <p className="text-sm text-amber-700">Sélectionnez le leader de votre civilisation</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-3 gap-3 mb-6">
           {characters.map((character) => (
             <div
               key={character.id}
-              className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
+              className={`p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
                 selectedCharacter?.id === character.id
                   ? 'border-amber-600 bg-amber-300 shadow-lg'
                   : 'border-amber-400 bg-amber-50 hover:bg-amber-100'
@@ -89,10 +100,9 @@ export function CharacterSelector({ onSelect, onClose }: CharacterSelectorProps)
               onClick={() => setSelectedCharacter(character)}
             >
               <div className="text-center">
-                <div className="text-4xl mb-2">{character.image}</div>
-                <div className="font-bold text-sm text-amber-900">{character.name}</div>
+                <div className="text-3xl mb-1">{character.image}</div>
+                <div className="font-bold text-xs text-amber-900">{character.name}</div>
                 <div className="text-xs text-amber-700 mt-1">{character.description}</div>
-                <div className="text-xs text-green-700 mt-2 font-medium">{character.bonus}</div>
               </div>
             </div>
           ))}
@@ -104,7 +114,6 @@ export function CharacterSelector({ onSelect, onClose }: CharacterSelectorProps)
               <div className="text-6xl mb-2">{selectedCharacter.image}</div>
               <div className="font-bold text-lg text-amber-900">{selectedCharacter.name}</div>
               <div className="text-sm text-amber-700 mt-1">{selectedCharacter.description}</div>
-              <div className="text-sm text-green-700 mt-2 font-bold">{selectedCharacter.bonus}</div>
             </div>
           </div>
         )}

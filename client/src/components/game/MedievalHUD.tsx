@@ -54,11 +54,20 @@ export function MedievalHUD() {
 
   const handleCharacterSelect = (character: CharacterOption) => {
     setSelectedCharacter(character);
-    // Apply character bonus to civilization
-    if (currentCivilization) {
-      // This would be implemented in the civilization store
-      console.log('Character selected:', character);
-    }
+    console.log('Character selected:', character);
+  };
+
+  const getGameDate = (turn: number) => {
+    const startYear = 1000;
+    const year = Math.floor(turn / 12) + startYear;
+    const month = (turn % 12) + 1;
+    const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+    return `${months[month - 1]} ${year}`;
+  };
+
+  const getTimeRemaining = () => {
+    // In a real implementation, this would show actual time remaining in the current month
+    return "15 jours";
   };
 
   return (
@@ -77,11 +86,11 @@ export function MedievalHUD() {
             <div className="grid grid-cols-3 gap-8 text-amber-900 font-bold text-sm">
               <div className="text-center">
                 <div className="text-xs text-amber-700">DATE DE JEUX</div>
-                <div>Tour {currentTurn}</div>
+                <div>{getGameDate(currentTurn)}</div>
               </div>
               <div className="text-center">
                 <div className="text-xs text-amber-700">TEMPS RESTANT</div>
-                <div>∞</div>
+                <div>{getTimeRemaining()}</div>
               </div>
               <div className="text-center">
                 <div className="text-xs text-amber-700">COMPÉTENCE ACTIVE</div>
@@ -111,9 +120,6 @@ export function MedievalHUD() {
               <div>{selectedCharacter?.name || 'Empereur'}</div>
               <div className="text-xs text-amber-700 mt-1">POINT D'ACTION</div>
               <div className="text-green-600">{currentCivilization?.resources.gold || 0}</div>
-              {selectedCharacter?.bonus && (
-                <div className="text-xs text-blue-600 mt-1">{selectedCharacter.bonus}</div>
-              )}
             </div>
           </div>
           
@@ -176,12 +182,6 @@ export function MedievalHUD() {
             className="bg-amber-100 border-amber-800 text-amber-800 hover:bg-amber-200"
           >
             {isMuted ? "🔇" : "🔊"}
-          </Button>
-          <Button
-            onClick={endTurn}
-            className="bg-amber-600 hover:bg-amber-700 text-white border-amber-800"
-          >
-            Terminer le tour
           </Button>
         </div>
       </div>
