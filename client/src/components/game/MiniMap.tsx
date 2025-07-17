@@ -1,13 +1,13 @@
 import { useRef, useEffect, useCallback } from "react";
 import { useMap } from "../../lib/stores/useMap";
-import { useCivilizations } from "../../lib/stores/useCivilizations";
+import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { useGameEngine } from "../../lib/contexts/GameEngineContext";
 
 export function MiniMap() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { gameEngineRef } = useGameEngine();
   const { mapData, selectedHex } = useMap();
-  const { civilizations } = useCivilizations();
+  const { novaImperiums } = useNovaImperium();
 
   useEffect(() => {
     if (!canvasRef.current || !mapData) return;
@@ -35,17 +35,17 @@ export function MiniMap() {
       }
     }
 
-    // Draw civilizations
-    civilizations.forEach(civ => {
+    // Draw nova imperiums
+    novaImperiums.forEach(ni => {
       // Draw cities
-      ctx.fillStyle = civ.color;
-      civ.cities.forEach(city => {
+      ctx.fillStyle = ni.color;
+      ni.cities.forEach(city => {
         ctx.fillRect(city.x * pixelSize - 1, city.y * pixelSize - 1, pixelSize + 2, pixelSize + 2);
       });
 
       // Draw units
-      ctx.fillStyle = civ.color;
-      civ.units.forEach(unit => {
+      ctx.fillStyle = ni.color;
+      ni.units.forEach(unit => {
         ctx.fillRect(unit.x * pixelSize, unit.y * pixelSize, pixelSize, pixelSize);
       });
     });
@@ -56,7 +56,7 @@ export function MiniMap() {
       ctx.lineWidth = 1;
       ctx.strokeRect(selectedHex.x * pixelSize, selectedHex.y * pixelSize, pixelSize, pixelSize);
     }
-  }, [mapData, civilizations, selectedHex]);
+  }, [mapData, novaImperiums, selectedHex]);
 
   const getMinimapTerrainColor = (terrain: string): string => {
     const colors = {

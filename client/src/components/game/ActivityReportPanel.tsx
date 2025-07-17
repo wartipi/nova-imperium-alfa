@@ -1,15 +1,15 @@
-import { useCivilizations } from "../../lib/stores/useCivilizations";
+import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { useGameState } from "../../lib/stores/useGameState";
 
 export function ActivityReportPanel() {
-  const { currentCivilization } = useCivilizations();
+  const { currentNovaImperium } = useNovaImperium();
   const { currentTurn } = useGameState();
 
-  if (!currentCivilization) return null;
+  if (!currentNovaImperium) return null;
 
-  const totalPopulation = currentCivilization.cities.reduce((sum, city) => sum + city.population, 0);
-  const totalProduction = currentCivilization.cities.reduce((sum, city) => sum + city.productionPerTurn, 0);
-  const totalScience = currentCivilization.cities.reduce((sum, city) => sum + city.sciencePerTurn, 0);
+  const totalPopulation = currentNovaImperium.cities.reduce((sum, city) => sum + city.population, 0);
+  const totalProduction = currentNovaImperium.cities.reduce((sum, city) => sum + city.productionPerTurn, 0);
+  const totalScience = currentNovaImperium.cities.reduce((sum, city) => sum + city.sciencePerTurn, 0);
 
   return (
     <div className="space-y-4">
@@ -21,10 +21,10 @@ export function ActivityReportPanel() {
       <div className="bg-amber-50 border border-amber-700 rounded p-3">
         <div className="font-medium text-sm mb-2">Statistiques Générales</div>
         <div className="grid grid-cols-2 gap-2 text-xs">
-          <div>Villes: {currentCivilization.cities.length}</div>
-          <div>Unités: {currentCivilization.units.length}</div>
+          <div>Villes: {currentNovaImperium.cities.length}</div>
+          <div>Unités: {currentNovaImperium.units.length}</div>
           <div>Population: {totalPopulation}</div>
-          <div>Technologies: {currentCivilization.researchedTechnologies.length}</div>
+          <div>Technologies: {currentNovaImperium.researchedTechnologies.length}</div>
         </div>
       </div>
 
@@ -33,7 +33,7 @@ export function ActivityReportPanel() {
         <div className="space-y-1 text-xs">
           <div className="flex justify-between">
             <span>🌾 Nourriture:</span>
-            <span>+{currentCivilization.cities.reduce((sum, city) => sum + city.foodPerTurn, 0)}</span>
+            <span>+{currentNovaImperium.cities.reduce((sum, city) => sum + city.foodPerTurn, 0)}</span>
           </div>
           <div className="flex justify-between">
             <span>🔨 Production:</span>
@@ -45,7 +45,7 @@ export function ActivityReportPanel() {
           </div>
           <div className="flex justify-between">
             <span>🎭 Culture:</span>
-            <span>+{currentCivilization.cities.reduce((sum, city) => sum + city.culturePerTurn, 0)}</span>
+            <span>+{currentNovaImperium.cities.reduce((sum, city) => sum + city.culturePerTurn, 0)}</span>
           </div>
         </div>
       </div>
@@ -53,7 +53,7 @@ export function ActivityReportPanel() {
       <div className="bg-amber-50 border border-amber-700 rounded p-3">
         <div className="font-medium text-sm mb-2">Projets en Cours</div>
         <div className="space-y-1 text-xs">
-          {currentCivilization.cities.map(city => (
+          {currentNovaImperium.cities.map(city => (
             <div key={city.id}>
               <div className="font-medium">{city.name}:</div>
               <div className="text-amber-700 ml-2">

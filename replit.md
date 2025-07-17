@@ -27,6 +27,8 @@ Preferred communication style: Simple, everyday language.
 - Fixed all store state management to maintain consistency between arrays and current selection
 - Game now fully uses Nova Imperium terminology with French empire names: "Empire du Joueur", "Empire Rival"
 - All panels and UI components now properly display data from the new Nova Imperium structure
+- Cleaned up legacy useCivilizations.tsx file
+- User confirmed all panels working correctly (construction, recruitment, events tested)
 
 ### Character System (January 17, 2025)
 - Removed character stat bonuses - characters are now purely cosmetic avatars

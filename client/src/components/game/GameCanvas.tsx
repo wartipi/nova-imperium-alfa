@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useMap } from "../../lib/stores/useMap";
 import { useGameState } from "../../lib/stores/useGameState";
-import { useCivilizations } from "../../lib/stores/useCivilizations";
+import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { GameEngine } from "../../lib/game/GameEngine";
 import { useGameEngine } from "../../lib/contexts/GameEngineContext";
 
@@ -10,7 +10,7 @@ export function GameCanvas() {
   const { gameEngineRef } = useGameEngine();
   const { mapData, selectedHex, setSelectedHex } = useMap();
   const { gamePhase } = useGameState();
-  const { civilizations, selectedUnit, moveUnit } = useCivilizations();
+  const { novaImperiums, selectedUnit, moveUnit } = useNovaImperium();
   const [mouseDownPos, setMouseDownPos] = useState<{ x: number; y: number } | null>(null);
 
   // Initialize game engine
@@ -67,16 +67,16 @@ export function GameCanvas() {
   // Update rendering when game state changes
   useEffect(() => {
     if (gameEngineRef.current) {
-      gameEngineRef.current.updateCivilizations(civilizations);
+      gameEngineRef.current.updateCivilizations(novaImperiums);
       gameEngineRef.current.setSelectedHex(selectedHex);
       gameEngineRef.current.render();
       
-      // Center on player start position when civilizations are first loaded
-      if (civilizations.length > 0) {
+      // Center on player start position when nova imperiums are first loaded
+      if (novaImperiums.length > 0) {
         gameEngineRef.current.centerCameraOnPlayerStart();
       }
     }
-  }, [civilizations, selectedHex]);
+  }, [novaImperiums, selectedHex]);
 
   return (
     <canvas
