@@ -131,12 +131,14 @@ Preferred communication style: Simple, everyday language.
 
 ### Streamlined Resource System (January 17, 2025)
 - Removed science and culture from the resource system for simplicity
+- Added precious metals (métaux précieux) to strategic resources
 - Final resource system now contains:
   - 3 basic resources: food, action_points, gold
-  - 3 strategic resources: iron, stone, wood
+  - 4 strategic resources: iron, stone, wood, precious_metals
   - 3 magical resources: mana, crystals, ancient_knowledge
 - Updated all interfaces, terrain yields, and UI components to reflect streamlined system
 - Treasury panel now shows only relevant resources without science/culture clutter
+- Strategic resources section reorganized with 2-column grid to accommodate precious metals
 
 ### Game Guide Enhancement (January 17, 2025)
 - Updated GameGuidePanel with Nova Imperium-specific content

@@ -69,7 +69,7 @@ export function TreasuryPanel() {
           <div className="text-center mb-2">
             <h6 className="font-bold text-xs text-amber-800">📦 Ressources Stratégiques</h6>
           </div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <div className="bg-amber-50 border border-amber-700 rounded p-2">
               <div className="text-center">
                 <div className="text-lg mb-1">⚔️</div>
@@ -89,6 +89,13 @@ export function TreasuryPanel() {
                 <div className="text-lg mb-1">🪵</div>
                 <div className="text-xs font-medium">Bois</div>
                 <div className="text-sm font-bold text-amber-900">{resources.wood}</div>
+              </div>
+            </div>
+            <div className="bg-amber-50 border border-amber-700 rounded p-2">
+              <div className="text-center">
+                <div className="text-lg mb-1">🥇</div>
+                <div className="text-xs font-medium">Métaux Précieux</div>
+                <div className="text-sm font-bold text-amber-900">{resources.precious_metals}</div>
               </div>
             </div>
           </div>

@@ -75,6 +75,7 @@ export interface Resources {
   iron: number;
   stone: number;
   wood: number;
+  precious_metals: number;
   // Magical resources for Nova Imperium
   mana: number;
   crystals: number;

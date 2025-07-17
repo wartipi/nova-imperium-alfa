@@ -91,6 +91,7 @@ const createInitialNovaImperiums = (): NovaImperium[] => {
         iron: 5,
         stone: 10,
         wood: 15,
+        precious_metals: 8,
         // Magical resources for Nova Imperium
         mana: 20,
         crystals: 3,
@@ -151,6 +152,7 @@ const createInitialNovaImperiums = (): NovaImperium[] => {
         iron: 3,
         stone: 6,
         wood: 12,
+        precious_metals: 4,
         // Magical resources for Nova Imperium
         mana: 15,
         crystals: 2,
