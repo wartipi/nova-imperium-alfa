@@ -14,10 +14,12 @@ const buildingData: Record<BuildingType, { cost: number; maintenance: number; yi
 };
 
 export function TreasuryPanel() {
-  const { civilizations, currentCivilizationId, currentCivilization } = useCivilizations();
+  const { civilizations, currentCivilizationId } = useCivilizations();
 
   console.log('TreasuryPanel: civilizations:', civilizations);
   console.log('TreasuryPanel: currentCivilizationId:', currentCivilizationId);
+
+  const currentCivilization = civilizations.find(civ => civ.id === currentCivilizationId) || null;
   console.log('TreasuryPanel: currentCivilization:', currentCivilization);
 
   if (!currentCivilization) {

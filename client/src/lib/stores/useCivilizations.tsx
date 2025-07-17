@@ -9,9 +9,6 @@ interface CivilizationState {
   selectedUnit: Unit | null;
   selectedCity: City | null;
   
-  // Computed
-  currentCivilization: Civilization | null;
-  
   // Actions
   initializeCivilizations: () => void;
   selectUnit: (unitId: string) => void;
@@ -171,10 +168,7 @@ export const useCivilizations = create<CivilizationState>()(
     selectedUnit: null,
     selectedCity: null,
     
-    get currentCivilization() {
-      const { civilizations, currentCivilizationId } = get();
-      return civilizations.find(civ => civ.id === currentCivilizationId) || null;
-    },
+
     
     initializeCivilizations: () => {
       const initialCivilizations = createInitialCivilizations();
