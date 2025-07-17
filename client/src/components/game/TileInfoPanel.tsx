@@ -27,17 +27,20 @@ export function TileInfoPanel() {
   // Get terrain color for display
   const getTerrainColor = (terrain: string): string => {
     const colors = {
-      grassland: '#90EE90',
-      plains: '#DEB887',
-      desert: '#F4A460',
-      tundra: '#B0C4DE',
-      snow: '#FFFAFA',
-      ocean: '#4682B4',
-      coast: '#87CEEB',
-      hills: '#8B7355',
-      mountains: '#696969',
-      forest: '#228B22',
-      jungle: '#006400'
+      wasteland: '#F5F5DC',        // Beige pâle
+      forest: '#228B22',           // Vert foncé
+      mountains: '#708090',        // Gris pierre
+      fertile_land: '#90EE90',     // Vert clair
+      hills: '#D2B48C',            // Brun clair
+      shallow_water: '#87CEEB',    // Bleu clair
+      deep_water: '#191970',       // Bleu foncé
+      swamp: '#556B2F',            // Vert olive foncé
+      desert: '#FFD700',           // Jaune doré
+      sacred_plains: '#F0E68C',    // Blanc doré / beige lumineux
+      caves: '#2F2F2F',            // Gris très foncé
+      ancient_ruins: '#8B7355',    // Brun-gris
+      volcano: '#B22222',          // Rouge foncé
+      enchanted_meadow: '#50C878'  // Vert émeraude
     };
     return colors[terrain as keyof typeof colors] || '#808080';
   };
@@ -45,17 +48,20 @@ export function TileInfoPanel() {
   // Get terrain display name
   const getTerrainName = (terrain: string): string => {
     const names = {
-      grassland: 'Prairie',
-      plains: 'Plaine',
-      desert: 'Désert',
-      tundra: 'Toundra',
-      snow: 'Neige',
-      ocean: 'Océan',
-      coast: 'Côte',
-      hills: 'Collines',
-      mountains: 'Montagnes',
+      wasteland: 'Terre en friche',
       forest: 'Forêt',
-      jungle: 'Jungle'
+      mountains: 'Montagne',
+      fertile_land: 'Terre fertile',
+      hills: 'Colline',
+      shallow_water: 'Eau peu profonde',
+      deep_water: 'Eau profonde',
+      swamp: 'Marais',
+      desert: 'Désert',
+      sacred_plains: 'Plaine sacrée',
+      caves: 'Grotte/Souterrain',
+      ancient_ruins: 'Ruines anciennes',
+      volcano: 'Volcan',
+      enchanted_meadow: 'Prairie enchantée'
     };
     return names[terrain as keyof typeof names] || terrain;
   };
@@ -63,18 +69,50 @@ export function TileInfoPanel() {
   // Get resource display name
   const getResourceName = (resource: string): string => {
     const names = {
+      // Basic resources
       gold: 'Or',
       iron: 'Fer',
-      horses: 'Chevaux',
-      wheat: 'Blé',
-      fish: 'Poisson',
+      copper: 'Cuivre',
       stone: 'Pierre',
-      wood: 'Bois',
-      oil: 'Pétrole',
       coal: 'Charbon',
-      gems: 'Gemmes'
+      oil: 'Pétrole',
+      wheat: 'Blé',
+      cattle: 'Bétail',
+      fish: 'Poisson',
+      deer: 'Cerf',
+      fur: 'Fourrure',
+      // Special resources for archipelago world
+      herbs: 'Herbes',
+      crystals: 'Cristaux',
+      sacred_stones: 'Pierres sacrées',
+      ancient_artifacts: 'Artefacts anciens',
+      sulfur: 'Soufre',
+      obsidian: 'Obsidienne',
+      crabs: 'Crabes',
+      whales: 'Baleines'
     };
     return names[resource as keyof typeof names] || resource;
+  };
+
+  // Get terrain symbol/icon
+  const getTerrainSymbol = (terrain: string): string => {
+    const symbols = {
+      wasteland: '⚪',
+      forest: '🌲',
+      mountains: '⛰️',
+      fertile_land: '🌾',
+      hills: '🟫',
+      shallow_water: '🌊',
+      deep_water: '⚓',
+      swamp: '🐸',
+      desert: '🏜️',
+      sacred_plains: '✨',
+      caves: '🕳️',
+      ancient_ruins: '🏚️',
+      volcano: '🌋',
+      enchanted_meadow: '🌸'
+    };
+    return symbols[terrain as keyof typeof symbols] || '⬢';
   };
 
   return (
@@ -102,20 +140,57 @@ export function TileInfoPanel() {
       {/* Terrain Information */}
       <div className="bg-amber-50 border border-amber-700 rounded p-2 mb-3">
         <div className="text-amber-900 font-semibold mb-2">🌍 Terrain</div>
-        <div className="flex items-center gap-2">
-          <div 
-            className="w-4 h-4 rounded border border-amber-700" 
-            style={{ backgroundColor: getTerrainColor(selectedHex.terrain) }}
-          />
-          <span className="text-amber-800 font-medium">
-            {getTerrainName(selectedHex.terrain)}
-          </span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <div 
+              className="w-8 h-8 rounded-lg border-2 border-amber-700 flex items-center justify-center text-lg" 
+              style={{ backgroundColor: getTerrainColor(selectedHex.terrain) }}
+            >
+              {getTerrainSymbol(selectedHex.terrain)}
+            </div>
+            <div>
+              <div className="text-amber-800 font-medium">
+                {getTerrainName(selectedHex.terrain)}
+              </div>
+              <div className="text-amber-600 text-xs">
+                Type #{(() => {
+                  const terrainTypes = {
+                    wasteland: 1, forest: 2, mountains: 3, fertile_land: 4, hills: 5, 
+                    shallow_water: 6, deep_water: 7, swamp: 8, desert: 9, sacred_plains: 10,
+                    caves: 11, ancient_ruins: 12, volcano: 13, enchanted_meadow: 14
+                  };
+                  return terrainTypes[selectedHex.terrain as keyof typeof terrainTypes] || '?';
+                })()}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Production Values */}
+        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+          <div className="flex items-center gap-1">
+            <span className="text-green-600">🌾</span>
+            <span className="text-amber-700">Nourriture: {selectedHex.food}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-orange-600">🔨</span>
+            <span className="text-amber-700">Production: {selectedHex.production}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-blue-600">🔬</span>
+            <span className="text-amber-700">Science: {selectedHex.science}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-yellow-600">💰</span>
+            <span className="text-amber-700">Commerce: {selectedHex.commerce}</span>
+          </div>
         </div>
         
         {/* River */}
         {selectedHex.hasRiver && (
-          <div className="text-amber-700 text-sm mt-1">
-            🌊 Rivière présente
+          <div className="text-amber-700 text-sm mt-2 flex items-center gap-1">
+            <span className="text-blue-600">🌊</span>
+            <span>Rivière présente</span>
           </div>
         )}
       </div>
