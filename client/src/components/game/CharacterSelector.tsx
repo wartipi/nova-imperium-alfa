@@ -82,12 +82,18 @@ export function CharacterSelector({ onSelect, onClose }: CharacterSelectorProps)
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]"
-      onClick={onClose}
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[999]"
+      onClick={(e) => {
+        console.log('Modal backdrop clicked');
+        onClose();
+      }}
     >
       <div 
-        className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-4 border-amber-800 rounded-lg shadow-2xl p-8 w-96 max-h-[80vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
+        className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-4 border-amber-800 rounded-lg shadow-2xl p-8 w-96 max-h-[80vh] overflow-y-auto relative z-[1000]"
+        onClick={(e) => {
+          e.stopPropagation();
+          console.log('Modal content clicked');
+        }}
         onMouseDown={(e) => e.stopPropagation()}
         onMouseUp={(e) => e.stopPropagation()}
       >
@@ -98,28 +104,38 @@ export function CharacterSelector({ onSelect, onClose }: CharacterSelectorProps)
 
         <div className="grid grid-cols-3 gap-3 mb-6">
           {characters.map((character) => (
-            <div
+            <button
               key={character.id}
-              className={`p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
+              type="button"
+              className={`p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 relative z-[1001] ${
                 selectedCharacter?.id === character.id
                   ? 'border-amber-600 bg-amber-300 shadow-lg'
                   : 'border-amber-400 bg-amber-50 hover:bg-amber-100'
               }`}
+              style={{ pointerEvents: 'auto' }}
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
                 console.log('Character clicked:', character.name);
                 setSelectedCharacter(character);
               }}
-              onMouseDown={(e) => e.stopPropagation()}
-              onMouseUp={(e) => e.stopPropagation()}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                console.log('Character mousedown:', character.name);
+              }}
+              onMouseUp={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                console.log('Character mouseup:', character.name);
+              }}
             >
               <div className="text-center">
                 <div className="text-3xl mb-1">{character.image}</div>
                 <div className="font-bold text-xs text-amber-900">{character.name}</div>
                 <div className="text-xs text-amber-700 mt-1">{character.description}</div>
               </div>
-            </div>
+            </button>
           ))}
         </div>
 
