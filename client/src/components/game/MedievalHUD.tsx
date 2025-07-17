@@ -305,19 +305,60 @@ export function MedievalHUD() {
 
       {/* Competence Tree Modal */}
       {showCompetenceModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]"
-             onClick={(e) => e.stopPropagation()}>
-          <div className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-2xl p-6 w-[800px] max-h-[80vh] overflow-hidden"
-               onClick={(e) => e.stopPropagation()}>
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            console.log('Modal backdrop clicked');
+            setShowCompetenceModal(false);
+          }}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          onMouseUp={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          style={{ pointerEvents: 'auto' }}
+        >
+          <div 
+            className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-2xl p-6 w-[800px] max-h-[80vh] overflow-hidden"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              console.log('Modal content clicked');
+            }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
+            onMouseUp={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
+            style={{ pointerEvents: 'auto' }}
+          >
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-amber-900 font-bold text-xl">Arbre de Compétences</h3>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
+                  e.preventDefault();
                   console.log('Closing competence modal');
                   setShowCompetenceModal(false);
                 }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
+                onMouseUp={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
                 className="text-amber-800 hover:text-amber-900 text-xl font-bold px-2 py-1 rounded hover:bg-amber-300 transition-colors"
+                type="button"
               >
                 ✕
               </button>
