@@ -1,8 +1,12 @@
 import { useNovaImperium } from "../../lib/stores/useNovaImperium";
+import { usePlayer } from "../../lib/stores/usePlayer";
 import { Button } from "../ui/button";
+import { getBuildingCost, canAffordAction } from "../../lib/game/ActionPointsCosts";
+import { getBuildingAPGeneration, getBuildingMaxAPIncrease } from "../../lib/game/ActionPointsGeneration";
 
 export function ConstructionPanel() {
   const { currentNovaImperium, buildInCity } = useNovaImperium();
+  const { actionPoints, spendActionPoints } = usePlayer();
 
   if (!currentNovaImperium) return null;
 
@@ -41,7 +45,16 @@ export function ConstructionPanel() {
   ];
 
   const handleBuild = (buildingId: string, cityId: string) => {
-    buildInCity(cityId, buildingId);
+    const actionCost = getBuildingCost(buildingId);
+    if (canAffordAction(actionPoints, actionCost)) {
+      const success = spendActionPoints(actionCost);
+      if (success) {
+        buildInCity(cityId, buildingId);
+        console.log(`Construction de ${buildingId} lancée pour ${actionCost} PA`);
+      }
+    } else {
+      console.log(`Pas assez de Points d'Action pour construire ${buildingId} (${actionCost} PA requis)`);
+    }
   };
 
   return (
@@ -53,9 +66,7 @@ export function ConstructionPanel() {
       {currentNovaImperium.cities.map(city => (
         <div key={city.id} className="bg-amber-50 border border-amber-700 rounded p-3">
           <div className="font-medium text-sm mb-2">{city.name}</div>
-          <div className="text-xs text-amber-700 mb-2">
-            Production: {city.productionPerTurn}/tour
-          </div>
+
           
           {city.currentProduction ? (
             <div className="mb-3">
@@ -68,8 +79,7 @@ export function ConstructionPanel() {
                 ></div>
               </div>
               <div className="text-xs text-amber-700 mt-1">
-                {city.productionProgress}/{city.currentProduction.cost} 
-                ({Math.ceil((city.currentProduction.cost - city.productionProgress) / city.productionPerTurn)} tours)
+                {city.productionProgress}/{city.currentProduction.cost}
               </div>
             </div>
           ) : (
@@ -91,17 +101,28 @@ export function ConstructionPanel() {
                         <div>
                           <div className="text-xs font-medium">{building.name}</div>
                           <div className="text-xs text-amber-700">
-                            {building.cost} 🔨 - {building.description}
+                            {building.cost} 🔨 | {getBuildingCost(building.id)} ⚡ - {building.description}
+                          </div>
+                          <div className="text-xs text-blue-600">
+                            Génère {getBuildingAPGeneration(building.id)} PA/tour
+                            {getBuildingMaxAPIncrease(building.id) > 0 && (
+                              <span className="text-purple-600"> | +{getBuildingMaxAPIncrease(building.id)} PA max</span>
+                            )}
                           </div>
                         </div>
                       </div>
                       <Button
                         size="sm"
                         onClick={() => handleBuild(building.id, city.id)}
-                        disabled={city.currentProduction !== null || city.buildings.includes(building.id as any)}
+                        disabled={
+                          city.currentProduction !== null || 
+                          city.buildings.includes(building.id as any) || 
+                          !canAffordAction(actionPoints, getBuildingCost(building.id))
+                        }
                         className="text-xs bg-amber-600 hover:bg-amber-700 disabled:opacity-50"
                       >
-                        {city.buildings.includes(building.id as any) ? 'Construit' : 'Construire'}
+                        {city.buildings.includes(building.id as any) ? 'Construit' : 
+                         !canAffordAction(actionPoints, getBuildingCost(building.id)) ? 'Pas assez PA' : 'Construire'}
                       </Button>
                     </div>
                   ))}
