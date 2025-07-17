@@ -258,6 +258,7 @@ Preferred communication style: Simple, everyday language.
 - Moved minimap to lower right corner as requested for better HUD organization
 - Control buttons (sound toggle) now positioned in lower left corner
 - Reputation system integrated into player info box with clickable details modal
+- Centered left menu panel vertically on screen for better visual balance
 
 ### Nova Imperium Game Mechanics Integration (January 17, 2025)
 - Implemented comprehensive Nova Imperium game mechanics based on user specifications

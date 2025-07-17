@@ -215,7 +215,7 @@ export function MedievalHUD() {
       </div>
 
       {/* Left Menu Panel */}
-      <div className="absolute top-20 left-4 pointer-events-auto">
+      <div className="absolute top-1/2 left-4 transform -translate-y-1/2 pointer-events-auto">
         <div className="relative">
           {/* Scroll Background */}
           <div 
