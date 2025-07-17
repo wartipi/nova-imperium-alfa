@@ -63,6 +63,52 @@ export function ConstructionPanel() {
     return icons[resource] || '❓';
   };
 
+  const getBuildingProduction = (buildingId: string): Record<string, number> => {
+    const productions: Record<string, Record<string, number>> = {
+      // Agriculture
+      'farm': { food: 3, gold: 1 },
+      'garden': { food: 2 },
+      'sawmill': { wood: 2, gold: 1 },
+      
+      // Transport/Commercial
+      'port': { gold: 4, food: 1 },
+      'market': { gold: 6 },
+      'road': { gold: 2 },
+      'shipyard': { gold: 3, wood: 1 },
+      
+      // Defense (no resource production, only protection)
+      'fortress': {},
+      'watchtower': {},
+      'fortifications': {},
+      
+      // Culture
+      'library': { ancient_knowledge: 1 },
+      'temple': { gold: 2, mana: 1 },
+      'sanctuary': { mana: 2 },
+      'obelisk': { gold: 1 },
+      
+      // Magic
+      'mystic_portal': { mana: 3, ancient_knowledge: 1 },
+      'legendary_forge': { precious_metals: 2, crystals: 1 },
+      'laboratory': { mana: 2, crystals: 1, ancient_knowledge: 1 },
+      
+      // Ancient
+      'ancient_hall': { ancient_knowledge: 3, mana: 1 },
+      'underground_base': { stone: 2, iron: 1 },
+      'cave_dwelling': { stone: 1, food: 1 }
+    };
+    return productions[buildingId] || {};
+  };
+
+  const formatProduction = (production: Record<string, number>): string => {
+    const entries = Object.entries(production);
+    if (entries.length === 0) return "Aucune production de ressources";
+    
+    return entries
+      .map(([resource, amount]) => `+${amount} ${getResourceIcon(resource)}`)
+      .join(', ');
+  };
+
   const formatResourceCost = (cost: Record<string, number>): string => {
     return Object.entries(cost)
       .map(([resource, amount]) => `${amount} ${getResourceIcon(resource)}`)
@@ -205,15 +251,26 @@ export function ConstructionPanel() {
       {/* Tooltip */}
       {hoveredBuilding && (
         <div 
-          className="fixed z-50 bg-gray-800 text-white p-2 rounded shadow-lg max-w-xs pointer-events-none"
+          className="fixed z-50 bg-gray-800 text-white p-3 rounded shadow-lg max-w-sm pointer-events-none"
           style={{
             left: tooltipPosition.x + 10,
             top: tooltipPosition.y - 10,
             transform: 'translateY(-100%)'
           }}
         >
-          <div className="text-sm">
-            {buildings.find(b => b.id === hoveredBuilding)?.description}
+          <div className="space-y-2">
+            <div className="text-sm font-medium text-yellow-300">
+              {buildings.find(b => b.id === hoveredBuilding)?.name}
+            </div>
+            <div className="text-sm">
+              {buildings.find(b => b.id === hoveredBuilding)?.description}
+            </div>
+            <div className="border-t border-gray-600 pt-2">
+              <div className="text-xs text-gray-300 mb-1">Production par tour:</div>
+              <div className="text-sm text-green-400">
+                {formatProduction(getBuildingProduction(hoveredBuilding))}
+              </div>
+            </div>
           </div>
         </div>
       )}
