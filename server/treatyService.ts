@@ -6,6 +6,7 @@ export type TreatyType =
   | 'accord_commercial' 
   | 'pacte_non_agression'
   | 'acces_militaire'
+  | 'echange_ressources'
   | 'defense_mutuelle';
 
 // Propriétés spécifiques à chaque type de traité
@@ -41,6 +42,18 @@ interface TreatyProperties {
     territoryAccess: boolean;
     timeLimit: number; // Limite de temps en tours
     restrictedZones: { x: number; y: number }[]; // Zones interdites
+  };
+  
+  // Échange de ressources
+  echange_ressources?: {
+    resourcesOffered: { [key: string]: number }; // Ressources offertes par le créateur
+    resourcesRequested: { [key: string]: number }; // Ressources demandées en échange
+    uniqueItemsOffered: string[]; // Objets uniques offerts
+    uniqueItemsRequested: string[]; // Objets uniques demandés
+    deliverySchedule: 'immediate' | 'monthly' | 'quarterly'; // Fréquence de livraison
+    duration: number; // Durée du contrat en tours
+    penalties: number; // Pénalités en cas de non-respect
+    realTimeExchange: boolean; // Échange en temps réel autorisé
   };
   
   // Défense mutuelle
@@ -102,6 +115,7 @@ class TreatyService {
       accord_commercial: 15,
       pacte_non_agression: 10,
       acces_militaire: 8,
+      echange_ressources: 12,
       defense_mutuelle: 20
     };
     return costs[type] || 15;
@@ -235,6 +249,9 @@ class TreatyService {
       case 'acces_militaire':
         this.activateMilitaryAccess(treaty);
         break;
+      case 'echange_ressources':
+        this.activateResourceExchange(treaty);
+        break;
       case 'defense_mutuelle':
         this.activateMutualDefense(treaty);
         break;
@@ -354,6 +371,36 @@ class TreatyService {
     }
   }
 
+  // Activer l'échange de ressources
+  private activateResourceExchange(treaty: Treaty): void {
+    const props = treaty.properties.echange_ressources;
+    if (!props) return;
+
+    console.log(`Échange de ressources activé entre ${treaty.parties.join(', ')}`);
+    
+    // Effets de l'échange de ressources :
+    // 1. Mise en place des transferts automatiques
+    this.setupResourceTransfers(treaty.parties, props.resourcesOffered, props.resourcesRequested);
+    
+    // 2. Échange d'objets uniques
+    if (props.uniqueItemsOffered.length > 0 || props.uniqueItemsRequested.length > 0) {
+      this.setupUniqueItemExchange(treaty.parties, props.uniqueItemsOffered, props.uniqueItemsRequested);
+    }
+    
+    // 3. Échange en temps réel
+    if (props.realTimeExchange) {
+      this.enableRealTimeExchange(treaty.parties);
+    }
+    
+    // 4. Planification selon la fréquence
+    this.scheduleResourceDeliveries(treaty.parties, props.deliverySchedule, props.duration);
+    
+    // 5. Système de pénalités
+    if (props.penalties > 0) {
+      this.setupPenaltySystem(treaty.parties, props.penalties);
+    }
+  }
+
 
 
   // Méthodes d'activation des effets (à implémenter selon la logique du jeu)
@@ -431,6 +478,36 @@ class TreatyService {
     console.log(`Zones restreintes établies pour: ${parties.join(', ')} (${zones.length} zones)`);
   }
 
+  private setupResourceTransfers(parties: string[], offered: { [key: string]: number }, requested: { [key: string]: number }): void {
+    // Logique de transferts de ressources
+    console.log(`Transferts de ressources configurés pour: ${parties.join(', ')}`);
+    console.log(`Ressources offertes:`, offered);
+    console.log(`Ressources demandées:`, requested);
+  }
+
+  private scheduleResourceDeliveries(parties: string[], schedule: string, duration: number): void {
+    // Logique de planification des livraisons
+    console.log(`Livraisons planifiées (${schedule}) pour: ${parties.join(', ')} pendant ${duration} tours`);
+  }
+
+  private setupPenaltySystem(parties: string[], penalties: number): void {
+    // Logique de système de pénalités
+    console.log(`Système de pénalités (${penalties} PA) configuré pour: ${parties.join(', ')}`);
+  }
+
+  private setupUniqueItemExchange(parties: string[], offered: string[], requested: string[]): void {
+    // Logique d'échange d'objets uniques
+    console.log(`Échange d'objets uniques configuré pour: ${parties.join(', ')}`);
+    console.log(`Objets uniques offerts:`, offered);
+    console.log(`Objets uniques demandés:`, requested);
+  }
+
+  private enableRealTimeExchange(parties: string[]): void {
+    // Logique d'échange en temps réel
+    console.log(`Échange en temps réel activé pour: ${parties.join(', ')}`);
+    // Ici on pourrait configurer des WebSockets ou des polling rapides
+  }
+
 
 
   // Obtenir les informations sur les types de traités
@@ -469,6 +546,13 @@ class TreatyService {
         description: 'Passage d\'unités militaires, accès aux territoires',
         cost: 8,
         icon: '🚶'
+      },
+      {
+        type: 'echange_ressources',
+        name: 'Échange de Ressources',
+        description: 'Échange direct de ressources et objets uniques en temps réel',
+        cost: 12,
+        icon: '🔄'
       },
       {
         type: 'defense_mutuelle',

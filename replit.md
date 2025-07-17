@@ -136,10 +136,12 @@ Preferred communication style: Simple, everyday language.
 
 ### Treaty System Implementation (January 17, 2025)
 - Created comprehensive treaty system for formal player agreements
-- 5 treaty types aligned with game mechanics: Alliance Militaire (25 PA), Accord Commercial (15 PA), Pacte de Non-Agression (10 PA), Accès Militaire (8 PA), Défense Mutuelle (20 PA)
+- 6 treaty types aligned with game mechanics: Alliance Militaire (25 PA), Accord Commercial (15 PA), Pacte de Non-Agression (10 PA), Accès Militaire (8 PA), Échange de Ressources (12 PA), Défense Mutuelle (20 PA)
 - Removed cultural and scientific treaty types as they don't align with current resource system
 - Added Military Access treaty type for unit passage and territory access
+- Added Resource Exchange treaty type for direct resource trading between players
 - Removed military passage condition from Non-Aggression Pact (now only covers neutral zones and trade)
+- Resource Exchange treaty includes: offered/requested resources, delivery schedule, duration, penalties system
 - Treaty creation form with title, type, participants, and terms
 - Variable cost system based on treaty type and complexity
 - Multi-party signature system with automatic activation when all parties sign
@@ -149,6 +151,19 @@ Preferred communication style: Simple, everyday language.
 - Statistics panel showing active, proposed, and created treaties
 - Complete API integration with CRUD operations for treaties
 - Military alliance treaties include detailed configuration: mutual defense, intelligence sharing, joint operations, resource sharing percentage, military support level
+
+### Real-Time Exchange System (January 17, 2025)
+- Implemented comprehensive real-time exchange system for direct resource and unique item trading
+- ExchangeService managing trade rooms, offers, and real-time transactions
+- Trade rooms created from Resource Exchange treaties for authorized participants
+- Exchange offers with expiration system (5 minutes default) and real-time notifications
+- Support for both regular resources and unique items in exchange offers
+- Offer status tracking: pending, accepted, rejected, expired
+- Real-time offer acceptance/rejection with immediate execution
+- Complete API endpoints for trade room management and offer handling
+- Subscriber system for real-time notifications to all participants
+- Automatic cleanup of expired offers every minute
+- Enhanced Resource Exchange treaty type with unique items and real-time capabilities
 
 ### Enhanced Reputation System & Game Mechanics (January 17, 2025)
 - Updated reputation system with 6 clear levels: Banni, Méprisé, Suspect, Neutre, Honorable, Saint

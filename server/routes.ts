@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { messageService } from "./messageService";
 import { treatyService } from "./treatyService";
+import { exchangeService } from "./exchangeService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Game save/load endpoints
@@ -184,6 +185,120 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Failed to get treaty stats" });
+    }
+  });
+
+  // Exchange endpoints
+  app.get("/api/exchange/rooms/:playerId", async (req, res) => {
+    try {
+      const { playerId } = req.params;
+      const rooms = exchangeService.getTradeRoomsForPlayer(playerId);
+      res.json(rooms);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get trade rooms" });
+    }
+  });
+
+  app.get("/api/exchange/offers/:playerId", async (req, res) => {
+    try {
+      const { playerId } = req.params;
+      const offers = exchangeService.getActiveOffersForPlayer(playerId);
+      res.json(offers);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get offers" });
+    }
+  });
+
+  app.post("/api/exchange/room", async (req, res) => {
+    try {
+      const { treatyId, participants } = req.body;
+      const room = exchangeService.createTradeRoom(treatyId, participants);
+      res.json(room);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create trade room" });
+    }
+  });
+
+  app.post("/api/exchange/offer", async (req, res) => {
+    try {
+      const { 
+        roomId, 
+        fromPlayer, 
+        toPlayer, 
+        resourcesOffered, 
+        resourcesRequested, 
+        uniqueItemsOffered, 
+        uniqueItemsRequested, 
+        message 
+      } = req.body;
+      
+      const offer = exchangeService.createExchangeOffer(
+        roomId,
+        fromPlayer,
+        toPlayer,
+        resourcesOffered,
+        resourcesRequested,
+        uniqueItemsOffered,
+        uniqueItemsRequested,
+        message
+      );
+      
+      if (offer) {
+        res.json(offer);
+      } else {
+        res.status(400).json({ error: "Failed to create offer" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create offer" });
+    }
+  });
+
+  app.post("/api/exchange/offer/:offerId/accept", async (req, res) => {
+    try {
+      const { offerId } = req.params;
+      const { playerId } = req.body;
+      
+      const success = exchangeService.acceptOffer(offerId, playerId);
+      
+      if (success) {
+        res.json({ success: true, message: "Offer accepted" });
+      } else {
+        res.status(400).json({ error: "Failed to accept offer" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to accept offer" });
+    }
+  });
+
+  app.post("/api/exchange/offer/:offerId/reject", async (req, res) => {
+    try {
+      const { offerId } = req.params;
+      const { playerId } = req.body;
+      
+      const success = exchangeService.rejectOffer(offerId, playerId);
+      
+      if (success) {
+        res.json({ success: true, message: "Offer rejected" });
+      } else {
+        res.status(400).json({ error: "Failed to reject offer" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to reject offer" });
+    }
+  });
+
+  app.delete("/api/exchange/room/:roomId", async (req, res) => {
+    try {
+      const { roomId } = req.params;
+      const success = exchangeService.closeTradeRoom(roomId);
+      
+      if (success) {
+        res.json({ success: true, message: "Room closed" });
+      } else {
+        res.status(400).json({ error: "Failed to close room" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to close room" });
     }
   });
 
