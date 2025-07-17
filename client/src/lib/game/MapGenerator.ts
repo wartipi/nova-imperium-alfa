@@ -32,27 +32,93 @@ export class MapGenerator {
   static generateMap(width: number, height: number): HexTile[][] {
     const map: HexTile[][] = [];
     
-    // Pre-calculate noise for more realistic terrain
-    const elevationNoise = this.generateNoise(width, height, 0.1);
-    const temperatureNoise = this.generateNoise(width, height, 0.08);
-    const moistureNoise = this.generateNoise(width, height, 0.12);
-    
+    // Initialize entire map as deep water first
     for (let y = 0; y < height; y++) {
       const row: HexTile[] = [];
       for (let x = 0; x < width; x++) {
-        const hex = this.generateHex(x, y, elevationNoise[y][x], temperatureNoise[y][x], moistureNoise[y][x]);
-        row.push(hex);
+        row.push({
+          x,
+          y,
+          terrain: 'deep_water',
+          food: 1,
+          production: 0,
+          science: 0,
+          commerce: 1,
+          resource: null,
+          hasRiver: false,
+          hasRoad: false,
+          improvement: null,
+          isVisible: false,
+          isExplored: false
+        });
       }
       map.push(row);
     }
     
-    // Add rivers
+    // Generate many small islands scattered across the archipelago
+    this.generateArchipelagoIslands(map, width, height);
+    
+    // Add rivers to land masses
     this.addRivers(map, width, height);
     
     // Add resources
     this.addResources(map, width, height);
     
     return map;
+  }
+
+  private static generateArchipelagoIslands(map: HexTile[][], width: number, height: number) {
+    // Create many small islands (1-4 tiles each) scattered everywhere
+    const numIslands = Math.floor((width * height) / 25); // About 1 island per 25 tiles
+    
+    for (let i = 0; i < numIslands; i++) {
+      const centerX = Math.floor(Math.random() * width);
+      const centerY = Math.floor(Math.random() * height);
+      
+      // Small island size (1-3 tiles radius)
+      const islandSize = 1 + Math.floor(Math.random() * 3);
+      
+      this.generateSmallIsland(map, width, height, centerX, centerY, islandSize);
+    }
+  }
+
+  private static generateSmallIsland(map: HexTile[][], width: number, height: number, centerX: number, centerY: number, maxRadius: number) {
+    // Temperature and moisture for this island
+    const temperature = Math.random();
+    const moisture = Math.random();
+    
+    for (let y = Math.max(0, centerY - maxRadius); y <= Math.min(height - 1, centerY + maxRadius); y++) {
+      for (let x = Math.max(0, centerX - maxRadius); x <= Math.min(width - 1, centerX + maxRadius); x++) {
+        const distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
+        
+        if (distance <= maxRadius) {
+          // Create land or shallow water based on distance
+          const elevation = 0.4 + (1 - distance / maxRadius) * 0.4 + Math.random() * 0.2;
+          
+          if (distance <= maxRadius - 0.5) {
+            // Core land
+            map[y][x] = this.generateHex(x, y, elevation, temperature, moisture);
+          } else if (distance <= maxRadius) {
+            // Shallow water around island
+            map[y][x] = {
+              x,
+              y,
+              terrain: 'shallow_water',
+              food: 2,
+              production: 0,
+              science: 0,
+              commerce: 2,
+              resource: null,
+              hasRiver: false,
+              hasRoad: false,
+              improvement: null,
+              isVisible: false,
+              isExplored: false
+            };
+          }
+        }
+      }
+    }
   }
 
   private static generateHex(x: number, y: number, elevation: number, temperature: number, moisture: number): HexTile {
