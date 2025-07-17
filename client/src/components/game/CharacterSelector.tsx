@@ -107,6 +107,8 @@ export function CharacterSelector({ onSelect, onClose }: CharacterSelectorProps)
               }`}
               onClick={(e) => {
                 e.stopPropagation();
+                e.preventDefault();
+                console.log('Character clicked:', character.name);
                 setSelectedCharacter(character);
               }}
               onMouseDown={(e) => e.stopPropagation()}
@@ -144,6 +146,8 @@ export function CharacterSelector({ onSelect, onClose }: CharacterSelectorProps)
           <Button
             onClick={(e) => {
               e.stopPropagation();
+              e.preventDefault();
+              console.log('Confirm button clicked');
               handleConfirm();
             }}
             disabled={!selectedCharacter}

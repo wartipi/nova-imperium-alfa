@@ -141,10 +141,18 @@ export function MedievalHUD() {
             className="w-16 h-20 bg-gradient-to-b from-amber-200 to-amber-300 border-2 border-amber-800 rounded-t-full rounded-b-sm shadow-lg flex items-center justify-center cursor-pointer hover:bg-gradient-to-b hover:from-amber-300 hover:to-amber-400 transition-colors"
             onClick={(e) => {
               e.stopPropagation();
+              e.preventDefault();
+              console.log('Shield clicked!');
               setShowCharacterSelector(true);
             }}
-            onMouseDown={(e) => e.stopPropagation()}
-            onMouseUp={(e) => e.stopPropagation()}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
+            onMouseUp={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
             title="Cliquez pour changer de personnage"
           >
             <div className="text-2xl">
@@ -176,6 +184,8 @@ export function MedievalHUD() {
                   key={item.id}
                   onClick={(e) => {
                     e.stopPropagation();
+                    e.preventDefault();
+                    console.log('Menu item clicked:', item.id);
                     setActiveSection(activeSection === item.id ? null : item.id);
                   }}
                   onMouseDown={(e) => e.stopPropagation()}

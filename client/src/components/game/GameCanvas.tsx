@@ -22,12 +22,18 @@ export function GameCanvas() {
 
   // Handle mouse down to track drag vs click
   const handleMouseDown = useCallback((event: React.MouseEvent) => {
-    setMouseDownPos({ x: event.clientX, y: event.clientY });
+    // Only handle mouse events if they're actually on the canvas (not on HUD elements)
+    if (event.target === canvasRef.current) {
+      setMouseDownPos({ x: event.clientX, y: event.clientY });
+    }
   }, []);
 
   // Handle canvas clicks (only if not dragging)
   const handleCanvasClick = useCallback((event: React.MouseEvent) => {
     if (!gameEngineRef.current || !mouseDownPos) return;
+    
+    // Only handle clicks if they're actually on the canvas (not on HUD elements)
+    if (event.target !== canvasRef.current) return;
 
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -79,7 +85,7 @@ export function GameCanvas() {
       onMouseDown={handleMouseDown}
       onClick={handleCanvasClick}
       className="block cursor-pointer"
-      style={{ touchAction: 'none' }}
+      style={{ touchAction: 'none', pointerEvents: 'auto' }}
     />
   );
 }
