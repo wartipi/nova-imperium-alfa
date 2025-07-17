@@ -14,13 +14,23 @@ const buildingData: Record<BuildingType, { cost: number; maintenance: number; yi
 };
 
 export function TreasuryPanel() {
-  const { currentCivilization } = useCivilizations();
+  const { civilizations, currentCivilizationId, currentCivilization } = useCivilizations();
 
+  console.log('TreasuryPanel: civilizations:', civilizations);
+  console.log('TreasuryPanel: currentCivilizationId:', currentCivilizationId);
   console.log('TreasuryPanel: currentCivilization:', currentCivilization);
 
   if (!currentCivilization) {
     console.log('TreasuryPanel: No current civilization found');
-    return <div>No civilization data available</div>;
+    return (
+      <div className="text-center p-4">
+        <div className="text-amber-900 font-bold mb-2">Chargement des données...</div>
+        <div className="text-sm text-amber-700">
+          Civilisations: {civilizations.length} | 
+          ID actuel: {currentCivilizationId}
+        </div>
+      </div>
+    );
   }
 
   const resources = currentCivilization.resources;
