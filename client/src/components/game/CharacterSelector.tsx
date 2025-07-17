@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Button } from "../ui/button";
 
 interface CharacterSelectorProps {
   onSelect: (character: CharacterOption) => void;
@@ -150,16 +149,20 @@ export function CharacterSelector({ onSelect, onClose }: CharacterSelectorProps)
         )}
 
         <div className="flex space-x-4">
-          <Button
+          <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
+              e.preventDefault();
+              console.log('Cancel button clicked');
               onClose();
             }}
-            className="flex-1 bg-amber-400 hover:bg-amber-500 text-amber-900 border-2 border-amber-600"
+            className="flex-1 bg-amber-400 hover:bg-amber-500 text-amber-900 border-2 border-amber-600 px-4 py-2 rounded-md font-medium transition-colors cursor-pointer"
           >
             Annuler
-          </Button>
-          <Button
+          </button>
+          <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               e.preventDefault();
@@ -167,10 +170,10 @@ export function CharacterSelector({ onSelect, onClose }: CharacterSelectorProps)
               handleConfirm();
             }}
             disabled={!selectedCharacter}
-            className="flex-1 bg-amber-600 hover:bg-amber-700 text-white border-2 border-amber-800 disabled:opacity-50"
+            className="flex-1 bg-amber-600 hover:bg-amber-700 text-white border-2 border-amber-800 disabled:opacity-50 px-4 py-2 rounded-md font-medium transition-colors cursor-pointer disabled:cursor-not-allowed"
           >
             Confirmer
-          </Button>
+          </button>
         </div>
       </div>
     </div>
