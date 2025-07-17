@@ -3,6 +3,7 @@ import { usePlayer } from "../../lib/stores/usePlayer";
 import { Button } from "../ui/button";
 import { getBuildingCost, canAffordAction } from "../../lib/game/ActionPointsCosts";
 import { getBuildingAPGeneration, getBuildingMaxAPIncrease } from "../../lib/game/ActionPointsGeneration";
+import { Resources } from "../../lib/game/types";
 
 export function ConstructionPanel() {
   const { currentNovaImperium, buildInCity } = useNovaImperium();
@@ -12,48 +13,89 @@ export function ConstructionPanel() {
 
   const buildings = [
     // Transport/Commercial (Blue)
-    { id: 'port', name: 'Port', cost: 80, description: 'Permet le commerce maritime', icon: '🚢', category: 'Transport' },
-    { id: 'market', name: 'Marché', cost: 100, description: 'Augmente les revenus commerciaux', icon: '🏪', category: 'Transport' },
-    { id: 'road', name: 'Route', cost: 40, description: 'Améliore les déplacements', icon: '🛤️', category: 'Transport' },
-    { id: 'shipyard', name: 'Chantier Naval', cost: 120, description: 'Construit des navires', icon: '⚓', category: 'Transport' },
+    { id: 'port', name: 'Port', cost: { wood: 15, stone: 10, gold: 20 }, description: 'Permet le commerce maritime', icon: '🚢', category: 'Transport' },
+    { id: 'market', name: 'Marché', cost: { wood: 10, gold: 25, food: 5 }, description: 'Augmente les revenus commerciaux', icon: '🏪', category: 'Transport' },
+    { id: 'road', name: 'Route', cost: { stone: 8, gold: 12 }, description: 'Améliore les déplacements', icon: '🛤️', category: 'Transport' },
+    { id: 'shipyard', name: 'Chantier Naval', cost: { wood: 20, iron: 8, gold: 15 }, description: 'Construit des navires', icon: '⚓', category: 'Transport' },
     
     // Agriculture/Nature (Green)
-    { id: 'farm', name: 'Ferme', cost: 50, description: 'Augmente la production alimentaire', icon: '🚜', category: 'Agriculture' },
-    { id: 'sawmill', name: 'Scierie', cost: 70, description: 'Exploite les ressources forestières', icon: '🪵', category: 'Agriculture' },
-    { id: 'garden', name: 'Jardin', cost: 60, description: 'Améliore la beauté et la nourriture', icon: '🌻', category: 'Agriculture' },
+    { id: 'farm', name: 'Ferme', cost: { wood: 8, stone: 5, food: 10 }, description: 'Augmente la production alimentaire', icon: '🚜', category: 'Agriculture' },
+    { id: 'sawmill', name: 'Scierie', cost: { wood: 12, iron: 6, stone: 4 }, description: 'Exploite les ressources forestières', icon: '🪵', category: 'Agriculture' },
+    { id: 'garden', name: 'Jardin', cost: { wood: 6, stone: 3, food: 8 }, description: 'Améliore la beauté et la nourriture', icon: '🌻', category: 'Agriculture' },
     
     // Defense/Military (Red)
-    { id: 'fortress', name: 'Forteresse', cost: 150, description: 'Défense militaire avancée', icon: '🏰', category: 'Défense' },
-    { id: 'watchtower', name: 'Tour de Guet', cost: 80, description: 'Surveille les environs', icon: '🗼', category: 'Défense' },
-    { id: 'fortifications', name: 'Fortifications', cost: 120, description: 'Renforce les défenses', icon: '🛡️', category: 'Défense' },
+    { id: 'fortress', name: 'Forteresse', cost: { stone: 25, iron: 15, gold: 20 }, description: 'Défense militaire avancée', icon: '🏰', category: 'Défense' },
+    { id: 'watchtower', name: 'Tour de Guet', cost: { wood: 8, stone: 12, iron: 5 }, description: 'Surveille les environs', icon: '🗼', category: 'Défense' },
+    { id: 'fortifications', name: 'Fortifications', cost: { stone: 18, iron: 10, wood: 6 }, description: 'Renforce les défenses', icon: '🛡️', category: 'Défense' },
     
     // Culture/Knowledge (Yellow)
-    { id: 'library', name: 'Bibliothèque', cost: 90, description: 'Centre de connaissance', icon: '📚', category: 'Culture' },
-    { id: 'temple', name: 'Temple', cost: 120, description: 'Améliore la culture et le moral', icon: '⛪', category: 'Culture' },
-    { id: 'sanctuary', name: 'Sanctuaire', cost: 100, description: 'Lieu de recueillement', icon: '🕊️', category: 'Culture' },
-    { id: 'obelisk', name: 'Obélisque', cost: 80, description: 'Monument culturel', icon: '🏛️', category: 'Culture' },
+    { id: 'library', name: 'Bibliothèque', cost: { wood: 15, stone: 8, gold: 12 }, description: 'Centre de connaissance', icon: '📚', category: 'Culture' },
+    { id: 'temple', name: 'Temple', cost: { stone: 15, gold: 18, precious_metals: 3 }, description: 'Améliore la culture et le moral', icon: '⛪', category: 'Culture' },
+    { id: 'sanctuary', name: 'Sanctuaire', cost: { stone: 12, gold: 15, mana: 5 }, description: 'Lieu de recueillement', icon: '🕊️', category: 'Culture' },
+    { id: 'obelisk', name: 'Obélisque', cost: { stone: 20, precious_metals: 5, gold: 10 }, description: 'Monument culturel', icon: '🏛️', category: 'Culture' },
     
     // Magic/Special (Purple)
-    { id: 'mystic_portal', name: 'Portail Mystique', cost: 200, description: 'Permet les voyages magiques', icon: '🌀', category: 'Magie' },
-    { id: 'legendary_forge', name: 'Forge Légendaire', cost: 180, description: 'Crée des objets magiques', icon: '🔥', category: 'Magie' },
-    { id: 'laboratory', name: 'Laboratoire', cost: 160, description: 'Recherche alchimique', icon: '🧪', category: 'Magie' },
+    { id: 'mystic_portal', name: 'Portail Mystique', cost: { crystals: 8, mana: 15, ancient_knowledge: 5, precious_metals: 10 }, description: 'Permet les voyages magiques', icon: '🌀', category: 'Magie' },
+    { id: 'legendary_forge', name: 'Forge Légendaire', cost: { iron: 20, crystals: 6, mana: 10, precious_metals: 8 }, description: 'Crée des objets magiques', icon: '🔥', category: 'Magie' },
+    { id: 'laboratory', name: 'Laboratoire', cost: { stone: 15, crystals: 5, mana: 8, ancient_knowledge: 3 }, description: 'Recherche alchimique', icon: '🧪', category: 'Magie' },
     
     // Ancient/Ruins (Black)
-    { id: 'ancient_hall', name: 'Salle Ancienne', cost: 140, description: 'Révèle les secrets du passé', icon: '🏚️', category: 'Ancien' },
-    { id: 'underground_base', name: 'Base Souterraine', cost: 130, description: 'Refuge secret', icon: '🕳️', category: 'Ancien' },
-    { id: 'cave_dwelling', name: 'Habitation Troglodyte', cost: 90, description: 'Logement dans les grottes', icon: '🏔️', category: 'Ancien' }
+    { id: 'ancient_hall', name: 'Salle Ancienne', cost: { stone: 20, ancient_knowledge: 8, mana: 5, gold: 15 }, description: 'Révèle les secrets du passé', icon: '🏚️', category: 'Ancien' },
+    { id: 'underground_base', name: 'Base Souterraine', cost: { stone: 18, iron: 10, ancient_knowledge: 4, gold: 12 }, description: 'Refuge secret', icon: '🕳️', category: 'Ancien' },
+    { id: 'cave_dwelling', name: 'Habitation Troglodyte', cost: { stone: 12, wood: 8, food: 6 }, description: 'Logement dans les grottes', icon: '🏔️', category: 'Ancien' }
   ];
 
-  const handleBuild = (buildingId: string, cityId: string) => {
+  const getResourceIcon = (resource: string): string => {
+    const icons: Record<string, string> = {
+      food: '🍞',
+      gold: '💰',
+      wood: '🪵',
+      stone: '🪨',
+      iron: '⚔️',
+      precious_metals: '🥇',
+      mana: '🔮',
+      crystals: '💎',
+      ancient_knowledge: '📜'
+    };
+    return icons[resource] || '❓';
+  };
+
+  const formatResourceCost = (cost: Record<string, number>): string => {
+    return Object.entries(cost)
+      .map(([resource, amount]) => `${amount} ${getResourceIcon(resource)}`)
+      .join(', ');
+  };
+
+  const canAffordBuilding = (buildingId: string): boolean => {
+    const building = buildings.find(b => b.id === buildingId);
+    if (!building || !currentNovaImperium) return false;
+    
     const actionCost = getBuildingCost(buildingId);
-    if (canAffordAction(actionPoints, actionCost)) {
+    const resources = currentNovaImperium.resources;
+    
+    // Check Action Points
+    if (!canAffordAction(actionPoints, actionCost)) return false;
+    
+    // Check all required resources
+    return Object.entries(building.cost).every(([resource, amount]) => {
+      return resources[resource as keyof Resources] >= amount;
+    });
+  };
+
+  const handleBuild = (buildingId: string, cityId: string) => {
+    const building = buildings.find(b => b.id === buildingId);
+    if (!building || !currentNovaImperium) return;
+    
+    const actionCost = getBuildingCost(buildingId);
+    
+    if (canAffordBuilding(buildingId)) {
       const success = spendActionPoints(actionCost);
       if (success) {
-        buildInCity(cityId, buildingId);
-        console.log(`Construction de ${buildingId} lancée pour ${actionCost} PA`);
+        buildInCity(cityId, buildingId, building.cost);
+        console.log(`Construction de ${buildingId} lancée pour ${actionCost} PA et ressources déduites`);
       }
     } else {
-      console.log(`Pas assez de Points d'Action pour construire ${buildingId} (${actionCost} PA requis)`);
+      console.log(`Ressources insuffisantes pour construire ${buildingId}`);
     }
   };
 
@@ -101,7 +143,10 @@ export function ConstructionPanel() {
                         <div>
                           <div className="text-xs font-medium">{building.name}</div>
                           <div className="text-xs text-amber-700">
-                            {building.cost} 🔨 | {getBuildingCost(building.id)} ⚡ - {building.description}
+                            {formatResourceCost(building.cost)} | {getBuildingCost(building.id)} ⚡
+                          </div>
+                          <div className="text-xs text-amber-600 mt-1">
+                            {building.description}
                           </div>
                           <div className="text-xs text-blue-600">
                             Génère {getBuildingAPGeneration(building.id)} PA/tour
@@ -117,12 +162,12 @@ export function ConstructionPanel() {
                         disabled={
                           city.currentProduction !== null || 
                           city.buildings.includes(building.id as any) || 
-                          !canAffordAction(actionPoints, getBuildingCost(building.id))
+                          !canAffordBuilding(building.id)
                         }
                         className="text-xs bg-amber-600 hover:bg-amber-700 disabled:opacity-50"
                       >
                         {city.buildings.includes(building.id as any) ? 'Construit' : 
-                         !canAffordAction(actionPoints, getBuildingCost(building.id)) ? 'Pas assez PA' : 'Construire'}
+                         !canAffordBuilding(building.id) ? 'Ressources insuffisantes' : 'Construire'}
                       </Button>
                     </div>
                   ))}

@@ -239,7 +239,7 @@ export const useNovaImperium = create<NovaImperiumState>()(
       // Implement combat logic
     },
     
-    buildInCity: (cityId: string, buildingType: string) => {
+    buildInCity: (cityId: string, buildingType: string, resourceCost?: Record<string, number>) => {
       const buildingCosts = {
         // Basic buildings
         granary: 60, library: 90, barracks: 80, market: 100,
@@ -263,6 +263,16 @@ export const useNovaImperium = create<NovaImperiumState>()(
         const updatedNIs = state.novaImperiums.map(ni => 
           ni.id === state.currentNovaImperiumId ? {
             ...ni,
+            // Deduct resources if cost is provided
+            resources: resourceCost ? {
+              ...ni.resources,
+              ...Object.fromEntries(
+                Object.entries(resourceCost).map(([resource, amount]) => [
+                  resource,
+                  Math.max(0, (ni.resources[resource as keyof Resources] || 0) - amount)
+                ])
+              )
+            } : ni.resources,
             cities: ni.cities.map(city => 
               city.id === cityId ? {
                 ...city,
