@@ -251,19 +251,9 @@ export function MedievalHUD() {
         </div>
       </div>
 
-      {/* MiniMap */}
-      <div 
-        className="absolute bottom-4 left-4 pointer-events-auto"
-        onClick={(e) => e.stopPropagation()}
-        onMouseDown={(e) => e.stopPropagation()}
-        onMouseUp={(e) => e.stopPropagation()}
-      >
-        <MiniMap />
-      </div>
-
       {/* Control Buttons */}
       <div 
-        className="absolute bottom-4 right-4 pointer-events-auto"
+        className="absolute bottom-4 left-4 pointer-events-auto"
         onClick={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
         onMouseUp={(e) => e.stopPropagation()}
@@ -278,6 +268,16 @@ export function MedievalHUD() {
             {isMuted ? "🔇" : "🔊"}
           </Button>
         </div>
+      </div>
+
+      {/* MiniMap */}
+      <div 
+        className="absolute bottom-4 right-4 pointer-events-auto"
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        onMouseUp={(e) => e.stopPropagation()}
+      >
+        <MiniMap />
       </div>
 
       {/* Active Section Panel */}

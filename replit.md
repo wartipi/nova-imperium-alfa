@@ -87,6 +87,11 @@ Preferred communication style: Simple, everyday language.
 - Real consequences for actions: promises, betrayals, donations, and defiance tracked
 - Nova Imperium vision realized: choices shape destiny through persistent reputation system
 
+### UI Layout Updates (January 17, 2025)
+- Moved minimap to lower right corner as requested for better HUD organization
+- Control buttons (sound toggle) now positioned in lower left corner
+- Reputation system integrated into player info box with clickable details modal
+
 ## System Architecture
 
 ### Frontend Architecture
