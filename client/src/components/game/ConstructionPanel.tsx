@@ -12,37 +12,37 @@ export function ConstructionPanel() {
   if (!currentNovaImperium) return null;
 
   const buildings = [
-    // Transport/Commercial (Blue)
-    { id: 'port', name: 'Port', cost: { wood: 15, stone: 10, gold: 20 }, description: 'Permet le commerce maritime', icon: '🚢', category: 'Transport' },
-    { id: 'market', name: 'Marché', cost: { wood: 10, gold: 25, food: 5 }, description: 'Augmente les revenus commerciaux', icon: '🏪', category: 'Transport' },
-    { id: 'road', name: 'Route', cost: { stone: 8, gold: 12 }, description: 'Améliore les déplacements', icon: '🛤️', category: 'Transport' },
-    { id: 'shipyard', name: 'Chantier Naval', cost: { wood: 20, iron: 8, gold: 15 }, description: 'Construit des navires', icon: '⚓', category: 'Transport' },
+    // Transport/Commercial (Blue) - 2-5 tours
+    { id: 'port', name: 'Port', cost: { wood: 15, stone: 10, gold: 20 }, constructionTime: 4, description: 'Permet le commerce maritime', icon: '🚢', category: 'Transport' },
+    { id: 'market', name: 'Marché', cost: { wood: 10, gold: 25, food: 5 }, constructionTime: 3, description: 'Augmente les revenus commerciaux', icon: '🏪', category: 'Transport' },
+    { id: 'road', name: 'Route', cost: { stone: 8, gold: 12 }, constructionTime: 2, description: 'Améliore les déplacements', icon: '🛤️', category: 'Transport' },
+    { id: 'shipyard', name: 'Chantier Naval', cost: { wood: 20, iron: 8, gold: 15 }, constructionTime: 5, description: 'Construit des navires', icon: '⚓', category: 'Transport' },
     
-    // Agriculture/Nature (Green)
-    { id: 'farm', name: 'Ferme', cost: { wood: 8, stone: 5, food: 10 }, description: 'Augmente la production alimentaire', icon: '🚜', category: 'Agriculture' },
-    { id: 'sawmill', name: 'Scierie', cost: { wood: 12, iron: 6, stone: 4 }, description: 'Exploite les ressources forestières', icon: '🪵', category: 'Agriculture' },
-    { id: 'garden', name: 'Jardin', cost: { wood: 6, stone: 3, food: 8 }, description: 'Améliore la beauté et la nourriture', icon: '🌻', category: 'Agriculture' },
+    // Agriculture/Nature (Green) - 1-3 tours
+    { id: 'farm', name: 'Ferme', cost: { wood: 8, stone: 5, food: 10 }, constructionTime: 2, description: 'Augmente la production alimentaire', icon: '🚜', category: 'Agriculture' },
+    { id: 'sawmill', name: 'Scierie', cost: { wood: 12, iron: 6, stone: 4 }, constructionTime: 3, description: 'Exploite les ressources forestières', icon: '🪵', category: 'Agriculture' },
+    { id: 'garden', name: 'Jardin', cost: { wood: 6, stone: 3, food: 8 }, constructionTime: 1, description: 'Améliore la beauté et la nourriture', icon: '🌻', category: 'Agriculture' },
     
-    // Defense/Military (Red)
-    { id: 'fortress', name: 'Forteresse', cost: { stone: 25, iron: 15, gold: 20 }, description: 'Défense militaire avancée', icon: '🏰', category: 'Défense' },
-    { id: 'watchtower', name: 'Tour de Guet', cost: { wood: 8, stone: 12, iron: 5 }, description: 'Surveille les environs', icon: '🗼', category: 'Défense' },
-    { id: 'fortifications', name: 'Fortifications', cost: { stone: 18, iron: 10, wood: 6 }, description: 'Renforce les défenses', icon: '🛡️', category: 'Défense' },
+    // Defense/Military (Red) - 4-7 tours
+    { id: 'fortress', name: 'Forteresse', cost: { stone: 25, iron: 15, gold: 20 }, constructionTime: 7, description: 'Défense militaire avancée', icon: '🏰', category: 'Défense' },
+    { id: 'watchtower', name: 'Tour de Guet', cost: { wood: 8, stone: 12, iron: 5 }, constructionTime: 4, description: 'Surveille les environs', icon: '🗼', category: 'Défense' },
+    { id: 'fortifications', name: 'Fortifications', cost: { stone: 18, iron: 10, wood: 6 }, constructionTime: 5, description: 'Renforce les défenses', icon: '🛡️', category: 'Défense' },
     
-    // Culture/Knowledge (Yellow)
-    { id: 'library', name: 'Bibliothèque', cost: { wood: 15, stone: 8, gold: 12 }, description: 'Centre de connaissance', icon: '📚', category: 'Culture' },
-    { id: 'temple', name: 'Temple', cost: { stone: 15, gold: 18, precious_metals: 3 }, description: 'Améliore la culture et le moral', icon: '⛪', category: 'Culture' },
-    { id: 'sanctuary', name: 'Sanctuaire', cost: { stone: 12, gold: 15, mana: 5 }, description: 'Lieu de recueillement', icon: '🕊️', category: 'Culture' },
-    { id: 'obelisk', name: 'Obélisque', cost: { stone: 20, precious_metals: 5, gold: 10 }, description: 'Monument culturel', icon: '🏛️', category: 'Culture' },
+    // Culture/Knowledge (Yellow) - 3-6 tours
+    { id: 'library', name: 'Bibliothèque', cost: { wood: 15, stone: 8, gold: 12 }, constructionTime: 4, description: 'Centre de connaissance', icon: '📚', category: 'Culture' },
+    { id: 'temple', name: 'Temple', cost: { stone: 15, gold: 18, precious_metals: 3 }, constructionTime: 6, description: 'Améliore la culture et le moral', icon: '⛪', category: 'Culture' },
+    { id: 'sanctuary', name: 'Sanctuaire', cost: { stone: 12, gold: 15, mana: 5 }, constructionTime: 5, description: 'Lieu de recueillement', icon: '🕊️', category: 'Culture' },
+    { id: 'obelisk', name: 'Obélisque', cost: { stone: 20, precious_metals: 5, gold: 10 }, constructionTime: 3, description: 'Monument culturel', icon: '🏛️', category: 'Culture' },
     
-    // Magic/Special (Purple)
-    { id: 'mystic_portal', name: 'Portail Mystique', cost: { crystals: 8, mana: 15, ancient_knowledge: 5, precious_metals: 10 }, description: 'Permet les voyages magiques', icon: '🌀', category: 'Magie' },
-    { id: 'legendary_forge', name: 'Forge Légendaire', cost: { iron: 20, crystals: 6, mana: 10, precious_metals: 8 }, description: 'Crée des objets magiques', icon: '🔥', category: 'Magie' },
-    { id: 'laboratory', name: 'Laboratoire', cost: { stone: 15, crystals: 5, mana: 8, ancient_knowledge: 3 }, description: 'Recherche alchimique', icon: '🧪', category: 'Magie' },
+    // Magic/Special (Purple) - 7-10 tours
+    { id: 'mystic_portal', name: 'Portail Mystique', cost: { crystals: 8, mana: 15, ancient_knowledge: 5, precious_metals: 10 }, constructionTime: 10, description: 'Permet les voyages magiques', icon: '🌀', category: 'Magie' },
+    { id: 'legendary_forge', name: 'Forge Légendaire', cost: { iron: 20, crystals: 6, mana: 10, precious_metals: 8 }, constructionTime: 8, description: 'Crée des objets magiques', icon: '🔥', category: 'Magie' },
+    { id: 'laboratory', name: 'Laboratoire', cost: { stone: 15, crystals: 5, mana: 8, ancient_knowledge: 3 }, constructionTime: 7, description: 'Recherche alchimique', icon: '🧪', category: 'Magie' },
     
-    // Ancient/Ruins (Black)
-    { id: 'ancient_hall', name: 'Salle Ancienne', cost: { stone: 20, ancient_knowledge: 8, mana: 5, gold: 15 }, description: 'Révèle les secrets du passé', icon: '🏚️', category: 'Ancien' },
-    { id: 'underground_base', name: 'Base Souterraine', cost: { stone: 18, iron: 10, ancient_knowledge: 4, gold: 12 }, description: 'Refuge secret', icon: '🕳️', category: 'Ancien' },
-    { id: 'cave_dwelling', name: 'Habitation Troglodyte', cost: { stone: 12, wood: 8, food: 6 }, description: 'Logement dans les grottes', icon: '🏔️', category: 'Ancien' }
+    // Ancient/Ruins (Black) - 5-8 tours
+    { id: 'ancient_hall', name: 'Salle Ancienne', cost: { stone: 20, ancient_knowledge: 8, mana: 5, gold: 15 }, constructionTime: 8, description: 'Révèle les secrets du passé', icon: '🏚️', category: 'Ancien' },
+    { id: 'underground_base', name: 'Base Souterraine', cost: { stone: 18, iron: 10, ancient_knowledge: 4, gold: 12 }, constructionTime: 6, description: 'Refuge secret', icon: '🕳️', category: 'Ancien' },
+    { id: 'cave_dwelling', name: 'Habitation Troglodyte', cost: { stone: 12, wood: 8, food: 6 }, constructionTime: 5, description: 'Logement dans les grottes', icon: '🏔️', category: 'Ancien' }
   ];
 
   const getResourceIcon = (resource: string): string => {
@@ -91,8 +91,8 @@ export function ConstructionPanel() {
     if (canAffordBuilding(buildingId)) {
       const success = spendActionPoints(actionCost);
       if (success) {
-        buildInCity(cityId, buildingId, building.cost);
-        console.log(`Construction de ${buildingId} lancée pour ${actionCost} PA et ressources déduites`);
+        buildInCity(cityId, buildingId, building.cost, building.constructionTime);
+        console.log(`Construction de ${buildingId} lancée pour ${building.constructionTime} tours, ${actionCost} PA et ressources déduites`);
       }
     } else {
       console.log(`Ressources insuffisantes pour construire ${buildingId}`);
@@ -121,7 +121,7 @@ export function ConstructionPanel() {
                 ></div>
               </div>
               <div className="text-xs text-amber-700 mt-1">
-                {city.productionProgress}/{city.currentProduction.cost}
+                🕐 {city.productionProgress}/{city.currentProduction.cost} tours
               </div>
             </div>
           ) : (
@@ -144,6 +144,9 @@ export function ConstructionPanel() {
                           <div className="text-xs font-medium">{building.name}</div>
                           <div className="text-xs text-amber-700">
                             {formatResourceCost(building.cost)} | {getBuildingCost(building.id)} ⚡
+                          </div>
+                          <div className="text-xs text-purple-600">
+                            🕐 {building.constructionTime} tour{building.constructionTime > 1 ? 's' : ''}
                           </div>
                           <div className="text-xs text-amber-600 mt-1">
                             {building.description}

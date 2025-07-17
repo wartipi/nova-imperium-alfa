@@ -239,7 +239,7 @@ export const useNovaImperium = create<NovaImperiumState>()(
       // Implement combat logic
     },
     
-    buildInCity: (cityId: string, buildingType: string, resourceCost?: Record<string, number>) => {
+    buildInCity: (cityId: string, buildingType: string, resourceCost?: Record<string, number>, constructionTime?: number) => {
       const buildingCosts = {
         // Basic buildings
         granary: 60, library: 90, barracks: 80, market: 100,
@@ -257,7 +257,7 @@ export const useNovaImperium = create<NovaImperiumState>()(
         ancient_hall: 140, underground_base: 130, cave_dwelling: 90
       };
       
-      const cost = buildingCosts[buildingType as keyof typeof buildingCosts] || 50;
+      const cost = constructionTime || buildingCosts[buildingType as keyof typeof buildingCosts] || 50;
       
       set(state => {
         const updatedNIs = state.novaImperiums.map(ni => 
