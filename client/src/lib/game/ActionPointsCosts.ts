@@ -5,6 +5,9 @@ export interface ActionPointsCosts {
   // Construction costs
   buildings: Record<string, number>;
   
+  // Unit recruitment costs
+  unitRecruitment: Record<string, number>;
+  
   // Unit movement costs (per tile)
   unitMovement: Record<string, number>;
   
@@ -53,6 +56,36 @@ export const ACTION_COSTS: ActionPointsCosts = {
     'cave_dwelling': 10
   },
   
+  // Unit recruitment costs
+  unitRecruitment: {
+    // Basic Infantry
+    'warrior': 4,
+    'spearman': 5,
+    'swordsman': 6,
+    
+    // Ranged Units
+    'archer': 5,
+    'crossbowman': 6,
+    
+    // Siege Units
+    'catapult': 10,
+    'trebuchet': 12,
+    
+    // Cavalry
+    'horseman': 8,
+    'knight': 10,
+    
+    // Naval Units
+    'galley': 8,
+    'warship': 10,
+    
+    // Special Units
+    'scout': 3,
+    'settler': 12,
+    'diplomat': 6,
+    'spy': 7
+  },
+
   // Unit movement costs per tile
   unitMovement: {
     'warrior': 2,
@@ -85,6 +118,11 @@ export const canAffordAction = (currentAP: number, cost: number): boolean => {
 // Helper function to get building cost
 export const getBuildingCost = (buildingType: string): number => {
   return ACTION_COSTS.buildings[buildingType] || 10;
+};
+
+// Helper function to get unit recruitment cost
+export const getUnitRecruitmentCost = (unitType: string): number => {
+  return ACTION_COSTS.unitRecruitment[unitType] || 5;
 };
 
 // Helper function to get unit movement cost

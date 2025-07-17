@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
-import type { NovaImperium, Unit, City, DiplomaticRelation } from "../game/types";
+import type { NovaImperium, Unit, City, DiplomaticRelation, Resources } from "../game/types";
 import { AI } from "../game/AI";
 
 interface NovaImperiumState {
@@ -17,7 +17,7 @@ interface NovaImperiumState {
   moveUnit: (unitId: string, x: number, y: number) => void;
   attackWithUnit: (unitId: string, targetX: number, targetY: number) => void;
   buildInCity: (cityId: string, buildingType: string) => void;
-  trainUnit: (cityId: string, unitType: string) => void;
+  trainUnit: (cityId: string, unitType: string, cost?: Record<string, number>, recruitmentTime?: number) => void;
   researchTechnology: (techId: string) => void;
   sendDiplomaticProposal: (targetNIId: string, type: string) => void;
   processTurn: () => void;
@@ -296,7 +296,7 @@ export const useNovaImperium = create<NovaImperiumState>()(
       });
     },
     
-    trainUnit: (cityId: string, unitType: string) => {
+    trainUnit: (cityId: string, unitType: string, cost?: Record<string, number>, recruitmentTime?: number) => {
       const unitCosts = {
         // Basic Infantry
         warrior: 40, spearman: 60, swordsman: 80,
@@ -312,19 +312,30 @@ export const useNovaImperium = create<NovaImperiumState>()(
         scout: 30, settler: 100, diplomat: 80, spy: 90
       };
       
-      const cost = unitCosts[unitType as keyof typeof unitCosts] || 40;
+      const oldCost = unitCosts[unitType as keyof typeof unitCosts] || 40;
+      const duration = recruitmentTime || 1;
       
       set(state => {
         const updatedNIs = state.novaImperiums.map(ni => 
           ni.id === state.currentNovaImperiumId ? {
             ...ni,
+            // Deduct resources if cost is provided
+            resources: cost ? {
+              ...ni.resources,
+              ...Object.fromEntries(
+                Object.entries(cost).map(([resource, amount]) => [
+                  resource,
+                  Math.max(0, (ni.resources[resource as keyof Resources] || 0) - amount)
+                ])
+              )
+            } : ni.resources,
             cities: ni.cities.map(city => 
               city.id === cityId ? {
                 ...city,
                 currentProduction: {
                   type: 'unit',
                   name: unitType,
-                  cost
+                  cost: duration
                 },
                 productionProgress: 0
               } : city
