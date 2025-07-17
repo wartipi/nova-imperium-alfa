@@ -136,8 +136,10 @@ Preferred communication style: Simple, everyday language.
 
 ### Treaty System Implementation (January 17, 2025)
 - Created comprehensive treaty system for formal player agreements
-- 4 treaty types aligned with game mechanics: Alliance Militaire (25 PA), Accord Commercial (15 PA), Pacte de Non-Agression (10 PA), Défense Mutuelle (20 PA)
+- 5 treaty types aligned with game mechanics: Alliance Militaire (25 PA), Accord Commercial (15 PA), Pacte de Non-Agression (10 PA), Accès Militaire (8 PA), Défense Mutuelle (20 PA)
 - Removed cultural and scientific treaty types as they don't align with current resource system
+- Added Military Access treaty type for unit passage and territory access
+- Removed military passage condition from Non-Aggression Pact (now only covers neutral zones and trade)
 - Treaty creation form with title, type, participants, and terms
 - Variable cost system based on treaty type and complexity
 - Multi-party signature system with automatic activation when all parties sign

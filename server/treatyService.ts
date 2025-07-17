@@ -5,6 +5,7 @@ export type TreatyType =
   | 'alliance_militaire'
   | 'accord_commercial' 
   | 'pacte_non_agression'
+  | 'acces_militaire'
   | 'defense_mutuelle';
 
 // Propriétés spécifiques à chaque type de traité
@@ -32,7 +33,14 @@ interface TreatyProperties {
     duration: number; // Durée en tours
     neutralZones: { x: number; y: number }[]; // Zones neutres
     tradingAllowed: boolean;
-    militaryPassage: boolean;
+  };
+  
+  // Accès militaire
+  acces_militaire?: {
+    unitsAllowed: string[]; // Types d'unités autorisées
+    territoryAccess: boolean;
+    timeLimit: number; // Limite de temps en tours
+    restrictedZones: { x: number; y: number }[]; // Zones interdites
   };
   
   // Défense mutuelle
@@ -93,9 +101,8 @@ class TreatyService {
       alliance_militaire: 25,
       accord_commercial: 15,
       pacte_non_agression: 10,
-      defense_mutuelle: 20,
-      echange_culturel: 12,
-      cooperation_scientifique: 18
+      acces_militaire: 8,
+      defense_mutuelle: 20
     };
     return costs[type] || 15;
   }
@@ -225,6 +232,9 @@ class TreatyService {
       case 'pacte_non_agression':
         this.activateNonAggressionPact(treaty);
         break;
+      case 'acces_militaire':
+        this.activateMilitaryAccess(treaty);
+        break;
       case 'defense_mutuelle':
         this.activateMutualDefense(treaty);
         break;
@@ -297,12 +307,7 @@ class TreatyService {
       this.establishNeutralZones(treaty.parties, props.neutralZones);
     }
     
-    // 2. Passage militaire
-    if (props.militaryPassage) {
-      this.enableMilitaryPassage(treaty.parties);
-    }
-    
-    // 3. Commerce autorisé
+    // 2. Commerce autorisé
     if (props.tradingAllowed) {
       this.enableTradingBetweenParties(treaty.parties);
     }
@@ -322,6 +327,30 @@ class TreatyService {
     
     if (props.emergencyContact) {
       this.enableEmergencyContact(treaty.parties);
+    }
+  }
+
+  // Activer l'accès militaire
+  private activateMilitaryAccess(treaty: Treaty): void {
+    const props = treaty.properties.acces_militaire;
+    if (!props) return;
+
+    console.log(`Accès militaire activé entre ${treaty.parties.join(', ')}`);
+    
+    // Effets de l'accès militaire :
+    // 1. Passage d'unités autorisées
+    if (props.unitsAllowed.length > 0) {
+      this.enableMilitaryPassage(treaty.parties, props.unitsAllowed);
+    }
+    
+    // 2. Accès aux territoires
+    if (props.territoryAccess) {
+      this.enableTerritoryAccess(treaty.parties);
+    }
+    
+    // 3. Zones restreintes
+    if (props.restrictedZones.length > 0) {
+      this.establishRestrictedZones(treaty.parties, props.restrictedZones);
     }
   }
 
@@ -368,9 +397,13 @@ class TreatyService {
     console.log(`Zones neutres établies pour: ${parties.join(', ')}`);
   }
 
-  private enableMilitaryPassage(parties: string[]): void {
+  private enableMilitaryPassage(parties: string[], allowedUnits?: string[]): void {
     // Logique de passage militaire
-    console.log(`Passage militaire activé pour: ${parties.join(', ')}`);
+    if (allowedUnits) {
+      console.log(`Passage militaire activé pour: ${parties.join(', ')} (unités autorisées: ${allowedUnits.join(', ')})`);
+    } else {
+      console.log(`Passage militaire activé pour: ${parties.join(', ')}`);
+    }
   }
 
   private enableTradingBetweenParties(parties: string[]): void {
@@ -386,6 +419,16 @@ class TreatyService {
   private enableEmergencyContact(parties: string[]): void {
     // Logique de contact d'urgence
     console.log(`Contact d'urgence activé pour: ${parties.join(', ')}`);
+  }
+
+  private enableTerritoryAccess(parties: string[]): void {
+    // Logique d'accès aux territoires
+    console.log(`Accès aux territoires activé pour: ${parties.join(', ')}`);
+  }
+
+  private establishRestrictedZones(parties: string[], zones: { x: number; y: number }[]): void {
+    // Logique de zones restreintes
+    console.log(`Zones restreintes établies pour: ${parties.join(', ')} (${zones.length} zones)`);
   }
 
 
@@ -416,9 +459,16 @@ class TreatyService {
       {
         type: 'pacte_non_agression',
         name: 'Pacte de Non-Agression',
-        description: 'Zones neutres, passage militaire, commerce autorisé',
+        description: 'Zones neutres, commerce autorisé, cessez-le-feu',
         cost: 10,
         icon: '🕊️'
+      },
+      {
+        type: 'acces_militaire',
+        name: 'Accès Militaire',
+        description: 'Passage d\'unités militaires, accès aux territoires',
+        cost: 8,
+        icon: '🚶'
       },
       {
         type: 'defense_mutuelle',
