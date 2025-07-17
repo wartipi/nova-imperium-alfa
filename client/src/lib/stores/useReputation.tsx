@@ -23,12 +23,17 @@ interface ReputationState {
   honor: number;
   reputation: string;
   reputationHistory: ReputationAction[];
+  gnParticipation: number; // Nombre d'événements GN participés
+  seasonPass: boolean; // Possède une carte de saison
   
   // Actions
   addReputationAction: (action: Omit<ReputationAction, 'id' | 'timestamp'>) => void;
   getReputationLevel: () => ReputationLevel;
   getAvailableActions: () => string[];
   canPerformAction: (actionType: string) => boolean;
+  addGnParticipation: () => void;
+  setSeasonPass: (hasPass: boolean) => void;
+  canCreateFaction: () => boolean;
 }
 
 const REPUTATION_LEVELS: ReputationLevel[] = [
@@ -37,56 +42,58 @@ const REPUTATION_LEVELS: ReputationLevel[] = [
     minHonor: -1000,
     maxHonor: -500,
     color: "#8B0000",
-    description: "Paria complet, rejeté par tous",
-    effects: ["Accès refusé aux villes", "Commerce impossible", "Attaqué à vue"]
+    description: "Paria social, accès à des réseaux clandestins",
+    effects: ["Quêtes clandestines", "Contrats dissimulés", "Réseaux criminels", "Missions secrètes"]
   },
   {
-    name: "Déshonneur",
+    name: "Méprisé",
     minHonor: -499,
     maxHonor: -200,
     color: "#DC143C",
-    description: "Réputation ternie, méfiance générale",
-    effects: ["Prix majorés", "Accès limité", "Missions dangereuses uniquement"]
+    description: "Personne peu fiable, évitée par la plupart",
+    effects: ["Quêtes sombres", "Contrats louches", "Réseaux souterrains"]
+  },
+  {
+    name: "Suspect",
+    minHonor: -199,
+    maxHonor: 49,
+    color: "#FF8C00",
+    description: "Réputation ternie, accès limité aux services",
+    effects: ["Quêtes mineures", "Commerce restreint", "Réseaux d'information"]
   },
   {
     name: "Neutre",
-    minHonor: -199,
+    minHonor: 50,
     maxHonor: 199,
     color: "#808080",
-    description: "Inconnu, sans réputation particulière",
-    effects: ["Accès standard", "Commerce normal", "Missions basiques"]
+    description: "Citoyen ordinaire sans distinction particulière",
+    effects: ["Quêtes standard", "Commerce libre", "Alliances basiques"]
   },
   {
     name: "Honorable",
     minHonor: 200,
     maxHonor: 499,
     color: "#228B22",
-    description: "Respecté, digne de confiance",
-    effects: ["Réductions commerciales", "Missions privilégiées", "Alliances facilitées"]
-  },
-  {
-    name: "Héros",
-    minHonor: 500,
-    maxHonor: 999,
-    color: "#4169E1",
-    description: "Légende vivante, admiré par tous",
-    effects: ["Accès VIP", "Missions héroïques", "Peut créer des factions"]
+    description: "Personne de confiance, peut créer des factions",
+    effects: ["Création de factions", "Alliances officielles", "Missions diplomatiques", "Quêtes d'honneur"]
   },
   {
     name: "Saint",
-    minHonor: 1000,
+    minHonor: 500,
     maxHonor: 2000,
     color: "#FFD700",
-    description: "Béni par la Guilde de Pandem",
-    effects: ["Pouvoir religieux", "Peut sanctifier", "Immunité diplomatique"]
+    description: "Respecté par tous, accès aux plus hautes instances",
+    effects: ["Postes de commandement", "Alliances prestigieuses", "Missions diplomatiques", "Quêtes légendaires"]
   }
 ];
 
 export const useReputation = create<ReputationState>()(
   subscribeWithSelector((set, get) => ({
-    honor: 0,
+    honor: 150,
     reputation: "Neutre",
     reputationHistory: [],
+    gnParticipation: 0,
+    seasonPass: false,
     
     addReputationAction: (actionData) => {
       const action: ReputationAction = {
@@ -96,10 +103,10 @@ export const useReputation = create<ReputationState>()(
       };
       
       set(state => {
-        const newHonor = state.honor + action.honorChange;
+        const newHonor = Math.max(-1000, Math.min(2000, state.honor + action.honorChange));
         const newLevel = REPUTATION_LEVELS.find(level => 
           newHonor >= level.minHonor && newHonor <= level.maxHonor
-        ) || REPUTATION_LEVELS[2]; // Default to Neutre
+        ) || REPUTATION_LEVELS[3]; // Default to Neutre
         
         return {
           honor: newHonor,
@@ -113,7 +120,7 @@ export const useReputation = create<ReputationState>()(
       const { honor } = get();
       return REPUTATION_LEVELS.find(level => 
         honor >= level.minHonor && honor <= level.maxHonor
-      ) || REPUTATION_LEVELS[2]; // Default to Neutre
+      ) || REPUTATION_LEVELS[3]; // Default to Neutre
     },
     
     getAvailableActions: () => {
@@ -128,12 +135,8 @@ export const useReputation = create<ReputationState>()(
         baseActions.push('create_faction', 'lead_expedition', 'judge_dispute');
       }
       
-      if (level.minHonor >= 1000) {
-        baseActions.push('sanctify_territory', 'grant_blessing', 'excommunicate');
-      }
-      
       if (level.maxHonor <= -200) {
-        baseActions.push('raid', 'pillage', 'corrupt');
+        baseActions.push('raid', 'pillage', 'corrupt', 'underground_network');
       }
       
       return baseActions;
@@ -142,6 +145,21 @@ export const useReputation = create<ReputationState>()(
     canPerformAction: (actionType: string) => {
       const availableActions = get().getAvailableActions();
       return availableActions.includes(actionType);
+    },
+
+    addGnParticipation: () => {
+      set((state) => ({
+        gnParticipation: state.gnParticipation + 1
+      }));
+    },
+
+    setSeasonPass: (hasPass: boolean) => {
+      set({ seasonPass: hasPass });
+    },
+
+    canCreateFaction: () => {
+      const { gnParticipation, seasonPass, honor } = get();
+      return (gnParticipation >= 2 || seasonPass) && honor >= 200;
     }
   }))
 );

@@ -14,22 +14,28 @@ export interface Faction {
   id: string;
   name: string;
   description: string;
+  charter: string;
+  emblem: string;
+  structure: string;
   foundedDate: number;
   founderId: string;
+  founderName: string;
   members: FactionMember[];
-  territory: string[]; // hex coordinates
+  territory?: string;
   resources: {
     gold: number;
     influence: number;
     reputation: number;
   };
-  type: 'guild' | 'kingdom' | 'merchant' | 'religious' | 'mercenary' | 'scholar';
+  type: 'military' | 'commercial' | 'religious' | 'political' | 'cultural' | 'academic';
+  recruitment: 'open' | 'invitation' | 'restricted';
   isActive: boolean;
   color: string;
   banner: string;
   motto: string;
   achievements: string[];
   relationships: { [factionId: string]: number }; // -100 to 100 relationship score
+  gnEvents: string[]; // Événements GN liés à la faction
 }
 
 export interface FactionQuest {
@@ -60,7 +66,17 @@ interface FactionState {
   availableQuests: FactionQuest[];
   
   // Actions
-  createFaction: (name: string, description: string, type: Faction['type'], founderId: string) => void;
+  createFaction: (factionData: {
+    name: string;
+    charter: string;
+    emblem: string;
+    structure: string;
+    type: Faction['type'];
+    recruitment: 'open' | 'invitation' | 'restricted';
+    founderId: string;
+    founderName: string;
+    territory?: string;
+  }) => Promise<void>;
   joinFaction: (factionId: string, playerId: string, playerName: string) => void;
   leaveFaction: (factionId: string, playerId: string) => void;
   getFactionById: (factionId: string) => Faction | undefined;
@@ -76,22 +92,28 @@ const createGuildeDePandem = (): Faction => ({
   id: 'guild-de-pandem',
   name: 'Guilde de Pandem',
   description: 'La seule faction fixe et omniprésente. Ses prêtres guident, ses soldats observent, et ses rituels façonnent les âmes.',
+  charter: 'Guider les âmes vers la lumière et maintenir l\'équilibre du monde.',
+  emblem: '⚡',
+  structure: 'Hiérarchie divine avec prêtres, soldats et rituels sacrés.',
   foundedDate: 0, // Always existed
   founderId: 'system',
+  founderName: 'Système',
   members: [],
-  territory: [], // Exists everywhere
+  territory: 'Présente partout', // Exists everywhere
   resources: {
     gold: 999999,
     influence: 1000,
     reputation: 1000
   },
   type: 'religious',
+  recruitment: 'restricted',
   isActive: true,
   color: '#4A148C', // Deep purple
   banner: '⚡',
   motto: 'Omnipotentia et Misericordia',
   achievements: ['Eternal Guardians', 'Keepers of Balance', 'Divine Authority'],
-  relationships: {}
+  relationships: {},
+  gnEvents: []
 });
 
 export const useFactions = create<FactionState>()(
@@ -101,34 +123,40 @@ export const useFactions = create<FactionState>()(
     guildeDePandemId: 'guild-de-pandem',
     availableQuests: [],
     
-    createFaction: (name, description, type, founderId) => {
+    createFaction: async (factionData) => {
       const newFaction: Faction = {
         id: `faction_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        name,
-        description,
+        name: factionData.name,
+        description: factionData.charter,
+        charter: factionData.charter,
+        emblem: factionData.emblem,
+        structure: factionData.structure,
         foundedDate: Date.now(),
-        founderId,
+        founderId: factionData.founderId,
+        founderName: factionData.founderName,
         members: [{
-          id: founderId,
-          name: 'Founder',
+          id: factionData.founderId,
+          name: factionData.founderName,
           role: 'leader',
           joinDate: Date.now(),
           contributionScore: 0,
           reputation: 0
         }],
-        territory: [],
+        territory: factionData.territory,
         resources: {
           gold: 1000, // Starting resources
           influence: 50,
           reputation: 0
         },
-        type,
+        type: factionData.type,
+        recruitment: factionData.recruitment,
         isActive: true,
         color: '#' + Math.floor(Math.random()*16777215).toString(16),
-        banner: '🏛️',
+        banner: factionData.emblem,
         motto: 'Nouveau départ, nouvelles destinées',
         achievements: [],
-        relationships: {}
+        relationships: {},
+        gnEvents: []
       };
       
       set(state => ({
