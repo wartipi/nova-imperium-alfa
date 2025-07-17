@@ -81,8 +81,16 @@ export function CharacterSelector({ onSelect, onClose }: CharacterSelectorProps)
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
-      <div className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-4 border-amber-800 rounded-lg shadow-2xl p-8 w-96 max-h-[80vh] overflow-y-auto">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-4 border-amber-800 rounded-lg shadow-2xl p-8 w-96 max-h-[80vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        onMouseUp={(e) => e.stopPropagation()}
+      >
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold text-amber-900 mb-2">Choisissez votre Chef</h2>
           <p className="text-sm text-amber-700">Sélectionnez le leader de votre civilisation</p>
@@ -97,7 +105,12 @@ export function CharacterSelector({ onSelect, onClose }: CharacterSelectorProps)
                   ? 'border-amber-600 bg-amber-300 shadow-lg'
                   : 'border-amber-400 bg-amber-50 hover:bg-amber-100'
               }`}
-              onClick={() => setSelectedCharacter(character)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedCharacter(character);
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              onMouseUp={(e) => e.stopPropagation()}
             >
               <div className="text-center">
                 <div className="text-3xl mb-1">{character.image}</div>
@@ -120,13 +133,19 @@ export function CharacterSelector({ onSelect, onClose }: CharacterSelectorProps)
 
         <div className="flex space-x-4">
           <Button
-            onClick={onClose}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
             className="flex-1 bg-amber-400 hover:bg-amber-500 text-amber-900 border-2 border-amber-600"
           >
             Annuler
           </Button>
           <Button
-            onClick={handleConfirm}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleConfirm();
+            }}
             disabled={!selectedCharacter}
             className="flex-1 bg-amber-600 hover:bg-amber-700 text-white border-2 border-amber-800 disabled:opacity-50"
           >

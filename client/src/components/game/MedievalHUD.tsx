@@ -139,7 +139,12 @@ export function MedievalHUD() {
           {/* Shield Emblem - Character Display */}
           <div 
             className="w-16 h-20 bg-gradient-to-b from-amber-200 to-amber-300 border-2 border-amber-800 rounded-t-full rounded-b-sm shadow-lg flex items-center justify-center cursor-pointer hover:bg-gradient-to-b hover:from-amber-300 hover:to-amber-400 transition-colors"
-            onClick={() => setShowCharacterSelector(true)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowCharacterSelector(true);
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onMouseUp={(e) => e.stopPropagation()}
             title="Cliquez pour changer de personnage"
           >
             <div className="text-2xl">
@@ -169,7 +174,12 @@ export function MedievalHUD() {
               {menuItems.map((item) => (
                 <button
                   key={item.id}
-                  onClick={() => setActiveSection(activeSection === item.id ? null : item.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveSection(activeSection === item.id ? null : item.id);
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onMouseUp={(e) => e.stopPropagation()}
                   className={`w-full text-left px-4 py-2 rounded-md transition-colors duration-200 flex items-center space-x-3 ${
                     activeSection === item.id
                       ? 'bg-amber-300 text-amber-900 shadow-inner'
@@ -228,7 +238,12 @@ export function MedievalHUD() {
                 {menuItems.find(item => item.id === activeSection)?.label}
               </h3>
               <button
-                onClick={() => setActiveSection(null)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveSection(null);
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onMouseUp={(e) => e.stopPropagation()}
                 className="text-amber-800 hover:text-amber-900 text-xl font-bold px-2 py-1 rounded hover:bg-amber-300 transition-colors"
               >
                 ✕
