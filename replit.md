@@ -96,6 +96,15 @@ Preferred communication style: Simple, everyday language.
 - Terrain distribution includes special types: sacred plains, ancient ruins, volcanoes, enchanted meadows
 - Resource system updated for archipelago world with water-based and island-specific resources
 
+### Resource System Cleanup (January 17, 2025)
+- Removed science system entirely from game (tiles, cities, calculations)
+- Removed production system entirely from game (tiles, cities, calculations)
+- Removed commerce system entirely from game (tiles, cities, calculations)
+- Simplified to food-only resource system across all terrain types
+- Updated all UI components to display only food values
+- Cleaned up MapGenerator to generate only food yields
+- Preparing for future rebuild of resource systems aligned with Nova Imperium vision
+
 ### UI Layout Updates (January 17, 2025)
 - Moved minimap to lower right corner as requested for better HUD organization
 - Control buttons (sound toggle) now positioned in lower left corner

@@ -64,7 +64,6 @@ export interface HexTile {
   y: number;
   terrain: TerrainType;
   food: number;
-  commerce: number;
   resource: string | null;
   hasRiver: boolean;
   hasRoad: boolean;

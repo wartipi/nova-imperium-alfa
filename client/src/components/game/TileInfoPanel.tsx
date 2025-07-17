@@ -167,14 +167,10 @@ export function TileInfoPanel() {
         </div>
         
         {/* Production Values */}
-        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+        <div className="mt-3 text-xs">
           <div className="flex items-center gap-1">
             <span className="text-green-600">🌾</span>
             <span className="text-amber-700">Nourriture: {selectedHex.food}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-yellow-600">💰</span>
-            <span className="text-amber-700">Commerce: {selectedHex.commerce}</span>
           </div>
         </div>
         

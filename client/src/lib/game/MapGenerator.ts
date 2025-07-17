@@ -41,7 +41,6 @@ export class MapGenerator {
           y,
           terrain: 'deep_water',
           food: 1,
-          commerce: 1,
           resource: null,
           hasRiver: false,
           hasRoad: false,
@@ -103,7 +102,6 @@ export class MapGenerator {
               y,
               terrain: 'shallow_water',
               food: 2,
-              commerce: 2,
               resource: null,
               hasRiver: false,
               hasRoad: false,
@@ -120,24 +118,20 @@ export class MapGenerator {
   private static generateHex(x: number, y: number, elevation: number, temperature: number, moisture: number): HexTile {
     let terrain: TerrainType;
     let food = 0;
-    let commerce = 0;
     
     // Determine terrain based on elevation, temperature, and moisture
     if (elevation < 0.25) {
       terrain = 'deep_water';
       food = 1;
-      commerce = 1;
     } else if (elevation < 0.35) {
       terrain = 'shallow_water';
       food = 2;
-      commerce = 2;
     } else if (elevation > 0.85) {
       terrain = 'mountains';
-      commerce = 1;
+      food = 0;
     } else if (elevation > 0.7) {
       terrain = 'hills';
       food = 1;
-      commerce = 1;
     } else {
       // Land terrain based on temperature and moisture
       if (temperature < 0.2) {
@@ -147,14 +141,12 @@ export class MapGenerator {
         if (moisture < 0.3) {
           terrain = 'desert';
           food = 0;
-          commerce = 1;
         } else if (moisture > 0.8) {
           terrain = 'swamp';
           food = 1;
         } else {
           terrain = 'fertile_land';
           food = 3;
-          commerce = 1;
         }
       } else {
         // Special terrain chances
@@ -162,18 +154,15 @@ export class MapGenerator {
         if (rand < 0.02) {
           terrain = 'volcano';
           food = 0;
-          commerce = 1;
         } else if (rand < 0.04) {
           terrain = 'ancient_ruins';
-          commerce = 2;
+          food = 1;
         } else if (rand < 0.06) {
           terrain = 'sacred_plains';
           food = 2;
-          commerce = 2;
         } else if (rand < 0.08) {
           terrain = 'enchanted_meadow';
           food = 2;
-          commerce = 3;
         } else if (rand < 0.1) {
           terrain = 'caves';
           food = 0;
@@ -182,11 +171,9 @@ export class MapGenerator {
           if (moisture > 0.6) {
             terrain = 'forest';
             food = 1;
-            commerce = 1;
           } else {
             terrain = 'fertile_land';
             food = 2;
-            commerce = 1;
           }
         }
       }
@@ -197,7 +184,6 @@ export class MapGenerator {
       y,
       terrain,
       food,
-      commerce,
       resource: null,
       hasRiver: false,
       hasRoad: false,
