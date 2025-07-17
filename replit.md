@@ -114,6 +114,14 @@ Preferred communication style: Simple, everyday language.
 - Enhanced tips and keyboard shortcuts for current game systems
 - Guide accessible through HUD interface with tabbed navigation
 
+### HUD Close Button System (January 17, 2025)
+- Implemented comprehensive close button system for better UX
+- HUD panel windows (treasury, construction, recruitment, etc.) have close buttons
+- TileInfoPanel has close button for easy dismissal
+- Modal windows (character selector, competence tree) have close buttons  
+- Only permanent HUD elements (player info, minimap, controls) lack close buttons
+- Consistent user experience with appropriate close controls throughout interface
+
 ### UI Layout Updates (January 17, 2025)
 - Moved minimap to lower right corner as requested for better HUD organization
 - Control buttons (sound toggle) now positioned in lower left corner
