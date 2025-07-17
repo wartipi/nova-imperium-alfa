@@ -142,7 +142,7 @@ export function MedievalHUD() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    console.log('Competence button clicked!');
+
                     setShowCompetenceModal(true);
                   }}
                   className="text-xs bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded"
@@ -310,7 +310,7 @@ export function MedievalHUD() {
           onClick={(e) => {
             e.stopPropagation();
             e.preventDefault();
-            console.log('Modal backdrop clicked');
+
             setShowCompetenceModal(false);
           }}
           onMouseDown={(e) => {
@@ -328,7 +328,7 @@ export function MedievalHUD() {
             onClick={(e) => {
               e.stopPropagation();
               e.preventDefault();
-              console.log('Modal content clicked');
+
             }}
             onMouseDown={(e) => {
               e.stopPropagation();
@@ -346,7 +346,7 @@ export function MedievalHUD() {
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
-                  console.log('Closing competence modal');
+
                   setShowCompetenceModal(false);
                 }}
                 onMouseDown={(e) => {

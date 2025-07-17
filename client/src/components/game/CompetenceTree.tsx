@@ -173,9 +173,7 @@ export function CompetenceTree() {
     return acc;
   }, {} as Record<string, Competence[]>);
 
-  console.log('CompetenceTree: availablePoints:', availablePoints);
-  console.log('CompetenceTree: learnedCompetences:', learnedCompetences);
-  console.log('CompetenceTree: groupedCompetences:', groupedCompetences);
+
 
   const canLearnCompetence = (competence: Competence) => {
     if (learnedCompetences.includes(competence.id)) return false;
@@ -245,7 +243,7 @@ export function CompetenceTree() {
                     }`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      console.log('Competence card clicked:', competence.name);
+
                       setSelectedCompetence(competence);
                     }}
                   >
@@ -273,7 +271,7 @@ export function CompetenceTree() {
                           onClick={(e) => {
                             e.stopPropagation();
                             e.preventDefault();
-                            console.log('Learning competence:', competence.name);
+
                             learnCompetence(competence);
                           }}
                           onMouseDown={(e) => {
@@ -325,7 +323,7 @@ export function CompetenceTree() {
                   onClick={(e) => {
                     e.stopPropagation();
                     e.preventDefault();
-                    console.log('Learning competence from modal:', selectedCompetence.name);
+
                     learnCompetence(selectedCompetence);
                     setSelectedCompetence(null);
                   }}

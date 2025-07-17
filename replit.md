@@ -30,6 +30,17 @@ Preferred communication style: Simple, everyday language.
 - Fixed civilization data access issues in Zustand store
 - Color-coded sections: amber for stockpile, green for income, red for expenses, blue for net totals
 
+### Competence Tree System (January 17, 2025)
+- Implemented complete competence tree system based on user prototype
+- Five competence categories: Political, Military, Economic, Strategic, and Occult
+- Point-based learning system with starting allocation of 50 points
+- Prerequisites and unlocking system for advanced competences
+- Interactive modal interface accessible via player info panel (🎯 button)
+- Detailed competence descriptions matching prototype specifications
+- Visual feedback system showing learned competences and available points
+- Persistent competence tracking through Zustand player store
+- Fixed modal click-through issues and proper event handling
+
 ## System Architecture
 
 ### Frontend Architecture
