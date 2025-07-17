@@ -78,12 +78,7 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     set({ 
       avatarPosition: { x: worldX, y: 0, z: worldZ },
       avatarRotation: { x: 0, y: rotation, z: 0 },
-      isMoving: true 
+      isMoving: false // Instant movement for testing
     });
-    
-    // Stop moving after animation completes
-    setTimeout(() => {
-      set({ isMoving: false });
-    }, 1000);
   }
 }));

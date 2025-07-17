@@ -461,11 +461,9 @@ export class GameEngine {
     
     console.log('Avatar moved to:', hexX, hexY, 'World pos:', worldX, worldZ);
     
-    // Stop moving after animation
-    setTimeout(() => {
-      this.isAvatarMoving = false;
-      this.render(); // Re-render to update movement indicator
-    }, 1000);
+    // Instant movement for testing - no animation delay
+    this.isAvatarMoving = false;
+    this.render(); // Re-render immediately
   }
 
   // Check if a click is on the avatar
