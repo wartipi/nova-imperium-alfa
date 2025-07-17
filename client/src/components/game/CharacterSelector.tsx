@@ -73,9 +73,14 @@ export function CharacterSelector({ onSelect, onClose }: CharacterSelectorProps)
   ];
 
   const handleConfirm = () => {
+    console.log('handleConfirm called with selectedCharacter:', selectedCharacter);
     if (selectedCharacter) {
+      console.log('Calling onSelect with character:', selectedCharacter);
       onSelect(selectedCharacter);
+      console.log('Calling onClose');
       onClose();
+    } else {
+      console.log('No character selected, cannot confirm');
     }
   };
 
@@ -166,11 +171,23 @@ export function CharacterSelector({ onSelect, onClose }: CharacterSelectorProps)
             onClick={(e) => {
               e.stopPropagation();
               e.preventDefault();
-              console.log('Confirm button clicked');
+              console.log('Confirm button clicked, selectedCharacter:', selectedCharacter);
               handleConfirm();
             }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              console.log('Confirm button mousedown');
+            }}
+            onMouseUp={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              console.log('Confirm button mouseup');
+            }}
             disabled={!selectedCharacter}
-            className="flex-1 bg-amber-600 hover:bg-amber-700 text-white border-2 border-amber-800 disabled:opacity-50 px-4 py-2 rounded-md font-medium transition-colors cursor-pointer disabled:cursor-not-allowed"
+            data-selected={selectedCharacter ? 'true' : 'false'}
+            className="flex-1 bg-amber-600 hover:bg-amber-700 text-white border-2 border-amber-800 disabled:opacity-50 px-4 py-2 rounded-md font-medium transition-colors cursor-pointer disabled:cursor-not-allowed relative z-[1001]"
+            style={{ pointerEvents: 'auto' }}
           >
             Confirmer
           </button>
