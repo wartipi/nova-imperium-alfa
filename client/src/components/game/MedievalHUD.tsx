@@ -289,10 +289,21 @@ export function MedievalHUD() {
             onMouseDown={(e) => e.stopPropagation()}
             onMouseUp={(e) => e.stopPropagation()}
           >
-            <div className="mb-4">
-              <h3 className="text-amber-900 font-bold text-lg text-center">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-amber-900 font-bold text-lg">
                 {menuItems.find(item => item.id === activeSection)?.label}
               </h3>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveSection(null);
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onMouseUp={(e) => e.stopPropagation()}
+                className="text-amber-800 hover:text-amber-900 text-xl font-bold px-2 py-1 rounded hover:bg-amber-300 transition-colors"
+              >
+                ✕
+              </button>
             </div>
             
             <div className="text-amber-800">

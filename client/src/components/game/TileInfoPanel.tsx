@@ -8,10 +8,6 @@ export function TileInfoPanel() {
 
   if (!selectedHex) return null;
 
-  const handleClose = () => {
-    setSelectedHex(null);
-  };
-
   // Find units on this tile
   const unitsOnTile = civilizations.flatMap(civ => 
     civ.units.filter(unit => unit.x === selectedHex.x && unit.y === selectedHex.y)
@@ -117,17 +113,10 @@ export function TileInfoPanel() {
 
   return (
     <div className="absolute top-64 right-4 bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-lg p-4 w-80 max-h-96 overflow-y-auto pointer-events-auto">
-      <div className="flex justify-between items-center mb-3">
+      <div className="text-center mb-3">
         <div className="text-amber-900 font-bold text-lg">
           INFORMATIONS DE LA CASE
         </div>
-        <button
-          onClick={handleClose}
-          className="text-amber-800 hover:text-amber-900 text-xl font-bold px-2 py-1 rounded hover:bg-amber-300 transition-colors"
-          type="button"
-        >
-          ✕
-        </button>
       </div>
       
       {/* Coordinates */}
