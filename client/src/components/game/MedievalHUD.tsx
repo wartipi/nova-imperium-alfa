@@ -17,6 +17,7 @@ import { PublicAnnouncementPanel } from "./PublicAnnouncementPanel";
 import { GameGuidePanel } from "./GameGuidePanel";
 import { HelpPanel } from "./HelpPanel";
 import { CharacterSelector, CharacterOption } from "./CharacterSelector";
+import { CompetenceTree } from "./CompetenceTree";
 
 type MenuSection = 
   | 'treasury' 
@@ -27,16 +28,18 @@ type MenuSection =
   | 'events' 
   | 'announcements' 
   | 'guide' 
-  | 'help';
+  | 'help'
+  | 'competences';
 
 export function MedievalHUD() {
   const { gamePhase, currentTurn, endTurn } = useGameState();
   const { civilizations, currentCivilization } = useCivilizations();
   const { selectedHex } = useMap();
   const { isMuted, toggleMute } = useAudio();
-  const { selectedCharacter, playerName, setSelectedCharacter, setPlayerName } = usePlayer();
+  const { selectedCharacter, playerName, setSelectedCharacter, setPlayerName, competences, competencePoints } = usePlayer();
   const [activeSection, setActiveSection] = useState<MenuSection | null>(null);
   const [showCharacterSelector, setShowCharacterSelector] = useState(false);
+  const [showCompetenceModal, setShowCompetenceModal] = useState(false);
 
   if (gamePhase !== "playing") return null;
 
@@ -133,6 +136,19 @@ export function MedievalHUD() {
               <div>{selectedCharacter?.name || 'Empereur'}</div>
               <div className="text-xs text-amber-700 mt-1">POINT D'ACTION</div>
               <div className="text-green-600">{currentCivilization?.resources.gold || 0}</div>
+              <div className="text-xs text-amber-700 mt-1">COMPÉTENCES</div>
+              <div className="flex items-center justify-between">
+                <div className="text-purple-600">{competences.length}</div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowCompetenceModal(true);
+                  }}
+                  className="text-xs bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded"
+                >
+                  🎯
+                </button>
+              </div>
             </div>
           </div>
           
@@ -270,6 +286,7 @@ export function MedievalHUD() {
               {activeSection === 'announcements' && <PublicAnnouncementPanel />}
               {activeSection === 'guide' && <GameGuidePanel />}
               {activeSection === 'help' && <HelpPanel />}
+              {activeSection === 'competences' && <CompetenceTree />}
             </div>
           </div>
         </div>
@@ -282,6 +299,29 @@ export function MedievalHUD() {
             onSelect={handleCharacterSelect}
             onClose={() => setShowCharacterSelector(false)}
           />
+        </div>
+      )}
+
+      {/* Competence Tree Modal */}
+      {showCompetenceModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
+          <div className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-2xl p-6 w-[800px] max-h-[80vh] overflow-hidden">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-amber-900 font-bold text-xl">Arbre de Compétences</h3>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowCompetenceModal(false);
+                }}
+                className="text-amber-800 hover:text-amber-900 text-xl font-bold px-2 py-1 rounded hover:bg-amber-300 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="text-amber-800 max-h-[70vh] overflow-y-auto">
+              <CompetenceTree />
+            </div>
+          </div>
         </div>
       )}
 
