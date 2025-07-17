@@ -218,12 +218,6 @@ export function ConstructionPanel() {
                           <div className="text-xs text-purple-600">
                             🕐 {building.constructionTime} tour{building.constructionTime > 1 ? 's' : ''}
                           </div>
-                          <div className="text-xs text-blue-600">
-                            Génère {getBuildingAPGeneration(building.id)} PA/tour
-                            {getBuildingMaxAPIncrease(building.id) > 0 && (
-                              <span className="text-purple-600"> | +{getBuildingMaxAPIncrease(building.id)} PA max</span>
-                            )}
-                          </div>
                         </div>
                       </div>
                       <Button
@@ -269,6 +263,15 @@ export function ConstructionPanel() {
               <div className="text-xs text-gray-300 mb-1">Production par tour:</div>
               <div className="text-sm text-green-400">
                 {formatProduction(getBuildingProduction(hoveredBuilding))}
+              </div>
+            </div>
+            <div className="border-t border-gray-600 pt-2">
+              <div className="text-xs text-gray-300 mb-1">Points d'Action:</div>
+              <div className="text-sm text-blue-400">
+                Génère {getBuildingAPGeneration(hoveredBuilding)} PA/tour
+                {getBuildingMaxAPIncrease(hoveredBuilding) > 0 && (
+                  <span className="text-purple-400"> | +{getBuildingMaxAPIncrease(hoveredBuilding)} PA max</span>
+                )}
               </div>
             </div>
           </div>
