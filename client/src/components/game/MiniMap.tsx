@@ -1,9 +1,11 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useCallback } from "react";
 import { useMap } from "../../lib/stores/useMap";
 import { useCivilizations } from "../../lib/stores/useCivilizations";
+import { useGameEngine } from "../../lib/contexts/GameEngineContext";
 
 export function MiniMap() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { gameEngineRef } = useGameEngine();
   const { mapData, selectedHex } = useMap();
   const { civilizations } = useCivilizations();
 
@@ -73,18 +75,47 @@ export function MiniMap() {
     return colors[terrain as keyof typeof colors] || '#808080';
   };
 
+  // Handle minimap click to move camera
+  const handleMinimapClick = useCallback((event: React.MouseEvent) => {
+    if (!gameEngineRef.current || !canvasRef.current || !mapData) return;
+    
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const clickX = event.clientX - rect.left;
+    const clickY = event.clientY - rect.top;
+    
+    // Convert click coordinates to canvas coordinates
+    const canvasX = (clickX / rect.width) * canvas.width;
+    const canvasY = (clickY / rect.height) * canvas.height;
+    
+    // Convert canvas coordinates to map coordinates
+    const pixelSize = 2;
+    const mapX = Math.floor(canvasX / pixelSize);
+    const mapY = Math.floor(canvasY / pixelSize);
+    
+    // Ensure coordinates are within map bounds
+    const mapWidth = mapData[0].length;
+    const mapHeight = mapData.length;
+    
+    if (mapX >= 0 && mapX < mapWidth && mapY >= 0 && mapY < mapHeight) {
+      // Move camera to clicked position
+      gameEngineRef.current.centerCameraOnPosition(mapX, mapY);
+    }
+  }, [gameEngineRef, mapData]);
+
   return (
     <div className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-lg p-4">
       <div className="text-amber-900 font-bold text-sm mb-2 text-center">CARTE DU MONDE</div>
       <div className="bg-amber-50 border border-amber-700 rounded p-1">
         <canvas
           ref={canvasRef}
-          className="block"
+          className="block cursor-pointer hover:cursor-crosshair"
           style={{ 
             width: '200px', 
             height: '120px',
             imageRendering: 'pixelated'
           }}
+          onClick={handleMinimapClick}
         />
       </div>
     </div>

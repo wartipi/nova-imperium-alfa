@@ -6,6 +6,7 @@ import { useGameState } from "./lib/stores/useGameState";
 import { useMap } from "./lib/stores/useMap";
 import { useCivilizations } from "./lib/stores/useCivilizations";
 import { useAudio } from "./lib/stores/useAudio";
+import { GameEngineProvider } from "./lib/contexts/GameEngineContext";
 import "@fontsource/inter";
 import "./index.css";
 
@@ -39,10 +40,12 @@ function GameApp() {
   }
 
   return (
-    <div className="w-full h-full relative overflow-hidden bg-gray-900">
-      <GameCanvas />
-      <MedievalHUD />
-    </div>
+    <GameEngineProvider>
+      <div className="w-full h-full relative overflow-hidden bg-gray-900">
+        <GameCanvas />
+        <MedievalHUD />
+      </div>
+    </GameEngineProvider>
   );
 }
 

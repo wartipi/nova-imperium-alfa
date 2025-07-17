@@ -3,10 +3,11 @@ import { useMap } from "../../lib/stores/useMap";
 import { useGameState } from "../../lib/stores/useGameState";
 import { useCivilizations } from "../../lib/stores/useCivilizations";
 import { GameEngine } from "../../lib/game/GameEngine";
+import { useGameEngine } from "../../lib/contexts/GameEngineContext";
 
 export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const gameEngineRef = useRef<GameEngine | null>(null);
+  const { gameEngineRef } = useGameEngine();
   const { mapData, selectedHex, setSelectedHex } = useMap();
   const { gamePhase } = useGameState();
   const { civilizations, selectedUnit, moveUnit } = useCivilizations();
