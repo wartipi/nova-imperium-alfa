@@ -18,6 +18,8 @@ export class GameEngine {
   private avatarRotation: { x: number; y: number; z: number } = { x: 0, y: 0, z: 0 };
   private isAvatarMoving = false;
   private selectedCharacter: any = null;
+  // Vision system
+  private isHexVisible: ((x: number, y: number) => boolean) | null = null;
 
   constructor(canvas: HTMLCanvasElement, mapData: HexTile[][]) {
     this.canvas = canvas;
@@ -189,18 +191,21 @@ export class GameEngine {
         const screenX = x * (this.hexSize * 1.5);
         const screenY = y * hexHeight + (x % 2) * (hexHeight / 2);
         
+        // Check if hex is visible (use vision system)
+        const isVisible = this.isHexVisible ? this.isHexVisible(x, y) : true;
+        
         // Draw hex
-        this.drawHex(screenX, screenY, hex);
+        this.drawHex(screenX, screenY, hex, isVisible);
         
         // Draw hex outline
-        this.ctx.strokeStyle = '#333';
+        this.ctx.strokeStyle = isVisible ? '#333' : '#222';
         this.ctx.lineWidth = 1;
         this.ctx.stroke();
       }
     }
   }
 
-  private drawHex(x: number, y: number, hex: HexTile) {
+  private drawHex(x: number, y: number, hex: HexTile, isVisible: boolean = true) {
     const hexHeight = this.hexSize * Math.sqrt(3);
     
     this.ctx.beginPath();
@@ -217,31 +222,37 @@ export class GameEngine {
     }
     this.ctx.closePath();
     
-    // Fill with terrain color
-    this.ctx.fillStyle = this.getTerrainColor(hex.terrain);
-    this.ctx.fill();
-    
-    // Highlight selected hex
-    if (this.selectedHex && this.selectedHex.x === hex.x && this.selectedHex.y === hex.y) {
-      this.ctx.strokeStyle = '#FFFF00';
-      this.ctx.lineWidth = 3;
-      this.ctx.stroke();
-    }
-    
-    // Draw resource
-    if (hex.resource) {
-      this.ctx.fillStyle = '#FFD700';
-      this.ctx.fillRect(x - 3, y - 3, 6, 6);
-    }
-    
-    // Draw river
-    if (hex.hasRiver) {
-      this.ctx.strokeStyle = '#0066CC';
-      this.ctx.lineWidth = 2;
-      this.ctx.beginPath();
-      this.ctx.moveTo(x - this.hexSize / 2, y);
-      this.ctx.lineTo(x + this.hexSize / 2, y);
-      this.ctx.stroke();
+    if (isVisible) {
+      // Fill with terrain color
+      this.ctx.fillStyle = this.getTerrainColor(hex.terrain);
+      this.ctx.fill();
+      
+      // Highlight selected hex
+      if (this.selectedHex && this.selectedHex.x === hex.x && this.selectedHex.y === hex.y) {
+        this.ctx.strokeStyle = '#FFFF00';
+        this.ctx.lineWidth = 3;
+        this.ctx.stroke();
+      }
+      
+      // Draw resource
+      if (hex.resource) {
+        this.ctx.fillStyle = '#FFD700';
+        this.ctx.fillRect(x - 3, y - 3, 6, 6);
+      }
+      
+      // Draw river
+      if (hex.hasRiver) {
+        this.ctx.strokeStyle = '#0066CC';
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.moveTo(x - this.hexSize / 2, y);
+        this.ctx.lineTo(x + this.hexSize / 2, y);
+        this.ctx.stroke();
+      }
+    } else {
+      // Fill with fog of war - dark color
+      this.ctx.fillStyle = '#1a1a1a';
+      this.ctx.fill();
     }
   }
 
@@ -326,11 +337,14 @@ export class GameEngine {
   }
 
   // Avatar methods
-  updateAvatar(position: { x: number; y: number; z: number }, rotation: { x: number; y: number; z: number }, isMoving: boolean, selectedCharacter: any) {
+  updateAvatar(position: { x: number; y: number; z: number }, rotation: { x: number; y: number; z: number }, isMoving: boolean, selectedCharacter: any, isHexVisible?: (x: number, y: number) => boolean) {
     this.avatarPosition = position;
     this.avatarRotation = rotation;
     this.isAvatarMoving = isMoving;
     this.selectedCharacter = selectedCharacter;
+    if (isHexVisible) {
+      this.isHexVisible = isHexVisible;
+    }
   }
 
   private renderAvatar() {

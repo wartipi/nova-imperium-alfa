@@ -47,7 +47,7 @@ export function MedievalHUD() {
   const { novaImperiums, currentNovaImperium } = useNovaImperium();
   const { selectedHex } = useMap();
   const { isMuted, toggleMute } = useAudio();
-  const { selectedCharacter, playerName, setSelectedCharacter, setPlayerName, competences, competencePoints, actionPoints, maxActionPoints } = usePlayer();
+  const { selectedCharacter, playerName, setSelectedCharacter, setPlayerName, competences, competencePoints, actionPoints, maxActionPoints, isGameMaster, setGameMaster } = usePlayer();
   const { honor, reputation, getReputationLevel } = useReputation();
   const [activeSection, setActiveSection] = useState<MenuSection | null>(null);
   const [showCharacterSelector, setShowCharacterSelector] = useState(false);
@@ -272,6 +272,14 @@ export function MedievalHUD() {
             className="bg-amber-100 border-amber-800 text-amber-800 hover:bg-amber-200"
           >
             {isMuted ? "🔇" : "🔊"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setGameMaster(!isGameMaster)}
+            className={`${isGameMaster ? 'bg-red-100 border-red-800 text-red-800 hover:bg-red-200' : 'bg-gray-100 border-gray-800 text-gray-800 hover:bg-gray-200'}`}
+          >
+            {isGameMaster ? "👁️ MJ" : "👤 PJ"}
           </Button>
         </div>
       </div>
