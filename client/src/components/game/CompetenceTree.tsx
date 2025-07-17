@@ -12,7 +12,7 @@ interface Competence {
   learned: boolean;
 }
 
-const competences: Competence[] = [
+const allCompetences: Competence[] = [
   // Political Competences
   {
     id: 'treaty_knowledge',
@@ -167,11 +167,15 @@ export function CompetenceTree() {
   const availablePoints = competencePoints || 50; // Starting points
   const learnedCompetences = competences || [];
 
-  const groupedCompetences = competences.reduce((acc, comp) => {
+  const groupedCompetences = allCompetences.reduce((acc, comp) => {
     if (!acc[comp.category]) acc[comp.category] = [];
     acc[comp.category].push(comp);
     return acc;
   }, {} as Record<string, Competence[]>);
+
+  console.log('CompetenceTree: availablePoints:', availablePoints);
+  console.log('CompetenceTree: learnedCompetences:', learnedCompetences);
+  console.log('CompetenceTree: groupedCompetences:', groupedCompetences);
 
   const canLearnCompetence = (competence: Competence) => {
     if (learnedCompetences.includes(competence.id)) return false;
@@ -198,7 +202,7 @@ export function CompetenceTree() {
     });
 
     // Unlock dependent competences
-    competences.forEach(comp => {
+    allCompetences.forEach(comp => {
       if (comp.prerequisites?.includes(competence.id)) {
         comp.unlocked = true;
       }
@@ -206,9 +210,8 @@ export function CompetenceTree() {
   };
 
   return (
-    <div className="p-4 max-h-[400px] overflow-y-auto">
+    <div className="max-h-[400px] overflow-y-auto">
       <div className="mb-4 text-center">
-        <h3 className="text-lg font-bold text-amber-900 mb-2">Arbre de Compétences</h3>
         <div className="bg-amber-100 border border-amber-300 rounded px-3 py-1 inline-block">
           <span className="text-amber-900 font-semibold">Points disponibles: {availablePoints}</span>
         </div>
@@ -255,7 +258,7 @@ export function CompetenceTree() {
                         {competence.prerequisites && (
                           <div className="text-xs text-gray-500">
                             Prérequis: {competence.prerequisites.map(prereq => 
-                              competences.find(c => c.id === prereq)?.name
+                              allCompetences.find(c => c.id === prereq)?.name
                             ).join(', ')}
                           </div>
                         )}
@@ -291,7 +294,7 @@ export function CompetenceTree() {
               <div>Catégorie: {categoryTitles[selectedCompetence.category]}</div>
               {selectedCompetence.prerequisites && (
                 <div>Prérequis: {selectedCompetence.prerequisites.map(prereq => 
-                  competences.find(c => c.id === prereq)?.name
+                  allCompetences.find(c => c.id === prereq)?.name
                 ).join(', ')}</div>
               )}
             </div>
