@@ -35,7 +35,6 @@ type MenuSection =
   | 'guide' 
   | 'help'
   | 'competences'
-  | 'reputation'
   | 'factions'
   | 'actions';
 
@@ -45,9 +44,11 @@ export function MedievalHUD() {
   const { selectedHex } = useMap();
   const { isMuted, toggleMute } = useAudio();
   const { selectedCharacter, playerName, setSelectedCharacter, setPlayerName, competences, competencePoints } = usePlayer();
+  const { honor, reputation, getReputationLevel } = useReputation();
   const [activeSection, setActiveSection] = useState<MenuSection | null>(null);
   const [showCharacterSelector, setShowCharacterSelector] = useState(false);
   const [showCompetenceModal, setShowCompetenceModal] = useState(false);
+  const [showReputationDetails, setShowReputationDetails] = useState(false);
 
   if (gamePhase !== "playing") return null;
 
@@ -61,7 +62,6 @@ export function MedievalHUD() {
     { id: 'announcements' as MenuSection, label: 'ANNONCE PUBLIQUE', icon: '📢' },
     { id: 'guide' as MenuSection, label: 'GUIDE DE JEUX', icon: '📖' },
     { id: 'help' as MenuSection, label: 'AIDE', icon: '❓' },
-    { id: 'reputation' as MenuSection, label: 'RÉPUTATION', icon: '⚡' },
     { id: 'factions' as MenuSection, label: 'FACTIONS', icon: '🏛️' },
     { id: 'actions' as MenuSection, label: 'ACTIONS', icon: '🎯' }
   ];
@@ -147,6 +147,24 @@ export function MedievalHUD() {
               <div>{selectedCharacter?.name || 'Empereur'}</div>
               <div className="text-xs text-amber-700 mt-1">POINT D'ACTION</div>
               <div className="text-green-600">{currentCivilization?.resources.gold || 0}</div>
+              <div className="text-xs text-amber-700 mt-1">RÉPUTATION</div>
+              <div 
+                className="flex items-center justify-between cursor-pointer hover:bg-amber-200 rounded px-1 py-0.5 transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowReputationDetails(true);
+                }}
+                title="Cliquer pour voir les détails"
+              >
+                <div className="flex items-center space-x-1">
+                  <div 
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: getReputationLevel().color }}
+                  />
+                  <div className="text-sm font-medium">{reputation}</div>
+                </div>
+                <div className="text-xs text-amber-600">({honor})</div>
+              </div>
               <div className="text-xs text-amber-700 mt-1">COMPÉTENCES</div>
               <div className="flex items-center justify-between">
                 <div className="text-purple-600">{competences.length}</div>
@@ -299,7 +317,6 @@ export function MedievalHUD() {
               {activeSection === 'guide' && <GameGuidePanel />}
               {activeSection === 'help' && <HelpPanel />}
               {activeSection === 'competences' && <CompetenceTree />}
-              {activeSection === 'reputation' && <ReputationPanel />}
               {activeSection === 'factions' && <FactionPanel />}
               {activeSection === 'actions' && <ActionButtons />}
             </div>
@@ -380,6 +397,40 @@ export function MedievalHUD() {
             <div className="text-amber-800 max-h-[70vh] overflow-y-auto">
               <CompetenceTree />
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reputation Details Modal */}
+      {showReputationDetails && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowReputationDetails(false);
+          }}
+          style={{ pointerEvents: 'auto' }}
+        >
+          <div 
+            className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-2xl p-6 w-[400px] max-h-[80vh] overflow-y-auto"
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-amber-900 font-bold text-lg">Réputation</h3>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowReputationDetails(false);
+                }}
+                className="text-amber-800 hover:text-amber-900 text-xl font-bold px-2 py-1 rounded hover:bg-amber-300 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <ReputationPanel />
           </div>
         </div>
       )}

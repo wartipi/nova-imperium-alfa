@@ -76,6 +76,17 @@ Preferred communication style: Simple, everyday language.
 - Current systems (cities, units, resources) will adapt to support reputation and faction mechanics
 - Preparing for implementation of Guilde de Pandem oversight system
 
+### Nova Imperium Core Systems (January 17, 2025)
+- Implemented comprehensive reputation system with 6 levels from "Banni" to "Saint"
+- Reputation system integrated into player info box with colored indicator and clickable details
+- Created Guilde de Pandem as omnipresent overseeing faction with eternal authority
+- Player faction creation system requiring "Honorable" reputation (200+ honor points)
+- Dynamic quest system with reputation-based requirements and rewards
+- Action system allowing players to make choices that affect reputation permanently
+- Faction management panel with overview, faction list, and available quests
+- Real consequences for actions: promises, betrayals, donations, and defiance tracked
+- Nova Imperium vision realized: choices shape destiny through persistent reputation system
+
 ## System Architecture
 
 ### Frontend Architecture
