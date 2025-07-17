@@ -182,14 +182,7 @@ export function TileInfoPanel() {
               <span className="text-yellow-600">💰</span>
               <span className="text-amber-700">Or: {selectedHex.gold}</span>
             </div>
-            <div className="flex items-center gap-1">
-              <span className="text-blue-600">🔬</span>
-              <span className="text-amber-700">Science: {selectedHex.science}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="text-purple-600">🎭</span>
-              <span className="text-amber-700">Culture: {selectedHex.culture}</span>
-            </div>
+
           </div>
         </div>
         

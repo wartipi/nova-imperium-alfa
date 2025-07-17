@@ -71,8 +71,6 @@ export interface Resources {
   food: number;
   action_points: number;
   gold: number;
-  science: number;
-  culture: number;
   // Strategic resources
   iron: number;
   stone: number;
@@ -90,8 +88,6 @@ export interface HexTile {
   food: number;
   action_points: number;
   gold: number;
-  science: number;
-  culture: number;
   resource: ResourceType | null;
   hasRiver: boolean;
   hasRoad: boolean;

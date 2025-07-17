@@ -129,6 +129,15 @@ Preferred communication style: Simple, everyday language.
 - Updated UI to display ⚡ icon and "Points d'Action" label
 - Action points will be used for player actions and building construction in Nova Imperium
 
+### Streamlined Resource System (January 17, 2025)
+- Removed science and culture from the resource system for simplicity
+- Final resource system now contains:
+  - 3 basic resources: food, action_points, gold
+  - 3 strategic resources: iron, stone, wood
+  - 3 magical resources: mana, crystals, ancient_knowledge
+- Updated all interfaces, terrain yields, and UI components to reflect streamlined system
+- Treasury panel now shows only relevant resources without science/culture clutter
+
 ### Game Guide Enhancement (January 17, 2025)
 - Updated GameGuidePanel with Nova Imperium-specific content
 - Added comprehensive "Types de Terrains" section showing all 14 terrain types

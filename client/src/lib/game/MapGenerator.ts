@@ -31,20 +31,20 @@ export class MapGenerator {
   ];
 
   private static readonly TERRAIN_YIELDS = {
-    wasteland: { food: 0, action_points: 0, gold: 0, science: 0, culture: 0 },
-    forest: { food: 1, action_points: 0, gold: 0, science: 0, culture: 0 },
-    mountains: { food: 0, action_points: 0, gold: 1, science: 0, culture: 0 },
-    fertile_land: { food: 3, action_points: 0, gold: 1, science: 0, culture: 0 },
-    hills: { food: 1, action_points: 0, gold: 0, science: 0, culture: 0 },
-    shallow_water: { food: 2, action_points: 0, gold: 1, science: 0, culture: 0 },
-    deep_water: { food: 1, action_points: 0, gold: 2, science: 0, culture: 0 },
-    swamp: { food: 1, action_points: 0, gold: 0, science: 0, culture: 0 },
-    desert: { food: 0, action_points: 0, gold: 1, science: 0, culture: 0 },
-    sacred_plains: { food: 2, action_points: 0, gold: 0, science: 1, culture: 2 },
-    caves: { food: 0, action_points: 0, gold: 0, science: 2, culture: 0 },
-    ancient_ruins: { food: 0, action_points: 0, gold: 1, science: 3, culture: 2 },
-    volcano: { food: 0, action_points: 0, gold: 0, science: 0, culture: 0 },
-    enchanted_meadow: { food: 2, action_points: 0, gold: 0, science: 1, culture: 3 }
+    wasteland: { food: 0, action_points: 0, gold: 0 },
+    forest: { food: 1, action_points: 0, gold: 0 },
+    mountains: { food: 0, action_points: 0, gold: 1 },
+    fertile_land: { food: 3, action_points: 0, gold: 1 },
+    hills: { food: 1, action_points: 0, gold: 0 },
+    shallow_water: { food: 2, action_points: 0, gold: 1 },
+    deep_water: { food: 1, action_points: 0, gold: 2 },
+    swamp: { food: 1, action_points: 0, gold: 0 },
+    desert: { food: 0, action_points: 0, gold: 1 },
+    sacred_plains: { food: 2, action_points: 0, gold: 0 },
+    caves: { food: 0, action_points: 0, gold: 0 },
+    ancient_ruins: { food: 0, action_points: 0, gold: 1 },
+    volcano: { food: 0, action_points: 0, gold: 0 },
+    enchanted_meadow: { food: 2, action_points: 0, gold: 0 }
   };
 
   static generateMap(width: number, height: number): HexTile[][] {
@@ -62,8 +62,6 @@ export class MapGenerator {
           food: yields.food,
           action_points: yields.action_points,
           gold: yields.gold,
-          science: yields.science,
-          culture: yields.culture,
           resource: null,
           hasRiver: false,
           hasRoad: false,
@@ -199,8 +197,6 @@ export class MapGenerator {
       food: yields.food,
       action_points: yields.action_points,
       gold: yields.gold,
-      science: yields.science,
-      culture: yields.culture,
       resource: null,
       hasRiver: false,
       hasRoad: false,

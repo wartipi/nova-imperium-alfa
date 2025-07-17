@@ -62,22 +62,6 @@ export function TreasuryPanel() {
               <div className="text-sm font-bold text-amber-900">{resources.action_points}</div>
             </div>
           </div>
-          <div className="bg-amber-50 border border-amber-700 rounded p-2">
-            <div className="text-center">
-              <div className="text-xl mb-1">🔬</div>
-              <div className="text-xs font-medium">Science</div>
-              <div className="text-sm font-bold text-amber-900">{resources.science}</div>
-            </div>
-          </div>
-        </div>
-        <div className="mt-2">
-          <div className="bg-amber-50 border border-amber-700 rounded p-2">
-            <div className="text-center">
-              <div className="text-xl mb-1">🎭</div>
-              <div className="text-xs font-medium">Culture</div>
-              <div className="text-sm font-bold text-amber-900">{resources.culture}</div>
-            </div>
-          </div>
         </div>
         
         {/* Strategic Resources */}
