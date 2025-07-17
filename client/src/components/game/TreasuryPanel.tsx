@@ -16,9 +16,15 @@ const buildingData: Record<BuildingType, { cost: number; maintenance: number; yi
 export function TreasuryPanel() {
   const { currentCivilization } = useCivilizations();
 
-  if (!currentCivilization) return null;
+  console.log('TreasuryPanel: currentCivilization:', currentCivilization);
+
+  if (!currentCivilization) {
+    console.log('TreasuryPanel: No current civilization found');
+    return <div>No civilization data available</div>;
+  }
 
   const resources = currentCivilization.resources;
+  console.log('TreasuryPanel: resources:', resources);
   
   // Calculate income from cities and buildings
   const calculateIncome = () => {
