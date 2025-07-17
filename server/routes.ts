@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { messageService } from "./messageService";
 import { treatyService } from "./treatyService";
 import { exchangeService } from "./exchangeService";
+import { cartographyService } from "./cartographyService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Game save/load endpoints
@@ -299,6 +300,133 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       res.status(500).json({ error: "Failed to close room" });
+    }
+  });
+
+  // Cartography endpoints
+  app.get("/api/cartography/regions/:playerId", async (req, res) => {
+    try {
+      const { playerId } = req.params;
+      const regions = cartographyService.getDiscoveredRegions(playerId);
+      res.json(regions);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get regions" });
+    }
+  });
+
+  app.post("/api/cartography/discover", async (req, res) => {
+    try {
+      const { playerId, centerX, centerY, radius, name } = req.body;
+      const region = cartographyService.discoverRegion(playerId, centerX, centerY, radius, name);
+      
+      if (region) {
+        res.json(region);
+      } else {
+        res.status(400).json({ error: "Region already exists" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to discover region" });
+    }
+  });
+
+  app.post("/api/cartography/project", async (req, res) => {
+    try {
+      const { playerId, regionId, tools, assistants } = req.body;
+      const project = cartographyService.startCartographyProject(playerId, regionId, tools, assistants);
+      
+      if (project) {
+        res.json(project);
+      } else {
+        res.status(400).json({ error: "Failed to start project" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to start cartography project" });
+    }
+  });
+
+  app.post("/api/cartography/project/:projectId/progress", async (req, res) => {
+    try {
+      const { projectId } = req.params;
+      const { actionPoints } = req.body;
+      
+      const success = cartographyService.progressProject(projectId, actionPoints);
+      
+      if (success) {
+        res.json({ success: true, message: "Project progress updated" });
+      } else {
+        res.status(400).json({ error: "Failed to update project progress" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update project progress" });
+    }
+  });
+
+  app.get("/api/cartography/maps/:playerId", async (req, res) => {
+    try {
+      const { playerId } = req.params;
+      const maps = cartographyService.getPlayerMaps(playerId);
+      res.json(maps);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get maps" });
+    }
+  });
+
+  app.get("/api/cartography/maps/tradable", async (req, res) => {
+    try {
+      const maps = cartographyService.getTradableMaps();
+      res.json(maps);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get tradable maps" });
+    }
+  });
+
+  app.get("/api/cartography/projects/:playerId", async (req, res) => {
+    try {
+      const { playerId } = req.params;
+      const projects = cartographyService.getActiveProjects(playerId);
+      res.json(projects);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get projects" });
+    }
+  });
+
+  app.post("/api/cartography/transfer", async (req, res) => {
+    try {
+      const { mapId, fromPlayerId, toPlayerId } = req.body;
+      const success = cartographyService.transferMap(mapId, fromPlayerId, toPlayerId);
+      
+      if (success) {
+        res.json({ success: true, message: "Map transferred successfully" });
+      } else {
+        res.status(400).json({ error: "Failed to transfer map" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to transfer map" });
+    }
+  });
+
+  app.get("/api/cartography/stats/:playerId", async (req, res) => {
+    try {
+      const { playerId } = req.params;
+      const stats = cartographyService.getCartographyStats(playerId);
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get cartography stats" });
+    }
+  });
+
+  app.get("/api/cartography/map/:mapId", async (req, res) => {
+    try {
+      const { mapId } = req.params;
+      const map = cartographyService.getMapById(mapId);
+      
+      if (map) {
+        res.json(map);
+      } else {
+        res.status(404).json({ error: "Map not found" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get map" });
     }
   });
 

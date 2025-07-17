@@ -165,6 +165,22 @@ Preferred communication style: Simple, everyday language.
 - Automatic cleanup of expired offers every minute
 - Enhanced Resource Exchange treaty type with unique items and real-time capabilities
 
+### Cartography System (January 17, 2025)
+- Implemented comprehensive cartography system where players create tradeable map documents
+- Region discovery system: players explore areas and can map them with varying detail levels
+- Cartography projects requiring Action Points, tools, and assistants for completion
+- Three quality levels: rough, detailed, masterwork maps with different accuracy and value
+- Map documents include: region data, hidden secrets, unique features, trading value
+- Tools system: precision compass, surveyor tools, masterwork instruments affect quality
+- Assistants system: scout units, cartographer aides, surveyor experts reduce AP costs
+- Hidden secrets discovery: ancient ruins, treasures, magical springs based on quality
+- Unique features identification: natural harbors, mountain passes, strategic viewpoints
+- Trading value calculation based on region size, quality, accuracy, and secrets
+- Map transfer system for player-to-player exchanges through Resource Exchange treaties
+- Complete API endpoints for discovery, project management, and map trading
+- Cartography statistics tracking: regions discovered, maps created, trading values
+- Maps become unique tradeable objects with strategic and commercial value
+
 ### Enhanced Reputation System & Game Mechanics (January 17, 2025)
 - Updated reputation system with 6 clear levels: Banni, Méprisé, Suspect, Neutre, Honorable, Saint
 - Added GN participation tracking and season pass system for faction creation requirements
