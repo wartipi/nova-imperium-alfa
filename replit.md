@@ -16,6 +16,8 @@ Preferred communication style: Simple, everyday language.
 - Player name is editable directly in the player info panel
 - Removed end turn button - game will use time-based turns (12 turns per year, one per month)
 - Updated date display to show month/year format (e.g., "Jan 1000") instead of turn numbers
+- Fixed character selection confirm button by replacing UI library buttons with native HTML elements
+- Fully functional character selection system with proper event handling
 
 ## System Architecture
 

@@ -73,14 +73,9 @@ export function CharacterSelector({ onSelect, onClose }: CharacterSelectorProps)
   ];
 
   const handleConfirm = () => {
-    console.log('handleConfirm called with selectedCharacter:', selectedCharacter);
     if (selectedCharacter) {
-      console.log('Calling onSelect with character:', selectedCharacter);
       onSelect(selectedCharacter);
-      console.log('Calling onClose');
       onClose();
-    } else {
-      console.log('No character selected, cannot confirm');
     }
   };
 
@@ -88,7 +83,6 @@ export function CharacterSelector({ onSelect, onClose }: CharacterSelectorProps)
     <div 
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[999]"
       onClick={(e) => {
-        console.log('Modal backdrop clicked');
         onClose();
       }}
     >
@@ -96,7 +90,6 @@ export function CharacterSelector({ onSelect, onClose }: CharacterSelectorProps)
         className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-4 border-amber-800 rounded-lg shadow-2xl p-8 w-96 max-h-[80vh] overflow-y-auto relative z-[1000]"
         onClick={(e) => {
           e.stopPropagation();
-          console.log('Modal content clicked');
         }}
         onMouseDown={(e) => e.stopPropagation()}
         onMouseUp={(e) => e.stopPropagation()}
@@ -120,18 +113,7 @@ export function CharacterSelector({ onSelect, onClose }: CharacterSelectorProps)
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                console.log('Character clicked:', character.name);
                 setSelectedCharacter(character);
-              }}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                console.log('Character mousedown:', character.name);
-              }}
-              onMouseUp={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                console.log('Character mouseup:', character.name);
               }}
             >
               <div className="text-center">
@@ -159,7 +141,6 @@ export function CharacterSelector({ onSelect, onClose }: CharacterSelectorProps)
             onClick={(e) => {
               e.stopPropagation();
               e.preventDefault();
-              console.log('Cancel button clicked');
               onClose();
             }}
             className="flex-1 bg-amber-400 hover:bg-amber-500 text-amber-900 border-2 border-amber-600 px-4 py-2 rounded-md font-medium transition-colors cursor-pointer"
@@ -171,18 +152,7 @@ export function CharacterSelector({ onSelect, onClose }: CharacterSelectorProps)
             onClick={(e) => {
               e.stopPropagation();
               e.preventDefault();
-              console.log('Confirm button clicked, selectedCharacter:', selectedCharacter);
               handleConfirm();
-            }}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              console.log('Confirm button mousedown');
-            }}
-            onMouseUp={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              console.log('Confirm button mouseup');
             }}
             disabled={!selectedCharacter}
             data-selected={selectedCharacter ? 'true' : 'false'}
