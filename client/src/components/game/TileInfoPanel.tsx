@@ -1,10 +1,10 @@
 import { useMap } from "../../lib/stores/useMap";
-import { useCivilizations } from "../../lib/stores/useCivilizations";
+import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { HexTile, City, Unit } from "../../lib/game/types";
 
 export function TileInfoPanel() {
   const { selectedHex, setSelectedHex } = useMap();
-  const { civilizations } = useCivilizations();
+  const { novaImperiums } = useNovaImperium();
 
   if (!selectedHex) return null;
 
@@ -13,15 +13,15 @@ export function TileInfoPanel() {
   };
 
   // Find units on this tile
-  const unitsOnTile = civilizations.flatMap(civ => 
-    civ.units.filter(unit => unit.x === selectedHex.x && unit.y === selectedHex.y)
-      .map(unit => ({ ...unit, civColor: civ.color, civName: civ.name }))
+  const unitsOnTile = novaImperiums.flatMap(ni => 
+    ni.units.filter(unit => unit.x === selectedHex.x && unit.y === selectedHex.y)
+      .map(unit => ({ ...unit, civColor: ni.color, civName: ni.name }))
   );
 
   // Find cities on this tile
-  const cityOnTile = civilizations.flatMap(civ => 
-    civ.cities.filter(city => city.x === selectedHex.x && city.y === selectedHex.y)
-      .map(city => ({ ...city, civColor: civ.color, civName: civ.name }))
+  const cityOnTile = novaImperiums.flatMap(ni => 
+    ni.cities.filter(city => city.x === selectedHex.x && city.y === selectedHex.y)
+      .map(city => ({ ...city, civColor: ni.color, civName: ni.name }))
   )[0];
 
   // Get terrain color for display

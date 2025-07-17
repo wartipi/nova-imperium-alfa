@@ -1,10 +1,10 @@
-import { useCivilizations } from "../../lib/stores/useCivilizations";
+import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { Button } from "../ui/button";
 
 export function ConstructionPanel() {
-  const { currentCivilization, buildInCity } = useCivilizations();
+  const { currentNovaImperium, buildInCity } = useNovaImperium();
 
-  if (!currentCivilization) return null;
+  if (!currentNovaImperium) return null;
 
   const buildings = [
     // Transport/Commercial (Blue)
@@ -50,7 +50,7 @@ export function ConstructionPanel() {
         <h4 className="font-bold text-base mb-3">Projets de Construction</h4>
       </div>
 
-      {currentCivilization.cities.map(city => (
+      {currentNovaImperium.cities.map(city => (
         <div key={city.id} className="bg-amber-50 border border-amber-700 rounded p-3">
           <div className="font-medium text-sm mb-2">{city.name}</div>
           <div className="text-xs text-amber-700 mb-2">

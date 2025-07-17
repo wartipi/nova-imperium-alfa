@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useGameState } from "../../lib/stores/useGameState";
-import { useCivilizations } from "../../lib/stores/useCivilizations";
+import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { useMap } from "../../lib/stores/useMap";
 import { useAudio } from "../../lib/stores/useAudio";
 import { usePlayer } from "../../lib/stores/usePlayer";
@@ -40,7 +40,7 @@ type MenuSection =
 
 export function MedievalHUD() {
   const { gamePhase, currentTurn, endTurn } = useGameState();
-  const { civilizations, currentCivilization } = useCivilizations();
+  const { novaImperiums, currentNovaImperium } = useNovaImperium();
   const { selectedHex } = useMap();
   const { isMuted, toggleMute } = useAudio();
   const { selectedCharacter, playerName, setSelectedCharacter, setPlayerName, competences, competencePoints } = usePlayer();
@@ -146,7 +146,7 @@ export function MedievalHUD() {
               <div className="text-xs text-amber-700 mt-1">RANG</div>
               <div>{selectedCharacter?.name || 'Empereur'}</div>
               <div className="text-xs text-amber-700 mt-1">POINT D'ACTION</div>
-              <div className="text-green-600">{currentCivilization?.resources.gold || 0}</div>
+              <div className="text-green-600">{currentNovaImperium?.resources.gold || 0}</div>
               <div className="text-xs text-amber-700 mt-1">RÉPUTATION</div>
               <div 
                 className="flex items-center justify-between cursor-pointer hover:bg-amber-200 rounded px-1 py-0.5 transition-colors"

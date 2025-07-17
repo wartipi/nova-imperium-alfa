@@ -1,10 +1,10 @@
-import { useCivilizations } from "../../lib/stores/useCivilizations";
+import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { Button } from "../ui/button";
 
 export function RecruitmentPanel() {
-  const { currentCivilization, trainUnit } = useCivilizations();
+  const { currentNovaImperium, trainUnit } = useNovaImperium();
 
-  if (!currentCivilization) return null;
+  if (!currentNovaImperium) return null;
 
   const units = [
     // Basic Infantry
@@ -45,7 +45,7 @@ export function RecruitmentPanel() {
         <h4 className="font-bold text-base mb-3">Recrutement d'Unités</h4>
       </div>
 
-      {currentCivilization.cities.map(city => (
+      {currentNovaImperium.cities.map(city => (
         <div key={city.id} className="bg-amber-50 border border-amber-700 rounded p-3">
           <div className="font-medium text-sm mb-2">{city.name}</div>
           <div className="text-xs text-amber-700 mb-2">
@@ -111,7 +111,7 @@ export function RecruitmentPanel() {
         <div className="text-sm">
           <div className="font-medium mb-2">Armée Actuelle:</div>
           <div className="space-y-1">
-            {currentCivilization.units.map(unit => (
+            {currentNovaImperium.units.map(unit => (
               <div key={unit.id} className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <span className="text-sm">

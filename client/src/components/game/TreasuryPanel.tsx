@@ -1,4 +1,4 @@
-import { useCivilizations } from "../../lib/stores/useCivilizations";
+import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { BuildingType } from "../../lib/game/types";
 
 // Define building costs and maintenance for economics
@@ -14,11 +14,9 @@ const buildingData: Record<BuildingType, { cost: number; maintenance: number; yi
 };
 
 export function TreasuryPanel() {
-  const { civilizations, currentCivilizationId } = useCivilizations();
+  const { currentNovaImperium } = useNovaImperium();
 
-  const currentCivilization = civilizations.find(civ => civ.id === currentCivilizationId) || null;
-
-  if (!currentCivilization) {
+  if (!currentNovaImperium) {
     return (
       <div className="text-center p-4">
         <div className="text-amber-900 font-bold mb-2">Chargement des données...</div>
@@ -29,7 +27,7 @@ export function TreasuryPanel() {
     );
   }
 
-  const resources = currentCivilization.resources;
+  const resources = currentNovaImperium.resources;
   
   // Calculate income from cities and buildings
   const calculateIncome = () => {
@@ -41,7 +39,7 @@ export function TreasuryPanel() {
       gold: 0
     };
 
-    currentCivilization.cities.forEach(city => {
+    currentNovaImperium.cities.forEach(city => {
       // Base city yields
       income.food += city.foodPerTurn;
       income.production += city.productionPerTurn;
@@ -74,7 +72,7 @@ export function TreasuryPanel() {
     };
 
     // Building maintenance
-    currentCivilization.cities.forEach(city => {
+    currentNovaImperium.cities.forEach(city => {
       city.buildings.forEach(buildingType => {
         const building = buildingData[buildingType];
         if (building) {
@@ -84,7 +82,7 @@ export function TreasuryPanel() {
     });
 
     // Unit maintenance (1 gold per unit after first 2 units)
-    expenses.unitMaintenance = Math.max(0, currentCivilization.units.length - 2);
+    expenses.unitMaintenance = Math.max(0, currentNovaImperium.units.length - 2);
 
     expenses.total = expenses.buildingMaintenance + expenses.unitMaintenance;
     return expenses;
@@ -241,7 +239,7 @@ export function TreasuryPanel() {
           <h5 className="font-bold text-amber-900">Détail par Ville</h5>
         </div>
         <div className="space-y-3">
-          {currentCivilization.cities.map(city => (
+          {currentNovaImperium.cities.map(city => (
             <div key={city.id} className="bg-amber-50 border border-amber-700 rounded p-3">
               <div className="font-bold text-center mb-2 text-amber-900">{city.name}</div>
               <div className="text-xs space-y-1">

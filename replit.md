@@ -16,6 +16,18 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Nova Imperium Code Renaming (January 17, 2025)
+- Completed comprehensive renaming of all "civilization" references to "Nova Imperium" throughout codebase
+- Updated main types.ts: Civilization interface renamed to NovaImperium
+- Created new useNovaImperium store to replace useCivilizations store
+- Updated all component imports and references: ConstructionPanel, RecruitmentPanel, TreasuryPanel, TileInfoPanel, MedievalHUD
+- Updated App.tsx to use initializeNovaImperiums instead of initializeCivilizations
+- Modified AI.ts to work with NovaImperium types instead of Civilization types
+- Updated all variable names: currentCivilization → currentNovaImperium, civilizations → novaImperiums
+- Fixed all store state management to maintain consistency between arrays and current selection
+- Game now fully uses Nova Imperium terminology with French empire names: "Empire du Joueur", "Empire Rival"
+- All panels and UI components now properly display data from the new Nova Imperium structure
+
 ### Character System (January 17, 2025)
 - Removed character stat bonuses - characters are now purely cosmetic avatars
 - Added 9 different character options with medieval themes

@@ -1,18 +1,18 @@
-import type { Civilization, Unit, City } from "./types";
+import type { NovaImperium, Unit, City } from "./types";
 
 export class AI {
-  static processTurn(civilization: Civilization) {
-    console.log(`Processing AI turn for ${civilization.name}`);
+  static processTurn(novaImperium: NovaImperium) {
+    console.log(`Processing AI turn for ${novaImperium.name}`);
     
     // Simple AI behavior
-    this.manageCities(civilization);
-    this.moveUnits(civilization);
-    this.makeResearchDecisions(civilization);
-    this.makeDiplomaticDecisions(civilization);
+    this.manageCities(novaImperium);
+    this.moveUnits(novaImperium);
+    this.makeResearchDecisions(novaImperium);
+    this.makeDiplomaticDecisions(novaImperium);
   }
 
-  private static manageCities(civilization: Civilization) {
-    civilization.cities.forEach(city => {
+  private static manageCities(novaImperium: NovaImperium) {
+    novaImperium.cities.forEach(city => {
       // Simple city management
       if (!city.currentProduction) {
         // Prioritize based on city needs
@@ -23,7 +23,7 @@ export class AI {
             name: 'granary',
             cost: 60
           };
-        } else if (civilization.units.length < 3) {
+        } else if (novaImperium.units.length < 3) {
           // Build military units
           city.currentProduction = {
             type: 'unit',
@@ -42,8 +42,8 @@ export class AI {
     });
   }
 
-  private static moveUnits(civilization: Civilization) {
-    civilization.units.forEach(unit => {
+  private static moveUnits(novaImperium: NovaImperium) {
+    novaImperium.units.forEach(unit => {
       if (unit.movement > 0) {
         // Simple movement AI - move randomly for now
         const directions = [
@@ -63,17 +63,17 @@ export class AI {
     });
   }
 
-  private static makeResearchDecisions(civilization: Civilization) {
-    if (!civilization.currentResearch) {
+  private static makeResearchDecisions(novaImperium: NovaImperium) {
+    if (!novaImperium.currentResearch) {
       // Simple research priority
       const availableTechs = ['pottery', 'bronze_working', 'writing', 'iron_working'];
       const unresearched = availableTechs.filter(tech => 
-        !civilization.researchedTechnologies.includes(tech)
+        !novaImperium.researchedTechnologies.includes(tech)
       );
       
       if (unresearched.length > 0) {
         const techToResearch = unresearched[0];
-        civilization.currentResearch = {
+        novaImperium.currentResearch = {
           id: techToResearch,
           name: techToResearch.replace('_', ' ').toUpperCase(),
           cost: 100,
@@ -84,9 +84,9 @@ export class AI {
     }
   }
 
-  private static makeDiplomaticDecisions(civilization: Civilization) {
+  private static makeDiplomaticDecisions(novaImperium: NovaImperium) {
     // Simple diplomatic AI
-    civilization.diplomacy.forEach(relation => {
+    novaImperium.diplomacy.forEach(relation => {
       // Randomly adjust trust
       if (Math.random() < 0.1) {
         relation.trust = Math.max(0, Math.min(100, relation.trust + (Math.random() - 0.5) * 10));

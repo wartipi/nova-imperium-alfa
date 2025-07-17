@@ -119,14 +119,14 @@ export interface Technology {
 }
 
 export interface DiplomaticRelation {
-  civilizationId: string;
+  novaImperiumId: string;
   status: 'war' | 'peace' | 'alliance';
   trust: number;
   tradeAgreement: boolean;
   militaryAccess: boolean;
 }
 
-export interface Civilization {
+export interface NovaImperium {
   id: string;
   name: string;
   color: string;
@@ -151,6 +151,6 @@ export interface GameSave {
   version: string;
   timestamp: number;
   turn: number;
-  civilizations: Civilization[];
+  novaImperiums: NovaImperium[];
   mapData: HexTile[][];
 }

@@ -4,7 +4,7 @@ import { GameCanvas } from "./components/game/GameCanvas";
 import { MedievalHUD } from "./components/game/MedievalHUD";
 import { useGameState } from "./lib/stores/useGameState";
 import { useMap } from "./lib/stores/useMap";
-import { useCivilizations } from "./lib/stores/useCivilizations";
+import { useNovaImperium } from "./lib/stores/useNovaImperium";
 import { useAudio } from "./lib/stores/useAudio";
 import { GameEngineProvider } from "./lib/contexts/GameEngineContext";
 import "@fontsource/inter";
@@ -15,7 +15,7 @@ const queryClient = new QueryClient();
 function GameApp() {
   const { initializeGame, gamePhase } = useGameState();
   const { generateMap } = useMap();
-  const { initializeCivilizations } = useCivilizations();
+  const { initializeNovaImperiums } = useNovaImperium();
   const { setBackgroundMusic } = useAudio();
 
   useEffect(() => {
@@ -27,14 +27,14 @@ function GameApp() {
 
     // Initialize game
     generateMap(50, 30); // Generate 50x30 hex map
-    initializeCivilizations();
+    initializeNovaImperiums();
     initializeGame();
   }, []);
 
   if (gamePhase === "loading") {
     return (
       <div className="w-full h-full flex items-center justify-center bg-gray-900 text-white">
-        <div className="text-2xl">Loading Civilization...</div>
+        <div className="text-2xl">Loading Nova Imperium...</div>
       </div>
     );
   }

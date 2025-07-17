@@ -33,8 +33,8 @@ const createInitialNovaImperiums = (): NovaImperium[] => {
       isDefeated: false,
       cities: [
         {
-          id: "rome",
-          name: "Rome",
+          id: "capital",
+          name: "Capitale",
           x: 25,
           y: 15,
           population: 3,
@@ -52,7 +52,7 @@ const createInitialNovaImperiums = (): NovaImperium[] => {
       units: [
         {
           id: "warrior1",
-          name: "Roman Warrior",
+          name: "Guerrier Impérial",
           type: "warrior",
           x: 25,
           y: 14,
@@ -68,7 +68,7 @@ const createInitialNovaImperiums = (): NovaImperium[] => {
         },
         {
           id: "settler1",
-          name: "Roman Settler",
+          name: "Colon Impérial",
           type: "settler",
           x: 26,
           y: 15,
@@ -77,50 +77,42 @@ const createInitialNovaImperiums = (): NovaImperium[] => {
           defense: 1,
           health: 100,
           maxHealth: 100,
-          movement: 1,
-          maxMovement: 1,
+          movement: 2,
+          maxMovement: 2,
           experience: 0,
-          abilities: ["found_city"]
+          abilities: ["civilian"]
         }
       ],
       resources: {
-        food: 50,
-        production: 30,
-        science: 10,
-        culture: 5,
-        gold: 100
+        food: 40,
+        production: 25,
+        science: 15,
+        culture: 10,
+        gold: 80
       },
       researchedTechnologies: ["agriculture"],
       currentResearch: null,
       researchProgress: 0,
-      diplomacy: [
-        {
-          civilizationId: "ai1",
-          status: "peace",
-          trust: 50,
-          tradeAgreement: false,
-          militaryAccess: false
-        }
-      ]
+      diplomacy: []
     },
     {
       id: "ai1",
-      name: "Greeks",
+      name: "Empire Rival",
       color: "#0000FF",
       isPlayer: false,
       isDefeated: false,
       cities: [
         {
-          id: "athens",
-          name: "Athens",
-          x: 35,
+          id: "ai_capital",
+          name: "Cité Rivale",
+          x: 15,
           y: 20,
           population: 2,
           populationCap: 8,
           foodPerTurn: 3,
           productionPerTurn: 2,
-          sciencePerTurn: 3,
-          culturePerTurn: 2,
+          sciencePerTurn: 1,
+          culturePerTurn: 1,
           buildings: ["palace"],
           currentProduction: null,
           productionProgress: 0,
@@ -129,10 +121,10 @@ const createInitialNovaImperiums = (): NovaImperium[] => {
       ],
       units: [
         {
-          id: "greek_warrior1",
-          name: "Greek Warrior",
+          id: "ai_warrior1",
+          name: "Guerrier Rival",
           type: "warrior",
-          x: 35,
+          x: 15,
           y: 19,
           strength: 4,
           attack: 4,
@@ -146,18 +138,18 @@ const createInitialNovaImperiums = (): NovaImperium[] => {
         }
       ],
       resources: {
-        food: 40,
-        production: 25,
-        science: 15,
-        culture: 10,
-        gold: 80
+        food: 30,
+        production: 20,
+        science: 10,
+        culture: 8,
+        gold: 60
       },
       researchedTechnologies: ["agriculture"],
       currentResearch: null,
       researchProgress: 0,
       diplomacy: [
         {
-          civilizationId: "player",
+          novaImperiumId: "player",
           status: "peace",
           trust: 50,
           tradeAgreement: false,
@@ -168,48 +160,47 @@ const createInitialNovaImperiums = (): NovaImperium[] => {
   ];
 };
 
-export const useCivilizations = create<CivilizationState>()(
+export const useNovaImperium = create<NovaImperiumState>()(
   subscribeWithSelector((set, get) => ({
-    civilizations: [],
-    currentCivilizationId: "player",
+    novaImperiums: [],
+    currentNovaImperiumId: "player",
     selectedUnit: null,
     selectedCity: null,
-    currentCivilization: null,
+    currentNovaImperium: null,
 
-    
-    initializeCivilizations: () => {
-      const initialCivilizations = createInitialCivilizations();
-      const currentCiv = initialCivilizations.find(civ => civ.id === "player") || null;
+    initializeNovaImperiums: () => {
+      const initialNovaImperiums = createInitialNovaImperiums();
+      const currentNI = initialNovaImperiums.find(ni => ni.id === "player") || null;
       set({ 
-        civilizations: initialCivilizations,
-        currentCivilization: currentCiv 
+        novaImperiums: initialNovaImperiums,
+        currentNovaImperium: currentNI 
       });
     },
     
     selectUnit: (unitId: string) => {
       const state = get();
-      const currentCiv = state.civilizations.find(civ => civ.id === state.currentCivilizationId);
-      if (currentCiv) {
-        const unit = currentCiv.units.find(u => u.id === unitId);
+      const currentNI = state.novaImperiums.find(ni => ni.id === state.currentNovaImperiumId);
+      if (currentNI) {
+        const unit = currentNI.units.find(u => u.id === unitId);
         set({ selectedUnit: unit || null });
       }
     },
     
     selectCity: (cityId: string) => {
       const state = get();
-      const currentCiv = state.civilizations.find(civ => civ.id === state.currentCivilizationId);
-      if (currentCiv) {
-        const city = currentCiv.cities.find(c => c.id === cityId);
+      const currentNI = state.novaImperiums.find(ni => ni.id === state.currentNovaImperiumId);
+      if (currentNI) {
+        const city = currentNI.cities.find(c => c.id === cityId);
         set({ selectedCity: city || null });
       }
     },
     
     moveUnit: (unitId: string, x: number, y: number) => {
-      set(state => ({
-        civilizations: state.civilizations.map(civ => 
-          civ.id === state.currentCivilizationId ? {
-            ...civ,
-            units: civ.units.map(unit => 
+      set(state => {
+        const updatedNIs = state.novaImperiums.map(ni => 
+          ni.id === state.currentNovaImperiumId ? {
+            ...ni,
+            units: ni.units.map(unit => 
               unit.id === unitId ? {
                 ...unit,
                 x,
@@ -217,9 +208,16 @@ export const useCivilizations = create<CivilizationState>()(
                 movement: Math.max(0, unit.movement - 1)
               } : unit
             )
-          } : civ
-        )
-      }));
+          } : ni
+        );
+        
+        const updatedCurrentNI = updatedNIs.find(ni => ni.id === state.currentNovaImperiumId) || null;
+        
+        return {
+          novaImperiums: updatedNIs,
+          currentNovaImperium: updatedCurrentNI
+        };
+      });
     },
     
     attackWithUnit: (unitId: string, targetX: number, targetY: number) => {
@@ -248,10 +246,10 @@ export const useCivilizations = create<CivilizationState>()(
       const cost = buildingCosts[buildingType as keyof typeof buildingCosts] || 50;
       
       set(state => {
-        const updatedCivs = state.civilizations.map(civ => 
-          civ.id === state.currentCivilizationId ? {
-            ...civ,
-            cities: civ.cities.map(city => 
+        const updatedNIs = state.novaImperiums.map(ni => 
+          ni.id === state.currentNovaImperiumId ? {
+            ...ni,
+            cities: ni.cities.map(city => 
               city.id === cityId ? {
                 ...city,
                 currentProduction: {
@@ -262,14 +260,14 @@ export const useCivilizations = create<CivilizationState>()(
                 productionProgress: 0
               } : city
             )
-          } : civ
+          } : ni
         );
         
-        const updatedCurrentCiv = updatedCivs.find(civ => civ.id === state.currentCivilizationId) || null;
+        const updatedCurrentNI = updatedNIs.find(ni => ni.id === state.currentNovaImperiumId) || null;
         
         return {
-          civilizations: updatedCivs,
-          currentCivilization: updatedCurrentCiv
+          novaImperiums: updatedNIs,
+          currentNovaImperium: updatedCurrentNI
         };
       });
     },
@@ -293,10 +291,10 @@ export const useCivilizations = create<CivilizationState>()(
       const cost = unitCosts[unitType as keyof typeof unitCosts] || 40;
       
       set(state => {
-        const updatedCivs = state.civilizations.map(civ => 
-          civ.id === state.currentCivilizationId ? {
-            ...civ,
-            cities: civ.cities.map(city => 
+        const updatedNIs = state.novaImperiums.map(ni => 
+          ni.id === state.currentNovaImperiumId ? {
+            ...ni,
+            cities: ni.cities.map(city => 
               city.id === cityId ? {
                 ...city,
                 currentProduction: {
@@ -307,47 +305,41 @@ export const useCivilizations = create<CivilizationState>()(
                 productionProgress: 0
               } : city
             )
-          } : civ
+          } : ni
         );
         
-        const updatedCurrentCiv = updatedCivs.find(civ => civ.id === state.currentCivilizationId) || null;
+        const updatedCurrentNI = updatedNIs.find(ni => ni.id === state.currentNovaImperiumId) || null;
         
         return {
-          civilizations: updatedCivs,
-          currentCivilization: updatedCurrentCiv
+          novaImperiums: updatedNIs,
+          currentNovaImperium: updatedCurrentNI
         };
       });
     },
     
     researchTechnology: (techId: string) => {
-      // Implement technology research
       console.log(`Researching technology: ${techId}`);
     },
     
-    sendDiplomaticProposal: (targetCivId: string, type: string) => {
-      console.log(`Sending ${type} proposal to ${targetCivId}`);
-      // Implement diplomacy logic
+    sendDiplomaticProposal: (targetNIId: string, type: string) => {
+      console.log(`Sending ${type} proposal to ${targetNIId}`);
     },
     
     processTurn: () => {
-      set(state => ({
-        civilizations: state.civilizations.map(civ => {
-          // Reset unit movement
-          const updatedCiv = {
-            ...civ,
-            units: civ.units.map(unit => ({
+      set(state => {
+        const updatedNIs = state.novaImperiums.map(ni => {
+          const updatedNI = {
+            ...ni,
+            units: ni.units.map(unit => ({
               ...unit,
               movement: unit.maxMovement
             }))
           };
           
           // Process cities
-          updatedCiv.cities.forEach(city => {
-            // Add resources
-            updatedCiv.resources.food += city.foodPerTurn;
-            updatedCiv.resources.production += city.productionPerTurn;
-            updatedCiv.resources.science += city.sciencePerTurn;
-            updatedCiv.resources.culture += city.culturePerTurn;
+          updatedNI.cities.forEach(city => {
+            // Add resources - only for food now
+            updatedNI.resources.food += city.foodPerTurn;
             
             // Process production
             if (city.currentProduction) {
@@ -362,13 +354,20 @@ export const useCivilizations = create<CivilizationState>()(
           });
           
           // Process AI turns
-          if (!civ.isPlayer) {
-            AI.processTurn(updatedCiv);
+          if (!ni.isPlayer) {
+            AI.processTurn(updatedNI);
           }
           
-          return updatedCiv;
-        })
-      }));
+          return updatedNI;
+        });
+        
+        const updatedCurrentNI = updatedNIs.find(ni => ni.id === state.currentNovaImperiumId) || null;
+        
+        return {
+          novaImperiums: updatedNIs,
+          currentNovaImperium: updatedCurrentNI
+        };
+      });
     }
   }))
 );
