@@ -103,7 +103,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Treaty endpoints
-  app.get("/api/treaties/:playerId", async (req, res) => {
+  app.get("/api/treaties/player/:playerId", async (req, res) => {
     try {
       const { playerId } = req.params;
       const treaties = treatyService.getTreatiesForPlayer(playerId);
@@ -113,9 +113,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/treaties/types", async (req, res) => {
+    try {
+      const treatyTypes = treatyService.getTreatyTypes();
+      res.json(treatyTypes);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get treaty types" });
+    }
+  });
+
   app.post("/api/treaties", async (req, res) => {
     try {
-      const { title, type, parties, terms, createdBy } = req.body;
+      const { title, type, parties, terms, createdBy, properties } = req.body;
       
       if (!title || !type || !parties || !terms || !createdBy) {
         return res.status(400).json({ error: "Missing required fields" });
@@ -126,7 +135,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         type,
         parties,
         terms,
-        createdBy
+        createdBy,
+        properties: properties || {}
       });
       
       res.json(treaty);
