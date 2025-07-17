@@ -87,6 +87,15 @@ Preferred communication style: Simple, everyday language.
 - Real consequences for actions: promises, betrayals, donations, and defiance tracked
 - Nova Imperium vision realized: choices shape destiny through persistent reputation system
 
+### Archipelago World Generation (January 17, 2025)
+- Updated map generator to create archipelago planet with scattered small islands
+- Implemented 14 custom terrain types based on user specifications
+- Added terrain color system matching user's hex tile designs
+- Created small island generation (1-3 tile radius) scattered across deep water
+- Islands surrounded by shallow water for realistic coastal areas
+- Terrain distribution includes special types: sacred plains, ancient ruins, volcanoes, enchanted meadows
+- Resource system updated for archipelago world with water-based and island-specific resources
+
 ### UI Layout Updates (January 17, 2025)
 - Moved minimap to lower right corner as requested for better HUD organization
 - Control buttons (sound toggle) now positioned in lower left corner
