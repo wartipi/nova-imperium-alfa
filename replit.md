@@ -272,12 +272,17 @@ Preferred communication style: Simple, everyday language.
 - Updated localStorage keys to use 'nova_imperium_save' instead of 'civ_save'
 - All components now use consistent coding style and optimized structure
 
-### Dynamic Field of Vision Exploration (January 18, 2025)
+### Dynamic Field of Vision Systems (January 18, 2025)
 - Modified exploration action to always match player's current field of vision
 - Exploration now scales automatically with competence level (7→19→37+ hexagones)
 - Experience gained proportional to vision size for balanced progression
-- Action description updated to reflect dynamic vision-based exploration
-- System ensures exploration power grows naturally with competence advancement
+- **Cartography System Integration (January 18, 2025)**: Cartography action now also uses full field of vision
+  - Level 1 Exploration: Creates 7-hexagon maps
+  - Level 2 Exploration: Creates 19-hexagon maps
+  - Level 4+ Exploration: Creates 37+ hexagon maps
+  - Map rarity and value scale with hexagon count
+  - Map quality improves with exploration level (rough→detailed)
+- Both systems ensure power grows naturally with competence advancement
 
 ### Level & Experience System Implementation (January 18, 2025)
 - **Complete Level/Experience System**: Replaced rank-based progression with dynamic level advancement

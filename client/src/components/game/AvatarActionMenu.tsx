@@ -70,7 +70,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     {
       id: 'create_map',
       name: 'Cartographier',
-      description: 'Créer une carte détaillée de la région',
+      description: 'Créer une carte de votre champ de vision actuel (s\'adapte au niveau d\'exploration)',
       cost: 15,
       icon: '🗺️',
       category: 'cartography',
@@ -197,19 +197,18 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     if (action.id === 'create_map') {
       if (spendActionPoints(action.cost)) {
         try {
-          // Récupérer les données réelles de la carte et du champ de vision
+          // Récupérer le champ de vision actuel du joueur (qui s'adapte au niveau d'exploration)
+          const { currentVision } = usePlayer.getState();
           const gameEngine = (window as any).gameEngine;
           const avatarPosition = gameEngine?.getAvatarPosition() || { x: 25, y: 15 };
-          const visibleHexes = gameEngine?.getVisibleHexes() || [];
           
           console.log('Cartographie - Position avatar:', avatarPosition);
-          console.log('Cartographie - Hexes visibles:', visibleHexes);
+          console.log('Cartographie - Vision actuelle:', currentVision.size, 'hexagones');
           
-          // Créer les données de tuiles basées sur le champ de vision réel
-          const cartographyTiles = visibleHexes.map((hexCoord: string) => {
+          // Créer les données de tuiles basées sur le champ de vision complet du joueur
+          const cartographyTiles = Array.from(currentVision).map((hexCoord: string) => {
             const [x, y] = hexCoord.split(',').map(Number);
             const tileData = gameEngine?.getTileAt(x, y);
-            console.log(`Tile ${x},${y}:`, tileData);
             return {
               x,
               y,
@@ -218,31 +217,35 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
             };
           });
 
+          const { getCompetenceLevel } = usePlayer.getState();
+          const explorationLevel = getCompetenceLevel('exploration');
+          
           const response = await fetch('/api/unique-items/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               name: `Carte-Region-${avatarPosition.x}-${avatarPosition.y}`,
               type: "carte",
-              rarity: "commun",
-              description: `Carte de la région explorée autour de la position (${avatarPosition.x},${avatarPosition.y})`,
+              rarity: cartographyTiles.length > 15 ? "rare" : "commun",
+              description: `Carte de la région explorée autour de (${avatarPosition.x},${avatarPosition.y}) - ${cartographyTiles.length} hexagones`,
               ownerId: "player",
               effects: ["navigation_locale"],
               requirements: ["cartography_level_1"],
-              value: 75,
+              value: cartographyTiles.length * 15,
               metadata: {
                 mapData: {
                   region: {
                     centerX: avatarPosition.x,
                     centerY: avatarPosition.y,
-                    radius: 1,
+                    radius: explorationLevel, // Rayon basé sur le niveau d'exploration
                     tiles: cartographyTiles
                   },
-                  quality: "rough",
+                  quality: explorationLevel >= 2 ? "detailed" : "rough",
                   accuracy: 100,
                   createdAt: Date.now(),
                   exploredBy: "player",
-                  visionRange: 1
+                  visionRange: explorationLevel,
+                  hexCount: cartographyTiles.length
                 }
               }
             })
@@ -250,7 +253,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
           
           if (response.ok) {
             const newItem = await response.json();
-            alert(`Carte "${newItem.name}" créée avec succès ! Consultez votre inventaire.`);
+            alert(`Carte "${newItem.name}" créée avec succès ! ${cartographyTiles.length} hexagones cartographiés. Consultez votre inventaire.`);
           } else {
             alert('Erreur lors de la création de la carte');
           }
