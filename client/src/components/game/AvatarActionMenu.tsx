@@ -10,7 +10,7 @@ interface AvatarActionMenuProps {
 }
 
 export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarActionMenuProps) {
-  const { actionPoints, spendActionPoints, hasCompetenceLevel } = usePlayer();
+  const { actionPoints, spendActionPoints, hasCompetenceLevel, competences } = usePlayer();
   const { reputation } = useReputation();
 
   // Actions de base disponibles pour tous les joueurs
