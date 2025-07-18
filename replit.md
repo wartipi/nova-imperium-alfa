@@ -296,6 +296,17 @@ Preferred communication style: Simple, everyday language.
 - Alliance creation system with 15 PA cost and proper reputation consequences
 - Faction and alliance systems now fully integrated with honor/dishonor mechanics
 
+### 4-Level Competence System Implementation (January 18, 2025)
+- Implemented complete 4-level competence advancement system replacing simple learned/unlearned
+- Four progression levels: Novice (1), Apprenti (2), Expert (3), Maître (4)
+- Progressive cost system: 10 points to learn level 1, then 5/10/15 points for levels 2/3/4
+- Enhanced usePlayer store with CompetenceLevel interface and level management methods
+- Updated CompetenceTree interface with level indicator bars and separate Learn/Upgrade buttons
+- Modal displays current level with visual progress bars and appropriate action buttons
+- Avatar actions now require specific competence levels for unlocking advanced abilities
+- System ready for content integration - next step: link cartography competence with existing cartography mechanics
+- Competence-based action system converts from character-class to skill-level requirements
+
 ### Fog of War and Movement System (January 18, 2025)
 - Implemented comprehensive fog of war system with 1 hex vision radius around avatar
 - Avatar positioned at correct hex coordinates (3,3) with proper world coordinate conversion
