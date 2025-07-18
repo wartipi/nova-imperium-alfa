@@ -5,6 +5,61 @@ import { useGameState } from "../../lib/stores/useGameState";
 import { HexTile, City, Unit } from "../../lib/game/types";
 import { ResourceRevealSystem } from "../../lib/systems/ResourceRevealSystem";
 
+// Composant séparé pour éviter les problèmes de hooks
+function ResourceInfoSection({ selectedHex }: { selectedHex: HexTile }) {
+  const { getCompetenceLevel } = usePlayer();
+  const { isGameMaster } = useGameState();
+  
+  const explorationLevel = getCompetenceLevel('exploration');
+  const isMasterMode = isGameMaster || false;
+  const resourceDescription = ResourceRevealSystem.getResourceDescription(selectedHex, Math.max(explorationLevel, isMasterMode ? 1 : 0));
+  
+  return (
+    <div className="bg-amber-50 border border-amber-700 rounded p-2 mb-3">
+      <div className="text-amber-900 font-semibold mb-2">💎 Ressources</div>
+      <div>
+        <div className="text-amber-800 text-sm mb-2">
+          <span className="font-medium">Niveau d'exploration: </span>
+          <span className={`px-2 py-1 rounded text-xs ${
+            explorationLevel >= 1 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+          }`}>
+            {explorationLevel >= 1 ? `Niveau ${explorationLevel}` : 'Aucun'}
+          </span>
+          {isMasterMode && (
+            <span className="ml-2 px-2 py-1 rounded text-xs bg-purple-100 text-purple-800">
+              Mode MJ
+            </span>
+          )}
+        </div>
+        
+        <div className="text-amber-700">
+          {selectedHex.resource && (isMasterMode || explorationLevel >= 1) ? (
+            <div className="flex items-center gap-2">
+              <span className="text-lg">
+                {ResourceRevealSystem.getHexResourceSymbol(selectedHex, Math.max(explorationLevel, 1)) || '💎'}
+              </span>
+              <span>{resourceDescription}</span>
+              {isMasterMode && !explorationLevel && (
+                <span className="text-xs text-purple-600">(visible en mode MJ)</span>
+              )}
+            </div>
+          ) : (
+            <div className="text-amber-600 text-sm italic">
+              {explorationLevel >= 1 ? 'Aucune ressource détectée' : 'Exploration requise pour révéler les ressources'}
+            </div>
+          )}
+        </div>
+        
+        {explorationLevel === 0 && !isMasterMode && (
+          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
+            💡 <strong>Astuce:</strong> Apprenez la compétence "Exploration" niveau 1 et utilisez l'action "Explorer la Zone" pour révéler les ressources !
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function TileInfoPanel() {
   const { selectedHex, setSelectedHex } = useMap();
   const { novaImperiums } = useNovaImperium();
@@ -198,59 +253,7 @@ export function TileInfoPanel() {
         )}
       </div>
 
-      {/* Resource Information with Exploration Level */}
-      <div className="bg-amber-50 border border-amber-700 rounded p-2 mb-3">
-        <div className="text-amber-900 font-semibold mb-2">💎 Ressources</div>
-        {(() => {
-          const { getCompetenceLevel } = usePlayer.getState();
-          const { isGameMaster } = useGameState();
-          const explorationLevel = getCompetenceLevel('exploration');
-          const isMasterMode = isGameMaster || false;
-          const resourceDescription = ResourceRevealSystem.getResourceDescription(selectedHex, Math.max(explorationLevel, isMasterMode ? 1 : 0));
-          
-          return (
-            <div>
-              <div className="text-amber-800 text-sm mb-2">
-                <span className="font-medium">Niveau d'exploration: </span>
-                <span className={`px-2 py-1 rounded text-xs ${
-                  explorationLevel >= 1 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
-                }`}>
-                  {explorationLevel >= 1 ? `Niveau ${explorationLevel}` : 'Aucun'}
-                </span>
-                {isMasterMode && (
-                  <span className="ml-2 px-2 py-1 rounded text-xs bg-purple-100 text-purple-800">
-                    Mode MJ
-                  </span>
-                )}
-              </div>
-              
-              <div className="text-amber-700">
-                {selectedHex.resource && (isMasterMode || explorationLevel >= 1) ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">
-                      {ResourceRevealSystem.getHexResourceSymbol(selectedHex, Math.max(explorationLevel, 1)) || '💎'}
-                    </span>
-                    <span>{resourceDescription}</span>
-                    {isMasterMode && !explorationLevel && (
-                      <span className="text-xs text-purple-600">(visible en mode MJ)</span>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-amber-600 text-sm italic">
-                    {explorationLevel >= 1 ? 'Aucune ressource détectée' : 'Exploration requise pour révéler les ressources'}
-                  </div>
-                )}
-              </div>
-              
-              {explorationLevel === 0 && !isMasterMode && (
-                <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
-                  💡 <strong>Astuce:</strong> Apprenez la compétence "Exploration" niveau 1 et utilisez l'action "Explorer la Zone" pour révéler les ressources !
-                </div>
-              )}
-            </div>
-          );
-        })()}
-      </div>
+      <ResourceInfoSection selectedHex={selectedHex} />
 
       {/* City Information */}
       {cityOnTile && (

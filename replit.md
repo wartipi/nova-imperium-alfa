@@ -121,6 +121,8 @@ Preferred communication style: Simple, everyday language.
 - **Stores Optimisés**: usePlayer pour vision/exploration, useGameState pour mode MJ uniquement
 - **Code Consolidé**: Suppression des références obsolètes et optimisation des performances
 - **Architecture Unifiée**: Tous les systèmes intégrés dans une architecture cohérente et maintenable
+- **Ressources Visibles en Mode MJ**: Correction du problème d'affichage des ressources - 369+ ressources générées et visibles en mode Maître de Jeu
+- **TileInfoPanel Corrigé**: Résolution de l'erreur de hooks React qui empêchait l'affichage des informations des hexagones
 
 ### Comprehensive Resource System Implementation (January 17, 2025)
 - Implemented complete resource system with 6 basic resources: food, action_points, gold, science, culture
