@@ -229,6 +229,19 @@ Preferred communication style: Simple, everyday language.
 - Fixed bug where extra hexes were being revealed beyond intended vision range
 - All vision methods (isHexVisible, isHexInCurrentVision, moveAvatarToHex) now use same hex grid logic
 
+### Unique Items Exchange System (January 18, 2025)
+- Created comprehensive unique items system for cards, magical objects, and artifacts
+- Added 6 unique item types: carte, objet_magique, artefact, relique, document, equipement_legendaire
+- Implemented 5 rarity levels: commun, rare, epique, legendaire, mythique
+- Created UniqueItem interface with effects, requirements, value, and metadata
+- Enhanced ExchangeService with unique item creation, transfer, and inventory management
+- Added predefined unique items: Carte des Îles Perdues, Amulette de Vision, Orbe de Téléportation, etc.
+- Implemented UniqueItemsPanel component with detailed item viewing and management
+- Added API endpoints for unique item creation, inventory retrieval, and exchange offers
+- Integrated unique items panel into MedievalHUD with 💎 icon
+- System supports both resource and unique item exchanges in mixed offers
+- Unique items have ownership tracking, tradeability status, and metadata for game mechanics
+
 ### Enhanced Reputation System & Game Mechanics (January 17, 2025)
 - Updated reputation system with 6 clear levels: Banni, Méprisé, Suspect, Neutre, Honorable, Saint
 - Added GN participation tracking and season pass system for faction creation requirements

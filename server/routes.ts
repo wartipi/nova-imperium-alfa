@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { messageService } from "./messageService";
 import { treatyService } from "./treatyService";
-import { exchangeService } from "./exchangeService";
+import { exchangeService, UniqueItem } from "./exchangeService";
 import { cartographyService } from "./cartographyService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -427,6 +427,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       res.status(500).json({ error: "Failed to get map" });
+    }
+  });
+
+  // Endpoints pour les objets uniques
+  app.get("/api/unique-items/:playerId", async (req, res) => {
+    try {
+      const { playerId } = req.params;
+      const inventory = exchangeService.getPlayerInventory(playerId);
+      res.json(inventory);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get player inventory" });
+    }
+  });
+
+  app.get("/api/unique-items/item/:itemId", async (req, res) => {
+    try {
+      const { itemId } = req.params;
+      const item = exchangeService.getUniqueItem(itemId);
+      
+      if (item) {
+        res.json(item);
+      } else {
+        res.status(404).json({ error: "Item not found" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get item" });
+    }
+  });
+
+  app.post("/api/unique-items/create", async (req, res) => {
+    try {
+      const { name, type, rarity, description, ownerId, effects, requirements, value, metadata } = req.body;
+      
+      if (!name || !type || !rarity || !description || !ownerId) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      
+      const item = exchangeService.createUniqueItem(
+        name,
+        type,
+        rarity,
+        description,
+        ownerId,
+        effects,
+        requirements,
+        value,
+        metadata
+      );
+      
+      res.json(item);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create unique item" });
+    }
+  });
+
+  // Endpoint pour créer une offre d'échange d'objets uniques
+  app.post("/api/exchange/offer/unique", async (req, res) => {
+    try {
+      const { 
+        roomId, 
+        fromPlayer, 
+        toPlayer, 
+        uniqueItemsOffered, 
+        uniqueItemsRequested, 
+        message 
+      } = req.body;
+      
+      if (!roomId || !fromPlayer || !toPlayer) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      
+      const offer = exchangeService.createExchangeOffer(
+        roomId,
+        fromPlayer,
+        toPlayer,
+        {}, // Pas de ressources normales
+        {}, // Pas de ressources demandées
+        uniqueItemsOffered || [],
+        uniqueItemsRequested || [],
+        message
+      );
+      
+      if (offer) {
+        res.json(offer);
+      } else {
+        res.status(400).json({ error: "Failed to create exchange offer" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create exchange offer" });
     }
   });
 

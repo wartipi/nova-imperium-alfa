@@ -25,6 +25,7 @@ import { ReputationPanel } from "./ReputationPanel";
 import { FactionPanel } from "./FactionPanel";
 import { ActionButtons } from "./ActionButtons";
 import { ActionPointsPanel } from "./ActionPointsPanel";
+import { UniqueItemsPanel } from "./UniqueItemsPanel";
 
 type MenuSection = 
   | 'treasury' 
@@ -40,7 +41,8 @@ type MenuSection =
   | 'competences'
   | 'factions'
   | 'actions'
-  | 'action_points';
+  | 'action_points'
+  | 'unique_items';
 
 export function MedievalHUD() {
   const { gamePhase, currentTurn, endTurn } = useGameState();
@@ -69,7 +71,8 @@ export function MedievalHUD() {
     { id: 'help' as MenuSection, label: 'AIDE', icon: '❓' },
     { id: 'factions' as MenuSection, label: 'FACTIONS', icon: '🏛️' },
     { id: 'actions' as MenuSection, label: 'ACTIONS', icon: '🎯' },
-    { id: 'action_points' as MenuSection, label: 'POINTS D\'ACTION', icon: '⚡' }
+    { id: 'action_points' as MenuSection, label: 'POINTS D\'ACTION', icon: '⚡' },
+    { id: 'unique_items' as MenuSection, label: 'OBJETS UNIQUES', icon: '💎' }
   ];
 
   const handleCharacterSelect = (character: CharacterOption) => {
@@ -339,6 +342,7 @@ export function MedievalHUD() {
               {activeSection === 'factions' && <FactionPanel />}
               {activeSection === 'actions' && <ActionButtons />}
               {activeSection === 'action_points' && <ActionPointsPanel onClose={() => setActiveSection(null)} />}
+              {activeSection === 'unique_items' && <UniqueItemsPanel playerId="player" onClose={() => setActiveSection(null)} />}
             </div>
           </div>
         </div>

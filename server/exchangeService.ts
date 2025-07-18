@@ -1,17 +1,33 @@
 // Service d'échange en temps réel pour Nova Imperium
 
+interface UniqueItem {
+  id: string;
+  name: string;
+  type: 'carte' | 'objet_magique' | 'artefact' | 'relique' | 'document' | 'equipement_legendaire';
+  rarity: 'commun' | 'rare' | 'epique' | 'legendaire' | 'mythique';
+  description: string;
+  effects?: string[];
+  requirements?: string[];
+  value: number;
+  tradeable: boolean;
+  ownerId: string;
+  createdAt: number;
+  metadata?: { [key: string]: any };
+}
+
 interface ExchangeOffer {
   id: string;
   fromPlayer: string;
   toPlayer: string;
   resourcesOffered: { [key: string]: number };
   resourcesRequested: { [key: string]: number };
-  uniqueItemsOffered: string[];
-  uniqueItemsRequested: string[];
+  uniqueItemsOffered: UniqueItem[];
+  uniqueItemsRequested: string[]; // IDs des objets demandés
   status: 'pending' | 'accepted' | 'rejected' | 'expired';
   createdAt: number;
   expiresAt: number;
   message?: string;
+  offerType: 'resources' | 'unique_items' | 'mixed';
 }
 
 interface TradeRoom {
@@ -27,6 +43,8 @@ class ExchangeService {
   private tradeRooms: Map<string, TradeRoom> = new Map();
   private activeOffers: Map<string, ExchangeOffer> = new Map();
   private subscribers: Map<string, ((data: any) => void)[]> = new Map();
+  private uniqueItems: Map<string, UniqueItem> = new Map();
+  private playerInventories: Map<string, string[]> = new Map(); // playerId -> itemIds
 
   // Créer une salle d'échange basée sur un traité
   createTradeRoom(treatyId: string, participants: string[]): TradeRoom {
@@ -52,6 +70,44 @@ class ExchangeService {
     return room;
   }
 
+  // Créer un objet unique
+  createUniqueItem(
+    name: string,
+    type: UniqueItem['type'],
+    rarity: UniqueItem['rarity'],
+    description: string,
+    ownerId: string,
+    effects?: string[],
+    requirements?: string[],
+    value: number = 100,
+    metadata?: { [key: string]: any }
+  ): UniqueItem {
+    const item: UniqueItem = {
+      id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      name,
+      type,
+      rarity,
+      description,
+      effects: effects || [],
+      requirements: requirements || [],
+      value,
+      tradeable: true,
+      ownerId,
+      createdAt: Date.now(),
+      metadata: metadata || {}
+    };
+
+    this.uniqueItems.set(item.id, item);
+    
+    // Ajouter à l'inventaire du joueur
+    if (!this.playerInventories.has(ownerId)) {
+      this.playerInventories.set(ownerId, []);
+    }
+    this.playerInventories.get(ownerId)!.push(item.id);
+
+    return item;
+  }
+
   // Créer une offre d'échange
   createExchangeOffer(
     roomId: string,
@@ -71,18 +127,41 @@ class ExchangeService {
       return null;
     }
 
+    // Valider les objets uniques offerts
+    const validUniqueItemsOffered: UniqueItem[] = [];
+    for (const itemId of uniqueItemsOffered) {
+      const item = this.uniqueItems.get(itemId);
+      if (item && item.ownerId === fromPlayer && item.tradeable) {
+        validUniqueItemsOffered.push(item);
+      }
+    }
+
+    // Déterminer le type d'offre
+    const hasResources = Object.keys(resourcesOffered).length > 0 || Object.keys(resourcesRequested).length > 0;
+    const hasUniqueItems = validUniqueItemsOffered.length > 0 || uniqueItemsRequested.length > 0;
+    
+    let offerType: 'resources' | 'unique_items' | 'mixed';
+    if (hasResources && hasUniqueItems) {
+      offerType = 'mixed';
+    } else if (hasUniqueItems) {
+      offerType = 'unique_items';
+    } else {
+      offerType = 'resources';
+    }
+
     const offer: ExchangeOffer = {
       id: `offer_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       fromPlayer,
       toPlayer,
       resourcesOffered,
       resourcesRequested,
-      uniqueItemsOffered,
+      uniqueItemsOffered: validUniqueItemsOffered,
       uniqueItemsRequested,
       status: 'pending',
       createdAt: Date.now(),
       expiresAt: Date.now() + (5 * 60 * 1000), // Expire dans 5 minutes
-      message
+      message,
+      offerType
     };
 
     this.activeOffers.set(offer.id, offer);
@@ -174,13 +253,17 @@ class ExchangeService {
       console.log(`Transfert: ${amount} ${resource} de ${offer.toPlayer} vers ${offer.fromPlayer}`);
     });
 
-    // Transférer les objets uniques
+    // Transférer les objets uniques offerts
     offer.uniqueItemsOffered.forEach(item => {
-      console.log(`Transfert objet unique: ${item} de ${offer.fromPlayer} vers ${offer.toPlayer}`);
+      this.transferUniqueItem(item.id, offer.fromPlayer, offer.toPlayer);
+      console.log(`Transfert objet unique: ${item.name} de ${offer.fromPlayer} vers ${offer.toPlayer}`);
     });
 
-    offer.uniqueItemsRequested.forEach(item => {
-      console.log(`Transfert objet unique: ${item} de ${offer.toPlayer} vers ${offer.fromPlayer}`);
+    // Transférer les objets uniques demandés
+    offer.uniqueItemsRequested.forEach(itemId => {
+      this.transferUniqueItem(itemId, offer.toPlayer, offer.fromPlayer);
+      const item = this.uniqueItems.get(itemId);
+      console.log(`Transfert objet unique: ${item?.name} de ${offer.toPlayer} vers ${offer.fromPlayer}`);
     });
   }
 
@@ -188,6 +271,125 @@ class ExchangeService {
   getTradeRoomsForPlayer(playerId: string): TradeRoom[] {
     return Array.from(this.tradeRooms.values()).filter(room => 
       room.participants.includes(playerId) && room.isActive
+    );
+  }
+
+  // Transférer un objet unique entre joueurs
+  private transferUniqueItem(itemId: string, fromPlayer: string, toPlayer: string): boolean {
+    const item = this.uniqueItems.get(itemId);
+    if (!item || item.ownerId !== fromPlayer || !item.tradeable) {
+      return false;
+    }
+
+    // Retirer de l'inventaire du joueur source
+    const fromInventory = this.playerInventories.get(fromPlayer);
+    if (fromInventory) {
+      const index = fromInventory.indexOf(itemId);
+      if (index > -1) {
+        fromInventory.splice(index, 1);
+      }
+    }
+
+    // Ajouter à l'inventaire du joueur destination
+    if (!this.playerInventories.has(toPlayer)) {
+      this.playerInventories.set(toPlayer, []);
+    }
+    this.playerInventories.get(toPlayer)!.push(itemId);
+
+    // Mettre à jour le propriétaire
+    item.ownerId = toPlayer;
+    this.uniqueItems.set(itemId, item);
+
+    return true;
+  }
+
+  // Obtenir l'inventaire d'un joueur
+  getPlayerInventory(playerId: string): UniqueItem[] {
+    const itemIds = this.playerInventories.get(playerId) || [];
+    return itemIds.map(id => this.uniqueItems.get(id)).filter(item => item !== undefined) as UniqueItem[];
+  }
+
+  // Obtenir les détails d'un objet unique
+  getUniqueItem(itemId: string): UniqueItem | undefined {
+    return this.uniqueItems.get(itemId);
+  }
+
+  // Créer des objets uniques prédéfinis pour le jeu
+  createPredefinedUniqueItems(): void {
+    // Cartes cartographiques
+    this.createUniqueItem(
+      "Carte des Îles Perdues",
+      "carte",
+      "rare",
+      "Révèle l'emplacement d'îles cachées riches en ressources",
+      "system",
+      ["Révèle 3 îles cachées", "Accès à des ressources rares"],
+      ["Compétence Navigation niveau 2"],
+      500,
+      { region: "north_archipelago", accuracy: 85 }
+    );
+
+    this.createUniqueItem(
+      "Carte du Temple Ancien",
+      "carte",
+      "epique",
+      "Localise un temple antique contenant des artefacts puissants",
+      "system",
+      ["Accès au Temple Ancien", "Chance de trouver des artefacts"],
+      ["Compétence Archéologie niveau 3"],
+      1200,
+      { temple_type: "ancient", danger_level: "high" }
+    );
+
+    // Objets magiques
+    this.createUniqueItem(
+      "Amulette de Vision",
+      "objet_magique",
+      "legendaire",
+      "Permet de voir au-delà du brouillard de guerre",
+      "system",
+      ["Vision étendue +2 hexagones", "Détection d'unités invisibles"],
+      ["Compétence Magie niveau 4"],
+      2000,
+      { vision_bonus: 2, duration: "permanent" }
+    );
+
+    this.createUniqueItem(
+      "Orbe de Téléportation",
+      "objet_magique",
+      "mythique",
+      "Permet de téléporter instantanément vers n'importe quelle île explorée",
+      "system",
+      ["Téléportation instantanée", "Pas de coût en Points d'Action"],
+      ["Compétence Magie niveau 5", "Réputation Honorable"],
+      5000,
+      { teleport_range: "explored_only", cooldown: 0 }
+    );
+
+    // Artefacts anciens
+    this.createUniqueItem(
+      "Relique des Anciens",
+      "artefact",
+      "legendaire",
+      "Artefact mystérieux augmentant la génération de mana",
+      "system",
+      ["Mana +50 par tour", "Accès à des rituels anciens"],
+      ["Réputation Neutre ou plus"],
+      3000,
+      { mana_bonus: 50, ritual_access: true }
+    );
+
+    // Équipement légendaire
+    this.createUniqueItem(
+      "Épée de l'Empereur",
+      "equipement_legendaire",
+      "mythique",
+      "Épée légendaire augmentant considérablement les capacités militaires",
+      "system",
+      ["Force militaire +100%", "Moral des troupes +50%"],
+      ["Compétence Commandement niveau 5"],
+      8000,
+      { military_bonus: 100, morale_bonus: 50 }
     );
   }
 
@@ -278,7 +480,12 @@ class ExchangeService {
 
 export const exchangeService = new ExchangeService();
 
+// Initialiser les objets uniques prédéfinis
+exchangeService.createPredefinedUniqueItems();
+
 // Nettoyer les offres expirées toutes les minutes
 setInterval(() => {
   exchangeService.cleanupExpiredOffers();
 }, 60000);
+
+export { UniqueItem };
