@@ -18,20 +18,20 @@ interface MapViewerProps {
 }
 
 const terrainColors = {
-  fertile_land: '#8BC34A',
-  forest: '#4CAF50',
-  mountains: '#795548',
-  desert: '#FFC107',
-  wasteland: '#8D6E63', // Couleur terre/brun pour les terres en friche
-  hills: '#A1887F',
-  swamp: '#2E7D32',
-  sacred_plains: '#E8F5E8',
-  ancient_ruins: '#9E9E9E',
-  volcano: '#FF5722',
-  caves: '#424242',
-  enchanted_meadow: '#C8E6C9',
-  shallow_water: '#4FC3F7',
-  deep_water: '#1976D2'
+  wasteland: '#F5F5DC',        // Beige pâle
+  forest: '#228B22',           // Vert foncé
+  mountains: '#708090',        // Gris pierre
+  fertile_land: '#90EE90',     // Vert clair
+  hills: '#D2B48C',            // Brun clair
+  shallow_water: '#87CEEB',    // Bleu clair
+  deep_water: '#191970',       // Bleu foncé
+  swamp: '#556B2F',            // Vert olive foncé
+  desert: '#FFD700',           // Jaune doré
+  sacred_plains: '#F0E68C',    // Blanc doré / beige lumineux
+  caves: '#2F2F2F',            // Gris très foncé
+  ancient_ruins: '#8B7355',    // Brun-gris
+  volcano: '#B22222',          // Rouge foncé
+  enchanted_meadow: '#50C878'  // Vert émeraude
 };
 
 export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps) {
