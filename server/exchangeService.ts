@@ -46,6 +46,54 @@ class ExchangeService {
   private uniqueItems: Map<string, UniqueItem> = new Map();
   private playerInventories: Map<string, string[]> = new Map(); // playerId -> itemIds
 
+  constructor() {
+    // Initialiser avec quelques objets de test
+    this.initializeTestItems();
+  }
+
+  private initializeTestItems() {
+    // Créer des objets de test pour le joueur
+    const testItems = [
+      {
+        name: "Carte Marine",
+        type: "carte" as const,
+        rarity: "rare" as const,
+        description: "Carte des routes maritimes",
+        effects: ["Navigation +25%"],
+        value: 200
+      },
+      {
+        name: "Amulette de Puissance",
+        type: "objet_magique" as const,
+        rarity: "epique" as const,
+        description: "Amulette magique augmentant le mana",
+        effects: ["Mana +30"],
+        value: 800
+      },
+      {
+        name: "Épée Enchantée",
+        type: "equipement_legendaire" as const,
+        rarity: "legendaire" as const,
+        description: "Épée légendaire des anciens héros",
+        effects: ["Attaque +50%"],
+        value: 1500
+      }
+    ];
+
+    testItems.forEach(item => {
+      this.createUniqueItem(
+        item.name,
+        item.type,
+        item.rarity,
+        item.description,
+        "player",
+        item.effects,
+        [],
+        item.value
+      );
+    });
+  }
+
   // Créer une salle d'échange basée sur un traité
   createTradeRoom(treatyId: string, participants: string[]): TradeRoom {
     const room: TradeRoom = {
