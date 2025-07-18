@@ -15,7 +15,7 @@ const queryClient = new QueryClient();
 
 function GameApp() {
   const { initializeGame, gamePhase } = useGameState();
-  const { generateMap } = useMap();
+  const { generateMap, mapData } = useMap();
   const { initializeNovaImperiums } = useNovaImperium();
   const { setBackgroundMusic } = useAudio();
 
@@ -31,10 +31,15 @@ function GameApp() {
     initializeNovaImperiums();
     initializeGame();
     
-    // Initialize avatar vision system
+    // Initialize avatar on land and vision system
     setTimeout(() => {
-      const { initializeVision } = usePlayer.getState();
-      initializeVision();
+      const { findLandHex, initializeVision } = usePlayer.getState();
+      const { mapData } = useMap.getState();
+      
+      if (mapData && mapData.length > 0) {
+        findLandHex(mapData);
+        initializeVision();
+      }
     }, 100);
   }, []);
 

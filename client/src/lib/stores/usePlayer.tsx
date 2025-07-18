@@ -33,6 +33,8 @@ interface PlayerState {
   updateVisibleHexes: (centerX: number, centerY: number) => void;
   isHexVisible: (hexX: number, hexY: number) => boolean;
   setGameMaster: (isGM: boolean) => void;
+  // Avatar land positioning
+  findLandHex: (mapData: any[][]) => { x: number; y: number };
 }
 
 export const usePlayer = create<PlayerState>((set, get) => ({
@@ -198,6 +200,36 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     set({ isGameMaster: isGM });
   },
   
+  // Find first available land hex for avatar spawn
+  findLandHex: (mapData: any[][]) => {
+    const state = get();
+    const waterTerrains = ['shallow_water', 'deep_water'];
+    
+    // Search for first available land hex starting from center
+    const centerX = Math.floor(mapData[0].length / 2);
+    const centerY = Math.floor(mapData.length / 2);
+    
+    // Spiral search outward from center
+    for (let radius = 0; radius < Math.max(mapData.length, mapData[0].length); radius++) {
+      for (let x = Math.max(0, centerX - radius); x <= Math.min(mapData[0].length - 1, centerX + radius); x++) {
+        for (let y = Math.max(0, centerY - radius); y <= Math.min(mapData.length - 1, centerY + radius); y++) {
+          const hex = mapData[y][x];
+          if (hex && !waterTerrains.includes(hex.terrain)) {
+            const worldX = x * 1.5;
+            const worldZ = y * Math.sqrt(3) * 0.5;
+            set({ avatarPosition: { x: worldX, y: 0, z: worldZ } });
+            console.log('Avatar spawned on land at hex:', x, y, 'terrain:', hex.terrain);
+            return { x, y };
+          }
+        }
+      }
+    }
+    
+    // Fallback to original position if no land found
+    console.log('No land found, using default position');
+    return { x: 3, y: 3 };
+  },
+
   // Initialize avatar vision at starting position
   initializeVision: () => {
     const state = get();
@@ -239,7 +271,6 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     });
     
     console.log('Initialized vision at hex:', avatarHexX, avatarHexY, 'World pos:', state.avatarPosition);
-    console.log('Avatar column is', avatarHexX % 2 === 0 ? 'EVEN' : 'ODD');
     console.log('Visible hexes:', Array.from(newVisibleHexes).sort());
     set({ visibleHexes: newVisibleHexes });
   }
