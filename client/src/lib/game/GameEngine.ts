@@ -580,8 +580,6 @@ export class GameEngine {
       Math.pow(mouseY - avatarScreenY, 2)
     );
     
-    console.log('Avatar click check:', { mouseX, mouseY, avatarScreenX, avatarScreenY, distance, spriteSize });
-    
     return distance <= spriteSize / 2;
   }
 

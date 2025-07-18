@@ -57,11 +57,8 @@ export function GameCanvas() {
       const y = event.clientY - rect.top;
 
       // Check if click is on avatar first
-      console.log('Checking avatar click at:', x, y);
       if (gameEngineRef.current.isClickOnAvatar(x, y)) {
-        console.log('Avatar clicked! Opening menu...');
         const avatarScreenPos = gameEngineRef.current.getAvatarScreenPosition();
-        console.log('Avatar screen position:', avatarScreenPos);
         setAvatarMenuPosition(avatarScreenPos);
         setShowAvatarMenu(true);
         setMouseDownPos(null);

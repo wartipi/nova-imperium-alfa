@@ -187,7 +187,6 @@ Preferred communication style: Simple, everyday language.
 - Character-specific avatar colors and appearances based on selected character type
 - Avatar movement system with animation (walking animation, rotation, shadow effects)
 - Avatar positioning integrated with hexagonal map coordinates
-- Click-to-move functionality: clicking on map moves avatar to that hex position
 - Avatar action menu system accessible by clicking directly on the avatar
 - Comprehensive action system with multiple categories:
   - Base actions: move, explore, rest (available to all players)
@@ -197,6 +196,15 @@ Preferred communication style: Simple, everyday language.
 - Action Point costs integrated with avatar actions
 - Visual feedback for avatar movement and available actions
 - Avatar serves as main interface for player interaction with the world
+
+### Avatar Movement System (January 18, 2025)
+- Movement now initiated through avatar action menu instead of direct map clicks
+- Click on avatar opens action menu with "Se Déplacer" option
+- Selecting movement activates movement mode with crosshair cursor
+- Visual indicator shows when movement mode is active
+- Movement mode can be cancelled at any time
+- Maintains movement confirmation system with preview and cost validation
+- Prevents accidental movement while preserving deliberate player choice
 
 ### Enhanced Reputation System & Game Mechanics (January 17, 2025)
 - Updated reputation system with 6 clear levels: Banni, Méprisé, Suspect, Neutre, Honorable, Saint
