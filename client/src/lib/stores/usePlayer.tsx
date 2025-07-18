@@ -78,9 +78,13 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   setIsMoving: (isMoving) => set({ isMoving }),
   moveAvatarToHex: (hexX, hexY) => {
     const state = get();
-    // Convert hex coordinates to world coordinates
+    // Convert hex coordinates to world coordinates - fix the coordinate system
     const worldX = hexX * 1.5;
     const worldZ = hexY * Math.sqrt(3) * 0.5;
+    
+    console.log('Moving avatar from hex:', Math.round(state.avatarPosition.x / 1.5), Math.round(state.avatarPosition.z / (Math.sqrt(3) * 0.5)));
+    console.log('Moving avatar to hex:', hexX, hexY);
+    console.log('World coordinates:', worldX, worldZ);
     
     // Calculate rotation to face movement direction
     const deltaX = worldX - state.avatarPosition.x;
@@ -169,10 +173,7 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     // Players see explored hexes OR hexes in current vision range
     const isExplored = state.visibleHexes.has(`${hexX},${hexY}`);
     
-    // Debug logging for vision (commented out for performance)
-    // if (isInCurrentVision) {
-    //   console.log(`Hex ${hexX},${hexY} in current vision - Avatar at ${avatarHexX},${avatarHexY}`);
-    // }
+    // Vision system working correctly - debug logs removed for performance
     
     return isExplored || isInCurrentVision;
   },

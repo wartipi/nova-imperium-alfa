@@ -197,10 +197,16 @@ export class GameEngine {
         // Draw hex
         this.drawHex(screenX, screenY, hex, isVisible);
         
-        // Draw hex outline
-        this.ctx.strokeStyle = isVisible ? '#333' : '#222';
-        this.ctx.lineWidth = 1;
-        this.ctx.stroke();
+        // Draw hex outline - different style for visible vs invisible
+        if (isVisible) {
+          this.ctx.strokeStyle = '#333';
+          this.ctx.lineWidth = 1;
+          this.ctx.stroke();
+        } else {
+          this.ctx.strokeStyle = '#111';
+          this.ctx.lineWidth = 0.5;
+          this.ctx.stroke();
+        }
       }
     }
   }
@@ -350,9 +356,13 @@ export class GameEngine {
   private renderAvatar() {
     // Always render avatar, even without character selected for debugging
     const hexHeight = this.hexSize * Math.sqrt(3);
-    // Convert avatar world position to screen position
-    const screenX = this.avatarPosition.x * (this.hexSize * 1.5);
-    const screenY = this.avatarPosition.z * hexHeight + (Math.floor(this.avatarPosition.x) % 2) * (hexHeight / 2);
+    // Convert avatar world position to screen position using proper hex coordinates
+    const avatarHexX = Math.round(this.avatarPosition.x / 1.5);
+    const avatarHexY = Math.round(this.avatarPosition.z / (Math.sqrt(3) * 0.5));
+    
+    // Use the same coordinate system as the map rendering
+    const screenX = avatarHexX * (this.hexSize * 1.5);
+    const screenY = avatarHexY * hexHeight + (avatarHexX % 2) * (hexHeight / 2);
     
     // Create 8-bit avatar sprite
     const avatarSprite = this.createAvatarSprite();
