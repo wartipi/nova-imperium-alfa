@@ -175,6 +175,8 @@ export class GameEngine {
     this.render();
   }
 
+
+
   centerCameraOnPlayerStart() {
     const playerCiv = this.civilizations.find(civ => civ.isPlayer);
     if (playerCiv && playerCiv.cities.length > 0) {
@@ -308,29 +310,35 @@ export class GameEngine {
         this.ctx.fillText('➤', x, y + 7);
       }
       
-      // Draw resource with exploration-based revelation
+      // Draw resource with exploration-based revelation (seulement si zone explorée avec l'action ET exploration niveau 1+)
       if (hex.resource) {
-        const explorationLevel = usePlayer.getState().getCompetenceLevel('exploration');
-        const resourceSymbol = ResourceRevealSystem.getHexResourceSymbol(hex, explorationLevel);
-        const resourceColor = ResourceRevealSystem.getHexResourceColor(hex, explorationLevel);
+        const { getCompetenceLevel, isHexExplored } = (window as any).usePlayer ? 
+          (window as any).usePlayer.getState() : 
+          { getCompetenceLevel: () => 0, isHexExplored: () => false };
         
-        if (resourceSymbol && resourceColor) {
-          // Draw resource background
-          this.ctx.fillStyle = resourceColor;
-          this.ctx.globalAlpha = 0.6;
-          this.ctx.fillRect(x - 8, y - 8, 16, 16);
-          this.ctx.globalAlpha = 1.0;
+        const explorationLevel = getCompetenceLevel ? getCompetenceLevel('exploration') : 0;
+        const hexExplored = isHexExplored ? isHexExplored(hex.x, hex.y) : false;
+        
+        // Ressources seulement visibles si exploration niveau 1+ ET zone explorée avec l'action
+        if (explorationLevel >= 1 && hexExplored && ResourceRevealSystem.canRevealResource(hex.resource, explorationLevel)) {
+          const resourceSymbol = ResourceRevealSystem.getHexResourceSymbol(hex, explorationLevel);
+          const resourceColor = ResourceRevealSystem.getHexResourceColor(hex, explorationLevel);
           
-          // Draw resource symbol
-          this.ctx.font = '14px Arial';
-          this.ctx.textAlign = 'center';
-          this.ctx.fillStyle = '#000';
-          this.ctx.fillText(resourceSymbol, x, y + 4);
-        } else if (explorationLevel === 0) {
-          // Show generic resource indicator for common resources
-          this.ctx.fillStyle = '#FFD700';
-          this.ctx.fillRect(x - 3, y - 3, 6, 6);
+          if (resourceSymbol && resourceColor) {
+            // Draw resource background
+            this.ctx.fillStyle = resourceColor;
+            this.ctx.globalAlpha = 0.6;
+            this.ctx.fillRect(x - 8, y - 8, 16, 16);
+            this.ctx.globalAlpha = 1.0;
+            
+            // Draw resource symbol
+            this.ctx.font = '14px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillStyle = '#000';
+            this.ctx.fillText(resourceSymbol, x, y + 4);
+          }
         }
+        // Pas d'indicateur générique - ressources complètement invisibles
       }
       
       // Draw river
@@ -353,30 +361,36 @@ export class GameEngine {
       this.ctx.fillStyle = 'rgba(50, 50, 50, 0.6)';
       this.ctx.fill();
       
-      // Draw resource with fog effect and exploration-based revelation
+      // Draw resource with fog effect (seulement si zone explorée avec l'action ET exploration niveau 1+)
       if (hex.resource) {
-        const explorationLevel = usePlayer.getState().getCompetenceLevel('exploration');
-        const resourceSymbol = ResourceRevealSystem.getHexResourceSymbol(hex, explorationLevel);
-        const resourceColor = ResourceRevealSystem.getHexResourceColor(hex, explorationLevel);
+        const { getCompetenceLevel, isHexExplored } = (window as any).usePlayer ? 
+          (window as any).usePlayer.getState() : 
+          { getCompetenceLevel: () => 0, isHexExplored: () => false };
         
-        if (resourceSymbol && resourceColor) {
-          // Draw dimmed resource background
-          this.ctx.fillStyle = resourceColor;
-          this.ctx.globalAlpha = 0.3;
-          this.ctx.fillRect(x - 8, y - 8, 16, 16);
+        const explorationLevel = getCompetenceLevel ? getCompetenceLevel('exploration') : 0;
+        const hexExplored = isHexExplored ? isHexExplored(hex.x, hex.y) : false;
+        
+        // Ressources seulement visibles si exploration niveau 1+ ET zone explorée avec l'action
+        if (explorationLevel >= 1 && hexExplored && ResourceRevealSystem.canRevealResource(hex.resource, explorationLevel)) {
+          const resourceSymbol = ResourceRevealSystem.getHexResourceSymbol(hex, explorationLevel);
+          const resourceColor = ResourceRevealSystem.getHexResourceColor(hex, explorationLevel);
           
-          // Draw dimmed resource symbol
-          this.ctx.globalAlpha = 0.6;
-          this.ctx.font = '14px Arial';
-          this.ctx.textAlign = 'center';
-          this.ctx.fillStyle = '#000';
-          this.ctx.fillText(resourceSymbol, x, y + 4);
-          this.ctx.globalAlpha = 1.0;
-        } else {
-          // Show generic dimmed resource indicator
-          this.ctx.fillStyle = 'rgba(255, 215, 0, 0.4)';
-          this.ctx.fillRect(x - 3, y - 3, 6, 6);
+          if (resourceSymbol && resourceColor) {
+            // Draw dimmed resource background
+            this.ctx.fillStyle = resourceColor;
+            this.ctx.globalAlpha = 0.3;
+            this.ctx.fillRect(x - 8, y - 8, 16, 16);
+            
+            // Draw dimmed resource symbol
+            this.ctx.globalAlpha = 0.6;
+            this.ctx.font = '14px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillStyle = '#000';
+            this.ctx.fillText(resourceSymbol, x, y + 4);
+            this.ctx.globalAlpha = 1.0;
+          }
         }
+        // Pas d'indicateur générique - ressources complètement invisibles
       }
       
       // Draw river with fog effect
@@ -678,11 +692,19 @@ export class GameEngine {
 
   // Center camera on avatar
   centerCameraOnAvatar() {
-    // Center camera on actual avatar world position
-    this.cameraX = this.avatarPosition.x;
-    this.cameraY = this.avatarPosition.z;
-    console.log('Camera centered on avatar at world position:', { x: this.avatarPosition.x, z: this.avatarPosition.z });
-    this.render();
+    // Utiliser la position hex de l'avatar depuis usePlayer
+    const { getCurrentAvatar } = (window as any).usePlayer ? (window as any).usePlayer.getState() : { getCurrentAvatar: () => null };
+    const avatar = getCurrentAvatar ? getCurrentAvatar() : null;
+    
+    if (avatar && avatar.position) {
+      console.log('Centrage caméra sur avatar:', avatar.position);
+      this.centerCameraOnPosition(avatar.position.x, avatar.position.y);
+    } else {
+      // Fallback sur position monde
+      this.cameraX = this.avatarPosition.x;
+      this.cameraY = this.avatarPosition.z;
+      this.render();
+    }
   }
 
   // Move camera by offset

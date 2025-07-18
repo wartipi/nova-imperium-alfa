@@ -87,6 +87,8 @@ interface PlayerState {
   isHexVisible: (hexX: number, hexY: number) => boolean;
   isHexInCurrentVision: (hexX: number, hexY: number) => boolean;
   isHexExplored: (hexX: number, hexY: number) => boolean;
+  addExploredHex: (hexX: number, hexY: number) => void;
+  exploreCurrentLocation: () => boolean;
   
   // Movement system
   setPendingMovement: (movement: { x: number; y: number } | null) => void;
@@ -354,6 +356,33 @@ export const usePlayer = create<PlayerState>((set, get) => {
   isHexExplored: (hexX, hexY) => {
     const state = get();
     return VisionSystem.isHexExplored(hexX, hexY, state.exploredHexes);
+  },
+
+  addExploredHex: (hexX, hexY) => {
+    const state = get();
+    const newExploredHexes = new Set(state.exploredHexes);
+    newExploredHexes.add(`${hexX},${hexY}`);
+    set({ exploredHexes: newExploredHexes });
+  },
+
+  exploreCurrentLocation: () => {
+    const state = get();
+    const avatarHex = VisionSystem.worldToHex(state.avatarPosition.x, state.avatarPosition.z);
+    const avatar = state.getCurrentAvatar();
+    
+    if (!avatar) return false;
+    
+    // Marquer la position actuelle comme explorée
+    const hexKey = `${avatarHex.x},${avatarHex.y}`;
+    if (state.exploredHexes.has(hexKey)) {
+      return false; // Déjà exploré
+    }
+    
+    // Ajouter aux zones explorées
+    state.addExploredHex(avatarHex.x, avatarHex.y);
+    
+    console.log(`Zone explorée: (${avatarHex.x}, ${avatarHex.y})`);
+    return true;
   },
 
   // Movement system

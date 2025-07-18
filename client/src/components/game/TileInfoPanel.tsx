@@ -218,7 +218,7 @@ export function TileInfoPanel() {
               </div>
               
               <div className="text-amber-700">
-                {hasRevealableResources && selectedHex.resource ? (
+                {selectedHex.resource && explorationLevel >= 1 ? (
                   <div className="flex items-center gap-2">
                     <span className="text-lg">
                       {ResourceRevealSystem.getHexResourceSymbol(selectedHex, explorationLevel) || '💎'}
@@ -227,14 +227,14 @@ export function TileInfoPanel() {
                   </div>
                 ) : (
                   <div className="text-amber-600 text-sm italic">
-                    {resourceDescription}
+                    {explorationLevel >= 1 ? 'Aucune ressource détectée' : 'Exploration requise pour révéler les ressources'}
                   </div>
                 )}
               </div>
               
-              {explorationLevel === 0 && selectedHex.resource && (
+              {explorationLevel === 0 && (
                 <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
-                  💡 <strong>Astuce:</strong> Apprenez la compétence "Exploration" niveau 1 pour identifier les ressources rares et stratégiques !
+                  💡 <strong>Astuce:</strong> Apprenez la compétence "Exploration" niveau 1 et utilisez l'action "Explorer la Zone" pour révéler les ressources !
                 </div>
               )}
             </div>

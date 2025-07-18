@@ -16,11 +16,11 @@ export interface ResourceInfo {
 export class ResourceRevealSystem {
   // Classification des ressources par rareté et niveau de révélation
   private static readonly RESOURCE_INFO: Record<ResourceType, ResourceInfo> = {
-    // Ressources communes (toujours visibles)
-    wheat: { type: 'wheat', rarity: 'common', symbol: '🌾', color: '#FFD700', revealLevel: 0 },
-    cattle: { type: 'cattle', rarity: 'common', symbol: '🐄', color: '#8B4513', revealLevel: 0 },
-    fish: { type: 'fish', rarity: 'common', symbol: '🐟', color: '#4682B4', revealLevel: 0 },
-    wood: { type: 'wood', rarity: 'common', symbol: '🪵', color: '#8B4513', revealLevel: 0 },
+    // Ressources communes (invisibles sans exploration niveau 1)
+    wheat: { type: 'wheat', rarity: 'common', symbol: '🌾', color: '#FFD700', revealLevel: 1 },
+    cattle: { type: 'cattle', rarity: 'common', symbol: '🐄', color: '#8B4513', revealLevel: 1 },
+    fish: { type: 'fish', rarity: 'common', symbol: '🐟', color: '#4682B4', revealLevel: 1 },
+    wood: { type: 'wood', rarity: 'common', symbol: '🪵', color: '#8B4513', revealLevel: 1 },
     
     // Ressources stratégiques (révélées niveau 1)
     stone: { type: 'stone', rarity: 'strategic', symbol: '🪨', color: '#708090', revealLevel: 1 },

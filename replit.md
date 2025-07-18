@@ -112,15 +112,15 @@ Preferred communication style: Simple, everyday language.
 - Terrain distribution includes special types: sacred plains, ancient ruins, volcanoes, enchanted meadows
 - Resource system updated for archipelago world with water-based and island-specific resources
 
-### Exploration Competence Resource Revelation System (January 18, 2025)
-- **Level 1 Exploration**: Reveals rare and strategic resources in player's field of vision
-- **Resource Classification**: Common (always visible), Strategic (level 1+), Rare (level 1+), Magical (level 1+)
-- **Enhanced Resource Display**: Visual symbols and colors for different resource types
-- **TileInfoPanel Integration**: Shows exploration level and resource detection capabilities
-- **Smart Resource Revelation**: Prioritizes magical > rare > strategic > common resources for display
-- **Visual Feedback**: Different symbols and background colors for each resource rarity
-- **Educational Tooltips**: Guides players to learn exploration for resource detection
-- **Level 2 maintains**: Increased vision range functionality (19 hexagons vs 7)
+### Active Exploration System Implementation (January 18, 2025)
+- **Complete Resource Invisibility**: All resources completely invisible without exploration competence level 1
+- **Active "Explorer la Zone" Action**: New avatar action requiring Exploration level 1, costs 5 PA
+- **Zone-Based Resource Revelation**: Resources only revealed after using exploration action on specific hexes
+- **No Passive Resource Detection**: Removed passive resource revelation system
+- **Enhanced TileInfoPanel**: Shows exploration requirements and guides players to use exploration action
+- **GameEngine Resource Rendering**: Updated to check both exploration competence AND explored hex status
+- **Experience Rewards**: Exploration action grants 10 XP and permanently reveals resources in current hex
+- **User Preference Fulfilled**: Resources truly invisible until actively explored, no hints or indicators
 
 ### Comprehensive Resource System Implementation (January 17, 2025)
 - Implemented complete resource system with 6 basic resources: food, action_points, gold, science, culture

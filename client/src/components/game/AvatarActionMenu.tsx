@@ -20,7 +20,7 @@ const getGameData = () => {
 };
 
 export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarActionMenuProps) {
-  const { actionPoints, spendActionPoints, hasCompetenceLevel, competences, gainExperience } = usePlayer();
+  const { actionPoints, spendActionPoints, hasCompetenceLevel, competences, gainExperience, exploreCurrentLocation } = usePlayer();
   const { reputation } = useReputation();
 
   // Actions de base disponibles pour tous les joueurs
@@ -34,20 +34,26 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       category: 'movement'
     },
     {
-      id: 'explore',
-      name: 'Explorer',
-      description: 'Découvrir les environs et révéler des informations',
-      cost: 3,
-      icon: '🔍',
-      category: 'exploration'
-    },
-    {
       id: 'rest',
       name: 'Se Reposer',
       description: 'Récupérer des points d\'action',
       cost: 0,
       icon: '🛌',
       category: 'utility'
+    }
+  ];
+
+  // Action d'exploration nécessitant la compétence exploration niveau 1
+  const explorationActions = [
+    {
+      id: 'explore_zone',
+      name: 'Explorer la Zone',
+      description: 'Révéler les ressources de la zone actuelle (requiert Exploration niveau 1)',
+      cost: 5,
+      icon: '🔍',
+      category: 'exploration',
+      requiredCompetence: 'exploration',
+      requiredLevel: 1
     }
   ];
 
@@ -138,6 +144,20 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     
     if (action.id === 'move') {
       onMoveRequest();
+      onClose();
+      return;
+    }
+
+    if (action.id === 'explore_zone') {
+      if (spendActionPoints(action.cost)) {
+        const success = exploreCurrentLocation();
+        if (success) {
+          gainExperience(10, 'Exploration de zone');
+          alert('Zone explorée avec succès ! Les ressources ont été révélées.');
+        } else {
+          alert('Cette zone a déjà été explorée.');
+        }
+      }
       onClose();
       return;
     }
@@ -252,9 +272,17 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     const filteredCompetenceActions = competenceActions.filter(action => {
       return hasCompetenceLevel(action.requiredCompetence, action.requiredLevel || 1);
     });
+
+    const filteredExplorationActions = explorationActions.filter(action => {
+      if (action.requiredCompetence) {
+        return hasCompetenceLevel(action.requiredCompetence, action.requiredLevel || 1);
+      }
+      return true;
+    });
     
     return [
       ...baseActions,
+      ...filteredExplorationActions,
       ...filteredCompetenceActions,
       ...getAdvancedActions(),
       ...reputationActions.filter(action => 
