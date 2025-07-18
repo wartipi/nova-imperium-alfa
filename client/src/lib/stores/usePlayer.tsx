@@ -282,20 +282,36 @@ export const usePlayer = create<PlayerState>((set, get) => ({
 
   // Avatar land positioning
   findLandHex: (mapData) => {
-    // Find a land hex (not water) starting from center
-    for (let y = 0; y < mapData.length; y++) {
-      for (let x = 0; x < mapData[y].length; x++) {
-        const terrain = mapData[y][x].terrain;
-        if (terrain !== 'shallow_water' && terrain !== 'deep_water') {
-          // Initialize vision after setting position
-          const state = get();
-          setTimeout(() => state.updateVision(), 0);
-          return { x, y };
+    // Find a land hex (not water) starting from center and expanding outward
+    const centerX = Math.floor(mapData[0].length / 2);
+    const centerY = Math.floor(mapData.length / 2);
+    
+    // Check center first
+    if (mapData[centerY] && mapData[centerY][centerX]) {
+      const terrain = mapData[centerY][centerX].terrain;
+      if (terrain !== 'shallow_water' && terrain !== 'deep_water') {
+        console.log('Avatar positioned at center:', { x: centerX, y: centerY, terrain });
+        return { x: centerX, y: centerY };
+      }
+    }
+    
+    // Expand search in spiral pattern
+    for (let radius = 1; radius <= 10; radius++) {
+      for (let y = Math.max(0, centerY - radius); y <= Math.min(mapData.length - 1, centerY + radius); y++) {
+        for (let x = Math.max(0, centerX - radius); x <= Math.min(mapData[0].length - 1, centerX + radius); x++) {
+          if (mapData[y] && mapData[y][x]) {
+            const terrain = mapData[y][x].terrain;
+            if (terrain !== 'shallow_water' && terrain !== 'deep_water') {
+              console.log('Avatar positioned at:', { x, y, terrain });
+              return { x, y };
+            }
+          }
         }
       }
     }
-    // Fallback to center if no land found
-    setTimeout(() => get().updateVision(), 0);
-    return { x: 3, y: 3 };
+    
+    // Last resort: force position at (0,0) if it exists
+    console.warn('No land hex found, using fallback position');
+    return { x: 0, y: 0 };
   },
 }));

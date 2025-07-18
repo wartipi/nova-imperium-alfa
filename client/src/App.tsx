@@ -31,14 +31,19 @@ function GameApp() {
     initializeNovaImperiums();
     initializeGame();
     
-    // Initialize avatar on land and vision system
+    // Initialize avatar on land and validate all systems
     setTimeout(() => {
-      const { findLandHex } = usePlayer.getState();
+      const { findLandHex, moveAvatarToHex } = usePlayer.getState();
       const { mapData } = useMap.getState();
       
       if (mapData && mapData.length > 0) {
-        findLandHex(mapData);
-        // initializeVision is called automatically by findLandHex
+        const landPosition = findLandHex(mapData);
+        moveAvatarToHex(landPosition.x, landPosition.y);
+        
+        // Validate all game systems after initialization
+        import('./lib/systems/GameSystemValidator').then(({ GameSystemValidator }) => {
+          GameSystemValidator.validateAllSystems();
+        });
       }
     }, 100);
   }, []);

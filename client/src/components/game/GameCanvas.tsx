@@ -133,8 +133,23 @@ export function GameCanvas() {
       if (targetTile) {
         const movementCost = getTerrainMovementCost(targetTile.terrain as any);
         
+        // Prevent movement to water terrain
+        if (targetTile.terrain === 'shallow_water' || targetTile.terrain === 'deep_water') {
+          alert('Impossible de se déplacer sur l\'eau sans navire !');
+          setPendingMovement(null);
+          return;
+        }
+        
         if (movementCost < 999 && spendActionPoints(movementCost)) {
           moveAvatarToHex(pendingMovement.x, pendingMovement.y);
+          setPendingMovement(null);
+          console.log('Movement confirmed:', { 
+            to: pendingMovement, 
+            terrain: targetTile.terrain, 
+            cost: movementCost 
+          });
+        } else {
+          alert(`Pas assez de Points d'Action ! Coût: ${movementCost} PA`);
           setPendingMovement(null);
         }
       }
