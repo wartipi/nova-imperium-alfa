@@ -68,13 +68,25 @@ export function GameCanvas() {
       if (hex) {
         setSelectedHex(hex);
         
-        // Handle unit movement
+        // Handle unit movement - check if terrain is walkable
         if (selectedUnit && (hex.x !== selectedUnit.x || hex.y !== selectedUnit.y)) {
-          moveUnit(selectedUnit.id, hex.x, hex.y);
+          // Check if terrain is walkable for land units
+          if (isTerrainWalkable(hex.terrain)) {
+            moveUnit(selectedUnit.id, hex.x, hex.y);
+          } else {
+            console.log('Cannot move unit to water terrain:', hex.terrain);
+          }
         }
         
-        // Move avatar to clicked hex
-        moveAvatarToHex(hex.x, hex.y);
+        // Handle avatar movement - check if terrain is walkable
+        if (!selectedUnit) {
+          // Check if terrain is walkable for land units
+          if (isTerrainWalkable(hex.terrain)) {
+            moveAvatarToHex(hex.x, hex.y);
+          } else {
+            console.log('Cannot move avatar to water terrain:', hex.terrain);
+          }
+        }
       }
     }
     
@@ -95,6 +107,12 @@ export function GameCanvas() {
       }
     }
   }, [novaImperiums, selectedHex, avatarPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible]);
+
+  // Check if terrain is walkable for land units
+  const isTerrainWalkable = (terrain: string): boolean => {
+    const waterTerrains = ['shallow_water', 'deep_water'];
+    return !waterTerrains.includes(terrain);
+  };
 
   return (
     <>

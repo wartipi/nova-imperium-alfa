@@ -43,8 +43,8 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   // Action Points - starts with 25 AP and max of 100
   actionPoints: 25,
   maxActionPoints: 100,
-  // Avatar defaults - start at map center (adjust for better initial position)
-  avatarPosition: { x: 5, y: 0, z: 5 },
+  // Avatar defaults - start at hex (3,3) in world coordinates
+  avatarPosition: { x: 3 * 1.5, y: 0, z: 3 * Math.sqrt(3) * 0.5 },
   avatarRotation: { x: 0, y: 0, z: 0 },
   isMoving: false,
   movementSpeed: 2,
@@ -90,22 +90,26 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     // Update visible hexes around new position
     const newVisibleHexes = new Set(state.visibleHexes);
     
-    // Add hexes in a circular pattern around the avatar
-    for (let dx = -state.visionRange; dx <= state.visionRange; dx++) {
-      for (let dy = -state.visionRange; dy <= state.visionRange; dy++) {
-        // Use Manhattan distance for hex vision
-        const distance = Math.abs(dx) + Math.abs(dy);
-        if (distance <= state.visionRange) {
-          const newHexX = hexX + dx;
-          const newHexY = hexY + dy;
-          if (newHexX >= 0 && newHexY >= 0) { // Basic bounds check
-            newVisibleHexes.add(`${newHexX},${newHexY}`);
-          }
-        }
-      }
-    }
+    // Add avatar's current hex
+    newVisibleHexes.add(`${hexX},${hexY}`);
     
-    console.log('Avatar moved to hex:', hexX, hexY, 'Visible hexes:', newVisibleHexes.size);
+    // Add all adjacent hexes (6 directions in hex grid)
+    const hexDirections = [
+      [0, -1], [1, -1], [1, 0], [0, 1], [-1, 1], [-1, 0]
+    ];
+    
+    hexDirections.forEach(([dx, dy]) => {
+      const newHexX = hexX + dx;
+      const newHexY = hexY + dy;
+      if (newHexX >= 0 && newHexY >= 0) {
+        newVisibleHexes.add(`${newHexX},${newHexY}`);
+      }
+    });
+    
+    console.log('Avatar moved to hex:', hexX, hexY, 'Visible hexes around avatar:', Array.from(newVisibleHexes).filter(hex => {
+      const [hx, hy] = hex.split(',').map(Number);
+      return Math.abs(hx - hexX) <= 1 && Math.abs(hy - hexY) <= 1;
+    }));
     
     set({ 
       avatarPosition: { x: worldX, y: 0, z: worldZ },
@@ -147,27 +151,29 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   // Initialize avatar vision at starting position
   initializeVision: () => {
     const state = get();
-    // Convert world coordinates back to hex coordinates  
-    const hexX = Math.round(state.avatarPosition.x / 1.5);
-    const hexY = Math.round(state.avatarPosition.z / (Math.sqrt(3) * 0.5));
+    // Avatar starts at world position (5, 0, 5) which should be hex (3, 3)
+    const startHexX = 3;
+    const startHexY = 3;
     
     const newVisibleHexes = new Set();
     
-    // Add initial vision around starting position
-    for (let dx = -state.visionRange; dx <= state.visionRange; dx++) {
-      for (let dy = -state.visionRange; dy <= state.visionRange; dy++) {
-        const distance = Math.abs(dx) + Math.abs(dy);
-        if (distance <= state.visionRange) {
-          const newHexX = hexX + dx;
-          const newHexY = hexY + dy;
-          if (newHexX >= 0 && newHexY >= 0) {
-            newVisibleHexes.add(`${newHexX},${newHexY}`);
-          }
-        }
-      }
-    }
+    // Add avatar's current hex plus all adjacent hexes
+    newVisibleHexes.add(`${startHexX},${startHexY}`); // Avatar's position
     
-    console.log('Initialized vision at hex:', hexX, hexY, 'Visible hexes:', newVisibleHexes.size);
+    // Add all adjacent hexes (6 directions in hex grid)
+    const hexDirections = [
+      [0, -1], [1, -1], [1, 0], [0, 1], [-1, 1], [-1, 0]
+    ];
+    
+    hexDirections.forEach(([dx, dy]) => {
+      const newHexX = startHexX + dx;
+      const newHexY = startHexY + dy;
+      if (newHexX >= 0 && newHexY >= 0) {
+        newVisibleHexes.add(`${newHexX},${newHexY}`);
+      }
+    });
+    
+    console.log('Initialized vision at hex:', startHexX, startHexY, 'Visible hexes:', Array.from(newVisibleHexes));
     set({ visibleHexes: newVisibleHexes });
   }
 }));
