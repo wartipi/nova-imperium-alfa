@@ -61,14 +61,14 @@ const REPUTATION_LEVELS: ReputationLevel[] = [
   {
     name: "Suspect",
     minHonor: -199,
-    maxHonor: 49,
+    maxHonor: -1,
     color: "#FF8C00",
     description: "Réputation ternie, accès limité aux services",
     effects: ["Quêtes mineures", "Commerce restreint", "Réseaux d'information"]
   },
   {
     name: "Neutre",
-    minHonor: 50,
+    minHonor: 0,
     maxHonor: 199,
     color: "#808080",
     description: "Citoyen ordinaire sans distinction particulière",
@@ -94,7 +94,7 @@ const REPUTATION_LEVELS: ReputationLevel[] = [
 
 export const useReputation = create<ReputationState>()(
   subscribeWithSelector((set, get) => ({
-    honor: 150,
+    honor: 0,
     reputation: "Neutre",
     reputationHistory: [],
     gnParticipation: 0,

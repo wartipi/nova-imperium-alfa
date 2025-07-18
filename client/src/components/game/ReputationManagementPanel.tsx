@@ -68,8 +68,8 @@ export function ReputationManagementPanel({ onClose }: ReputationManagementPanel
   const reputationLevels = [
     { name: 'Banni', value: -750, color: '#8B0000' },
     { name: 'Méprisé', value: -300, color: '#DC143C' },
-    { name: 'Suspect', value: -50, color: '#FF8C00' },
-    { name: 'Neutre', value: 100, color: '#808080' },
+    { name: 'Suspect', value: -100, color: '#FF8C00' },
+    { name: 'Neutre', value: 0, color: '#808080' },
     { name: 'Honorable', value: 300, color: '#228B22' },
     { name: 'Saint', value: 600, color: '#FFD700' }
   ];
