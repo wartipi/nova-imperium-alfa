@@ -1,11 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { usePlayer } from '../../lib/stores/usePlayer';
 import { useGameState } from '../../lib/stores/useGameState';
-import { Button } from '../ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { Badge } from '../ui/badge';
-import { Separator } from '../ui/separator';
 
 interface MapRegion {
   id: string;
@@ -53,12 +48,10 @@ interface CartographyPanelProps {
 
 export function CartographyPanel({ onClose }: CartographyPanelProps) {
   const { hasCompetenceLevel, actionPoints, spendActionPoints } = usePlayer();
-  const playerId = "player"; // ID du joueur principal
-  const { currentNovaImperium } = useGameState();
+  const playerId = "player";
   const [discoveredRegions, setDiscoveredRegions] = useState<MapRegion[]>([]);
   const [playerMaps, setPlayerMaps] = useState<MapDocument[]>([]);
   const [activeProjects, setActiveProjects] = useState<CartographyProject[]>([]);
-  const [selectedRegion, setSelectedRegion] = useState<MapRegion | null>(null);
   const [isDiscovering, setIsDiscovering] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -251,17 +244,26 @@ export function CartographyPanel({ onClose }: CartographyPanelProps) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-amber-50 p-6 rounded-lg border-2 border-amber-800 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div 
+        className="bg-amber-50 p-6 rounded-lg border-2 border-amber-800 max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold text-amber-800">📍 Cartographie</h2>
-          <Button 
-            variant="ghost" 
+          <button 
             onClick={onClose}
-            className="text-amber-800 hover:bg-amber-100"
+            className="text-amber-800 hover:bg-amber-100 px-3 py-1 rounded-full text-xl font-bold"
           >
             ✕
-          </Button>
+          </button>
         </div>
 
         <Tabs defaultValue="regions" className="w-full">
@@ -284,13 +286,13 @@ export function CartographyPanel({ onClose }: CartographyPanelProps) {
                   <div className="text-sm text-gray-600">
                     {discoveredRegions.length} région(s) découverte(s)
                   </div>
-                  <Button 
+                  <button 
                     onClick={discoverRegion}
                     disabled={isDiscovering || !hasCompetenceLevel('exploration', 1) || actionPoints < 10}
-                    className="bg-green-600 hover:bg-green-700"
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded disabled:bg-gray-400"
                   >
                     {isDiscovering ? 'Exploration...' : 'Découvrir Région (10 PA)'}
-                  </Button>
+                  </button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -319,13 +321,13 @@ export function CartographyPanel({ onClose }: CartographyPanelProps) {
                             />
                           </div>
                         </div>
-                        <Button 
+                        <button 
                           onClick={() => startProject(region.id)}
                           disabled={!hasCompetenceLevel('cartography', 1) || actionPoints < 20}
-                          className="w-full bg-blue-600 hover:bg-blue-700"
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded disabled:bg-gray-400"
                         >
                           Commencer Cartographie (20 PA)
-                        </Button>
+                        </button>
                       </CardContent>
                     </Card>
                   ))}
@@ -376,13 +378,13 @@ export function CartographyPanel({ onClose }: CartographyPanelProps) {
                               />
                             </div>
                           </div>
-                          <Button 
+                          <button 
                             onClick={() => progressProject(project.id)}
                             disabled={actionPoints < 5 || project.progress >= 100}
-                            className="w-full bg-amber-600 hover:bg-amber-700"
+                            className="w-full bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded disabled:bg-gray-400"
                           >
                             Progresser (5 PA)
-                          </Button>
+                          </button>
                         </CardContent>
                       </Card>
                     ))

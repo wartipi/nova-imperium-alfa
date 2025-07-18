@@ -2,7 +2,6 @@ import { useState } from "react";
 import { usePlayer } from "../../lib/stores/usePlayer";
 import { useReputation } from "../../lib/stores/useReputation";
 import { Card } from "../ui/card";
-import { Button } from "../ui/button";
 
 interface AvatarActionMenuProps {
   position: { x: number; y: number };
@@ -11,9 +10,8 @@ interface AvatarActionMenuProps {
 }
 
 export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarActionMenuProps) {
-  const { competences, actionPoints, spendActionPoints, selectedCharacter, hasCompetenceLevel } = usePlayer();
-  const { honor, reputation } = useReputation();
-  const [selectedAction, setSelectedAction] = useState<string | null>(null);
+  const { actionPoints, spendActionPoints, hasCompetenceLevel } = usePlayer();
+  const { reputation } = useReputation();
 
   // Actions de base disponibles pour tous les joueurs
   const baseActions = [
@@ -43,197 +41,53 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     }
   ];
 
-  // Actions basées sur les compétences (avec niveaux requis)
+  // Actions principales de cartographie et exploration
   const competenceActions = [
     {
-      id: 'political_negotiate',
-      name: 'Négocier',
-      description: 'Utiliser ses compétences politiques pour négocier',
-      cost: 5,
-      icon: '🤝',
-      category: 'political',
-      requiredCompetence: 'treaty_knowledge',
+      id: 'discover_region',
+      name: 'Explorer Région',
+      description: 'Découvrir une nouvelle région cartographique',
+      cost: 10,
+      icon: '🧭',
+      category: 'exploration',
+      requiredCompetence: 'exploration',
+      requiredLevel: 2
+    },
+    {
+      id: 'create_map',
+      name: 'Cartographier',
+      description: 'Créer une carte détaillée de la région',
+      cost: 15,
+      icon: '🗺️',
+      category: 'cartography',
+      requiredCompetence: 'cartography',
       requiredLevel: 1
-    },
-    {
-      id: 'military_command',
-      name: 'Commander',
-      description: 'Diriger des troupes et organiser la défense',
-      cost: 4,
-      icon: '⚔️',
-      category: 'military',
-      requiredCompetence: 'command',
-      requiredLevel: 1
-    },
-    {
-      id: 'economic_trade',
-      name: 'Commercer',
-      description: 'Établir des routes commerciales et négocier',
-      cost: 3,
-      icon: '💰',
-      category: 'economic',
-      requiredCompetence: 'trade_mastery',
-      requiredLevel: 1
-    },
-    {
-      id: 'strategic_plan',
-      name: 'Planifier',
-      description: 'Élaborer des stratégies à long terme',
-      cost: 6,
-      icon: '🎯',
-      category: 'strategic',
-      requiredCompetence: 'strategic'
-    },
-    {
-      id: 'occult_ritual',
-      name: 'Rituel Occulte',
-      description: 'Utiliser des connaissances occultes anciennes',
-      cost: 8,
-      icon: '🔮',
-      category: 'occult',
-      requiredCompetence: 'occult'
     }
   ];
 
-  // Actions basées sur les compétences acquises avec niveaux
-  const getCompetenceBasedActions = () => {
+  // Actions avancées basées sur les compétences de haut niveau
+  const getAdvancedActions = () => {
     const actions = [];
     
-    // Actions militaires
-    if (hasCompetenceLevel('command', 1)) {
+    if (hasCompetenceLevel('exploration', 3)) {
       actions.push({
-        id: 'tactical_maneuver',
-        name: 'Manœuvre Tactique',
-        description: 'Organiser une manœuvre militaire stratégique',
-        cost: 5,
-        icon: '⚔️',
-        category: 'military'
-      });
-    }
-    
-    if (hasCompetenceLevel('command', 3)) {
-      actions.push({
-        id: 'battle_command',
-        name: 'Commandement de Bataille',
-        description: 'Diriger les troupes au combat',
-        cost: 7,
-        icon: '🛡️',
-        category: 'military'
-      });
-    }
-    
-    // Actions politiques
-    if (hasCompetenceLevel('treaty_knowledge', 1)) {
-      actions.push({
-        id: 'diplomatic_negotiation',
-        name: 'Négociation Diplomatique',
-        description: 'Négocier avec d\'autres factions',
-        cost: 4,
-        icon: '🤝',
-        category: 'political'
-      });
-    }
-    
-    if (hasCompetenceLevel('local_influence', 2)) {
-      actions.push({
-        id: 'court_intrigue',
-        name: 'Intrigue de Cour',
-        description: 'Manigancer dans les cercles de pouvoir',
-        cost: 6,
-        icon: '🗡️',
-        category: 'political'
-      });
-    }
-    
-    // Actions économiques
-    if (hasCompetenceLevel('trade_mastery', 1)) {
-      actions.push({
-        id: 'trade_negotiation',
-        name: 'Négociation Commerciale',
-        description: 'Établir des accords commerciaux',
-        cost: 3,
-        icon: '💰',
-        category: 'economic'
-      });
-    }
-    
-    if (hasCompetenceLevel('resource_management', 2)) {
-      actions.push({
-        id: 'resource_management',
-        name: 'Gestion des Ressources',
-        description: 'Optimiser l\'utilisation des ressources',
-        cost: 5,
-        icon: '📊',
-        category: 'economic'
-      });
-    }
-    
-    // Actions stratégiques
-    if (hasCompetenceLevel('exploration', 1)) {
-      actions.push({
-        id: 'intelligence_gathering',
-        name: 'Collecte d\'Intelligence',
-        description: 'Rassembler des informations sur les régions voisines',
-        cost: 4,
-        icon: '🔍',
-        category: 'strategic'
-      });
-    }
-    
-    // Actions de cartographie
-    if (hasCompetenceLevel('cartography', 1)) {
-      actions.push({
-        id: 'create_map',
-        name: 'Cartographier',
-        description: 'Créer une carte de la région actuelle',
+        id: 'advanced_exploration',
+        name: 'Exploration Avancée',
+        description: 'Découvrir des secrets cachés dans la région',
         cost: 15,
-        icon: '🗺️',
+        icon: '🔍',
         category: 'exploration'
       });
     }
     
-    if (hasCompetenceLevel('exploration', 2)) {
+    if (hasCompetenceLevel('cartography', 3)) {
       actions.push({
-        id: 'discover_region',
-        name: 'Explorer Région',
-        description: 'Découvrir une nouvelle région à cartographier',
-        cost: 10,
-        icon: '🧭',
-        category: 'exploration'
-      });
-    }
-    
-    if (competences.some(comp => comp.includes('Planification'))) {
-      actions.push({
-        id: 'strategic_planning',
-        name: 'Planification Stratégique',
-        description: 'Élaborer des plans à long terme',
-        cost: 6,
-        icon: '📋',
-        category: 'strategic'
-      });
-    }
-    
-    // Actions occultes
-    if (competences.some(comp => comp.includes('Rituels'))) {
-      actions.push({
-        id: 'occult_ritual',
-        name: 'Rituel Occulte',
-        description: 'Effectuer un rituel mystique',
-        cost: 8,
-        icon: '🔮',
-        category: 'occult'
-      });
-    }
-    
-    if (competences.some(comp => comp.includes('Magie Noire'))) {
-      actions.push({
-        id: 'dark_magic',
-        name: 'Magie Noire',
-        description: 'Utiliser des pouvoirs interdits',
-        cost: 10,
-        icon: '🌙',
-        category: 'occult'
+        id: 'masterwork_map',
+        name: 'Carte de Maître',
+        description: 'Créer une carte de qualité exceptionnelle',
+        cost: 25,
+        icon: '📜',
+        category: 'cartography'
       });
     }
     
@@ -243,31 +97,13 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
   // Actions basées sur la réputation
   const reputationActions = [
     {
-      id: 'honorable_inspire',
+      id: 'inspire',
       name: 'Inspirer',
-      description: 'Inspirer les autres par son honneur',
-      cost: 4,
+      description: 'Utiliser votre réputation pour inspirer les autres',
+      cost: 5,
       icon: '✨',
-      category: 'leadership',
+      category: 'reputation',
       requiredReputation: 'Honorable'
-    },
-    {
-      id: 'saint_miracle',
-      name: 'Miracle',
-      description: 'Accomplir des actes miraculeux',
-      cost: 10,
-      icon: '🌟',
-      category: 'divine',
-      requiredReputation: 'Saint'
-    },
-    {
-      id: 'banished_underground',
-      name: 'Action Clandestine',
-      description: 'Utiliser les réseaux souterrains',
-      cost: 3,
-      icon: '🕶️',
-      category: 'underground',
-      requiredReputation: 'Banni'
     }
   ];
 
@@ -281,11 +117,6 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       if (!hasCompetence) return false;
     }
     
-    // Vérifier le personnage requis
-    if (action.requiredCharacter && selectedCharacter?.id !== action.requiredCharacter) {
-      return false;
-    }
-    
     // Vérifier la réputation requise
     if (action.requiredReputation && reputation !== action.requiredReputation) {
       return false;
@@ -294,11 +125,50 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     return true;
   };
 
-  const handleActionClick = (action: any) => {
+  const handleActionClick = async (action: any) => {
     if (!isActionAvailable(action)) return;
     
     if (action.id === 'move') {
       onMoveRequest();
+      onClose();
+      return;
+    }
+    
+    // Actions de cartographie
+    if (action.id === 'discover_region') {
+      if (spendActionPoints(action.cost)) {
+        try {
+          const response = await fetch('/api/cartography/discover', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              playerId: "player",
+              centerX: Math.floor(Math.random() * 50),
+              centerY: Math.floor(Math.random() * 30),
+              radius: Math.floor(Math.random() * 3) + 2,
+              name: `Région-${Date.now()}`
+            })
+          });
+          
+          if (response.ok) {
+            const newRegion = await response.json();
+            alert(`Région "${newRegion.name}" découverte avec succès !`);
+          } else {
+            alert('Erreur lors de la découverte de la région');
+          }
+        } catch (error) {
+          console.error('Erreur:', error);
+          alert('Erreur lors de la découverte');
+        }
+      }
+      onClose();
+      return;
+    }
+    
+    if (action.id === 'create_map') {
+      if (spendActionPoints(action.cost)) {
+        alert('Création de carte en cours... (Cette action sera développée)');
+      }
       onClose();
       return;
     }
@@ -315,7 +185,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       ...competenceActions.filter(action => 
         hasCompetenceLevel(action.requiredCompetence, action.requiredLevel || 1)
       ),
-      ...getCompetenceBasedActions(),
+      ...getAdvancedActions(),
       ...reputationActions.filter(action => 
         reputation === action.requiredReputation
       )
@@ -353,36 +223,32 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
             {getAllAvailableActions().map((action) => (
               <div
                 key={action.id}
-                className={`p-3 rounded-lg border transition-colors cursor-pointer ${
+                className={`p-3 rounded-lg border cursor-pointer transition-all ${
                   isActionAvailable(action)
                     ? 'bg-amber-50 border-amber-300 hover:bg-amber-100'
                     : 'bg-gray-100 border-gray-300 opacity-50 cursor-not-allowed'
                 }`}
                 onClick={() => handleActionClick(action)}
               >
-                <div className="flex items-center space-x-3">
-                  <span className="text-2xl">{action.icon}</span>
-                  <div className="flex-1">
-                    <div className="font-medium text-amber-900">
-                      {action.name}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{action.icon}</span>
+                    <div>
+                      <div className="font-semibold text-amber-900">
+                        {action.name}
+                      </div>
+                      <div className="text-xs text-amber-700">
+                        {action.description}
+                      </div>
                     </div>
-                    <div className="text-xs text-amber-600">
-                      {action.description}
-                    </div>
-                    <div className="text-xs text-blue-600 mt-1">
-                      Coût: {action.cost} PA
-                    </div>
+                  </div>
+                  <div className="text-sm font-bold text-amber-800">
+                    {action.cost} PA
                   </div>
                 </div>
               </div>
             ))}
           </div>
-          
-          {getAllAvailableActions().length === 0 && (
-            <div className="text-center text-amber-600 py-4">
-              Aucune action disponible
-            </div>
-          )}
         </div>
       </Card>
     </div>

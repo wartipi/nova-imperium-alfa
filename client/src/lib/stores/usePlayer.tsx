@@ -53,23 +53,19 @@ interface PlayerState {
 }
 
 export const usePlayer = create<PlayerState>((set, get) => ({
-  selectedCharacter: { id: 'knight', name: 'Chevalier', image: '🛡️' }, // Default character
+  selectedCharacter: { id: 'knight', name: 'Chevalier', image: '🛡️' },
   playerName: "Joueur",
   competences: [],
   competencePoints: 50,
-  // Action Points - starts with 25 AP and max of 100
   actionPoints: 25,
   maxActionPoints: 100,
-  // Avatar defaults - start at hex (3,3) in world coordinates  
   avatarPosition: { x: 3 * 1.5, y: 0, z: 3 * Math.sqrt(3) * 0.5 },
-  avatarRotation: { x: 0, y: 0, z: 0 }, // Always faces forward
+  avatarRotation: { x: 0, y: 0, z: 0 },
   isMoving: false,
   movementSpeed: 2,
-  // Vision system - fog of war
-  visibleHexes: new Set(), // Will be initialized by initializeVision
-  visionRange: 1, // Can see 1 hex around avatar
-  isGameMaster: false, // Only game master sees full map
-  // Movement confirmation
+  visibleHexes: new Set(),
+  visionRange: 1,
+  isGameMaster: false,
   pendingMovement: null,
   isMovementMode: false,
   setSelectedCharacter: (character) => set({ selectedCharacter: character }),
@@ -151,40 +147,15 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     const worldX = hexX * 1.5;
     const worldZ = hexY * Math.sqrt(3) * 0.5;
     
-    // Debug logs can be re-enabled if needed for troubleshooting
-    // console.log('Moving avatar from hex:', Math.round(state.avatarPosition.x / 1.5), Math.round(state.avatarPosition.z / (Math.sqrt(3) * 0.5)));
-    // console.log('Moving avatar to hex:', hexX, hexY);
-    
-    // Keep avatar facing forward (no rotation)
-    // Avatar stays upright during movement
-    
-    // Update visible hexes around new position - keep previously explored hexes
     const newVisibleHexes = new Set(state.visibleHexes);
-    
-    // Clear current vision area and add new vision centered on avatar
     const currentVisionHexes = new Set();
     
-    // Add avatar's current hex
     currentVisionHexes.add(`${hexX},${hexY}`);
     
-    // Add all adjacent hexes (6 directions in hex grid)
-    // Using proper hex grid offsets for even/odd column systems
     const hexDirections = hexX % 2 === 0 ? [
-      // Even column (0, 2, 4, 6...)
-      [0, -1],  // North
-      [1, -1],  // Northeast
-      [1, 0],   // Southeast
-      [0, 1],   // South
-      [-1, 0],  // Southwest
-      [-1, -1]  // Northwest
+      [0, -1], [1, -1], [1, 0], [0, 1], [-1, 0], [-1, -1]
     ] : [
-      // Odd column (1, 3, 5, 7...)
-      [0, -1],  // North
-      [1, 0],   // Northeast
-      [1, 1],   // Southeast
-      [0, 1],   // South
-      [-1, 1],  // Southwest
-      [-1, 0]   // Northwest
+      [0, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0]
     ];
     
     hexDirections.forEach(([dx, dy]) => {
@@ -195,30 +166,22 @@ export const usePlayer = create<PlayerState>((set, get) => ({
       }
     });
     
-    // Add all current vision hexes to permanent visible set
     currentVisionHexes.forEach(hex => newVisibleHexes.add(hex));
-    
-    console.log('Avatar moved to hex:', hexX, hexY);
-    console.log('Current vision area:', Array.from(currentVisionHexes).sort());
-    console.log('Total explored hexes:', newVisibleHexes.size);
     
     set({ 
       avatarPosition: { x: worldX, y: 0, z: worldZ },
-      avatarRotation: { x: 0, y: 0, z: 0 }, // Keep avatar facing forward
-      isMoving: false, // Instant movement for testing
+      avatarRotation: { x: 0, y: 0, z: 0 },
+      isMoving: false,
       visibleHexes: newVisibleHexes
     });
   },
   
-  // Vision system methods
   updateVisibleHexes: (centerX, centerY) => {
     const state = get();
     const newVisibleHexes = new Set(state.visibleHexes);
     
-    // Add center hex
     newVisibleHexes.add(`${centerX},${centerY}`);
     
-    // Add only the 6 directly adjacent hexes using proper hex grid
     const hexDirections = centerX % 2 === 0 ? [
       [0, -1], [1, -1], [1, 0], [0, 1], [-1, 0], [-1, -1]
     ] : [
