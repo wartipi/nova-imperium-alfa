@@ -24,6 +24,7 @@ import { TileInfoPanel } from "./TileInfoPanel";
 import { ReputationPanel } from "./ReputationPanel";
 import { FactionPanel } from "./FactionPanel";
 import { TerritoryClaimPanel } from "./TerritoryClaimPanel";
+import { ReputationManagementPanel } from "./ReputationManagementPanel";
 
 import { PlayerInventory } from "./PlayerInventory";
 import { useAuth } from "../../lib/auth/AuthContext";
@@ -42,7 +43,8 @@ type MenuSection =
   | 'help'
   | 'competences'
   | 'factions'
-  | 'territory';
+  | 'territory'
+  | 'reputation_management';
 
 export function MedievalHUD() {
   const { gamePhase, currentTurn, endTurn, isGameMaster, toggleGameMaster } = useGameState();
@@ -126,7 +128,8 @@ export function MedievalHUD() {
     { id: 'guide' as MenuSection, label: 'GUIDE DE JEUX', icon: '📖' },
     { id: 'help' as MenuSection, label: 'AIDE', icon: '❓' },
     { id: 'factions' as MenuSection, label: 'FACTIONS', icon: '🏛️' },
-    { id: 'territory' as MenuSection, label: 'TERRITOIRE', icon: '🗺️' }
+    { id: 'territory' as MenuSection, label: 'TERRITOIRE', icon: '🗺️' },
+    ...(canAccessAdmin() ? [{ id: 'reputation_management' as MenuSection, label: 'GESTION RÉPUTATION', icon: '⚖️' }] : [])
   ];
 
   const handleCharacterSelect = (character: CharacterOption) => {
@@ -592,6 +595,14 @@ export function MedievalHUD() {
               {activeSection === 'help' && <HelpPanel />}
               {activeSection === 'competences' && <CompetenceTree />}
               {activeSection === 'factions' && <FactionPanel />}
+              {activeSection === 'reputation_management' && (
+                <div className="text-amber-800">
+                  <div className="mb-4 text-sm">
+                    Outil de gestion de la réputation pour les tests et ajustements.
+                  </div>
+                  <ReputationManagementPanel onClose={() => setActiveSection(null)} />
+                </div>
+              )}
             </div>
           </div>
         </div>

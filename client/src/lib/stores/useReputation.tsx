@@ -34,6 +34,11 @@ interface ReputationState {
   addGnParticipation: () => void;
   setSeasonPass: (hasPass: boolean) => void;
   canCreateFaction: () => boolean;
+  
+  // Fonctions de modification pour les tests/debug
+  addHonor: (amount: number) => void;
+  removeHonor: (amount: number) => void;
+  setHonor: (amount: number) => void;
 }
 
 const REPUTATION_LEVELS: ReputationLevel[] = [
@@ -160,6 +165,54 @@ export const useReputation = create<ReputationState>()(
     canCreateFaction: () => {
       const { gnParticipation, seasonPass, honor } = get();
       return (gnParticipation >= 2 || seasonPass) && honor >= 200;
+    },
+
+    // Fonctions de modification pour les tests/debug
+    addHonor: (amount: number) => {
+      set((state) => {
+        const newHonor = state.honor + amount;
+        const newLevel = REPUTATION_LEVELS.find(level => 
+          newHonor >= level.minHonor && newHonor <= level.maxHonor
+        ) || REPUTATION_LEVELS[3];
+        
+        console.log(`Honneur ajouté: +${amount} (${state.honor} → ${newHonor}), Niveau: ${newLevel.name}`);
+        
+        return {
+          honor: newHonor,
+          reputation: newLevel.name
+        };
+      });
+    },
+
+    removeHonor: (amount: number) => {
+      set((state) => {
+        const newHonor = state.honor - amount;
+        const newLevel = REPUTATION_LEVELS.find(level => 
+          newHonor >= level.minHonor && newHonor <= level.maxHonor
+        ) || REPUTATION_LEVELS[3];
+        
+        console.log(`Honneur retiré: -${amount} (${state.honor} → ${newHonor}), Niveau: ${newLevel.name}`);
+        
+        return {
+          honor: newHonor,
+          reputation: newLevel.name
+        };
+      });
+    },
+
+    setHonor: (amount: number) => {
+      set((state) => {
+        const newLevel = REPUTATION_LEVELS.find(level => 
+          amount >= level.minHonor && amount <= level.maxHonor
+        ) || REPUTATION_LEVELS[3];
+        
+        console.log(`Honneur défini: ${amount}, Niveau: ${newLevel.name}`);
+        
+        return {
+          honor: amount,
+          reputation: newLevel.name
+        };
+      });
     }
   }))
 );
