@@ -20,7 +20,7 @@ const getGameData = () => {
 };
 
 export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarActionMenuProps) {
-  const { actionPoints, spendActionPoints, hasCompetenceLevel, competences } = usePlayer();
+  const { actionPoints, spendActionPoints, hasCompetenceLevel, competences, gainExperience } = usePlayer();
   const { reputation } = useReputation();
 
   // Actions de base disponibles pour tous les joueurs

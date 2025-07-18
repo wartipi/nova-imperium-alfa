@@ -10,6 +10,13 @@ interface CompetenceLevel {
 interface PlayerState {
   selectedCharacter: CharacterOption | null;
   playerName: string;
+  
+  // Système de niveau et d'expérience
+  level: number;
+  experience: number;
+  experienceToNextLevel: number;
+  totalExperience: number;
+  
   competences: CompetenceLevel[];
   competencePoints: number;
   // Action Points system
@@ -27,6 +34,11 @@ interface PlayerState {
   // Movement system
   pendingMovement: { x: number; y: number } | null;
   isMovementMode: boolean;
+  
+  // Système d'expérience et de niveau
+  gainExperience: (amount: number, source?: string) => void;
+  getExperienceProgress: () => number;
+  calculateExperienceForLevel: (level: number) => number;
   
   // Character and competence methods
   setSelectedCharacter: (character: CharacterOption) => void;
@@ -67,8 +79,15 @@ interface PlayerState {
 export const usePlayer = create<PlayerState>((set, get) => ({
   selectedCharacter: { id: 'knight', name: 'Chevalier', image: '🛡️' },
   playerName: "Joueur",
+  
+  // Système de niveau - commence au niveau 1
+  level: 1,
+  experience: 0,
+  experienceToNextLevel: 100, // Expérience nécessaire pour le niveau 2
+  totalExperience: 0,
+  
   competences: [],
-  competencePoints: 50,
+  competencePoints: 5, // Points de départ réduits, on en gagne plus à chaque niveau
   actionPoints: 25,
   maxActionPoints: 100,
   avatarPosition: { x: 3 * 1.5, y: 0, z: 3 * Math.sqrt(3) * 0.5 },
@@ -325,4 +344,67 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     console.warn('No land hex found, using fallback position');
     return { x: 0, y: 0 };
   },
+
+  // Système d'expérience et de niveau
+  calculateExperienceForLevel: (level) => {
+    // Formule d'expérience progressive : niveau * 100 + (niveau-1) * 50
+    if (level <= 1) return 0;
+    return level * 100 + (level - 1) * 50;
+  },
+
+  getExperienceProgress: () => {
+    const state = get();
+    if (state.experienceToNextLevel <= 0) return 100;
+    return (state.experience / state.experienceToNextLevel) * 100;
+  },
+
+  gainExperience: (amount, source = 'Action') => {
+    const state = get();
+    const newExperience = state.experience + amount;
+    const newTotalExperience = state.totalExperience + amount;
+    
+    console.log(`Expérience gagnée: +${amount} (${source})`);
+    
+    // Vérifier si le joueur monte de niveau
+    if (newExperience >= state.experienceToNextLevel) {
+      const newLevel = state.level + 1;
+      const remainingExp = newExperience - state.experienceToNextLevel;
+      const nextLevelExp = get().calculateExperienceForLevel(newLevel + 1) - get().calculateExperienceForLevel(newLevel);
+      
+      // Récompenses de niveau
+      const competencePointsGained = 10; // 10 points de compétence par niveau
+      const actionPointsBonus = 5; // +5 PA max par niveau
+      
+      set({
+        level: newLevel,
+        experience: remainingExp,
+        experienceToNextLevel: nextLevelExp,
+        totalExperience: newTotalExperience,
+        competencePoints: state.competencePoints + competencePointsGained,
+        maxActionPoints: state.maxActionPoints + actionPointsBonus
+      });
+      
+      console.log(`🎉 NIVEAU ${newLevel} ATTEINT !`, {
+        competencePoints: `+${competencePointsGained} points de compétence`,
+        actionPoints: `+${actionPointsBonus} PA maximum`,
+        totalCompetencePoints: state.competencePoints + competencePointsGained,
+        newMaxActionPoints: state.maxActionPoints + actionPointsBonus
+      });
+
+      // Déclencher notification de montée de niveau
+      if ((window as any).showLevelUpNotification) {
+        (window as any).showLevelUpNotification(newLevel, competencePointsGained, actionPointsBonus);
+      }
+      
+      // Récursion si plusieurs niveaux sont gagnés d'un coup
+      if (remainingExp >= nextLevelExp) {
+        get().gainExperience(0, 'Bonus de niveau');
+      }
+    } else {
+      set({
+        experience: newExperience,
+        totalExperience: newTotalExperience
+      });
+    }
+  }
 }));

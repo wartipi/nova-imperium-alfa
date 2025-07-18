@@ -11,7 +11,7 @@ interface MovementConfirmationModalProps {
 }
 
 export function MovementConfirmationModal({ targetHex, onConfirm, onCancel }: MovementConfirmationModalProps) {
-  const { avatarPosition, actionPoints } = usePlayer();
+  const { avatarPosition, actionPoints, gainExperience } = usePlayer();
   const { mapData } = useMap();
 
   if (!targetHex || !mapData) return null;
@@ -119,12 +119,17 @@ export function MovementConfirmationModal({ targetHex, onConfirm, onCancel }: Mo
               Annuler
             </Button>
             <Button
-              onClick={onConfirm}
+              onClick={() => {
+                // Gagner de l'expérience en fonction de la difficulté du terrain
+                const experienceGain = Math.max(1, Math.floor(movementCost * 2)); // Plus le terrain est difficile, plus on gagne d'XP
+                gainExperience(experienceGain, `Déplacement en ${targetTile.terrain}`);
+                onConfirm();
+              }}
               disabled={actionPoints < movementCost || movementCost === 999}
               className="flex-1 bg-green-600 hover:bg-green-700 text-white disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               {movementCost === 999 ? 'Impossible' : 
-               actionPoints >= movementCost ? 'Confirmer le mouvement' : 'PA insuffisants'}
+               actionPoints >= movementCost ? `Confirmer (+${Math.max(1, Math.floor(movementCost * 2))} XP)` : 'PA insuffisants'}
             </Button>
           </div>
         </div>

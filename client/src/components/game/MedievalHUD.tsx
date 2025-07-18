@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useGameState } from "../../lib/stores/useGameState";
 import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { useMap } from "../../lib/stores/useMap";
@@ -25,6 +25,7 @@ import { ReputationPanel } from "./ReputationPanel";
 import { FactionPanel } from "./FactionPanel";
 
 import { PlayerInventory } from "./PlayerInventory";
+import { LevelUpNotification, useLevelUpNotification } from "./LevelUpNotification";
 
 type MenuSection = 
   | 'treasury' 
@@ -45,12 +46,38 @@ export function MedievalHUD() {
   const { novaImperiums, currentNovaImperium } = useNovaImperium();
   const { selectedHex } = useMap();
   const { isMuted, toggleMute } = useAudio();
-  const { selectedCharacter, playerName, setSelectedCharacter, setPlayerName, competences, competencePoints, actionPoints, maxActionPoints, isGameMaster, setGameMaster } = usePlayer();
+  const { 
+    selectedCharacter, 
+    playerName, 
+    setSelectedCharacter, 
+    setPlayerName, 
+    level,
+    experience,
+    experienceToNextLevel,
+    totalExperience,
+    competences, 
+    competencePoints, 
+    actionPoints, 
+    maxActionPoints, 
+    isGameMaster, 
+    setGameMaster,
+    getExperienceProgress,
+    gainExperience
+  } = usePlayer();
   const { honor, reputation, getReputationLevel } = useReputation();
   const [activeSection, setActiveSection] = useState<MenuSection | null>(null);
   const [showCharacterSelector, setShowCharacterSelector] = useState(false);
   const [showCompetenceModal, setShowCompetenceModal] = useState(false);
   const [showReputationDetails, setShowReputationDetails] = useState(false);
+  const { notification, showLevelUpNotification, hideLevelUpNotification } = useLevelUpNotification();
+
+  // Exposer la fonction de notification au niveau global
+  React.useEffect(() => {
+    (window as any).showLevelUpNotification = showLevelUpNotification;
+    return () => {
+      delete (window as any).showLevelUpNotification;
+    };
+  }, [showLevelUpNotification]);
 
   if (gamePhase !== "playing") return null;
 
@@ -145,8 +172,22 @@ export function MedievalHUD() {
                 onMouseDown={(e) => e.stopPropagation()}
                 onMouseUp={(e) => e.stopPropagation()}
               />
-              <div className="text-xs text-amber-700 mt-1">RANG</div>
-              <div>{selectedCharacter?.name || 'Empereur'}</div>
+              <div className="text-xs text-amber-700 mt-1">NIVEAU</div>
+              <div>Niveau {level} - {selectedCharacter?.name || 'Empereur'}</div>
+              
+              {/* Barre d'expérience */}
+              <div className="mt-1">
+                <div className="flex justify-between text-xs text-amber-600 mb-1">
+                  <span>Expérience</span>
+                  <span>{experience}/{experienceToNextLevel} XP</span>
+                </div>
+                <div className="w-full bg-amber-200 rounded-full h-2">
+                  <div 
+                    className="bg-gradient-to-r from-amber-400 to-yellow-500 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${getExperienceProgress()}%` }}
+                  />
+                </div>
+              </div>
               <div className="text-xs text-amber-700 mt-1">POINTS D'ACTION</div>
               <div className="text-blue-600">{actionPoints}/{maxActionPoints}</div>
               <div className="text-xs text-amber-700 mt-1">RÉPUTATION</div>
@@ -169,16 +210,28 @@ export function MedievalHUD() {
               </div>
               <div className="text-xs text-amber-700 mt-1">COMPÉTENCES</div>
               <div className="flex items-center justify-between">
-                <div className="text-purple-600">{competences.length}</div>
+                <div className="text-purple-600">{competences.length} apprises ({competencePoints} pts)</div>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-
                     setShowCompetenceModal(true);
                   }}
                   className="text-xs bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded"
                 >
                   🎯
+                </button>
+              </div>
+              
+              {/* Bouton de test pour gagner de l'expérience */}
+              <div className="mt-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    gainExperience(25, 'Action test');
+                  }}
+                  className="text-xs bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded w-full"
+                >
+                  +25 XP (Test)
                 </button>
               </div>
               
@@ -457,6 +510,15 @@ export function MedievalHUD() {
 
       {/* Tile Information Panel */}
       <TileInfoPanel />
+
+      {/* Level Up Notification */}
+      <LevelUpNotification
+        show={notification.show}
+        newLevel={notification.newLevel}
+        competencePointsGained={notification.competencePointsGained}
+        actionPointsBonus={notification.actionPointsBonus}
+        onClose={hideLevelUpNotification}
+      />
     </div>
   );
 }
