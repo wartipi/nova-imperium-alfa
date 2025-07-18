@@ -167,7 +167,30 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     
     if (action.id === 'create_map') {
       if (spendActionPoints(action.cost)) {
-        alert('Création de carte en cours... (Cette action sera développée)');
+        try {
+          // Créer un projet de cartographie pour la région actuelle
+          const response = await fetch('/api/cartography/start-project', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              playerId: "player",
+              regionId: `region_${Date.now()}`, // Région temporaire pour test
+              requiredActionPoints: 30,
+              tools: ['compass', 'paper'],
+              assistants: []
+            })
+          });
+          
+          if (response.ok) {
+            const project = await response.json();
+            alert(`Projet de cartographie "${project.id}" démarré avec succès !`);
+          } else {
+            alert('Erreur lors du démarrage du projet de cartographie');
+          }
+        } catch (error) {
+          console.error('Erreur:', error);
+          alert('Erreur lors de la création du projet');
+        }
       }
       onClose();
       return;
@@ -180,13 +203,8 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
   };
 
   const getAllAvailableActions = () => {
-    // Debug: afficher les compétences apprises
-    console.log('Compétences apprises:', competences);
-    
     const filteredCompetenceActions = competenceActions.filter(action => {
-      const hasRequiredCompetence = hasCompetenceLevel(action.requiredCompetence, action.requiredLevel || 1);
-      console.log(`Action ${action.name}: requiert ${action.requiredCompetence} niveau ${action.requiredLevel || 1}, a compétence: ${hasRequiredCompetence}`);
-      return hasRequiredCompetence;
+      return hasCompetenceLevel(action.requiredCompetence, action.requiredLevel || 1);
     });
     
     return [
