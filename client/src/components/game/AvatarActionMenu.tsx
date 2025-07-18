@@ -2,6 +2,7 @@ import { useState } from "react";
 import { usePlayer } from "../../lib/stores/usePlayer";
 import { useReputation } from "../../lib/stores/useReputation";
 import { useGameState } from "../../lib/stores/useGameState";
+import { useFactions } from "../../lib/stores/useFactions";
 import { Card } from "../ui/card";
 
 interface AvatarActionMenuProps {
@@ -24,6 +25,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
   const { actionPoints, spendActionPoints, hasCompetenceLevel, competences, gainExperience, exploreCurrentLocation, discoverResourcesInVision } = usePlayer();
   const { reputation } = useReputation();
   const { isGameMaster } = useGameState();
+  const { playerFaction } = useFactions();
 
   // Actions de base disponibles pour tous les joueurs
   const baseActions = [
@@ -136,6 +138,15 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     // Vérifier les points d'action
     if (actionPoints < action.cost) return false;
     
+    // Vérification spéciale pour la revendication territoriale
+    if (action.id === 'claim_territory') {
+      // Doit faire partie d'une faction
+      if (!playerFaction) {
+        console.log(`❌ Action ${action.name} indisponible: aucune faction`);
+        return false;
+      }
+    }
+    
     // Vérifier les compétences requises
     if (action.requiredCompetence) {
       const hasCompetence = hasCompetenceLevel(action.requiredCompetence, action.requiredLevel || 1);
@@ -175,7 +186,13 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
         return;
       }
       
-      // Pour les joueurs normaux, ouvrir le panneau de revendication
+      // Pour les joueurs normaux, vérifier les prérequis
+      if (!playerFaction) {
+        alert('Vous devez faire partie d\'une faction pour revendiquer un territoire.');
+        onClose();
+        return;
+      }
+      
       alert('Fonctionnalité de revendication de territoire accessible via le panneau dédié.');
       onClose();
       return;
