@@ -23,6 +23,7 @@ export class GameEngine {
   private isHexVisible: ((x: number, y: number) => boolean) | null = null;
   private isHexInCurrentVision: ((x: number, y: number) => boolean) | null = null;
   private pendingMovement: { x: number; y: number } | null = null;
+  public hasInitialCentered: boolean = false;
   
   // Set vision callbacks for fog of war
   setVisionCallbacks(isHexVisible: (x: number, y: number) => boolean, isHexInCurrentVision: (x: number, y: number) => boolean) {
@@ -113,6 +114,11 @@ export class GameEngine {
     }
     if (keysPressed.has('d') || keysPressed.has('arrowright')) {
       this.cameraX += moveSpeed;
+    }
+    
+    // Centrer sur l'avatar uniquement avec Espace (éviter centrage automatique)
+    if (keysPressed.has(' ')) {
+      this.centerCameraOnAvatar();
     }
     
     this.render();
