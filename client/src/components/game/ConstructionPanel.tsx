@@ -58,35 +58,504 @@ export function ConstructionPanel() {
   }
 
   const buildings = [
-    { id: 'port', name: 'Port', cost: { wood: 15, stone: 10, gold: 20 }, constructionTime: 4, description: 'Permet le commerce maritime', icon: '🚢', category: 'Transport' },
-    { id: 'market', name: 'Marché', cost: { wood: 10, gold: 25, food: 5 }, constructionTime: 3, description: 'Augmente les revenus commerciaux', icon: '🏪', category: 'Transport' },
-    { id: 'road', name: 'Route', cost: { stone: 8, gold: 12 }, constructionTime: 2, description: 'Améliore les déplacements', icon: '🛤️', category: 'Transport' },
-    { id: 'shipyard', name: 'Chantier Naval', cost: { wood: 20, iron: 8, gold: 15 }, constructionTime: 5, description: 'Construit des navires', icon: '⚓', category: 'Transport' },
-    
-    { id: 'farm', name: 'Ferme', cost: { wood: 8, stone: 5, food: 10 }, constructionTime: 2, description: 'Augmente la production alimentaire', icon: '🚜', category: 'Agriculture' },
-    { id: 'sawmill', name: 'Scierie', cost: { wood: 12, iron: 6, stone: 4 }, constructionTime: 3, description: 'Exploite les ressources forestières', icon: '🪵', category: 'Agriculture' },
-    { id: 'garden', name: 'Jardin', cost: { wood: 6, stone: 3, food: 8 }, constructionTime: 1, description: 'Améliore la beauté et la nourriture', icon: '🌻', category: 'Agriculture' },
-    
-    // Defense/Military (Red) - 4-7 tours
-    { id: 'fortress', name: 'Forteresse', cost: { stone: 25, iron: 15, gold: 20 }, constructionTime: 7, description: 'Défense militaire avancée', icon: '🏰', category: 'Défense' },
-    { id: 'watchtower', name: 'Tour de Guet', cost: { wood: 8, stone: 12, iron: 5 }, constructionTime: 4, description: 'Surveille les environs', icon: '🗼', category: 'Défense' },
-    { id: 'fortifications', name: 'Fortifications', cost: { stone: 18, iron: 10, wood: 6 }, constructionTime: 5, description: 'Renforce les défenses', icon: '🛡️', category: 'Défense' },
-    
-    // Culture/Knowledge (Yellow) - 3-6 tours
-    { id: 'library', name: 'Bibliothèque', cost: { wood: 15, stone: 8, gold: 12 }, constructionTime: 4, description: 'Centre de connaissance', icon: '📚', category: 'Culture' },
-    { id: 'temple', name: 'Temple', cost: { stone: 15, gold: 18, precious_metals: 3 }, constructionTime: 6, description: 'Améliore la culture et le moral', icon: '⛪', category: 'Culture' },
-    { id: 'sanctuary', name: 'Sanctuaire', cost: { stone: 12, gold: 15, mana: 5 }, constructionTime: 5, description: 'Lieu de recueillement', icon: '🕊️', category: 'Culture' },
-    { id: 'obelisk', name: 'Obélisque', cost: { stone: 20, precious_metals: 5, gold: 10 }, constructionTime: 3, description: 'Monument culturel', icon: '🏛️', category: 'Culture' },
-    
-    // Magic/Special (Purple) - 7-10 tours
-    { id: 'mystic_portal', name: 'Portail Mystique', cost: { crystals: 8, mana: 15, ancient_knowledge: 5, precious_metals: 10 }, constructionTime: 10, description: 'Permet les voyages magiques', icon: '🌀', category: 'Magie' },
-    { id: 'legendary_forge', name: 'Forge Légendaire', cost: { iron: 20, crystals: 6, mana: 10, precious_metals: 8 }, constructionTime: 8, description: 'Crée des objets magiques', icon: '🔥', category: 'Magie' },
-    { id: 'laboratory', name: 'Laboratoire', cost: { stone: 15, crystals: 5, mana: 8, ancient_knowledge: 3 }, constructionTime: 7, description: 'Recherche alchimique', icon: '🧪', category: 'Magie' },
-    
-    // Ancient/Ruins (Black) - 5-8 tours
-    { id: 'ancient_hall', name: 'Salle Ancienne', cost: { stone: 20, ancient_knowledge: 8, mana: 5, gold: 15 }, constructionTime: 8, description: 'Révèle les secrets du passé', icon: '🏚️', category: 'Ancien' },
-    { id: 'underground_base', name: 'Base Souterraine', cost: { stone: 18, iron: 10, ancient_knowledge: 4, gold: 12 }, constructionTime: 6, description: 'Refuge secret', icon: '🕳️', category: 'Ancien' },
-    { id: 'cave_dwelling', name: 'Habitation Troglodyte', cost: { stone: 12, wood: 8, food: 6 }, constructionTime: 5, description: 'Logement dans les grottes', icon: '🏔️', category: 'Ancien' }
+    // === TERRE EN FRICHE (wasteland) ===
+    { 
+      id: 'outpost', 
+      name: 'Avant-poste', 
+      cost: { wood: 5, stone: 3, action_points: 8 }, 
+      constructionTime: 2, 
+      description: 'Structure d\'observation et de défense basique', 
+      icon: '🏗️', 
+      category: 'Basique',
+      requiredTerrain: ['wasteland'],
+      actionPointCost: 8
+    },
+    { 
+      id: 'exploration_camp', 
+      name: 'Camp d\'exploration', 
+      cost: { wood: 8, food: 5, action_points: 12 }, 
+      constructionTime: 3, 
+      description: 'Base temporaire pour l\'exploration', 
+      icon: '⛺', 
+      category: 'Basique',
+      requiredTerrain: ['wasteland'],
+      actionPointCost: 12
+    },
+    { 
+      id: 'observation_tower', 
+      name: 'Tour d\'observation', 
+      cost: { wood: 10, stone: 8, action_points: 15 }, 
+      constructionTime: 4, 
+      description: 'Tour pour surveiller les environs', 
+      icon: '🗼', 
+      category: 'Défense',
+      requiredTerrain: ['wasteland', 'hills'],
+      actionPointCost: 15
+    },
+
+    // === FORÊT (forest) ===
+    { 
+      id: 'sawmill', 
+      name: 'Scierie', 
+      cost: { wood: 12, iron: 4, action_points: 18 }, 
+      constructionTime: 4, 
+      description: 'Exploitation du bois', 
+      icon: '🪚', 
+      category: 'Production',
+      requiredTerrain: ['forest'],
+      actionPointCost: 18
+    },
+    { 
+      id: 'hunting_post', 
+      name: 'Poste de chasse', 
+      cost: { wood: 8, action_points: 10 }, 
+      constructionTime: 2, 
+      description: 'Chasse au gibier forestier', 
+      icon: '🏹', 
+      category: 'Production',
+      requiredTerrain: ['forest'],
+      actionPointCost: 10
+    },
+    { 
+      id: 'druidic_temple', 
+      name: 'Temple druidique', 
+      cost: { wood: 15, mana: 8, action_points: 25 }, 
+      constructionTime: 6, 
+      description: 'Temple en harmonie avec la nature', 
+      icon: '🌳', 
+      category: 'Spirituel',
+      requiredTerrain: ['forest', 'enchanted_meadow'],
+      actionPointCost: 25
+    },
+    { 
+      id: 'herbalist_house', 
+      name: 'Maison de l\'herboriste', 
+      cost: { wood: 10, stone: 5, action_points: 15 }, 
+      constructionTime: 3, 
+      description: 'Préparation de remèdes naturels', 
+      icon: '🌿', 
+      category: 'Production',
+      requiredTerrain: ['forest', 'enchanted_meadow'],
+      actionPointCost: 15
+    },
+
+    // === MONTAGNE (mountains) ===
+    { 
+      id: 'mine', 
+      name: 'Mine', 
+      cost: { wood: 8, iron: 12, action_points: 30 }, 
+      constructionTime: 8, 
+      description: 'Extraction de minerai', 
+      icon: '⛏️', 
+      category: 'Production',
+      requiredTerrain: ['mountains'],
+      actionPointCost: 30
+    },
+    { 
+      id: 'fortress', 
+      name: 'Forteresse', 
+      cost: { stone: 30, iron: 20, action_points: 45 }, 
+      constructionTime: 12, 
+      description: 'Défense militaire majeure', 
+      icon: '🏰', 
+      category: 'Défense',
+      requiredTerrain: ['mountains', 'hills'],
+      actionPointCost: 45
+    },
+    { 
+      id: 'watchtower', 
+      name: 'Tour de guet', 
+      cost: { stone: 15, wood: 8, action_points: 20 }, 
+      constructionTime: 5, 
+      description: 'Surveillance des environs', 
+      icon: '👁️', 
+      category: 'Défense',
+      requiredTerrain: ['mountains', 'hills'],
+      actionPointCost: 20
+    },
+    { 
+      id: 'magic_forge', 
+      name: 'Forge magique', 
+      cost: { iron: 20, crystals: 10, mana: 15, action_points: 40 }, 
+      constructionTime: 10, 
+      description: 'Forge d\'objets enchantés', 
+      icon: '🔥', 
+      category: 'Magie',
+      requiredTerrain: ['mountains', 'volcano'],
+      actionPointCost: 40
+    },
+
+    // === TERRE FERTILE (fertile_land) ===
+    { 
+      id: 'farm', 
+      name: 'Ferme', 
+      cost: { wood: 8, stone: 4, action_points: 12 }, 
+      constructionTime: 3, 
+      description: 'Production alimentaire', 
+      icon: '🚜', 
+      category: 'Production',
+      requiredTerrain: ['fertile_land'],
+      actionPointCost: 12
+    },
+    { 
+      id: 'granary', 
+      name: 'Grenier', 
+      cost: { wood: 12, stone: 8, action_points: 15 }, 
+      constructionTime: 4, 
+      description: 'Stockage de nourriture', 
+      icon: '🌾', 
+      category: 'Stockage',
+      requiredTerrain: ['fertile_land'],
+      actionPointCost: 15
+    },
+    { 
+      id: 'market', 
+      name: 'Marché', 
+      cost: { wood: 15, gold: 20, action_points: 18 }, 
+      constructionTime: 4, 
+      description: 'Commerce et échange', 
+      icon: '🏪', 
+      category: 'Commerce',
+      requiredTerrain: ['fertile_land'],
+      actionPointCost: 18
+    },
+    { 
+      id: 'monastery', 
+      name: 'Monastère', 
+      cost: { stone: 20, gold: 15, action_points: 25 }, 
+      constructionTime: 6, 
+      description: 'Centre spirituel et d\'apprentissage', 
+      icon: '⛪', 
+      category: 'Spirituel',
+      requiredTerrain: ['fertile_land', 'sacred_plains'],
+      actionPointCost: 25
+    },
+    { 
+      id: 'agricultural_academy', 
+      name: 'Académie agricole', 
+      cost: { wood: 18, stone: 12, gold: 25, action_points: 30 }, 
+      constructionTime: 7, 
+      description: 'Formation agricole avancée', 
+      icon: '🎓', 
+      category: 'Éducation',
+      requiredTerrain: ['fertile_land'],
+      actionPointCost: 30
+    },
+
+    // === COLLINE (hills) ===
+    { 
+      id: 'light_fortifications', 
+      name: 'Fortifications légères', 
+      cost: { stone: 12, wood: 8, action_points: 18 }, 
+      constructionTime: 4, 
+      description: 'Défenses de position', 
+      icon: '🛡️', 
+      category: 'Défense',
+      requiredTerrain: ['hills'],
+      actionPointCost: 18
+    },
+    { 
+      id: 'ceremony_place', 
+      name: 'Lieu de cérémonie', 
+      cost: { stone: 15, mana: 5, action_points: 20 }, 
+      constructionTime: 5, 
+      description: 'Site rituel sur position élevée', 
+      icon: '🗿', 
+      category: 'Spirituel',
+      requiredTerrain: ['hills', 'sacred_plains'],
+      actionPointCost: 20
+    },
+    { 
+      id: 'altitude_beacon', 
+      name: 'Phare d\'altitude', 
+      cost: { stone: 18, iron: 6, action_points: 22 }, 
+      constructionTime: 5, 
+      description: 'Signal de navigation élevé', 
+      icon: '🕯️', 
+      category: 'Navigation',
+      requiredTerrain: ['hills'],
+      actionPointCost: 22
+    },
+
+    // === EAU PEU PROFONDE (shallow_water) ===
+    { 
+      id: 'port', 
+      name: 'Port', 
+      cost: { wood: 20, stone: 15, action_points: 35 }, 
+      constructionTime: 8, 
+      description: 'Infrastructure maritime', 
+      icon: '🚢', 
+      category: 'Commerce',
+      requiredTerrain: ['shallow_water'],
+      actionPointCost: 35
+    },
+    { 
+      id: 'shipyard', 
+      name: 'Chantier naval', 
+      cost: { wood: 25, iron: 12, action_points: 40 }, 
+      constructionTime: 10, 
+      description: 'Construction navale', 
+      icon: '⚓', 
+      category: 'Production',
+      requiredTerrain: ['shallow_water'],
+      actionPointCost: 40
+    },
+    { 
+      id: 'fishing_post', 
+      name: 'Comptoir de pêche', 
+      cost: { wood: 12, action_points: 15 }, 
+      constructionTime: 3, 
+      description: 'Pêche maritime', 
+      icon: '🎣', 
+      category: 'Production',
+      requiredTerrain: ['shallow_water'],
+      actionPointCost: 15
+    },
+    { 
+      id: 'marine_tower', 
+      name: 'Tour marine', 
+      cost: { stone: 20, iron: 8, action_points: 25 }, 
+      constructionTime: 6, 
+      description: 'Défense côtière', 
+      icon: '🗼', 
+      category: 'Défense',
+      requiredTerrain: ['shallow_water'],
+      actionPointCost: 25
+    },
+
+    // === MARAIS (swamp) ===
+    { 
+      id: 'occult_sanctuary', 
+      name: 'Sanctuaire occulte', 
+      cost: { wood: 12, mana: 12, ancient_knowledge: 5, action_points: 30 }, 
+      constructionTime: 8, 
+      description: 'Site de magie sombre', 
+      icon: '🕯️', 
+      category: 'Magie',
+      requiredTerrain: ['swamp'],
+      actionPointCost: 30
+    },
+    { 
+      id: 'alchemist_hut', 
+      name: 'Cabane d\'alchimiste', 
+      cost: { wood: 10, crystals: 6, action_points: 20 }, 
+      constructionTime: 5, 
+      description: 'Laboratoire de potions', 
+      icon: '🧪', 
+      category: 'Magie',
+      requiredTerrain: ['swamp'],
+      actionPointCost: 20
+    },
+
+    // === DÉSERT (desert) ===
+    { 
+      id: 'nomad_camp', 
+      name: 'Campement nomade', 
+      cost: { wood: 6, food: 8, action_points: 10 }, 
+      constructionTime: 2, 
+      description: 'Campement mobile temporaire', 
+      icon: '🏕️', 
+      category: 'Basique',
+      requiredTerrain: ['desert'],
+      actionPointCost: 10
+    },
+    { 
+      id: 'solar_obelisk', 
+      name: 'Obélisque solaire', 
+      cost: { stone: 25, crystals: 8, action_points: 35 }, 
+      constructionTime: 8, 
+      description: 'Monument désertique magique', 
+      icon: '🏛️', 
+      category: 'Magie',
+      requiredTerrain: ['desert'],
+      actionPointCost: 35
+    },
+    { 
+      id: 'glassworks', 
+      name: 'Verrerie', 
+      cost: { stone: 15, iron: 8, action_points: 25 }, 
+      constructionTime: 6, 
+      description: 'Artisanat du verre', 
+      icon: '💎', 
+      category: 'Production',
+      requiredTerrain: ['desert'],
+      actionPointCost: 25
+    },
+
+    // === PLAINE SACRÉE (sacred_plains) ===
+    { 
+      id: 'stone_circle', 
+      name: 'Cercle de pierre', 
+      cost: { stone: 30, mana: 15, action_points: 40 }, 
+      constructionTime: 10, 
+      description: 'Site rituel ancien', 
+      icon: '⭕', 
+      category: 'Spirituel',
+      requiredTerrain: ['sacred_plains'],
+      actionPointCost: 40
+    },
+    { 
+      id: 'forgotten_temple', 
+      name: 'Temple oublié', 
+      cost: { stone: 35, ancient_knowledge: 10, mana: 20, action_points: 50 }, 
+      constructionTime: 12, 
+      description: 'Sanctuaire des anciens', 
+      icon: '🏛️', 
+      category: 'Spirituel',
+      requiredTerrain: ['sacred_plains'],
+      actionPointCost: 50
+    },
+    { 
+      id: 'mystic_portal', 
+      name: 'Portail mystique', 
+      cost: { crystals: 15, mana: 25, ancient_knowledge: 8, action_points: 60 }, 
+      constructionTime: 15, 
+      description: 'Portail dimensionnel', 
+      icon: '🌀', 
+      category: 'Magie',
+      requiredTerrain: ['sacred_plains'],
+      actionPointCost: 60
+    },
+
+    // === GROTTES (caves) ===
+    { 
+      id: 'fortified_entrance', 
+      name: 'Entrée fortifiée', 
+      cost: { stone: 20, iron: 12, action_points: 25 }, 
+      constructionTime: 6, 
+      description: 'Sécurisation d\'entrée souterraine', 
+      icon: '🚪', 
+      category: 'Défense',
+      requiredTerrain: ['caves'],
+      actionPointCost: 25
+    },
+    { 
+      id: 'advanced_mine', 
+      name: 'Mine avancée', 
+      cost: { wood: 15, iron: 20, action_points: 35 }, 
+      constructionTime: 9, 
+      description: 'Exploitation minière profonde', 
+      icon: '⛏️', 
+      category: 'Production',
+      requiredTerrain: ['caves'],
+      actionPointCost: 35
+    },
+    { 
+      id: 'underground_base', 
+      name: 'Base souterraine', 
+      cost: { stone: 25, iron: 15, action_points: 40 }, 
+      constructionTime: 10, 
+      description: 'Complexe souterrain fortifié', 
+      icon: '🕳️', 
+      category: 'Défense',
+      requiredTerrain: ['caves'],
+      actionPointCost: 40
+    },
+
+    // === RUINES ANCIENNES (ancient_ruins) ===
+    { 
+      id: 'lost_library', 
+      name: 'Bibliothèque perdue', 
+      cost: { wood: 20, ancient_knowledge: 15, action_points: 45 }, 
+      constructionTime: 10, 
+      description: 'Restauration du savoir ancien', 
+      icon: '📚', 
+      category: 'Éducation',
+      requiredTerrain: ['ancient_ruins'],
+      actionPointCost: 45
+    },
+    { 
+      id: 'restored_sanctuary', 
+      name: 'Sanctuaire restauré', 
+      cost: { stone: 25, mana: 12, ancient_knowledge: 8, action_points: 40 }, 
+      constructionTime: 9, 
+      description: 'Ancien temple remis en état', 
+      icon: '🏛️', 
+      category: 'Spirituel',
+      requiredTerrain: ['ancient_ruins'],
+      actionPointCost: 40
+    },
+    { 
+      id: 'ancient_hall', 
+      name: 'Hall antique', 
+      cost: { stone: 30, ancient_knowledge: 20, mana: 10, action_points: 50 }, 
+      constructionTime: 12, 
+      description: 'Grande salle des anciens', 
+      icon: '🏚️', 
+      category: 'Prestige',
+      requiredTerrain: ['ancient_ruins'],
+      actionPointCost: 50
+    },
+
+    // === VOLCAN (volcano) ===
+    { 
+      id: 'legendary_forge', 
+      name: 'Forge légendaire', 
+      cost: { iron: 30, crystals: 15, mana: 20, action_points: 60 }, 
+      constructionTime: 15, 
+      description: 'Forge utilisant la puissance volcanique', 
+      icon: '🔥', 
+      category: 'Magie',
+      requiredTerrain: ['volcano'],
+      actionPointCost: 60
+    },
+    { 
+      id: 'fire_temple', 
+      name: 'Temple du feu', 
+      cost: { stone: 25, crystals: 10, mana: 15, action_points: 45 }, 
+      constructionTime: 11, 
+      description: 'Sanctuaire dédié aux flammes', 
+      icon: '🔥', 
+      category: 'Spirituel',
+      requiredTerrain: ['volcano'],
+      actionPointCost: 45
+    },
+    { 
+      id: 'elemental_laboratory', 
+      name: 'Laboratoire élémentaire', 
+      cost: { stone: 20, crystals: 12, mana: 18, action_points: 40 }, 
+      constructionTime: 10, 
+      description: 'Recherche sur la magie élémentaire', 
+      icon: '🧪', 
+      category: 'Magie',
+      requiredTerrain: ['volcano'],
+      actionPointCost: 40
+    },
+
+    // === PRAIRIE ENCHANTÉE (enchanted_meadow) ===
+    { 
+      id: 'awakening_garden', 
+      name: 'Jardin d\'éveil', 
+      cost: { wood: 15, mana: 10, action_points: 25 }, 
+      constructionTime: 6, 
+      description: 'Jardin magique régénérant', 
+      icon: '🌸', 
+      category: 'Magie',
+      requiredTerrain: ['enchanted_meadow'],
+      actionPointCost: 25
+    },
+    { 
+      id: 'mana_fountain', 
+      name: 'Fontaine de mana', 
+      cost: { stone: 18, crystals: 8, mana: 15, action_points: 35 }, 
+      constructionTime: 8, 
+      description: 'Source d\'énergie magique', 
+      icon: '⛲', 
+      category: 'Magie',
+      requiredTerrain: ['enchanted_meadow'],
+      actionPointCost: 35
+    },
+    { 
+      id: 'spirit_tree', 
+      name: 'Arbre des esprits', 
+      cost: { wood: 25, mana: 20, ancient_knowledge: 5, action_points: 45 }, 
+      constructionTime: 10, 
+      description: 'Arbre sacré connecté aux esprits', 
+      icon: '🌳', 
+      category: 'Spirituel',
+      requiredTerrain: ['enchanted_meadow'],
+      actionPointCost: 45
+    }
   ];
 
   const getResourceIcon = (resource: string): string => {
@@ -99,9 +568,47 @@ export function ConstructionPanel() {
       precious_metals: '🥇',
       mana: '🔮',
       crystals: '💎',
-      ancient_knowledge: '📜'
+      ancient_knowledge: '📜',
+      action_points: '⚡'
     };
     return icons[resource] || '❓';
+  };
+
+  // Vérifier si la colonie peut construire un bâtiment (contrôle du terrain requis)
+  const canBuildBuilding = (building: any): { canBuild: boolean; missingTerrain?: string[] } => {
+    // Pour l'instant, on va simuler qu'on a une colonie qui contrôle quelques types de terrain
+    // TODO: Intégrer avec le vrai système TerritorySystem et useMap
+    const controlledTerrain = ['fertile_land', 'hills', 'forest']; // Simulation
+    
+    const missingTerrain = building.requiredTerrain.filter((terrain: string) => 
+      !controlledTerrain.includes(terrain)
+    );
+    
+    return {
+      canBuild: missingTerrain.length === 0,
+      missingTerrain: missingTerrain.length > 0 ? missingTerrain : undefined
+    };
+  };
+
+  // Obtenir le nom français du terrain
+  const getTerrainName = (terrain: string): string => {
+    const terrainNames: Record<string, string> = {
+      wasteland: 'Terre en friche',
+      forest: 'Forêt',
+      mountains: 'Montagne',
+      fertile_land: 'Terre fertile',
+      hills: 'Colline',
+      shallow_water: 'Eau peu profonde',
+      deep_water: 'Eau profonde',
+      swamp: 'Marais',
+      desert: 'Désert',
+      sacred_plains: 'Plaine sacrée',
+      caves: 'Grottes',
+      ancient_ruins: 'Ruines anciennes',
+      volcano: 'Volcan',
+      enchanted_meadow: 'Prairie enchantée'
+    };
+    return terrainNames[terrain] || terrain;
   };
 
   const getBuildingProduction = (buildingId: string): Record<string, number> => {
@@ -234,7 +741,7 @@ export function ConstructionPanel() {
           )}
 
           <div className="space-y-3">
-            {['Transport', 'Agriculture', 'Défense', 'Culture', 'Magie', 'Ancien'].map(category => {
+            {['Basique', 'Production', 'Commerce', 'Défense', 'Spirituel', 'Magie', 'Éducation', 'Navigation', 'Stockage', 'Prestige'].map(category => {
               const categoryBuildings = buildings.filter(b => b.category === category);
               return (
                 <div key={category} className="space-y-1">
@@ -254,10 +761,13 @@ export function ConstructionPanel() {
                         <div>
                           <div className="text-xs font-medium">{building.name}</div>
                           <div className="text-xs text-amber-700">
-                            {formatResourceCost(building.cost)} | {getBuildingCost(building.id)} ⚡
+                            {formatResourceCost(building.cost)}
                           </div>
-                          <div className="text-xs text-purple-600">
-                            🕐 {building.constructionTime} tour{building.constructionTime > 1 ? 's' : ''}
+                          <div className="text-xs text-blue-600">
+                            ⚡ {building.actionPointCost} PA | 🕐 {building.constructionTime} tour{building.constructionTime > 1 ? 's' : ''}
+                          </div>
+                          <div className="text-xs text-green-600">
+                            📍 {building.requiredTerrain.map(terrain => getTerrainName(terrain)).join(' ou ')}
                           </div>
                         </div>
                       </div>
@@ -267,11 +777,17 @@ export function ConstructionPanel() {
                         disabled={
                           city.currentProduction !== null || 
                           city.buildings.includes(building.id as any) || 
-                          !canAffordBuilding(building.id)
+                          !canAffordBuilding(building.id) ||
+                          !canBuildBuilding(building).canBuild
                         }
-                        className="text-xs bg-amber-600 hover:bg-amber-700 disabled:opacity-50"
+                        className={`text-xs ${
+                          !canBuildBuilding(building).canBuild 
+                            ? 'bg-red-500 hover:bg-red-600' 
+                            : 'bg-amber-600 hover:bg-amber-700'
+                        } disabled:opacity-50`}
                       >
                         {city.buildings.includes(building.id as any) ? 'Construit' : 
+                         !canBuildBuilding(building).canBuild ? 'Terrain requis' :
                          !canAffordBuilding(building.id) ? 'Ressources insuffisantes' : 'Construire'}
                       </Button>
                     </div>
@@ -314,6 +830,29 @@ export function ConstructionPanel() {
                   <span className="text-purple-400"> | +{getBuildingMaxAPIncrease(hoveredBuilding)} PA max</span>
                 )}
               </div>
+            </div>
+            <div className="border-t border-gray-600 pt-2">
+              <div className="text-xs text-gray-300 mb-1">Terrains requis:</div>
+              <div className="text-sm text-orange-400">
+                {buildings.find(b => b.id === hoveredBuilding)?.requiredTerrain.map(terrain => getTerrainName(terrain)).join(' ou ')}
+              </div>
+              {(() => {
+                const buildingData = buildings.find(b => b.id === hoveredBuilding);
+                if (!buildingData) return null;
+                const { canBuild, missingTerrain } = canBuildBuilding(buildingData);
+                if (!canBuild && missingTerrain) {
+                  return (
+                    <div className="text-sm text-red-400 mt-1">
+                      ❌ Terrain manquant: {missingTerrain.map(terrain => getTerrainName(terrain)).join(', ')}
+                    </div>
+                  );
+                }
+                return (
+                  <div className="text-sm text-green-400 mt-1">
+                    ✅ Terrain disponible
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>

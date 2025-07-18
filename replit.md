@@ -284,6 +284,21 @@ Preferred communication style: Simple, everyday language.
 - Updated localStorage keys to use 'nova_imperium_save' instead of 'civ_save'
 - All components now use consistent coding style and optimized structure
 
+### Territory Control & Advanced Construction System (January 18, 2025)
+- **Complete Territory System**: Players must claim territory and found colonies before accessing construction
+- **Comprehensive Building Database**: 47+ buildings with terrain-specific requirements and realistic costs
+- **Terrain-Based Construction**: Each building requires specific terrain types (forest, mountains, fertile land, etc.)
+- **Action Point Construction Costs**: Realistic PA costs ranging from 8-60 based on building complexity
+- **Construction Time System**: Buildings take 2-15 turns to complete based on their scale
+- **Construction Prerequisites**: Must be faction member + have colony + control required terrain type
+- **14 Terrain Type Support**: Full support for all archipelago world terrain types including magical ones
+- **Enhanced Construction UI**: Shows terrain requirements, construction time, PA costs, and availability
+- **Construction Menu Gating**: Access blocked until player meets all prerequisites with clear guidance
+- **Building Categories**: Organized by purpose (Production, Defense, Spiritual, Magie, etc.)
+- **Resource Cost Integration**: Buildings require varied combinations of basic, strategic, and magical resources
+- **Territory Claim Panel**: Direct integration with HUD for territory management and colony founding
+- **Progressive Building Complexity**: Simple outposts (8 PA, 2 turns) to legendary structures (60 PA, 15 turns)
+
 ### Dynamic Field of Vision Systems (January 18, 2025)
 - Modified exploration action to always match player's current field of vision
 - Exploration now scales automatically with competence level (7→19→37+ hexagones)
