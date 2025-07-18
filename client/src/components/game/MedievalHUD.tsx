@@ -70,7 +70,8 @@ export function MedievalHUD() {
     switchToAvatar,
     getCurrentAvatar,
     updateAvatarName,
-    canCreateNewAvatar
+    canCreateNewAvatar,
+    setMaxActionPointsForTesting
   } = usePlayer();
   const { honor, reputation, getReputationLevel } = useReputation();
   const [activeSection, setActiveSection] = useState<MenuSection | null>(null);
