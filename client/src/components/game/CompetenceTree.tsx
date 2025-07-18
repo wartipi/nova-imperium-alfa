@@ -112,7 +112,7 @@ const allCompetences: Competence[] = [
   {
     id: 'exploration',
     name: 'Exploration',
-    description: 'Permet au personnage de se repérer plus facilement sur la carte d\'Athaelia de terrain, augmente le champ de vision et la portée de déplacement de celui-ci.',
+    description: 'Niveau 1: Réduit les coûts de déplacement terrain difficile. Niveau 2: Augmente le champ de vision d\'une case supplémentaire autour de l\'avatar.',
     category: 'strategic',
     cost: 18,
     unlocked: true,

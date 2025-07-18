@@ -43,6 +43,7 @@ interface PlayerState {
   isHexVisible: (hexX: number, hexY: number) => boolean;
   isHexInCurrentVision: (hexX: number, hexY: number) => boolean;
   setGameMaster: (isGM: boolean) => void;
+  getVisionRange: () => number;
   // Avatar land positioning
   findLandHex: (mapData: any[][]) => { x: number; y: number };
   // Movement confirmation
@@ -179,22 +180,21 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   updateVisibleHexes: (centerX, centerY) => {
     const state = get();
     const newVisibleHexes = new Set(state.visibleHexes);
+    const visionRange = state.getVisionRange();
     
-    newVisibleHexes.add(`${centerX},${centerY}`);
-    
-    const hexDirections = centerX % 2 === 0 ? [
-      [0, -1], [1, -1], [1, 0], [0, 1], [-1, 0], [-1, -1]
-    ] : [
-      [0, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0]
-    ];
-    
-    hexDirections.forEach(([dx, dy]) => {
-      const hexX = centerX + dx;
-      const hexY = centerY + dy;
-      if (hexX >= 0 && hexY >= 0) {
-        newVisibleHexes.add(`${hexX},${hexY}`);
+    // Add all hexes within vision range
+    for (let x = centerX - visionRange; x <= centerX + visionRange; x++) {
+      for (let y = centerY - visionRange; y <= centerY + visionRange; y++) {
+        // Simple manhattan distance for hex grid approximation
+        const dx = Math.abs(x - centerX);
+        const dy = Math.abs(y - centerY);
+        const distance = Math.max(dx, dy);
+        
+        if (distance <= visionRange && x >= 0 && y >= 0) {
+          newVisibleHexes.add(`${x},${y}`);
+        }
       }
-    });
+    }
     
     set({ visibleHexes: newVisibleHexes });
   },
@@ -211,34 +211,12 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     const avatarHexX = Math.round(state.avatarPosition.x / 1.5);
     const avatarHexY = Math.round(state.avatarPosition.z / (Math.sqrt(3) * 0.5));
     
-    // Check if hex is in current vision range around avatar (avatar + 6 adjacent hexes)
-    const isAvatarHex = (hexX === avatarHexX && hexY === avatarHexY);
-    
-    // Check if hex is adjacent to avatar using proper hex grid adjacency
-    // Hexagonal grid has different adjacency patterns for even/odd columns
-    const hexDirections = avatarHexX % 2 === 0 ? [
-      // Even column (0, 2, 4, 6...)
-      [0, -1],  // North
-      [1, -1],  // Northeast
-      [1, 0],   // Southeast
-      [0, 1],   // South
-      [-1, 0],  // Southwest
-      [-1, -1]  // Northwest
-    ] : [
-      // Odd column (1, 3, 5, 7...)
-      [0, -1],  // North
-      [1, 0],   // Northeast
-      [1, 1],   // Southeast
-      [0, 1],   // South
-      [-1, 1],  // Southwest
-      [-1, 0]   // Northwest
-    ];
-    
-    const isAdjacent = hexDirections.some(([dx, dy]) => 
-      hexX === avatarHexX + dx && hexY === avatarHexY + dy
-    );
-    
-    const isInCurrentVision = isAvatarHex || isAdjacent;
+    // Check if hex is in current vision range based on exploration level
+    const visionRange = state.getVisionRange();
+    const dx = Math.abs(hexX - avatarHexX);
+    const dy = Math.abs(hexY - avatarHexY);
+    const distance = Math.max(dx, dy);
+    const isInCurrentVision = distance <= visionRange;
     
     // Players see explored hexes OR hexes in current vision range
     const isExplored = state.visibleHexes.has(`${hexX},${hexY}`);
@@ -259,38 +237,27 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     const avatarHexX = Math.round(state.avatarPosition.x / 1.5);
     const avatarHexY = Math.round(state.avatarPosition.z / (Math.sqrt(3) * 0.5));
     
-    // Check if hex is in current vision range around avatar (avatar + 6 adjacent hexes)
-    const isAvatarHex = (hexX === avatarHexX && hexY === avatarHexY);
+    // Get vision range based on exploration level
+    const visionRange = state.getVisionRange();
     
-    // Check if hex is adjacent to avatar using proper hex grid adjacency
-    const hexDirections = avatarHexX % 2 === 0 ? [
-      // Even column (0, 2, 4, 6...)
-      [0, -1],  // North
-      [1, -1],  // Northeast
-      [1, 0],   // Southeast
-      [0, 1],   // South
-      [-1, 0],  // Southwest
-      [-1, -1]  // Northwest
-    ] : [
-      // Odd column (1, 3, 5, 7...)
-      [0, -1],  // North
-      [1, 0],   // Northeast
-      [1, 1],   // Southeast
-      [0, 1],   // South
-      [-1, 1],  // Southwest
-      [-1, 0]   // Northwest
-    ];
+    // Simple manhattan distance for hex grid approximation
+    const dx = Math.abs(hexX - avatarHexX);
+    const dy = Math.abs(hexY - avatarHexY);
+    const distance = Math.max(dx, dy);
     
-    const isAdjacent = hexDirections.some(([dx, dy]) => 
-      hexX === avatarHexX + dx && hexY === avatarHexY + dy
-    );
-    
-    return isAvatarHex || isAdjacent;
+    return distance <= visionRange;
   },
   
   setGameMaster: (isGM) => {
     console.log('Setting game master mode:', isGM);
     set({ isGameMaster: isGM });
+  },
+
+  getVisionRange: () => {
+    const state = get();
+    const explorationLevel = state.getCompetenceLevel('exploration');
+    // Vision de base : 1, niveau 2+ d'exploration : +1
+    return 1 + (explorationLevel >= 2 ? 1 : 0);
   },
   
   // Find first available land hex for avatar spawn
