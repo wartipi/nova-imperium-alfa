@@ -346,11 +346,11 @@ export function MedievalHUD() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    gainExperience(25, 'Action test');
+                    gainExperience(100, 'Action test');
                   }}
                   className="text-xs bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded w-full"
                 >
-                  +25 XP (Test)
+                  +100 XP (Test)
                 </button>
               </div>
               
