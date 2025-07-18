@@ -88,7 +88,7 @@ export function FactionPanel({ onClose }: FactionPanelProps) {
           size="sm"
           variant={activeTab === 'create' ? 'default' : 'outline'}
           onClick={() => setActiveTab('create')}
-          disabled={!canCreateFactionRep()}
+          disabled={!isGameMaster && !canCreateFactionRep()}
         >
           ✨ Créer
         </Button>
