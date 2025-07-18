@@ -163,25 +163,25 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     const newVisibleHexes = new Set(state.visibleHexes);
     const visionRange = state.getVisionRange();
     
-    // Simple approach: add center hex + all hexes at distance 1
-    // Using brute force search for correct adjacency
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dy = -1; dy <= 1; dy++) {
+    // Add avatar position
+    newVisibleHexes.add(`${centerX},${centerY}`);
+    
+    if (visionRange >= 1) {
+      // Use exact hex adjacency from GameEngine (x % 2 column offset system)
+      const isOddColumn = centerX % 2 === 1;
+      const adjacentOffsets = isOddColumn ? [
+        // Odd columns (shifted down)
+        [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1]
+      ] : [
+        // Even columns
+        [-1, -1], [0, -1], [-1, 0], [1, 0], [0, 1], [1, 1]
+      ];
+      
+      for (const [dx, dy] of adjacentOffsets) {
         const x = centerX + dx;
         const y = centerY + dy;
-        
         if (x >= 0 && y >= 0) {
-          // Calculate distance using world coordinates
-          const worldX1 = centerX * 1.5;
-          const worldY1 = centerY * Math.sqrt(3) * 0.5;
-          const worldX2 = x * 1.5;
-          const worldY2 = y * Math.sqrt(3) * 0.5;
-          const distance = Math.sqrt((worldX2 - worldX1) ** 2 + (worldY2 - worldY1) ** 2);
-          
-          // For radius 1, accept hexes within ~1.5 world units (approx hex size)
-          if (distance <= 1.6) {
-            newVisibleHexes.add(`${x},${y}`);
-          }
+          newVisibleHexes.add(`${x},${y}`);
         }
       }
     }
@@ -226,21 +226,28 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     // Get vision range based on exploration level
     const visionRange = state.getVisionRange();
     
-    // Simple distance check using world coordinates
-    const worldX1 = avatarHexX * 1.5;
-    const worldY1 = avatarHexY * Math.sqrt(3) * 0.5;
-    const worldX2 = hexX * 1.5;
-    const worldY2 = hexY * Math.sqrt(3) * 0.5;
-    const distance = Math.sqrt((worldX2 - worldX1) ** 2 + (worldY2 - worldY1) ** 2);
-    
-    // For radius 1, accept hexes within ~1.5 world units
-    if (visionRange >= 1 && distance <= 1.6) {
+    // Check if it's the avatar position
+    if (hexX === avatarHexX && hexY === avatarHexY) {
       return true;
     }
     
-    // For radius 2, accept hexes within ~3 world units
-    if (visionRange >= 2 && distance <= 3.1) {
-      return true;
+    // Check adjacent hexes for radius 1
+    if (visionRange >= 1) {
+      // Use exact hex adjacency from GameEngine (x % 2 column offset system)
+      const isOddColumn = avatarHexX % 2 === 1;
+      const adjacentOffsets = isOddColumn ? [
+        // Odd columns (shifted down)
+        [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1]
+      ] : [
+        // Even columns
+        [-1, -1], [0, -1], [-1, 0], [1, 0], [0, 1], [1, 1]
+      ];
+      
+      for (const [dx, dy] of adjacentOffsets) {
+        if (hexX === avatarHexX + dx && hexY === avatarHexY + dy) {
+          return true;
+        }
+      }
     }
     
     return false;
@@ -304,31 +311,31 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     const newVisibleHexes = new Set();
     const visionRange = state.getVisionRange();
     
-    // Simple approach: add center hex + all hexes at distance 1
-    // Using brute force search for correct adjacency
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dy = -1; dy <= 1; dy++) {
+    // Add avatar position
+    newVisibleHexes.add(`${avatarHexX},${avatarHexY}`);
+    
+    if (visionRange >= 1) {
+      // Use exact hex adjacency from GameEngine (x % 2 column offset system)
+      const isOddColumn = avatarHexX % 2 === 1;
+      const adjacentOffsets = isOddColumn ? [
+        // Odd columns (shifted down)
+        [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1]
+      ] : [
+        // Even columns
+        [-1, -1], [0, -1], [-1, 0], [1, 0], [0, 1], [1, 1]
+      ];
+      
+      for (const [dx, dy] of adjacentOffsets) {
         const x = avatarHexX + dx;
         const y = avatarHexY + dy;
-        
         if (x >= 0 && y >= 0) {
-          // Calculate distance using world coordinates
-          const worldX1 = avatarHexX * 1.5;
-          const worldY1 = avatarHexY * Math.sqrt(3) * 0.5;
-          const worldX2 = x * 1.5;
-          const worldY2 = y * Math.sqrt(3) * 0.5;
-          const distance = Math.sqrt((worldX2 - worldX1) ** 2 + (worldY2 - worldY1) ** 2);
-          
-          // For radius 1, accept hexes within ~1.5 world units (approx hex size)
-          if (distance <= 1.6) {
-            newVisibleHexes.add(`${x},${y}`);
-            console.log(`Adding hex (${x},${y}) at distance ${distance.toFixed(2)}`);
-          }
+          newVisibleHexes.add(`${x},${y}`);
+          console.log(`Adding hex (${x},${y}) - offset (${dx},${dy})`);
         }
       }
     }
     
-    console.log('Initialized vision at hex:', avatarHexX, avatarHexY, 'World pos:', state.avatarPosition);
+    console.log('Initialized vision at hex:', avatarHexX, avatarHexY, 'Is odd column:', avatarHexX % 2 === 1);
     console.log('Vision range:', visionRange, 'Visible hexes count:', newVisibleHexes.size);
     console.log('Visible hexes:', Array.from(newVisibleHexes).sort());
     set({ visibleHexes: newVisibleHexes });
