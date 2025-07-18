@@ -3,6 +3,8 @@
  * Gère la vision actuelle, l'exploration permanente et la cartographie
  */
 
+import { HexMath, type HexCoord } from './HexMath';
+
 export interface HexCoordinate {
   x: number;
   y: number;
@@ -20,8 +22,6 @@ export interface VisionState {
 }
 
 export class VisionSystem {
-  private static readonly HEX_SIZE = 50; // Taille des hexagones comme dans GameEngine
-
   /**
    * Calcule la portée de vision basée sur le niveau d'exploration
    */
@@ -32,64 +32,14 @@ export class VisionSystem {
   }
 
   /**
-   * Obtient les offsets des hexagones adjacents selon le système de colonnes de GameEngine
-   * GameEngine utilise: x * (hexSize * 1.5) et y * hexHeight + (x % 2) * (hexHeight / 2)
+   * Obtient tous les hexagones visibles selon le rayon de vision
+   * Utilise HexMath pour la géométrie précise
    */
-  static getHexOffsets(centerX: number, centerY: number, radius: number): HexCoordinate[] {
-    const offsets: HexCoordinate[] = [];
+  static getVisibleHexes(centerX: number, centerY: number, radius: number): HexCoordinate[] {
+    const hexes = HexMath.getHexesInRadius(centerX, centerY, radius);
+    const validHexes = HexMath.filterValidHexes(hexes);
     
-    // Ajouter le centre
-    offsets.push({ x: centerX, y: centerY });
-    
-    if (radius >= 1) {
-      // Rayon 1: 6 hexagones adjacents
-      const isOddColumn = centerX % 2 === 1;
-      const adjacentOffsets = isOddColumn ? [
-        // Colonnes impaires (décalées vers le bas)
-        { x: 0, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 0 }, 
-        { x: 1, y: 0 }, { x: -1, y: 1 }, { x: 0, y: 1 }
-      ] : [
-        // Colonnes paires
-        { x: -1, y: -1 }, { x: 0, y: -1 }, { x: -1, y: 0 }, 
-        { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }
-      ];
-      
-      for (const offset of adjacentOffsets) {
-        const x = centerX + offset.x;
-        const y = centerY + offset.y;
-        if (x >= 0 && y >= 0) {
-          offsets.push({ x, y });
-        }
-      }
-    }
-    
-    if (radius >= 2) {
-      // Rayon 2: anneau extérieur (12 hexagones supplémentaires)
-      const isOddColumn = centerX % 2 === 1;
-      const outerOffsets = isOddColumn ? [
-        // Colonnes impaires - anneau extérieur
-        { x: 0, y: -2 }, { x: 1, y: -2 }, { x: 2, y: -1 },
-        { x: 2, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 },
-        { x: -1, y: 2 }, { x: -2, y: 1 }, { x: -2, y: 0 },
-        { x: -2, y: -1 }, { x: -1, y: -2 }, { x: -1, y: -1 }
-      ] : [
-        // Colonnes paires - anneau extérieur  
-        { x: -1, y: -2 }, { x: 0, y: -2 }, { x: 1, y: -2 },
-        { x: 2, y: -1 }, { x: 2, y: 0 }, { x: 2, y: 1 },
-        { x: 1, y: 2 }, { x: 0, y: 2 }, { x: -1, y: 2 },
-        { x: -2, y: 1 }, { x: -2, y: 0 }, { x: -2, y: -1 }
-      ];
-      
-      for (const offset of outerOffsets) {
-        const x = centerX + offset.x;
-        const y = centerY + offset.y;
-        if (x >= 0 && y >= 0) {
-          offsets.push({ x, y });
-        }
-      }
-    }
-    
-    return offsets;
+    return validHexes.map(hex => ({ x: hex.x, y: hex.y }));
   }
 
   /**
@@ -97,12 +47,20 @@ export class VisionSystem {
    */
   static calculateCurrentVision(avatarX: number, avatarY: number, explorationLevel: number): Set<string> {
     const visionRange = this.getVisionRange(explorationLevel);
-    const visibleHexes = this.getHexOffsets(avatarX, avatarY, visionRange);
+    const visibleHexes = this.getVisibleHexes(avatarX, avatarY, visionRange);
     
     const visionSet = new Set<string>();
     for (const hex of visibleHexes) {
       visionSet.add(`${hex.x},${hex.y}`);
     }
+    
+    console.log('Calculating vision:', {
+      avatar: { x: avatarX, y: avatarY },
+      explorationLevel,
+      visionRange,
+      visibleCount: visibleHexes.length,
+      hexes: visibleHexes
+    });
     
     return visionSet;
   }
@@ -125,22 +83,15 @@ export class VisionSystem {
    * Convertit les coordonnées monde de l'avatar en coordonnées hexagonales
    */
   static worldToHex(worldX: number, worldZ: number): HexCoordinate {
-    // Conversion basée sur la logique de GameEngine
-    const hexX = Math.round(worldX / 1.5);
-    const hexY = Math.round(worldZ / (Math.sqrt(3) * 0.5));
-    
-    return { x: hexX, y: hexY };
+    const hex = HexMath.worldToHex(worldX, worldZ);
+    return { x: hex.x, y: hex.y };
   }
 
   /**
    * Convertit les coordonnées hexagonales en coordonnées monde
    */
   static hexToWorld(hexX: number, hexY: number): { x: number, z: number } {
-    // Conversion inverse basée sur la logique de GameEngine
-    const worldX = hexX * 1.5;
-    const worldZ = hexY * Math.sqrt(3) * 0.5;
-    
-    return { x: worldX, z: worldZ };
+    return HexMath.hexToWorld(hexX, hexY);
   }
 
   /**
