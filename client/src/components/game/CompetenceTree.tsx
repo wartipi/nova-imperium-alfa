@@ -113,7 +113,7 @@ const allCompetences: Competence[] = [
   {
     id: 'exploration',
     name: 'Exploration',
-    description: 'Niveau 1: Réduit les coûts de déplacement terrain difficile. Niveau 2: Augmente le champ de vision d\'une case supplémentaire autour de l\'avatar.',
+    description: 'Niveau 1: Révèle les ressources rares et stratégiques dans le champ de vision. Niveau 2: Augmente le champ de vision d\'une case supplémentaire autour de l\'avatar.',
     category: 'strategic',
     cost: 18,
     unlocked: true,

@@ -1,6 +1,8 @@
 import { useMap } from "../../lib/stores/useMap";
 import { useNovaImperium } from "../../lib/stores/useNovaImperium";
+import { usePlayer } from "../../lib/stores/usePlayer";
 import { HexTile, City, Unit } from "../../lib/game/types";
+import { ResourceRevealSystem } from "../../lib/systems/ResourceRevealSystem";
 
 export function TileInfoPanel() {
   const { selectedHex, setSelectedHex } = useMap();
@@ -195,15 +197,50 @@ export function TileInfoPanel() {
         )}
       </div>
 
-      {/* Resource Information */}
-      {selectedHex.resource && (
-        <div className="bg-amber-50 border border-amber-700 rounded p-2 mb-3">
-          <div className="text-amber-900 font-semibold mb-2">💎 Ressource</div>
-          <div className="text-amber-800 font-medium">
-            {getResourceName(selectedHex.resource)}
-          </div>
-        </div>
-      )}
+      {/* Resource Information with Exploration Level */}
+      <div className="bg-amber-50 border border-amber-700 rounded p-2 mb-3">
+        <div className="text-amber-900 font-semibold mb-2">💎 Ressources</div>
+        {(() => {
+          const { getCompetenceLevel } = usePlayer.getState();
+          const explorationLevel = getCompetenceLevel('exploration');
+          const resourceDescription = ResourceRevealSystem.getResourceDescription(selectedHex, explorationLevel);
+          const hasRevealableResources = ResourceRevealSystem.hasRevealableResources(selectedHex, explorationLevel);
+          
+          return (
+            <div>
+              <div className="text-amber-800 text-sm mb-2">
+                <span className="font-medium">Niveau d'exploration: </span>
+                <span className={`px-2 py-1 rounded text-xs ${
+                  explorationLevel >= 1 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {explorationLevel >= 1 ? `Niveau ${explorationLevel}` : 'Aucun'}
+                </span>
+              </div>
+              
+              <div className="text-amber-700">
+                {hasRevealableResources && selectedHex.resource ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">
+                      {ResourceRevealSystem.getHexResourceSymbol(selectedHex, explorationLevel) || '💎'}
+                    </span>
+                    <span>{resourceDescription}</span>
+                  </div>
+                ) : (
+                  <div className="text-amber-600 text-sm italic">
+                    {resourceDescription}
+                  </div>
+                )}
+              </div>
+              
+              {explorationLevel === 0 && selectedHex.resource && (
+                <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
+                  💡 <strong>Astuce:</strong> Apprenez la compétence "Exploration" niveau 1 pour identifier les ressources rares et stratégiques !
+                </div>
+              )}
+            </div>
+          );
+        })()}
+      </div>
 
       {/* City Information */}
       {cityOnTile && (

@@ -112,12 +112,15 @@ Preferred communication style: Simple, everyday language.
 - Terrain distribution includes special types: sacred plains, ancient ruins, volcanoes, enchanted meadows
 - Resource system updated for archipelago world with water-based and island-specific resources
 
-### Cartography System Improvements (January 18, 2025)
-- Removed exploration competence requirement from cartography actions
-- Exploration competence now exclusively reduces movement costs
-- Cartography actions (Découvrir Région, Cartographier) no longer require exploration skills
-- Players can discover regions and create maps based only on cartography competence
-- Simplified action requirements to match user's game mechanics preferences
+### Exploration Competence Resource Revelation System (January 18, 2025)
+- **Level 1 Exploration**: Reveals rare and strategic resources in player's field of vision
+- **Resource Classification**: Common (always visible), Strategic (level 1+), Rare (level 1+), Magical (level 1+)
+- **Enhanced Resource Display**: Visual symbols and colors for different resource types
+- **TileInfoPanel Integration**: Shows exploration level and resource detection capabilities
+- **Smart Resource Revelation**: Prioritizes magical > rare > strategic > common resources for display
+- **Visual Feedback**: Different symbols and background colors for each resource rarity
+- **Educational Tooltips**: Guides players to learn exploration for resource detection
+- **Level 2 maintains**: Increased vision range functionality (19 hexagons vs 7)
 
 ### Comprehensive Resource System Implementation (January 17, 2025)
 - Implemented complete resource system with 6 basic resources: food, action_points, gold, science, culture

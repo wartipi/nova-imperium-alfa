@@ -1,4 +1,6 @@
 import type { HexTile, Civilization, Unit, City } from "./types";
+import { ResourceRevealSystem } from "../systems/ResourceRevealSystem";
+import { usePlayer } from "../stores/usePlayer";
 
 export class GameEngine {
   private canvas: HTMLCanvasElement;
@@ -304,10 +306,29 @@ export class GameEngine {
         this.ctx.fillText('➤', x, y + 7);
       }
       
-      // Draw resource
+      // Draw resource with exploration-based revelation
       if (hex.resource) {
-        this.ctx.fillStyle = '#FFD700';
-        this.ctx.fillRect(x - 3, y - 3, 6, 6);
+        const explorationLevel = usePlayer.getState().getCompetenceLevel('exploration');
+        const resourceSymbol = ResourceRevealSystem.getHexResourceSymbol(hex, explorationLevel);
+        const resourceColor = ResourceRevealSystem.getHexResourceColor(hex, explorationLevel);
+        
+        if (resourceSymbol && resourceColor) {
+          // Draw resource background
+          this.ctx.fillStyle = resourceColor;
+          this.ctx.globalAlpha = 0.6;
+          this.ctx.fillRect(x - 8, y - 8, 16, 16);
+          this.ctx.globalAlpha = 1.0;
+          
+          // Draw resource symbol
+          this.ctx.font = '14px Arial';
+          this.ctx.textAlign = 'center';
+          this.ctx.fillStyle = '#000';
+          this.ctx.fillText(resourceSymbol, x, y + 4);
+        } else if (explorationLevel === 0) {
+          // Show generic resource indicator for common resources
+          this.ctx.fillStyle = '#FFD700';
+          this.ctx.fillRect(x - 3, y - 3, 6, 6);
+        }
       }
       
       // Draw river
@@ -330,10 +351,30 @@ export class GameEngine {
       this.ctx.fillStyle = 'rgba(50, 50, 50, 0.6)';
       this.ctx.fill();
       
-      // Draw resource with fog effect
+      // Draw resource with fog effect and exploration-based revelation
       if (hex.resource) {
-        this.ctx.fillStyle = 'rgba(255, 215, 0, 0.4)';
-        this.ctx.fillRect(x - 3, y - 3, 6, 6);
+        const explorationLevel = usePlayer.getState().getCompetenceLevel('exploration');
+        const resourceSymbol = ResourceRevealSystem.getHexResourceSymbol(hex, explorationLevel);
+        const resourceColor = ResourceRevealSystem.getHexResourceColor(hex, explorationLevel);
+        
+        if (resourceSymbol && resourceColor) {
+          // Draw dimmed resource background
+          this.ctx.fillStyle = resourceColor;
+          this.ctx.globalAlpha = 0.3;
+          this.ctx.fillRect(x - 8, y - 8, 16, 16);
+          
+          // Draw dimmed resource symbol
+          this.ctx.globalAlpha = 0.6;
+          this.ctx.font = '14px Arial';
+          this.ctx.textAlign = 'center';
+          this.ctx.fillStyle = '#000';
+          this.ctx.fillText(resourceSymbol, x, y + 4);
+          this.ctx.globalAlpha = 1.0;
+        } else {
+          // Show generic dimmed resource indicator
+          this.ctx.fillStyle = 'rgba(255, 215, 0, 0.4)';
+          this.ctx.fillRect(x - 3, y - 3, 6, 6);
+        }
       }
       
       // Draw river with fog effect
