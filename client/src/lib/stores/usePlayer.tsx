@@ -148,33 +148,14 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     const worldX = hexX * 1.5;
     const worldZ = hexY * Math.sqrt(3) * 0.5;
     
-    const newVisibleHexes = new Set(state.visibleHexes);
-    const currentVisionHexes = new Set();
-    
-    currentVisionHexes.add(`${hexX},${hexY}`);
-    
-    const hexDirections = hexX % 2 === 0 ? [
-      [0, -1], [1, -1], [1, 0], [0, 1], [-1, 0], [-1, -1]
-    ] : [
-      [0, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0]
-    ];
-    
-    hexDirections.forEach(([dx, dy]) => {
-      const newHexX = hexX + dx;
-      const newHexY = hexY + dy;
-      if (newHexX >= 0 && newHexY >= 0) {
-        currentVisionHexes.add(`${newHexX},${newHexY}`);
-      }
-    });
-    
-    currentVisionHexes.forEach(hex => newVisibleHexes.add(hex));
-    
     set({ 
       avatarPosition: { x: worldX, y: 0, z: worldZ },
       avatarRotation: { x: 0, y: 0, z: 0 },
-      isMoving: false,
-      visibleHexes: newVisibleHexes
+      isMoving: false
     });
+    
+    // Update vision using the new vision system
+    state.updateVisibleHexes(hexX, hexY);
   },
   
   updateVisibleHexes: (centerX, centerY) => {
@@ -257,7 +238,9 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     const state = get();
     const explorationLevel = state.getCompetenceLevel('exploration');
     // Vision de base : 1, niveau 2+ d'exploration : +1
-    return 1 + (explorationLevel >= 2 ? 1 : 0);
+    const visionRange = 1 + (explorationLevel >= 2 ? 1 : 0);
+    console.log('Vision range calculation - Exploration level:', explorationLevel, 'Vision range:', visionRange);
+    return visionRange;
   },
   
   // Find first available land hex for avatar spawn
@@ -279,6 +262,8 @@ export const usePlayer = create<PlayerState>((set, get) => ({
             const worldZ = y * Math.sqrt(3) * 0.5;
             set({ avatarPosition: { x: worldX, y: 0, z: worldZ } });
             console.log('Avatar spawned on land at hex:', x, y, 'terrain:', hex.terrain);
+            // Initialize vision after positioning avatar
+            setTimeout(() => state.initializeVision(), 0);
             return { x, y };
           }
         }
@@ -287,6 +272,8 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     
     // Fallback to original position if no land found
     console.log('No land found, using default position');
+    // Initialize vision for fallback position too
+    setTimeout(() => state.initializeVision(), 0);
     return { x: 3, y: 3 };
   },
 
@@ -298,39 +285,24 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     const avatarHexY = Math.round(state.avatarPosition.z / (Math.sqrt(3) * 0.5));
     
     const newVisibleHexes = new Set();
+    const visionRange = state.getVisionRange();
     
-    // Add avatar's current hex plus all adjacent hexes
-    newVisibleHexes.add(`${avatarHexX},${avatarHexY}`); // Avatar's position
-    
-    // Add all adjacent hexes (6 directions in hex grid)
-    // Hexagonal grid has different adjacency patterns for even/odd columns
-    const hexDirections = avatarHexX % 2 === 0 ? [
-      // Even column (0, 2, 4, 6...)
-      [0, -1],  // North
-      [1, -1],  // Northeast
-      [1, 0],   // Southeast
-      [0, 1],   // South
-      [-1, 0],  // Southwest
-      [-1, -1]  // Northwest
-    ] : [
-      // Odd column (1, 3, 5, 7...)
-      [0, -1],  // North
-      [1, 0],   // Northeast
-      [1, 1],   // Southeast
-      [0, 1],   // South
-      [-1, 1],  // Southwest
-      [-1, 0]   // Northwest
-    ];
-    
-    hexDirections.forEach(([dx, dy]) => {
-      const newHexX = avatarHexX + dx;
-      const newHexY = avatarHexY + dy;
-      if (newHexX >= 0 && newHexY >= 0) {
-        newVisibleHexes.add(`${newHexX},${newHexY}`);
+    // Add all hexes within vision range
+    for (let x = avatarHexX - visionRange; x <= avatarHexX + visionRange; x++) {
+      for (let y = avatarHexY - visionRange; y <= avatarHexY + visionRange; y++) {
+        // Simple manhattan distance for hex grid approximation
+        const dx = Math.abs(x - avatarHexX);
+        const dy = Math.abs(y - avatarHexY);
+        const distance = Math.max(dx, dy);
+        
+        if (distance <= visionRange && x >= 0 && y >= 0) {
+          newVisibleHexes.add(`${x},${y}`);
+        }
       }
-    });
+    }
     
     console.log('Initialized vision at hex:', avatarHexX, avatarHexY, 'World pos:', state.avatarPosition);
+    console.log('Vision range:', visionRange, 'Visible hexes count:', newVisibleHexes.size);
     console.log('Visible hexes:', Array.from(newVisibleHexes).sort());
     set({ visibleHexes: newVisibleHexes });
   },
