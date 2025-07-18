@@ -163,12 +163,34 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     const newVisibleHexes = new Set(state.visibleHexes);
     const visionRange = state.getVisionRange();
     
-    // Hexagonal distance calculation - proper hex grid
-    for (let q = -visionRange; q <= visionRange; q++) {
-      for (let r = Math.max(-visionRange, -q - visionRange); r <= Math.min(visionRange, -q + visionRange); r++) {
-        const x = centerX + q;
-        const y = centerY + r;
-        
+    // Add avatar position
+    newVisibleHexes.add(`${centerX},${centerY}`);
+    
+    if (visionRange >= 1) {
+      // Add 6 adjacent hexes for radius 1 (total 7 hexes)
+      const adjacentOffsets = [
+        [0, -1], [1, -1], [1, 0], [0, 1], [-1, 1], [-1, 0]
+      ];
+      
+      for (const [dx, dy] of adjacentOffsets) {
+        const x = centerX + dx;
+        const y = centerY + dy;
+        if (x >= 0 && y >= 0) {
+          newVisibleHexes.add(`${x},${y}`);
+        }
+      }
+    }
+    
+    if (visionRange >= 2) {
+      // Add outer ring for radius 2 (total 19 hexes)
+      const outerOffsets = [
+        [0, -2], [1, -2], [2, -2], [2, -1], [2, 0], [1, 1], [0, 2], 
+        [-1, 2], [-2, 2], [-2, 1], [-2, 0], [-1, -1]
+      ];
+      
+      for (const [dx, dy] of outerOffsets) {
+        const x = centerX + dx;
+        const y = centerY + dy;
         if (x >= 0 && y >= 0) {
           newVisibleHexes.add(`${x},${y}`);
         }
@@ -191,11 +213,7 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     const avatarHexY = Math.round(state.avatarPosition.z / (Math.sqrt(3) * 0.5));
     
     // Check if hex is in current vision range based on exploration level
-    const visionRange = state.getVisionRange();
-    const q = hexX - avatarHexX;
-    const r = hexY - avatarHexY;
-    const hexDistance = (Math.abs(q) + Math.abs(q + r) + Math.abs(r)) / 2;
-    const isInCurrentVision = hexDistance <= visionRange;
+    const isInCurrentVision = state.isHexInCurrentVision(hexX, hexY);
     
     // Players see explored hexes OR hexes in current vision range
     const isExplored = state.visibleHexes.has(`${hexX},${hexY}`);
@@ -219,12 +237,39 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     // Get vision range based on exploration level
     const visionRange = state.getVisionRange();
     
-    // Hexagonal distance calculation
-    const q = hexX - avatarHexX;
-    const r = hexY - avatarHexY;
-    const hexDistance = (Math.abs(q) + Math.abs(q + r) + Math.abs(r)) / 2;
+    // Check if it's the avatar position
+    if (hexX === avatarHexX && hexY === avatarHexY) {
+      return true;
+    }
     
-    return hexDistance <= visionRange;
+    // Check adjacent hexes for radius 1
+    if (visionRange >= 1) {
+      const adjacentOffsets = [
+        [0, -1], [1, -1], [1, 0], [0, 1], [-1, 1], [-1, 0]
+      ];
+      
+      for (const [dx, dy] of adjacentOffsets) {
+        if (hexX === avatarHexX + dx && hexY === avatarHexY + dy) {
+          return true;
+        }
+      }
+    }
+    
+    // Check outer ring for radius 2
+    if (visionRange >= 2) {
+      const outerOffsets = [
+        [0, -2], [1, -2], [2, -2], [2, -1], [2, 0], [1, 1], [0, 2], 
+        [-1, 2], [-2, 2], [-2, 1], [-2, 0], [-1, -1]
+      ];
+      
+      for (const [dx, dy] of outerOffsets) {
+        if (hexX === avatarHexX + dx && hexY === avatarHexY + dy) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
   },
   
   setGameMaster: (isGM) => {
@@ -285,12 +330,34 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     const newVisibleHexes = new Set();
     const visionRange = state.getVisionRange();
     
-    // Hexagonal distance calculation - proper hex grid
-    for (let q = -visionRange; q <= visionRange; q++) {
-      for (let r = Math.max(-visionRange, -q - visionRange); r <= Math.min(visionRange, -q + visionRange); r++) {
-        const x = avatarHexX + q;
-        const y = avatarHexY + r;
-        
+    // Add avatar position
+    newVisibleHexes.add(`${avatarHexX},${avatarHexY}`);
+    
+    if (visionRange >= 1) {
+      // Add 6 adjacent hexes for radius 1 (total 7 hexes)
+      const adjacentOffsets = [
+        [0, -1], [1, -1], [1, 0], [0, 1], [-1, 1], [-1, 0]
+      ];
+      
+      for (const [dx, dy] of adjacentOffsets) {
+        const x = avatarHexX + dx;
+        const y = avatarHexY + dy;
+        if (x >= 0 && y >= 0) {
+          newVisibleHexes.add(`${x},${y}`);
+        }
+      }
+    }
+    
+    if (visionRange >= 2) {
+      // Add outer ring for radius 2 (total 19 hexes)
+      const outerOffsets = [
+        [0, -2], [1, -2], [2, -2], [2, -1], [2, 0], [1, 1], [0, 2], 
+        [-1, 2], [-2, 2], [-2, 1], [-2, 0], [-1, -1]
+      ];
+      
+      for (const [dx, dy] of outerOffsets) {
+        const x = avatarHexX + dx;
+        const y = avatarHexY + dy;
         if (x >= 0 && y >= 0) {
           newVisibleHexes.add(`${x},${y}`);
         }
