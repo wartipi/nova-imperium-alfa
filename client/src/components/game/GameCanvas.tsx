@@ -94,8 +94,18 @@ export function GameCanvas() {
 
       const hex = gameEngineRef.current.getHexAtPosition(x, y);
       if (hex) {
-        // Toujours permettre la sélection, TileInfoPanel gérera l'affichage selon l'exploration
-        setSelectedHex(hex);
+        // Vérifier si la case est explorée avant de permettre la sélection
+        const { isHexExplored } = usePlayer.getState();
+        const { isGameMaster } = useGameState.getState();
+        const isAccessible = isHexExplored(hex.x, hex.y) || isGameMaster;
+        
+        // Ne permettre la sélection que si la case est accessible
+        if (isAccessible) {
+          setSelectedHex(hex);
+        } else {
+          // Aucune action pour les cases non explorées
+          console.log('Case non explorée - aucune action possible');
+        }
         
         // Handle unit movement - check if terrain is walkable
         if (selectedUnit && (hex.x !== selectedUnit.x || hex.y !== selectedUnit.y)) {
