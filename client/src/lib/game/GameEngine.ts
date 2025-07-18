@@ -177,10 +177,20 @@ export class GameEngine {
 
   centerCameraOnPosition(x: number, y: number) {
     const hexHeight = this.hexSize * Math.sqrt(3);
-    // Centrer la caméra sur la position donnée
-    this.cameraX = x * (this.hexSize * 1.5) - this.canvas.width / (2 * this.zoom);
-    this.cameraY = y * hexHeight + (x % 2) * (hexHeight / 2) - this.canvas.height / (2 * this.zoom);
-    console.log('Camera centrée sur:', { x, y, cameraX: this.cameraX, cameraY: this.cameraY });
+    // Calculer la position monde de l'hexagone
+    const worldX = x * (this.hexSize * 1.5);
+    const worldY = y * hexHeight + (x % 2) * (hexHeight / 2);
+    
+    // Centrer la caméra pour que cette position soit au centre de l'écran
+    this.cameraX = worldX - (this.canvas.width / 2) / this.zoom;
+    this.cameraY = worldY - (this.canvas.height / 2) / this.zoom;
+    
+    console.log('Camera centrée sur:', { 
+      hexPos: { x, y }, 
+      worldPos: { worldX, worldY },
+      cameraPos: { cameraX: this.cameraX, cameraY: this.cameraY },
+      screenCenter: { x: this.canvas.width / 2, y: this.canvas.height / 2 }
+    });
     this.render();
   }
 
