@@ -696,14 +696,14 @@ export function ConstructionPanel() {
     const actionCost = getBuildingCost(buildingId);
     
     if (canAffordBuilding(buildingId)) {
-      // En mode MJ, on ne dépense pas les ressources
+      // En mode MJ, construction instantanée sans coûts
       if (isGameMaster) {
-        buildInCity(cityId, buildingId, {}, building.constructionTime);
-        console.log(`[MODE MJ] Construction de ${buildingId} lancée pour ${building.constructionTime} tours (ressources infinies)`);
+        buildInCity(cityId, buildingId, {}, building.constructionTime, true);
+        console.log(`[MODE MJ] Construction instantanée de ${buildingId} (ressources infinies, pas d'attente)`);
       } else {
         const success = spendActionPoints(actionCost);
         if (success) {
-          buildInCity(cityId, buildingId, building.cost, building.constructionTime);
+          buildInCity(cityId, buildingId, building.cost, building.constructionTime, false);
           console.log(`Construction de ${buildingId} lancée pour ${building.constructionTime} tours, ${actionCost} PA et ressources déduites`);
         }
       }
@@ -780,7 +780,7 @@ export function ConstructionPanel() {
                             {formatResourceCost(building.cost)}
                           </div>
                           <div className="text-xs text-blue-600">
-                            ⚡ {building.actionPointCost} PA | 🕐 {building.constructionTime} tour{building.constructionTime > 1 ? 's' : ''}
+                            ⚡ {isGameMaster ? '∞ PA (Mode MJ)' : `${building.actionPointCost} PA`} | 🕐 {isGameMaster ? 'Instantané' : `${building.constructionTime} tour${building.constructionTime > 1 ? 's' : ''}`}
                           </div>
                           <div className="text-xs text-green-600">
                             📍 {building.requiredTerrain.map(terrain => getTerrainName(terrain)).join(' ou ')}

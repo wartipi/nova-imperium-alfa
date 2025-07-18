@@ -16,7 +16,7 @@ interface NovaImperiumState {
   selectCity: (cityId: string) => void;
   moveUnit: (unitId: string, x: number, y: number) => void;
   attackWithUnit: (unitId: string, targetX: number, targetY: number) => void;
-  buildInCity: (cityId: string, buildingType: string) => void;
+  buildInCity: (cityId: string, buildingType: string, resourceCost?: Record<string, number>, constructionTime?: number, isGameMaster?: boolean) => void;
   trainUnit: (cityId: string, unitType: string, cost?: Record<string, number>, recruitmentTime?: number) => void;
   researchTechnology: (techId: string) => void;
   sendDiplomaticProposal: (targetNIId: string, type: string) => void;
@@ -238,7 +238,7 @@ export const useNovaImperium = create<NovaImperiumState>()(
       console.log(`Unit ${unitId} attacking position (${targetX}, ${targetY})`);
     },
     
-    buildInCity: (cityId: string, buildingType: string, resourceCost?: Record<string, number>, constructionTime?: number) => {
+    buildInCity: (cityId: string, buildingType: string, resourceCost?: Record<string, number>, constructionTime?: number, isGameMaster?: boolean) => {
       const buildingCosts = {
         granary: 60, library: 90, barracks: 80, market: 100,
         port: 80, road: 40, shipyard: 120,
@@ -255,7 +255,7 @@ export const useNovaImperium = create<NovaImperiumState>()(
         const updatedNIs = state.novaImperiums.map(ni => 
           ni.id === state.currentNovaImperiumId ? {
             ...ni,
-            resources: resourceCost ? {
+            resources: resourceCost && !isGameMaster ? {
               ...ni.resources,
               ...Object.fromEntries(
                 Object.entries(resourceCost).map(([resource, amount]) => [
@@ -267,18 +267,29 @@ export const useNovaImperium = create<NovaImperiumState>()(
             cities: ni.cities.map(city => 
               city.id === cityId ? {
                 ...city,
-                currentProduction: {
-                  type: 'building',
-                  name: buildingType,
-                  cost
-                },
-                productionProgress: 0
+                // En mode MJ, construction instantanée
+                ...(isGameMaster ? {
+                  buildings: [...(city.buildings || []), buildingType],
+                  currentProduction: null,
+                  productionProgress: 0
+                } : {
+                  currentProduction: {
+                    type: 'building',
+                    name: buildingType,
+                    cost
+                  },
+                  productionProgress: 0
+                })
               } : city
             )
           } : ni
         );
         
         const updatedCurrentNI = updatedNIs.find(ni => ni.id === state.currentNovaImperiumId) || null;
+        
+        if (isGameMaster) {
+          console.log(`[MODE MJ] Construction instantanée de ${buildingType} dans ${cityId}`);
+        }
         
         return {
           novaImperiums: updatedNIs,
