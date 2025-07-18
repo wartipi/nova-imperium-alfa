@@ -474,6 +474,8 @@ export class GameEngine {
     this.ctx.restore();
   }
 
+
+
   private createAvatarSprite(): HTMLCanvasElement {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d')!;
@@ -562,8 +564,11 @@ export class GameEngine {
   // Check if a click is on the avatar
   isClickOnAvatar(mouseX: number, mouseY: number): boolean {
     const hexHeight = this.hexSize * Math.sqrt(3);
-    const screenX = this.avatarPosition.x * (this.hexSize * 1.5);
-    const screenY = this.avatarPosition.z * hexHeight + (Math.floor(this.avatarPosition.x) % 2) * (hexHeight / 2);
+    const avatarHexX = Math.round(this.avatarPosition.x / 1.5);
+    const avatarHexY = Math.round(this.avatarPosition.z / (Math.sqrt(3) * 0.5));
+    
+    const screenX = avatarHexX * (this.hexSize * 1.5);
+    const screenY = avatarHexY * hexHeight + (avatarHexX % 2) * (hexHeight / 2);
     
     // Transform avatar world position to screen coordinates
     const avatarScreenX = (screenX - this.cameraX) * this.zoom + this.canvas.width / 2;
@@ -575,14 +580,19 @@ export class GameEngine {
       Math.pow(mouseY - avatarScreenY, 2)
     );
     
+    console.log('Avatar click check:', { mouseX, mouseY, avatarScreenX, avatarScreenY, distance, spriteSize });
+    
     return distance <= spriteSize / 2;
   }
 
   // Get avatar screen position for menu positioning
   getAvatarScreenPosition(): { x: number; y: number } {
     const hexHeight = this.hexSize * Math.sqrt(3);
-    const screenX = this.avatarPosition.x * (this.hexSize * 1.5);
-    const screenY = this.avatarPosition.z * hexHeight + (Math.floor(this.avatarPosition.x) % 2) * (hexHeight / 2);
+    const avatarHexX = Math.round(this.avatarPosition.x / 1.5);
+    const avatarHexY = Math.round(this.avatarPosition.z / (Math.sqrt(3) * 0.5));
+    
+    const screenX = avatarHexX * (this.hexSize * 1.5);
+    const screenY = avatarHexY * hexHeight + (avatarHexX % 2) * (hexHeight / 2);
     
     // Transform to screen coordinates
     const x = (screenX - this.cameraX) * this.zoom + this.canvas.width / 2;
