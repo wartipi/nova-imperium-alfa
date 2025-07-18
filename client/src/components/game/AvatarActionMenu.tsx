@@ -73,6 +73,20 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     }
   ];
 
+  // Actions de territoire
+  const territoryActions = [
+    {
+      id: 'claim_territory',
+      name: 'Revendiquer Territoire',
+      description: 'Revendiquer le territoire actuel pour votre faction',
+      cost: 10,
+      icon: '🏰',
+      category: 'territory',
+      requiredCompetence: 'local_influence',
+      requiredLevel: 1
+    }
+  ];
+
   // Actions avancées basées sur les compétences de haut niveau
   const getAdvancedActions = () => {
     const actions = [];
@@ -147,6 +161,22 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     
     if (action.id === 'move') {
       onMoveRequest();
+      onClose();
+      return;
+    }
+
+    if (action.id === 'claim_territory') {
+      // En mode MJ, la revendication réussit toujours
+      if (isGameMaster) {
+        const { avatarPosition } = getGameData();
+        console.log(`[MODE MJ] Territoire revendiqué sans coût en PA`);
+        alert(`[MODE MJ] Territoire en (${avatarPosition.x},${avatarPosition.y}) revendiqué avec succès !`);
+        onClose();
+        return;
+      }
+      
+      // Pour les joueurs normaux, ouvrir le panneau de revendication
+      alert('Fonctionnalité de revendication de territoire accessible via le panneau dédié.');
       onClose();
       return;
     }
@@ -308,11 +338,19 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       }
       return true;
     });
+
+    const filteredTerritoryActions = territoryActions.filter(action => {
+      if (action.requiredCompetence) {
+        return hasCompetenceLevel(action.requiredCompetence, action.requiredLevel || 1);
+      }
+      return true;
+    });
     
     const allActions = [
       ...baseActions,
       ...filteredExplorationActions,
       ...filteredCompetenceActions,
+      ...filteredTerritoryActions,
       ...getAdvancedActions(),
       ...reputationActions.filter(action => 
         reputation === action.requiredReputation
