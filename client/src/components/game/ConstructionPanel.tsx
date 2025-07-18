@@ -24,8 +24,22 @@ export function ConstructionPanel() {
   const playerColonies = TerritorySystem.getPlayerColonies('player');
   const currentFaction = playerFaction ? getFactionById(playerFaction) : null;
 
-  // Si le joueur n'a pas de colonies ET n'est pas MJ, afficher les prérequis
-  if (!canAccessConstruction && !isGameMaster) {
+  // En mode MJ, afficher un message et permettre l'accès complet
+  if (isGameMaster && currentNovaImperium.cities.length === 0) {
+    // En mode MJ sans villes, créer une ville temporaire pour permettre la construction
+    const tempCity = {
+      id: 'gm_temp_city',
+      name: 'Base MJ Temporaire',
+      population: 1,
+      buildings: [],
+      currentProduction: null,
+      productionProgress: 0,
+      x: 0,
+      y: 0
+    };
+    // Ajouter la ville temporaire aux villes disponibles pour la construction
+    currentNovaImperium.cities = [tempCity];
+  } else if (!canAccessConstruction) {
     return (
       <div className="space-y-4">
         <div className="bg-red-50 border border-red-300 rounded p-4">
@@ -731,6 +745,14 @@ export function ConstructionPanel() {
     <div className="space-y-4">
       <div className="text-center">
         <h4 className="font-bold text-base mb-3">Projets de Construction</h4>
+        {isGameMaster && (
+          <div className="bg-purple-100 border border-purple-400 rounded p-2 mb-3">
+            <div className="text-purple-800 text-sm font-semibold">🎯 Mode Maître de Jeu</div>
+            <div className="text-purple-700 text-xs">
+              Accès illimité : toutes constructions disponibles, ressources infinies, construction instantanée
+            </div>
+          </div>
+        )}
       </div>
 
       {currentNovaImperium.cities.map(city => (
