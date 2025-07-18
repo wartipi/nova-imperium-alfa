@@ -45,7 +45,7 @@ function GameApp() {
         
         // Validate all game systems after initialization
         import('./lib/systems/GameSystemValidator').then(({ GameSystemValidator }) => {
-          GameSystemValidator.validateAllSystems();
+          GameSystemValidator.logSystemValidation();
         });
       }
     }, 100);

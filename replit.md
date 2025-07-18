@@ -112,15 +112,15 @@ Preferred communication style: Simple, everyday language.
 - Terrain distribution includes special types: sacred plains, ancient ruins, volcanoes, enchanted meadows
 - Resource system updated for archipelago world with water-based and island-specific resources
 
-### Active Exploration System Implementation (January 18, 2025)
-- **Complete Resource Invisibility**: All resources completely invisible without exploration competence level 1
-- **Active "Explorer la Zone" Action**: New avatar action requiring Exploration level 1, costs 5 PA
-- **Zone-Based Resource Revelation**: Resources only revealed after using exploration action on specific hexes
-- **No Passive Resource Detection**: Removed passive resource revelation system
-- **Enhanced TileInfoPanel**: Shows exploration requirements and guides players to use exploration action
-- **GameEngine Resource Rendering**: Updated to check both exploration competence AND explored hex status
-- **Experience Rewards**: Exploration action grants 10 XP and permanently reveals resources in current hex
-- **User Preference Fulfilled**: Resources truly invisible until actively explored, no hints or indicators
+### Unified Game System & Complete Code Cleanup (January 18, 2025)
+- **Système Unifié**: Création d'UnifiedGameSystem consolidant exploration, vision, mouvement, et ressources
+- **Nettoyage Code**: Suppression des doublons et consolidation des stores Zustand
+- **Mode MJ Fonctionnel**: Mode Maître de Jeu dans useGameState uniquement, affiche toutes les ressources
+- **Exploration Active**: Ressources complètement invisibles sans exploration niveau 1 + action "Explorer la Zone"
+- **GameSystemValidator**: Validation automatique de l'intégration de tous les systèmes
+- **Stores Optimisés**: usePlayer pour vision/exploration, useGameState pour mode MJ uniquement
+- **Code Consolidé**: Suppression des références obsolètes et optimisation des performances
+- **Architecture Unifiée**: Tous les systèmes intégrés dans une architecture cohérente et maintenable
 
 ### Comprehensive Resource System Implementation (January 17, 2025)
 - Implemented complete resource system with 6 basic resources: food, action_points, gold, science, culture

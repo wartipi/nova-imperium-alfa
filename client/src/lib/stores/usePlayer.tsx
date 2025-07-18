@@ -50,7 +50,7 @@ interface PlayerState {
   // Vision system unifié
   currentVision: Set<string>;
   exploredHexes: Set<string>;
-  isGameMaster: boolean;
+
   // Movement system
   pendingMovement: { x: number; y: number } | null;
   isMovementMode: boolean;
@@ -81,7 +81,6 @@ interface PlayerState {
   moveAvatarToHex: (hexX: number, hexY: number) => void;
   
   // Vision et exploration - système unifié
-  setGameMaster: (isGM: boolean) => void;
   getVisionRange: () => number;
   updateVision: () => void;
   isHexVisible: (hexX: number, hexY: number) => boolean;
@@ -147,7 +146,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
   movementSpeed: 2,
   currentVision: new Set(),
   exploredHexes: new Set(),
-  isGameMaster: false,
+
   pendingMovement: null,
   isMovementMode: false,
 
@@ -301,8 +300,6 @@ export const usePlayer = create<PlayerState>((set, get) => {
   },
 
   // Vision system unifié
-  setGameMaster: (isGM) => set({ isGameMaster: isGM }),
-
   getVisionRange: () => {
     const state = get();
     const explorationLevel = state.getCompetenceLevel('exploration');
@@ -343,13 +340,11 @@ export const usePlayer = create<PlayerState>((set, get) => {
 
   isHexVisible: (hexX, hexY) => {
     const state = get();
-    if (state.isGameMaster) return true;
     return VisionSystem.isHexVisible(hexX, hexY, state.currentVision, state.exploredHexes);
   },
 
   isHexInCurrentVision: (hexX, hexY) => {
     const state = get();
-    if (state.isGameMaster) return true;
     return VisionSystem.isHexInCurrentVision(hexX, hexY, state.currentVision);
   },
 

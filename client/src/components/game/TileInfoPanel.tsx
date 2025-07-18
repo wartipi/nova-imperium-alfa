@@ -1,6 +1,7 @@
 import { useMap } from "../../lib/stores/useMap";
 import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { usePlayer } from "../../lib/stores/usePlayer";
+import { useGameState } from "../../lib/stores/useGameState";
 import { HexTile, City, Unit } from "../../lib/game/types";
 import { ResourceRevealSystem } from "../../lib/systems/ResourceRevealSystem";
 
@@ -201,7 +202,8 @@ export function TileInfoPanel() {
       <div className="bg-amber-50 border border-amber-700 rounded p-2 mb-3">
         <div className="text-amber-900 font-semibold mb-2">💎 Ressources</div>
         {(() => {
-          const { getCompetenceLevel, isGameMaster } = usePlayer.getState();
+          const { getCompetenceLevel } = usePlayer.getState();
+          const { isGameMaster } = useGameState();
           const explorationLevel = getCompetenceLevel('exploration');
           const isMasterMode = isGameMaster || false;
           const resourceDescription = ResourceRevealSystem.getResourceDescription(selectedHex, Math.max(explorationLevel, isMasterMode ? 1 : 0));
