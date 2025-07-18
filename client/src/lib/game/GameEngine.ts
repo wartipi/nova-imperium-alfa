@@ -119,6 +119,7 @@ export class GameEngine {
     // Centrer sur l'avatar uniquement avec Espace (éviter centrage automatique)
     if (keysPressed.has(' ')) {
       this.centerCameraOnAvatar();
+      keysPressed.delete(' '); // Éviter la répétition continue
     }
     
     this.render();
@@ -176,19 +177,18 @@ export class GameEngine {
 
   centerCameraOnPosition(x: number, y: number) {
     const hexHeight = this.hexSize * Math.sqrt(3);
-    this.cameraX = x * (this.hexSize * 1.5);
-    this.cameraY = y * hexHeight + (x % 2) * (hexHeight / 2);
+    // Centrer la caméra sur la position donnée
+    this.cameraX = x * (this.hexSize * 1.5) - this.canvas.width / (2 * this.zoom);
+    this.cameraY = y * hexHeight + (x % 2) * (hexHeight / 2) - this.canvas.height / (2 * this.zoom);
+    console.log('Camera centrée sur:', { x, y, cameraX: this.cameraX, cameraY: this.cameraY });
     this.render();
   }
 
 
 
   centerCameraOnPlayerStart() {
-    const playerCiv = this.civilizations.find(civ => civ.isPlayer);
-    if (playerCiv && playerCiv.cities.length > 0) {
-      const capital = playerCiv.cities[0];
-      this.centerCameraOnPosition(capital.x, capital.y);
-    }
+    // Centrer sur l'avatar au démarrage au lieu de la ville
+    this.centerCameraOnAvatar();
   }
 
   getHexAtPosition(screenX: number, screenY: number): HexTile | null {
@@ -741,19 +741,12 @@ export class GameEngine {
 
   // Center camera on avatar
   centerCameraOnAvatar() {
-    // Utiliser la position hex de l'avatar depuis usePlayer
-    const { getCurrentAvatar } = (window as any).usePlayer ? (window as any).usePlayer.getState() : { getCurrentAvatar: () => null };
-    const avatar = getCurrentAvatar ? getCurrentAvatar() : null;
+    // Utiliser la position actuelle de l'avatar dans le GameEngine
+    const avatarHexX = Math.round(this.avatarPosition.x / 1.5);
+    const avatarHexY = Math.round(this.avatarPosition.z / (Math.sqrt(3) * 0.5));
     
-    if (avatar && avatar.position) {
-      console.log('Centrage caméra sur avatar:', avatar.position);
-      this.centerCameraOnPosition(avatar.position.x, avatar.position.y);
-    } else {
-      // Fallback sur position monde
-      this.cameraX = this.avatarPosition.x;
-      this.cameraY = this.avatarPosition.z;
-      this.render();
-    }
+    console.log('Centrage caméra sur avatar:', { avatarHexX, avatarHexY, worldPos: this.avatarPosition });
+    this.centerCameraOnPosition(avatarHexX, avatarHexY);
   }
 
   // Move camera by offset
