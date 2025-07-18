@@ -18,6 +18,7 @@ interface NovaImperiumState {
   attackWithUnit: (unitId: string, targetX: number, targetY: number) => void;
   buildInCity: (cityId: string, buildingType: string, resourceCost?: Record<string, number>, constructionTime?: number, isGameMaster?: boolean) => void;
   trainUnit: (cityId: string, unitType: string, cost?: Record<string, number>, recruitmentTime?: number) => void;
+  foundColony: (x: number, y: number, colonyName: string, playerId: string, playerName: string, factionId: string, factionName: string) => boolean;
   researchTechnology: (techId: string) => void;
   sendDiplomaticProposal: (targetNIId: string, type: string) => void;
   processTurn: () => void;
@@ -31,24 +32,7 @@ const createInitialNovaImperiums = (): NovaImperium[] => {
       color: "#FF0000",
       isPlayer: true,
       isDefeated: false,
-      cities: [
-        {
-          id: "capital",
-          name: "Capitale",
-          x: 25,
-          y: 15,
-          population: 3,
-          populationCap: 10,
-          foodPerTurn: 4,
-          productionPerTurn: 3,
-          sciencePerTurn: 2,
-          culturePerTurn: 1,
-          buildings: ["palace"],
-          currentProduction: null,
-          productionProgress: 0,
-          workingHexes: []
-        }
-      ],
+      cities: [], // Plus de villes par défaut - elles seront créées via le système de colonies
       units: [
         {
           id: "warrior1",
@@ -108,24 +92,7 @@ const createInitialNovaImperiums = (): NovaImperium[] => {
       color: "#0000FF",
       isPlayer: false,
       isDefeated: false,
-      cities: [
-        {
-          id: "ai_capital",
-          name: "Cité Rivale",
-          x: 15,
-          y: 20,
-          population: 2,
-          populationCap: 8,
-          foodPerTurn: 3,
-          productionPerTurn: 2,
-          sciencePerTurn: 1,
-          culturePerTurn: 1,
-          buildings: ["palace"],
-          currentProduction: null,
-          productionProgress: 0,
-          workingHexes: []
-        }
-      ],
+      cities: [], // Plus de villes par défaut - elles seront créées via le système de colonies
       units: [
         {
           id: "ai_warrior1",
@@ -393,6 +360,58 @@ export const useNovaImperium = create<NovaImperiumState>()(
           currentNovaImperium: updatedCurrentNI
         };
       });
+    },
+
+    foundColony: (x: number, y: number, colonyName: string, playerId: string, playerName: string, factionId: string, factionName: string) => {
+      const state = get();
+      
+      // Vérifier qu'il n'y a pas déjà une colonie à cette position
+      const existingCity = state.novaImperiums.flatMap(ni => ni.cities).find(city => city.x === x && city.y === y);
+      if (existingCity) {
+        console.log(`❌ Fondation échouée: colonie existante à (${x},${y})`);
+        return false;
+      }
+      
+      // Créer la nouvelle colonie
+      const newColony = {
+        id: `colony_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        name: colonyName,
+        x,
+        y,
+        population: 1,
+        populationCap: 5,
+        foodPerTurn: 2,
+        productionPerTurn: 1,
+        sciencePerTurn: 0,
+        culturePerTurn: 0,
+        buildings: ["settlement"], // Commencer avec un simple campement
+        currentProduction: null,
+        productionProgress: 0,
+        workingHexes: []
+      };
+      
+      set((state) => {
+        const newNovaImperiums = state.novaImperiums.map(ni => {
+          if (ni.id === "player") {
+            return {
+              ...ni,
+              cities: [...ni.cities, newColony]
+            };
+          }
+          return ni;
+        });
+        
+        const updatedCurrentNI = newNovaImperiums.find(ni => ni.id === state.currentNovaImperiumId) || null;
+        
+        console.log(`✅ Colonie "${colonyName}" fondée à (${x},${y}) par ${playerName} de la faction ${factionName}`);
+        
+        return { 
+          novaImperiums: newNovaImperiums,
+          currentNovaImperium: updatedCurrentNI
+        };
+      });
+      
+      return true;
     }
   }))
 );

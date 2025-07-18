@@ -2,6 +2,7 @@ import type { HexTile, Civilization, Unit, City } from "./types";
 import { ResourceRevealSystem } from "../systems/ResourceRevealSystem";
 import { usePlayer } from "../stores/usePlayer";
 import { useGameState } from "../stores/useGameState";
+import { useNovaImperium } from "../stores/useNovaImperium";
 
 export class GameEngine {
   private canvas: HTMLCanvasElement;
@@ -502,6 +503,21 @@ export class GameEngine {
   }
 
   private renderCivilizations() {
+    // Render colonies from Nova Imperium store
+    const { novaImperiums } = useNovaImperium.getState();
+    novaImperiums.forEach(ni => {
+      // Render cities/colonies
+      ni.cities.forEach(city => {
+        this.drawCity(city, ni.color);
+      });
+      
+      // Render units
+      ni.units.forEach(unit => {
+        this.drawUnit(unit, ni.color);
+      });
+    });
+    
+    // Keep existing civilization rendering for compatibility
     this.civilizations.forEach(civ => {
       // Render cities
       civ.cities.forEach(city => {
@@ -520,20 +536,30 @@ export class GameEngine {
     const screenX = city.x * (this.hexSize * 1.5);
     const screenY = city.y * hexHeight + (city.x % 2) * (hexHeight / 2);
     
-    // Draw city circle
+    // Draw colony/city circle with different styles based on buildings
+    const hasSettlement = city.buildings.includes('settlement');
+    const radius = hasSettlement ? this.hexSize / 3 : this.hexSize / 2;
+    
     this.ctx.beginPath();
-    this.ctx.arc(screenX, screenY, this.hexSize / 2, 0, Math.PI * 2);
+    this.ctx.arc(screenX, screenY, radius, 0, Math.PI * 2);
     this.ctx.fillStyle = color;
     this.ctx.fill();
     this.ctx.strokeStyle = '#000';
-    this.ctx.lineWidth = 2;
+    this.ctx.lineWidth = hasSettlement ? 1 : 2;
     this.ctx.stroke();
+    
+    // Draw colony/city icon
+    this.ctx.fillStyle = '#000';
+    this.ctx.font = '14px Arial';
+    this.ctx.textAlign = 'center';
+    const icon = hasSettlement ? '🏘️' : '🏛️';
+    this.ctx.fillText(icon, screenX, screenY + 4);
     
     // Draw city name
     this.ctx.fillStyle = '#000';
-    this.ctx.font = '12px Arial';
+    this.ctx.font = '10px Arial';
     this.ctx.textAlign = 'center';
-    this.ctx.fillText(city.name, screenX, screenY - this.hexSize);
+    this.ctx.fillText(city.name, screenX, screenY - this.hexSize + 5);
   }
 
   private drawUnit(unit: Unit, color: string) {

@@ -36,6 +36,32 @@ function getResourceInfo(resource: string) {
   return resourceData[resource as keyof typeof resourceData] || { symbol: '💎', name: resource, color: '#808080' };
 }
 
+// Composant pour les informations de colonie
+function ColonyInfoSection({ selectedHex }: { selectedHex: HexTile }) {
+  const { novaImperiums } = useNovaImperium();
+  
+  // Chercher une colonie à cette position
+  const colony = novaImperiums.flatMap(ni => ni.cities).find(city => city.x === selectedHex.x && city.y === selectedHex.y);
+  
+  if (!colony) return null;
+  
+  return (
+    <div className="bg-blue-50 border border-blue-700 rounded p-2 mb-3">
+      <div className="text-blue-900 font-semibold mb-2">🏘️ Colonie: {colony.name}</div>
+      <div className="text-blue-800 text-sm space-y-1">
+        <div>Population: {colony.population}/{colony.populationCap}</div>
+        <div>Production/tour: {colony.foodPerTurn} nourriture, {colony.productionPerTurn} production</div>
+        <div className="font-medium">Bâtiments:</div>
+        <div className="ml-2">
+          {colony.buildings.map((building, index) => (
+            <div key={index} className="text-xs">• {building}</div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Composant séparé pour éviter les problèmes de hooks
 function ResourceInfoSection({ selectedHex }: { selectedHex: HexTile }) {
   const { getCompetenceLevel, isResourceDiscovered } = usePlayer();
@@ -313,6 +339,9 @@ export function TileInfoPanel() {
           Coordonnées: ({selectedHex.x}, {selectedHex.y})
         </div>
       </div>
+
+      {/* Colony Information */}
+      <ColonyInfoSection selectedHex={selectedHex} />
 
       {/* Territory Information */}
       <TerritoryInfoSection selectedHex={selectedHex} />
