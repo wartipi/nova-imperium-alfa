@@ -416,7 +416,7 @@ export function MedievalHUD() {
       </div>
 
       {/* Shield Emblem - Character Display - Positioned in empty space between banner and player info */}
-      <div className="absolute top-24 right-32 pointer-events-auto">
+      <div className="absolute top-20 right-40 pointer-events-auto">
         <div 
           className="w-16 h-20 bg-gradient-to-b from-amber-200 to-amber-300 border-2 border-amber-800 rounded-t-full rounded-b-sm shadow-lg flex items-center justify-center cursor-pointer hover:bg-gradient-to-b hover:from-amber-300 hover:to-amber-400 transition-colors"
           onClick={(e) => {
