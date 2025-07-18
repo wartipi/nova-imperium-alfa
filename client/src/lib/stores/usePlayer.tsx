@@ -46,9 +46,9 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   // Action Points - starts with 25 AP and max of 100
   actionPoints: 25,
   maxActionPoints: 100,
-  // Avatar defaults - start at hex (3,3) in world coordinates
+  // Avatar defaults - start at hex (3,3) in world coordinates  
   avatarPosition: { x: 3 * 1.5, y: 0, z: 3 * Math.sqrt(3) * 0.5 },
-  avatarRotation: { x: 0, y: 0, z: 0 },
+  avatarRotation: { x: 0, y: 0, z: 0 }, // Always faces forward
   isMoving: false,
   movementSpeed: 2,
   // Vision system - fog of war
@@ -89,10 +89,8 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     // console.log('Moving avatar from hex:', Math.round(state.avatarPosition.x / 1.5), Math.round(state.avatarPosition.z / (Math.sqrt(3) * 0.5)));
     // console.log('Moving avatar to hex:', hexX, hexY);
     
-    // Calculate rotation to face movement direction
-    const deltaX = worldX - state.avatarPosition.x;
-    const deltaZ = worldZ - state.avatarPosition.z;
-    const rotation = Math.atan2(deltaX, deltaZ);
+    // Keep avatar facing forward (no rotation)
+    // Avatar stays upright during movement
     
     // Update visible hexes around new position - keep previously explored hexes
     const newVisibleHexes = new Set(state.visibleHexes);
@@ -126,7 +124,7 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     
     set({ 
       avatarPosition: { x: worldX, y: 0, z: worldZ },
-      avatarRotation: { x: 0, y: rotation, z: 0 },
+      avatarRotation: { x: 0, y: 0, z: 0 }, // Keep avatar facing forward
       isMoving: false, // Instant movement for testing
       visibleHexes: newVisibleHexes
     });

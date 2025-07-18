@@ -225,6 +225,8 @@ Preferred communication style: Simple, everyday language.
 - Fixed vision system coordinate conversion and avatar positioning accuracy
 - Fog of war now correctly follows avatar movement with proper hex-based vision calculation
 - Avatar positioning system corrected to snap precisely to clicked hex coordinates
+- Differentiated fog of war: current vision (normal colors) vs explored areas (dimmed with overlay)
+- Avatar rotation disabled - always faces forward during movement for consistent orientation
 
 ### Action Points System (January 17, 2025)
 - Replaced "production" with "action points" throughout the resource system
