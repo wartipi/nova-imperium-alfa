@@ -6,6 +6,7 @@ import { useGameState } from "./lib/stores/useGameState";
 import { useMap } from "./lib/stores/useMap";
 import { useNovaImperium } from "./lib/stores/useNovaImperium";
 import { useAudio } from "./lib/stores/useAudio";
+import { usePlayer } from "./lib/stores/usePlayer";
 import { GameEngineProvider } from "./lib/contexts/GameEngineContext";
 import "@fontsource/inter";
 import "./index.css";
@@ -29,6 +30,12 @@ function GameApp() {
     generateMap(50, 30); // Generate 50x30 hex map
     initializeNovaImperiums();
     initializeGame();
+    
+    // Initialize avatar vision system
+    setTimeout(() => {
+      const { initializeVision } = usePlayer.getState();
+      initializeVision();
+    }, 100);
   }, []);
 
   if (gamePhase === "loading") {

@@ -49,7 +49,7 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   isMoving: false,
   movementSpeed: 2,
   // Vision system - fog of war
-  visibleHexes: new Set(['5,5']), // Start with avatar position visible
+  visibleHexes: new Set(), // Will be initialized by initializeVision
   visionRange: 1, // Can see 1 hex around avatar
   isGameMaster: false, // Only game master sees full map
   setSelectedCharacter: (character) => set({ selectedCharacter: character }),
@@ -89,14 +89,23 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     
     // Update visible hexes around new position
     const newVisibleHexes = new Set(state.visibleHexes);
+    
+    // Add hexes in a circular pattern around the avatar
     for (let dx = -state.visionRange; dx <= state.visionRange; dx++) {
       for (let dy = -state.visionRange; dy <= state.visionRange; dy++) {
+        // Use Manhattan distance for hex vision
         const distance = Math.abs(dx) + Math.abs(dy);
         if (distance <= state.visionRange) {
-          newVisibleHexes.add(`${hexX + dx},${hexY + dy}`);
+          const newHexX = hexX + dx;
+          const newHexY = hexY + dy;
+          if (newHexX >= 0 && newHexY >= 0) { // Basic bounds check
+            newVisibleHexes.add(`${newHexX},${newHexY}`);
+          }
         }
       }
     }
+    
+    console.log('Avatar moved to hex:', hexX, hexY, 'Visible hexes:', newVisibleHexes.size);
     
     set({ 
       avatarPosition: { x: worldX, y: 0, z: worldZ },
@@ -125,11 +134,40 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   
   isHexVisible: (hexX, hexY) => {
     const state = get();
-    return state.isGameMaster || state.visibleHexes.has(`${hexX},${hexY}`);
+    const isVisible = state.isGameMaster || state.visibleHexes.has(`${hexX},${hexY}`);
+    // console.log(`Hex ${hexX},${hexY} visible:`, isVisible, 'GM:', state.isGameMaster);
+    return isVisible;
   },
   
   setGameMaster: (isGM) => {
     console.log('Setting game master mode:', isGM);
     set({ isGameMaster: isGM });
+  },
+  
+  // Initialize avatar vision at starting position
+  initializeVision: () => {
+    const state = get();
+    // Convert world coordinates back to hex coordinates  
+    const hexX = Math.round(state.avatarPosition.x / 1.5);
+    const hexY = Math.round(state.avatarPosition.z / (Math.sqrt(3) * 0.5));
+    
+    const newVisibleHexes = new Set();
+    
+    // Add initial vision around starting position
+    for (let dx = -state.visionRange; dx <= state.visionRange; dx++) {
+      for (let dy = -state.visionRange; dy <= state.visionRange; dy++) {
+        const distance = Math.abs(dx) + Math.abs(dy);
+        if (distance <= state.visionRange) {
+          const newHexX = hexX + dx;
+          const newHexY = hexY + dy;
+          if (newHexX >= 0 && newHexY >= 0) {
+            newVisibleHexes.add(`${newHexX},${newHexY}`);
+          }
+        }
+      }
+    }
+    
+    console.log('Initialized vision at hex:', hexX, hexY, 'Visible hexes:', newVisibleHexes.size);
+    set({ visibleHexes: newVisibleHexes });
   }
 }));
