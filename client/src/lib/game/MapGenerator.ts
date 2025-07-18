@@ -50,7 +50,6 @@ export class MapGenerator {
   static generateMap(width: number, height: number): HexTile[][] {
     const map: HexTile[][] = [];
     
-    // Initialize entire map as deep water first
     for (let y = 0; y < height; y++) {
       const row: HexTile[] = [];
       for (let x = 0; x < width; x++) {
@@ -73,27 +72,19 @@ export class MapGenerator {
       map.push(row);
     }
     
-    // Generate many small islands scattered across the archipelago
     this.generateArchipelagoIslands(map, width, height);
-    
-    // Add rivers to land masses
     this.addRivers(map, width, height);
-    
-    // Add resources
     this.addResources(map, width, height);
     
     return map;
   }
 
   private static generateArchipelagoIslands(map: HexTile[][], width: number, height: number) {
-    // Create many small islands (1-4 tiles each) scattered everywhere
-    const numIslands = Math.floor((width * height) / 25); // About 1 island per 25 tiles
+    const numIslands = Math.floor((width * height) / 25);
     
     for (let i = 0; i < numIslands; i++) {
       const centerX = Math.floor(Math.random() * width);
       const centerY = Math.floor(Math.random() * height);
-      
-      // Small island size (1-3 tiles radius)
       const islandSize = 1 + Math.floor(Math.random() * 3);
       
       this.generateSmallIsland(map, width, height, centerX, centerY, islandSize);
@@ -101,7 +92,6 @@ export class MapGenerator {
   }
 
   private static generateSmallIsland(map: HexTile[][], width: number, height: number, centerX: number, centerY: number, maxRadius: number) {
-    // Temperature and moisture for this island
     const temperature = Math.random();
     const moisture = Math.random();
     

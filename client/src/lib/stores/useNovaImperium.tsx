@@ -236,24 +236,16 @@ export const useNovaImperium = create<NovaImperiumState>()(
     
     attackWithUnit: (unitId: string, targetX: number, targetY: number) => {
       console.log(`Unit ${unitId} attacking position (${targetX}, ${targetY})`);
-      // Implement combat logic
     },
     
     buildInCity: (cityId: string, buildingType: string, resourceCost?: Record<string, number>, constructionTime?: number) => {
       const buildingCosts = {
-        // Basic buildings
         granary: 60, library: 90, barracks: 80, market: 100,
-        // Transport/Commercial
         port: 80, road: 40, shipyard: 120,
-        // Agriculture/Nature
         farm: 50, sawmill: 70, garden: 60,
-        // Defense/Military
         fortress: 150, watchtower: 80, fortifications: 120,
-        // Culture/Knowledge
         temple: 120, sanctuary: 100, obelisk: 80,
-        // Magic/Special
         mystic_portal: 200, legendary_forge: 180, laboratory: 160,
-        // Ancient/Ruins
         ancient_hall: 140, underground_base: 130, cave_dwelling: 90
       };
       
@@ -263,7 +255,6 @@ export const useNovaImperium = create<NovaImperiumState>()(
         const updatedNIs = state.novaImperiums.map(ni => 
           ni.id === state.currentNovaImperiumId ? {
             ...ni,
-            // Deduct resources if cost is provided
             resources: resourceCost ? {
               ...ni.resources,
               ...Object.fromEntries(
@@ -298,28 +289,20 @@ export const useNovaImperium = create<NovaImperiumState>()(
     
     trainUnit: (cityId: string, unitType: string, cost?: Record<string, number>, recruitmentTime?: number) => {
       const unitCosts = {
-        // Basic Infantry
         warrior: 40, spearman: 60, swordsman: 80,
-        // Ranged Units
         archer: 50, crossbowman: 70,
-        // Siege Units
         catapult: 120, trebuchet: 150,
-        // Cavalry
         horseman: 100, knight: 140,
-        // Naval Units
         galley: 90, warship: 130,
-        // Special Units
         scout: 30, settler: 100, diplomat: 80, spy: 90
       };
       
-      const oldCost = unitCosts[unitType as keyof typeof unitCosts] || 40;
       const duration = recruitmentTime || 1;
       
       set(state => {
         const updatedNIs = state.novaImperiums.map(ni => 
           ni.id === state.currentNovaImperiumId ? {
             ...ni,
-            // Deduct resources if cost is provided
             resources: cost ? {
               ...ni.resources,
               ...Object.fromEntries(
@@ -371,12 +354,9 @@ export const useNovaImperium = create<NovaImperiumState>()(
             }))
           };
           
-          // Process cities
           updatedNI.cities.forEach(city => {
-            // Add resources - only for food now
             updatedNI.resources.food += city.foodPerTurn;
             
-            // Process production
             if (city.currentProduction) {
               city.productionProgress += city.productionPerTurn;
               
@@ -388,7 +368,6 @@ export const useNovaImperium = create<NovaImperiumState>()(
             }
           });
           
-          // Process AI turns
           if (!ni.isPlayer) {
             AI.processTurn(updatedNI);
           }

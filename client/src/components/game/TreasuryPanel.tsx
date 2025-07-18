@@ -1,7 +1,6 @@
 import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { BuildingType } from "../../lib/game/types";
 
-// Define building costs and maintenance for economics
 const buildingData: Record<BuildingType, { cost: number; maintenance: number; yields: { food?: number; production?: number; science?: number; culture?: number; gold?: number } }> = {
   palace: { cost: 0, maintenance: 0, yields: { culture: 1, gold: 1 } },
   granary: { cost: 60, maintenance: 1, yields: { food: 2 } },
@@ -35,7 +34,6 @@ export function TreasuryPanel() {
         <h4 className="font-bold text-base mb-3">Trésorerie</h4>
       </div>
       
-      {/* Current Stockpile */}
       <div className="bg-gradient-to-b from-amber-200 to-amber-300 border-2 border-amber-800 rounded-lg p-4">
         <div className="text-center mb-3">
           <h5 className="font-bold text-amber-900">Réserves Actuelles</h5>
@@ -64,7 +62,6 @@ export function TreasuryPanel() {
           </div>
         </div>
         
-        {/* Strategic Resources */}
         <div className="mt-3 pt-3 border-t border-amber-600">
           <div className="text-center mb-2">
             <h6 className="font-bold text-xs text-amber-800">📦 Ressources Stratégiques</h6>

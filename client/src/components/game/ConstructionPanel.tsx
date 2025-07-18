@@ -15,13 +15,11 @@ export function ConstructionPanel() {
   if (!currentNovaImperium) return null;
 
   const buildings = [
-    // Transport/Commercial (Blue) - 2-5 tours
     { id: 'port', name: 'Port', cost: { wood: 15, stone: 10, gold: 20 }, constructionTime: 4, description: 'Permet le commerce maritime', icon: '🚢', category: 'Transport' },
     { id: 'market', name: 'Marché', cost: { wood: 10, gold: 25, food: 5 }, constructionTime: 3, description: 'Augmente les revenus commerciaux', icon: '🏪', category: 'Transport' },
     { id: 'road', name: 'Route', cost: { stone: 8, gold: 12 }, constructionTime: 2, description: 'Améliore les déplacements', icon: '🛤️', category: 'Transport' },
     { id: 'shipyard', name: 'Chantier Naval', cost: { wood: 20, iron: 8, gold: 15 }, constructionTime: 5, description: 'Construit des navires', icon: '⚓', category: 'Transport' },
     
-    // Agriculture/Nature (Green) - 1-3 tours
     { id: 'farm', name: 'Ferme', cost: { wood: 8, stone: 5, food: 10 }, constructionTime: 2, description: 'Augmente la production alimentaire', icon: '🚜', category: 'Agriculture' },
     { id: 'sawmill', name: 'Scierie', cost: { wood: 12, iron: 6, stone: 4 }, constructionTime: 3, description: 'Exploite les ressources forestières', icon: '🪵', category: 'Agriculture' },
     { id: 'garden', name: 'Jardin', cost: { wood: 6, stone: 3, food: 8 }, constructionTime: 1, description: 'Améliore la beauté et la nourriture', icon: '🌻', category: 'Agriculture' },

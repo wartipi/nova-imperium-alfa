@@ -29,7 +29,6 @@ export const useGameState = create<GameState>()(
     
     initializeGame: () => {
       set({ gamePhase: "loading" });
-      // Simulate initialization time
       setTimeout(() => {
         set({ gamePhase: "playing", currentTurn: 1 });
       }, 1000);
@@ -42,8 +41,6 @@ export const useGameState = create<GameState>()(
     endTurn: () => {
       const { currentTurn } = get();
       set({ currentTurn: currentTurn + 1 });
-      
-      // Trigger AI turns and game updates
       console.log(`Turn ${currentTurn + 1} started`);
     },
     
@@ -63,12 +60,12 @@ export const useGameState = create<GameState>()(
         timestamp: Date.now()
       };
       
-      localStorage.setItem('civ_save', JSON.stringify(saveData));
+      localStorage.setItem('nova_imperium_save', JSON.stringify(saveData));
       console.log('Game saved');
     },
     
     loadGame: () => {
-      const saveData = localStorage.getItem('civ_save');
+      const saveData = localStorage.getItem('nova_imperium_save');
       if (saveData) {
         const parsed = JSON.parse(saveData);
         set({ 

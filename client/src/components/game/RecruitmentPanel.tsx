@@ -14,7 +14,6 @@ export function RecruitmentPanel() {
   if (!currentNovaImperium) return null;
 
   const units = [
-    // Basic Infantry - 1-3 tours
     { id: 'warrior', name: 'Guerrier', cost: { food: 10, iron: 5, gold: 8 }, recruitmentTime: 2, description: 'Unité de base au corps à corps', icon: '⚔️', strength: 4, category: 'Infanterie' },
     { id: 'spearman', name: 'Lancier', cost: { food: 12, iron: 8, wood: 4 }, recruitmentTime: 2, description: 'Unité défensive contre la cavalerie', icon: '🗡️', strength: 5, category: 'Infanterie' },
     { id: 'swordsman', name: 'Épéiste', cost: { food: 15, iron: 12, gold: 10 }, recruitmentTime: 3, description: 'Guerrier amélioré avec épée', icon: '🗡️', strength: 7, category: 'Infanterie' },

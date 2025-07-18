@@ -13,15 +13,12 @@ export class GameEngine {
   private isDragging = false;
   private lastMouseX = 0;
   private lastMouseY = 0;
-  // Player avatar properties
   private avatarPosition: { x: number; y: number; z: number } = { x: 5, y: 0, z: 5 };
   private avatarRotation: { x: number; y: number; z: number } = { x: 0, y: 0, z: 0 };
   private isAvatarMoving = false;
   private selectedCharacter: any = null;
-  // Vision system
   private isHexVisible: ((x: number, y: number) => boolean) | null = null;
   private isHexInCurrentVision: ((x: number, y: number) => boolean) | null = null;
-  // Movement preview
   private pendingMovement: { x: number; y: number } | null = null;
 
   constructor(canvas: HTMLCanvasElement, mapData: HexTile[][]) {
@@ -29,15 +26,12 @@ export class GameEngine {
     this.ctx = canvas.getContext('2d')!;
     this.mapData = mapData;
     
-    // Set initial camera position to center of map
     this.cameraX = (mapData[0].length * this.hexSize * 1.5) / 2;
     this.cameraY = (mapData.length * this.hexSize * Math.sqrt(3)) / 2;
     
-    // Set up canvas
     this.resizeCanvas();
     window.addEventListener('resize', () => this.resizeCanvas());
     
-    // Set up mouse wheel zoom
     this.canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
       const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
@@ -45,9 +39,8 @@ export class GameEngine {
       this.render();
     });
 
-    // Add mouse drag controls for camera movement
     this.canvas.addEventListener('mousedown', (e) => {
-      if (e.button === 0) { // Left mouse button
+      if (e.button === 0) {
         this.isDragging = true;
         this.lastMouseX = e.clientX;
         this.lastMouseY = e.clientY;
