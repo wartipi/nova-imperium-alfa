@@ -214,6 +214,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
           // Créer les données de tuiles basées sur le champ de vision complet du joueur
           const { getCompetenceLevel, isResourceDiscovered } = usePlayer.getState();
           const cartographyLevel = getCompetenceLevel('cartography');
+          const explorationLevel = getCompetenceLevel('exploration');
           
           const cartographyTiles = Array.from(currentVision).map((hexCoord: string) => {
             const [x, y] = hexCoord.split(',').map(Number);
@@ -223,7 +224,6 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
             let includeResources = [];
             if (cartographyLevel >= 2 && tileData?.resource) {
               const hexResourceDiscovered = isResourceDiscovered(x, y);
-              const explorationLevel = getCompetenceLevel('exploration');
               
               // Inclure la ressource seulement si elle est visible par le joueur
               if (hexResourceDiscovered && explorationLevel >= 1) {
@@ -239,20 +239,27 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
             };
           });
 
-          const explorationLevel = getCompetenceLevel('exploration');
+          // Comptage des ressources pour déterminer le type de carte
+          const resourceCount = cartographyTiles.filter(tile => tile.resources.length > 0).length;
+          const hasResources = resourceCount > 0;
+          
+          // Générer un nom unique qui différencie les cartes avec/sans ressources
+          const timestamp = Date.now();
+          const mapSuffix = cartographyLevel >= 2 && hasResources ? '-avec-ressources' : '-terrain';
+          const mapName = `Carte-Region-${avatarPosition.x}-${avatarPosition.y}${mapSuffix}-${timestamp}`;
           
           const response = await fetch('/api/unique-items/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              name: `Carte-Region-${avatarPosition.x}-${avatarPosition.y}`,
+              name: mapName,
               type: "carte",
               rarity: cartographyLevel >= 2 ? (cartographyTiles.length > 15 ? "epique" : "rare") : (cartographyTiles.length > 15 ? "rare" : "commun"),
-              description: `Carte de la région autour de (${avatarPosition.x},${avatarPosition.y}) - ${cartographyTiles.length} hexagones${cartographyLevel >= 2 ? ' (avec ressources)' : ''}`,
+              description: `Carte de la région autour de (${avatarPosition.x},${avatarPosition.y}) - ${cartographyTiles.length} hexagones${cartographyLevel >= 2 && hasResources ? ` (${resourceCount} ressources incluses)` : ' (terrain seulement)'}`,
               ownerId: "player",
               effects: ["navigation_locale"],
               requirements: ["cartography_level_1"],
-              value: cartographyTiles.length * (cartographyLevel >= 2 ? 25 : 15),
+              value: cartographyTiles.length * (cartographyLevel >= 2 && hasResources ? 25 : 15),
               metadata: {
                 mapData: {
                   region: {
@@ -262,12 +269,13 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
                     tiles: cartographyTiles
                   },
                   quality: cartographyLevel >= 2 ? "masterwork" : explorationLevel >= 2 ? "detailed" : "rough",
-                  includesResources: cartographyLevel >= 2,
+                  includesResources: cartographyLevel >= 2 && hasResources,
                   accuracy: 100,
                   createdAt: Date.now(),
                   exploredBy: "player",
                   visionRange: explorationLevel,
-                  hexCount: cartographyTiles.length
+                  hexCount: cartographyTiles.length,
+                  resourcesCount: resourceCount
                 }
               }
             })
@@ -275,9 +283,9 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
           
           if (response.ok) {
             const newItem = await response.json();
-            const resourceCount = cartographyTiles.filter(tile => tile.resources.length > 0).length;
-            const resourceText = cartographyLevel >= 2 && resourceCount > 0 ? ` (${resourceCount} ressources incluses)` : '';
-            alert(`Carte "${newItem.name}" créée avec succès ! ${cartographyTiles.length} hexagones cartographiés${resourceText}. Consultez votre inventaire.`);
+            const resourceText = cartographyLevel >= 2 && hasResources ? ` (${resourceCount} ressources incluses)` : '';
+            const mapTypeText = cartographyLevel >= 2 && hasResources ? 'avec ressources' : 'terrain de base';
+            alert(`Carte "${newItem.name}" créée avec succès ! ${cartographyTiles.length} hexagones cartographiés${resourceText}. Type: ${mapTypeText}. Consultez votre inventaire.`);
           } else {
             alert('Erreur lors de la création de la carte');
           }

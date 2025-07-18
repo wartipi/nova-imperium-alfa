@@ -197,7 +197,8 @@ Preferred communication style: Simple, everyday language.
 - **Level 1 Cartography Implementation (January 18, 2025)**: Avatar action "Cartographier" creates real map objects with terrain data from field of vision (7 hexagons)
 - **Hexagonal Map Visualization (January 18, 2025)**: MapViewer component updated to display maps as hexagons matching main game display instead of square tiles
 - **Real Map Data Integration (January 18, 2025)**: Maps now contain actual terrain types and coordinates from game world, making them authentic tradeable cartographic documents
-- **Level 2+ Cartography Enhancement (January 18, 2025)**: Maps created with cartography level 2+ now include visible resources if player has discovered them through exploration. Enhanced map quality ("masterwork"), higher rarity (épique/rare), increased value (25 gold per hexagon vs 15), and confirmation message shows resource count included in map
+- **Level 2+ Cartography Enhancement (January 18, 2025)**: Maps created with cartography level 2+ now include visible resources if player has discovered them through exploration. Enhanced map quality ("masterwork"), higher rarity (épique/rare), increased value (25 gold per hexagon vs 15), and confirmation message
+- **Cartography Duplicate Region Fix (January 18, 2025)**: Fixed issue where players couldn't cartograph the same area multiple times. Now supports creating both terrain-only maps (level 1) and resource maps (level 2+) of the same region. Each map has unique timestamp and type suffix to distinguish between versions. shows resource count included in map
 
 ### Player Avatar System (January 17, 2025)
 - Implemented 8-bit style 2D avatar system for player representation in the world
