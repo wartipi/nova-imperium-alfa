@@ -234,7 +234,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Level & Experience System Implementation (January 18, 2025)
 - **Complete Level/Experience System**: Replaced rank-based progression with dynamic level advancement
-- **Experience Gain Mechanics**: Movement and avatar actions award experience based on difficulty/cost
+- **Experience Gain Mechanics**: Avatar actions award experience based on difficulty/cost (movement XP disabled per user request)
 - **Visual XP Display**: Player info panel shows current level, XP bar, and progress to next level
 - **Level-Up Rewards**: Each level grants 1 competence point + 5 max Action Points
 - **Automatic Notifications**: Visual level-up celebration with animated popup showing rewards
@@ -242,7 +242,7 @@ Preferred communication style: Simple, everyday language.
 - **Upgrade Cost System**: Competence upgrades cost 1-3 points depending on current level
 - **Cost Categories**: Political/Occult (expensive), Military/Strategic (medium), Economic (cheap)
 - **Future-Ready**: System prepared for prerequisite levels between competences
-- **User Confirmed**: XP gain functional, level progression working, competence costs balanced
+- **User Confirmed**: XP gain functional, level progression working, competence costs balanced, movement XP removed
 
 ### Complete System Unification & Bug Fixes (January 18, 2025)
 - **Fixed Exploration Level 2 Vision**: Implemented proper radius-2 hex calculation (19 hexagons total)
