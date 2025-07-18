@@ -7,13 +7,15 @@ import { getBuildingCost, canAffordAction } from "../../lib/game/ActionPointsCos
 import { getBuildingAPGeneration, getBuildingMaxAPIncrease } from "../../lib/game/ActionPointsGeneration";
 import { Resources } from "../../lib/game/types";
 import { TerritorySystem } from "../../lib/systems/TerritorySystem";
+import { useMap } from "../../lib/stores/useMap";
 import { useState } from "react";
 
 export function ConstructionPanel() {
-  const { currentNovaImperium, buildInCity } = useNovaImperium();
+  const { currentNovaImperium, buildInCity, addCity } = useNovaImperium();
   const { actionPoints, spendActionPoints } = usePlayer();
   const { playerFaction, getFactionById } = useFactions();
   const { isGameMaster } = useGameState();
+  const { selectedHex } = useMap();
   const [hoveredBuilding, setHoveredBuilding] = useState<string | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
 
@@ -687,12 +689,71 @@ export function ConstructionPanel() {
     // Cas spécial pour fonder une colonie
     if (buildingId === 'found_colony') {
       if (isGameMaster || canAffordBuilding(buildingId)) {
+        if (!selectedHex) {
+          alert('Veuillez sélectionner un hexagone sur la carte pour fonder la colonie');
+          return;
+        }
+
+        // Vérifier si l'hexagone est sur terre
+        const gameEngine = (window as any).gameEngine;
+        if (gameEngine && gameEngine.map) {
+          const hex = gameEngine.map.getHex(selectedHex.x, selectedHex.y);
+          if (hex?.terrain === 'shallow_water' || hex?.terrain === 'deep_water') {
+            alert('Impossible de fonder une colonie sur l\'eau. Sélectionnez un hexagone terrestre.');
+            return;
+          }
+        }
+
+        // Vérifier si il y a déjà une ville sur cet hexagone
+        const existingCity = currentNovaImperium?.cities.find(city => city.x === selectedHex.x && city.y === selectedHex.y);
+        if (existingCity) {
+          alert(`Il y a déjà une ville (${existingCity.name}) sur cet hexagone.`);
+          return;
+        }
+
+        // En mode normal, vérifier le territoire
         if (!isGameMaster) {
+          const territoryOwner = TerritorySystem.isTerritoryClaimed(selectedHex.x, selectedHex.y);
+          if (!territoryOwner || territoryOwner.factionId !== playerFaction) {
+            alert('Vous devez d\'abord revendiquer ce territoire avec votre faction pour y fonder une colonie.');
+            return;
+          }
           spendActionPoints(15);
         }
-        // Logique pour fonder une colonie (à implémenter avec TerritorySystem)
-        console.log('Fondation de colonie demandée - à implémenter avec TerritorySystem');
-        alert('Fondation de colonie : fonctionnalité à implémenter prochainement !');
+
+        // Créer la nouvelle ville
+        const newCity = {
+          id: `city_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          name: isGameMaster ? `Colonie MJ ${selectedHex.x}-${selectedHex.y}` : `Nouvelle Colonie`,
+          population: 1,
+          buildings: [],
+          currentProduction: null,
+          productionProgress: 0,
+          x: selectedHex.x,
+          y: selectedHex.y
+        };
+
+        // Ajouter la ville au système Nova Imperium
+        addCity(newCity);
+        
+        // Si c'est un joueur normal (pas MJ), créer aussi une colonie dans le TerritorySystem
+        if (!isGameMaster && playerFaction) {
+          const faction = getFactionById(playerFaction);
+          if (faction) {
+            TerritorySystem.foundColony(
+              selectedHex.x, 
+              selectedHex.y, 
+              newCity.name, 
+              'player', 
+              'Joueur', 
+              playerFaction, 
+              faction.name
+            );
+          }
+        }
+        
+        console.log(`✅ Colonie fondée à (${selectedHex.x}, ${selectedHex.y}):`, newCity.name);
+        alert(`Colonie "${newCity.name}" fondée avec succès à (${selectedHex.x}, ${selectedHex.y}) !`);
       }
       return;
     }

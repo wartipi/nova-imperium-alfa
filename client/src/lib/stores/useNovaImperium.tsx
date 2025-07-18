@@ -18,6 +18,7 @@ interface NovaImperiumState {
   attackWithUnit: (unitId: string, targetX: number, targetY: number) => void;
   buildInCity: (cityId: string, buildingType: string, resourceCost?: Record<string, number>, constructionTime?: number, isGameMaster?: boolean) => void;
   trainUnit: (cityId: string, unitType: string, cost?: Record<string, number>, recruitmentTime?: number) => void;
+  addCity: (city: City) => void;
   foundColony: (x: number, y: number, colonyName: string, playerId: string, playerName: string, factionId: string, factionName: string) => boolean;
   researchTechnology: (techId: string) => void;
   sendDiplomaticProposal: (targetNIId: string, type: string) => void;
@@ -305,6 +306,26 @@ export const useNovaImperium = create<NovaImperiumState>()(
         );
         
         const updatedCurrentNI = updatedNIs.find(ni => ni.id === state.currentNovaImperiumId) || null;
+        
+        return {
+          novaImperiums: updatedNIs,
+          currentNovaImperium: updatedCurrentNI
+        };
+      });
+    },
+    
+    addCity: (city: City) => {
+      set(state => {
+        const updatedNIs = state.novaImperiums.map(ni => 
+          ni.id === state.currentNovaImperiumId ? {
+            ...ni,
+            cities: [...ni.cities, city]
+          } : ni
+        );
+        
+        const updatedCurrentNI = updatedNIs.find(ni => ni.id === state.currentNovaImperiumId) || null;
+        
+        console.log(`✅ Ville ajoutée: ${city.name} à (${city.x}, ${city.y})`);
         
         return {
           novaImperiums: updatedNIs,
