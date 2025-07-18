@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMap } from '../../lib/stores/useMap';
 import { usePlayer } from '../../lib/stores/usePlayer';
 import { useFactions } from '../../lib/stores/useFactions';
+import { useGameState } from '../../lib/stores/useGameState';
 import { TerritorySystem } from '../../lib/systems/TerritorySystem';
 import { Button } from '../ui/button';
 
@@ -13,6 +14,7 @@ export function TerritoryClaimPanel({ onClose }: TerritoryClaimPanelProps) {
   const { selectedHex } = useMap();
   const { getCompetenceLevel, spendActionPoints, actionPoints } = usePlayer();
   const { playerFaction, getFactionById } = useFactions();
+  const { isGameMaster } = useGameState();
   const [isLoading, setIsLoading] = useState(false);
   const [showColonyForm, setShowColonyForm] = useState(false);
   const [colonyName, setColonyName] = useState('');
@@ -32,33 +34,43 @@ export function TerritoryClaimPanel({ onClose }: TerritoryClaimPanelProps) {
   const influenceLevel = getCompetenceLevel('local_influence');
   const currentFaction = playerFaction ? getFactionById(playerFaction) : null;
   const existingClaim = TerritorySystem.isTerritoryClaimed(selectedHex.x, selectedHex.y);
-  const canClaim = TerritorySystem.canClaimTerritory('player', influenceLevel, playerFaction);
+  const canClaim = TerritorySystem.canClaimTerritory('player', influenceLevel, playerFaction, isGameMaster);
 
   const handleClaimTerritory = async () => {
-    if (!canClaim || !currentFaction) return;
+    if (!canClaim) return;
+    
+    // En mode MJ, pas besoin de faction
+    if (!isGameMaster && !currentFaction) return;
 
     setIsLoading(true);
     try {
-      // Coût : 10 PA pour revendiquer un territoire
+      // Coût : 10 PA pour revendiquer un territoire (sauf en mode MJ)
       const claimCost = 10;
-      if (actionPoints < claimCost) {
+      if (!isGameMaster && actionPoints < claimCost) {
         alert('Pas assez de Points d\'Action (10 PA requis)');
         return;
       }
 
-      const success = spendActionPoints(claimCost);
+      const success = isGameMaster || spendActionPoints(claimCost);
       if (success) {
+        // En mode MJ, créer une faction temporaire si nécessaire
+        const factionId = currentFaction?.id || 'gm_faction';
+        const factionName = currentFaction?.name || 'Faction MJ';
+        
         const claimed = TerritorySystem.claimTerritory(
           selectedHex.x,
           selectedHex.y,
           'player',
           'Joueur', // TODO: get actual player name
-          currentFaction.id,
-          currentFaction.name
+          factionId,
+          factionName
         );
 
         if (claimed) {
-          alert(`Territoire revendiqué pour ${currentFaction.name} !`);
+          if (isGameMaster) {
+            console.log(`[MODE MJ] Territoire revendiqué sans coût en PA`);
+          }
+          alert(`Territoire revendiqué pour ${factionName} !`);
           onClose();
         } else {
           alert('Échec de la revendication');

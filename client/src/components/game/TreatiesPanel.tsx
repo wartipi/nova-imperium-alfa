@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "../ui/button";
 import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { usePlayer } from "../../lib/stores/usePlayer";
+import { useGameState } from "../../lib/stores/useGameState";
 import { useQueryClient } from "@tanstack/react-query";
 
 type TreatyType = 
@@ -66,6 +67,7 @@ interface TreatyTypeInfo {
 export function TreatiesPanel() {
   const { currentNovaImperium, novaImperiums } = useNovaImperium();
   const { actionPoints, spendActionPoints, getCompetenceLevel } = usePlayer();
+  const { isGameMaster } = useGameState();
   const queryClient = useQueryClient();
   const [treaties, setTreaties] = useState<Treaty[]>([]);
   const [treatyTypes, setTreatyTypes] = useState<TreatyTypeInfo[]>([]);
@@ -93,7 +95,7 @@ export function TreatiesPanel() {
   
   // Vérifier le niveau de compétence "Connaissance des traités"
   const treatyKnowledgeLevel = getCompetenceLevel('connaissance_des_traites');
-  const canCreateTreaties = treatyKnowledgeLevel >= 1;
+  const canCreateTreaties = isGameMaster || treatyKnowledgeLevel >= 1;
 
   // Charger les traités et types au démarrage
   useEffect(() => {
@@ -162,7 +164,8 @@ export function TreatiesPanel() {
   const createTreaty = async () => {
     if (!treatyTitle.trim() || !treatyTerms.trim() || selectedParties.length === 0) return;
     
-    if (actionPoints < treatyCost) {
+    // En mode MJ, pas de vérification de PA
+    if (!isGameMaster && actionPoints < treatyCost) {
       alert(`Pas assez de Points d'Action pour créer un traité (${treatyCost} PA requis)`);
       return;
     }
@@ -191,7 +194,12 @@ export function TreatiesPanel() {
       });
 
       if (response.ok) {
-        spendActionPoints(treatyCost);
+        // En mode MJ, on ne dépense pas de PA
+        if (!isGameMaster) {
+          spendActionPoints(treatyCost);
+        } else {
+          console.log(`[MODE MJ] Traité créé sans coût en PA`);
+        }
         setActiveTab('overview');
         setTreatyTitle('');
         setTreatyTerms('');
@@ -255,8 +263,13 @@ export function TreatiesPanel() {
       <div className="text-center">
         <h4 className="font-bold text-base mb-3">Traités & Accords</h4>
         <div className="text-xs text-gray-600">
-          Points d'Action: {actionPoints} ⚡
+          Points d'Action: {isGameMaster ? '∞ (Mode MJ)' : `${actionPoints} ⚡`}
         </div>
+        {isGameMaster && (
+          <div className="text-xs text-green-600 font-medium">
+            🎯 Mode Maître de Jeu: Création de traités sans coût
+          </div>
+        )}
       </div>
 
       {/* Navigation par onglets */}

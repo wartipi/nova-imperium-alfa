@@ -48,7 +48,13 @@ export class TerritorySystem {
   private static colonies: Colony[] = [];
 
   // Requirements pour revendiquer un territoire
-  static canClaimTerritory(playerId: string, playerInfluenceLevel: number, playerFactionId: string | null): boolean {
+  static canClaimTerritory(playerId: string, playerInfluenceLevel: number, playerFactionId: string | null, isGameMaster: boolean = false): boolean {
+    // En mode MJ, pas de prérequis
+    if (isGameMaster) {
+      console.log('✅ [MODE MJ] Revendication autorisée (aucun prérequis)');
+      return true;
+    }
+
     // Prérequis : Influence locale niveau 1 minimum
     if (playerInfluenceLevel < 1) {
       console.log('❌ Revendication impossible: Influence locale niveau 1 requis');
@@ -162,7 +168,13 @@ export class TerritorySystem {
   }
 
   // Vérifier si un joueur peut accéder au menu de construction
-  static canAccessConstructionMenu(playerId: string): boolean {
+  static canAccessConstructionMenu(playerId: string, isGameMaster: boolean = false): boolean {
+    // En mode MJ, accès direct
+    if (isGameMaster) {
+      console.log('✅ [MODE MJ] Accès construction autorisé');
+      return true;
+    }
+
     const playerColonies = this.getPlayerColonies(playerId);
     return playerColonies.length > 0;
   }

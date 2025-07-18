@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { usePlayer } from "../../lib/stores/usePlayer";
 import { useReputation } from "../../lib/stores/useReputation";
+import { useGameState } from "../../lib/stores/useGameState";
 import { Card } from "../ui/card";
 
 interface AvatarActionMenuProps {
@@ -22,6 +23,7 @@ const getGameData = () => {
 export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarActionMenuProps) {
   const { actionPoints, spendActionPoints, hasCompetenceLevel, competences, gainExperience, exploreCurrentLocation, discoverResourcesInVision } = usePlayer();
   const { reputation } = useReputation();
+  const { isGameMaster } = useGameState();
 
   // Actions de base disponibles pour tous les joueurs
   const baseActions = [
@@ -114,6 +116,9 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
   ];
 
   const isActionAvailable = (action: any) => {
+    // En mode MJ, toutes les actions sont disponibles
+    if (isGameMaster) return true;
+    
     // Vérifier les points d'action
     if (actionPoints < action.cost) return false;
     
@@ -147,6 +152,19 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     }
 
     if (action.id === 'explore_zone') {
+      // En mode MJ, l'exploration réussit toujours
+      if (isGameMaster) {
+        const { currentVision } = usePlayer.getState();
+        const visionSize = currentVision.size;
+        
+        // Forcer l'exploration avec ressources infinies en mode MJ
+        console.log(`[MODE MJ] Exploration forcée sans coût en PA`);
+        discoverResourcesInVision();
+        alert(`[MODE MJ] Zone explorée avec succès ! Les ressources dans votre champ de vision (${visionSize} hexagones) ont été révélées.`);
+        onClose();
+        return;
+      }
+      
       const { getCompetenceLevel, currentVision } = usePlayer.getState();
       const explorationLevel = getCompetenceLevel('exploration');
       const visionSize = currentVision.size;
@@ -164,7 +182,11 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
 
     
     if (action.id === 'create_map') {
-      if (spendActionPoints(action.cost)) {
+      // En mode MJ, on ne dépense pas de PA
+      if (isGameMaster || spendActionPoints(action.cost)) {
+        if (isGameMaster) {
+          console.log(`[MODE MJ] Action cartographie effectuée sans coût en PA`);
+        }
         try {
           // Récupérer le champ de vision actuel du joueur (qui s'adapte au niveau d'exploration)
           const { currentVision } = usePlayer.getState();
@@ -261,8 +283,13 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       return;
     }
     
-    if (spendActionPoints(action.cost)) {
-      console.log(`Action exécutée: ${action.name}`);
+    // En mode MJ, on n'utilise pas de PA pour les autres actions
+    if (isGameMaster || spendActionPoints(action.cost)) {
+      if (isGameMaster) {
+        console.log(`[MODE MJ] Action ${action.name} exécutée sans coût en PA`);
+      } else {
+        console.log(`Action exécutée: ${action.name}`);
+      }
       onClose();
     }
   };
@@ -320,8 +347,13 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
           </div>
           
           <div className="text-sm text-amber-700 mb-4">
-            Points d'Action: {actionPoints}
+            Points d'Action: {isGameMaster ? '∞ (Mode MJ)' : actionPoints}
           </div>
+          {isGameMaster && (
+            <div className="text-xs text-green-600 font-medium mb-4">
+              🎯 Mode Maître de Jeu: Toutes les actions sont accessibles gratuitement
+            </div>
+          )}
           
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {getAllAvailableActions().map((action) => (

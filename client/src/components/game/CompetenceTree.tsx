@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { usePlayer } from '../../lib/stores/usePlayer';
+import { useGameState } from '../../lib/stores/useGameState';
 import { getLearnCost, getUpgradeCost, getCompetenceDescription } from '../../lib/competence/CompetenceCosts';
 
 interface Competence {
@@ -159,6 +160,7 @@ const categoryTitles = {
 
 export function CompetenceTree() {
   const { competences, competencePoints, learnCompetence, upgradeCompetence, getCompetenceLevel } = usePlayer();
+  const { isGameMaster } = useGameState();
   const [selectedCompetence, setSelectedCompetence] = useState<Competence | null>(null);
 
   const availablePoints = competencePoints || 3; // Starting points
@@ -171,6 +173,9 @@ export function CompetenceTree() {
   }, {} as Record<string, Competence[]>);
 
   const canLearnCompetence = (competence: Competence) => {
+    // En mode MJ, on peut toujours apprendre
+    if (isGameMaster) return true;
+    
     const currentLevel = getCompetenceLevel(competence.id);
     if (currentLevel > 0) return false; // Already learned
     
@@ -187,6 +192,12 @@ export function CompetenceTree() {
   };
 
   const canUpgradeCompetence = (competence: Competence) => {
+    // En mode MJ, on peut toujours améliorer (si pas au max)
+    if (isGameMaster) {
+      const currentLevel = getCompetenceLevel(competence.id);
+      return currentLevel > 0 && currentLevel < 4;
+    }
+    
     const currentLevel = getCompetenceLevel(competence.id);
     if (currentLevel === 0 || currentLevel >= 4) return false; // Not learned or max level
     
@@ -216,8 +227,15 @@ export function CompetenceTree() {
     <div className="max-h-[400px] overflow-y-auto">
       <div className="mb-4 text-center">
         <div className="bg-amber-100 border border-amber-300 rounded px-3 py-1 inline-block">
-          <span className="text-amber-900 font-semibold">Points disponibles: {availablePoints}</span>
+          <span className="text-amber-900 font-semibold">
+            Points disponibles: {isGameMaster ? '∞ (Mode MJ)' : availablePoints}
+          </span>
         </div>
+        {isGameMaster && (
+          <div className="mt-2 text-sm text-green-600 font-medium">
+            🎯 Mode Maître de Jeu: Toutes les compétences peuvent être apprises gratuitement
+          </div>
+        )}
       </div>
 
       <div className="space-y-6">

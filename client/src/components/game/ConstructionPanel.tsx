@@ -1,6 +1,7 @@
 import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { usePlayer } from "../../lib/stores/usePlayer";
 import { useFactions } from "../../lib/stores/useFactions";
+import { useGameState } from "../../lib/stores/useGameState";
 import { Button } from "../ui/button";
 import { getBuildingCost, canAffordAction } from "../../lib/game/ActionPointsCosts";
 import { getBuildingAPGeneration, getBuildingMaxAPIncrease } from "../../lib/game/ActionPointsGeneration";
@@ -12,18 +13,19 @@ export function ConstructionPanel() {
   const { currentNovaImperium, buildInCity } = useNovaImperium();
   const { actionPoints, spendActionPoints } = usePlayer();
   const { playerFaction, getFactionById } = useFactions();
+  const { isGameMaster } = useGameState();
   const [hoveredBuilding, setHoveredBuilding] = useState<string | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
 
   if (!currentNovaImperium) return null;
 
   // Vérifier si le joueur peut accéder au menu de construction
-  const canAccessConstruction = TerritorySystem.canAccessConstructionMenu('player');
+  const canAccessConstruction = TerritorySystem.canAccessConstructionMenu('player', isGameMaster);
   const playerColonies = TerritorySystem.getPlayerColonies('player');
   const currentFaction = playerFaction ? getFactionById(playerFaction) : null;
 
-  // Si le joueur n'a pas de colonies, afficher les prérequis
-  if (!canAccessConstruction) {
+  // Si le joueur n'a pas de colonies ET n'est pas MJ, afficher les prérequis
+  if (!canAccessConstruction && !isGameMaster) {
     return (
       <div className="space-y-4">
         <div className="bg-red-50 border border-red-300 rounded p-4">
@@ -576,6 +578,11 @@ export function ConstructionPanel() {
 
   // Vérifier si la colonie peut construire un bâtiment (contrôle du terrain requis)
   const canBuildBuilding = (building: any): { canBuild: boolean; missingTerrain?: string[] } => {
+    // En mode MJ, tous les terrains sont disponibles
+    if (isGameMaster) {
+      return { canBuild: true };
+    }
+    
     // Pour l'instant, on va simuler qu'on a une colonie qui contrôle quelques types de terrain
     // TODO: Intégrer avec le vrai système TerritorySystem et useMap
     const controlledTerrain = ['fertile_land', 'hills', 'forest']; // Simulation
@@ -667,6 +674,9 @@ export function ConstructionPanel() {
     const building = buildings.find(b => b.id === buildingId);
     if (!building || !currentNovaImperium) return false;
     
+    // En mode MJ, on peut toujours construire
+    if (isGameMaster) return true;
+    
     const actionCost = getBuildingCost(buildingId);
     const resources = currentNovaImperium.resources;
     
@@ -686,10 +696,16 @@ export function ConstructionPanel() {
     const actionCost = getBuildingCost(buildingId);
     
     if (canAffordBuilding(buildingId)) {
-      const success = spendActionPoints(actionCost);
-      if (success) {
-        buildInCity(cityId, buildingId, building.cost, building.constructionTime);
-        console.log(`Construction de ${buildingId} lancée pour ${building.constructionTime} tours, ${actionCost} PA et ressources déduites`);
+      // En mode MJ, on ne dépense pas les ressources
+      if (isGameMaster) {
+        buildInCity(cityId, buildingId, {}, building.constructionTime);
+        console.log(`[MODE MJ] Construction de ${buildingId} lancée pour ${building.constructionTime} tours (ressources infinies)`);
+      } else {
+        const success = spendActionPoints(actionCost);
+        if (success) {
+          buildInCity(cityId, buildingId, building.cost, building.constructionTime);
+          console.log(`Construction de ${buildingId} lancée pour ${building.constructionTime} tours, ${actionCost} PA et ressources déduites`);
+        }
       }
     } else {
       console.log(`Ressources insuffisantes pour construire ${buildingId}`);
