@@ -95,6 +95,11 @@ export const COMPETENCE_COSTS: Record<string, CompetenceCostData> = {
     upgradeCosts: [2, 3, 3],
     description: 'Création et lecture de cartes précises'
   },
+  'connaissance_des_traites': {
+    learnCost: 2,
+    upgradeCosts: [2, 3, 4],
+    description: 'Maîtrise des accords diplomatiques et négociations formelles'
+  },
 
   // Compétences Occultes (coûts élevés)
   'rituels': {

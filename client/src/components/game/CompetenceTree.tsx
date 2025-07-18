@@ -13,9 +13,9 @@ interface Competence {
 }
 
 const allCompetences: Competence[] = [
-  // Political Competences
+  // Political Competences  
   {
-    id: 'treaty_knowledge',
+    id: 'connaissance_des_traites',
     name: 'Connaissance des traités',
     description: 'Cette compétence permet à un joueur de comprendre, rédiger et négocier des accords complexes entre factions. Elle donne un avantage dans la création d\'ententes officielles protégées par le système d\'honneur.',
     category: 'political',

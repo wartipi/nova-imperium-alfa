@@ -65,7 +65,7 @@ interface TreatyTypeInfo {
 
 export function TreatiesPanel() {
   const { currentNovaImperium, novaImperiums } = useNovaImperium();
-  const { actionPoints, spendActionPoints } = usePlayer();
+  const { actionPoints, spendActionPoints, getCompetenceLevel } = usePlayer();
   const queryClient = useQueryClient();
   const [treaties, setTreaties] = useState<Treaty[]>([]);
   const [treatyTypes, setTreatyTypes] = useState<TreatyTypeInfo[]>([]);
@@ -90,6 +90,10 @@ export function TreatiesPanel() {
   const otherPlayers = novaImperiums.filter(ni => ni.id !== currentNovaImperium.id);
   const currentTreatyType = treatyTypes.find(t => t.type === selectedTreatyType);
   const treatyCost = currentTreatyType?.cost || 15;
+  
+  // Vérifier le niveau de compétence "Connaissance des traités"
+  const treatyKnowledgeLevel = getCompetenceLevel('connaissance_des_traites');
+  const canCreateTreaties = treatyKnowledgeLevel >= 1;
 
   // Charger les traités et types au démarrage
   useEffect(() => {
@@ -322,14 +326,28 @@ export function TreatiesPanel() {
           <div className="space-y-4">
             <div className="text-sm font-medium mb-3">✍️ Créer un nouveau traité</div>
             
+            {/* Message si compétence non acquise */}
+            {!canCreateTreaties && (
+              <div className="bg-red-50 border border-red-300 rounded p-3">
+                <div className="text-sm font-medium text-red-700 mb-2">⚠️ Compétence requise</div>
+                <div className="text-xs text-red-600">
+                  Vous devez apprendre la compétence "Connaissance des Traités" (niveau 1 minimum) 
+                  pour pouvoir créer des traités. Cette compétence se trouve dans la catégorie Politique 
+                  de l'arbre de compétences.
+                </div>
+              </div>
+            )}
+            
             {/* Sélection du type de traité */}
-            <div>
-              <label className="block text-xs font-medium mb-1">Type de traité</label>
-              <select
-                value={selectedTreatyType}
-                onChange={(e) => setSelectedTreatyType(e.target.value as TreatyType)}
-                className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-              >
+            {canCreateTreaties && (
+              <>
+                <div>
+                  <label className="block text-xs font-medium mb-1">Type de traité</label>
+                  <select
+                    value={selectedTreatyType}
+                    onChange={(e) => setSelectedTreatyType(e.target.value as TreatyType)}
+                    className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                  >
                 {treatyTypes.map(type => (
                   <option key={type.type} value={type.type}>
                     {type.icon} {type.name} ({type.cost} PA)
@@ -439,35 +457,37 @@ export function TreatiesPanel() {
               </div>
             )}
 
-            {/* Termes du traité */}
-            <div>
-              <label className="block text-xs font-medium mb-1">Termes et conditions</label>
-              <textarea
-                value={treatyTerms}
-                onChange={(e) => setTreatyTerms(e.target.value)}
-                className="w-full px-2 py-1 border border-gray-300 rounded text-xs h-20"
-                placeholder="Détails des termes du traité..."
-              />
-            </div>
+                {/* Termes du traité */}
+                <div>
+                  <label className="block text-xs font-medium mb-1">Termes et conditions</label>
+                  <textarea
+                    value={treatyTerms}
+                    onChange={(e) => setTreatyTerms(e.target.value)}
+                    className="w-full px-2 py-1 border border-gray-300 rounded text-xs h-20"
+                    placeholder="Détails des termes du traité..."
+                  />
+                </div>
 
-            {/* Boutons d'action */}
-            <div className="flex space-x-2">
-              <Button
-                onClick={createTreaty}
-                disabled={!treatyTitle.trim() || !treatyTerms.trim() || selectedParties.length === 0 || isLoading || actionPoints < treatyCost}
-                size="sm"
-                className="flex-1"
-              >
-                {isLoading ? 'Création...' : `Créer (${treatyCost} PA)`}
-              </Button>
-              <Button
-                onClick={() => setActiveTab('overview')}
-                size="sm"
-                variant="outline"
-              >
-                Annuler
-              </Button>
-            </div>
+                {/* Boutons d'action */}
+                <div className="flex space-x-2">
+                  <Button
+                    onClick={createTreaty}
+                    disabled={!treatyTitle.trim() || !treatyTerms.trim() || selectedParties.length === 0 || isLoading || actionPoints < treatyCost}
+                    size="sm"
+                    className="flex-1"
+                  >
+                    {isLoading ? 'Création...' : `Créer (${treatyCost} PA)`}
+                  </Button>
+                  <Button
+                    onClick={() => setActiveTab('overview')}
+                    size="sm"
+                    variant="outline"
+                  >
+                    Annuler
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

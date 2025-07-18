@@ -245,6 +245,14 @@ Preferred communication style: Simple, everyday language.
 - **Future-Ready**: System prepared for prerequisite levels between competences
 - **User Confirmed**: XP gain functional, level progression working, competence costs balanced, movement XP removed, 20% XP scaling implemented
 
+### Treaty Knowledge Competence Implementation (January 18, 2025)
+- **Added "Connaissance des Traités" competence**: New political skill requiring 2 points to learn, upgrades cost 2/3/4 points
+- **Treaty System Prerequisite**: Players must learn level 1 Treaty Knowledge to access treaty creation
+- **Enhanced TreatiesPanel**: Shows requirement message when competence not acquired
+- **CompetenceTree Integration**: Treaty Knowledge appears in political category of competence tree
+- **Functional Gating**: Treaty creation interface only accessible with proper competence level
+- **User Request Fulfilled**: Basic treaties now require competence level 1 minimum to unlock
+
 ### Complete System Unification & Bug Fixes (January 18, 2025)
 - **Fixed Exploration Level 2 Vision**: Implemented proper radius-2 hex calculation (19 hexagons total)
 - **Fixed Camera Following Avatar**: Corrected centerCameraOnAvatar to use world coordinates instead of hex coordinates
