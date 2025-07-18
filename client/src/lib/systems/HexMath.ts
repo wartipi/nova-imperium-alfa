@@ -60,12 +60,53 @@ export class HexMath {
     }
     
     if (radius >= 2) {
-      // Pour rayon 2, nous devons calculer les hexagones à distance 2
-      // C'est plus complexe, pour l'instant on se concentre sur rayon 1
-      // TODO: Implémenter rayon 2 si nécessaire
+      // Rayon 2 : ajouter l'anneau extérieur (12 hexagones supplémentaires)
+      const radius2Hexes = this.getRadius2Hexes(centerX, centerY);
+      hexes.push(...radius2Hexes);
     }
     
     return hexes;
+  }
+
+  /**
+   * Obtient les hexagones du rayon 2 (anneau extérieur)
+   */
+  static getRadius2Hexes(centerX: number, centerY: number): HexCoord[] {
+    const isOddColumn = centerX % 2 === 1;
+    
+    if (isOddColumn) {
+      // Colonnes impaires (1, 3, 5...) - anneau rayon 2
+      return [
+        { x: centerX - 2, y: centerY },     // Gauche-2
+        { x: centerX + 2, y: centerY },     // Droite-2
+        { x: centerX, y: centerY - 2 },     // Haut-2
+        { x: centerX, y: centerY + 2 },     // Bas-2
+        { x: centerX - 1, y: centerY - 1 }, // Haut-gauche
+        { x: centerX + 1, y: centerY - 1 }, // Haut-droite
+        { x: centerX - 2, y: centerY + 1 }, // Bas-gauche-2
+        { x: centerX + 2, y: centerY + 1 }, // Bas-droite-2
+        { x: centerX - 1, y: centerY + 2 }, // Bas-gauche-bas
+        { x: centerX + 1, y: centerY + 2 }, // Bas-droite-bas
+        { x: centerX - 2, y: centerY - 1 }, // Haut-gauche-2
+        { x: centerX + 2, y: centerY - 1 }  // Haut-droite-2
+      ];
+    } else {
+      // Colonnes paires (0, 2, 4...) - anneau rayon 2
+      return [
+        { x: centerX - 2, y: centerY },     // Gauche-2
+        { x: centerX + 2, y: centerY },     // Droite-2
+        { x: centerX, y: centerY - 2 },     // Haut-2
+        { x: centerX, y: centerY + 2 },     // Bas-2
+        { x: centerX - 1, y: centerY + 1 }, // Bas-gauche
+        { x: centerX + 1, y: centerY + 1 }, // Bas-droite
+        { x: centerX - 2, y: centerY - 1 }, // Haut-gauche-2
+        { x: centerX + 2, y: centerY - 1 }, // Haut-droite-2
+        { x: centerX - 1, y: centerY - 2 }, // Haut-gauche-haut
+        { x: centerX + 1, y: centerY - 2 }, // Haut-droite-haut
+        { x: centerX - 2, y: centerY + 1 }, // Bas-gauche-2
+        { x: centerX + 2, y: centerY + 1 }  // Bas-droite-2
+      ];
+    }
   }
 
   /**

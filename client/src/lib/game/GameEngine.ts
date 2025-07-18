@@ -629,15 +629,10 @@ export class GameEngine {
 
   // Center camera on avatar
   centerCameraOnAvatar() {
-    const hexHeight = this.hexSize * Math.sqrt(3);
-    const avatarHexX = Math.round(this.avatarPosition.x / 1.5);
-    const avatarHexY = Math.round(this.avatarPosition.z / (Math.sqrt(3) * 0.5));
-    
-    const screenX = avatarHexX * (this.hexSize * 1.5);
-    const screenY = avatarHexY * hexHeight + (avatarHexX % 2) * (hexHeight / 2);
-    
-    this.cameraX = screenX;
-    this.cameraY = screenY;
+    // Center camera on actual avatar world position
+    this.cameraX = this.avatarPosition.x;
+    this.cameraY = this.avatarPosition.z;
+    console.log('Camera centered on avatar at world position:', { x: this.avatarPosition.x, z: this.avatarPosition.z });
     this.render();
   }
 

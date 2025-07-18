@@ -128,9 +128,38 @@ export const usePlayer = create<PlayerState>((set, get) => ({
         ),
         competencePoints: state.competencePoints - upgradeCost
       });
-      // Update vision when exploration competence changes
+      // Update vision when exploration competence changes using unified system
       if (competence === 'exploration') {
-        get().updateVision();
+        setTimeout(() => {
+          const newState = get();
+          const avatarHex = VisionSystem.worldToHex(newState.avatarPosition.x, newState.avatarPosition.z);
+          const newExplorationLevel = newState.getCompetenceLevel('exploration');
+          
+          // Force immediate vision update with new level
+          const newCurrentVision = VisionSystem.calculateCurrentVision(
+            avatarHex.x, 
+            avatarHex.y, 
+            newExplorationLevel
+          );
+          
+          const newExploredHexes = VisionSystem.updateExploredHexes(
+            newCurrentVision, 
+            newState.exploredHexes
+          );
+          
+          set({ 
+            currentVision: newCurrentVision,
+            exploredHexes: newExploredHexes
+          });
+          
+          console.log('Exploration competence upgraded - Vision updated:', {
+            competence,
+            newLevel: newExplorationLevel,
+            newVisionRange: VisionSystem.getVisionRange(newExplorationLevel),
+            currentVisionCount: newCurrentVision.size,
+            exploredCount: newExploredHexes.size
+          });
+        }, 0);
       }
       return true;
     }
