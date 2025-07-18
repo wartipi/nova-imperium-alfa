@@ -1,18 +1,61 @@
 import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { usePlayer } from "../../lib/stores/usePlayer";
+import { useFactions } from "../../lib/stores/useFactions";
 import { Button } from "../ui/button";
 import { getBuildingCost, canAffordAction } from "../../lib/game/ActionPointsCosts";
 import { getBuildingAPGeneration, getBuildingMaxAPIncrease } from "../../lib/game/ActionPointsGeneration";
 import { Resources } from "../../lib/game/types";
+import { TerritorySystem } from "../../lib/systems/TerritorySystem";
 import { useState } from "react";
 
 export function ConstructionPanel() {
   const { currentNovaImperium, buildInCity } = useNovaImperium();
   const { actionPoints, spendActionPoints } = usePlayer();
+  const { playerFaction, getFactionById } = useFactions();
   const [hoveredBuilding, setHoveredBuilding] = useState<string | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
 
   if (!currentNovaImperium) return null;
+
+  // Vérifier si le joueur peut accéder au menu de construction
+  const canAccessConstruction = TerritorySystem.canAccessConstructionMenu('player');
+  const playerColonies = TerritorySystem.getPlayerColonies('player');
+  const currentFaction = playerFaction ? getFactionById(playerFaction) : null;
+
+  // Si le joueur n'a pas de colonies, afficher les prérequis
+  if (!canAccessConstruction) {
+    return (
+      <div className="space-y-4">
+        <div className="bg-red-50 border border-red-300 rounded p-4">
+          <div className="text-red-900 font-semibold mb-2">🏗️ Construction indisponible</div>
+          <div className="text-red-800 text-sm space-y-2">
+            <div>Pour accéder aux constructions, vous devez :</div>
+            <div className="ml-4 space-y-1">
+              <div className={`flex items-center gap-2 ${currentFaction ? 'text-green-700' : 'text-red-700'}`}>
+                {currentFaction ? '✅' : '❌'}
+                Être membre d'une faction ({currentFaction ? currentFaction.name : 'Aucune faction'})
+              </div>
+              <div className={`flex items-center gap-2 ${playerColonies.length > 0 ? 'text-green-700' : 'text-red-700'}`}>
+                {playerColonies.length > 0 ? '✅' : '❌'}
+                Avoir fondé au moins une colonie ({playerColonies.length} colonie{playerColonies.length > 1 ? 's' : ''})
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-blue-50 border border-blue-300 rounded p-3">
+          <div className="text-blue-900 font-semibold mb-2">📋 Étapes à suivre</div>
+          <div className="text-blue-800 text-sm space-y-1">
+            <div>1. Créez ou rejoignez une faction (menu Factions)</div>
+            <div>2. Apprenez "Influence locale" niveau 1 (compétences)</div>
+            <div>3. Revendiquez un territoire (menu Territoire)</div>
+            <div>4. Fondez une colonie sur le territoire revendiqué</div>
+            <div>5. Revenez ici pour construire des bâtiments</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const buildings = [
     { id: 'port', name: 'Port', cost: { wood: 15, stone: 10, gold: 20 }, constructionTime: 4, description: 'Permet le commerce maritime', icon: '🚢', category: 'Transport' },

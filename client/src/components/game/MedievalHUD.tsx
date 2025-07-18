@@ -23,6 +23,7 @@ import { CompetenceTree } from "./CompetenceTree";
 import { TileInfoPanel } from "./TileInfoPanel";
 import { ReputationPanel } from "./ReputationPanel";
 import { FactionPanel } from "./FactionPanel";
+import { TerritoryClaimPanel } from "./TerritoryClaimPanel";
 
 import { PlayerInventory } from "./PlayerInventory";
 import { useAuth } from "../../lib/auth/AuthContext";
@@ -40,7 +41,8 @@ type MenuSection =
   | 'guide' 
   | 'help'
   | 'competences'
-  | 'factions';
+  | 'factions'
+  | 'territory';
 
 export function MedievalHUD() {
   const { gamePhase, currentTurn, endTurn, isGameMaster, toggleGameMaster } = useGameState();
@@ -82,6 +84,7 @@ export function MedievalHUD() {
   const [showAvatarManager, setShowAvatarManager] = useState(false);
   const [newAvatarName, setNewAvatarName] = useState('');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showTerritoryPanel, setShowTerritoryPanel] = useState(false);
   const { notification, showLevelUpNotification, hideLevelUpNotification } = useLevelUpNotification();
 
   // Fonctions utilitaires pour l'authentification
@@ -122,7 +125,8 @@ export function MedievalHUD() {
     { id: 'announcements' as MenuSection, label: 'ANNONCE PUBLIQUE', icon: '📢' },
     { id: 'guide' as MenuSection, label: 'GUIDE DE JEUX', icon: '📖' },
     { id: 'help' as MenuSection, label: 'AIDE', icon: '❓' },
-    { id: 'factions' as MenuSection, label: 'FACTIONS', icon: '🏛️' }
+    { id: 'factions' as MenuSection, label: 'FACTIONS', icon: '🏛️' },
+    { id: 'territory' as MenuSection, label: 'TERRITOIRE', icon: '🗺️' }
   ];
 
   const handleCharacterSelect = (character: CharacterOption) => {
@@ -569,6 +573,19 @@ export function MedievalHUD() {
               {activeSection === 'courier' && <CouriersPanel />}
               {activeSection === 'treaties' && <TreatiesPanel />}
               {activeSection === 'events' && <EventPanel />}
+              {activeSection === 'territory' && (
+                <div className="text-amber-800">
+                  <div className="mb-4 text-sm">
+                    Cliquez sur une case de la carte pour gérer le territoire.
+                  </div>
+                  <button
+                    onClick={() => setShowTerritoryPanel(true)}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+                  >
+                    Ouvrir le gestionnaire de territoire
+                  </button>
+                </div>
+              )}
               {activeSection === 'announcements' && <PublicAnnouncementPanel />}
               {activeSection === 'guide' && <GameGuidePanel />}
               {activeSection === 'help' && <HelpPanel />}
@@ -738,6 +755,11 @@ export function MedievalHUD() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Territory Claim Panel */}
+      {showTerritoryPanel && (
+        <TerritoryClaimPanel onClose={() => setShowTerritoryPanel(false)} />
       )}
     </div>
   );
