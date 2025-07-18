@@ -9,7 +9,6 @@ interface Competence {
   cost: number;
   prerequisites?: string[];
   unlocked: boolean;
-  learned: boolean;
 }
 
 const allCompetences: Competence[] = [
@@ -20,8 +19,7 @@ const allCompetences: Competence[] = [
     description: 'Cette compétence permet à un joueur de comprendre, rédiger et négocier des accords complexes entre factions. Elle donne un avantage dans la création d\'ententes officielles protégées par le système d\'honneur.',
     category: 'political',
     cost: 10,
-    unlocked: true,
-    learned: false
+    unlocked: true
   },
   {
     id: 'local_influence',
@@ -29,8 +27,7 @@ const allCompetences: Competence[] = [
     description: 'Permet au joueur d\'augmenter son contrôle ou une région donnée, en améliorant les effets des bâtiments politiques et la loyauté des populations.',
     category: 'political',
     cost: 15,
-    unlocked: true,
-    learned: false
+    unlocked: true
   },
   {
     id: 'personal_prestige',
@@ -39,8 +36,7 @@ const allCompetences: Competence[] = [
     category: 'political',
     cost: 20,
     prerequisites: ['local_influence'],
-    unlocked: false,
-    learned: false
+    unlocked: false
   },
 
   // Military Competences
@@ -161,7 +157,7 @@ const categoryTitles = {
 };
 
 export function CompetenceTree() {
-  const { competences, competencePoints, updatePlayer } = usePlayer();
+  const { competences, competencePoints, learnCompetence, upgradeCompetence, getCompetenceLevel } = usePlayer();
   const [selectedCompetence, setSelectedCompetence] = useState<Competence | null>(null);
 
   const availablePoints = competencePoints || 50; // Starting points
@@ -173,38 +169,44 @@ export function CompetenceTree() {
     return acc;
   }, {} as Record<string, Competence[]>);
 
-
-
   const canLearnCompetence = (competence: Competence) => {
-    if (learnedCompetences.includes(competence.id)) return false;
-    if (availablePoints < competence.cost) return false;
+    const currentLevel = getCompetenceLevel(competence.id);
+    if (currentLevel > 0) return false; // Already learned
+    if (availablePoints < 10) return false; // Cost to learn level 1
     
     if (competence.prerequisites) {
       return competence.prerequisites.every(prereq => 
-        learnedCompetences.includes(prereq)
+        getCompetenceLevel(prereq) > 0
       );
     }
     
     return competence.unlocked;
   };
 
-  const learnCompetence = (competence: Competence) => {
+  const canUpgradeCompetence = (competence: Competence) => {
+    const currentLevel = getCompetenceLevel(competence.id);
+    if (currentLevel === 0 || currentLevel >= 4) return false; // Not learned or max level
+    
+    const upgradeCost = currentLevel * 5; // Level 1->2: 5pts, 2->3: 10pts, 3->4: 15pts
+    return availablePoints >= upgradeCost;
+  };
+
+  const handleLearnCompetence = (competence: Competence) => {
     if (!canLearnCompetence(competence)) return;
     
-    const newCompetences = [...learnedCompetences, competence.id];
-    const newPoints = availablePoints - competence.cost;
-    
-    updatePlayer({
-      competences: newCompetences,
-      competencePoints: newPoints
-    });
+    if (learnCompetence(competence.id)) {
+      // Unlock dependent competences
+      allCompetences.forEach(comp => {
+        if (comp.prerequisites?.includes(competence.id)) {
+          comp.unlocked = true;
+        }
+      });
+    }
+  };
 
-    // Unlock dependent competences
-    allCompetences.forEach(comp => {
-      if (comp.prerequisites?.includes(competence.id)) {
-        comp.unlocked = true;
-      }
-    });
+  const handleUpgradeCompetence = (competence: Competence) => {
+    if (!canUpgradeCompetence(competence)) return;
+    upgradeCompetence(competence.id);
   };
 
   return (
@@ -224,18 +226,22 @@ export function CompetenceTree() {
             
             <div className="grid grid-cols-1 gap-2">
               {comps.map((competence) => {
-                const isLearned = learnedCompetences.includes(competence.id);
+                const currentLevel = getCompetenceLevel(competence.id);
                 const canLearn = canLearnCompetence(competence);
+                const canUpgrade = canUpgradeCompetence(competence);
                 const isLocked = !competence.unlocked || 
                   (competence.prerequisites && !competence.prerequisites.every(prereq => 
-                    learnedCompetences.includes(prereq)
+                    getCompetenceLevel(prereq) > 0
                   ));
+
+                const levelNames = ['Non apprise', 'Novice', 'Apprenti', 'Expert', 'Maître'];
+                const levelColors = ['text-gray-500', 'text-green-600', 'text-blue-600', 'text-purple-600', 'text-orange-600'];
 
                 return (
                   <div
                     key={competence.id}
                     className={`p-3 rounded border-2 cursor-pointer transition-all ${
-                      isLearned 
+                      currentLevel > 0 
                         ? 'bg-green-100 border-green-400' 
                         : canLearn 
                           ? `${categoryColors[competence.category]} hover:shadow-md`
@@ -243,7 +249,6 @@ export function CompetenceTree() {
                     }`}
                     onClick={(e) => {
                       e.stopPropagation();
-
                       setSelectedCompetence(competence);
                     }}
                   >
@@ -252,10 +257,34 @@ export function CompetenceTree() {
                         <div className="font-semibold text-sm mb-1">
                           {competence.name}
                           {isLocked && <span className="text-red-500 ml-1">🔒</span>}
-                          {isLearned && <span className="text-green-500 ml-1">✓</span>}
+                          {currentLevel > 0 && (
+                            <span className={`ml-2 text-xs font-bold ${levelColors[currentLevel]}`}>
+                              {levelNames[currentLevel]} (Niv. {currentLevel})
+                            </span>
+                          )}
                         </div>
+                        
+                        {/* Level indicator bars */}
+                        <div className="flex space-x-1 mb-2">
+                          {[1, 2, 3, 4].map((level) => (
+                            <div
+                              key={level}
+                              className={`w-4 h-2 rounded-sm ${
+                                level <= currentLevel 
+                                  ? 'bg-green-500' 
+                                  : 'bg-gray-300'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        
                         <div className="text-xs text-gray-600 mb-1">
-                          Coût: {competence.cost} points
+                          {currentLevel === 0 
+                            ? 'Coût: 10 points pour apprendre'
+                            : currentLevel < 4 
+                              ? `Améliorer: ${currentLevel * 5} points`
+                              : 'Niveau maximum atteint'
+                          }
                         </div>
                         {competence.prerequisites && (
                           <div className="text-xs text-gray-500">
@@ -266,28 +295,34 @@ export function CompetenceTree() {
                         )}
                       </div>
                       
-                      {canLearn && !isLearned && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-
-                            learnCompetence(competence);
-                          }}
-                          onMouseDown={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                          }}
-                          onMouseUp={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                          }}
-                          className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white text-xs rounded cursor-pointer"
-                          type="button"
-                        >
-                          Apprendre
-                        </button>
-                      )}
+                      <div className="flex flex-col gap-1">
+                        {canLearn && currentLevel === 0 && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              handleLearnCompetence(competence);
+                            }}
+                            className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white text-xs rounded"
+                            type="button"
+                          >
+                            Apprendre
+                          </button>
+                        )}
+                        {canUpgrade && currentLevel > 0 && currentLevel < 4 && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              handleUpgradeCompetence(competence);
+                            }}
+                            className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded"
+                            type="button"
+                          >
+                            Améliorer
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -301,9 +336,33 @@ export function CompetenceTree() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg max-w-md mx-4">
             <h3 className="font-bold text-lg mb-2">{selectedCompetence.name}</h3>
+            
+            {/* Current Level Display */}
+            <div className="mb-4">
+              <div className="text-sm text-gray-600 mb-2">Niveau actuel:</div>
+              <div className="flex space-x-1 mb-2">
+                {[1, 2, 3, 4].map((level) => (
+                  <div
+                    key={level}
+                    className={`w-6 h-3 rounded-sm ${
+                      level <= getCompetenceLevel(selectedCompetence.id) 
+                        ? 'bg-green-500' 
+                        : 'bg-gray-300'
+                    }`}
+                  />
+                ))}
+              </div>
+              <div className="text-sm font-bold text-blue-600">
+                {getCompetenceLevel(selectedCompetence.id) > 0 
+                  ? `Niveau ${getCompetenceLevel(selectedCompetence.id)} - ${['', 'Novice', 'Apprenti', 'Expert', 'Maître'][getCompetenceLevel(selectedCompetence.id)]}`
+                  : 'Non apprise'
+                }
+              </div>
+            </div>
+            
             <p className="text-sm text-gray-700 mb-4">{selectedCompetence.description}</p>
+            
             <div className="text-sm text-gray-600 mb-4">
-              <div>Coût: {selectedCompetence.cost} points</div>
               <div>Catégorie: {categoryTitles[selectedCompetence.category]}</div>
               {selectedCompetence.prerequisites && (
                 <div>Prérequis: {selectedCompetence.prerequisites.map(prereq => 
@@ -311,6 +370,7 @@ export function CompetenceTree() {
                 ).join(', ')}</div>
               )}
             </div>
+            
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setSelectedCompetence(null)}
@@ -318,19 +378,32 @@ export function CompetenceTree() {
               >
                 Fermer
               </button>
-              {canLearnCompetence(selectedCompetence) && !learnedCompetences.includes(selectedCompetence.id) && (
+              {canLearnCompetence(selectedCompetence) && getCompetenceLevel(selectedCompetence.id) === 0 && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     e.preventDefault();
-
-                    learnCompetence(selectedCompetence);
+                    handleLearnCompetence(selectedCompetence);
                     setSelectedCompetence(null);
                   }}
-                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded cursor-pointer"
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded"
                   type="button"
                 >
-                  Apprendre ({selectedCompetence.cost} pts)
+                  Apprendre (10 pts)
+                </button>
+              )}
+              {canUpgradeCompetence(selectedCompetence) && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    handleUpgradeCompetence(selectedCompetence);
+                    setSelectedCompetence(null);
+                  }}
+                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded"
+                  type="button"
+                >
+                  Améliorer ({getCompetenceLevel(selectedCompetence.id) * 5} pts)
                 </button>
               )}
             </div>

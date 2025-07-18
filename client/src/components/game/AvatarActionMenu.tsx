@@ -11,7 +11,7 @@ interface AvatarActionMenuProps {
 }
 
 export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarActionMenuProps) {
-  const { competences, actionPoints, spendActionPoints, selectedCharacter } = usePlayer();
+  const { competences, actionPoints, spendActionPoints, selectedCharacter, hasCompetenceLevel } = usePlayer();
   const { honor, reputation } = useReputation();
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
 
@@ -43,7 +43,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     }
   ];
 
-  // Actions basées sur les compétences
+  // Actions basées sur les compétences (avec niveaux requis)
   const competenceActions = [
     {
       id: 'political_negotiate',
@@ -52,7 +52,8 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       cost: 5,
       icon: '🤝',
       category: 'political',
-      requiredCompetence: 'political'
+      requiredCompetence: 'treaty_knowledge',
+      requiredLevel: 1
     },
     {
       id: 'military_command',
@@ -61,7 +62,8 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       cost: 4,
       icon: '⚔️',
       category: 'military',
-      requiredCompetence: 'military'
+      requiredCompetence: 'command',
+      requiredLevel: 1
     },
     {
       id: 'economic_trade',
@@ -70,7 +72,8 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       cost: 3,
       icon: '💰',
       category: 'economic',
-      requiredCompetence: 'economic'
+      requiredCompetence: 'trade_mastery',
+      requiredLevel: 1
     },
     {
       id: 'strategic_plan',
@@ -92,12 +95,12 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     }
   ];
 
-  // Actions basées sur les compétences acquises
+  // Actions basées sur les compétences acquises avec niveaux
   const getCompetenceBasedActions = () => {
     const actions = [];
     
     // Actions militaires
-    if (competences.some(comp => comp.includes('Tactique'))) {
+    if (hasCompetenceLevel('command', 1)) {
       actions.push({
         id: 'tactical_maneuver',
         name: 'Manœuvre Tactique',
@@ -108,7 +111,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       });
     }
     
-    if (competences.some(comp => comp.includes('Art de la Guerre'))) {
+    if (hasCompetenceLevel('command', 3)) {
       actions.push({
         id: 'battle_command',
         name: 'Commandement de Bataille',
@@ -120,7 +123,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     }
     
     // Actions politiques
-    if (competences.some(comp => comp.includes('Diplomatie'))) {
+    if (hasCompetenceLevel('treaty_knowledge', 1)) {
       actions.push({
         id: 'diplomatic_negotiation',
         name: 'Négociation Diplomatique',
@@ -131,7 +134,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       });
     }
     
-    if (competences.some(comp => comp.includes('Intrigues'))) {
+    if (hasCompetenceLevel('local_influence', 2)) {
       actions.push({
         id: 'court_intrigue',
         name: 'Intrigue de Cour',
@@ -143,7 +146,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     }
     
     // Actions économiques
-    if (competences.some(comp => comp.includes('Commerce'))) {
+    if (hasCompetenceLevel('trade_mastery', 1)) {
       actions.push({
         id: 'trade_negotiation',
         name: 'Négociation Commerciale',
@@ -154,7 +157,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       });
     }
     
-    if (competences.some(comp => comp.includes('Gestion'))) {
+    if (hasCompetenceLevel('resource_management', 2)) {
       actions.push({
         id: 'resource_management',
         name: 'Gestion des Ressources',
@@ -166,7 +169,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     }
     
     // Actions stratégiques
-    if (competences.some(comp => comp.includes('Espionnage'))) {
+    if (hasCompetenceLevel('exploration', 1)) {
       actions.push({
         id: 'intelligence_gathering',
         name: 'Collecte d\'Intelligence',

@@ -1,10 +1,15 @@
 import { create } from "zustand";
 import { CharacterOption } from "../../components/game/CharacterSelector";
 
+interface CompetenceLevel {
+  competence: string;
+  level: number; // 1-4
+}
+
 interface PlayerState {
   selectedCharacter: CharacterOption | null;
   playerName: string;
-  competences: string[];
+  competences: CompetenceLevel[];
   competencePoints: number;
   // Action Points system
   actionPoints: number;
@@ -21,6 +26,10 @@ interface PlayerState {
   setSelectedCharacter: (character: CharacterOption) => void;
   setPlayerName: (name: string) => void;
   updatePlayer: (updates: Partial<Pick<PlayerState, 'competences' | 'competencePoints'>>) => void;
+  learnCompetence: (competence: string) => boolean;
+  upgradeCompetence: (competence: string) => boolean;
+  getCompetenceLevel: (competence: string) => number;
+  hasCompetenceLevel: (competence: string, level: number) => boolean;
   spendActionPoints: (amount: number) => boolean;
   addActionPoints: (amount: number) => void;
   increaseMaxActionPoints: (amount: number) => void;
@@ -66,6 +75,56 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   setSelectedCharacter: (character) => set({ selectedCharacter: character }),
   setPlayerName: (name) => set({ playerName: name }),
   updatePlayer: (updates) => set((state) => ({ ...state, ...updates })),
+  learnCompetence: (competence) => {
+    const state = get();
+    const existingCompetence = state.competences.find(c => c.competence === competence);
+    
+    if (existingCompetence) {
+      return false; // Already has this competence
+    }
+    
+    if (state.competencePoints >= 10) { // Cost 10 points to learn level 1
+      set({ 
+        competences: [...state.competences, { competence, level: 1 }],
+        competencePoints: state.competencePoints - 10
+      });
+      return true;
+    }
+    return false;
+  },
+  upgradeCompetence: (competence) => {
+    const state = get();
+    const existingCompetence = state.competences.find(c => c.competence === competence);
+    
+    if (!existingCompetence || existingCompetence.level >= 4) {
+      return false; // Competence not found or already max level
+    }
+    
+    const upgradeCost = existingCompetence.level * 5; // Level 1->2: 5pts, 2->3: 10pts, 3->4: 15pts
+    
+    if (state.competencePoints >= upgradeCost) {
+      set({ 
+        competences: state.competences.map(c => 
+          c.competence === competence 
+            ? { ...c, level: c.level + 1 } 
+            : c
+        ),
+        competencePoints: state.competencePoints - upgradeCost
+      });
+      return true;
+    }
+    return false;
+  },
+  getCompetenceLevel: (competence) => {
+    const state = get();
+    const existingCompetence = state.competences.find(c => c.competence === competence);
+    return existingCompetence ? existingCompetence.level : 0;
+  },
+  hasCompetenceLevel: (competence, level) => {
+    const state = get();
+    const existingCompetence = state.competences.find(c => c.competence === competence);
+    return existingCompetence && existingCompetence.level >= level;
+  },
   spendActionPoints: (amount) => {
     const state = get();
     if (state.actionPoints >= amount) {
