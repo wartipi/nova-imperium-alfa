@@ -109,9 +109,23 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     currentVisionHexes.add(`${hexX},${hexY}`);
     
     // Add all adjacent hexes (6 directions in hex grid)
-    // Using proper hex grid offsets for even/odd row systems
-    const hexDirections = [
-      [0, -1], [1, -1], [1, 0], [0, 1], [-1, 1], [-1, 0]
+    // Using proper hex grid offsets for even/odd column systems
+    const hexDirections = hexX % 2 === 0 ? [
+      // Even column (0, 2, 4, 6...)
+      [0, -1],  // North
+      [1, -1],  // Northeast
+      [1, 0],   // Southeast
+      [0, 1],   // South
+      [-1, 0],  // Southwest
+      [-1, -1]  // Northwest
+    ] : [
+      // Odd column (1, 3, 5, 7...)
+      [0, -1],  // North
+      [1, 0],   // Northeast
+      [1, 1],   // Southeast
+      [0, 1],   // South
+      [-1, 1],  // Southwest
+      [-1, 0]   // Northwest
     ];
     
     hexDirections.forEach(([dx, dy]) => {
@@ -142,14 +156,23 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     const state = get();
     const newVisibleHexes = new Set(state.visibleHexes);
     
-    for (let dx = -state.visionRange; dx <= state.visionRange; dx++) {
-      for (let dy = -state.visionRange; dy <= state.visionRange; dy++) {
-        const distance = Math.abs(dx) + Math.abs(dy);
-        if (distance <= state.visionRange) {
-          newVisibleHexes.add(`${centerX + dx},${centerY + dy}`);
-        }
+    // Add center hex
+    newVisibleHexes.add(`${centerX},${centerY}`);
+    
+    // Add only the 6 directly adjacent hexes using proper hex grid
+    const hexDirections = centerX % 2 === 0 ? [
+      [0, -1], [1, -1], [1, 0], [0, 1], [-1, 0], [-1, -1]
+    ] : [
+      [0, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0]
+    ];
+    
+    hexDirections.forEach(([dx, dy]) => {
+      const hexX = centerX + dx;
+      const hexY = centerY + dy;
+      if (hexX >= 0 && hexY >= 0) {
+        newVisibleHexes.add(`${hexX},${hexY}`);
       }
-    }
+    });
     
     set({ visibleHexes: newVisibleHexes });
   },

@@ -220,6 +220,15 @@ Preferred communication style: Simple, everyday language.
 - Updated localStorage keys to use 'nova_imperium_save' instead of 'civ_save'
 - All components now use consistent coding style and optimized structure
 
+### Fog of War System Bug Fix (January 18, 2025)
+- Fixed hexagonal grid adjacency calculation bug in vision system
+- Corrected moveAvatarToHex method to use proper even/odd column hex grid offsets
+- Fixed updateVisibleHexes to only show avatar hex + 6 directly adjacent hexes
+- Ensured consistent hex adjacency patterns across all vision methods
+- Vision system now correctly limits visibility to 1 hex radius around avatar
+- Fixed bug where extra hexes were being revealed beyond intended vision range
+- All vision methods (isHexVisible, isHexInCurrentVision, moveAvatarToHex) now use same hex grid logic
+
 ### Enhanced Reputation System & Game Mechanics (January 17, 2025)
 - Updated reputation system with 6 clear levels: Banni, Méprisé, Suspect, Neutre, Honorable, Saint
 - Added GN participation tracking and season pass system for faction creation requirements
