@@ -128,7 +128,10 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     // Vérifier les compétences requises
     if (action.requiredCompetence) {
       const hasCompetence = hasCompetenceLevel(action.requiredCompetence, action.requiredLevel || 1);
-      if (!hasCompetence) return false;
+      if (!hasCompetence) {
+        console.log(`Action ${action.name} indisponible: compétence ${action.requiredCompetence} niveau ${action.requiredLevel || 1} requise`);
+        return false;
+      }
     }
     
     // Vérifier la réputation requise
@@ -136,6 +139,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       return false;
     }
     
+    console.log(`Action ${action.name} disponible: PA=${actionPoints}/${action.cost}, compétences OK`);
     return true;
   };
 
