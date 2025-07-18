@@ -183,8 +183,35 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       
       // En mode MJ, la revendication réussit toujours
       if (isGameMaster) {
-        console.log(`[MODE MJ] Territoire revendiqué sans coût en PA`);
-        alert(`[MODE MJ] Territoire en (${avatarPosition.x},${avatarPosition.y}) revendiqué avec succès !`);
+        // Importer le système de territoire et effectuer la revendication
+        import('../../lib/systems/TerritorySystem').then(({ TerritorySystem }) => {
+          const territorySuccess = TerritorySystem.claimTerritory(
+            avatarPosition.x,
+            avatarPosition.y,
+            'gm_player', // ID pour le MJ
+            'Maître de Jeu',
+            'gm_faction',
+            'Administration MJ'
+          );
+
+          if (territorySuccess) {
+            console.log(`[MODE MJ] Territoire revendiqué sans coût en PA en (${avatarPosition.x},${avatarPosition.y})`);
+            alert(`[MODE MJ] Territoire en (${avatarPosition.x},${avatarPosition.y}) revendiqué avec succès !`);
+            
+            // Forcer le rafraîchissement de la sélection pour mettre à jour l'affichage
+            const { setSelectedHex } = useMap.getState();
+            setSelectedHex(null);
+            setTimeout(() => {
+              const gameEngine = (window as any).gameEngine;
+              const tileData = gameEngine?.getTileAt(avatarPosition.x, avatarPosition.y);
+              if (tileData) {
+                setSelectedHex(tileData);
+              }
+            }, 100);
+          } else {
+            alert('Ce territoire est déjà revendiqué.');
+          }
+        });
         onClose();
         return;
       }
@@ -220,6 +247,17 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
           if (territorySuccess) {
             console.log(`✅ Territoire revendiqué en (${avatarPosition.x},${avatarPosition.y}) par la faction ${playerFaction.name}`);
             alert(`Territoire en (${avatarPosition.x},${avatarPosition.y}) revendiqué avec succès pour votre faction "${playerFaction.name}" !`);
+            
+            // Forcer le rafraîchissement de la sélection pour mettre à jour l'affichage
+            const { setSelectedHex } = useMap.getState();
+            setSelectedHex(null);
+            setTimeout(() => {
+              const gameEngine = (window as any).gameEngine;
+              const tileData = gameEngine?.getTileAt(avatarPosition.x, avatarPosition.y);
+              if (tileData) {
+                setSelectedHex(tileData);
+              }
+            }, 100);
           } else {
             alert('Ce territoire est déjà revendiqué par une autre faction.');
             // Rembourser les PA en cas d'échec

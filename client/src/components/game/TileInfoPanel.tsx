@@ -126,6 +126,46 @@ function ResourceInfoSection({ selectedHex }: { selectedHex: HexTile }) {
   );
 }
 
+// Composant pour l'affichage des informations de territoire
+function TerritoryInfoSection({ selectedHex }: { selectedHex: HexTile }) {
+  const territoryInfo = TerritorySystem.isTerritoryClaimed(selectedHex.x, selectedHex.y);
+  
+  console.log(`🏰 Vérification territoire (${selectedHex.x},${selectedHex.y}):`, territoryInfo);
+  
+  if (territoryInfo) {
+    return (
+      <div className="bg-blue-50 border border-blue-700 rounded p-2 mb-3">
+        <div className="text-blue-900 font-semibold mb-2">🏰 Territoire Revendiqué</div>
+        <div className="space-y-1 text-sm">
+          <div className="text-blue-800">
+            <span className="font-medium">Faction:</span> {territoryInfo.factionName}
+          </div>
+          <div className="text-blue-800">
+            <span className="font-medium">Revendiqué par:</span> {territoryInfo.claimedByName}
+          </div>
+          <div className="text-blue-800">
+            <span className="font-medium">Date:</span> {new Date(territoryInfo.claimedDate).toLocaleDateString('fr-FR')}
+          </div>
+          {territoryInfo.colonyId && (
+            <div className="text-blue-800 font-medium">
+              🏘️ <span className="font-medium">Colonie établie:</span> {territoryInfo.colonyId}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  } else {
+    return (
+      <div className="bg-gray-50 border border-gray-300 rounded p-2 mb-3">
+        <div className="text-gray-700 font-semibold mb-1">🌍 Territoire Libre</div>
+        <div className="text-gray-600 text-sm">
+          Ce territoire n'est revendiqué par aucune faction
+        </div>
+      </div>
+    );
+  }
+}
+
 export function TileInfoPanel() {
   const { selectedHex, setSelectedHex } = useMap();
   const { novaImperiums } = useNovaImperium();
@@ -275,41 +315,7 @@ export function TileInfoPanel() {
       </div>
 
       {/* Territory Information */}
-      {(() => {
-        const territoryInfo = TerritorySystem.isTerritoryClaimed(selectedHex.x, selectedHex.y);
-        if (territoryInfo) {
-          return (
-            <div className="bg-blue-50 border border-blue-700 rounded p-2 mb-3">
-              <div className="text-blue-900 font-semibold mb-2">🏰 Territoire Revendiqué</div>
-              <div className="space-y-1 text-sm">
-                <div className="text-blue-800">
-                  <span className="font-medium">Faction:</span> {territoryInfo.factionName}
-                </div>
-                <div className="text-blue-800">
-                  <span className="font-medium">Revendiqué par:</span> {territoryInfo.claimedByName}
-                </div>
-                <div className="text-blue-800">
-                  <span className="font-medium">Date:</span> {new Date(territoryInfo.claimedDate).toLocaleDateString('fr-FR')}
-                </div>
-                {territoryInfo.colonyId && (
-                  <div className="text-blue-800 font-medium">
-                    🏘️ <span className="font-medium">Colonie établie:</span> {territoryInfo.colonyId}
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        } else {
-          return (
-            <div className="bg-gray-50 border border-gray-300 rounded p-2 mb-3">
-              <div className="text-gray-700 font-semibold mb-1">🌍 Territoire Libre</div>
-              <div className="text-gray-600 text-sm">
-                Ce territoire n'est revendiqué par aucune faction
-              </div>
-            </div>
-          );
-        }
-      })()}
+      <TerritoryInfoSection selectedHex={selectedHex} />
 
       {/* Terrain Information */}
       <div className="bg-amber-50 border border-amber-700 rounded p-2 mb-3">
