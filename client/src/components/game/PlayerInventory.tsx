@@ -110,6 +110,7 @@ export function PlayerInventory({ playerId }: PlayerInventoryProps) {
                     <div className="flex-1 min-w-0">
                       <div className="text-amber-900 font-medium truncate text-xs">
                         {item.name}
+                        {item.metadata?.mapData && <span className="text-green-600 ml-1">📍</span>}
                       </div>
                       <div className={`text-xs ${getRarityColor(item.rarity)}`}>
                         {item.rarity}
@@ -131,8 +132,8 @@ export function PlayerInventory({ playerId }: PlayerInventoryProps) {
                           console.log('Nom de la carte:', item.name);
                           setViewingMap(item);
                         }}
-                        className="text-blue-600 hover:text-blue-800 text-xs"
-                        title="Voir la carte"
+                        className={`text-xs ${item.metadata?.mapData ? 'text-green-600 hover:text-green-800' : 'text-gray-400 hover:text-gray-600'}`}
+                        title={item.metadata?.mapData ? "Carte visualisable" : "Carte d'inventaire (non visualisable)"}
                       >
                         <Eye className="w-3 h-3" />
                       </button>
