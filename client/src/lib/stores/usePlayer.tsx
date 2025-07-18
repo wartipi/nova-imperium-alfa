@@ -168,12 +168,12 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     
     if (visionRange >= 1) {
       // Add 6 adjacent hexes for radius 1 (total 7 hexes)
-      // Use proper hex grid offsets (even/odd row system)
-      const isEvenRow = centerY % 2 === 0;
-      const adjacentOffsets = isEvenRow ? [
-        [-1, -1], [0, -1], [-1, 0], [1, 0], [-1, 1], [0, 1]
-      ] : [
+      // Use proper hex grid offsets (even/odd column system like GameEngine)
+      const isEvenCol = centerX % 2 === 0;
+      const adjacentOffsets = isEvenCol ? [
         [0, -1], [1, -1], [-1, 0], [1, 0], [0, 1], [1, 1]
+      ] : [
+        [-1, -1], [0, -1], [-1, 0], [1, 0], [-1, 1], [0, 1]
       ];
       
       for (const [dx, dy] of adjacentOffsets) {
@@ -248,12 +248,12 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     
     // Check adjacent hexes for radius 1
     if (visionRange >= 1) {
-      // Use proper hex grid offsets (even/odd row system)
-      const isEvenRow = avatarHexY % 2 === 0;
-      const adjacentOffsets = isEvenRow ? [
-        [-1, -1], [0, -1], [-1, 0], [1, 0], [-1, 1], [0, 1]
-      ] : [
+      // Use proper hex grid offsets (even/odd column system like GameEngine)
+      const isEvenCol = avatarHexX % 2 === 0;
+      const adjacentOffsets = isEvenCol ? [
         [0, -1], [1, -1], [-1, 0], [1, 0], [0, 1], [1, 1]
+      ] : [
+        [-1, -1], [0, -1], [-1, 0], [1, 0], [-1, 1], [0, 1]
       ];
       
       for (const [dx, dy] of adjacentOffsets) {
@@ -343,12 +343,12 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     
     if (visionRange >= 1) {
       // Add 6 adjacent hexes for radius 1 (total 7 hexes)
-      // Use proper hex grid offsets (even/odd row system)
-      const isEvenRow = avatarHexY % 2 === 0;
-      const adjacentOffsets = isEvenRow ? [
-        [-1, -1], [0, -1], [-1, 0], [1, 0], [-1, 1], [0, 1]
-      ] : [
+      // Use proper hex grid offsets (even/odd column system like GameEngine)
+      const isEvenCol = avatarHexX % 2 === 0;
+      const adjacentOffsets = isEvenCol ? [
         [0, -1], [1, -1], [-1, 0], [1, 0], [0, 1], [1, 1]
+      ] : [
+        [-1, -1], [0, -1], [-1, 0], [1, 0], [-1, 1], [0, 1]
       ];
       
       for (const [dx, dy] of adjacentOffsets) {
