@@ -222,6 +222,9 @@ Preferred communication style: Simple, everyday language.
 - Console logging added for movement validation and debugging
 - Vision system preserves explored areas - once seen, hexes remain visible permanently
 - Proper hex coordinate system with adjacency calculations for vision updates
+- Fixed vision system coordinate conversion and avatar positioning accuracy
+- Fog of war now correctly follows avatar movement with proper hex-based vision calculation
+- Avatar positioning system corrected to snap precisely to clicked hex coordinates
 
 ### Action Points System (January 17, 2025)
 - Replaced "production" with "action points" throughout the resource system
