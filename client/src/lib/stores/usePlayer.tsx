@@ -84,7 +84,7 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   // Système de niveau - commence au niveau 1
   level: 1,
   experience: 0,
-  experienceToNextLevel: 100, // Expérience nécessaire pour le niveau 2 (100 * 1.2^0 = 100)
+  experienceToNextLevel: 120, // 100 * 1.2^(2-1) = 100 * 1.2 = 120 XP pour niveau 2
   totalExperience: 0,
   
   competences: [],
@@ -349,7 +349,7 @@ export const usePlayer = create<PlayerState>((set, get) => ({
 
   // Système d'expérience et de niveau
   calculateExperienceForLevel: (level) => {
-    // Formule exponentielle : 100 * 1.2^(level-1)
+    // Formule simple : 100 * 1.2^(level-1)
     // Chaque niveau demande 20% d'XP en plus que le précédent
     if (level <= 1) return 0;
     return Math.floor(100 * Math.pow(1.2, level - 1));
@@ -371,19 +371,17 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     // Vérifier si le joueur monte de niveau
     if (newExperience >= state.experienceToNextLevel) {
       const newLevel = state.level + 1;
-      const currentLevelTotalExp = get().calculateExperienceForLevel(newLevel);
-      const nextLevelTotalExp = get().calculateExperienceForLevel(newLevel + 1);
-      const nextLevelExp = nextLevelTotalExp - currentLevelTotalExp;
-      const remainingExp = newExperience - currentLevelTotalExp;
+      const nextLevelRequirement = get().calculateExperienceForLevel(newLevel + 1);
+      const remainingExp = newExperience - state.experienceToNextLevel;
       
       // Récompenses de niveau
-      const competencePointsGained = 1; // 1 point de compétence par niveau
-      const actionPointsBonus = 5; // +5 PA max par niveau
+      const competencePointsGained = 1;
+      const actionPointsBonus = 5;
       
       set({
         level: newLevel,
         experience: remainingExp,
-        experienceToNextLevel: nextLevelExp,
+        experienceToNextLevel: nextLevelRequirement,
         totalExperience: newTotalExperience,
         competencePoints: state.competencePoints + competencePointsGained,
         maxActionPoints: state.maxActionPoints + actionPointsBonus
@@ -402,7 +400,7 @@ export const usePlayer = create<PlayerState>((set, get) => ({
       }
       
       // Récursion si plusieurs niveaux sont gagnés d'un coup
-      if (remainingExp >= nextLevelExp) {
+      if (remainingExp >= nextLevelRequirement && nextLevelRequirement > 0) {
         get().gainExperience(0, 'Bonus de niveau');
       }
     } else {
