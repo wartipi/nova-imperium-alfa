@@ -57,16 +57,8 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     }
   ];
 
-  // Actions principales de cartographie et exploration
+  // Actions principales de cartographie
   const competenceActions = [
-    {
-      id: 'discover_region',
-      name: 'Explorer Région',
-      description: 'Découvrir une nouvelle région cartographique',
-      cost: 10,
-      icon: '🧭',
-      category: 'exploration'
-    },
     {
       id: 'create_map',
       name: 'Cartographier',
@@ -169,36 +161,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       return;
     }
     
-    // Actions de cartographie
-    if (action.id === 'discover_region') {
-      if (spendActionPoints(action.cost)) {
-        try {
-          const response = await fetch('/api/cartography/discover', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              playerId: "player",
-              centerX: Math.floor(Math.random() * 50),
-              centerY: Math.floor(Math.random() * 30),
-              radius: Math.floor(Math.random() * 3) + 2,
-              name: `Région-${Date.now()}`
-            })
-          });
-          
-          if (response.ok) {
-            const newRegion = await response.json();
-            alert(`Région "${newRegion.name}" découverte avec succès !`);
-          } else {
-            alert('Erreur lors de la découverte de la région');
-          }
-        } catch (error) {
-          console.error('Erreur:', error);
-          alert('Erreur lors de la découverte');
-        }
-      }
-      onClose();
-      return;
-    }
+
     
     if (action.id === 'create_map') {
       if (spendActionPoints(action.cost)) {
