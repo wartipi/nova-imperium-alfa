@@ -80,6 +80,7 @@ export function MedievalHUD() {
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [showAvatarManager, setShowAvatarManager] = useState(false);
   const [newAvatarName, setNewAvatarName] = useState('');
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const { notification, showLevelUpNotification, hideLevelUpNotification } = useLevelUpNotification();
 
   // Fonctions utilitaires pour l'authentification
@@ -196,7 +197,7 @@ export function MedievalHUD() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    logout();
+                    setShowLogoutConfirm(true);
                   }}
                   className="text-xs bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded"
                   title="Déconnexion"
@@ -410,33 +411,37 @@ export function MedievalHUD() {
           
 
           
-          {/* Shield Emblem - Character Display */}
-          <div 
-            className="w-16 h-20 bg-gradient-to-b from-amber-200 to-amber-300 border-2 border-amber-800 rounded-t-full rounded-b-sm shadow-lg flex items-center justify-center cursor-pointer hover:bg-gradient-to-b hover:from-amber-300 hover:to-amber-400 transition-colors"
-            onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              console.log('Shield clicked!');
-              setShowCharacterSelector(true);
-            }}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-            }}
-            onMouseUp={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-            }}
-            title="Cliquez pour changer de personnage"
-          >
-            <div className="text-2xl">
-              {selectedCharacter?.image || '🛡️'}
-            </div>
+
+        </div>
+      </div>
+
+      {/* Shield Emblem - Character Display - Positioned in empty space between banner and player info */}
+      <div className="absolute top-24 right-32 pointer-events-auto">
+        <div 
+          className="w-16 h-20 bg-gradient-to-b from-amber-200 to-amber-300 border-2 border-amber-800 rounded-t-full rounded-b-sm shadow-lg flex items-center justify-center cursor-pointer hover:bg-gradient-to-b hover:from-amber-300 hover:to-amber-400 transition-colors"
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            console.log('Shield clicked!');
+            setShowCharacterSelector(true);
+          }}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          onMouseUp={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          title="Cliquez pour changer de personnage"
+        >
+          <div className="text-2xl">
+            {selectedCharacter?.image || '🛡️'}
           </div>
         </div>
       </div>
 
-      {/* Left Menu Panel */}
+      {/* Left Menu Panel - Back to far left */}
       <div className="absolute top-1/2 left-4 transform -translate-y-1/2 pointer-events-auto">
         <div className="relative">
           {/* Scroll Background */}
@@ -520,7 +525,7 @@ export function MedievalHUD() {
         <MiniMap />
       </div>
 
-      {/* Active Section Panel */}
+      {/* Active Section Panel - Back to original position */}
       {activeSection && (
         <div className="absolute top-20 left-72 pointer-events-auto z-50">
           <div 
@@ -689,6 +694,41 @@ export function MedievalHUD() {
         actionPointsBonus={notification.actionPointsBonus}
         onClose={hideLevelUpNotification}
       />
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 flex items-center justify-center z-[9999] pointer-events-auto">
+          <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setShowLogoutConfirm(false)}></div>
+          <div className="relative bg-gradient-to-br from-amber-200 via-amber-100 to-amber-200 border-4 border-amber-800 rounded-lg p-6 shadow-2xl max-w-md mx-4">
+            <div className="text-center">
+              <div className="text-4xl mb-4">🚪</div>
+              <h2 className="text-xl font-bold text-amber-900 mb-4">
+                Confirmation de Déconnexion
+              </h2>
+              <p className="text-amber-800 mb-6">
+                Êtes-vous sûr de vouloir vous déconnecter ? Votre progression sera sauvegardée.
+              </p>
+              <div className="flex space-x-4 justify-center">
+                <button
+                  onClick={() => setShowLogoutConfirm(false)}
+                  className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={() => {
+                    setShowLogoutConfirm(false);
+                    logout();
+                  }}
+                  className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded transition-colors"
+                >
+                  🚪 Se Déconnecter
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
