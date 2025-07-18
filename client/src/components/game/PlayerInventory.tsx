@@ -117,7 +117,7 @@ export function PlayerInventory({ playerId }: PlayerInventoryProps) {
                   <div className="flex items-center space-x-1">
                     <div className="text-amber-800 font-bold text-xs">{item.value}⚡</div>
                     {item.tradeable && (
-                      <div className="text-green-600 text-xs">💎</div>
+                      <div className="text-green-600 text-xs" title="Échangeable">💎</div>
                     )}
                   </div>
                 </div>

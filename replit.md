@@ -235,13 +235,15 @@ Preferred communication style: Simple, everyday language.
 - Implemented 5 rarity levels: commun, rare, epique, legendaire, mythique
 - Created UniqueItem interface with effects, requirements, value, and metadata
 - Enhanced ExchangeService with unique item creation, transfer, and inventory management
-- Added predefined unique items: Carte des Îles Perdues, Amulette de Vision, Orbe de Téléportation, etc.
 - Implemented compact PlayerInventory component integrated into player info panel
 - Added API endpoints for unique item creation, inventory retrieval, and exchange offers
 - Inventaire accessible directement dans le panneau d'information du joueur (expandable)
 - System supports both resource and unique item exchanges in mixed offers
 - Unique items have ownership tracking, tradeability status, and metadata for game mechanics
 - Inventaire shows item count, rarity colors, trade status, and value in compact format
+- Auto-initialization of test items at server startup to prevent data loss
+- Real-time inventory updates every 10 seconds for seamless gameplay experience
+- User confirmed: Inventory successfully displays 3 unique items in player panel
 
 ### Enhanced Reputation System & Game Mechanics (January 17, 2025)
 - Updated reputation system with 6 clear levels: Banni, Méprisé, Suspect, Neutre, Honorable, Saint
