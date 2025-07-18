@@ -3,6 +3,7 @@ import { ResourceRevealSystem } from "../systems/ResourceRevealSystem";
 import { usePlayer } from "../stores/usePlayer";
 import { useGameState } from "../stores/useGameState";
 import { useNovaImperium } from "../stores/useNovaImperium";
+import { TerritorySystem } from "../systems/TerritorySystem";
 
 export class GameEngine {
   private canvas: HTMLCanvasElement;
@@ -299,6 +300,21 @@ export class GameEngine {
       this.ctx.fillStyle = this.getTerrainColor(hex.terrain);
       this.ctx.fill();
       
+      // Check and render territory claims
+      const territoryInfo = TerritorySystem.isTerritoryClaimed(hex.x, hex.y);
+      if (territoryInfo) {
+        // Render territory overlay
+        this.ctx.fillStyle = territoryInfo.factionId === 'gm_faction' ? 'rgba(153, 50, 204, 0.2)' : 'rgba(255, 69, 0, 0.2)';
+        this.ctx.fill();
+        
+        // Render territory border
+        this.ctx.strokeStyle = territoryInfo.factionId === 'gm_faction' ? '#9932CC' : '#FF4500';
+        this.ctx.lineWidth = 2;
+        this.ctx.setLineDash([5, 5]);
+        this.ctx.stroke();
+        this.ctx.setLineDash([]);
+      }
+
       // Highlight selected hex
       if (this.selectedHex && this.selectedHex.x === hex.x && this.selectedHex.y === hex.y) {
         this.ctx.strokeStyle = '#FFFF00';

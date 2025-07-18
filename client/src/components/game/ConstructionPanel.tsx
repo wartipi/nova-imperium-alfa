@@ -760,6 +760,12 @@ export function ConstructionPanel() {
         }
         
         console.log(`✅ Colonie fondée à (${selectedHex.x}, ${selectedHex.y}):`, newCity.name);
+        
+        // Forcer le re-rendu de la carte pour afficher la nouvelle ville
+        if ((window as any).gameEngine) {
+          (window as any).gameEngine.render();
+        }
+        
         alert(`Colonie "${newCity.name}" fondée avec succès à (${selectedHex.x}, ${selectedHex.y}) !`);
       }
       return;
