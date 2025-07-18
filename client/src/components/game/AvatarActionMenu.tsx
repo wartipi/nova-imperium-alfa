@@ -277,7 +277,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     
     // Vérifier les compétences requises
     if (action.requiredCompetence) {
-      const hasCompetence = competences.some(comp => comp.includes(action.requiredCompetence));
+      const hasCompetence = hasCompetenceLevel(action.requiredCompetence, action.requiredLevel || 1);
       if (!hasCompetence) return false;
     }
     
@@ -313,7 +313,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     return [
       ...baseActions,
       ...competenceActions.filter(action => 
-        competences.some(comp => comp.includes(action.requiredCompetence))
+        hasCompetenceLevel(action.requiredCompetence, action.requiredLevel || 1)
       ),
       ...getCompetenceBasedActions(),
       ...reputationActions.filter(action => 

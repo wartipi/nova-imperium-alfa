@@ -52,7 +52,8 @@ interface CartographyPanelProps {
 }
 
 export function CartographyPanel({ onClose }: CartographyPanelProps) {
-  const { hasCompetenceLevel, actionPoints, spendActionPoints, playerId } = usePlayer();
+  const { hasCompetenceLevel, actionPoints, spendActionPoints } = usePlayer();
+  const playerId = "player"; // ID du joueur principal
   const { currentNovaImperium } = useGameState();
   const [discoveredRegions, setDiscoveredRegions] = useState<MapRegion[]>([]);
   const [playerMaps, setPlayerMaps] = useState<MapDocument[]>([]);
