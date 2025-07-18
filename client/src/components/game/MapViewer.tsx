@@ -53,14 +53,13 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     ctx.closePath();
   };
 
-  // Fonction pour convertir les coordonnées hex en coordonnées pixel (même système que le jeu principal)
+  // Fonction pour convertir les coordonnées hex en coordonnées pixel (EXACTEMENT comme GameEngine.ts)
   const hexToPixel = (hexX: number, hexY: number, hexRadius: number) => {
-    const hexWidth = hexRadius * Math.sqrt(3);
-    const hexHeight = hexRadius * 1.5;
+    const hexHeight = hexRadius * Math.sqrt(3);
     
-    // Même système de coordonnées que dans GameEngine.ts
-    let x = hexWidth * (hexX + 0.5 * (hexY % 2));
-    let y = hexHeight * hexY;
+    // EXACTEMENT comme dans GameEngine.ts ligne 224-225
+    const x = hexX * (hexRadius * 1.5);
+    const y = hexY * hexHeight + (hexX % 2) * (hexHeight / 2);
     
     return { x, y };
   };
@@ -99,13 +98,13 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
 
     // Dessiner chaque tuile comme hexagone
     tiles.forEach(tile => {
-      // Utiliser les coordonnées relatives par rapport au centre de la région
-      const relativeX = tile.x - mapData.region.centerX;
-      const relativeY = tile.y - mapData.region.centerY;
+      // Utiliser les coordonnées absolues comme dans le jeu
+      const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
       
-      const hexPos = hexToPixel(relativeX, relativeY, hexRadius);
-      const x = centerX + hexPos.x;
-      const y = centerY + hexPos.y;
+      // Centrer la vue sur la région mappée
+      const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
+      const x = centerX + (hexPos.x - regionCenterPos.x);
+      const y = centerY + (hexPos.y - regionCenterPos.y);
 
       // Couleur du terrain
       ctx.fillStyle = terrainColors[tile.terrain as keyof typeof terrainColors] || '#CCCCCC';
