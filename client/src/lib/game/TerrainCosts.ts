@@ -18,10 +18,8 @@ export const TERRAIN_MOVEMENT_COSTS: Record<TerrainType, number> = {
   swamp: 3,               // Marais - terrain boueux et dangereux
   caves: 3,               // Grottes - terrain accidenté
   
-  // Terrains très difficiles (4 PA)
-  volcano: 4,             // Volcan - terrain dangereux et rocheux
-  
   // Terrains extrêmement difficiles (5 PA)
+  volcano: 5,             // Volcan - terrain dangereux et rocheux
   mountains: 5,           // Montagnes - terrain le plus difficile
   
   // Terrains aquatiques (impossible sans navire)
@@ -48,8 +46,6 @@ export function getTerrainCostDescription(terrain: TerrainType): string {
     return "Modéré (2 PA)";
   } else if (cost === 3) {
     return "Difficile (3 PA)";
-  } else if (cost === 4) {
-    return "Très difficile (4 PA)";
   } else if (cost === 5) {
     return "Extrêmement difficile (5 PA)";
   }
@@ -69,8 +65,6 @@ export function getTerrainDifficultyEmoji(terrain: TerrainType): string {
     return "🟡";  // Modéré
   } else if (cost === 3) {
     return "🟠";  // Difficile
-  } else if (cost === 4) {
-    return "🔴";  // Très difficile
   } else if (cost === 5) {
     return "⚫";  // Extrêmement difficile
   }

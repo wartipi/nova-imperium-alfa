@@ -251,8 +251,7 @@ Preferred communication style: Simple, everyday language.
   - Easy terrain (1 PA): fertile_land, sacred_plains, enchanted_meadow
   - Moderate terrain (2 PA): wasteland, forest, hills, desert, ancient_ruins
   - Difficult terrain (3 PA): swamp, caves
-  - Very difficult terrain (4 PA): volcano
-  - Extremely difficult terrain (5 PA): mountains
+  - Extremely difficult terrain (5 PA): volcano, mountains
   - Impossible terrain (999 PA): shallow_water, deep_water (requires ships)
 - Enhanced MovementConfirmationModal with terrain difficulty indicators
 - Added visual feedback with emoji difficulty indicators and cost descriptions
