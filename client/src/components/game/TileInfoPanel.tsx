@@ -201,6 +201,9 @@ export function TileInfoPanel() {
       <div className="flex justify-between items-center mb-3">
         <div className="text-amber-900 font-bold text-lg">
           INFORMATIONS DE LA CASE
+          {isGameMaster && (
+            <span className="ml-2 text-xs bg-purple-500 text-white px-2 py-1 rounded">MJ</span>
+          )}
         </div>
         <button
           onClick={handleClose}
@@ -351,6 +354,85 @@ export function TileInfoPanel() {
         </div>
       )}
 
+      {/* Mode MJ - Informations techniques complètes */}
+      {isGameMaster && (
+        <div className="bg-purple-50 border border-purple-700 rounded p-2 mb-3">
+          <div className="text-purple-900 font-semibold mb-2">🔧 Informations techniques (MJ)</div>
+          <div className="text-xs text-purple-800 space-y-2">
+            
+            {/* Coordonnées et identifiants */}
+            <div className="bg-purple-100 p-2 rounded">
+              <div className="font-medium mb-1">Identifiants système:</div>
+              <div>• <strong>Position:</strong> x={selectedHex.x}, y={selectedHex.y}</div>
+              <div>• <strong>Index carte:</strong> [{selectedHex.x}][{selectedHex.y}]</div>
+              <div>• <strong>ID hexagone:</strong> hex_{selectedHex.x}_{selectedHex.y}</div>
+            </div>
+
+            {/* Données terrain */}
+            <div className="bg-purple-100 p-2 rounded">
+              <div className="font-medium mb-1">Données terrain:</div>
+              <div>• <strong>Type:</strong> {selectedHex.terrain}</div>
+              <div>• <strong>Rivière:</strong> {selectedHex.river ? 'Présente' : 'Absente'}</div>
+              <div>• <strong>Ressource:</strong> {selectedHex.resource || 'Aucune'}</div>
+            </div>
+
+            {/* Rendements complets */}
+            <div className="bg-purple-100 p-2 rounded">
+              <div className="font-medium mb-1">Rendements détaillés:</div>
+              <div>• <strong>Nourriture:</strong> {selectedHex.food}</div>
+              <div>• <strong>Points d'Action:</strong> {selectedHex.actionPoints || selectedHex.action_points || 0}</div>
+              <div>• <strong>Or:</strong> {selectedHex.gold}</div>
+              <div>• <strong>Commerce:</strong> {selectedHex.commerce || 0}</div>
+            </div>
+
+            {/* État exploration */}
+            <div className="bg-purple-100 p-2 rounded">
+              <div className="font-medium mb-1">État exploration:</div>
+              <div>• <strong>Exploré:</strong> {isHexExplored(selectedHex.x, selectedHex.y) ? 'Oui' : 'Non'}</div>
+              <div>• <strong>Visible:</strong> {isHexAccessible ? 'Oui' : 'Non'}</div>
+            </div>
+
+            {/* Données JSON complètes */}
+            <div className="bg-purple-100 p-2 rounded">
+              <div className="font-medium mb-1">Structure JSON complète:</div>
+              <pre className="text-xs bg-white p-2 rounded border overflow-x-auto whitespace-pre-wrap">
+                {JSON.stringify({
+                  position: { x: selectedHex.x, y: selectedHex.y },
+                  terrain: selectedHex.terrain,
+                  resource: selectedHex.resource,
+                  river: selectedHex.river,
+                  yields: {
+                    food: selectedHex.food,
+                    actionPoints: selectedHex.actionPoints || selectedHex.action_points || 0,
+                    gold: selectedHex.gold,
+                    commerce: selectedHex.commerce || 0
+                  },
+                  exploration: {
+                    explored: isHexExplored(selectedHex.x, selectedHex.y),
+                    accessible: isHexAccessible
+                  },
+                  entities: {
+                    hasCity: !!cityOnTile,
+                    unitCount: unitsOnTile.length,
+                    cityData: cityOnTile ? {
+                      id: cityOnTile.id,
+                      name: cityOnTile.name,
+                      population: cityOnTile.population,
+                      buildings: cityOnTile.buildings?.length || 0
+                    } : null,
+                    unitsData: unitsOnTile.map(u => ({
+                      type: u.type,
+                      health: `${u.health}/${u.maxHealth}`,
+                      attack: u.attack,
+                      defense: u.defense
+                    }))
+                  }
+                }, null, 2)}
+              </pre>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
