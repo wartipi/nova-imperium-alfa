@@ -201,10 +201,10 @@ export function TileInfoPanel() {
       <div className="bg-amber-50 border border-amber-700 rounded p-2 mb-3">
         <div className="text-amber-900 font-semibold mb-2">💎 Ressources</div>
         {(() => {
-          const { getCompetenceLevel } = usePlayer.getState();
+          const { getCompetenceLevel, isGameMaster } = usePlayer.getState();
           const explorationLevel = getCompetenceLevel('exploration');
-          const resourceDescription = ResourceRevealSystem.getResourceDescription(selectedHex, explorationLevel);
-          const hasRevealableResources = ResourceRevealSystem.hasRevealableResources(selectedHex, explorationLevel);
+          const isMasterMode = isGameMaster || false;
+          const resourceDescription = ResourceRevealSystem.getResourceDescription(selectedHex, Math.max(explorationLevel, isMasterMode ? 1 : 0));
           
           return (
             <div>
@@ -215,15 +215,23 @@ export function TileInfoPanel() {
                 }`}>
                   {explorationLevel >= 1 ? `Niveau ${explorationLevel}` : 'Aucun'}
                 </span>
+                {isMasterMode && (
+                  <span className="ml-2 px-2 py-1 rounded text-xs bg-purple-100 text-purple-800">
+                    Mode MJ
+                  </span>
+                )}
               </div>
               
               <div className="text-amber-700">
-                {selectedHex.resource && explorationLevel >= 1 ? (
+                {selectedHex.resource && (isMasterMode || explorationLevel >= 1) ? (
                   <div className="flex items-center gap-2">
                     <span className="text-lg">
-                      {ResourceRevealSystem.getHexResourceSymbol(selectedHex, explorationLevel) || '💎'}
+                      {ResourceRevealSystem.getHexResourceSymbol(selectedHex, Math.max(explorationLevel, 1)) || '💎'}
                     </span>
                     <span>{resourceDescription}</span>
+                    {isMasterMode && !explorationLevel && (
+                      <span className="text-xs text-purple-600">(visible en mode MJ)</span>
+                    )}
                   </div>
                 ) : (
                   <div className="text-amber-600 text-sm italic">
@@ -232,7 +240,7 @@ export function TileInfoPanel() {
                 )}
               </div>
               
-              {explorationLevel === 0 && (
+              {explorationLevel === 0 && !isMasterMode && (
                 <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
                   💡 <strong>Astuce:</strong> Apprenez la compétence "Exploration" niveau 1 et utilisez l'action "Explorer la Zone" pour révéler les ressources !
                 </div>

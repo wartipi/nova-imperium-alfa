@@ -310,35 +310,36 @@ export class GameEngine {
         this.ctx.fillText('➤', x, y + 7);
       }
       
-      // Draw resource with exploration-based revelation (seulement si zone explorée avec l'action ET exploration niveau 1+)
+      // Draw resource with exploration-based revelation (ou mode MJ pour voir toutes les ressources)
       if (hex.resource) {
-        const { getCompetenceLevel, isHexExplored } = (window as any).usePlayer ? 
+        const { getCompetenceLevel, isHexExplored, isGameMaster } = (window as any).usePlayer ? 
           (window as any).usePlayer.getState() : 
-          { getCompetenceLevel: () => 0, isHexExplored: () => false };
+          { getCompetenceLevel: () => 0, isHexExplored: () => false, isGameMaster: false };
         
         const explorationLevel = getCompetenceLevel ? getCompetenceLevel('exploration') : 0;
         const hexExplored = isHexExplored ? isHexExplored(hex.x, hex.y) : false;
+        const isMasterMode = isGameMaster || false;
         
-        // Ressources seulement visibles si exploration niveau 1+ ET zone explorée avec l'action
-        if (explorationLevel >= 1 && hexExplored && ResourceRevealSystem.canRevealResource(hex.resource, explorationLevel)) {
-          const resourceSymbol = ResourceRevealSystem.getHexResourceSymbol(hex, explorationLevel);
-          const resourceColor = ResourceRevealSystem.getHexResourceColor(hex, explorationLevel);
+        // Ressources visibles si : mode MJ OU (exploration niveau 1+ ET zone explorée avec l'action)
+        if (isMasterMode || (explorationLevel >= 1 && hexExplored && ResourceRevealSystem.canRevealResource(hex.resource, explorationLevel))) {
+          const resourceSymbol = ResourceRevealSystem.getHexResourceSymbol(hex, Math.max(explorationLevel, 1));
+          const resourceColor = ResourceRevealSystem.getHexResourceColor(hex, Math.max(explorationLevel, 1));
           
           if (resourceSymbol && resourceColor) {
             // Draw resource background
             this.ctx.fillStyle = resourceColor;
-            this.ctx.globalAlpha = 0.6;
+            this.ctx.globalAlpha = isMasterMode ? 0.8 : 0.6; // Plus visible en mode MJ
             this.ctx.fillRect(x - 8, y - 8, 16, 16);
             this.ctx.globalAlpha = 1.0;
             
             // Draw resource symbol
-            this.ctx.font = '14px Arial';
+            this.ctx.font = isMasterMode ? 'bold 14px Arial' : '14px Arial'; // Plus gras en mode MJ
             this.ctx.textAlign = 'center';
             this.ctx.fillStyle = '#000';
             this.ctx.fillText(resourceSymbol, x, y + 4);
           }
         }
-        // Pas d'indicateur générique - ressources complètement invisibles
+        // Pas d'indicateur générique - ressources complètement invisibles pour les joueurs
       }
       
       // Draw river
@@ -361,36 +362,37 @@ export class GameEngine {
       this.ctx.fillStyle = 'rgba(50, 50, 50, 0.6)';
       this.ctx.fill();
       
-      // Draw resource with fog effect (seulement si zone explorée avec l'action ET exploration niveau 1+)
+      // Draw resource with fog effect (ou mode MJ pour voir toutes les ressources)
       if (hex.resource) {
-        const { getCompetenceLevel, isHexExplored } = (window as any).usePlayer ? 
+        const { getCompetenceLevel, isHexExplored, isGameMaster } = (window as any).usePlayer ? 
           (window as any).usePlayer.getState() : 
-          { getCompetenceLevel: () => 0, isHexExplored: () => false };
+          { getCompetenceLevel: () => 0, isHexExplored: () => false, isGameMaster: false };
         
         const explorationLevel = getCompetenceLevel ? getCompetenceLevel('exploration') : 0;
         const hexExplored = isHexExplored ? isHexExplored(hex.x, hex.y) : false;
+        const isMasterMode = isGameMaster || false;
         
-        // Ressources seulement visibles si exploration niveau 1+ ET zone explorée avec l'action
-        if (explorationLevel >= 1 && hexExplored && ResourceRevealSystem.canRevealResource(hex.resource, explorationLevel)) {
-          const resourceSymbol = ResourceRevealSystem.getHexResourceSymbol(hex, explorationLevel);
-          const resourceColor = ResourceRevealSystem.getHexResourceColor(hex, explorationLevel);
+        // Ressources visibles si : mode MJ OU (exploration niveau 1+ ET zone explorée avec l'action)
+        if (isMasterMode || (explorationLevel >= 1 && hexExplored && ResourceRevealSystem.canRevealResource(hex.resource, explorationLevel))) {
+          const resourceSymbol = ResourceRevealSystem.getHexResourceSymbol(hex, Math.max(explorationLevel, 1));
+          const resourceColor = ResourceRevealSystem.getHexResourceColor(hex, Math.max(explorationLevel, 1));
           
           if (resourceSymbol && resourceColor) {
-            // Draw dimmed resource background
+            // Draw dimmed resource background (sauf en mode MJ où c'est plus visible)
             this.ctx.fillStyle = resourceColor;
-            this.ctx.globalAlpha = 0.3;
+            this.ctx.globalAlpha = isMasterMode ? 0.6 : 0.3;
             this.ctx.fillRect(x - 8, y - 8, 16, 16);
             
             // Draw dimmed resource symbol
-            this.ctx.globalAlpha = 0.6;
-            this.ctx.font = '14px Arial';
+            this.ctx.globalAlpha = isMasterMode ? 0.9 : 0.6;
+            this.ctx.font = isMasterMode ? 'bold 14px Arial' : '14px Arial';
             this.ctx.textAlign = 'center';
             this.ctx.fillStyle = '#000';
             this.ctx.fillText(resourceSymbol, x, y + 4);
             this.ctx.globalAlpha = 1.0;
           }
         }
-        // Pas d'indicateur générique - ressources complètement invisibles
+        // Pas d'indicateur générique - ressources complètement invisibles pour les joueurs
       }
       
       // Draw river with fog effect
