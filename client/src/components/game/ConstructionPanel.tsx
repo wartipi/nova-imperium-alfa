@@ -711,7 +711,7 @@ export function ConstructionPanel() {
           return;
         }
 
-        // En mode normal, vérifier le territoire
+        // Vérifier le territoire (sauf pour les MJ)
         if (!isGameMaster) {
           const territoryOwner = TerritorySystem.isTerritoryClaimed(selectedHex.x, selectedHex.y);
           if (!territoryOwner || territoryOwner.factionId !== playerFaction) {
@@ -719,6 +719,13 @@ export function ConstructionPanel() {
             return;
           }
           spendActionPoints(15);
+        } else {
+          // En mode MJ, revendiquer automatiquement le territoire si pas déjà fait
+          const territoryOwner = TerritorySystem.isTerritoryClaimed(selectedHex.x, selectedHex.y);
+          if (!territoryOwner) {
+            TerritorySystem.claimTerritory(selectedHex.x, selectedHex.y, 'gm_faction', 'Administration MJ', 'gm_player', 'Maître de Jeu');
+            console.log(`🎯 Territoire (${selectedHex.x}, ${selectedHex.y}) automatiquement revendiqué en mode MJ`);
+          }
         }
 
         // Créer la nouvelle ville
