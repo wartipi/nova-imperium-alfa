@@ -240,6 +240,10 @@ Preferred communication style: Simple, everyday language.
 - Vision system now correctly limits visibility to 1 hex radius around avatar
 - Fixed bug where extra hexes were being revealed beyond intended vision range
 - All vision methods (isHexVisible, isHexInCurrentVision, moveAvatarToHex) now use same hex grid logic
+- **Vision Alignment Fix (January 18, 2025)**: Corrected hex grid offsets to use proper even/odd row system matching MapGenerator.ts
+- Vision now shows exactly 7 hexagons (avatar + 6 adjacent) with correct hexagonal alignment
+- Fixed misaligned vision hexagons that were showing incorrect tiles as visible
+- All vision methods now use consistent even/odd row offset calculations for accurate hex adjacency
 
 ### Unique Items Exchange System (January 18, 2025)
 - Created comprehensive unique items system for cards, magical objects, and artifacts
