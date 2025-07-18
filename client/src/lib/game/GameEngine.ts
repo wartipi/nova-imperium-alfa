@@ -589,4 +589,37 @@ export class GameEngine {
     
     return { x, y };
   }
+
+  // Center camera on avatar
+  centerCameraOnAvatar() {
+    const hexHeight = this.hexSize * Math.sqrt(3);
+    const avatarHexX = Math.round(this.avatarPosition.x / 1.5);
+    const avatarHexY = Math.round(this.avatarPosition.z / (Math.sqrt(3) * 0.5));
+    
+    const screenX = avatarHexX * (this.hexSize * 1.5);
+    const screenY = avatarHexY * hexHeight + (avatarHexX % 2) * (hexHeight / 2);
+    
+    this.cameraX = screenX;
+    this.cameraY = screenY;
+    this.render();
+  }
+
+  // Move camera by offset
+  moveCamera(deltaX: number, deltaY: number) {
+    this.cameraX += deltaX / this.zoom;
+    this.cameraY += deltaY / this.zoom;
+    this.render();
+  }
+
+  // Set camera position
+  setCameraPosition(x: number, y: number) {
+    this.cameraX = x;
+    this.cameraY = y;
+    this.render();
+  }
+
+  // Get camera position
+  getCameraPosition(): { x: number; y: number } {
+    return { x: this.cameraX, y: this.cameraY };
+  }
 }

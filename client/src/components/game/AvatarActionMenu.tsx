@@ -93,53 +93,104 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
   ];
 
   // Actions basées sur le personnage sélectionné
-  const characterActions = [
-    {
-      id: 'knight_charge',
-      name: 'Charge Héroïque',
-      description: 'Mener une charge courageuse au combat',
-      cost: 5,
-      icon: '🛡️',
-      category: 'combat',
-      requiredCharacter: 'knight'
-    },
-    {
-      id: 'wizard_spell',
-      name: 'Lancer un Sort',
-      description: 'Utiliser la magie pour influencer l\'environnement',
-      cost: 7,
-      icon: '🧙',
-      category: 'magic',
-      requiredCharacter: 'wizard'
-    },
-    {
-      id: 'archer_precision',
-      name: 'Tir de Précision',
-      description: 'Viser avec une précision mortelle',
-      cost: 4,
-      icon: '🏹',
-      category: 'ranged',
-      requiredCharacter: 'archer'
-    },
-    {
-      id: 'priest_blessing',
-      name: 'Bénédiction',
-      description: 'Accorder des bénédictions divines',
-      cost: 6,
-      icon: '🙏',
-      category: 'divine',
-      requiredCharacter: 'priest'
-    },
-    {
-      id: 'rogue_stealth',
-      name: 'Furtivité',
-      description: 'Se déplacer sans être détecté',
-      cost: 3,
-      icon: '🥷',
-      category: 'stealth',
-      requiredCharacter: 'rogue'
-    }
-  ];
+  const getCharacterActions = () => {
+    if (!selectedCharacter) return [];
+    
+    const characterActionsMap = {
+      knight: [
+        {
+          id: 'knight_charge',
+          name: 'Charge Héroïque',
+          description: 'Mener une charge courageuse au combat',
+          cost: 5,
+          icon: '🛡️',
+          category: 'combat'
+        },
+        {
+          id: 'knight_defend',
+          name: 'Position Défensive',
+          description: 'Prendre une position défensive stratégique',
+          cost: 3,
+          icon: '🛡️',
+          category: 'defense'
+        }
+      ],
+      wizard: [
+        {
+          id: 'wizard_spell',
+          name: 'Lancer un Sort',
+          description: 'Utiliser la magie pour influencer l\'environnement',
+          cost: 7,
+          icon: '🧙',
+          category: 'magic'
+        },
+        {
+          id: 'wizard_scry',
+          name: 'Scrutation',
+          description: 'Observer des zones distantes par magie',
+          cost: 5,
+          icon: '🔮',
+          category: 'divination'
+        }
+      ],
+      archer: [
+        {
+          id: 'archer_precision',
+          name: 'Tir de Précision',
+          description: 'Viser avec une précision mortelle',
+          cost: 4,
+          icon: '🏹',
+          category: 'ranged'
+        },
+        {
+          id: 'archer_scout',
+          name: 'Reconnaissance',
+          description: 'Observer les environs à distance',
+          cost: 2,
+          icon: '🔍',
+          category: 'scouting'
+        }
+      ],
+      priest: [
+        {
+          id: 'priest_blessing',
+          name: 'Bénédiction',
+          description: 'Accorder des bénédictions divines',
+          cost: 6,
+          icon: '🙏',
+          category: 'divine'
+        },
+        {
+          id: 'priest_heal',
+          name: 'Soins',
+          description: 'Soigner les blessures et purifier',
+          cost: 4,
+          icon: '✨',
+          category: 'healing'
+        }
+      ],
+      rogue: [
+        {
+          id: 'rogue_stealth',
+          name: 'Furtivité',
+          description: 'Se déplacer sans être détecté',
+          cost: 3,
+          icon: '🥷',
+          category: 'stealth'
+        },
+        {
+          id: 'rogue_lockpick',
+          name: 'Crochetage',
+          description: 'Ouvrir serrures et passages secrets',
+          cost: 2,
+          icon: '🔑',
+          category: 'infiltration'
+        }
+      ]
+    };
+    
+    return characterActionsMap[selectedCharacter.id as keyof typeof characterActionsMap] || [];
+  };
 
   // Actions basées sur la réputation
   const reputationActions = [
@@ -216,9 +267,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       ...competenceActions.filter(action => 
         competences.some(comp => comp.includes(action.requiredCompetence))
       ),
-      ...characterActions.filter(action => 
-        selectedCharacter?.id === action.requiredCharacter
-      ),
+      ...getCharacterActions(),
       ...reputationActions.filter(action => 
         reputation === action.requiredReputation
       )

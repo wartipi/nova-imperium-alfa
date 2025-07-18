@@ -8,6 +8,7 @@ import { useGameEngine } from "../../lib/contexts/GameEngineContext";
 import { AvatarActionMenu } from "./AvatarActionMenu";
 import { MovementConfirmationModal } from "./MovementConfirmationModal";
 import { getTerrainMovementCost } from "../../lib/game/TerrainCosts";
+import { CameraControls } from "./CameraControls";
 
 export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -143,6 +144,7 @@ export function GameCanvas() {
 
   return (
     <>
+      <CameraControls />
       <canvas
         ref={canvasRef}
         width={window.innerWidth}

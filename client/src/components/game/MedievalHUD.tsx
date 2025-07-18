@@ -23,7 +23,7 @@ import { CompetenceTree } from "./CompetenceTree";
 import { TileInfoPanel } from "./TileInfoPanel";
 import { ReputationPanel } from "./ReputationPanel";
 import { FactionPanel } from "./FactionPanel";
-import { ActionButtons } from "./ActionButtons";
+
 import { ActionPointsPanel } from "./ActionPointsPanel";
 import { PlayerInventory } from "./PlayerInventory";
 
@@ -40,7 +40,6 @@ type MenuSection =
   | 'help'
   | 'competences'
   | 'factions'
-  | 'actions'
   | 'action_points';
 
 export function MedievalHUD() {
@@ -69,7 +68,6 @@ export function MedievalHUD() {
     { id: 'guide' as MenuSection, label: 'GUIDE DE JEUX', icon: '📖' },
     { id: 'help' as MenuSection, label: 'AIDE', icon: '❓' },
     { id: 'factions' as MenuSection, label: 'FACTIONS', icon: '🏛️' },
-    { id: 'actions' as MenuSection, label: 'ACTIONS', icon: '🎯' },
     { id: 'action_points' as MenuSection, label: 'POINTS D\'ACTION', icon: '⚡' }
   ];
 
@@ -341,7 +339,7 @@ export function MedievalHUD() {
               {activeSection === 'help' && <HelpPanel />}
               {activeSection === 'competences' && <CompetenceTree />}
               {activeSection === 'factions' && <FactionPanel />}
-              {activeSection === 'actions' && <ActionButtons />}
+
               {activeSection === 'action_points' && <ActionPointsPanel onClose={() => setActiveSection(null)} />}
             </div>
           </div>

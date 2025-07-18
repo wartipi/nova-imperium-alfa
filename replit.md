@@ -259,6 +259,27 @@ Preferred communication style: Simple, everyday language.
 - Terrain costs integrated into movement validation and action point spending
 - User requested: Different movement costs per terrain type instead of flat 1 PA cost
 
+### Avatar Actions System Enhancement (January 18, 2025)
+- Removed "Actions" category from left menu (contained reputation actions)
+- Enhanced avatar action menu to be character-specific with unique abilities per character type
+- Knight actions: Charge Héroïque, Position Défensive
+- Wizard actions: Lancer un Sort, Scrutation  
+- Archer actions: Tir de Précision, Reconnaissance
+- Priest actions: Bénédiction, Soins
+- Rogue actions: Furtivité, Crochetage
+- Actions now truly linked to selected character instead of generic system
+- Each character type has 2 unique abilities reflecting their role and skills
+
+### Camera System Overhaul (January 18, 2025)
+- Implemented camera-follows-avatar system with keyboard navigation
+- Arrow keys move camera around the map while keeping smooth movement
+- Space bar centers camera back on avatar position
+- Camera automatically centers on avatar when moving
+- Keyboard controls override mouse drag for primary navigation
+- Minimap remains fully functional for click-to-move camera
+- Visual indicators show keyboard controls (arrows for camera, space for center)
+- Maintains existing zoom and minimap functionality while adding keyboard convenience
+
 ### Enhanced Reputation System & Game Mechanics (January 17, 2025)
 - Updated reputation system with 6 clear levels: Banni, Méprisé, Suspect, Neutre, Honorable, Saint
 - Added GN participation tracking and season pass system for faction creation requirements
