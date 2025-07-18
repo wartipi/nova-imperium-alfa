@@ -7,9 +7,10 @@ import { Button } from "../ui/button";
 interface AvatarActionMenuProps {
   position: { x: number; y: number };
   onClose: () => void;
+  onMoveRequest: () => void;
 }
 
-export function AvatarActionMenu({ position, onClose }: AvatarActionMenuProps) {
+export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarActionMenuProps) {
   const { competences, actionPoints, spendActionPoints, selectedCharacter } = usePlayer();
   const { honor, reputation } = useReputation();
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
@@ -196,6 +197,13 @@ export function AvatarActionMenu({ position, onClose }: AvatarActionMenuProps) {
 
   const handleActionClick = (action: any) => {
     if (!isActionAvailable(action)) return;
+    
+    if (action.id === 'move') {
+      // Activer le mode déplacement
+      onMoveRequest();
+      onClose();
+      return;
+    }
     
     if (spendActionPoints(action.cost)) {
       console.log(`Action exécutée: ${action.name}`);

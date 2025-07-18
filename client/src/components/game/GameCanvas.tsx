@@ -14,7 +14,7 @@ export function GameCanvas() {
   const { mapData, selectedHex, setSelectedHex } = useMap();
   const { gamePhase } = useGameState();
   const { novaImperiums, selectedUnit, moveUnit } = useNovaImperium();
-  const { avatarPosition, avatarRotation, isMoving, selectedCharacter, moveAvatarToHex, isHexVisible, isHexInCurrentVision, pendingMovement, setPendingMovement } = usePlayer();
+  const { avatarPosition, avatarRotation, isMoving, selectedCharacter, moveAvatarToHex, isHexVisible, isHexInCurrentVision, pendingMovement, setPendingMovement, isMovementMode, setMovementMode } = usePlayer();
   const [mouseDownPos, setMouseDownPos] = useState<{ x: number; y: number } | null>(null);
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
   const [avatarMenuPosition, setAvatarMenuPosition] = useState({ x: 0, y: 0 });
@@ -79,8 +79,8 @@ export function GameCanvas() {
           }
         }
         
-        // Handle avatar movement - check if terrain is walkable
-        if (!selectedUnit) {
+        // Handle avatar movement - only if movement mode is active
+        if (!selectedUnit && isMovementMode) {
           // Check if terrain is walkable for land units
           if (isTerrainWalkable(hex.terrain)) {
             // Check if we clicked on a different hex than avatar's current position
@@ -90,6 +90,7 @@ export function GameCanvas() {
             if (hex.x !== currentHexX || hex.y !== currentHexY) {
               // Show movement confirmation modal instead of moving immediately
               setPendingMovement({ x: hex.x, y: hex.y });
+              setMovementMode(false); // Exit movement mode
             }
           } else {
             console.log('Cannot move avatar to water terrain:', hex.terrain);
@@ -99,7 +100,7 @@ export function GameCanvas() {
     }
     
     setMouseDownPos(null);
-  }, [selectedUnit, setSelectedHex, moveUnit, mouseDownPos, moveAvatarToHex, avatarPosition, setPendingMovement]);
+  }, [selectedUnit, setSelectedHex, moveUnit, mouseDownPos, moveAvatarToHex, avatarPosition, setPendingMovement, isMovementMode, setMovementMode]);
 
   // Update rendering when game state changes
   useEffect(() => {
@@ -114,7 +115,7 @@ export function GameCanvas() {
         gameEngineRef.current.centerCameraOnPlayerStart();
       }
     }
-  }, [novaImperiums, selectedHex, avatarPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision, pendingMovement]);
+  }, [novaImperiums, selectedHex, avatarPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision, pendingMovement, isMovementMode]);
 
   // Check if terrain is walkable for land units
   const isTerrainWalkable = (terrain: string): boolean => {
@@ -145,14 +146,30 @@ export function GameCanvas() {
         height={window.innerHeight}
         onMouseDown={handleMouseDown}
         onClick={handleCanvasClick}
-        className="block cursor-pointer"
+        className={`block ${isMovementMode ? 'cursor-crosshair' : 'cursor-pointer'}`}
         style={{ touchAction: 'none', pointerEvents: 'auto' }}
       />
+      
+      {isMovementMode && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50">
+          <div className="flex items-center gap-2">
+            <span>🚶</span>
+            <span>Mode déplacement activé - Cliquez sur une case pour vous déplacer</span>
+            <button
+              onClick={() => setMovementMode(false)}
+              className="ml-2 text-white hover:text-gray-300"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
       
       {showAvatarMenu && (
         <AvatarActionMenu
           position={avatarMenuPosition}
           onClose={() => setShowAvatarMenu(false)}
+          onMoveRequest={() => setMovementMode(true)}
         />
       )}
 

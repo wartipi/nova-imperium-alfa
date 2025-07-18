@@ -39,6 +39,8 @@ interface PlayerState {
   // Movement confirmation
   pendingMovement: { x: number; y: number } | null;
   setPendingMovement: (movement: { x: number; y: number } | null) => void;
+  isMovementMode: boolean;
+  setMovementMode: (mode: boolean) => void;
 }
 
 export const usePlayer = create<PlayerState>((set, get) => ({
@@ -60,6 +62,7 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   isGameMaster: false, // Only game master sees full map
   // Movement confirmation
   pendingMovement: null,
+  isMovementMode: false,
   setSelectedCharacter: (character) => set({ selectedCharacter: character }),
   setPlayerName: (name) => set({ playerName: name }),
   updatePlayer: (updates) => set((state) => ({ ...state, ...updates })),
@@ -322,5 +325,6 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   },
 
   // Movement confirmation methods
-  setPendingMovement: (movement) => set({ pendingMovement: movement })
+  setPendingMovement: (movement) => set({ pendingMovement: movement }),
+  setMovementMode: (mode) => set({ isMovementMode: mode })
 }));
