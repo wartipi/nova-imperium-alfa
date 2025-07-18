@@ -580,7 +580,8 @@ export const usePlayer = create<PlayerState>((set, get) => {
     const state = get();
     
     // Vérifier si le joueur a la compétence exploration niveau 1
-    if (state.getCompetenceLevel('exploration') < 1) {
+    const explorationLevel = state.getCompetenceLevel('exploration');
+    if (explorationLevel < 1) {
       console.log('❌ Exploration impossible: compétence exploration niveau 1 requise');
       return false;
     }
@@ -594,7 +595,8 @@ export const usePlayer = create<PlayerState>((set, get) => {
     // Dépenser les PA
     state.spendActionPoints(5);
 
-    // Découvrir les ressources dans tout le champ de vision
+    // Utiliser directement le champ de vision actuel du joueur
+    // Cela inclut automatiquement tous les bonus de niveau d'exploration
     const newResourcesDiscovered = new Set(state.resourcesDiscovered);
     let resourcesFound = 0;
 
@@ -608,10 +610,11 @@ export const usePlayer = create<PlayerState>((set, get) => {
     // Mettre à jour l'état
     set({ resourcesDiscovered: newResourcesDiscovered });
 
-    // Gagner de l'expérience
-    state.gainExperience(5, 'Exploration');
+    // Gagner de l'expérience proportionnelle au nombre d'hexagones explorés
+    const xpGained = Math.max(5, Math.floor(state.currentVision.size / 2));
+    state.gainExperience(xpGained, 'Exploration');
 
-    console.log(`🔍 Exploration terminée! ${resourcesFound} nouvelles zones explorées dans le champ de vision`);
+    console.log(`🔍 Exploration niveau ${explorationLevel} terminée! ${resourcesFound} nouvelles zones explorées sur ${state.currentVision.size} hexagones de vision`);
     return true;
   }
   };

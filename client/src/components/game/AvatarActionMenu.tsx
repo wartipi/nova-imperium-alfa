@@ -48,7 +48,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     {
       id: 'explore_zone',
       name: 'Explorer la Zone',
-      description: 'Révéler les ressources dans tout le champ de vision (requiert Exploration niveau 1)',
+      description: 'Révéler les ressources dans tout votre champ de vision actuel - requiert Exploration niveau 1',
       cost: 5,
       icon: '🔍',
       category: 'exploration',
@@ -149,9 +149,13 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     }
 
     if (action.id === 'explore_zone') {
+      const { getCompetenceLevel, currentVision } = usePlayer.getState();
+      const explorationLevel = getCompetenceLevel('exploration');
+      const visionSize = currentVision.size;
+      
       const success = discoverResourcesInVision();
       if (success) {
-        alert('Zone explorée avec succès ! Les ressources dans votre champ de vision ont été révélées.');
+        alert(`Zone explorée avec succès ! Les ressources dans votre champ de vision (${visionSize} hexagones) ont été révélées.`);
       } else {
         alert('Exploration impossible : vérifiez vos PA ou votre compétence Exploration.');
       }

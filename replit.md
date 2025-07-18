@@ -272,6 +272,13 @@ Preferred communication style: Simple, everyday language.
 - Updated localStorage keys to use 'nova_imperium_save' instead of 'civ_save'
 - All components now use consistent coding style and optimized structure
 
+### Dynamic Field of Vision Exploration (January 18, 2025)
+- Modified exploration action to always match player's current field of vision
+- Exploration now scales automatically with competence level (7→19→37+ hexagones)
+- Experience gained proportional to vision size for balanced progression
+- Action description updated to reflect dynamic vision-based exploration
+- System ensures exploration power grows naturally with competence advancement
+
 ### Level & Experience System Implementation (January 18, 2025)
 - **Complete Level/Experience System**: Replaced rank-based progression with dynamic level advancement
 - **Experience Gain Mechanics**: Avatar actions award experience based on difficulty/cost (movement XP disabled per user request)
