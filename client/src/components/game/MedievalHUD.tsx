@@ -539,11 +539,12 @@ export function MedievalHUD() {
         <MiniMap />
       </div>
 
-      {/* Active Section Panel - Back to original position */}
+      {/* Active Section Panel - Centered with doubled width */}
       {activeSection && (
-        <div className="absolute top-20 left-72 pointer-events-auto z-50">
+        <div className="fixed inset-0 flex items-center justify-center pointer-events-auto z-50">
+          <div className="absolute inset-0 bg-black bg-opacity-30" onClick={() => setActiveSection(null)}></div>
           <div 
-            className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-2xl p-6 w-80 max-h-96 overflow-y-auto"
+            className="relative bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-2xl p-6 w-[640px] max-h-[80vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
             onMouseUp={(e) => e.stopPropagation()}

@@ -62,7 +62,7 @@ export function FactionPanel({ onClose }: FactionPanelProps) {
   };
 
   return (
-    <div className="bg-white border-2 border-gray-800 rounded-lg p-4 max-w-2xl">
+    <div className="bg-white border-2 border-gray-800 rounded-lg p-4 w-full">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-xl font-bold">Factions & Réputation</h3>
         <Button variant="ghost" size="sm" onClick={onClose}>✕</Button>
