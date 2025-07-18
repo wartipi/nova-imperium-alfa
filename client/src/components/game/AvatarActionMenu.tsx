@@ -51,7 +51,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       icon: '🧭',
       category: 'exploration',
       requiredCompetence: 'exploration',
-      requiredLevel: 2
+      requiredLevel: 1
     },
     {
       id: 'create_map',
@@ -180,11 +180,18 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
   };
 
   const getAllAvailableActions = () => {
+    // Debug: afficher les compétences apprises
+    console.log('Compétences apprises:', competences);
+    
+    const filteredCompetenceActions = competenceActions.filter(action => {
+      const hasRequiredCompetence = hasCompetenceLevel(action.requiredCompetence, action.requiredLevel || 1);
+      console.log(`Action ${action.name}: requiert ${action.requiredCompetence} niveau ${action.requiredLevel || 1}, a compétence: ${hasRequiredCompetence}`);
+      return hasRequiredCompetence;
+    });
+    
     return [
       ...baseActions,
-      ...competenceActions.filter(action => 
-        hasCompetenceLevel(action.requiredCompetence, action.requiredLevel || 1)
-      ),
+      ...filteredCompetenceActions,
       ...getAdvancedActions(),
       ...reputationActions.filter(action => 
         reputation === action.requiredReputation
