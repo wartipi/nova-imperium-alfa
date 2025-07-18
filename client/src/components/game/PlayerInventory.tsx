@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Package, Sparkles, Scroll, Shield, Gem, Sword, ChevronDown, ChevronUp } from 'lucide-react';
+import { Package, Sparkles, Scroll, Shield, Gem, Sword, ChevronDown, ChevronUp, Eye } from 'lucide-react';
+import { MapViewer } from './MapViewer';
 
 interface UniqueItem {
   id: string;
@@ -24,6 +25,7 @@ export function PlayerInventory({ playerId }: PlayerInventoryProps) {
   const [inventory, setInventory] = useState<UniqueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [viewingMap, setViewingMap] = useState<UniqueItem | null>(null);
 
   useEffect(() => {
     fetchInventory();
@@ -119,11 +121,55 @@ export function PlayerInventory({ playerId }: PlayerInventoryProps) {
                     {item.tradeable && (
                       <div className="text-green-600 text-xs" title="Échangeable">💎</div>
                     )}
+                    {item.type === 'carte' && (
+                      <button
+                        onClick={() => setViewingMap(item)}
+                        className="text-blue-600 hover:text-blue-800 text-xs"
+                        title="Voir la carte"
+                      >
+                        <Eye className="w-3 h-3" />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
           )}
+        </div>
+      )}
+      
+      {/* Modal pour visualiser une carte */}
+      {viewingMap && viewingMap.type === 'carte' && viewingMap.metadata?.mapData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-4 max-w-lg w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-amber-900">{viewingMap.name}</h3>
+              <button
+                onClick={() => setViewingMap(null)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="mb-4">
+              <MapViewer
+                mapData={{
+                  id: viewingMap.id,
+                  name: viewingMap.name,
+                  ...viewingMap.metadata.mapData
+                }}
+              />
+            </div>
+            
+            <div className="text-sm text-gray-600">
+              <p className="mb-2">{viewingMap.description}</p>
+              <div className="flex justify-between">
+                <span>Valeur: {viewingMap.value} ⚡</span>
+                <span>Rareté: {viewingMap.rarity}</span>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

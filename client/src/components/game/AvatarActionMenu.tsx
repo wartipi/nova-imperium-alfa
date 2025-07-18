@@ -9,6 +9,19 @@ interface AvatarActionMenuProps {
   onMoveRequest: () => void;
 }
 
+// Fonction pour générer des tuiles aléatoirement
+const generateRandomTiles = (count: number) => {
+  const terrains = ['fertile_land', 'forest', 'mountains', 'desert', 'wasteland', 'hills'];
+  const resources = ['wood', 'stone', 'iron', 'gold', 'mana'];
+  
+  return Array.from({ length: count }, (_, i) => ({
+    x: Math.floor(Math.random() * 10) + 1,
+    y: Math.floor(Math.random() * 10) + 1,
+    terrain: terrains[Math.floor(Math.random() * terrains.length)],
+    resources: Math.random() > 0.5 ? [resources[Math.floor(Math.random() * resources.length)]] : []
+  }));
+};
+
 export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarActionMenuProps) {
   const { actionPoints, spendActionPoints, hasCompetenceLevel, competences } = usePlayer();
   const { reputation } = useReputation();
@@ -168,28 +181,44 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     if (action.id === 'create_map') {
       if (spendActionPoints(action.cost)) {
         try {
-          // Créer un projet de cartographie pour la région actuelle
-          const response = await fetch('/api/cartography/start-project', {
+          // Créer directement une carte comme objet unique
+          const response = await fetch('/api/unique-items/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              playerId: "player",
-              regionId: `region_${Date.now()}`, // Région temporaire pour test
-              requiredActionPoints: 30,
-              tools: ['compass', 'paper'],
-              assistants: []
+              name: `Carte-${Date.now()}`,
+              type: "carte",
+              rarity: "rare",
+              description: "Carte détaillée créée par exploration",
+              ownerId: "player",
+              effects: ["navigation", "exploration_bonus"],
+              requirements: ["cartography_level_1"],
+              value: 150,
+              metadata: {
+                mapData: {
+                  region: {
+                    centerX: Math.floor(Math.random() * 50),
+                    centerY: Math.floor(Math.random() * 30),
+                    radius: 3,
+                    tiles: generateRandomTiles(7) // Générer 7 tuiles aléatoirement
+                  },
+                  quality: "detailed",
+                  accuracy: 85,
+                  createdAt: Date.now()
+                }
+              }
             })
           });
           
           if (response.ok) {
-            const project = await response.json();
-            alert(`Projet de cartographie "${project.id}" démarré avec succès !`);
+            const newItem = await response.json();
+            alert(`Carte "${newItem.name}" créée avec succès ! Consultez votre inventaire.`);
           } else {
-            alert('Erreur lors du démarrage du projet de cartographie');
+            alert('Erreur lors de la création de la carte');
           }
         } catch (error) {
           console.error('Erreur:', error);
-          alert('Erreur lors de la création du projet');
+          alert('Erreur lors de la création de la carte');
         }
       }
       onClose();
