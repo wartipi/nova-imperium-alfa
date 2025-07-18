@@ -24,9 +24,7 @@ import { TileInfoPanel } from "./TileInfoPanel";
 import { ReputationPanel } from "./ReputationPanel";
 import { FactionPanel } from "./FactionPanel";
 
-import { ActionPointsPanel } from "./ActionPointsPanel";
 import { PlayerInventory } from "./PlayerInventory";
-import { CartographyPanel } from "./CartographyPanel";
 
 type MenuSection = 
   | 'treasury' 
@@ -40,9 +38,7 @@ type MenuSection =
   | 'guide' 
   | 'help'
   | 'competences'
-  | 'factions'
-  | 'action_points'
-  | 'cartography';
+  | 'factions';
 
 export function MedievalHUD() {
   const { gamePhase, currentTurn, endTurn } = useGameState();
@@ -69,9 +65,7 @@ export function MedievalHUD() {
     { id: 'announcements' as MenuSection, label: 'ANNONCE PUBLIQUE', icon: '📢' },
     { id: 'guide' as MenuSection, label: 'GUIDE DE JEUX', icon: '📖' },
     { id: 'help' as MenuSection, label: 'AIDE', icon: '❓' },
-    { id: 'factions' as MenuSection, label: 'FACTIONS', icon: '🏛️' },
-    { id: 'action_points' as MenuSection, label: 'POINTS D\'ACTION', icon: '⚡' },
-    { id: 'cartography' as MenuSection, label: 'CARTOGRAPHIE', icon: '📍' }
+    { id: 'factions' as MenuSection, label: 'FACTIONS', icon: '🏛️' }
   ];
 
   const handleCharacterSelect = (character: CharacterOption) => {
@@ -342,22 +336,13 @@ export function MedievalHUD() {
               {activeSection === 'help' && <HelpPanel />}
               {activeSection === 'competences' && <CompetenceTree />}
               {activeSection === 'factions' && <FactionPanel />}
-
-              {activeSection === 'action_points' && <ActionPointsPanel onClose={() => setActiveSection(null)} />}
             </div>
           </div>
         </div>
       )}
 
-      {/* Cartography Panel Modal */}
-      {activeSection === 'cartography' && (
-        <div className="z-[100]">
-          <CartographyPanel onClose={() => setActiveSection(null)} />
-        </div>
-      )}
-
-      {/* Active Section Panel */}
-      {activeSection && activeSection !== 'cartography' && (
+      {/* Tile Information Panel */}
+      {selectedHex && (
         <div className="absolute top-20 left-72 pointer-events-auto z-50">
           <div 
             className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-2xl p-6 w-80 max-h-96 overflow-y-auto"
@@ -382,22 +367,7 @@ export function MedievalHUD() {
               </button>
             </div>
             
-            <div className="text-amber-800">
-              {activeSection === 'treasury' && <TreasuryPanel />}
-              {activeSection === 'construction' && <ConstructionPanel />}
-              {activeSection === 'recruitment' && <RecruitmentPanel />}
-              {activeSection === 'activities' && <ActivityReportPanel />}
-              {activeSection === 'courier' && <CouriersPanel />}
-              {activeSection === 'treaties' && <TreatiesPanel />}
-              {activeSection === 'events' && <EventPanel />}
-              {activeSection === 'announcements' && <PublicAnnouncementPanel />}
-              {activeSection === 'guide' && <GameGuidePanel />}
-              {activeSection === 'help' && <HelpPanel />}
-              {activeSection === 'competences' && <CompetenceTree />}
-              {activeSection === 'factions' && <FactionPanel />}
-
-              {activeSection === 'action_points' && <ActionPointsPanel onClose={() => setActiveSection(null)} />}
-            </div>
+            <TileInfoPanel />
           </div>
         </div>
       )}
