@@ -62,7 +62,15 @@ export function MedievalHUD() {
     actionPoints, 
     maxActionPoints, 
     getExperienceProgress,
-    gainExperience
+    gainExperience,
+    // Gestion des avatars
+    avatars,
+    currentAvatarId,
+    createAvatar,
+    switchToAvatar,
+    getCurrentAvatar,
+    updateAvatarName,
+    canCreateNewAvatar
   } = usePlayer();
   const { honor, reputation, getReputationLevel } = useReputation();
   const [activeSection, setActiveSection] = useState<MenuSection | null>(null);
@@ -70,6 +78,8 @@ export function MedievalHUD() {
   const [showCompetenceModal, setShowCompetenceModal] = useState(false);
   const [showReputationDetails, setShowReputationDetails] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [showAvatarManager, setShowAvatarManager] = useState(false);
+  const [newAvatarName, setNewAvatarName] = useState('');
   const { notification, showLevelUpNotification, hideLevelUpNotification } = useLevelUpNotification();
 
   // Fonctions utilitaires pour l'authentification
@@ -194,8 +204,94 @@ export function MedievalHUD() {
                   🚪
                 </button>
               </div>
-              <div className="text-xs text-amber-700 mt-1">NIVEAU</div>
-              <div>Niveau {level} - {selectedCharacter?.name || 'Empereur'}</div>
+              <div className="text-xs text-amber-700 mt-1">PERSONNAGE ACTUEL</div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium">{getCurrentAvatar()?.name || 'Avatar Principal'}</div>
+                  <div className="text-xs text-amber-600">Niveau {level} - {selectedCharacter?.name || 'Empereur'}</div>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowAvatarManager(!showAvatarManager);
+                  }}
+                  className="text-xs bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded"
+                  title="Gérer les avatars"
+                >
+                  👥
+                </button>
+              </div>
+
+              {/* Gestionnaire d'avatars */}
+              {showAvatarManager && (
+                <div className="mt-2 p-2 bg-amber-100 border border-amber-300 rounded">
+                  <div className="text-xs text-amber-700 mb-2 font-medium">GESTION DES AVATARS</div>
+                  
+                  {/* Liste des avatars */}
+                  <div className="space-y-1 mb-2">
+                    {avatars.map((avatar) => (
+                      <div 
+                        key={avatar.id}
+                        className={`flex items-center justify-between p-1 rounded text-xs ${
+                          avatar.id === currentAvatarId 
+                            ? 'bg-amber-300 text-amber-900' 
+                            : 'bg-amber-50 text-amber-700 hover:bg-amber-200 cursor-pointer'
+                        }`}
+                        onClick={() => {
+                          if (avatar.id !== currentAvatarId) {
+                            switchToAvatar(avatar.id);
+                          }
+                        }}
+                      >
+                        <div className="flex items-center space-x-1">
+                          <span>{avatar.character.image}</span>
+                          <span className="font-medium">{avatar.name}</span>
+                          <span className="text-xs">Niv.{avatar.level}</span>
+                        </div>
+                        {avatar.id === currentAvatarId && (
+                          <span className="text-xs text-green-600">● Actuel</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Créer un nouvel avatar */}
+                  {canCreateNewAvatar() && (
+                    <div className="border-t border-amber-300 pt-2">
+                      <div className="text-xs text-amber-700 mb-1">Créer un nouvel avatar:</div>
+                      <div className="flex space-x-1">
+                        <input
+                          type="text"
+                          value={newAvatarName}
+                          onChange={(e) => setNewAvatarName(e.target.value)}
+                          placeholder="Nom de l'avatar"
+                          className="flex-1 text-xs px-1 py-0.5 border border-amber-300 rounded bg-white"
+                          maxLength={20}
+                        />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (newAvatarName.trim()) {
+                              createAvatar(newAvatarName.trim(), selectedCharacter!);
+                              setNewAvatarName('');
+                            }
+                          }}
+                          disabled={!newAvatarName.trim()}
+                          className="text-xs bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white px-2 py-0.5 rounded"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {!canCreateNewAvatar() && (
+                    <div className="text-xs text-amber-600 text-center py-1">
+                      Maximum 2 avatars par joueur
+                    </div>
+                  )}
+                </div>
+              )}
               
               {/* Barre d'expérience */}
               <div className="mt-1">

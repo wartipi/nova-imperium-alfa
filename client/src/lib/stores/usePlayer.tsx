@@ -8,7 +8,26 @@ interface CompetenceLevel {
   level: number; // 1-4
 }
 
+interface Avatar {
+  id: string;
+  name: string;
+  character: CharacterOption;
+  level: number;
+  experience: number;
+  totalExperience: number;
+  competences: CompetenceLevel[];
+  competencePoints: number;
+  actionPoints: number;
+  maxActionPoints: number;
+  position: { x: number; y: number; z: number };
+  currentVision: Set<string>;
+  exploredHexes: Set<string>;
+}
+
 interface PlayerState {
+  // Gestion des avatars multiples
+  avatars: Avatar[];
+  currentAvatarId: string;
   selectedCharacter: CharacterOption | null;
   playerName: string;
   
@@ -75,11 +94,40 @@ interface PlayerState {
   
   // Avatar land positioning
   findLandHex: (mapData: any[][]) => { x: number; y: number };
+  
+  // Gestion des avatars multiples
+  createAvatar: (name: string, character: CharacterOption) => string;
+  switchToAvatar: (avatarId: string) => void;
+  getCurrentAvatar: () => Avatar | null;
+  updateAvatarName: (avatarId: string, name: string) => void;
+  deleteAvatar: (avatarId: string) => void;
+  canCreateNewAvatar: () => boolean;
 }
 
-export const usePlayer = create<PlayerState>((set, get) => ({
-  selectedCharacter: { id: 'knight', name: 'Chevalier', image: '🛡️' },
-  playerName: "Joueur",
+export const usePlayer = create<PlayerState>((set, get) => {
+  // Créer l'avatar initial
+  const initialAvatar: Avatar = {
+    id: 'avatar_1',
+    name: 'Avatar Principal',
+    character: { id: 'knight', name: 'Chevalier', image: '🛡️' },
+    level: 1,
+    experience: 0,
+    totalExperience: 0,
+    competences: [],
+    competencePoints: 3,
+    actionPoints: 25,
+    maxActionPoints: 100,
+    position: { x: 3 * 1.5, y: 0, z: 3 * Math.sqrt(3) * 0.5 },
+    currentVision: new Set(),
+    exploredHexes: new Set()
+  };
+
+  return {
+    // Système d'avatars multiples
+    avatars: [initialAvatar],
+    currentAvatarId: 'avatar_1',
+    selectedCharacter: { id: 'knight', name: 'Chevalier', image: '🛡️' },
+    playerName: "Joueur",
   
   // Système de niveau - commence au niveau 1
   level: 1,
@@ -409,5 +457,85 @@ export const usePlayer = create<PlayerState>((set, get) => ({
         totalExperience: newTotalExperience
       });
     }
+  },
+
+  // Gestion des avatars multiples
+  createAvatar: (name, character) => {
+    const state = get();
+    if (state.avatars.length >= 2) {
+      return ''; // Maximum 2 avatars
+    }
+
+    const newAvatarId = `avatar_${Date.now()}`;
+    const landHex = state.findLandHex([]);
+    const newAvatar: Avatar = {
+      id: newAvatarId,
+      name,
+      character,
+      level: 1,
+      experience: 0,
+      totalExperience: 0,
+      competences: [],
+      competencePoints: 3,
+      actionPoints: 25,
+      maxActionPoints: 100,
+      position: { x: landHex.x * 1.5, y: 0, z: landHex.y * Math.sqrt(3) * 0.5 },
+      currentVision: new Set(),
+      exploredHexes: new Set()
+    };
+
+    set({ avatars: [...state.avatars, newAvatar] });
+    return newAvatarId;
+  },
+
+  switchToAvatar: (avatarId) => {
+    const state = get();
+    const avatar = state.avatars.find(a => a.id === avatarId);
+    if (avatar) {
+      set({
+        currentAvatarId: avatarId,
+        selectedCharacter: avatar.character,
+        level: avatar.level,
+        experience: avatar.experience,
+        totalExperience: avatar.totalExperience,
+        competences: avatar.competences,
+        competencePoints: avatar.competencePoints,
+        actionPoints: avatar.actionPoints,
+        maxActionPoints: avatar.maxActionPoints,
+        avatarPosition: avatar.position,
+        currentVision: avatar.currentVision,
+        exploredHexes: avatar.exploredHexes
+      });
+    }
+  },
+
+  getCurrentAvatar: () => {
+    const state = get();
+    return state.avatars.find(a => a.id === state.currentAvatarId) || null;
+  },
+
+  updateAvatarName: (avatarId, name) => {
+    const state = get();
+    set({
+      avatars: state.avatars.map(avatar =>
+        avatar.id === avatarId ? { ...avatar, name } : avatar
+      )
+    });
+  },
+
+  deleteAvatar: (avatarId) => {
+    const state = get();
+    if (state.avatars.length <= 1 || avatarId === state.currentAvatarId) {
+      return; // Cannot delete last avatar or current avatar
+    }
+    set({
+      avatars: state.avatars.filter(avatar => avatar.id !== avatarId)
+    });
+  },
+
+  canCreateNewAvatar: () => {
+    const state = get();
+    return state.avatars.length < 2;
   }
-}));
+  };
+});
