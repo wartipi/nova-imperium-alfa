@@ -43,7 +43,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     }
   ];
 
-  // Action d'exploration nécessitant la compétence exploration niveau 1
+  // Actions d'exploration et cartographie de base
   const explorationActions = [
     {
       id: 'explore_zone',
@@ -54,6 +54,14 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       category: 'exploration',
       requiredCompetence: 'exploration',
       requiredLevel: 1
+    },
+    {
+      id: 'create_map',
+      name: 'Cartographier',
+      description: 'Créer une carte de votre champ de vision actuel (s\'adapte au niveau d\'exploration)',
+      cost: 15,
+      icon: '🗺️',
+      category: 'cartography'
     }
   ];
 
@@ -66,16 +74,6 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       cost: 10,
       icon: '🧭',
       category: 'exploration'
-    },
-    {
-      id: 'create_map',
-      name: 'Cartographier',
-      description: 'Créer une carte de votre champ de vision actuel (s\'adapte au niveau d\'exploration)',
-      cost: 15,
-      icon: '🗺️',
-      category: 'cartography',
-      requiredCompetence: 'cartography',
-      requiredLevel: 1
     }
   ];
 
@@ -306,7 +304,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       return true;
     });
     
-    return [
+    const allActions = [
       ...baseActions,
       ...filteredExplorationActions,
       ...filteredCompetenceActions,
@@ -315,6 +313,9 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
         reputation === action.requiredReputation
       )
     ];
+    
+    console.log('🗺️ Actions disponibles:', allActions.map(a => a.name));
+    return allActions;
   };
 
   return (
