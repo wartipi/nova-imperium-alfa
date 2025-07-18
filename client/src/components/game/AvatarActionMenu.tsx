@@ -177,9 +177,12 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     }
 
     if (action.id === 'claim_territory') {
+      const { avatarPosition } = getGameData();
+      const gameEngine = (window as any).gameEngine;
+      const tileData = gameEngine?.getTileAt(avatarPosition.x, avatarPosition.y);
+      
       // En mode MJ, la revendication réussit toujours
       if (isGameMaster) {
-        const { avatarPosition } = getGameData();
         console.log(`[MODE MJ] Territoire revendiqué sans coût en PA`);
         alert(`[MODE MJ] Territoire en (${avatarPosition.x},${avatarPosition.y}) revendiqué avec succès !`);
         onClose();
@@ -192,8 +195,41 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
         onClose();
         return;
       }
+
+      // Vérifier si c'est de l'eau (non revendicable)
+      if (tileData?.terrain === 'shallow_water' || tileData?.terrain === 'deep_water') {
+        alert('Impossible de revendiquer un territoire aquatique.');
+        onClose();
+        return;
+      }
+
+      // Dépenser les points d'action
+      const success = spendActionPoints(action.cost);
+      if (success) {
+        // Importer le système de territoire
+        import('../../lib/systems/TerritorySystem').then(({ TerritorySystem }) => {
+          const territorySuccess = TerritorySystem.claimTerritory(
+            avatarPosition.x,
+            avatarPosition.y,
+            'player', // TODO: Utiliser l'ID du joueur réel
+            playerName || 'Joueur',
+            playerFaction.id,
+            playerFaction.name
+          );
+
+          if (territorySuccess) {
+            console.log(`✅ Territoire revendiqué en (${avatarPosition.x},${avatarPosition.y}) par la faction ${playerFaction.name}`);
+            alert(`Territoire en (${avatarPosition.x},${avatarPosition.y}) revendiqué avec succès pour votre faction "${playerFaction.name}" !`);
+          } else {
+            alert('Ce territoire est déjà revendiqué par une autre faction.');
+            // Rembourser les PA en cas d'échec
+            addActionPoints(action.cost);
+          }
+        });
+      } else {
+        alert(`Impossible de revendiquer le territoire : ${action.cost} Points d'Action requis.`);
+      }
       
-      alert('Fonctionnalité de revendication de territoire accessible via le panneau dédié.');
       onClose();
       return;
     }
