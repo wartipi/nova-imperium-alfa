@@ -329,6 +329,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/cartography/regions/:playerId", async (req, res) => {
+    try {
+      const { playerId } = req.params;
+      const regions = cartographyService.getDiscoveredRegions(playerId);
+      res.json(regions);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get regions" });
+    }
+  });
+
   app.post("/api/cartography/project", async (req, res) => {
     try {
       const { playerId, regionId, tools, assistants } = req.body;

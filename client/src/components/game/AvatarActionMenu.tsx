@@ -173,10 +173,33 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       actions.push({
         id: 'intelligence_gathering',
         name: 'Collecte d\'Intelligence',
-        description: 'Rassembler des informations secrètes',
+        description: 'Rassembler des informations sur les régions voisines',
         cost: 4,
         icon: '🔍',
         category: 'strategic'
+      });
+    }
+    
+    // Actions de cartographie
+    if (hasCompetenceLevel('cartography', 1)) {
+      actions.push({
+        id: 'create_map',
+        name: 'Cartographier',
+        description: 'Créer une carte de la région actuelle',
+        cost: 15,
+        icon: '🗺️',
+        category: 'exploration'
+      });
+    }
+    
+    if (hasCompetenceLevel('exploration', 2)) {
+      actions.push({
+        id: 'discover_region',
+        name: 'Explorer Région',
+        description: 'Découvrir une nouvelle région à cartographier',
+        cost: 10,
+        icon: '🧭',
+        category: 'exploration'
       });
     }
     

@@ -26,6 +26,7 @@ import { FactionPanel } from "./FactionPanel";
 
 import { ActionPointsPanel } from "./ActionPointsPanel";
 import { PlayerInventory } from "./PlayerInventory";
+import { CartographyPanel } from "./CartographyPanel";
 
 type MenuSection = 
   | 'treasury' 
@@ -40,7 +41,8 @@ type MenuSection =
   | 'help'
   | 'competences'
   | 'factions'
-  | 'action_points';
+  | 'action_points'
+  | 'cartography';
 
 export function MedievalHUD() {
   const { gamePhase, currentTurn, endTurn } = useGameState();
@@ -68,7 +70,8 @@ export function MedievalHUD() {
     { id: 'guide' as MenuSection, label: 'GUIDE DE JEUX', icon: '📖' },
     { id: 'help' as MenuSection, label: 'AIDE', icon: '❓' },
     { id: 'factions' as MenuSection, label: 'FACTIONS', icon: '🏛️' },
-    { id: 'action_points' as MenuSection, label: 'POINTS D\'ACTION', icon: '⚡' }
+    { id: 'action_points' as MenuSection, label: 'POINTS D\'ACTION', icon: '⚡' },
+    { id: 'cartography' as MenuSection, label: 'CARTOGRAPHIE', icon: '📍' }
   ];
 
   const handleCharacterSelect = (character: CharacterOption) => {
@@ -302,6 +305,59 @@ export function MedievalHUD() {
 
       {/* Active Section Panel */}
       {activeSection && (
+        <div className="absolute top-20 left-72 pointer-events-auto z-50">
+          <div 
+            className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-2xl p-6 w-80 max-h-96 overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onMouseUp={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-amber-900 font-bold text-lg">
+                {menuItems.find(item => item.id === activeSection)?.label}
+              </h3>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveSection(null);
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onMouseUp={(e) => e.stopPropagation()}
+                className="text-amber-800 hover:text-amber-900 text-xl font-bold px-2 py-1 rounded hover:bg-amber-300 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="text-amber-800">
+              {activeSection === 'treasury' && <TreasuryPanel />}
+              {activeSection === 'construction' && <ConstructionPanel />}
+              {activeSection === 'recruitment' && <RecruitmentPanel />}
+              {activeSection === 'activities' && <ActivityReportPanel />}
+              {activeSection === 'courier' && <CouriersPanel />}
+              {activeSection === 'treaties' && <TreatiesPanel />}
+              {activeSection === 'events' && <EventPanel />}
+              {activeSection === 'announcements' && <PublicAnnouncementPanel />}
+              {activeSection === 'guide' && <GameGuidePanel />}
+              {activeSection === 'help' && <HelpPanel />}
+              {activeSection === 'competences' && <CompetenceTree />}
+              {activeSection === 'factions' && <FactionPanel />}
+
+              {activeSection === 'action_points' && <ActionPointsPanel onClose={() => setActiveSection(null)} />}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cartography Panel Modal */}
+      {activeSection === 'cartography' && (
+        <div className="z-[100]">
+          <CartographyPanel onClose={() => setActiveSection(null)} />
+        </div>
+      )}
+
+      {/* Active Section Panel */}
+      {activeSection && activeSection !== 'cartography' && (
         <div className="absolute top-20 left-72 pointer-events-auto z-50">
           <div 
             className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-2xl p-6 w-80 max-h-96 overflow-y-auto"
