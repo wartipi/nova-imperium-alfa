@@ -182,7 +182,7 @@ export function PlayerInventory({ playerId }: PlayerInventoryProps) {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-4 max-w-lg w-full mx-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-red-900">Erreur - Carte invalide</h3>
+              <h3 className="text-lg font-bold text-red-900">Carte non visualisable</h3>
               <button
                 onClick={() => setViewingMap(null)}
                 className="text-gray-500 hover:text-gray-700"
@@ -192,10 +192,16 @@ export function PlayerInventory({ playerId }: PlayerInventoryProps) {
             </div>
             
             <div className="text-sm text-gray-600">
-              <p className="mb-2">La carte "{viewingMap.name}" n'a pas de données cartographiques.</p>
-              <pre className="bg-gray-100 p-2 rounded text-xs overflow-auto">
-                {JSON.stringify(viewingMap, null, 2)}
-              </pre>
+              <p className="mb-2">La carte "{viewingMap.name}" est une carte d'inventaire sans données cartographiques détaillées.</p>
+              <p className="mb-2">Pour créer des cartes visualisables, utilisez l'action "Cartographier" de votre avatar après avoir appris la compétence Cartographie.</p>
+              <div className="bg-amber-50 p-2 rounded text-xs">
+                <strong>Carte actuelle:</strong>
+                <div>• Nom: {viewingMap.name}</div>
+                <div>• Type: {viewingMap.type}</div>
+                <div>• Rareté: {viewingMap.rarity}</div>
+                <div>• Valeur: {viewingMap.value} ⚡</div>
+                <div>• Échangeable: {viewingMap.tradeable ? 'Oui' : 'Non'}</div>
+              </div>
             </div>
           </div>
         </div>
