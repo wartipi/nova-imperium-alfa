@@ -87,13 +87,17 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     const deltaZ = worldZ - state.avatarPosition.z;
     const rotation = Math.atan2(deltaX, deltaZ);
     
-    // Update visible hexes around new position
+    // Update visible hexes around new position - keep previously explored hexes
     const newVisibleHexes = new Set(state.visibleHexes);
     
+    // Clear current vision area and add new vision centered on avatar
+    const currentVisionHexes = new Set();
+    
     // Add avatar's current hex
-    newVisibleHexes.add(`${hexX},${hexY}`);
+    currentVisionHexes.add(`${hexX},${hexY}`);
     
     // Add all adjacent hexes (6 directions in hex grid)
+    // Using proper hex grid offsets for even/odd row systems
     const hexDirections = [
       [0, -1], [1, -1], [1, 0], [0, 1], [-1, 1], [-1, 0]
     ];
@@ -102,14 +106,16 @@ export const usePlayer = create<PlayerState>((set, get) => ({
       const newHexX = hexX + dx;
       const newHexY = hexY + dy;
       if (newHexX >= 0 && newHexY >= 0) {
-        newVisibleHexes.add(`${newHexX},${newHexY}`);
+        currentVisionHexes.add(`${newHexX},${newHexY}`);
       }
     });
     
-    console.log('Avatar moved to hex:', hexX, hexY, 'Visible hexes around avatar:', Array.from(newVisibleHexes).filter(hex => {
-      const [hx, hy] = hex.split(',').map(Number);
-      return Math.abs(hx - hexX) <= 1 && Math.abs(hy - hexY) <= 1;
-    }));
+    // Add all current vision hexes to permanent visible set
+    currentVisionHexes.forEach(hex => newVisibleHexes.add(hex));
+    
+    console.log('Avatar moved to hex:', hexX, hexY);
+    console.log('Current vision area:', Array.from(currentVisionHexes).sort());
+    console.log('Total explored hexes:', newVisibleHexes.size);
     
     set({ 
       avatarPosition: { x: worldX, y: 0, z: worldZ },
@@ -138,9 +144,21 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   
   isHexVisible: (hexX, hexY) => {
     const state = get();
-    const isVisible = state.isGameMaster || state.visibleHexes.has(`${hexX},${hexY}`);
-    // console.log(`Hex ${hexX},${hexY} visible:`, isVisible, 'GM:', state.isGameMaster);
-    return isVisible;
+    
+    // Game master sees everything
+    if (state.isGameMaster) return true;
+    
+    // Players see only explored hexes OR hexes in current vision range
+    const isExplored = state.visibleHexes.has(`${hexX},${hexY}`);
+    
+    // Check if hex is in current vision range around avatar
+    const avatarHexX = Math.round(state.avatarPosition.x / 1.5);
+    const avatarHexY = Math.round(state.avatarPosition.z / (Math.sqrt(3) * 0.5));
+    
+    const isInCurrentVision = (hexX === avatarHexX && hexY === avatarHexY) || 
+      (Math.abs(hexX - avatarHexX) <= 1 && Math.abs(hexY - avatarHexY) <= 1);
+    
+    return isExplored || isInCurrentVision;
   },
   
   setGameMaster: (isGM) => {
