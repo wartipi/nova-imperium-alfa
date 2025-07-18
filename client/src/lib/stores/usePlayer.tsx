@@ -163,15 +163,13 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     const newVisibleHexes = new Set(state.visibleHexes);
     const visionRange = state.getVisionRange();
     
-    // Add all hexes within vision range
-    for (let x = centerX - visionRange; x <= centerX + visionRange; x++) {
-      for (let y = centerY - visionRange; y <= centerY + visionRange; y++) {
-        // Simple manhattan distance for hex grid approximation
-        const dx = Math.abs(x - centerX);
-        const dy = Math.abs(y - centerY);
-        const distance = Math.max(dx, dy);
+    // Hexagonal distance calculation - proper hex grid
+    for (let q = -visionRange; q <= visionRange; q++) {
+      for (let r = Math.max(-visionRange, -q - visionRange); r <= Math.min(visionRange, -q + visionRange); r++) {
+        const x = centerX + q;
+        const y = centerY + r;
         
-        if (distance <= visionRange && x >= 0 && y >= 0) {
+        if (x >= 0 && y >= 0) {
           newVisibleHexes.add(`${x},${y}`);
         }
       }
@@ -194,10 +192,10 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     
     // Check if hex is in current vision range based on exploration level
     const visionRange = state.getVisionRange();
-    const dx = Math.abs(hexX - avatarHexX);
-    const dy = Math.abs(hexY - avatarHexY);
-    const distance = Math.max(dx, dy);
-    const isInCurrentVision = distance <= visionRange;
+    const q = hexX - avatarHexX;
+    const r = hexY - avatarHexY;
+    const hexDistance = (Math.abs(q) + Math.abs(q + r) + Math.abs(r)) / 2;
+    const isInCurrentVision = hexDistance <= visionRange;
     
     // Players see explored hexes OR hexes in current vision range
     const isExplored = state.visibleHexes.has(`${hexX},${hexY}`);
@@ -221,12 +219,12 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     // Get vision range based on exploration level
     const visionRange = state.getVisionRange();
     
-    // Simple manhattan distance for hex grid approximation
-    const dx = Math.abs(hexX - avatarHexX);
-    const dy = Math.abs(hexY - avatarHexY);
-    const distance = Math.max(dx, dy);
+    // Hexagonal distance calculation
+    const q = hexX - avatarHexX;
+    const r = hexY - avatarHexY;
+    const hexDistance = (Math.abs(q) + Math.abs(q + r) + Math.abs(r)) / 2;
     
-    return distance <= visionRange;
+    return hexDistance <= visionRange;
   },
   
   setGameMaster: (isGM) => {
@@ -287,15 +285,13 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     const newVisibleHexes = new Set();
     const visionRange = state.getVisionRange();
     
-    // Add all hexes within vision range
-    for (let x = avatarHexX - visionRange; x <= avatarHexX + visionRange; x++) {
-      for (let y = avatarHexY - visionRange; y <= avatarHexY + visionRange; y++) {
-        // Simple manhattan distance for hex grid approximation
-        const dx = Math.abs(x - avatarHexX);
-        const dy = Math.abs(y - avatarHexY);
-        const distance = Math.max(dx, dy);
+    // Hexagonal distance calculation - proper hex grid
+    for (let q = -visionRange; q <= visionRange; q++) {
+      for (let r = Math.max(-visionRange, -q - visionRange); r <= Math.min(visionRange, -q + visionRange); r++) {
+        const x = avatarHexX + q;
+        const y = avatarHexY + r;
         
-        if (distance <= visionRange && x >= 0 && y >= 0) {
+        if (x >= 0 && y >= 0) {
           newVisibleHexes.add(`${x},${y}`);
         }
       }
