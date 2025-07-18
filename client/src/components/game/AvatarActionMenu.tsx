@@ -59,9 +59,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       description: 'Découvrir une nouvelle région cartographique',
       cost: 10,
       icon: '🧭',
-      category: 'exploration',
-      requiredCompetence: 'exploration',
-      requiredLevel: 1
+      category: 'exploration'
     },
     {
       id: 'create_map',

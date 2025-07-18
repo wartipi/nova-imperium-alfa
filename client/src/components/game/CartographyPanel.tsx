@@ -93,11 +93,6 @@ export function CartographyPanel({ onClose }: CartographyPanelProps) {
 
   // Découvrir une nouvelle région
   const discoverRegion = async () => {
-    if (!hasCompetenceLevel('exploration', 1)) {
-      alert('Vous devez avoir au moins le niveau Novice en Exploration pour découvrir des régions.');
-      return;
-    }
-
     if (actionPoints < 10) {
       alert('Vous n\'avez pas assez de Points d\'Action. Il faut 10 PA pour découvrir une région.');
       return;
@@ -288,7 +283,7 @@ export function CartographyPanel({ onClose }: CartographyPanelProps) {
                   </div>
                   <button 
                     onClick={discoverRegion}
-                    disabled={isDiscovering || !hasCompetenceLevel('exploration', 1) || actionPoints < 10}
+                    disabled={isDiscovering || actionPoints < 10}
                     className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded disabled:bg-gray-400"
                   >
                     {isDiscovering ? 'Exploration...' : 'Découvrir Région (10 PA)'}
