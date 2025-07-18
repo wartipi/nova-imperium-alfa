@@ -162,8 +162,23 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     const isAvatarHex = (hexX === avatarHexX && hexY === avatarHexY);
     
     // Check if hex is adjacent to avatar using proper hex grid adjacency
-    const hexDirections = [
-      [0, -1], [1, -1], [1, 0], [0, 1], [-1, 1], [-1, 0]
+    // Hexagonal grid has different adjacency patterns for even/odd columns
+    const hexDirections = avatarHexX % 2 === 0 ? [
+      // Even column (0, 2, 4, 6...)
+      [0, -1],  // North
+      [1, -1],  // Northeast
+      [1, 0],   // Southeast
+      [0, 1],   // South
+      [-1, 0],  // Southwest
+      [-1, -1]  // Northwest
+    ] : [
+      // Odd column (1, 3, 5, 7...)
+      [0, -1],  // North
+      [1, 0],   // Northeast
+      [1, 1],   // Southeast
+      [0, 1],   // South
+      [-1, 1],  // Southwest
+      [-1, 0]   // Northwest
     ];
     
     const isAdjacent = hexDirections.some(([dx, dy]) => 
@@ -196,8 +211,23 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     newVisibleHexes.add(`${avatarHexX},${avatarHexY}`); // Avatar's position
     
     // Add all adjacent hexes (6 directions in hex grid)
-    const hexDirections = [
-      [0, -1], [1, -1], [1, 0], [0, 1], [-1, 1], [-1, 0]
+    // Hexagonal grid has different adjacency patterns for even/odd columns
+    const hexDirections = avatarHexX % 2 === 0 ? [
+      // Even column (0, 2, 4, 6...)
+      [0, -1],  // North
+      [1, -1],  // Northeast
+      [1, 0],   // Southeast
+      [0, 1],   // South
+      [-1, 0],  // Southwest
+      [-1, -1]  // Northwest
+    ] : [
+      // Odd column (1, 3, 5, 7...)
+      [0, -1],  // North
+      [1, 0],   // Northeast
+      [1, 1],   // Southeast
+      [0, 1],   // South
+      [-1, 1],  // Southwest
+      [-1, 0]   // Northwest
     ];
     
     hexDirections.forEach(([dx, dy]) => {
@@ -209,6 +239,7 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     });
     
     console.log('Initialized vision at hex:', avatarHexX, avatarHexY, 'World pos:', state.avatarPosition);
+    console.log('Avatar column is', avatarHexX % 2 === 0 ? 'EVEN' : 'ODD');
     console.log('Visible hexes:', Array.from(newVisibleHexes).sort());
     set({ visibleHexes: newVisibleHexes });
   }
