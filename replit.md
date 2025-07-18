@@ -241,8 +241,9 @@ Preferred communication style: Simple, everyday language.
 - **Variable Competence Costs**: Learning costs vary 1-5 points based on competence complexity
 - **Upgrade Cost System**: Competence upgrades cost 1-3 points depending on current level
 - **Cost Categories**: Political/Occult (expensive), Military/Strategic (medium), Economic (cheap)
+- **Progressive XP Formula**: Each level requires 20% more XP than previous (100 * 1.2^(level-1))
 - **Future-Ready**: System prepared for prerequisite levels between competences
-- **User Confirmed**: XP gain functional, level progression working, competence costs balanced, movement XP removed
+- **User Confirmed**: XP gain functional, level progression working, competence costs balanced, movement XP removed, 20% XP scaling implemented
 
 ### Complete System Unification & Bug Fixes (January 18, 2025)
 - **Fixed Exploration Level 2 Vision**: Implemented proper radius-2 hex calculation (19 hexagons total)

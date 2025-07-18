@@ -84,7 +84,7 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   // Système de niveau - commence au niveau 1
   level: 1,
   experience: 0,
-  experienceToNextLevel: 100, // Expérience nécessaire pour le niveau 2
+  experienceToNextLevel: 100, // Expérience nécessaire pour le niveau 2 (100 * 1.2^0 = 100)
   totalExperience: 0,
   
   competences: [],
@@ -349,9 +349,10 @@ export const usePlayer = create<PlayerState>((set, get) => ({
 
   // Système d'expérience et de niveau
   calculateExperienceForLevel: (level) => {
-    // Formule d'expérience progressive : niveau * 100 + (niveau-1) * 50
+    // Formule exponentielle : 100 * 1.2^(level-1)
+    // Chaque niveau demande 20% d'XP en plus que le précédent
     if (level <= 1) return 0;
-    return level * 100 + (level - 1) * 50;
+    return Math.floor(100 * Math.pow(1.2, level - 1));
   },
 
   getExperienceProgress: () => {
@@ -370,8 +371,10 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     // Vérifier si le joueur monte de niveau
     if (newExperience >= state.experienceToNextLevel) {
       const newLevel = state.level + 1;
-      const remainingExp = newExperience - state.experienceToNextLevel;
-      const nextLevelExp = get().calculateExperienceForLevel(newLevel + 1) - get().calculateExperienceForLevel(newLevel);
+      const currentLevelTotalExp = get().calculateExperienceForLevel(newLevel);
+      const nextLevelTotalExp = get().calculateExperienceForLevel(newLevel + 1);
+      const nextLevelExp = nextLevelTotalExp - currentLevelTotalExp;
+      const remainingExp = newExperience - currentLevelTotalExp;
       
       // Récompenses de niveau
       const competencePointsGained = 1; // 1 point de compétence par niveau
