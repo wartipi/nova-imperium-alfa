@@ -25,9 +25,14 @@ export function GameCanvas() {
   useEffect(() => {
     if (canvasRef.current && mapData) {
       gameEngineRef.current = new GameEngine(canvasRef.current, mapData);
+      
+      // Set vision callbacks immediately
+      const { isHexVisible, isHexInCurrentVision } = usePlayer.getState();
+      gameEngineRef.current.setVisionCallbacks(isHexVisible, isHexInCurrentVision);
+      
       gameEngineRef.current.render();
       
-      // Expose game engine to window for cartography access
+      // Expose game engine to window for cartography access and vision updates
       (window as any).gameEngine = gameEngineRef.current;
     }
   }, [mapData]);
@@ -107,6 +112,9 @@ export function GameCanvas() {
   // Update rendering when game state changes
   useEffect(() => {
     if (gameEngineRef.current) {
+      // Update vision callbacks with latest state
+      gameEngineRef.current.setVisionCallbacks(isHexVisible, isHexInCurrentVision);
+      
       gameEngineRef.current.updateCivilizations(novaImperiums);
       gameEngineRef.current.setSelectedHex(selectedHex);
       gameEngineRef.current.updateAvatar(avatarPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision, pendingMovement);

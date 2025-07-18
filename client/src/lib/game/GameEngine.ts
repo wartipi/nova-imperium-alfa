@@ -20,6 +20,12 @@ export class GameEngine {
   private isHexVisible: ((x: number, y: number) => boolean) | null = null;
   private isHexInCurrentVision: ((x: number, y: number) => boolean) | null = null;
   private pendingMovement: { x: number; y: number } | null = null;
+  
+  // Set vision callbacks for fog of war
+  setVisionCallbacks(isHexVisible: (x: number, y: number) => boolean, isHexInCurrentVision: (x: number, y: number) => boolean) {
+    this.isHexVisible = isHexVisible;
+    this.isHexInCurrentVision = isHexInCurrentVision;
+  }
 
   constructor(canvas: HTMLCanvasElement, mapData: HexTile[][]) {
     this.canvas = canvas;

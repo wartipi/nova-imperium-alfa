@@ -152,6 +152,17 @@ export const usePlayer = create<PlayerState>((set, get) => ({
             exploredHexes: newExploredHexes
           });
           
+          // Force GameEngine to re-render with new vision
+          if ((window as any).gameEngine) {
+            // Update vision callbacks with latest state
+            const updatedState = get();
+            (window as any).gameEngine.setVisionCallbacks(
+              updatedState.isHexVisible,
+              updatedState.isHexInCurrentVision
+            );
+            (window as any).gameEngine.render();
+          }
+          
           console.log('Exploration competence upgraded - Vision updated:', {
             competence,
             newLevel: newExplorationLevel,
