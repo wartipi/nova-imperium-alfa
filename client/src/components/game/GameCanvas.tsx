@@ -13,7 +13,7 @@ export function GameCanvas() {
   const { mapData, selectedHex, setSelectedHex } = useMap();
   const { gamePhase } = useGameState();
   const { novaImperiums, selectedUnit, moveUnit } = useNovaImperium();
-  const { avatarPosition, avatarRotation, isMoving, selectedCharacter, moveAvatarToHex, isHexVisible } = usePlayer();
+  const { avatarPosition, avatarRotation, isMoving, selectedCharacter, moveAvatarToHex, isHexVisible, isHexInCurrentVision } = usePlayer();
   const [mouseDownPos, setMouseDownPos] = useState<{ x: number; y: number } | null>(null);
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
   const [avatarMenuPosition, setAvatarMenuPosition] = useState({ x: 0, y: 0 });
@@ -98,7 +98,7 @@ export function GameCanvas() {
     if (gameEngineRef.current) {
       gameEngineRef.current.updateCivilizations(novaImperiums);
       gameEngineRef.current.setSelectedHex(selectedHex);
-      gameEngineRef.current.updateAvatar(avatarPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible);
+      gameEngineRef.current.updateAvatar(avatarPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision);
       gameEngineRef.current.render();
       
       // Center on player start position when nova imperiums are first loaded
@@ -106,7 +106,7 @@ export function GameCanvas() {
         gameEngineRef.current.centerCameraOnPlayerStart();
       }
     }
-  }, [novaImperiums, selectedHex, avatarPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible]);
+  }, [novaImperiums, selectedHex, avatarPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision]);
 
   // Check if terrain is walkable for land units
   const isTerrainWalkable = (terrain: string): boolean => {

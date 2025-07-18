@@ -20,6 +20,7 @@ export class GameEngine {
   private selectedCharacter: any = null;
   // Vision system
   private isHexVisible: ((x: number, y: number) => boolean) | null = null;
+  private isHexInCurrentVision: ((x: number, y: number) => boolean) | null = null;
 
   constructor(canvas: HTMLCanvasElement, mapData: HexTile[][]) {
     this.canvas = canvas;
@@ -193,9 +194,10 @@ export class GameEngine {
         
         // Check if hex is visible (use vision system)
         const isVisible = this.isHexVisible ? this.isHexVisible(x, y) : true;
+        const isInCurrentVision = this.isHexInCurrentVision ? this.isHexInCurrentVision(x, y) : true;
         
-        // Draw hex
-        this.drawHex(screenX, screenY, hex, isVisible);
+        // Draw hex with vision state
+        this.drawHex(screenX, screenY, hex, isVisible, isInCurrentVision);
         
         // Draw hex outline - different style for visible vs invisible
         if (isVisible) {
@@ -211,7 +213,7 @@ export class GameEngine {
     }
   }
 
-  private drawHex(x: number, y: number, hex: HexTile, isVisible: boolean = true) {
+  private drawHex(x: number, y: number, hex: HexTile, isVisible: boolean = true, isInCurrentVision: boolean = true) {
     const hexHeight = this.hexSize * Math.sqrt(3);
     
     this.ctx.beginPath();
@@ -228,8 +230,12 @@ export class GameEngine {
     }
     this.ctx.closePath();
     
-    if (isVisible) {
-      // Fill with terrain color
+    if (!isVisible) {
+      // Not explored - completely dark fog of war
+      this.ctx.fillStyle = '#1a1a1a';
+      this.ctx.fill();
+    } else if (isInCurrentVision) {
+      // In current vision - normal colors
       this.ctx.fillStyle = this.getTerrainColor(hex.terrain);
       this.ctx.fill();
       
@@ -256,10 +262,47 @@ export class GameEngine {
         this.ctx.stroke();
       }
     } else {
-      // Fill with fog of war - dark color
-      this.ctx.fillStyle = '#1a1a1a';
+      // Explored but not in current vision - fog of war with dimmed colors
+      const baseColor = this.getTerrainColor(hex.terrain);
+      const fogColor = this.applyFogOfWar(baseColor);
+      this.ctx.fillStyle = fogColor;
       this.ctx.fill();
+      
+      // Add fog overlay
+      this.ctx.fillStyle = 'rgba(50, 50, 50, 0.6)';
+      this.ctx.fill();
+      
+      // Draw resource with fog effect
+      if (hex.resource) {
+        this.ctx.fillStyle = 'rgba(255, 215, 0, 0.4)';
+        this.ctx.fillRect(x - 3, y - 3, 6, 6);
+      }
+      
+      // Draw river with fog effect
+      if (hex.hasRiver) {
+        this.ctx.strokeStyle = 'rgba(0, 102, 204, 0.4)';
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.moveTo(x - this.hexSize / 2, y);
+        this.ctx.lineTo(x + this.hexSize / 2, y);
+        this.ctx.stroke();
+      }
     }
+  }
+
+  private applyFogOfWar(color: string): string {
+    // Convert hex color to RGB and darken it
+    const hex = color.replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    
+    // Darken and desaturate the color
+    const fogR = Math.floor(r * 0.4);
+    const fogG = Math.floor(g * 0.4);
+    const fogB = Math.floor(b * 0.4);
+    
+    return `rgb(${fogR}, ${fogG}, ${fogB})`;
   }
 
   private getTerrainColor(terrain: string): string {
@@ -343,13 +386,16 @@ export class GameEngine {
   }
 
   // Avatar methods
-  updateAvatar(position: { x: number; y: number; z: number }, rotation: { x: number; y: number; z: number }, isMoving: boolean, selectedCharacter: any, isHexVisible?: (x: number, y: number) => boolean) {
+  updateAvatar(position: { x: number; y: number; z: number }, rotation: { x: number; y: number; z: number }, isMoving: boolean, selectedCharacter: any, isHexVisible?: (x: number, y: number) => boolean, isHexInCurrentVision?: (x: number, y: number) => boolean) {
     this.avatarPosition = position;
     this.avatarRotation = rotation;
     this.isAvatarMoving = isMoving;
     this.selectedCharacter = selectedCharacter;
     if (isHexVisible) {
       this.isHexVisible = isHexVisible;
+    }
+    if (isHexInCurrentVision) {
+      this.isHexInCurrentVision = isHexInCurrentVision;
     }
   }
 

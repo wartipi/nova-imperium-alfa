@@ -32,6 +32,7 @@ interface PlayerState {
   // Vision system methods
   updateVisibleHexes: (centerX: number, centerY: number) => void;
   isHexVisible: (hexX: number, hexY: number) => boolean;
+  isHexInCurrentVision: (hexX: number, hexY: number) => boolean;
   setGameMaster: (isGM: boolean) => void;
   // Avatar land positioning
   findLandHex: (mapData: any[][]) => { x: number; y: number };
@@ -193,6 +194,48 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     const isExplored = state.visibleHexes.has(`${hexX},${hexY}`);
     
     return isExplored || isInCurrentVision;
+  },
+
+  // New method to check if hex is in current vision (not just explored)
+  isHexInCurrentVision: (hexX, hexY) => {
+    const state = get();
+    
+    // Game master sees everything as current vision
+    if (state.isGameMaster) {
+      return true;
+    }
+    
+    // Convert avatar world position to hex coordinates
+    const avatarHexX = Math.round(state.avatarPosition.x / 1.5);
+    const avatarHexY = Math.round(state.avatarPosition.z / (Math.sqrt(3) * 0.5));
+    
+    // Check if hex is in current vision range around avatar (avatar + 6 adjacent hexes)
+    const isAvatarHex = (hexX === avatarHexX && hexY === avatarHexY);
+    
+    // Check if hex is adjacent to avatar using proper hex grid adjacency
+    const hexDirections = avatarHexX % 2 === 0 ? [
+      // Even column (0, 2, 4, 6...)
+      [0, -1],  // North
+      [1, -1],  // Northeast
+      [1, 0],   // Southeast
+      [0, 1],   // South
+      [-1, 0],  // Southwest
+      [-1, -1]  // Northwest
+    ] : [
+      // Odd column (1, 3, 5, 7...)
+      [0, -1],  // North
+      [1, 0],   // Northeast
+      [1, 1],   // Southeast
+      [0, 1],   // South
+      [-1, 1],  // Southwest
+      [-1, 0]   // Northwest
+    ];
+    
+    const isAdjacent = hexDirections.some(([dx, dy]) => 
+      hexX === avatarHexX + dx && hexY === avatarHexY + dy
+    );
+    
+    return isAvatarHex || isAdjacent;
   },
   
   setGameMaster: (isGM) => {
