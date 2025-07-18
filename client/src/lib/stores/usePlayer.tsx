@@ -148,15 +148,31 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     // Game master sees everything
     if (state.isGameMaster) return true;
     
-    // Players see only explored hexes OR hexes in current vision range
-    const isExplored = state.visibleHexes.has(`${hexX},${hexY}`);
-    
-    // Check if hex is in current vision range around avatar
+    // Convert avatar world position to hex coordinates
     const avatarHexX = Math.round(state.avatarPosition.x / 1.5);
     const avatarHexY = Math.round(state.avatarPosition.z / (Math.sqrt(3) * 0.5));
     
-    const isInCurrentVision = (hexX === avatarHexX && hexY === avatarHexY) || 
-      (Math.abs(hexX - avatarHexX) <= 1 && Math.abs(hexY - avatarHexY) <= 1);
+    // Check if hex is in current vision range around avatar (avatar + 6 adjacent hexes)
+    const isAvatarHex = (hexX === avatarHexX && hexY === avatarHexY);
+    
+    // Check if hex is adjacent to avatar using proper hex grid adjacency
+    const hexDirections = [
+      [0, -1], [1, -1], [1, 0], [0, 1], [-1, 1], [-1, 0]
+    ];
+    
+    const isAdjacent = hexDirections.some(([dx, dy]) => 
+      hexX === avatarHexX + dx && hexY === avatarHexY + dy
+    );
+    
+    const isInCurrentVision = isAvatarHex || isAdjacent;
+    
+    // Players see explored hexes OR hexes in current vision range
+    const isExplored = state.visibleHexes.has(`${hexX},${hexY}`);
+    
+    // Debug logging for vision (commented out for performance)
+    // if (isInCurrentVision) {
+    //   console.log(`Hex ${hexX},${hexY} in current vision - Avatar at ${avatarHexX},${avatarHexY}`);
+    // }
     
     return isExplored || isInCurrentVision;
   },
@@ -169,14 +185,14 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   // Initialize avatar vision at starting position
   initializeVision: () => {
     const state = get();
-    // Avatar starts at world position (5, 0, 5) which should be hex (3, 3)
-    const startHexX = 3;
-    const startHexY = 3;
+    // Convert avatar world position to hex coordinates
+    const avatarHexX = Math.round(state.avatarPosition.x / 1.5);
+    const avatarHexY = Math.round(state.avatarPosition.z / (Math.sqrt(3) * 0.5));
     
     const newVisibleHexes = new Set();
     
     // Add avatar's current hex plus all adjacent hexes
-    newVisibleHexes.add(`${startHexX},${startHexY}`); // Avatar's position
+    newVisibleHexes.add(`${avatarHexX},${avatarHexY}`); // Avatar's position
     
     // Add all adjacent hexes (6 directions in hex grid)
     const hexDirections = [
@@ -184,14 +200,15 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     ];
     
     hexDirections.forEach(([dx, dy]) => {
-      const newHexX = startHexX + dx;
-      const newHexY = startHexY + dy;
+      const newHexX = avatarHexX + dx;
+      const newHexY = avatarHexY + dy;
       if (newHexX >= 0 && newHexY >= 0) {
         newVisibleHexes.add(`${newHexX},${newHexY}`);
       }
     });
     
-    console.log('Initialized vision at hex:', startHexX, startHexY, 'Visible hexes:', Array.from(newVisibleHexes));
+    console.log('Initialized vision at hex:', avatarHexX, avatarHexY, 'World pos:', state.avatarPosition);
+    console.log('Visible hexes:', Array.from(newVisibleHexes).sort());
     set({ visibleHexes: newVisibleHexes });
   }
 }));
