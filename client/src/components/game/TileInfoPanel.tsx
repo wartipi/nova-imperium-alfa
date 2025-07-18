@@ -5,6 +5,36 @@ import { useGameState } from "../../lib/stores/useGameState";
 import { HexTile, City, Unit } from "../../lib/game/types";
 import { ResourceRevealSystem } from "../../lib/systems/ResourceRevealSystem";
 
+// Fonction pour obtenir le symbole et nom des ressources
+function getResourceInfo(resource: string) {
+  const resourceData = {
+    // Ressources communes
+    wheat: { symbol: '🌾', name: 'Blé', color: '#FFD700' },
+    cattle: { symbol: '🐄', name: 'Bétail', color: '#8B4513' },
+    fish: { symbol: '🐟', name: 'Poisson', color: '#4682B4' },
+    deer: { symbol: '🦌', name: 'Cerf', color: '#8B4513' },
+    // Ressources stratégiques
+    stone: { symbol: '🪨', name: 'Pierre', color: '#708090' },
+    copper: { symbol: '🔶', name: 'Cuivre', color: '#B87333' },
+    iron: { symbol: '⚒️', name: 'Fer', color: '#C0C0C0' },
+    coal: { symbol: '⚫', name: 'Charbon', color: '#2F2F2F' },
+    // Ressources rares
+    gold: { symbol: '🥇', name: 'Or', color: '#FFD700' },
+    oil: { symbol: '🛢️', name: 'Pétrole', color: '#8B4513' },
+    gems: { symbol: '💎', name: 'Gemmes', color: '#00CED1' },
+    // Ressources spéciales archipel
+    herbs: { symbol: '🌿', name: 'Herbes', color: '#32CD32' },
+    crystals: { symbol: '💠', name: 'Cristaux', color: '#9370DB' },
+    crabs: { symbol: '🦀', name: 'Crabes', color: '#FF6347' },
+    whales: { symbol: '🐋', name: 'Baleines', color: '#4682B4' },
+    sulfur: { symbol: '🔥', name: 'Soufre', color: '#FFD700' },
+    obsidian: { symbol: '⚫', name: 'Obsidienne', color: '#2F2F2F' },
+    ancient_artifacts: { symbol: '📿', name: 'Artefacts anciens', color: '#DAA520' },
+    sacred_stones: { symbol: '🔮', name: 'Pierres sacrées', color: '#8A2BE2' },
+  };
+  return resourceData[resource as keyof typeof resourceData] || { symbol: '💎', name: resource, color: '#808080' };
+}
+
 // Composant séparé pour éviter les problèmes de hooks
 function ResourceInfoSection({ selectedHex }: { selectedHex: HexTile }) {
   const { getCompetenceLevel, isResourceDiscovered } = usePlayer();
@@ -14,9 +44,11 @@ function ResourceInfoSection({ selectedHex }: { selectedHex: HexTile }) {
   const isMasterMode = isGameMaster || false;
   const hexResourceDiscovered = isResourceDiscovered(selectedHex.x, selectedHex.y);
   
-  // Les ressources ne sont visibles que si explorées activement OU en mode MJ
+  // En mode MJ : toujours afficher les ressources
+  // En mode joueur : afficher si exploration niveau 1+ ET zone explorée
   const shouldShowResource = isMasterMode || (explorationLevel >= 1 && hexResourceDiscovered);
-  const resourceDescription = shouldShowResource ? ResourceRevealSystem.getResourceDescription(selectedHex, 1) : null;
+  
+  console.log(`🔍 Debug ressources: MJ=${isMasterMode}, resource=${selectedHex.resource}, exploration=${explorationLevel}, discovered=${hexResourceDiscovered}, shouldShow=${shouldShowResource}`);
   
   return (
     <div className="bg-amber-50 border border-amber-700 rounded p-2 mb-3">
@@ -37,25 +69,45 @@ function ResourceInfoSection({ selectedHex }: { selectedHex: HexTile }) {
         </div>
         
         <div className="text-amber-700">
-          {selectedHex.resource && shouldShowResource ? (
-            <div className="flex items-center gap-2">
-              <span className="text-lg">
-                {ResourceRevealSystem.getHexResourceSymbol(selectedHex, 1) || '💎'}
-              </span>
-              <span>{resourceDescription}</span>
-              {isMasterMode && !hexResourceDiscovered && (
-                <span className="text-xs text-purple-600">(visible en mode MJ)</span>
-              )}
-            </div>
+          {selectedHex.resource ? (
+            shouldShowResource ? (
+              <div className="flex items-center gap-2">
+                <span className="text-lg">
+                  {getResourceInfo(selectedHex.resource).symbol}
+                </span>
+                <span className="font-medium">{getResourceInfo(selectedHex.resource).name}</span>
+                {isMasterMode && (
+                  <span className="text-xs text-purple-600">
+                    ({hexResourceDiscovered ? 'découverte' : 'visible en mode MJ'})
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div className="text-amber-600 text-sm italic">
+                {explorationLevel >= 1 
+                  ? 'Zone non explorée - utilisez "Explorer la Zone"'
+                  : 'Exploration requise pour révéler les ressources'
+                }
+              </div>
+            )
           ) : (
             <div className="text-amber-600 text-sm italic">
-              {explorationLevel >= 1 
-                ? (hexResourceDiscovered ? 'Aucune ressource détectée' : 'Zone non explorée - utilisez "Explorer la Zone"')
-                : 'Exploration requise pour révéler les ressources'
+              {shouldShowResource || isMasterMode 
+                ? 'Aucune ressource sur cette case'
+                : (explorationLevel >= 1 
+                    ? 'Zone non explorée - utilisez "Explorer la Zone"'
+                    : 'Exploration requise pour révéler les ressources')
               }
             </div>
           )}
         </div>
+        
+        {/* Debug en mode MJ */}
+        {isMasterMode && (
+          <div className="mt-2 text-xs text-purple-700 bg-purple-50 p-1 rounded">
+            Debug MJ: resource="{selectedHex.resource || 'null'}", discovered={hexResourceDiscovered ? 'oui' : 'non'}
+          </div>
+        )}
         
         {!isMasterMode && (
           <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
