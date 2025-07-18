@@ -37,11 +37,11 @@ const terrainColors = {
 export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Fonction pour dessiner un hexagone
+  // Fonction pour dessiner un hexagone (pointy-top comme dans le jeu)
   const drawHexagon = (ctx: CanvasRenderingContext2D, centerX: number, centerY: number, radius: number) => {
     ctx.beginPath();
     for (let i = 0; i < 6; i++) {
-      const angle = (Math.PI / 3) * i;
+      const angle = (Math.PI / 3) * i - Math.PI / 2; // Rotation pour pointy-top
       const x = centerX + radius * Math.cos(angle);
       const y = centerY + radius * Math.sin(angle);
       if (i === 0) {
@@ -53,14 +53,14 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     ctx.closePath();
   };
 
-  // Fonction pour convertir les coordonnées hex en coordonnées pixel (grille hexagonale)
+  // Fonction pour convertir les coordonnées hex en coordonnées pixel (même système que le jeu principal)
   const hexToPixel = (hexX: number, hexY: number, hexRadius: number) => {
-    const hexWidth = hexRadius * 2;
-    const hexHeight = hexRadius * Math.sqrt(3);
+    const hexWidth = hexRadius * Math.sqrt(3);
+    const hexHeight = hexRadius * 1.5;
     
-    // Coordonnées hexagonales à plat (flat-topped hexagons)
-    let x = hexRadius * 1.5 * hexX;
-    let y = hexHeight * (hexY + 0.5 * (hexX % 2));
+    // Même système de coordonnées que dans GameEngine.ts
+    let x = hexWidth * (hexX + 0.5 * (hexY % 2));
+    let y = hexHeight * hexY;
     
     return { x, y };
   };
@@ -91,7 +91,7 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     // Calculer la taille des hexagones
     const mapWidth = maxX - minX + 1;
     const mapHeight = maxY - minY + 1;
-    const hexRadius = Math.min((width - 40) / (mapWidth * 1.5 + 0.5), (height - 40) / (mapHeight * Math.sqrt(3) + Math.sqrt(3)));
+    const hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
 
     // Centre de la carte
     const centerX = width / 2;
@@ -99,8 +99,9 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
 
     // Dessiner chaque tuile comme hexagone
     tiles.forEach(tile => {
-      const relativeX = tile.x - minX - mapWidth / 2;
-      const relativeY = tile.y - minY - mapHeight / 2;
+      // Utiliser les coordonnées relatives par rapport au centre de la région
+      const relativeX = tile.x - mapData.region.centerX;
+      const relativeY = tile.y - mapData.region.centerY;
       
       const hexPos = hexToPixel(relativeX, relativeY, hexRadius);
       const x = centerX + hexPos.x;
