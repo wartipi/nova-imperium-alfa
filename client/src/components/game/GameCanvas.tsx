@@ -94,6 +94,7 @@ export function GameCanvas() {
 
       const hex = gameEngineRef.current.getHexAtPosition(x, y);
       if (hex) {
+        // Toujours permettre la sélection, TileInfoPanel gérera l'affichage selon l'exploration
         setSelectedHex(hex);
         
         // Handle unit movement - check if terrain is walkable

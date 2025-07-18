@@ -63,8 +63,40 @@ function ResourceInfoSection({ selectedHex }: { selectedHex: HexTile }) {
 export function TileInfoPanel() {
   const { selectedHex, setSelectedHex } = useMap();
   const { novaImperiums } = useNovaImperium();
+  const { isHexExplored } = usePlayer();
+  const { isGameMaster } = useGameState();
 
   if (!selectedHex) return null;
+
+  // Vérifier si la case est explorée ou si on est en mode MJ
+  const isHexAccessible = isHexExplored(selectedHex.x, selectedHex.y) || isGameMaster;
+  
+  if (!isHexAccessible) {
+    return (
+      <div className="fixed top-32 right-4 w-80 bg-amber-100 border-2 border-amber-700 rounded-lg shadow-lg p-4 z-50">
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="text-amber-900 font-bold text-lg">Zone Inexplorée</h3>
+          <button
+            onClick={() => setSelectedHex(null)}
+            className="text-amber-700 hover:text-amber-900 text-xl font-bold"
+          >
+            ✕
+          </button>
+        </div>
+        
+        <div className="text-amber-800 text-center py-4">
+          <div className="text-4xl mb-2">🌫️</div>
+          <div className="font-medium mb-2">Zone non explorée</div>
+          <div className="text-sm text-amber-600">
+            Cette zone est dans le brouillard de guerre. Vous devez l'explorer pour obtenir des informations.
+          </div>
+          <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
+            💡 <strong>Astuce:</strong> Apprenez la compétence "Exploration" et utilisez l'action "Explorer la Zone" !
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleClose = () => {
     setSelectedHex(null);
