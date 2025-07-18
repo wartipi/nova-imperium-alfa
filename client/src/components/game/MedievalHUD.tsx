@@ -87,6 +87,7 @@ export function MedievalHUD() {
   const [newAvatarName, setNewAvatarName] = useState('');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showTerritoryPanel, setShowTerritoryPanel] = useState(false);
+  const [showReputationManagement, setShowReputationManagement] = useState(false);
   const { notification, showLevelUpNotification, hideLevelUpNotification } = useLevelUpNotification();
 
   // Fonctions utilitaires pour l'authentification
@@ -128,8 +129,7 @@ export function MedievalHUD() {
     { id: 'guide' as MenuSection, label: 'GUIDE DE JEUX', icon: '📖' },
     { id: 'help' as MenuSection, label: 'AIDE', icon: '❓' },
     { id: 'factions' as MenuSection, label: 'FACTIONS', icon: '🏛️' },
-    { id: 'territory' as MenuSection, label: 'TERRITOIRE', icon: '🗺️' },
-    ...(canAccessAdmin() ? [{ id: 'reputation_management' as MenuSection, label: 'GESTION RÉPUTATION', icon: '⚖️' }] : [])
+    { id: 'territory' as MenuSection, label: 'TERRITOIRE', icon: '🗺️' }
   ];
 
   const handleCharacterSelect = (character: CharacterOption) => {
@@ -332,22 +332,36 @@ export function MedievalHUD() {
               </div>
               <div className="text-blue-600">{actionPoints}/{maxActionPoints}</div>
               <div className="text-xs text-amber-700 mt-1">RÉPUTATION</div>
-              <div 
-                className="flex items-center justify-between cursor-pointer hover:bg-amber-200 rounded px-1 py-0.5 transition-colors"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowReputationDetails(true);
-                }}
-                title="Cliquer pour voir les détails"
-              >
-                <div className="flex items-center space-x-1">
-                  <div 
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: getReputationLevel().color }}
-                  />
-                  <div className="text-sm font-medium">{reputation}</div>
+              <div className="flex items-center justify-between">
+                <div 
+                  className="flex items-center space-x-1 cursor-pointer hover:bg-amber-200 rounded px-1 py-0.5 transition-colors flex-1"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowReputationDetails(true);
+                  }}
+                  title="Cliquer pour voir les détails"
+                >
+                  <div className="flex items-center space-x-1">
+                    <div 
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: getReputationLevel().color }}
+                    />
+                    <div className="text-sm font-medium">{reputation}</div>
+                  </div>
+                  <div className="text-xs text-amber-600">({honor})</div>
                 </div>
-                <div className="text-xs text-amber-600">({honor})</div>
+                {canAccessAdmin() && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowReputationManagement(true);
+                    }}
+                    className="text-xs px-1 py-0.5 text-purple-600 hover:text-purple-800 hover:bg-purple-100 rounded transition-colors ml-1"
+                    title="Gestion de la réputation"
+                  >
+                    ⚖️
+                  </button>
+                )}
               </div>
               <div className="text-xs text-amber-700 mt-1">COMPÉTENCES</div>
               <div className="flex items-center justify-between">
@@ -595,14 +609,6 @@ export function MedievalHUD() {
               {activeSection === 'help' && <HelpPanel />}
               {activeSection === 'competences' && <CompetenceTree />}
               {activeSection === 'factions' && <FactionPanel />}
-              {activeSection === 'reputation_management' && (
-                <div className="text-amber-800">
-                  <div className="mb-4 text-sm">
-                    Outil de gestion de la réputation pour les tests et ajustements.
-                  </div>
-                  <ReputationManagementPanel onClose={() => setActiveSection(null)} />
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -772,6 +778,11 @@ export function MedievalHUD() {
       {/* Territory Claim Panel */}
       {showTerritoryPanel && (
         <TerritoryClaimPanel onClose={() => setShowTerritoryPanel(false)} />
+      )}
+
+      {/* Reputation Management Panel */}
+      {showReputationManagement && (
+        <ReputationManagementPanel onClose={() => setShowReputationManagement(false)} />
       )}
     </div>
   );
