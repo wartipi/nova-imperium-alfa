@@ -215,31 +215,21 @@ export function ReputationManagementPanel({ onClose }: ReputationManagementPanel
             </div>
           </div>
 
-          {/* Statut GN */}
+          {/* Information Système */}
           <div className="mb-4">
-            <h4 className="text-sm font-bold text-purple-800 mb-3">🎪 Statut Événements GN</h4>
-            <div className="bg-purple-50 p-3 rounded border">
-              <div className="text-sm text-purple-700 mb-2">
-                Participations GN: <span className="font-bold">{gnParticipation}</span>
+            <h4 className="text-sm font-bold text-purple-800 mb-3">🎪 État du Système</h4>
+            <div className="space-y-3">
+              <div className="bg-blue-50 border border-blue-300 p-3 rounded">
+                <div className="text-sm font-medium text-blue-800">Passe de Saison</div>
+                <div className="text-xs text-blue-600 mb-2">Tous les joueurs actifs ont automatiquement leur passe de saison</div>
+                <div className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">✅ Valide pour tous les joueurs actifs</div>
               </div>
-              <div className="text-sm text-purple-700 mb-3">
-                Season Pass: <span className="font-bold">{seasonPass ? 'Oui' : 'Non'}</span>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  onClick={addGnParticipation}
-                  className="bg-green-500 hover:bg-green-600 text-white text-xs"
-                >
-                  +1 GN
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => setSeasonPass(!seasonPass)}
-                  className="bg-blue-500 hover:bg-blue-600 text-white text-xs"
-                >
-                  {seasonPass ? 'Retirer' : 'Ajouter'} Season Pass
-                </Button>
+              
+              <div className="bg-yellow-50 border border-yellow-300 p-3 rounded">
+                <div className="text-sm font-medium text-yellow-800">Validation GN</div>
+                <div className="text-xs text-yellow-600 mb-2">Système de validation des participations aux événements GN</div>
+                <div className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">⚙️ En développement</div>
+                <div className="text-xs text-yellow-600 mt-1">Un compte maître de jeu sera créé plus tard pour comptabiliser les participations</div>
               </div>
             </div>
           </div>

@@ -103,13 +103,9 @@ export function FactionCreationPanel() {
       requirements.push(`✅ Réputation Honorable (${honor}/200)`);
     }
     
-    if (gnParticipation < 2 && !seasonPass) {
-      requirements.push(`❌ 2 événements GN participés OU carte de saison (${gnParticipation}/2 événements)`);
-    } else if (gnParticipation >= 2) {
-      requirements.push(`✅ Événements GN participés (${gnParticipation}/2)`);
-    } else if (seasonPass) {
-      requirements.push(`✅ Carte de saison valide`);
-    }
+    // Tous les joueurs actifs ont automatiquement leur passe de saison
+    requirements.push(`✅ Passe de saison valide (joueur actif)`);
+    requirements.push(`ℹ️ Validation des participations GN : Système en développement`);
     
     if (actionPoints < creationCost) {
       requirements.push(`❌ Points d'Action insuffisants (${actionPoints}/${creationCost})`);

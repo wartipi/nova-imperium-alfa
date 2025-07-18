@@ -98,7 +98,7 @@ export const useReputation = create<ReputationState>()(
     reputation: "Neutre",
     reputationHistory: [],
     gnParticipation: 0,
-    seasonPass: false,
+    seasonPass: true, // Tous les joueurs actifs ont payé leur passe de saison
     
     addReputationAction: (actionData) => {
       const action: ReputationAction = {
@@ -163,8 +163,10 @@ export const useReputation = create<ReputationState>()(
     },
 
     canCreateFaction: () => {
-      const { gnParticipation, seasonPass, honor } = get();
-      return (gnParticipation >= 2 || seasonPass) && honor >= 200;
+      const { honor, seasonPass } = get();
+      // Pour le moment, tous les joueurs actifs ont leur passe de saison
+      // Le système de validation GN sera implémenté plus tard avec un compte GM
+      return seasonPass && honor >= 200;
     },
 
     // Fonctions de modification pour les tests/debug
