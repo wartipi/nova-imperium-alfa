@@ -81,16 +81,13 @@ export function GameCanvas() {
         
         // Handle avatar movement - only if movement mode is active
         if (!selectedUnit && isMovementMode) {
-          // Check if terrain is walkable for land units
           if (isTerrainWalkable(hex.terrain)) {
-            // Check if we clicked on a different hex than avatar's current position
             const currentHexX = Math.round(avatarPosition.x / 1.5);
             const currentHexY = Math.round(avatarPosition.z / (Math.sqrt(3) * 0.5));
             
             if (hex.x !== currentHexX || hex.y !== currentHexY) {
-              // Show movement confirmation modal instead of moving immediately
               setPendingMovement({ x: hex.x, y: hex.y });
-              setMovementMode(false); // Exit movement mode
+              setMovementMode(false);
             }
           } else {
             console.log('Cannot move avatar to water terrain:', hex.terrain);
@@ -125,7 +122,6 @@ export function GameCanvas() {
 
   const handleMovementConfirm = () => {
     if (pendingMovement) {
-      // Spend action points for movement
       const { spendActionPoints } = usePlayer.getState();
       if (spendActionPoints(1)) {
         moveAvatarToHex(pendingMovement.x, pendingMovement.y);
@@ -151,13 +147,13 @@ export function GameCanvas() {
       />
       
       {isMovementMode && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50">
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-bounce">
           <div className="flex items-center gap-2">
-            <span>🚶</span>
+            <span className="animate-pulse">🚶</span>
             <span>Mode déplacement activé - Cliquez sur une case pour vous déplacer</span>
             <button
               onClick={() => setMovementMode(false)}
-              className="ml-2 text-white hover:text-gray-300"
+              className="ml-2 text-white hover:text-gray-300 hover:scale-110 transition-transform"
             >
               ✕
             </button>

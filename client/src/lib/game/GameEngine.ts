@@ -474,8 +474,6 @@ export class GameEngine {
     this.ctx.restore();
   }
 
-
-
   private createAvatarSprite(): HTMLCanvasElement {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d')!;

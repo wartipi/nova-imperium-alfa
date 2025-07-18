@@ -89,7 +89,6 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   setIsMoving: (isMoving) => set({ isMoving }),
   moveAvatarToHex: (hexX, hexY) => {
     const state = get();
-    // Convert hex coordinates to world coordinates - fix the coordinate system
     const worldX = hexX * 1.5;
     const worldZ = hexY * Math.sqrt(3) * 0.5;
     
@@ -324,7 +323,6 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     set({ visibleHexes: newVisibleHexes });
   },
 
-  // Movement confirmation methods
   setPendingMovement: (movement) => set({ pendingMovement: movement }),
   setMovementMode: (mode) => set({ isMovementMode: mode })
 }));

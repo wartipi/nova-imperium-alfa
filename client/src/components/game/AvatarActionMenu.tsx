@@ -199,7 +199,6 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     if (!isActionAvailable(action)) return;
     
     if (action.id === 'move') {
-      // Activer le mode déplacement
       onMoveRequest();
       onClose();
       return;
@@ -207,7 +206,6 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     
     if (spendActionPoints(action.cost)) {
       console.log(`Action exécutée: ${action.name}`);
-      // Ici on peut ajouter la logique spécifique à chaque action
       onClose();
     }
   };
