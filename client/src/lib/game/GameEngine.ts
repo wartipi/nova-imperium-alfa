@@ -337,8 +337,11 @@ export class GameEngine {
           console.log(`🔍 Tentative rendu ressource: ${hex.resource} sur (${hex.x},${hex.y}), MJ:${isGameMaster}, exploration:${explorationLevel}, exploré:${hexExplored}`);
         }
         
-        // Ressources visibles si : mode MJ OU (exploration niveau 1+ ET zone explorée)
-        const isVisible = isGameMaster || (explorationLevel >= 1 && hexExplored);
+        // Accès à la nouvelle méthode isResourceDiscovered
+        const hexResourceDiscovered = playerState.isResourceDiscovered?.(hex.x, hex.y) || false;
+        
+        // Ressources visibles si : mode MJ OU (exploration niveau 1+ ET ressources découvertes)
+        const isVisible = isGameMaster || (explorationLevel >= 1 && hexResourceDiscovered);
         
         if (isVisible || isGameMaster) {
           // Rendu simple et efficace des ressources
@@ -424,9 +427,11 @@ export class GameEngine {
         const explorationLevel = getCompetenceLevel('exploration') || 0;
         const hexExplored = isHexExplored(hex.x, hex.y) || false;
         
-        // Ressources visibles si : mode MJ OU (exploration niveau 1+ ET zone explorée)
-        const isVisible = isGameMaster || (explorationLevel >= 1 && hexExplored && 
-          ResourceRevealSystem.canRevealResource(hex.resource, explorationLevel));
+        // Accès à la nouvelle méthode isResourceDiscovered pour la section fog of war
+        const hexResourceDiscovered = (window as any).usePlayer?.getState()?.isResourceDiscovered?.(hex.x, hex.y) || false;
+        
+        // Ressources visibles si : mode MJ OU (exploration niveau 1+ ET ressources découvertes)
+        const isVisible = isGameMaster || (explorationLevel >= 1 && hexResourceDiscovered);
         
         if (isVisible) {
           const effectiveLevel = Math.max(explorationLevel, isGameMaster ? 1 : 0);

@@ -20,7 +20,7 @@ const getGameData = () => {
 };
 
 export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarActionMenuProps) {
-  const { actionPoints, spendActionPoints, hasCompetenceLevel, competences, gainExperience, exploreCurrentLocation } = usePlayer();
+  const { actionPoints, spendActionPoints, hasCompetenceLevel, competences, gainExperience, exploreCurrentLocation, discoverResourcesInVision } = usePlayer();
   const { reputation } = useReputation();
 
   // Actions de base disponibles pour tous les joueurs
@@ -48,7 +48,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     {
       id: 'explore_zone',
       name: 'Explorer la Zone',
-      description: 'Révéler les ressources de la zone actuelle (requiert Exploration niveau 1)',
+      description: 'Révéler les ressources dans tout le champ de vision (requiert Exploration niveau 1)',
       cost: 5,
       icon: '🔍',
       category: 'exploration',
@@ -149,14 +149,11 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     }
 
     if (action.id === 'explore_zone') {
-      if (spendActionPoints(action.cost)) {
-        const success = exploreCurrentLocation();
-        if (success) {
-          gainExperience(10, 'Exploration de zone');
-          alert('Zone explorée avec succès ! Les ressources ont été révélées.');
-        } else {
-          alert('Cette zone a déjà été explorée.');
-        }
+      const success = discoverResourcesInVision();
+      if (success) {
+        alert('Zone explorée avec succès ! Les ressources dans votre champ de vision ont été révélées.');
+      } else {
+        alert('Exploration impossible : vérifiez vos PA ou votre compétence Exploration.');
       }
       onClose();
       return;

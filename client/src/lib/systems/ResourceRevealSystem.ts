@@ -62,14 +62,17 @@ export class ResourceRevealSystem {
   }
 
   /**
-   * Obtient toutes les ressources visibles dans un hexagone selon le niveau d'exploration
+   * Obtient toutes les ressources visibles dans un hexagone selon le niveau d'exploration ET l'exploration active
    */
-  static getVisibleResources(hex: HexTile, explorationLevel: number): ResourceInfo[] {
+  static getVisibleResources(hex: HexTile, explorationLevel: number, isResourceDiscovered?: boolean): ResourceInfo[] {
     const visibleResources: ResourceInfo[] = [];
     
-    if (hex.resource) {
+    // Les ressources ne sont visibles que si :
+    // 1. Le joueur a la compétence exploration niveau 1+
+    // 2. Cette case a été explorée avec l'action "Explorer la Zone"
+    if (hex.resource && explorationLevel >= 1 && isResourceDiscovered) {
       const resourceInfo = this.getResourceDisplayInfo(hex.resource);
-      if (resourceInfo && this.canRevealResource(hex.resource, explorationLevel)) {
+      if (resourceInfo) {
         visibleResources.push(resourceInfo);
       }
     }

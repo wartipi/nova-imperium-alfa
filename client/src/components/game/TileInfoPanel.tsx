@@ -7,12 +7,16 @@ import { ResourceRevealSystem } from "../../lib/systems/ResourceRevealSystem";
 
 // Composant séparé pour éviter les problèmes de hooks
 function ResourceInfoSection({ selectedHex }: { selectedHex: HexTile }) {
-  const { getCompetenceLevel } = usePlayer();
+  const { getCompetenceLevel, isResourceDiscovered } = usePlayer();
   const { isGameMaster } = useGameState();
   
   const explorationLevel = getCompetenceLevel('exploration');
   const isMasterMode = isGameMaster || false;
-  const resourceDescription = ResourceRevealSystem.getResourceDescription(selectedHex, Math.max(explorationLevel, isMasterMode ? 1 : 0));
+  const hexResourceDiscovered = isResourceDiscovered(selectedHex.x, selectedHex.y);
+  
+  // Les ressources ne sont visibles que si explorées activement OU en mode MJ
+  const shouldShowResource = isMasterMode || (explorationLevel >= 1 && hexResourceDiscovered);
+  const resourceDescription = shouldShowResource ? ResourceRevealSystem.getResourceDescription(selectedHex, 1) : null;
   
   return (
     <div className="bg-amber-50 border border-amber-700 rounded p-2 mb-3">
@@ -33,26 +37,35 @@ function ResourceInfoSection({ selectedHex }: { selectedHex: HexTile }) {
         </div>
         
         <div className="text-amber-700">
-          {selectedHex.resource && (isMasterMode || explorationLevel >= 1) ? (
+          {selectedHex.resource && shouldShowResource ? (
             <div className="flex items-center gap-2">
               <span className="text-lg">
-                {ResourceRevealSystem.getHexResourceSymbol(selectedHex, Math.max(explorationLevel, 1)) || '💎'}
+                {ResourceRevealSystem.getHexResourceSymbol(selectedHex, 1) || '💎'}
               </span>
               <span>{resourceDescription}</span>
-              {isMasterMode && !explorationLevel && (
+              {isMasterMode && !hexResourceDiscovered && (
                 <span className="text-xs text-purple-600">(visible en mode MJ)</span>
               )}
             </div>
           ) : (
             <div className="text-amber-600 text-sm italic">
-              {explorationLevel >= 1 ? 'Aucune ressource détectée' : 'Exploration requise pour révéler les ressources'}
+              {explorationLevel >= 1 
+                ? (hexResourceDiscovered ? 'Aucune ressource détectée' : 'Zone non explorée - utilisez "Explorer la Zone"')
+                : 'Exploration requise pour révéler les ressources'
+              }
             </div>
           )}
         </div>
         
-        {explorationLevel === 0 && !isMasterMode && (
+        {!isMasterMode && (
           <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
-            💡 <strong>Astuce:</strong> Apprenez la compétence "Exploration" niveau 1 et utilisez l'action "Explorer la Zone" pour révéler les ressources !
+            💡 <strong>Astuce:</strong> 
+            {explorationLevel === 0 
+              ? "Apprenez la compétence 'Exploration' niveau 1 puis utilisez l'action 'Explorer la Zone' pour révéler les ressources !"
+              : !hexResourceDiscovered 
+                ? "Cliquez sur votre avatar et utilisez l'action 'Explorer la Zone' pour révéler les ressources dans votre champ de vision !"
+                : "Cette zone a été explorée - les ressources sont visibles si présentes."
+            }
           </div>
         )}
       </div>

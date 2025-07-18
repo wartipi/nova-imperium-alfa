@@ -22,6 +22,7 @@ interface Avatar {
   position: { x: number; y: number; z: number };
   currentVision: Set<string>;
   exploredHexes: Set<string>;
+  resourcesDiscovered: Set<string>; // Ressources découvertes par action "Explorer la Zone"
 }
 
 interface PlayerState {
@@ -50,6 +51,7 @@ interface PlayerState {
   // Vision system unifié
   currentVision: Set<string>;
   exploredHexes: Set<string>;
+  resourcesDiscovered: Set<string>; // Ressources découvertes par action "Explorer la Zone"
 
   // Movement system
   pendingMovement: { x: number; y: number } | null;
@@ -88,6 +90,8 @@ interface PlayerState {
   isHexExplored: (hexX: number, hexY: number) => boolean;
   addExploredHex: (hexX: number, hexY: number) => void;
   exploreCurrentLocation: () => boolean;
+  isResourceDiscovered: (hexX: number, hexY: number) => boolean;
+  discoverResourcesInVision: () => boolean;
   
   // Movement system
   setPendingMovement: (movement: { x: number; y: number } | null) => void;
@@ -120,7 +124,8 @@ export const usePlayer = create<PlayerState>((set, get) => {
     maxActionPoints: 100,
     position: { x: 3 * 1.5, y: 0, z: 3 * Math.sqrt(3) * 0.5 },
     currentVision: new Set(),
-    exploredHexes: new Set()
+    exploredHexes: new Set(),
+    resourcesDiscovered: new Set()
   };
 
   return {
@@ -146,6 +151,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
   movementSpeed: 2,
   currentVision: new Set(),
   exploredHexes: new Set(),
+  resourcesDiscovered: new Set(),
 
   pendingMovement: null,
   isMovementMode: false,
@@ -505,7 +511,8 @@ export const usePlayer = create<PlayerState>((set, get) => {
       maxActionPoints: 100,
       position: { x: landHex.x * 1.5, y: 0, z: landHex.y * Math.sqrt(3) * 0.5 },
       currentVision: new Set(),
-      exploredHexes: new Set()
+      exploredHexes: new Set(),
+      resourcesDiscovered: new Set()
     };
 
     set({ avatars: [...state.avatars, newAvatar] });
@@ -528,7 +535,8 @@ export const usePlayer = create<PlayerState>((set, get) => {
         maxActionPoints: avatar.maxActionPoints,
         avatarPosition: avatar.position,
         currentVision: avatar.currentVision,
-        exploredHexes: avatar.exploredHexes
+        exploredHexes: avatar.exploredHexes,
+        resourcesDiscovered: avatar.resourcesDiscovered
       });
     }
   },
@@ -560,6 +568,51 @@ export const usePlayer = create<PlayerState>((set, get) => {
   canCreateNewAvatar: () => {
     const state = get();
     return state.avatars.length < 2;
+  },
+
+  // Système de découverte des ressources
+  isResourceDiscovered: (hexX, hexY) => {
+    const state = get();
+    return state.resourcesDiscovered.has(`${hexX},${hexY}`);
+  },
+
+  discoverResourcesInVision: () => {
+    const state = get();
+    
+    // Vérifier si le joueur a la compétence exploration niveau 1
+    if (state.getCompetenceLevel('exploration') < 1) {
+      console.log('❌ Exploration impossible: compétence exploration niveau 1 requise');
+      return false;
+    }
+
+    // Vérifier les PA
+    if (state.actionPoints < 5) {
+      console.log('❌ Exploration impossible: 5 PA requis');
+      return false;
+    }
+
+    // Dépenser les PA
+    state.spendActionPoints(5);
+
+    // Découvrir les ressources dans tout le champ de vision
+    const newResourcesDiscovered = new Set(state.resourcesDiscovered);
+    let resourcesFound = 0;
+
+    state.currentVision.forEach(hexKey => {
+      if (!state.resourcesDiscovered.has(hexKey)) {
+        newResourcesDiscovered.add(hexKey);
+        resourcesFound++;
+      }
+    });
+
+    // Mettre à jour l'état
+    set({ resourcesDiscovered: newResourcesDiscovered });
+
+    // Gagner de l'expérience
+    state.gainExperience(5, 'Exploration');
+
+    console.log(`🔍 Exploration terminée! ${resourcesFound} nouvelles zones explorées dans le champ de vision`);
+    return true;
   }
   };
 });
