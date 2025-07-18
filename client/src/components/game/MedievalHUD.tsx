@@ -58,7 +58,7 @@ export function MedievalHUD() {
 
   const menuItems = [
     { id: 'treasury' as MenuSection, label: 'TRÉSORERIE', icon: '💰' },
-    { id: 'construction' as MenuSection, label: 'CONSTRUCTION', icon: '🏗️' },
+    { id: 'construction' as MenuSection, label: 'CONSTRUCTION', icon: '🔨' },
     { id: 'recruitment' as MenuSection, label: 'RECRUTEMENT', icon: '⚔️' },
     { id: 'activities' as MenuSection, label: 'RAPPORT D\'ACTIVITÉS', icon: '📊' },
     { id: 'courier' as MenuSection, label: 'COURRIER', icon: '📮' },
