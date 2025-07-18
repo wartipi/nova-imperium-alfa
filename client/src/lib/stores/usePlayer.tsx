@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { CharacterOption } from "../../components/game/CharacterSelector";
 import { VisionSystem, type HexCoordinate } from '../systems/VisionSystem';
+import { getLearnCost, getUpgradeCost } from '../competence/CompetenceCosts';
 
 interface CompetenceLevel {
   competence: string;
@@ -87,7 +88,7 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   totalExperience: 0,
   
   competences: [],
-  competencePoints: 5, // Points de départ réduits, on en gagne plus à chaque niveau
+  competencePoints: 3, // Points de départ pour commencer
   actionPoints: 25,
   maxActionPoints: 100,
   avatarPosition: { x: 3 * 1.5, y: 0, z: 3 * Math.sqrt(3) * 0.5 },
@@ -114,10 +115,11 @@ export const usePlayer = create<PlayerState>((set, get) => ({
       return false; // Already has this competence
     }
     
-    if (state.competencePoints >= 10) { // Cost 10 points to learn level 1
+    const learnCost = getLearnCost(competence);
+    if (state.competencePoints >= learnCost) {
       set({ 
         competences: [...state.competences, { competence, level: 1 }],
-        competencePoints: state.competencePoints - 10
+        competencePoints: state.competencePoints - learnCost
       });
       // Update vision when exploration competence changes
       if (competence === 'exploration') {
@@ -136,7 +138,7 @@ export const usePlayer = create<PlayerState>((set, get) => ({
       return false; // Competence not found or already max level
     }
     
-    const upgradeCost = existingCompetence.level * 5; // Level 1->2: 5pts, 2->3: 10pts, 3->4: 15pts
+    const upgradeCost = getUpgradeCost(competence, existingCompetence.level);
     
     if (state.competencePoints >= upgradeCost) {
       set({ 
@@ -372,7 +374,7 @@ export const usePlayer = create<PlayerState>((set, get) => ({
       const nextLevelExp = get().calculateExperienceForLevel(newLevel + 1) - get().calculateExperienceForLevel(newLevel);
       
       // Récompenses de niveau
-      const competencePointsGained = 10; // 10 points de compétence par niveau
+      const competencePointsGained = 1; // 1 point de compétence par niveau
       const actionPointsBonus = 5; // +5 PA max par niveau
       
       set({

@@ -222,18 +222,7 @@ export function MedievalHUD() {
                 </button>
               </div>
               
-              {/* Bouton de test pour gagner de l'expérience */}
-              <div className="mt-2">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    gainExperience(25, 'Action test');
-                  }}
-                  className="text-xs bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded w-full"
-                >
-                  +25 XP (Test)
-                </button>
-              </div>
+
               
               {/* Inventaire d'objets uniques */}
               <PlayerInventory playerId="player" />

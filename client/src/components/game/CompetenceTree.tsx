@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { usePlayer } from '../../lib/stores/usePlayer';
+import { getLearnCost, getUpgradeCost, getCompetenceDescription } from '../../lib/competence/CompetenceCosts';
 
 interface Competence {
   id: string;
@@ -160,7 +161,7 @@ export function CompetenceTree() {
   const { competences, competencePoints, learnCompetence, upgradeCompetence, getCompetenceLevel } = usePlayer();
   const [selectedCompetence, setSelectedCompetence] = useState<Competence | null>(null);
 
-  const availablePoints = competencePoints || 50; // Starting points
+  const availablePoints = competencePoints || 3; // Starting points
   const learnedCompetences = competences || [];
 
   const groupedCompetences = allCompetences.reduce((acc, comp) => {
@@ -172,7 +173,9 @@ export function CompetenceTree() {
   const canLearnCompetence = (competence: Competence) => {
     const currentLevel = getCompetenceLevel(competence.id);
     if (currentLevel > 0) return false; // Already learned
-    if (availablePoints < 10) return false; // Cost to learn level 1
+    
+    const learnCost = getLearnCost(competence.id);
+    if (availablePoints < learnCost) return false;
     
     if (competence.prerequisites) {
       return competence.prerequisites.every(prereq => 
@@ -187,7 +190,7 @@ export function CompetenceTree() {
     const currentLevel = getCompetenceLevel(competence.id);
     if (currentLevel === 0 || currentLevel >= 4) return false; // Not learned or max level
     
-    const upgradeCost = currentLevel * 5; // Level 1->2: 5pts, 2->3: 10pts, 3->4: 15pts
+    const upgradeCost = getUpgradeCost(competence.id, currentLevel);
     return availablePoints >= upgradeCost;
   };
 
@@ -280,9 +283,9 @@ export function CompetenceTree() {
                         
                         <div className="text-xs text-gray-600 mb-1">
                           {currentLevel === 0 
-                            ? 'Coût: 10 points pour apprendre'
+                            ? `Coût: ${getLearnCost(competence.id)} points pour apprendre`
                             : currentLevel < 4 
-                              ? `Améliorer: ${currentLevel * 5} points`
+                              ? `Améliorer: ${getUpgradeCost(competence.id, currentLevel)} points`
                               : 'Niveau maximum atteint'
                           }
                         </div>
