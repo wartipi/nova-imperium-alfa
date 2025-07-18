@@ -37,6 +37,33 @@ const terrainColors = {
 export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  // Fonction pour dessiner un hexagone
+  const drawHexagon = (ctx: CanvasRenderingContext2D, centerX: number, centerY: number, radius: number) => {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const angle = (Math.PI / 3) * i;
+      const x = centerX + radius * Math.cos(angle);
+      const y = centerY + radius * Math.sin(angle);
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+    ctx.closePath();
+  };
+
+  // Fonction pour convertir les coordonnées hex en coordonnées pixel
+  const hexToPixel = (hexX: number, hexY: number, hexRadius: number) => {
+    const width = hexRadius * 2;
+    const height = hexRadius * Math.sqrt(3);
+    
+    let x = hexRadius * 3/2 * hexX;
+    let y = height * (hexY + 0.5 * (hexX & 1));
+    
+    return { x, y };
+  };
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -60,35 +87,48 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const minY = Math.min(...tiles.map(t => t.y));
     const maxY = Math.max(...tiles.map(t => t.y));
 
-    const scaleX = (width - 40) / (maxX - minX + 1);
-    const scaleY = (height - 40) / (maxY - minY + 1);
-    const scale = Math.min(scaleX, scaleY);
+    // Calculer la taille des hexagones
+    const mapWidth = maxX - minX + 1;
+    const mapHeight = maxY - minY + 1;
+    const hexRadius = Math.min((width - 40) / (mapWidth * 1.5 + 0.5), (height - 40) / (mapHeight * Math.sqrt(3) + Math.sqrt(3)));
 
-    // Dessiner chaque tuile
+    // Centre de la carte
+    const centerX = width / 2;
+    const centerY = height / 2;
+
+    // Dessiner chaque tuile comme hexagone
     tiles.forEach(tile => {
-      const x = (tile.x - minX) * scale + 20;
-      const y = (tile.y - minY) * scale + 20;
+      const relativeX = tile.x - minX - mapWidth / 2;
+      const relativeY = tile.y - minY - mapHeight / 2;
+      
+      const hexPos = hexToPixel(relativeX, relativeY, hexRadius);
+      const x = centerX + hexPos.x;
+      const y = centerY + hexPos.y;
 
       // Couleur du terrain
       ctx.fillStyle = terrainColors[tile.terrain as keyof typeof terrainColors] || '#CCCCCC';
-      ctx.fillRect(x, y, scale, scale);
+      drawHexagon(ctx, x, y, hexRadius * 0.9);
+      ctx.fill();
 
       // Bordure pour la qualité de la carte
       if (mapData.quality === 'masterwork') {
         ctx.strokeStyle = '#FFD700';
         ctx.lineWidth = 2;
-        ctx.strokeRect(x, y, scale, scale);
       } else if (mapData.quality === 'detailed') {
         ctx.strokeStyle = '#C0C0C0';
         ctx.lineWidth = 1;
-        ctx.strokeRect(x, y, scale, scale);
+      } else {
+        ctx.strokeStyle = '#999999';
+        ctx.lineWidth = 0.5;
       }
+      drawHexagon(ctx, x, y, hexRadius * 0.9);
+      ctx.stroke();
 
       // Ressources (pour les cartes détaillées)
       if (mapData.quality !== 'rough' && tile.resources.length > 0) {
         ctx.fillStyle = '#FF6B6B';
         ctx.beginPath();
-        ctx.arc(x + scale/2, y + scale/2, 2, 0, 2 * Math.PI);
+        ctx.arc(x, y, 3, 0, 2 * Math.PI);
         ctx.fill();
       }
     });

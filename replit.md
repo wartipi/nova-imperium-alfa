@@ -167,7 +167,7 @@ Preferred communication style: Simple, everyday language.
 - Automatic cleanup of expired offers every minute
 - Enhanced Resource Exchange treaty type with unique items and real-time capabilities
 
-### Cartography System (January 17, 2025)
+### Cartography System (January 17-18, 2025)
 - Implemented comprehensive cartography system where players create tradeable map documents
 - Region discovery system: players explore areas and can map them with varying detail levels
 - Cartography projects requiring Action Points, tools, and assistants for completion
@@ -182,6 +182,9 @@ Preferred communication style: Simple, everyday language.
 - Complete API endpoints for discovery, project management, and map trading
 - Cartography statistics tracking: regions discovered, maps created, trading values
 - Maps become unique tradeable objects with strategic and commercial value
+- **Level 1 Cartography Implementation (January 18, 2025)**: Avatar action "Cartographier" creates real map objects with terrain data from field of vision (7 hexagons)
+- **Hexagonal Map Visualization (January 18, 2025)**: MapViewer component updated to display maps as hexagons matching main game display instead of square tiles
+- **Real Map Data Integration (January 18, 2025)**: Maps now contain actual terrain types and coordinates from game world, making them authentic tradeable cartographic documents
 
 ### Player Avatar System (January 17, 2025)
 - Implemented 8-bit style 2D avatar system for player representation in the world
