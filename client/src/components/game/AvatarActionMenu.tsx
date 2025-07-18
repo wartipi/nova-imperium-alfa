@@ -3,6 +3,7 @@ import { usePlayer } from "../../lib/stores/usePlayer";
 import { useReputation } from "../../lib/stores/useReputation";
 import { useGameState } from "../../lib/stores/useGameState";
 import { useFactions } from "../../lib/stores/useFactions";
+import { useMap } from "../../lib/stores/useMap";
 import { Card } from "../ui/card";
 
 interface AvatarActionMenuProps {
@@ -22,10 +23,11 @@ const getGameData = () => {
 };
 
 export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarActionMenuProps) {
-  const { actionPoints, spendActionPoints, hasCompetenceLevel, competences, gainExperience, exploreCurrentLocation, discoverResourcesInVision } = usePlayer();
+  const { actionPoints, spendActionPoints, addActionPoints, hasCompetenceLevel, competences, gainExperience, exploreCurrentLocation, discoverResourcesInVision } = usePlayer();
   const { reputation } = useReputation();
   const { isGameMaster } = useGameState();
   const { playerFaction } = useFactions();
+  const { setSelectedHex } = useMap();
 
   // Actions de base disponibles pour tous les joueurs
   const baseActions = [
@@ -199,7 +201,6 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
             alert(`[MODE MJ] Territoire en (${avatarPosition.x},${avatarPosition.y}) revendiqué avec succès !`);
             
             // Forcer le rafraîchissement de la sélection pour mettre à jour l'affichage
-            const { setSelectedHex } = useMap.getState();
             setSelectedHex(null);
             setTimeout(() => {
               const gameEngine = (window as any).gameEngine;
@@ -249,7 +250,6 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
             alert(`Territoire en (${avatarPosition.x},${avatarPosition.y}) revendiqué avec succès pour votre faction "${playerFaction.name}" !`);
             
             // Forcer le rafraîchissement de la sélection pour mettre à jour l'affichage
-            const { setSelectedHex } = useMap.getState();
             setSelectedHex(null);
             setTimeout(() => {
               const gameEngine = (window as any).gameEngine;
