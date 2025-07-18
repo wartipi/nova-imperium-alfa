@@ -27,6 +27,9 @@ export function PlayerInventory({ playerId }: PlayerInventoryProps) {
 
   useEffect(() => {
     fetchInventory();
+    // Rafraîchir l'inventaire toutes les 10 secondes
+    const interval = setInterval(fetchInventory, 10000);
+    return () => clearInterval(interval);
   }, [playerId]);
 
   const fetchInventory = async () => {
