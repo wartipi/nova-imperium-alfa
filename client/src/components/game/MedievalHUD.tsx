@@ -25,6 +25,7 @@ import { ReputationPanel } from "./ReputationPanel";
 import { FactionPanel } from "./FactionPanel";
 
 import { PlayerInventory } from "./PlayerInventory";
+import { UserProfilePanel } from "../auth/UserProfilePanel";
 import { LevelUpNotification, useLevelUpNotification } from "./LevelUpNotification";
 
 type MenuSection = 
@@ -238,6 +239,11 @@ export function MedievalHUD() {
               {/* Inventaire d'objets uniques */}
               <PlayerInventory playerId="player" />
             </div>
+          </div>
+          
+          {/* Profil utilisateur */}
+          <div className="mt-2">
+            <UserProfilePanel />
           </div>
           
           {/* Shield Emblem - Character Display */}

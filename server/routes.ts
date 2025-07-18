@@ -5,6 +5,7 @@ import { messageService } from "./messageService";
 import { treatyService } from "./treatyService";
 import { exchangeService, UniqueItem } from "./exchangeService";
 import { cartographyService } from "./cartographyService";
+import { loginEndpoint } from "./middleware/auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Game save/load endpoints
@@ -31,6 +32,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to load game" });
     }
   });
+
+  // Authentication endpoint
+  app.post("/api/auth/login", loginEndpoint);
 
   // Leaderboard endpoint
   app.get("/api/leaderboard", async (req, res) => {

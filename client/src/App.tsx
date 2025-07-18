@@ -2,6 +2,8 @@ import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GameCanvas } from "./components/game/GameCanvas";
 import { MedievalHUD } from "./components/game/MedievalHUD";
+import { LoginModal } from "./components/auth/LoginModal";
+import { AuthProvider, useAuth } from "./lib/auth/AuthContext";
 import { useGameState } from "./lib/stores/useGameState";
 import { useMap } from "./lib/stores/useMap";
 import { useNovaImperium } from "./lib/stores/useNovaImperium";
@@ -14,6 +16,7 @@ import "./index.css";
 const queryClient = new QueryClient();
 
 function GameApp() {
+  const { isAuthenticated, login } = useAuth();
   const { initializeGame, gamePhase } = useGameState();
   const { generateMap, mapData } = useMap();
   const { initializeNovaImperiums } = useNovaImperium();
@@ -57,19 +60,29 @@ function GameApp() {
   }
 
   return (
-    <GameEngineProvider>
-      <div className="w-full h-full relative overflow-hidden bg-gray-900">
-        <GameCanvas />
-        <MedievalHUD />
-      </div>
-    </GameEngineProvider>
+    <>
+      <LoginModal 
+        onLogin={login} 
+        isVisible={!isAuthenticated} 
+      />
+      {isAuthenticated && (
+        <GameEngineProvider>
+          <div className="w-full h-full relative overflow-hidden bg-gray-900">
+            <GameCanvas />
+            <MedievalHUD />
+          </div>
+        </GameEngineProvider>
+      )}
+    </>
   );
 }
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <GameApp />
+      <AuthProvider>
+        <GameApp />
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
