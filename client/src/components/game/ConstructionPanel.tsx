@@ -19,14 +19,13 @@ export function ConstructionPanel() {
 
   if (!currentNovaImperium) return null;
 
-  // Vérifier si le joueur peut accéder au menu de construction
-  const canAccessConstruction = TerritorySystem.canAccessConstructionMenu('player', isGameMaster);
+  // Vérifier l'état du joueur
   const playerColonies = TerritorySystem.getPlayerColonies('player');
   const currentFaction = playerFaction ? getFactionById(playerFaction) : null;
+  const hasColonies = playerColonies.length > 0;
 
-  // En mode MJ, afficher un message et permettre l'accès complet
+  // En mode MJ sans villes, créer une ville temporaire pour permettre la construction
   if (isGameMaster && currentNovaImperium.cities.length === 0) {
-    // En mode MJ sans villes, créer une ville temporaire pour permettre la construction
     const tempCity = {
       id: 'gm_temp_city',
       name: 'Base MJ Temporaire',
@@ -37,41 +36,21 @@ export function ConstructionPanel() {
       x: 0,
       y: 0
     };
-    // Ajouter la ville temporaire aux villes disponibles pour la construction
     currentNovaImperium.cities = [tempCity];
-  } else if (!canAccessConstruction) {
-    return (
-      <div className="space-y-4">
-        <div className="bg-red-50 border border-red-300 rounded p-4">
-          <div className="text-red-900 font-semibold mb-2">🏗️ Construction indisponible</div>
-          <div className="text-red-800 text-sm space-y-2">
-            <div>Pour accéder aux constructions, vous devez :</div>
-            <div className="ml-4 space-y-1">
-              <div className={`flex items-center gap-2 ${currentFaction ? 'text-green-700' : 'text-red-700'}`}>
-                {currentFaction ? '✅' : '❌'}
-                Être membre d'une faction ({currentFaction ? currentFaction.name : 'Aucune faction'})
-              </div>
-              <div className={`flex items-center gap-2 ${playerColonies.length > 0 ? 'text-green-700' : 'text-red-700'}`}>
-                {playerColonies.length > 0 ? '✅' : '❌'}
-                Avoir fondé au moins une colonie ({playerColonies.length} colonie{playerColonies.length > 1 ? 's' : ''})
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-blue-50 border border-blue-300 rounded p-3">
-          <div className="text-blue-900 font-semibold mb-2">📋 Étapes à suivre</div>
-          <div className="text-blue-800 text-sm space-y-1">
-            <div>1. Créez ou rejoignez une faction (menu Factions)</div>
-            <div>2. Apprenez "Influence locale" niveau 1 (compétences)</div>
-            <div>3. Revendiquez un territoire (menu Territoire)</div>
-            <div>4. Fondez une colonie sur le territoire revendiqué</div>
-            <div>5. Revenez ici pour construire des bâtiments</div>
-          </div>
-        </div>
-      </div>
-    );
   }
+
+  // Option spéciale pour fonder une colonie
+  const colonyFoundingOption = {
+    id: 'found_colony',
+    name: 'Fonder une Colonie',
+    cost: { action_points: 15 },
+    constructionTime: 1,
+    description: 'Établir une nouvelle colonie sur territoire revendiqué',
+    icon: '🏛️',
+    category: 'Colonie',
+    requiredTerrain: ['any'],
+    actionPointCost: 15
+  };
 
   const buildings = [
     // === TERRE EN FRICHE (wasteland) ===
@@ -685,7 +664,8 @@ export function ConstructionPanel() {
   };
 
   const canAffordBuilding = (buildingId: string): boolean => {
-    const building = buildings.find(b => b.id === buildingId);
+    const building = buildings.find(b => b.id === buildingId) || 
+                    (buildingId === 'found_colony' ? colonyFoundingOption : null);
     if (!building || !currentNovaImperium) return false;
     
     // En mode MJ, on peut toujours construire
@@ -704,6 +684,19 @@ export function ConstructionPanel() {
   };
 
   const handleBuild = (buildingId: string, cityId: string) => {
+    // Cas spécial pour fonder une colonie
+    if (buildingId === 'found_colony') {
+      if (isGameMaster || canAffordBuilding(buildingId)) {
+        if (!isGameMaster) {
+          spendActionPoints(15);
+        }
+        // Logique pour fonder une colonie (à implémenter avec TerritorySystem)
+        console.log('Fondation de colonie demandée - à implémenter avec TerritorySystem');
+        alert('Fondation de colonie : fonctionnalité à implémenter prochainement !');
+      }
+      return;
+    }
+
     const building = buildings.find(b => b.id === buildingId);
     if (!building || !currentNovaImperium) return;
     
@@ -755,12 +748,56 @@ export function ConstructionPanel() {
         )}
       </div>
 
-      {currentNovaImperium.cities.map(city => (
-        <div key={city.id} className="bg-amber-50 border border-amber-700 rounded p-3">
+      {/* Option pour fonder une colonie (toujours visible) */}
+      {!isGameMaster && !hasColonies && (
+        <div className="bg-blue-50 border border-blue-400 rounded p-3 mb-4">
+          <div className="font-medium text-sm mb-2">🏛️ Fondation de Colonie</div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <span className="text-sm">{colonyFoundingOption.icon}</span>
+                <div>
+                  <div className="text-xs font-medium">{colonyFoundingOption.name}</div>
+                  <div className="text-xs text-blue-700">
+                    {formatResourceCost(colonyFoundingOption.cost)}
+                  </div>
+                  <div className="text-xs text-blue-600">
+                    ⚡ {colonyFoundingOption.actionPointCost} PA | 🕐 {colonyFoundingOption.constructionTime} tour
+                  </div>
+                  <div className="text-xs text-green-600">
+                    📍 Territoire revendiqué requis
+                  </div>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => handleBuild('found_colony', 'temp')}
+                disabled={!canAffordBuilding('found_colony')}
+                className="text-xs bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+              >
+                {!canAffordBuilding('found_colony') ? 'Ressources insuffisantes' : 'Fonder'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Message d'état si pas de colonies */}
+      {!isGameMaster && !hasColonies && (
+        <div className="bg-yellow-50 border border-yellow-400 rounded p-3 mb-4">
+          <div className="text-yellow-800 text-sm font-semibold">⚠️ Aucune colonie fondée</div>
+          <div className="text-yellow-700 text-xs">
+            Les bâtiments ci-dessous nécessitent d'avoir fondé une colonie pour être construits.
+          </div>
+        </div>
+      )}
+
+      {/* Liste des villes ou zone de construction temporaire */}
+      {(hasColonies || isGameMaster ? currentNovaImperium.cities : [{id: 'temp', name: 'Construction (nécessite une colonie)', population: 0, buildings: [], currentProduction: null, productionProgress: 0, x: 0, y: 0}]).map(city => (
+        <div key={city.id} className={`bg-amber-50 border border-amber-700 rounded p-3 ${!hasColonies && !isGameMaster ? 'opacity-50' : ''}`}>
           <div className="font-medium text-sm mb-2">{city.name}</div>
 
-          
-          {city.currentProduction ? (
+          {city.currentProduction && hasColonies ? (
             <div className="mb-3">
               <div className="text-xs text-amber-700">En cours:</div>
               <div className="text-sm font-medium">{city.currentProduction.name}</div>
@@ -775,7 +812,9 @@ export function ConstructionPanel() {
               </div>
             </div>
           ) : (
-            <div className="text-xs text-amber-700 mb-3">Aucune construction en cours</div>
+            <div className="text-xs text-amber-700 mb-3">
+              {hasColonies || isGameMaster ? 'Aucune construction en cours' : 'Fondez d\'abord une colonie'}
+            </div>
           )}
 
           <div className="space-y-3">
@@ -813,18 +852,21 @@ export function ConstructionPanel() {
                         size="sm"
                         onClick={() => handleBuild(building.id, city.id)}
                         disabled={
+                          (!hasColonies && !isGameMaster) ||
                           city.currentProduction !== null || 
                           city.buildings.includes(building.id as any) || 
                           !canAffordBuilding(building.id) ||
                           !canBuildBuilding(building).canBuild
                         }
                         className={`text-xs ${
+                          (!hasColonies && !isGameMaster) ? 'bg-gray-400 hover:bg-gray-500' :
                           !canBuildBuilding(building).canBuild 
                             ? 'bg-red-500 hover:bg-red-600' 
                             : 'bg-amber-600 hover:bg-amber-700'
                         } disabled:opacity-50`}
                       >
-                        {city.buildings.includes(building.id as any) ? 'Construit' : 
+                        {(!hasColonies && !isGameMaster) ? 'Colonie requise' :
+                         city.buildings.includes(building.id as any) ? 'Construit' : 
                          !canBuildBuilding(building).canBuild ? 'Terrain requis' :
                          !canAffordBuilding(building.id) ? 'Ressources insuffisantes' : 'Construire'}
                       </Button>

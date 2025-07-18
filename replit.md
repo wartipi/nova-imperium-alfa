@@ -318,11 +318,14 @@ Preferred communication style: Simple, everyday language.
 - **Construction Prerequisites**: Must be faction member + have colony + control required terrain type
 - **14 Terrain Type Support**: Full support for all archipelago world terrain types including magical ones
 - **Enhanced Construction UI**: Shows terrain requirements, construction time, PA costs, and availability
-- **Construction Menu Gating**: Access blocked until player meets all prerequisites with clear guidance
+- **Universal Construction Access**: All players can access construction menu to found colonies
+- **Colony Founding Integration**: "Fonder une Colonie" option added to construction menu (15 PA cost)
+- **Grayed Building System**: Buildings disabled/grayed until player founds colony
 - **Building Categories**: Organized by purpose (Production, Defense, Spiritual, Magie, etc.)
 - **Resource Cost Integration**: Buildings require varied combinations of basic, strategic, and magical resources
 - **Territory Claim Panel**: Direct integration with HUD for territory management and colony founding
 - **Progressive Building Complexity**: Simple outposts (8 PA, 2 turns) to legendary structures (60 PA, 15 turns)
+- **GM Mode Unrestricted**: Game Masters retain full access to all buildings without prerequisites
 
 ### Dynamic Field of Vision Systems (January 18, 2025)
 - Modified exploration action to always match player's current field of vision
