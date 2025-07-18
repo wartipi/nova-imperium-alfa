@@ -22,8 +22,8 @@ const terrainColors = {
   forest: '#4CAF50',
   mountains: '#795548',
   desert: '#FFC107',
-  wasteland: '#607D8B',
-  hills: '#8D6E63',
+  wasteland: '#8D6E63', // Couleur terre/brun pour les terres en friche
+  hills: '#A1887F',
   swamp: '#2E7D32',
   sacred_plains: '#E8F5E8',
   ancient_ruins: '#9E9E9E',
@@ -39,11 +39,11 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
   const [hoveredTile, setHoveredTile] = useState<{ x: number; y: number; terrain: string; resources: string[] } | null>(null);
 
-  // Fonction pour dessiner un hexagone (pointy-top comme dans le jeu)
+  // Fonction pour dessiner un hexagone (flat-top - côtés plats en haut et bas)
   const drawHexagon = (ctx: CanvasRenderingContext2D, centerX: number, centerY: number, radius: number) => {
     ctx.beginPath();
     for (let i = 0; i < 6; i++) {
-      const angle = (Math.PI / 3) * i - Math.PI / 2; // Rotation pour pointy-top
+      const angle = (Math.PI / 3) * i; // Pas de rotation pour flat-top
       const x = centerX + radius * Math.cos(angle);
       const y = centerY + radius * Math.sin(angle);
       if (i === 0) {
@@ -100,7 +100,7 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
 
     // Dessiner chaque tuile comme hexagone
     tiles.forEach(tile => {
-      console.log('Dessin tuile:', tile.x, tile.y, 'terrain:', tile.terrain);
+      // console.log('Dessin tuile:', tile.x, tile.y, 'terrain:', tile.terrain);
       
       // Utiliser les coordonnées absolues comme dans le jeu
       const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
@@ -232,7 +232,7 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
           }}
         >
           <div><strong>Position:</strong> ({hoveredTile.x}, {hoveredTile.y})</div>
-          <div><strong>Terrain:</strong> {hoveredTile.terrain}</div>
+          <div><strong>Terrain:</strong> {hoveredTile.terrain === 'wasteland' ? 'Terre en friche' : hoveredTile.terrain}</div>
           {hoveredTile.resources.length > 0 && (
             <div><strong>Ressources:</strong> {hoveredTile.resources.join(', ')}</div>
           )}
