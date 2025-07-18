@@ -11,29 +11,132 @@ interface TerritoryClaimPanelProps {
 }
 
 export function TerritoryClaimPanel({ onClose }: TerritoryClaimPanelProps) {
-  const { selectedHex } = useMap();
+  const { selectedHex, setSelectedHex } = useMap();
   const { getCompetenceLevel, spendActionPoints, actionPoints } = usePlayer();
   const { playerFaction, getFactionById } = useFactions();
   const { isGameMaster } = useGameState();
   const [isLoading, setIsLoading] = useState(false);
   const [showColonyForm, setShowColonyForm] = useState(false);
   const [colonyName, setColonyName] = useState('');
+  const [showTerritoryList, setShowTerritoryList] = useState(false);
+
+  // Récupérer la liste des territoires de la faction
+  const currentFaction = playerFaction ? getFactionById(playerFaction) : null;
+  const factionTerritories = currentFaction ? 
+    TerritorySystem.getTerritoriesByFaction(currentFaction.id) : 
+    (isGameMaster ? TerritorySystem.getAllTerritories() : []);
+
+  // Fonction pour naviguer vers un territoire
+  const navigateToTerritory = (x: number, y: number) => {
+    const gameEngine = (window as any).gameEngine;
+    if (gameEngine) {
+      // Centrer la caméra sur le territoire
+      gameEngine.setCameraPosition(x, y);
+      // Sélectionner l'hexagone
+      const tileData = gameEngine.getTileAt(x, y);
+      if (tileData) {
+        setSelectedHex(tileData);
+      }
+    }
+  };
+
+  // Vue des territoires de la faction
+  if (showTerritoryList) {
+    return (
+      <div className="absolute top-32 right-4 w-96 bg-gradient-to-r from-blue-100 to-blue-50 border-2 border-blue-700 rounded-lg shadow-lg z-20 p-4 max-h-96 overflow-y-auto">
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="text-lg font-bold text-blue-900">
+            {isGameMaster ? 'Tous les Territoires (Mode MJ)' : `Territoires de ${currentFaction?.name}`}
+          </h3>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => setShowTerritoryList(false)} 
+              className="text-blue-700 hover:text-blue-900 text-sm font-bold px-2 py-1 rounded hover:bg-blue-200"
+            >
+              Retour
+            </button>
+            <button 
+              onClick={onClose} 
+              className="text-blue-700 hover:text-blue-900 text-xl font-bold"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+        
+        {factionTerritories.length === 0 ? (
+          <div className="text-blue-800 text-center py-4">
+            {isGameMaster ? 'Aucun territoire revendiqué sur la carte' : 'Votre faction n\'a encore revendiqué aucun territoire'}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="text-blue-800 text-sm mb-3">
+              <strong>{factionTerritories.length}</strong> territoire{factionTerritories.length > 1 ? 's' : ''} revendiqué{factionTerritories.length > 1 ? 's' : ''}
+            </div>
+            {factionTerritories.map((territory, index) => (
+              <div 
+                key={`${territory.x}-${territory.y}`}
+                className="bg-white border border-blue-300 rounded p-3 hover:bg-blue-50 cursor-pointer transition-colors"
+                onClick={() => navigateToTerritory(territory.x, territory.y)}
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="font-semibold text-blue-900">
+                      🏰 Territoire ({territory.x}, {territory.y})
+                    </div>
+                    <div className="text-blue-700 text-sm">
+                      Faction: {territory.factionName}
+                    </div>
+                    <div className="text-blue-700 text-sm">
+                      Revendiqué par: {territory.claimedByName}
+                    </div>
+                    <div className="text-blue-600 text-xs">
+                      {new Date(territory.claimedDate).toLocaleDateString('fr-FR')}
+                    </div>
+                    {territory.colonyId && (
+                      <div className="text-green-700 text-sm font-medium mt-1">
+                        🏘️ Colonie établie
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-blue-500 text-xs">
+                    Cliquer pour voir
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (!selectedHex) {
     return (
       <div className="absolute top-32 right-4 w-80 bg-gradient-to-r from-red-100 to-red-50 border-2 border-red-700 rounded-lg shadow-lg z-20 p-4">
         <div className="flex justify-between items-center mb-3">
-          <h3 className="text-lg font-bold text-red-900">Revendication de territoire</h3>
+          <h3 className="text-lg font-bold text-red-900">Gestion de Territoire</h3>
           <button onClick={onClose} className="text-red-700 hover:text-red-900 text-xl font-bold">×</button>
         </div>
-        <div className="text-red-800">Veuillez sélectionner une case sur la carte.</div>
+        <div className="space-y-3">
+          <div className="text-red-800">Veuillez sélectionner une case sur la carte pour la revendiquer.</div>
+          
+          {/* Bouton pour voir tous les territoires */}
+          <div className="border-t border-red-300 pt-3">
+            <Button
+              onClick={() => setShowTerritoryList(true)}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              📋 Voir mes territoires ({factionTerritories.length})
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
 
   const influenceLevel = getCompetenceLevel('local_influence');
-  const currentFaction = playerFaction ? getFactionById(playerFaction) : null;
-  const existingClaim = TerritorySystem.isTerritoryClaimed(selectedHex.x, selectedHex.y);
+  const existingClaim = selectedHex ? TerritorySystem.isTerritoryClaimed(selectedHex.x, selectedHex.y) : null;
   const canClaim = TerritorySystem.canClaimTerritory('player', influenceLevel, playerFaction, isGameMaster);
 
   const handleClaimTerritory = async () => {
@@ -254,6 +357,16 @@ export function TerritoryClaimPanel({ onClose }: TerritoryClaimPanelProps) {
               )}
             </div>
           )}
+        </div>
+
+        {/* Bouton pour voir tous les territoires */}
+        <div className="border-t border-green-300 pt-3">
+          <Button
+            onClick={() => setShowTerritoryList(true)}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            📋 Voir mes territoires ({factionTerritories.length})
+          </Button>
         </div>
 
         {/* Informations */}

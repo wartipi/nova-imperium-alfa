@@ -106,6 +106,21 @@ export class TerritorySystem {
     return this.claimedTerritories.find(claim => claim.x === x && claim.y === y) || null;
   }
 
+  // Récupérer tous les territoires revendiqués par une faction
+  static getTerritoriesByFaction(factionId: string): ClaimedTerritory[] {
+    return this.claimedTerritories.filter(claim => claim.factionId === factionId);
+  }
+
+  // Récupérer tous les territoires revendiqués (pour le mode MJ)
+  static getAllTerritories(): ClaimedTerritory[] {
+    return [...this.claimedTerritories];
+  }
+
+  // Obtenir les informations d'un territoire spécifique
+  static getTerritoryInfo(x: number, y: number): ClaimedTerritory | null {
+    return this.isTerritoryClaimed(x, y);
+  }
+
   // Fonder une colonie sur un territoire revendiqué
   static foundColony(
     x: number, 
