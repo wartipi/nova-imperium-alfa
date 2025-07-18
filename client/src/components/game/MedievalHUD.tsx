@@ -25,7 +25,7 @@ import { ReputationPanel } from "./ReputationPanel";
 import { FactionPanel } from "./FactionPanel";
 
 import { PlayerInventory } from "./PlayerInventory";
-import { UserProfilePanel } from "../auth/UserProfilePanel";
+import { useAuth } from "../../lib/auth/AuthContext";
 import { LevelUpNotification, useLevelUpNotification } from "./LevelUpNotification";
 
 type MenuSection = 
@@ -43,7 +43,8 @@ type MenuSection =
   | 'factions';
 
 export function MedievalHUD() {
-  const { gamePhase, currentTurn, endTurn } = useGameState();
+  const { gamePhase, currentTurn, endTurn, isGameMaster, toggleGameMaster } = useGameState();
+  const { currentUser, logout } = useAuth();
   const { novaImperiums, currentNovaImperium } = useNovaImperium();
   const { selectedHex } = useMap();
   const { isMuted, toggleMute } = useAudio();
@@ -60,8 +61,6 @@ export function MedievalHUD() {
     competencePoints, 
     actionPoints, 
     maxActionPoints, 
-    isGameMaster, 
-    setGameMaster,
     getExperienceProgress,
     gainExperience
   } = usePlayer();
@@ -70,7 +69,25 @@ export function MedievalHUD() {
   const [showCharacterSelector, setShowCharacterSelector] = useState(false);
   const [showCompetenceModal, setShowCompetenceModal] = useState(false);
   const [showReputationDetails, setShowReputationDetails] = useState(false);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
   const { notification, showLevelUpNotification, hideLevelUpNotification } = useLevelUpNotification();
+
+  // Fonctions utilitaires pour l'authentification
+  const getUserRole = () => {
+    if (currentUser === 'admin') return 'Administrateur';
+    if (currentUser === 'maitre') return 'Maître de Jeu';
+    return 'Joueur';
+  };
+
+  const getUserColor = () => {
+    if (currentUser === 'admin') return 'text-red-600';
+    if (currentUser === 'maitre') return 'text-purple-600';
+    return 'text-blue-600';
+  };
+
+  const canAccessAdmin = () => {
+    return currentUser === 'admin' || currentUser === 'maitre';
+  };
 
   // Exposer la fonction de notification au niveau global
   React.useEffect(() => {
@@ -161,18 +178,22 @@ export function MedievalHUD() {
             onMouseUp={(e) => e.stopPropagation()}
           >
             <div className="text-amber-900 font-bold text-sm">
-              <div className="text-xs text-amber-700">NOM DU JOUEUR</div>
-              <input
-                type="text"
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
-                className="bg-transparent border-none text-amber-900 font-bold focus:outline-none focus:bg-amber-100 rounded px-1 py-0.5 w-full text-sm"
-                placeholder="Nom du joueur"
-                maxLength={20}
-                onClick={(e) => e.stopPropagation()}
-                onMouseDown={(e) => e.stopPropagation()}
-                onMouseUp={(e) => e.stopPropagation()}
-              />
+              <div className="text-xs text-amber-700">UTILISATEUR CONNECTÉ</div>
+              <div className="flex items-center justify-between">
+                <div className={`font-bold ${getUserColor()}`}>
+                  {currentUser || 'Invité'} ({getUserRole()})
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    logout();
+                  }}
+                  className="text-xs bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded"
+                  title="Déconnexion"
+                >
+                  🚪
+                </button>
+              </div>
               <div className="text-xs text-amber-700 mt-1">NIVEAU</div>
               <div>Niveau {level} - {selectedCharacter?.name || 'Empereur'}</div>
               
@@ -238,13 +259,60 @@ export function MedievalHUD() {
               
               {/* Inventaire d'objets uniques */}
               <PlayerInventory playerId="player" />
+
+              {/* Panneau d'administration intégré */}
+              {canAccessAdmin() && (
+                <div className="mt-2 pt-2 border-t border-amber-300">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowAdminPanel(!showAdminPanel);
+                    }}
+                    className="text-xs text-amber-700 hover:text-amber-900 flex items-center space-x-1 w-full"
+                  >
+                    <span>⚙️</span>
+                    <span>Administration</span>
+                    <span>{showAdminPanel ? '▼' : '▶'}</span>
+                  </button>
+                  
+                  {showAdminPanel && (
+                    <div className="mt-2 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-amber-700">Mode GM</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleGameMaster();
+                          }}
+                          className={`text-xs px-2 py-1 rounded ${
+                            isGameMaster 
+                              ? 'bg-green-500 text-white' 
+                              : 'bg-gray-300 text-gray-700'
+                          }`}
+                        >
+                          {isGameMaster ? 'Activé' : 'Désactivé'}
+                        </button>
+                      </div>
+                      
+                      <div className="text-xs text-amber-600">
+                        {isGameMaster ? '👁️ Vision complète de la carte' : '🔒 Vision limitée normale'}
+                      </div>
+                      
+                      {currentUser === 'admin' && (
+                        <div className="pt-1 border-t border-amber-400">
+                          <div className="text-xs text-amber-700">Privilèges Admin:</div>
+                          <div className="text-xs text-amber-600">• Contrôle total du jeu</div>
+                          <div className="text-xs text-amber-600">• Accès à tous les systèmes</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
           
-          {/* Profil utilisateur intégré */}
-          <div className="mt-2">
-            <UserProfilePanel />
-          </div>
+
           
           {/* Shield Emblem - Character Display */}
           <div 
