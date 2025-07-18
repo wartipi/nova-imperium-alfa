@@ -307,7 +307,21 @@ export function MedievalHUD() {
                   />
                 </div>
               </div>
-              <div className="text-xs text-amber-700 mt-1">POINTS D'ACTION</div>
+              <div className="text-xs text-amber-700 mt-1 flex items-center justify-between">
+                <span>POINTS D'ACTION</span>
+                {(currentUser === 'admin' || currentUser === 'maitre') && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMaxActionPointsForTesting();
+                    }}
+                    className="text-xs bg-yellow-500 hover:bg-yellow-600 text-white px-1 py-0.5 rounded"
+                    title="Test: Max PA"
+                  >
+                    🔧
+                  </button>
+                )}
+              </div>
               <div className="text-blue-600">{actionPoints}/{maxActionPoints}</div>
               <div className="text-xs text-amber-700 mt-1">RÉPUTATION</div>
               <div 

@@ -75,6 +75,7 @@ interface PlayerState {
   spendActionPoints: (amount: number) => boolean;
   addActionPoints: (amount: number) => void;
   increaseMaxActionPoints: (amount: number) => void;
+  setMaxActionPointsForTesting: () => void;
   
   // Avatar movement methods
   setAvatarPosition: (position: { x: number; y: number; z: number }) => void;
@@ -616,6 +617,15 @@ export const usePlayer = create<PlayerState>((set, get) => {
 
     console.log(`🔍 Exploration niveau ${explorationLevel} terminée! ${resourcesFound} nouvelles zones explorées sur ${state.currentVision.size} hexagones de vision`);
     return true;
+  },
+
+  // Fonction de test pour maximiser les PA
+  setMaxActionPointsForTesting: () => {
+    set({ 
+      actionPoints: 999,
+      maxActionPoints: 999
+    });
+    console.log('Points d\'action mis au maximum pour les tests: 999/999');
   }
   };
 });
