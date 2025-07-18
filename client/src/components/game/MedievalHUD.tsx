@@ -200,9 +200,9 @@ export function MedievalHUD() {
                     setShowLogoutConfirm(true);
                   }}
                   className="text-xs bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded"
-                  title="Déconnexion"
+                  title="Retourner au château"
                 >
-                  🚪
+                  🏰
                 </button>
               </div>
               <div className="text-xs text-amber-700 mt-1">PERSONNAGE ACTUEL</div>
