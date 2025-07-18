@@ -34,6 +34,10 @@ export function GameCanvas() {
       
       // Expose game engine to window for cartography access and vision updates
       (window as any).gameEngine = gameEngineRef.current;
+      
+      // Expose stores to window for GameEngine access
+      (window as any).gameState = useGameState.getState();
+      (window as any).playerState = usePlayer.getState();
     }
   }, [mapData]);
 
@@ -41,6 +45,11 @@ export function GameCanvas() {
   useEffect(() => {
     if (gameEngineRef.current) {
       console.log('Mode MJ changé, re-render de la carte:', isGameMaster);
+      
+      // Update window stores before rendering
+      (window as any).gameState = useGameState.getState();
+      (window as any).playerState = usePlayer.getState();
+      
       gameEngineRef.current.render();
     }
   }, [isGameMaster]);

@@ -310,26 +310,51 @@ export class GameEngine {
         this.ctx.fillText('➤', x, y + 7);
       }
       
-      // Système unifié de rendu des ressources
+      // Système unifié de rendu des ressources avec accès direct au store
       if (hex.resource) {
-        const { getCompetenceLevel, isHexExplored } = (window as any).usePlayer?.getState() || 
-          { getCompetenceLevel: () => 0, isHexExplored: () => false };
-        const { isGameMaster } = (window as any).useGameState?.getState() || { isGameMaster: false };
+        // Accès direct au store depuis window
+        const gameState = (window as any).gameState || {};
+        const playerState = (window as any).playerState || {};
         
-        const explorationLevel = getCompetenceLevel('exploration') || 0;
-        const hexExplored = isHexExplored(hex.x, hex.y) || false;
+        const isGameMaster = gameState.isGameMaster || false;
+        const explorationLevel = playerState.getCompetenceLevel?.('exploration') || 0;
+        const hexExplored = playerState.isHexExplored?.(hex.x, hex.y) || false;
+        
+        // Debug: log resource rendering attempts (réduit pour performance)
+        if (Math.random() < 0.001) { // 0.1% chance to log
+          console.log(`🔍 Tentative rendu ressource: ${hex.resource} sur (${hex.x},${hex.y}), MJ:${isGameMaster}, exploration:${explorationLevel}, exploré:${hexExplored}`);
+        }
         
         // Ressources visibles si : mode MJ OU (exploration niveau 1+ ET zone explorée)
-        const isVisible = isGameMaster || (explorationLevel >= 1 && hexExplored && 
-          ResourceRevealSystem.canRevealResource(hex.resource, explorationLevel));
+        const isVisible = isGameMaster || (explorationLevel >= 1 && hexExplored);
         
-        if (isVisible) {
-          const effectiveLevel = Math.max(explorationLevel, isGameMaster ? 1 : 0);
-          const resourceSymbol = ResourceRevealSystem.getHexResourceSymbol(hex, effectiveLevel);
-          const resourceColor = ResourceRevealSystem.getHexResourceColor(hex, effectiveLevel);
+        if (isVisible || isGameMaster) {
+          // Rendu simple et efficace des ressources
+          const resourceMap = {
+            wheat: { symbol: '🌾', color: '#FFD700' },
+            cattle: { symbol: '🐄', color: '#8B4513' },
+            fish: { symbol: '🐟', color: '#4682B4' },
+            deer: { symbol: '🦌', color: '#8B4513' },
+            fur: { symbol: '🧥', color: '#654321' },
+            herbs: { symbol: '🌿', color: '#32CD32' },
+            crabs: { symbol: '🦀', color: '#FF6347' },
+            whales: { symbol: '🐋', color: '#4169E1' },
+            stone: { symbol: '🪨', color: '#708090' },
+            copper: { symbol: '🔶', color: '#B87333' },
+            iron: { symbol: '⚒️', color: '#C0C0C0' },
+            gold: { symbol: '🥇', color: '#FFD700' },
+            coal: { symbol: '⚫', color: '#2F2F2F' },
+            oil: { symbol: '🛢️', color: '#8B4513' },
+            sacred_stones: { symbol: '🔮', color: '#8A2BE2' },
+            crystals: { symbol: '💠', color: '#9370DB' },
+            ancient_artifacts: { symbol: '📿', color: '#DAA520' },
+            sulfur: { symbol: '🟡', color: '#FFFF00' },
+            obsidian: { symbol: '⚫', color: '#1C1C1C' }
+          };
           
-          if (resourceSymbol && resourceColor) {
-            this.ctx.fillStyle = resourceColor;
+          const resourceInfo = resourceMap[hex.resource as keyof typeof resourceMap];
+          if (resourceInfo) {
+            this.ctx.fillStyle = resourceInfo.color;
             this.ctx.globalAlpha = isGameMaster ? 0.8 : 0.6;
             this.ctx.fillRect(x - 8, y - 8, 16, 16);
             this.ctx.globalAlpha = 1.0;
@@ -337,7 +362,23 @@ export class GameEngine {
             this.ctx.font = isGameMaster ? 'bold 14px Arial' : '14px Arial';
             this.ctx.textAlign = 'center';
             this.ctx.fillStyle = '#000';
-            this.ctx.fillText(resourceSymbol, x, y + 4);
+            this.ctx.fillText(resourceInfo.symbol, x, y + 4);
+            
+            // Debug: confirm resource rendered (réduit)
+            if (Math.random() < 0.001) {
+              console.log(`✅ Ressource rendue: ${resourceInfo.symbol} (${hex.resource}) mode MJ: ${isGameMaster}`);
+            }
+          } else {
+            // Fallback pour ressources non mappées
+            this.ctx.fillStyle = '#FFFF00';
+            this.ctx.globalAlpha = 0.7;
+            this.ctx.fillRect(x - 6, y - 6, 12, 12);
+            this.ctx.globalAlpha = 1.0;
+            
+            this.ctx.font = 'bold 12px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillStyle = '#000';
+            this.ctx.fillText('?', x, y + 4);
           }
         }
       }

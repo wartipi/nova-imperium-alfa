@@ -76,6 +76,17 @@ export class MapGenerator {
     this.addRivers(map, width, height);
     this.addResources(map, width, height);
     
+    // Debug: compter les ressources générées
+    let resourceCount = 0;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (map[y][x].resource) {
+          resourceCount++;
+        }
+      }
+    }
+    console.log(`🎯 Carte générée avec ${resourceCount} ressources sur ${width}x${height} hexagones`);
+    
     return map;
   }
 
@@ -114,10 +125,8 @@ export class MapGenerator {
               y,
               terrain: 'shallow_water',
               food: yields.food,
-              production: yields.production,
+              action_points: yields.action_points,
               gold: yields.gold,
-              science: yields.science,
-              culture: yields.culture,
               resource: null,
               hasRiver: false,
               hasRoad: false,
@@ -269,7 +278,7 @@ export class MapGenerator {
   }
 
   private static addResources(map: HexTile[][], width: number, height: number) {
-    const resourceDensity = 0.15; // 15% of tiles have resources
+    const resourceDensity = 0.25; // 25% of tiles have resources for better visibility
     
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
@@ -283,6 +292,11 @@ export class MapGenerator {
             
             // Resources modify yields
             this.applyResourceYields(hex, resource);
+            
+            // Debug log réduit
+            if (Math.random() < 0.01) { // Log 1% of resources for debugging
+              console.log(`📍 Ressource générée: ${resource} sur ${hex.terrain} en (${x},${y})`);
+            }
           }
         }
       }
@@ -318,22 +332,30 @@ export class MapGenerator {
   private static applyResourceYields(hex: HexTile, resource: string) {
     const resourceYields = {
       wheat: { food: 2 },
-      cattle: { food: 1, production: 1 },
+      cattle: { food: 1, gold: 1 },
       fish: { food: 2 },
-      stone: { production: 1 },
-      copper: { production: 1 },
-      iron: { production: 2 },
-      gold: { science: 1 },
-      coal: { production: 2 },
-      oil: { production: 3 },
-      uranium: { production: 2, science: 2 }
+      stone: { gold: 1 },
+      copper: { gold: 1 },
+      iron: { gold: 2 },
+      gold: { gold: 3 },
+      coal: { gold: 2 },
+      oil: { gold: 3 },
+      deer: { food: 1 },
+      fur: { gold: 2 },
+      herbs: { food: 1 },
+      crabs: { food: 1 },
+      whales: { food: 3, gold: 1 },
+      sacred_stones: { gold: 2 },
+      crystals: { gold: 3 },
+      ancient_artifacts: { gold: 5 },
+      sulfur: { gold: 1 },
+      obsidian: { gold: 2 }
     };
     
     const yields = resourceYields[resource as keyof typeof resourceYields];
     if (yields) {
       hex.food += yields.food || 0;
-      hex.production += yields.production || 0;
-      hex.science += yields.science || 0;
+      hex.gold += yields.gold || 0;
     }
   }
 
