@@ -180,7 +180,7 @@ export function MedievalHUD() {
       </div>
 
       {/* Right Player Info & Shield */}
-      <div className="absolute top-4 right-4 pointer-events-auto">
+      <div className="absolute top-20 right-4 pointer-events-auto">
         <div className="flex items-center space-x-4">
           {/* Player Info */}
           <div 
