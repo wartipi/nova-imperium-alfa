@@ -192,6 +192,18 @@ Preferred communication style: Simple, everyday language.
 - Automatic cleanup of expired offers every minute
 - Enhanced Resource Exchange treaty type with unique items and real-time capabilities
 
+### Territory Management System Complete (January 18, 2025)
+- **Territory Listing System**: Added getTerritoriesByFaction and getAllTerritories methods to TerritorySystem
+- **Territory Navigation**: Created comprehensive territory list view in TerritoryClaimPanel with click-to-navigate functionality
+- **Coordinate Bug Fix**: Fixed critical bug where territories were claimed with decimal coordinates (37.5,0) instead of integers
+- **Automatic Refresh**: Enhanced TileInfoPanel with automatic territory status refresh every 2-3 seconds
+- **Territory Button Integration**: Added "Voir mes territoires" button accessible from territory management panel
+- **GM Mode Territory View**: Game Masters can view all territories from all factions in unified interface
+- **Territory Count Display**: Shows territory count in button text for quick reference
+- **Navigation Features**: Click on any territory in list to automatically center camera and select that hex
+- **Real-time Updates**: Territory status updates reflect immediately in UI after claiming actions
+- **Complete Territory Workflow**: Players can now claim, view, navigate, and manage territories seamlessly
+
 ### Cartography System (January 17-18, 2025)
 - Implemented comprehensive cartography system where players create tradeable map documents
 - Region discovery system: players explore areas and can map them with varying detail levels

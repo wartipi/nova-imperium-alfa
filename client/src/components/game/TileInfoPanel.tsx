@@ -1,3 +1,4 @@
+import React from "react";
 import { useMap } from "../../lib/stores/useMap";
 import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { usePlayer } from "../../lib/stores/usePlayer";
@@ -154,9 +155,23 @@ function ResourceInfoSection({ selectedHex }: { selectedHex: HexTile }) {
 
 // Composant pour l'affichage des informations de territoire
 function TerritoryInfoSection({ selectedHex }: { selectedHex: HexTile }) {
-  const territoryInfo = TerritorySystem.isTerritoryClaimed(selectedHex.x, selectedHex.y);
+  const [refreshKey, setRefreshKey] = React.useState(0);
   
-  console.log(`🏰 Vérification territoire (${selectedHex.x},${selectedHex.y}):`, territoryInfo);
+  // Force le rafraîchissement toutes les 2 secondes pour détecter les changements
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setRefreshKey(prev => prev + 1);
+    }, 2000);
+    
+    return () => clearInterval(interval);
+  }, []);
+  
+  // S'assurer que les coordonnées sont des entiers pour la vérification
+  const intX = Math.round(selectedHex.x);
+  const intY = Math.round(selectedHex.y);
+  const territoryInfo = TerritorySystem.isTerritoryClaimed(intX, intY);
+  
+  console.log(`🏰 Vérification territoire (${intX},${intY}):`, territoryInfo);
   
   if (territoryInfo) {
     return (
@@ -197,6 +212,16 @@ export function TileInfoPanel() {
   const { novaImperiums } = useNovaImperium();
   const { isHexExplored } = usePlayer();
   const { isGameMaster } = useGameState();
+  const [forceRefresh, setForceRefresh] = React.useState(0);
+  
+  // Force un rafraîchissement toutes les 3 secondes pour détecter les changements de territoire
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setForceRefresh(prev => prev + 1);
+    }, 3000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   if (!selectedHex) return null;
 
