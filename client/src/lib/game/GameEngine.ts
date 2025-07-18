@@ -122,6 +122,43 @@ export class GameEngine {
     this.selectedHex = hex;
   }
 
+  // Public methods to access game data for cartography
+  getMapData() {
+    return this.mapData;
+  }
+
+  getTileAt(x: number, y: number): HexTile | null {
+    if (y >= 0 && y < this.mapData.length && x >= 0 && x < this.mapData[y].length) {
+      return this.mapData[y][x];
+    }
+    return null;
+  }
+
+  getVisibleHexes(): string[] {
+    const visibleHexes: string[] = [];
+    if (this.isHexInCurrentVision) {
+      const centerX = Math.floor(this.avatarPosition.x / 1.5);
+      const centerY = Math.floor(this.avatarPosition.z / (Math.sqrt(3) * 0.5));
+      
+      // Get all hexes within vision range
+      for (let y = Math.max(0, centerY - 1); y <= Math.min(this.mapData.length - 1, centerY + 1); y++) {
+        for (let x = Math.max(0, centerX - 1); x <= Math.min(this.mapData[0].length - 1, centerX + 1); x++) {
+          if (this.isHexInCurrentVision(x, y)) {
+            visibleHexes.push(`${x},${y}`);
+          }
+        }
+      }
+    }
+    return visibleHexes;
+  }
+
+  getAvatarPosition(): { x: number; y: number } {
+    return {
+      x: Math.floor(this.avatarPosition.x / 1.5),
+      y: Math.floor(this.avatarPosition.z / (Math.sqrt(3) * 0.5))
+    };
+  }
+
   centerCameraOnPosition(x: number, y: number) {
     const hexHeight = this.hexSize * Math.sqrt(3);
     this.cameraX = x * (this.hexSize * 1.5);

@@ -26,6 +26,9 @@ export function GameCanvas() {
     if (canvasRef.current && mapData) {
       gameEngineRef.current = new GameEngine(canvasRef.current, mapData);
       gameEngineRef.current.render();
+      
+      // Expose game engine to window for cartography access
+      (window as any).gameEngine = gameEngineRef.current;
     }
   }, [mapData]);
 

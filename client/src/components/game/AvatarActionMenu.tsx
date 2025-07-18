@@ -9,17 +9,14 @@ interface AvatarActionMenuProps {
   onMoveRequest: () => void;
 }
 
-// Fonction pour générer des tuiles aléatoirement
-const generateRandomTiles = (count: number) => {
-  const terrains = ['fertile_land', 'forest', 'mountains', 'desert', 'wasteland', 'hills'];
-  const resources = ['wood', 'stone', 'iron', 'gold', 'mana'];
-  
-  return Array.from({ length: count }, (_, i) => ({
-    x: Math.floor(Math.random() * 10) + 1,
-    y: Math.floor(Math.random() * 10) + 1,
-    terrain: terrains[Math.floor(Math.random() * terrains.length)],
-    resources: Math.random() > 0.5 ? [resources[Math.floor(Math.random() * resources.length)]] : []
-  }));
+// Fonction pour accéder aux données du jeu
+const getGameData = () => {
+  const gameEngine = (window as any).gameEngine;
+  return {
+    avatarPosition: gameEngine?.avatarPosition || { x: 25, y: 15 },
+    visibleHexes: gameEngine?.getVisibleHexes() || [],
+    mapData: gameEngine?.getMapData() || null
+  };
 };
 
 export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarActionMenuProps) {
@@ -181,30 +178,52 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     if (action.id === 'create_map') {
       if (spendActionPoints(action.cost)) {
         try {
-          // Créer directement une carte comme objet unique
+          // Récupérer les données réelles de la carte et du champ de vision
+          const gameEngine = (window as any).gameEngine;
+          const avatarPosition = gameEngine?.getAvatarPosition() || { x: 25, y: 15 };
+          const visibleHexes = gameEngine?.getVisibleHexes() || [];
+          
+          console.log('Cartographie - Position avatar:', avatarPosition);
+          console.log('Cartographie - Hexes visibles:', visibleHexes);
+          
+          // Créer les données de tuiles basées sur le champ de vision réel
+          const cartographyTiles = visibleHexes.map((hexCoord: string) => {
+            const [x, y] = hexCoord.split(',').map(Number);
+            const tileData = gameEngine?.getTileAt(x, y);
+            console.log(`Tile ${x},${y}:`, tileData);
+            return {
+              x,
+              y,
+              terrain: tileData?.terrain || 'unknown',
+              resources: tileData?.resources || []
+            };
+          });
+
           const response = await fetch('/api/unique-items/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              name: `Carte-${Date.now()}`,
+              name: `Carte-Region-${avatarPosition.x}-${avatarPosition.y}`,
               type: "carte",
-              rarity: "rare",
-              description: "Carte détaillée créée par exploration",
+              rarity: "commun",
+              description: `Carte de la région explorée autour de la position (${avatarPosition.x},${avatarPosition.y})`,
               ownerId: "player",
-              effects: ["navigation", "exploration_bonus"],
+              effects: ["navigation_locale"],
               requirements: ["cartography_level_1"],
-              value: 150,
+              value: 75,
               metadata: {
                 mapData: {
                   region: {
-                    centerX: Math.floor(Math.random() * 50),
-                    centerY: Math.floor(Math.random() * 30),
-                    radius: 3,
-                    tiles: generateRandomTiles(7) // Générer 7 tuiles aléatoirement
+                    centerX: avatarPosition.x,
+                    centerY: avatarPosition.y,
+                    radius: 1,
+                    tiles: cartographyTiles
                   },
-                  quality: "detailed",
-                  accuracy: 85,
-                  createdAt: Date.now()
+                  quality: "rough",
+                  accuracy: 100,
+                  createdAt: Date.now(),
+                  exploredBy: "player",
+                  visionRange: 1
                 }
               }
             })
