@@ -92,104 +92,126 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     }
   ];
 
-  // Actions basées sur le personnage sélectionné
-  const getCharacterActions = () => {
-    if (!selectedCharacter) return [];
+  // Actions basées sur les compétences acquises
+  const getCompetenceBasedActions = () => {
+    const actions = [];
     
-    const characterActionsMap = {
-      knight: [
-        {
-          id: 'knight_charge',
-          name: 'Charge Héroïque',
-          description: 'Mener une charge courageuse au combat',
-          cost: 5,
-          icon: '🛡️',
-          category: 'combat'
-        },
-        {
-          id: 'knight_defend',
-          name: 'Position Défensive',
-          description: 'Prendre une position défensive stratégique',
-          cost: 3,
-          icon: '🛡️',
-          category: 'defense'
-        }
-      ],
-      wizard: [
-        {
-          id: 'wizard_spell',
-          name: 'Lancer un Sort',
-          description: 'Utiliser la magie pour influencer l\'environnement',
-          cost: 7,
-          icon: '🧙',
-          category: 'magic'
-        },
-        {
-          id: 'wizard_scry',
-          name: 'Scrutation',
-          description: 'Observer des zones distantes par magie',
-          cost: 5,
-          icon: '🔮',
-          category: 'divination'
-        }
-      ],
-      archer: [
-        {
-          id: 'archer_precision',
-          name: 'Tir de Précision',
-          description: 'Viser avec une précision mortelle',
-          cost: 4,
-          icon: '🏹',
-          category: 'ranged'
-        },
-        {
-          id: 'archer_scout',
-          name: 'Reconnaissance',
-          description: 'Observer les environs à distance',
-          cost: 2,
-          icon: '🔍',
-          category: 'scouting'
-        }
-      ],
-      priest: [
-        {
-          id: 'priest_blessing',
-          name: 'Bénédiction',
-          description: 'Accorder des bénédictions divines',
-          cost: 6,
-          icon: '🙏',
-          category: 'divine'
-        },
-        {
-          id: 'priest_heal',
-          name: 'Soins',
-          description: 'Soigner les blessures et purifier',
-          cost: 4,
-          icon: '✨',
-          category: 'healing'
-        }
-      ],
-      rogue: [
-        {
-          id: 'rogue_stealth',
-          name: 'Furtivité',
-          description: 'Se déplacer sans être détecté',
-          cost: 3,
-          icon: '🥷',
-          category: 'stealth'
-        },
-        {
-          id: 'rogue_lockpick',
-          name: 'Crochetage',
-          description: 'Ouvrir serrures et passages secrets',
-          cost: 2,
-          icon: '🔑',
-          category: 'infiltration'
-        }
-      ]
-    };
+    // Actions militaires
+    if (competences.some(comp => comp.includes('Tactique'))) {
+      actions.push({
+        id: 'tactical_maneuver',
+        name: 'Manœuvre Tactique',
+        description: 'Organiser une manœuvre militaire stratégique',
+        cost: 5,
+        icon: '⚔️',
+        category: 'military'
+      });
+    }
     
-    return characterActionsMap[selectedCharacter.id as keyof typeof characterActionsMap] || [];
+    if (competences.some(comp => comp.includes('Art de la Guerre'))) {
+      actions.push({
+        id: 'battle_command',
+        name: 'Commandement de Bataille',
+        description: 'Diriger les troupes au combat',
+        cost: 7,
+        icon: '🛡️',
+        category: 'military'
+      });
+    }
+    
+    // Actions politiques
+    if (competences.some(comp => comp.includes('Diplomatie'))) {
+      actions.push({
+        id: 'diplomatic_negotiation',
+        name: 'Négociation Diplomatique',
+        description: 'Négocier avec d\'autres factions',
+        cost: 4,
+        icon: '🤝',
+        category: 'political'
+      });
+    }
+    
+    if (competences.some(comp => comp.includes('Intrigues'))) {
+      actions.push({
+        id: 'court_intrigue',
+        name: 'Intrigue de Cour',
+        description: 'Manigancer dans les cercles de pouvoir',
+        cost: 6,
+        icon: '🗡️',
+        category: 'political'
+      });
+    }
+    
+    // Actions économiques
+    if (competences.some(comp => comp.includes('Commerce'))) {
+      actions.push({
+        id: 'trade_negotiation',
+        name: 'Négociation Commerciale',
+        description: 'Établir des accords commerciaux',
+        cost: 3,
+        icon: '💰',
+        category: 'economic'
+      });
+    }
+    
+    if (competences.some(comp => comp.includes('Gestion'))) {
+      actions.push({
+        id: 'resource_management',
+        name: 'Gestion des Ressources',
+        description: 'Optimiser l\'utilisation des ressources',
+        cost: 5,
+        icon: '📊',
+        category: 'economic'
+      });
+    }
+    
+    // Actions stratégiques
+    if (competences.some(comp => comp.includes('Espionnage'))) {
+      actions.push({
+        id: 'intelligence_gathering',
+        name: 'Collecte d\'Intelligence',
+        description: 'Rassembler des informations secrètes',
+        cost: 4,
+        icon: '🔍',
+        category: 'strategic'
+      });
+    }
+    
+    if (competences.some(comp => comp.includes('Planification'))) {
+      actions.push({
+        id: 'strategic_planning',
+        name: 'Planification Stratégique',
+        description: 'Élaborer des plans à long terme',
+        cost: 6,
+        icon: '📋',
+        category: 'strategic'
+      });
+    }
+    
+    // Actions occultes
+    if (competences.some(comp => comp.includes('Rituels'))) {
+      actions.push({
+        id: 'occult_ritual',
+        name: 'Rituel Occulte',
+        description: 'Effectuer un rituel mystique',
+        cost: 8,
+        icon: '🔮',
+        category: 'occult'
+      });
+    }
+    
+    if (competences.some(comp => comp.includes('Magie Noire'))) {
+      actions.push({
+        id: 'dark_magic',
+        name: 'Magie Noire',
+        description: 'Utiliser des pouvoirs interdits',
+        cost: 10,
+        icon: '🌙',
+        category: 'occult'
+      });
+    }
+    
+    return actions;
   };
 
   // Actions basées sur la réputation
@@ -267,7 +289,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       ...competenceActions.filter(action => 
         competences.some(comp => comp.includes(action.requiredCompetence))
       ),
-      ...getCharacterActions(),
+      ...getCompetenceBasedActions(),
       ...reputationActions.filter(action => 
         reputation === action.requiredReputation
       )

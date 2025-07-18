@@ -14,6 +14,8 @@ This is Nova Imperium, a strategic role-playing game built with React, TypeScrip
 
 Preferred communication style: Simple, everyday language.
 
+**Important:** Always ask for confirmation before making deletions or significant modifications. Provide detailed explanations of planned changes to avoid unnecessary costs.
+
 ## Recent Changes
 
 ### Nova Imperium Code Renaming (January 17, 2025)
@@ -261,14 +263,14 @@ Preferred communication style: Simple, everyday language.
 
 ### Avatar Actions System Enhancement (January 18, 2025)
 - Removed "Actions" category from left menu (contained reputation actions)
-- Enhanced avatar action menu to be character-specific with unique abilities per character type
-- Knight actions: Charge Héroïque, Position Défensive
-- Wizard actions: Lancer un Sort, Scrutation  
-- Archer actions: Tir de Précision, Reconnaissance
-- Priest actions: Bénédiction, Soins
-- Rogue actions: Furtivité, Crochetage
-- Actions now truly linked to selected character instead of generic system
-- Each character type has 2 unique abilities reflecting their role and skills
+- Converted avatar action system from character-based to competence-based
+- Actions now unlock based on learned competences from the competence tree
+- Military actions: Manœuvre Tactique (Tactique), Commandement de Bataille (Art de la Guerre)
+- Political actions: Négociation Diplomatique (Diplomatie), Intrigue de Cour (Intrigues)
+- Economic actions: Négociation Commerciale (Commerce), Gestion des Ressources (Gestion)
+- Strategic actions: Collecte d'Intelligence (Espionnage), Planification Stratégique (Planification)
+- Occult actions: Rituel Occulte (Rituels), Magie Noire (Magie Noire)
+- Actions system now fully integrated with competence progression system
 
 ### Camera System Overhaul (January 18, 2025)
 - Implemented camera-follows-avatar system with keyboard navigation
