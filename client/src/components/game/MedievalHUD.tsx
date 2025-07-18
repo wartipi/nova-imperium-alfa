@@ -24,6 +24,7 @@ import { TileInfoPanel } from "./TileInfoPanel";
 import { ReputationPanel } from "./ReputationPanel";
 import { FactionPanel } from "./FactionPanel";
 import { TerritoryClaimPanel } from "./TerritoryClaimPanel";
+import { TerritoryListPanel } from "./TerritoryListPanel";
 import { ReputationManagementPanel } from "./ReputationManagementPanel";
 
 import { PlayerInventory } from "./PlayerInventory";
@@ -114,6 +115,18 @@ export function MedievalHUD() {
       delete (window as any).showLevelUpNotification;
     };
   }, [showLevelUpNotification]);
+
+  // Gestionnaire d'événements pour ouvrir le panneau de territoire
+  React.useEffect(() => {
+    const handleOpenTerritoryPanel = () => {
+      setShowTerritoryPanel(true);
+    };
+
+    window.addEventListener('openTerritoryPanel', handleOpenTerritoryPanel);
+    return () => {
+      window.removeEventListener('openTerritoryPanel', handleOpenTerritoryPanel);
+    };
+  }, []);
 
   if (gamePhase !== "playing") return null;
 
@@ -591,19 +604,7 @@ export function MedievalHUD() {
               {activeSection === 'courier' && <CouriersPanel />}
               {activeSection === 'treaties' && <TreatiesPanel />}
               {activeSection === 'events' && <EventPanel />}
-              {activeSection === 'territory' && (
-                <div className="text-amber-800">
-                  <div className="mb-4 text-sm">
-                    Cliquez sur une case de la carte pour gérer le territoire.
-                  </div>
-                  <button
-                    onClick={() => setShowTerritoryPanel(true)}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
-                  >
-                    Ouvrir le gestionnaire de territoire
-                  </button>
-                </div>
-              )}
+              {activeSection === 'territory' && <TerritoryListPanel />}
               {activeSection === 'announcements' && <PublicAnnouncementPanel />}
               {activeSection === 'guide' && <GameGuidePanel />}
               {activeSection === 'help' && <HelpPanel />}
