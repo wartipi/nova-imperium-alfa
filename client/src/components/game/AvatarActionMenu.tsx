@@ -206,18 +206,33 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
           console.log('Cartographie - Vision actuelle:', currentVision.size, 'hexagones');
           
           // Créer les données de tuiles basées sur le champ de vision complet du joueur
+          const { getCompetenceLevel, isResourceDiscovered } = usePlayer.getState();
+          const cartographyLevel = getCompetenceLevel('cartography');
+          
           const cartographyTiles = Array.from(currentVision).map((hexCoord: string) => {
             const [x, y] = hexCoord.split(',').map(Number);
             const tileData = gameEngine?.getTileAt(x, y);
+            
+            // Pour les cartes niveau 2+, inclure les ressources si le joueur peut les voir
+            let includeResources = [];
+            if (cartographyLevel >= 2 && tileData?.resource) {
+              const hexResourceDiscovered = isResourceDiscovered(x, y);
+              const explorationLevel = getCompetenceLevel('exploration');
+              
+              // Inclure la ressource seulement si elle est visible par le joueur
+              if (hexResourceDiscovered && explorationLevel >= 1) {
+                includeResources = [tileData.resource];
+              }
+            }
+            
             return {
               x,
               y,
               terrain: tileData?.terrain || 'unknown',
-              resources: tileData?.resources || []
+              resources: includeResources
             };
           });
 
-          const { getCompetenceLevel } = usePlayer.getState();
           const explorationLevel = getCompetenceLevel('exploration');
           
           const response = await fetch('/api/unique-items/create', {
@@ -226,12 +241,12 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
             body: JSON.stringify({
               name: `Carte-Region-${avatarPosition.x}-${avatarPosition.y}`,
               type: "carte",
-              rarity: cartographyTiles.length > 15 ? "rare" : "commun",
-              description: `Carte de la région explorée autour de (${avatarPosition.x},${avatarPosition.y}) - ${cartographyTiles.length} hexagones`,
+              rarity: cartographyLevel >= 2 ? (cartographyTiles.length > 15 ? "epique" : "rare") : (cartographyTiles.length > 15 ? "rare" : "commun"),
+              description: `Carte de la région autour de (${avatarPosition.x},${avatarPosition.y}) - ${cartographyTiles.length} hexagones${cartographyLevel >= 2 ? ' (avec ressources)' : ''}`,
               ownerId: "player",
               effects: ["navigation_locale"],
               requirements: ["cartography_level_1"],
-              value: cartographyTiles.length * 15,
+              value: cartographyTiles.length * (cartographyLevel >= 2 ? 25 : 15),
               metadata: {
                 mapData: {
                   region: {
@@ -240,7 +255,8 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
                     radius: explorationLevel, // Rayon basé sur le niveau d'exploration
                     tiles: cartographyTiles
                   },
-                  quality: explorationLevel >= 2 ? "detailed" : "rough",
+                  quality: cartographyLevel >= 2 ? "masterwork" : explorationLevel >= 2 ? "detailed" : "rough",
+                  includesResources: cartographyLevel >= 2,
                   accuracy: 100,
                   createdAt: Date.now(),
                   exploredBy: "player",
@@ -253,7 +269,9 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
           
           if (response.ok) {
             const newItem = await response.json();
-            alert(`Carte "${newItem.name}" créée avec succès ! ${cartographyTiles.length} hexagones cartographiés. Consultez votre inventaire.`);
+            const resourceCount = cartographyTiles.filter(tile => tile.resources.length > 0).length;
+            const resourceText = cartographyLevel >= 2 && resourceCount > 0 ? ` (${resourceCount} ressources incluses)` : '';
+            alert(`Carte "${newItem.name}" créée avec succès ! ${cartographyTiles.length} hexagones cartographiés${resourceText}. Consultez votre inventaire.`);
           } else {
             alert('Erreur lors de la création de la carte');
           }
