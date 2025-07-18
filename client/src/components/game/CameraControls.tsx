@@ -18,7 +18,7 @@ export function CameraControls() {
         event.stopPropagation();
       }
 
-      const moveDistance = 50; // Distance de déplacement de la caméra
+      const moveDistance = 100; // Distance de déplacement de la caméra (doublée)
       
       switch (event.key) {
         case 'ArrowUp':
