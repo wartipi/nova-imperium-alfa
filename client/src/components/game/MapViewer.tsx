@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 
 interface MapViewerProps {
   mapData: {
@@ -36,6 +36,8 @@ const terrainColors = {
 
 export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
+  const [hoveredTile, setHoveredTile] = useState<{ x: number; y: number; terrain: string; resources: string[] } | null>(null);
 
   // Fonction pour dessiner un hexagone (pointy-top comme dans le jeu)
   const drawHexagon = (ctx: CanvasRenderingContext2D, centerX: number, centerY: number, radius: number) => {
@@ -98,6 +100,8 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
 
     // Dessiner chaque tuile comme hexagone
     tiles.forEach(tile => {
+      console.log('Dessin tuile:', tile.x, tile.y, 'terrain:', tile.terrain);
+      
       // Utiliser les coordonnées absolues comme dans le jeu
       const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
       
@@ -106,8 +110,12 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
       const x = centerX + (hexPos.x - regionCenterPos.x);
       const y = centerY + (hexPos.y - regionCenterPos.y);
 
-      // Couleur du terrain
-      ctx.fillStyle = terrainColors[tile.terrain as keyof typeof terrainColors] || '#CCCCCC';
+      // Couleur du terrain avec vérification
+      const terrainColor = terrainColors[tile.terrain as keyof typeof terrainColors];
+      if (!terrainColor) {
+        console.warn('Couleur terrain inconnue:', tile.terrain);
+      }
+      ctx.fillStyle = terrainColor || '#CCCCCC';
       drawHexagon(ctx, x, y, hexRadius * 0.9);
       ctx.fill();
 
@@ -163,14 +171,74 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
 
   }, [mapData, width, height]);
 
+  // Fonction pour détecter quel hexagone est sous la souris
+  const getHexAtMouse = (mouseX: number, mouseY: number) => {
+    const tiles = mapData.region.tiles;
+    const hexRadius = Math.min((width - 40) / (mapData.region.radius * 2 * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapData.region.radius * 2 * 1.5 + 0.5));
+    const centerX = width / 2;
+    const centerY = height / 2;
+
+    for (const tile of tiles) {
+      const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
+      const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
+      const x = centerX + (hexPos.x - regionCenterPos.x);
+      const y = centerY + (hexPos.y - regionCenterPos.y);
+
+      // Distance du centre de l'hexagone
+      const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
+      if (distance <= hexRadius * 0.9) {
+        return tile;
+      }
+    }
+    return null;
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    setMousePos({ x: mouseX, y: mouseY });
+
+    const tile = getHexAtMouse(mouseX, mouseY);
+    setHoveredTile(tile);
+  };
+
+  const handleMouseLeave = () => {
+    setMousePos(null);
+    setHoveredTile(null);
+  };
+
   return (
-    <div className="border-2 border-amber-600 bg-amber-50 p-2 rounded-lg">
+    <div className="border-2 border-amber-600 bg-amber-50 p-2 rounded-lg relative">
       <canvas
         ref={canvasRef}
         width={width}
         height={height}
         className="border border-amber-300 rounded"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
       />
+      
+      {/* Tooltip au survol */}
+      {hoveredTile && mousePos && (
+        <div 
+          className="absolute bg-black text-white p-2 rounded text-xs z-10 pointer-events-none"
+          style={{
+            left: mousePos.x + 10,
+            top: mousePos.y - 50,
+            minWidth: '120px'
+          }}
+        >
+          <div><strong>Position:</strong> ({hoveredTile.x}, {hoveredTile.y})</div>
+          <div><strong>Terrain:</strong> {hoveredTile.terrain}</div>
+          {hoveredTile.resources.length > 0 && (
+            <div><strong>Ressources:</strong> {hoveredTile.resources.join(', ')}</div>
+          )}
+        </div>
+      )}
+      
       <div className="mt-2 text-xs text-amber-800">
         <div>Précision: {mapData.accuracy}%</div>
         <div>Région: {mapData.region.tiles.length} tuiles</div>
