@@ -241,7 +241,7 @@ export function MedievalHUD() {
             </div>
           </div>
           
-          {/* Profil utilisateur */}
+          {/* Profil utilisateur intégré */}
           <div className="mt-2">
             <UserProfilePanel />
           </div>
