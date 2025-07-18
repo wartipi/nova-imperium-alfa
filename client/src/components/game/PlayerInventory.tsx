@@ -126,6 +126,9 @@ export function PlayerInventory({ playerId }: PlayerInventoryProps) {
                         onClick={() => {
                           console.log('Carte cliquée:', item);
                           console.log('Metadata:', item.metadata);
+                          console.log('MapData dans metadata:', item.metadata?.mapData);
+                          console.log('ID de la carte:', item.id);
+                          console.log('Nom de la carte:', item.name);
                           setViewingMap(item);
                         }}
                         className="text-blue-600 hover:text-blue-800 text-xs"
@@ -192,15 +195,19 @@ export function PlayerInventory({ playerId }: PlayerInventoryProps) {
             </div>
             
             <div className="text-sm text-gray-600">
-              <p className="mb-2">La carte "{viewingMap.name}" est une carte d'inventaire sans données cartographiques détaillées.</p>
-              <p className="mb-2">Pour créer des cartes visualisables, utilisez l'action "Cartographier" de votre avatar après avoir appris la compétence Cartographie.</p>
+              <p className="mb-2">La carte "{viewingMap.name}" n'a pas de données cartographiques détaillées.</p>
+              <p className="mb-2">Seules les cartes créées via l'action "Cartographier" peuvent être visualisées.</p>
               <div className="bg-amber-50 p-2 rounded text-xs">
                 <strong>Carte actuelle:</strong>
+                <div>• ID: {viewingMap.id}</div>
                 <div>• Nom: {viewingMap.name}</div>
                 <div>• Type: {viewingMap.type}</div>
-                <div>• Rareté: {viewingMap.rarity}</div>
-                <div>• Valeur: {viewingMap.value} ⚡</div>
-                <div>• Échangeable: {viewingMap.tradeable ? 'Oui' : 'Non'}</div>
+                <div>• Créée le: {new Date(viewingMap.createdAt).toLocaleString()}</div>
+                <div>• A mapData: {viewingMap.metadata?.mapData ? 'Oui' : 'Non'}</div>
+              </div>
+              <div className="mt-2 p-2 bg-blue-50 rounded text-xs">
+                <strong>Cherchez une carte avec un nom comme:</strong>
+                <div>"Carte-Region-X-Y" créée récemment</div>
               </div>
             </div>
           </div>
