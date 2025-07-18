@@ -128,8 +128,10 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     // Vérifier les compétences requises
     if (action.requiredCompetence) {
       const hasCompetence = hasCompetenceLevel(action.requiredCompetence, action.requiredLevel || 1);
+      const currentLevel = usePlayer.getState().getCompetenceLevel(action.requiredCompetence);
+      console.log(`🔍 Vérification compétence ${action.requiredCompetence} pour ${action.name}: niveau actuel=${currentLevel}, requis=${action.requiredLevel || 1}, a_competence=${hasCompetence}`);
       if (!hasCompetence) {
-        console.log(`Action ${action.name} indisponible: compétence ${action.requiredCompetence} niveau ${action.requiredLevel || 1} requise`);
+        console.log(`❌ Action ${action.name} indisponible: compétence ${action.requiredCompetence} niveau ${action.requiredLevel || 1} requise`);
         return false;
       }
     }
@@ -296,7 +298,10 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
 
   const getAllAvailableActions = () => {
     const filteredCompetenceActions = competenceActions.filter(action => {
-      return hasCompetenceLevel(action.requiredCompetence, action.requiredLevel || 1);
+      if (action.requiredCompetence) {
+        return hasCompetenceLevel(action.requiredCompetence, action.requiredLevel || 1);
+      }
+      return true;
     });
 
     const filteredExplorationActions = explorationActions.filter(action => {
@@ -306,7 +311,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       return true;
     });
     
-    return [
+    const allActions = [
       ...baseActions,
       ...filteredExplorationActions,
       ...filteredCompetenceActions,
@@ -315,6 +320,9 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
         reputation === action.requiredReputation
       )
     ];
+    
+    console.log('🗺️ Actions disponibles:', allActions.map(a => a.name));
+    return allActions;
   };
 
   return (
