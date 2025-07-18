@@ -14,7 +14,7 @@ export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { gameEngineRef } = useGameEngine();
   const { mapData, selectedHex, setSelectedHex } = useMap();
-  const { gamePhase } = useGameState();
+  const { gamePhase, isGameMaster } = useGameState();
   const { novaImperiums, selectedUnit, moveUnit } = useNovaImperium();
   const { avatarPosition, avatarRotation, isMoving, selectedCharacter, moveAvatarToHex, isHexVisible, isHexInCurrentVision, pendingMovement, setPendingMovement, isMovementMode, setMovementMode } = usePlayer();
   const [mouseDownPos, setMouseDownPos] = useState<{ x: number; y: number } | null>(null);
@@ -36,6 +36,14 @@ export function GameCanvas() {
       (window as any).gameEngine = gameEngineRef.current;
     }
   }, [mapData]);
+
+  // Re-render when Game Master mode changes
+  useEffect(() => {
+    if (gameEngineRef.current) {
+      console.log('Mode MJ changé, re-render de la carte:', isGameMaster);
+      gameEngineRef.current.render();
+    }
+  }, [isGameMaster]);
 
   // Handle mouse down to track drag vs click
   const handleMouseDown = useCallback((event: React.MouseEvent) => {

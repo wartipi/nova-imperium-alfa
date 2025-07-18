@@ -1,6 +1,7 @@
 import type { HexTile, Civilization, Unit, City } from "./types";
 import { ResourceRevealSystem } from "../systems/ResourceRevealSystem";
 import { usePlayer } from "../stores/usePlayer";
+import { useGameState } from "../stores/useGameState";
 
 export class GameEngine {
   private canvas: HTMLCanvasElement;
@@ -232,9 +233,10 @@ export class GameEngine {
         const screenX = x * (this.hexSize * 1.5);
         const screenY = y * hexHeight + (x % 2) * (hexHeight / 2);
         
-        // Check if hex is visible (use vision system)
-        const isVisible = this.isHexVisible ? this.isHexVisible(x, y) : true;
-        const isInCurrentVision = this.isHexInCurrentVision ? this.isHexInCurrentVision(x, y) : true;
+        // Check if hex is visible (use vision system, but ignore if Game Master mode)
+        const { isGameMaster } = useGameState.getState();
+        const isVisible = isGameMaster || (this.isHexVisible ? this.isHexVisible(x, y) : true);
+        const isInCurrentVision = isGameMaster || (this.isHexInCurrentVision ? this.isHexInCurrentVision(x, y) : true);
         
         // Check if this hex is the pending movement destination
         const isPendingDestination = this.pendingMovement && this.pendingMovement.x === x && this.pendingMovement.y === y;
