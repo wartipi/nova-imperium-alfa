@@ -236,11 +236,12 @@ Preferred communication style: Simple, everyday language.
 - Created UniqueItem interface with effects, requirements, value, and metadata
 - Enhanced ExchangeService with unique item creation, transfer, and inventory management
 - Added predefined unique items: Carte des Îles Perdues, Amulette de Vision, Orbe de Téléportation, etc.
-- Implemented UniqueItemsPanel component with detailed item viewing and management
+- Implemented compact PlayerInventory component integrated into player info panel
 - Added API endpoints for unique item creation, inventory retrieval, and exchange offers
-- Integrated unique items panel into MedievalHUD with 💎 icon
+- Inventaire accessible directement dans le panneau d'information du joueur (expandable)
 - System supports both resource and unique item exchanges in mixed offers
 - Unique items have ownership tracking, tradeability status, and metadata for game mechanics
+- Inventaire shows item count, rarity colors, trade status, and value in compact format
 
 ### Enhanced Reputation System & Game Mechanics (January 17, 2025)
 - Updated reputation system with 6 clear levels: Banni, Méprisé, Suspect, Neutre, Honorable, Saint
