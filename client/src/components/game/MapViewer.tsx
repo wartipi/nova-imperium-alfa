@@ -53,13 +53,14 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     ctx.closePath();
   };
 
-  // Fonction pour convertir les coordonnées hex en coordonnées pixel
+  // Fonction pour convertir les coordonnées hex en coordonnées pixel (grille hexagonale)
   const hexToPixel = (hexX: number, hexY: number, hexRadius: number) => {
-    const width = hexRadius * 2;
-    const height = hexRadius * Math.sqrt(3);
+    const hexWidth = hexRadius * 2;
+    const hexHeight = hexRadius * Math.sqrt(3);
     
-    let x = hexRadius * 3/2 * hexX;
-    let y = height * (hexY + 0.5 * (hexX & 1));
+    // Coordonnées hexagonales à plat (flat-topped hexagons)
+    let x = hexRadius * 1.5 * hexX;
+    let y = hexHeight * (hexY + 0.5 * (hexX % 2));
     
     return { x, y };
   };
@@ -74,8 +75,8 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     // Effacer le canvas
     ctx.clearRect(0, 0, width, height);
 
-    // Fond de la carte
-    ctx.fillStyle = '#e8f4f8';
+    // Fond beige de la carte
+    ctx.fillStyle = '#f5f5dc';
     ctx.fillRect(0, 0, width, height);
 
     // Calculer les limites de la région
@@ -110,19 +111,24 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
       drawHexagon(ctx, x, y, hexRadius * 0.9);
       ctx.fill();
 
-      // Bordure pour la qualité de la carte
-      if (mapData.quality === 'masterwork') {
-        ctx.strokeStyle = '#FFD700';
-        ctx.lineWidth = 2;
-      } else if (mapData.quality === 'detailed') {
-        ctx.strokeStyle = '#C0C0C0';
-        ctx.lineWidth = 1;
-      } else {
-        ctx.strokeStyle = '#999999';
-        ctx.lineWidth = 0.5;
-      }
+      // Contour noir mince pour toutes les tuiles
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1;
       drawHexagon(ctx, x, y, hexRadius * 0.9);
       ctx.stroke();
+
+      // Bordure supplémentaire pour la qualité de la carte
+      if (mapData.quality === 'masterwork') {
+        ctx.strokeStyle = '#FFD700';
+        ctx.lineWidth = 3;
+        drawHexagon(ctx, x, y, hexRadius * 0.85);
+        ctx.stroke();
+      } else if (mapData.quality === 'detailed') {
+        ctx.strokeStyle = '#C0C0C0';
+        ctx.lineWidth = 2;
+        drawHexagon(ctx, x, y, hexRadius * 0.85);
+        ctx.stroke();
+      }
 
       // Ressources (pour les cartes détaillées)
       if (mapData.quality !== 'rough' && tile.resources.length > 0) {
