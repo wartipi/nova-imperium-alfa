@@ -33,12 +33,12 @@ function GameApp() {
     
     // Initialize avatar on land and vision system
     setTimeout(() => {
-      const { findLandHex, initializeVision } = usePlayer.getState();
+      const { findLandHex } = usePlayer.getState();
       const { mapData } = useMap.getState();
       
       if (mapData && mapData.length > 0) {
         findLandHex(mapData);
-        initializeVision();
+        // initializeVision is called automatically by findLandHex
       }
     }, 100);
   }, []);

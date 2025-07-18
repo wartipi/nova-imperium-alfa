@@ -342,35 +342,7 @@ export function MedievalHUD() {
       )}
 
       {/* Tile Information Panel */}
-      {selectedHex && (
-        <div className="absolute top-20 left-72 pointer-events-auto z-50">
-          <div 
-            className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-2xl p-6 w-80 max-h-96 overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-            onMouseUp={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-amber-900 font-bold text-lg">
-                {menuItems.find(item => item.id === activeSection)?.label}
-              </h3>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveSection(null);
-                }}
-                onMouseDown={(e) => e.stopPropagation()}
-                onMouseUp={(e) => e.stopPropagation()}
-                className="text-amber-800 hover:text-amber-900 text-xl font-bold px-2 py-1 rounded hover:bg-amber-300 transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-            
-            <TileInfoPanel />
-          </div>
-        </div>
-      )}
+      <TileInfoPanel />
 
       {/* Character Selector Modal */}
       {showCharacterSelector && (
