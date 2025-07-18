@@ -261,6 +261,15 @@ Preferred communication style: Simple, everyday language.
 - Clean code structure maintained with proper component organization and styling
 - **Player Info Panel Optimization (January 18, 2025)**: Adjusted panel format to be more vertical - reduced horizontal padding (px-3), increased vertical padding (py-4), fixed width (w-64) for cleaner, more elegant appearance
 
+### Resource Display System Fix (January 18, 2025)
+- **Fixed Resource Visibility Bug**: Resources were not displaying in either player or GM mode despite correct competence levels
+- **Simplified Resource Logic**: Replaced complex ResourceRevealSystem with direct resource display system
+- **GM Mode Enhancement**: All resources now automatically visible in Game Master mode regardless of exploration status
+- **Player Mode Fix**: Resources properly display when exploration level 1+ AND zone has been explored with "Explorer la Zone" action
+- **Debug System Added**: Console logging and debug information in GM mode for troubleshooting resource issues
+- **Resource Database Updated**: Added comprehensive resource symbols and names for all archipelago world resources (crabs, whales, herbs, crystals, etc.)
+- **User Confirmed**: Resource display system now fully functional in both player and GM modes
+
 ### Comprehensive Code Optimization (January 18, 2025)
 - Performed systematic code cleanup and optimization across entire codebase
 - Removed unnecessary comments and consolidated code structure
