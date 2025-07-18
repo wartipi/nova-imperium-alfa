@@ -2,6 +2,7 @@ import React from 'react';
 import { Button } from '../ui/button';
 import { usePlayer } from '../../lib/stores/usePlayer';
 import { useMap } from '../../lib/stores/useMap';
+import { getTerrainMovementCost, getTerrainCostDescription, getTerrainDifficultyEmoji } from '../../lib/game/TerrainCosts';
 
 interface MovementConfirmationModalProps {
   targetHex: { x: number; y: number } | null;
@@ -21,7 +22,7 @@ export function MovementConfirmationModal({ targetHex, onConfirm, onCancel }: Mo
 
   if (!targetTile) return null;
 
-  const movementCost = 1; // Cost standard pour un mouvement
+  const movementCost = getTerrainMovementCost(targetTile.terrain as any);
 
   const getTerrainEmoji = (terrain: string) => {
     const terrainEmojis = {
@@ -70,6 +71,10 @@ export function MovementConfirmationModal({ targetHex, onConfirm, onCancel }: Mo
               <div className="text-sm mt-1">
                 Terrain: {targetTile.terrain.replace('_', ' ')}
               </div>
+              <div className="text-sm mt-1 flex items-center gap-1">
+                <span>{getTerrainDifficultyEmoji(targetTile.terrain as any)}</span>
+                <span>{getTerrainCostDescription(targetTile.terrain as any)}</span>
+              </div>
               {targetTile.resource && (
                 <div className="text-sm">
                   Ressource: {targetTile.resource}
@@ -79,16 +84,24 @@ export function MovementConfirmationModal({ targetHex, onConfirm, onCancel }: Mo
           </div>
 
           {/* Coût du mouvement */}
-          <div className="bg-blue-50 rounded-lg p-3 border border-blue-300">
-            <div className="text-blue-800 font-medium mb-1">⚡ Coût du mouvement</div>
-            <div className="text-blue-700">
-              <div className="flex items-center justify-between">
-                <span>{movementCost} Point d'Action</span>
-                <span className={`font-bold ${actionPoints >= movementCost ? 'text-green-600' : 'text-red-600'}`}>
-                  {actionPoints} PA disponibles
-                </span>
-              </div>
-              {actionPoints < movementCost && (
+          <div className={`rounded-lg p-3 border ${movementCost === 999 ? 'bg-red-50 border-red-300' : 'bg-blue-50 border-blue-300'}`}>
+            <div className={`font-medium mb-1 ${movementCost === 999 ? 'text-red-800' : 'text-blue-800'}`}>
+              ⚡ Coût du mouvement
+            </div>
+            <div className={movementCost === 999 ? 'text-red-700' : 'text-blue-700'}>
+              {movementCost === 999 ? (
+                <div className="text-red-600 font-bold">
+                  🚫 Déplacement impossible - Terrain aquatique
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <span>{movementCost} Point{movementCost > 1 ? 's' : ''} d'Action</span>
+                  <span className={`font-bold ${actionPoints >= movementCost ? 'text-green-600' : 'text-red-600'}`}>
+                    {actionPoints} PA disponibles
+                  </span>
+                </div>
+              )}
+              {actionPoints < movementCost && movementCost !== 999 && (
                 <div className="text-red-600 text-sm mt-1">
                   ⚠️ Points d'Action insuffisants
                 </div>
@@ -107,10 +120,11 @@ export function MovementConfirmationModal({ targetHex, onConfirm, onCancel }: Mo
             </Button>
             <Button
               onClick={onConfirm}
-              disabled={actionPoints < movementCost}
+              disabled={actionPoints < movementCost || movementCost === 999}
               className="flex-1 bg-green-600 hover:bg-green-700 text-white disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
-              {actionPoints >= movementCost ? 'Confirmer le mouvement' : 'PA insuffisants'}
+              {movementCost === 999 ? 'Impossible' : 
+               actionPoints >= movementCost ? 'Confirmer le mouvement' : 'PA insuffisants'}
             </Button>
           </div>
         </div>

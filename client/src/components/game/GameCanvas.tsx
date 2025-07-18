@@ -7,6 +7,7 @@ import { GameEngine } from "../../lib/game/GameEngine";
 import { useGameEngine } from "../../lib/contexts/GameEngineContext";
 import { AvatarActionMenu } from "./AvatarActionMenu";
 import { MovementConfirmationModal } from "./MovementConfirmationModal";
+import { getTerrainMovementCost } from "../../lib/game/TerrainCosts";
 
 export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -121,11 +122,17 @@ export function GameCanvas() {
   };
 
   const handleMovementConfirm = () => {
-    if (pendingMovement) {
+    if (pendingMovement && mapData) {
       const { spendActionPoints } = usePlayer.getState();
-      if (spendActionPoints(1)) {
-        moveAvatarToHex(pendingMovement.x, pendingMovement.y);
-        setPendingMovement(null);
+      const targetTile = mapData[pendingMovement.y] && mapData[pendingMovement.y][pendingMovement.x];
+      
+      if (targetTile) {
+        const movementCost = getTerrainMovementCost(targetTile.terrain as any);
+        
+        if (movementCost < 999 && spendActionPoints(movementCost)) {
+          moveAvatarToHex(pendingMovement.x, pendingMovement.y);
+          setPendingMovement(null);
+        }
       }
     }
   };

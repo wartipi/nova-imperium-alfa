@@ -245,6 +245,21 @@ Preferred communication style: Simple, everyday language.
 - Real-time inventory updates every 10 seconds for seamless gameplay experience
 - User confirmed: Inventory successfully displays 3 unique items in player panel
 
+### Terrain-Based Movement Costs System (January 18, 2025)
+- Implemented variable movement costs based on terrain type
+- Created TerrainCosts module with comprehensive cost structure:
+  - Easy terrain (1 PA): fertile_land, sacred_plains, enchanted_meadow
+  - Moderate terrain (2 PA): wasteland, forest, hills, desert, ancient_ruins
+  - Difficult terrain (3 PA): swamp, caves
+  - Very difficult terrain (4 PA): volcano
+  - Extremely difficult terrain (5 PA): mountains
+  - Impossible terrain (999 PA): shallow_water, deep_water (requires ships)
+- Enhanced MovementConfirmationModal with terrain difficulty indicators
+- Added visual feedback with emoji difficulty indicators and cost descriptions
+- Movement system now prevents water movement and shows appropriate error messages
+- Terrain costs integrated into movement validation and action point spending
+- User requested: Different movement costs per terrain type instead of flat 1 PA cost
+
 ### Enhanced Reputation System & Game Mechanics (January 17, 2025)
 - Updated reputation system with 6 clear levels: Banni, Méprisé, Suspect, Neutre, Honorable, Saint
 - Added GN participation tracking and season pass system for faction creation requirements
