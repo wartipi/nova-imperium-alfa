@@ -748,10 +748,13 @@ export function ConstructionPanel() {
         )}
       </div>
 
-      {/* Option pour fonder une colonie (toujours visible) */}
-      {!isGameMaster && !hasColonies && (
+      {/* Option pour fonder une colonie (visible pour tous sauf MJ avec colonies) */}
+      {(!hasColonies || isGameMaster) && (
         <div className="bg-blue-50 border border-blue-400 rounded p-3 mb-4">
-          <div className="font-medium text-sm mb-2">🏛️ Fondation de Colonie</div>
+          <div className="font-medium text-sm mb-2">
+            🏛️ Fondation de Colonie
+            {isGameMaster && <span className="text-purple-600 text-xs ml-2">(Mode MJ)</span>}
+          </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
@@ -765,24 +768,25 @@ export function ConstructionPanel() {
                     ⚡ {colonyFoundingOption.actionPointCost} PA | 🕐 {colonyFoundingOption.constructionTime} tour
                   </div>
                   <div className="text-xs text-green-600">
-                    📍 Territoire revendiqué requis
+                    {isGameMaster ? '📍 Aucun prérequis en mode MJ' : '📍 Territoire revendiqué requis'}
                   </div>
                 </div>
               </div>
               <Button
                 size="sm"
                 onClick={() => handleBuild('found_colony', 'temp')}
-                disabled={!canAffordBuilding('found_colony')}
+                disabled={!isGameMaster && !canAffordBuilding('found_colony')}
                 className="text-xs bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
               >
-                {!canAffordBuilding('found_colony') ? 'Ressources insuffisantes' : 'Fonder'}
+                {isGameMaster ? 'Fonder (Instantané)' : 
+                 !canAffordBuilding('found_colony') ? 'Ressources insuffisantes' : 'Fonder'}
               </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Message d'état si pas de colonies */}
+      {/* Message d'état si pas de colonies (seulement pour joueurs normaux) */}
       {!isGameMaster && !hasColonies && (
         <div className="bg-yellow-50 border border-yellow-400 rounded p-3 mb-4">
           <div className="text-yellow-800 text-sm font-semibold">⚠️ Aucune colonie fondée</div>
