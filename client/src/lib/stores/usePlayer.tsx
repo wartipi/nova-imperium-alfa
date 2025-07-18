@@ -36,6 +36,9 @@ interface PlayerState {
   setGameMaster: (isGM: boolean) => void;
   // Avatar land positioning
   findLandHex: (mapData: any[][]) => { x: number; y: number };
+  // Movement confirmation
+  pendingMovement: { x: number; y: number } | null;
+  setPendingMovement: (movement: { x: number; y: number } | null) => void;
 }
 
 export const usePlayer = create<PlayerState>((set, get) => ({
@@ -55,6 +58,8 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   visibleHexes: new Set(), // Will be initialized by initializeVision
   visionRange: 1, // Can see 1 hex around avatar
   isGameMaster: false, // Only game master sees full map
+  // Movement confirmation
+  pendingMovement: null,
   setSelectedCharacter: (character) => set({ selectedCharacter: character }),
   setPlayerName: (name) => set({ playerName: name }),
   updatePlayer: (updates) => set((state) => ({ ...state, ...updates })),
@@ -314,5 +319,8 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     console.log('Initialized vision at hex:', avatarHexX, avatarHexY, 'World pos:', state.avatarPosition);
     console.log('Visible hexes:', Array.from(newVisibleHexes).sort());
     set({ visibleHexes: newVisibleHexes });
-  }
+  },
+
+  // Movement confirmation methods
+  setPendingMovement: (movement) => set({ pendingMovement: movement })
 }));

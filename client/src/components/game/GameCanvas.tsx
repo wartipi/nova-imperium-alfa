@@ -6,6 +6,7 @@ import { usePlayer } from "../../lib/stores/usePlayer";
 import { GameEngine } from "../../lib/game/GameEngine";
 import { useGameEngine } from "../../lib/contexts/GameEngineContext";
 import { AvatarActionMenu } from "./AvatarActionMenu";
+import { MovementConfirmationModal } from "./MovementConfirmationModal";
 
 export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -13,7 +14,7 @@ export function GameCanvas() {
   const { mapData, selectedHex, setSelectedHex } = useMap();
   const { gamePhase } = useGameState();
   const { novaImperiums, selectedUnit, moveUnit } = useNovaImperium();
-  const { avatarPosition, avatarRotation, isMoving, selectedCharacter, moveAvatarToHex, isHexVisible, isHexInCurrentVision } = usePlayer();
+  const { avatarPosition, avatarRotation, isMoving, selectedCharacter, moveAvatarToHex, isHexVisible, isHexInCurrentVision, pendingMovement, setPendingMovement } = usePlayer();
   const [mouseDownPos, setMouseDownPos] = useState<{ x: number; y: number } | null>(null);
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
   const [avatarMenuPosition, setAvatarMenuPosition] = useState({ x: 0, y: 0 });
@@ -82,7 +83,14 @@ export function GameCanvas() {
         if (!selectedUnit) {
           // Check if terrain is walkable for land units
           if (isTerrainWalkable(hex.terrain)) {
-            moveAvatarToHex(hex.x, hex.y);
+            // Check if we clicked on a different hex than avatar's current position
+            const currentHexX = Math.round(avatarPosition.x / 1.5);
+            const currentHexY = Math.round(avatarPosition.z / (Math.sqrt(3) * 0.5));
+            
+            if (hex.x !== currentHexX || hex.y !== currentHexY) {
+              // Show movement confirmation modal instead of moving immediately
+              setPendingMovement({ x: hex.x, y: hex.y });
+            }
           } else {
             console.log('Cannot move avatar to water terrain:', hex.terrain);
           }
@@ -91,14 +99,14 @@ export function GameCanvas() {
     }
     
     setMouseDownPos(null);
-  }, [selectedUnit, setSelectedHex, moveUnit, mouseDownPos, moveAvatarToHex]);
+  }, [selectedUnit, setSelectedHex, moveUnit, mouseDownPos, moveAvatarToHex, avatarPosition, setPendingMovement]);
 
   // Update rendering when game state changes
   useEffect(() => {
     if (gameEngineRef.current) {
       gameEngineRef.current.updateCivilizations(novaImperiums);
       gameEngineRef.current.setSelectedHex(selectedHex);
-      gameEngineRef.current.updateAvatar(avatarPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision);
+      gameEngineRef.current.updateAvatar(avatarPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision, pendingMovement);
       gameEngineRef.current.render();
       
       // Center on player start position when nova imperiums are first loaded
@@ -106,12 +114,27 @@ export function GameCanvas() {
         gameEngineRef.current.centerCameraOnPlayerStart();
       }
     }
-  }, [novaImperiums, selectedHex, avatarPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision]);
+  }, [novaImperiums, selectedHex, avatarPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision, pendingMovement]);
 
   // Check if terrain is walkable for land units
   const isTerrainWalkable = (terrain: string): boolean => {
     const waterTerrains = ['shallow_water', 'deep_water'];
     return !waterTerrains.includes(terrain);
+  };
+
+  const handleMovementConfirm = () => {
+    if (pendingMovement) {
+      // Spend action points for movement
+      const { spendActionPoints } = usePlayer.getState();
+      if (spendActionPoints(1)) {
+        moveAvatarToHex(pendingMovement.x, pendingMovement.y);
+        setPendingMovement(null);
+      }
+    }
+  };
+
+  const handleMovementCancel = () => {
+    setPendingMovement(null);
   };
 
   return (
@@ -130,6 +153,14 @@ export function GameCanvas() {
         <AvatarActionMenu
           position={avatarMenuPosition}
           onClose={() => setShowAvatarMenu(false)}
+        />
+      )}
+
+      {pendingMovement && (
+        <MovementConfirmationModal
+          targetHex={pendingMovement}
+          onConfirm={handleMovementConfirm}
+          onCancel={handleMovementCancel}
         />
       )}
     </>

@@ -21,6 +21,8 @@ export class GameEngine {
   // Vision system
   private isHexVisible: ((x: number, y: number) => boolean) | null = null;
   private isHexInCurrentVision: ((x: number, y: number) => boolean) | null = null;
+  // Movement preview
+  private pendingMovement: { x: number; y: number } | null = null;
 
   constructor(canvas: HTMLCanvasElement, mapData: HexTile[][]) {
     this.canvas = canvas;
@@ -196,8 +198,11 @@ export class GameEngine {
         const isVisible = this.isHexVisible ? this.isHexVisible(x, y) : true;
         const isInCurrentVision = this.isHexInCurrentVision ? this.isHexInCurrentVision(x, y) : true;
         
+        // Check if this hex is the pending movement destination
+        const isPendingDestination = this.pendingMovement && this.pendingMovement.x === x && this.pendingMovement.y === y;
+        
         // Draw hex with vision state
-        this.drawHex(screenX, screenY, hex, isVisible, isInCurrentVision);
+        this.drawHex(screenX, screenY, hex, isVisible, isInCurrentVision, isPendingDestination);
         
         // Draw hex outline - different style for visible vs invisible
         if (isVisible) {
@@ -213,7 +218,7 @@ export class GameEngine {
     }
   }
 
-  private drawHex(x: number, y: number, hex: HexTile, isVisible: boolean = true, isInCurrentVision: boolean = true) {
+  private drawHex(x: number, y: number, hex: HexTile, isVisible: boolean = true, isInCurrentVision: boolean = true, isPendingDestination: boolean = false) {
     const hexHeight = this.hexSize * Math.sqrt(3);
     
     this.ctx.beginPath();
@@ -244,6 +249,23 @@ export class GameEngine {
         this.ctx.strokeStyle = '#FFFF00';
         this.ctx.lineWidth = 3;
         this.ctx.stroke();
+      }
+      
+      // Highlight pending movement destination
+      if (isPendingDestination) {
+        this.ctx.strokeStyle = '#00FF00';
+        this.ctx.lineWidth = 4;
+        this.ctx.stroke();
+        
+        // Add a moving indicator
+        this.ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+        this.ctx.fill();
+        
+        // Add arrow pointing to destination
+        this.ctx.fillStyle = '#00FF00';
+        this.ctx.font = '20px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('➤', x, y + 7);
       }
       
       // Draw resource
@@ -386,7 +408,7 @@ export class GameEngine {
   }
 
   // Avatar methods
-  updateAvatar(position: { x: number; y: number; z: number }, rotation: { x: number; y: number; z: number }, isMoving: boolean, selectedCharacter: any, isHexVisible?: (x: number, y: number) => boolean, isHexInCurrentVision?: (x: number, y: number) => boolean) {
+  updateAvatar(position: { x: number; y: number; z: number }, rotation: { x: number; y: number; z: number }, isMoving: boolean, selectedCharacter: any, isHexVisible?: (x: number, y: number) => boolean, isHexInCurrentVision?: (x: number, y: number) => boolean, pendingMovement?: { x: number; y: number } | null) {
     this.avatarPosition = position;
     this.avatarRotation = rotation;
     this.isAvatarMoving = isMoving;
@@ -397,6 +419,7 @@ export class GameEngine {
     if (isHexInCurrentVision) {
       this.isHexInCurrentVision = isHexInCurrentVision;
     }
+    this.pendingMovement = pendingMovement || null;
   }
 
   private renderAvatar() {

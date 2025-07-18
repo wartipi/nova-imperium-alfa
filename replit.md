@@ -227,6 +227,9 @@ Preferred communication style: Simple, everyday language.
 - Avatar positioning system corrected to snap precisely to clicked hex coordinates
 - Differentiated fog of war: current vision (normal colors) vs explored areas (dimmed with overlay)
 - Avatar rotation disabled - always faces forward during movement for consistent orientation
+- Movement confirmation system with preview and cost validation before execution
+- Visual preview of movement destination with green highlight and arrow indicator
+- Modal confirmation dialog showing terrain details, costs, and action points availability
 
 ### Action Points System (January 17, 2025)
 - Replaced "production" with "action points" throughout the resource system
