@@ -116,11 +116,7 @@ export class GameEngine {
       this.cameraX += moveSpeed;
     }
     
-    // Centrer sur l'avatar uniquement avec Espace (éviter centrage automatique)
-    if (keysPressed.has(' ')) {
-      this.centerCameraOnAvatar();
-      keysPressed.delete(' '); // Éviter la répétition continue
-    }
+    // Barre d'espace supprimée - plus de centrage automatique sur avatar
     
     this.render();
   }
@@ -197,8 +193,8 @@ export class GameEngine {
 
 
   centerCameraOnPlayerStart() {
-    // Centrer sur l'avatar au démarrage au lieu de la ville
-    this.centerCameraOnAvatar();
+    // Pas de centrage automatique - laisser la caméra à sa position initiale
+    console.log('Démarrage du jeu - caméra libre');
   }
 
   getHexAtPosition(screenX: number, screenY: number): HexTile | null {

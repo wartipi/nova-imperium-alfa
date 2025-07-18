@@ -358,15 +358,14 @@ Preferred communication style: Simple, everyday language.
 - Occult actions: Rituel Occulte (Rituels), Magie Noire (Magie Noire)
 - Actions system now fully integrated with competence progression system
 
-### Camera System Overhaul (January 18, 2025)
-- Implemented camera-follows-avatar system with keyboard navigation
-- Arrow keys move camera around the map while keeping smooth movement
-- Space bar centers camera back on avatar position
-- Camera automatically centers on avatar when moving
-- Keyboard controls override mouse drag for primary navigation
-- Minimap remains fully functional for click-to-move camera
-- Visual indicators show keyboard controls (arrows for camera, space for center)
-- Maintains existing zoom and minimap functionality while adding keyboard convenience
+### Camera System Simplification (January 18, 2025)
+- Simplified camera system with standard controls only
+- Arrow keys (WASD) move camera around the map with smooth movement
+- Mouse drag for camera navigation
+- Zoom with mouse wheel
+- Minimap click-to-move camera functionality
+- Removed automatic avatar following and space bar centering
+- Free camera movement without automatic repositioning
 
 ### Enhanced Reputation System & Game Mechanics (January 17, 2025)
 - Updated reputation system with 6 clear levels: Banni, Méprisé, Suspect, Neutre, Honorable, Saint

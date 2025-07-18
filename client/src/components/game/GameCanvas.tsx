@@ -137,11 +137,7 @@ export function GameCanvas() {
       gameEngineRef.current.updateAvatar(avatarPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision, pendingMovement);
       gameEngineRef.current.render();
       
-      // Center on player start position only on first load (avoid continuous recentering)
-      if (novaImperiums.length > 0 && !gameEngineRef.current.hasInitialCentered) {
-        gameEngineRef.current.centerCameraOnPlayerStart();
-        gameEngineRef.current.hasInitialCentered = true;
-      }
+      // Plus de centrage automatique - caméra libre
     }
   }, [novaImperiums, selectedHex, avatarPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision, pendingMovement, isMovementMode]);
 
