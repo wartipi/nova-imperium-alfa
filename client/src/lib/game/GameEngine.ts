@@ -521,9 +521,19 @@ export class GameEngine {
   private renderCivilizations() {
     // Render colonies from Nova Imperium store
     const { novaImperiums } = useNovaImperium.getState();
+    
+    // Debug: Log Nova Imperium cities for troubleshooting
+    const totalCities = novaImperiums.reduce((count, ni) => count + ni.cities.length, 0);
+    if (totalCities > 0) {
+      console.log(`🏰 Rendu de ${totalCities} villes depuis Nova Imperium store:`, 
+        novaImperiums.map(ni => ({ name: ni.name, cities: ni.cities.length, citiesData: ni.cities }))
+      );
+    }
+    
     novaImperiums.forEach(ni => {
       // Render cities/colonies
       ni.cities.forEach(city => {
+        console.log(`🏘️ Rendu ville: ${city.name} à (${city.x}, ${city.y})`);
         this.drawCity(city, ni.color);
       });
       
@@ -552,30 +562,40 @@ export class GameEngine {
     const screenX = city.x * (this.hexSize * 1.5);
     const screenY = city.y * hexHeight + (city.x % 2) * (hexHeight / 2);
     
-    // Draw colony/city circle with different styles based on buildings
-    const hasSettlement = city.buildings.includes('settlement');
-    const radius = hasSettlement ? this.hexSize / 3 : this.hexSize / 2;
+    // Check if city is within visible area
+    const visibleX = (screenX - this.cameraX) * this.zoom + this.canvas.width / 2;
+    const visibleY = (screenY - this.cameraY) * this.zoom + this.canvas.height / 2;
+    const isInView = visibleX >= -50 && visibleX <= this.canvas.width + 50 && 
+                     visibleY >= -50 && visibleY <= this.canvas.height + 50;
+    
+    console.log(`🎨 Dessin ville ${city.name} à hex (${city.x}, ${city.y}) -> écran (${screenX}, ${screenY}) -> vue (${visibleX}, ${visibleY}) inView: ${isInView}`);
+    
+    // Draw colony/city circle with bright colors for visibility
+    const radius = this.hexSize / 2;
     
     this.ctx.beginPath();
     this.ctx.arc(screenX, screenY, radius, 0, Math.PI * 2);
-    this.ctx.fillStyle = color;
+    this.ctx.fillStyle = '#FFD700'; // Gold color for high visibility
     this.ctx.fill();
-    this.ctx.strokeStyle = '#000';
-    this.ctx.lineWidth = hasSettlement ? 1 : 2;
+    this.ctx.strokeStyle = '#8B0000'; // Dark red border
+    this.ctx.lineWidth = 3;
     this.ctx.stroke();
     
-    // Draw colony/city icon
-    this.ctx.fillStyle = '#000';
-    this.ctx.font = '14px Arial';
+    // Draw colony icon in large size
+    this.ctx.fillStyle = '#8B0000';
+    this.ctx.font = 'bold 20px Arial';
     this.ctx.textAlign = 'center';
-    const icon = hasSettlement ? '🏘️' : '🏛️';
-    this.ctx.fillText(icon, screenX, screenY + 4);
+    this.ctx.fillText('🏛️', screenX, screenY + 6);
     
-    // Draw city name
+    // Draw city name with background
+    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    this.ctx.fillRect(screenX - 25, screenY - this.hexSize - 5, 50, 12);
     this.ctx.fillStyle = '#000';
-    this.ctx.font = '10px Arial';
+    this.ctx.font = 'bold 10px Arial';
     this.ctx.textAlign = 'center';
     this.ctx.fillText(city.name, screenX, screenY - this.hexSize + 5);
+    
+    console.log(`✅ Ville ${city.name} rendue à l'écran`);
   }
 
   private drawUnit(unit: Unit, color: string) {
