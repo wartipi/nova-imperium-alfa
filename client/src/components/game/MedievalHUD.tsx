@@ -61,7 +61,7 @@ export function MedievalHUD() {
     { id: 'construction' as MenuSection, label: 'CONSTRUCTION', icon: '🔨' },
     { id: 'recruitment' as MenuSection, label: 'RECRUTEMENT', icon: '⚔️' },
     { id: 'activities' as MenuSection, label: 'RAPPORT D\'ACTIVITÉS', icon: '📊' },
-    { id: 'courier' as MenuSection, label: 'COURRIER', icon: '📮' },
+    { id: 'courier' as MenuSection, label: 'COURRIER', icon: '✉️' },
     { id: 'treaties' as MenuSection, label: 'TRAITÉS', icon: '📜' },
     { id: 'events' as MenuSection, label: 'ÉVÉNEMENT', icon: '🎭' },
     { id: 'announcements' as MenuSection, label: 'ANNONCE PUBLIQUE', icon: '📢' },
