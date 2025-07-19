@@ -189,7 +189,7 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
 
   }, [mapData, width, height]);
 
-  // Détection simple par distance
+  // Détection par collision directe (comme GameEngine)
   const getHexAtMouse = (mouseX: number, mouseY: number) => {
     const tiles = mapData.region.tiles;
     if (tiles.length === 0) return null;
@@ -207,22 +207,24 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const centerY = height / 2;
     const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
 
-    let closestTile = null;
-    let closestDistance = Infinity;
-
+    // Test de collision directe avec chaque hexagone
     for (const tile of tiles) {
       const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
       const x = centerX + (hexPos.x - regionCenterPos.x);
       const y = centerY + (hexPos.y - regionCenterPos.y);
 
-      const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
-      if (distance < hexRadius && distance < closestDistance) {
-        closestDistance = distance;
-        closestTile = tile;
+      // Test collision hexagonale précise
+      const dx = Math.abs(mouseX - x);
+      const dy = Math.abs(mouseY - y);
+      
+      if (dx <= hexRadius && dy <= hexRadius * Math.sqrt(3) / 2) {
+        if (dy <= hexRadius * Math.sqrt(3) / 2 - dx * Math.sqrt(3) / 3) {
+          return tile;
+        }
       }
     }
     
-    return closestTile;
+    return null;
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
