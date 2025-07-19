@@ -193,9 +193,25 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
   // Fonction pour détecter quel hexagone est sous la souris
   const getHexAtMouse = (mouseX: number, mouseY: number) => {
     const tiles = mapData.region.tiles;
-    const hexRadius = Math.min((width - 40) / (mapData.region.radius * 2 * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapData.region.radius * 2 * 1.5 + 0.5));
+    if (tiles.length === 0) return null;
+
+    // Calculer les limites de la région (exactement comme dans le useEffect)
+    const minX = Math.min(...tiles.map(t => t.x));
+    const maxX = Math.max(...tiles.map(t => t.x));
+    const minY = Math.min(...tiles.map(t => t.y));
+    const maxY = Math.max(...tiles.map(t => t.y));
+
+    // Calculer la taille des hexagones (exactement comme dans le useEffect)
+    const mapWidth = maxX - minX + 1;
+    const mapHeight = maxY - minY + 1;
+    const hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
+
     const centerX = width / 2;
     const centerY = height / 2;
+
+    // Trouver l'hexagone le plus proche
+    let closestTile = null;
+    let closestDistance = Infinity;
 
     for (const tile of tiles) {
       const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
@@ -205,11 +221,12 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
 
       // Distance du centre de l'hexagone
       const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
-      if (distance <= hexRadius * 0.9) {
-        return tile;
+      if (distance <= hexRadius * 0.9 && distance < closestDistance) {
+        closestDistance = distance;
+        closestTile = tile;
       }
     }
-    return null;
+    return closestTile;
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -221,6 +238,9 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     setMousePos({ x: mouseX, y: mouseY });
 
     const tile = getHexAtMouse(mouseX, mouseY);
+    if (tile) {
+      console.log('🎯 Hexagone détecté:', tile.x, tile.y, 'terrain:', tile.terrain);
+    }
     setHoveredTile(tile);
   };
 
