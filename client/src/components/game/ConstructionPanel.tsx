@@ -26,20 +26,7 @@ export function ConstructionPanel() {
   const currentFaction = playerFaction ? getFactionById(playerFaction) : null;
   const hasColonies = playerColonies.length > 0;
 
-  // En mode MJ sans villes, créer une ville temporaire pour permettre la construction
-  if (isGameMaster && currentNovaImperium.cities.length === 0) {
-    const tempCity = {
-      id: 'gm_temp_city',
-      name: 'Base MJ Temporaire',
-      population: 1,
-      buildings: [],
-      currentProduction: null,
-      productionProgress: 0,
-      x: 0,
-      y: 0
-    };
-    currentNovaImperium.cities = [tempCity];
-  }
+  // Les MJ peuvent construire des bâtiments sans ville, directement sur le territoire
 
   // Option spéciale pour fonder une colonie
   const colonyFoundingOption = {

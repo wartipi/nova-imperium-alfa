@@ -522,18 +522,17 @@ export class GameEngine {
     // Render colonies from Nova Imperium store
     const { novaImperiums } = useNovaImperium.getState();
     
-    // Debug: Log Nova Imperium cities for troubleshooting
+    // Debug: Log Nova Imperium cities for troubleshooting (réduit)
     const totalCities = novaImperiums.reduce((count, ni) => count + ni.cities.length, 0);
     if (totalCities > 0) {
-      console.log(`🏰 Rendu de ${totalCities} villes depuis Nova Imperium store:`, 
-        novaImperiums.map(ni => ({ name: ni.name, cities: ni.cities.length, citiesData: ni.cities }))
+      console.log(`🏰 Rendu de ${totalCities} nouvelles villes:`, 
+        novaImperiums.flatMap(ni => ni.cities.map(c => `${c.name} (${c.x},${c.y})`))
       );
     }
     
     novaImperiums.forEach(ni => {
       // Render cities/colonies
       ni.cities.forEach(city => {
-        console.log(`🏘️ Rendu ville: ${city.name} à (${city.x}, ${city.y})`);
         this.drawCity(city, ni.color);
       });
       
@@ -568,8 +567,6 @@ export class GameEngine {
     const isInView = visibleX >= -50 && visibleX <= this.canvas.width + 50 && 
                      visibleY >= -50 && visibleY <= this.canvas.height + 50;
     
-    console.log(`🎨 Dessin ville ${city.name} à hex (${city.x}, ${city.y}) -> écran (${screenX}, ${screenY}) -> vue (${visibleX}, ${visibleY}) inView: ${isInView}`);
-    
     // Draw colony/city circle with bright colors for visibility
     const radius = this.hexSize / 2;
     
@@ -581,11 +578,12 @@ export class GameEngine {
     this.ctx.lineWidth = 3;
     this.ctx.stroke();
     
-    // Draw colony icon in large size
+    // Draw colony icon in large size - use simple text if emoji doesn't work
     this.ctx.fillStyle = '#8B0000';
-    this.ctx.font = 'bold 20px Arial';
+    this.ctx.font = 'bold 16px Arial';
     this.ctx.textAlign = 'center';
-    this.ctx.fillText('🏛️', screenX, screenY + 6);
+    // Fallback to simple text if emoji support is limited
+    this.ctx.fillText('CITY', screenX, screenY + 4);
     
     // Draw city name with background
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
@@ -594,8 +592,6 @@ export class GameEngine {
     this.ctx.font = 'bold 10px Arial';
     this.ctx.textAlign = 'center';
     this.ctx.fillText(city.name, screenX, screenY - this.hexSize + 5);
-    
-    console.log(`✅ Ville ${city.name} rendue à l'écran`);
   }
 
   private drawUnit(unit: Unit, color: string) {
