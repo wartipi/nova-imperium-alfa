@@ -124,6 +124,18 @@ Preferred communication style: Simple, everyday language.
 - **Ressources Visibles en Mode MJ**: Correction du problème d'affichage des ressources - 369+ ressources générées et visibles en mode Maître de Jeu
 - **TileInfoPanel Corrigé**: Résolution de l'erreur de hooks React qui empêchait l'affichage des informations des hexagones
 
+### Esthétique Médiévale Nova Imperium (January 19, 2025)
+- **Système CSS Médiéval Complet**: Créé une esthétique authentique avec textures parchemin, bordures ornementales et couleurs médiévales
+- **Classes Parchemin**: Implémenté .parchment-panel, .parchment-section, .medieval-sidebar avec gradients réalistes
+- **Améliorations Textures**: Ajouté overlays radiaux et taches d'âge pour simuler parchemin authentique ancien
+- **Système Boutons Médiévaux**: Remplacé tous les boutons UI par variants .medieval-button (standard, primary, danger, success)
+- **Typographie Médiévale**: Appliqué .medieval-title, .medieval-subtitle, .medieval-text dans toute l'interface
+- **Palette Couleurs Unifiée**: Schéma cohérent amber/brown (#8B4513, #A0522D, #F5E6D3) évoquant manuscrits anciens
+- **Gestion Z-Index**: Système de couches approprié garantissant visibilité du texte sur textures parchemin
+- **Transformation HUD**: Converti tous panneaux majeurs (MedievalHUD, UnifiedTerritoryPanel, TreasuryPanel) à l'esthétique médiévale
+- **Profondeur Visuelle**: Box-shadows et effets inset renforcés pour créer profondeur parchemin réaliste
+- **Cohésion Interface**: Thème médiéval unifié sur panneaux menu, modals, boutons et affichages d'information
+
 ### Système de Territoire Unifié (January 19, 2025)
 - **Suppression Complète des Anciens Systèmes**: Supprimé TerritorySystem.ts, TerritoryClaimPanel.tsx, TerritoryListPanel.tsx qui créaient des conflits
 - **UnifiedTerritorySystem.ts Créé**: Nouveau système propre et simple pour la gestion des territoires

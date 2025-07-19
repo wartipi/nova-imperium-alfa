@@ -23,20 +23,23 @@
   /* Parchemin principal */
   .parchment-panel {
     @apply relative;
-    background: linear-gradient(145deg, 
-      #F5E6D3 0%, 
-      #E8D5B7 15%, 
-      #F2E4C1 30%, 
-      #EDD8BB 50%, 
-      #F5E6D3 70%, 
-      #E8D5B7 85%, 
-      #F5E6D3 100%
-    );
+    background: 
+      radial-gradient(circle at 20% 80%, rgba(139, 69, 19, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, rgba(139, 69, 19, 0.1) 0%, transparent 50%),
+      linear-gradient(145deg, 
+        #F5E6D3 0%, 
+        #E8D5B7 15%, 
+        #F2E4C1 30%, 
+        #EDD8BB 50%, 
+        #F5E6D3 70%, 
+        #E8D5B7 85%, 
+        #F5E6D3 100%
+      );
     border: 3px solid #8B4513;
     box-shadow: 
       inset 2px 2px 8px rgba(139, 69, 19, 0.3),
       inset -2px -2px 8px rgba(245, 230, 211, 0.8),
-      0 4px 12px rgba(0, 0, 0, 0.3);
+      0 4px 12px rgba(0, 0, 0, 0.4);
     border-radius: 8px;
   }
 
@@ -51,17 +54,37 @@
     background: linear-gradient(45deg, #8B4513, #A0522D, #D2B48C);
     border-radius: 10px;
     z-index: -1;
-    opacity: 0.7;
+    opacity: 0.6;
+  }
+
+  /* Texture de parchemin avec taches d'âge */
+  .parchment-panel::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: 
+      radial-gradient(circle at 15% 20%, rgba(139, 69, 19, 0.08) 5px, transparent 5px),
+      radial-gradient(circle at 85% 80%, rgba(139, 69, 19, 0.06) 3px, transparent 3px),
+      radial-gradient(circle at 45% 60%, rgba(160, 82, 45, 0.04) 7px, transparent 7px),
+      radial-gradient(circle at 70% 15%, rgba(139, 69, 19, 0.05) 4px, transparent 4px);
+    border-radius: 8px;
+    pointer-events: none;
+    z-index: 1;
   }
 
   /* Parchemin petit pour les sections */
   .parchment-section {
     @apply relative;
-    background: linear-gradient(135deg, 
-      #F8F0E3 0%, 
-      #F0E2C7 50%, 
-      #F8F0E3 100%
-    );
+    background: 
+      radial-gradient(circle at 25% 75%, rgba(160, 82, 45, 0.1) 0%, transparent 30%),
+      linear-gradient(135deg, 
+        #F8F0E3 0%, 
+        #F0E2C7 50%, 
+        #F8F0E3 100%
+      );
     border: 2px solid #A0522D;
     box-shadow: 
       inset 1px 1px 4px rgba(139, 69, 19, 0.2),
@@ -72,7 +95,7 @@
 
   /* Boutons médiévaux */
   .medieval-button {
-    @apply relative font-bold transition-all duration-200;
+    @apply relative font-bold transition-all duration-200 z-10;
     background: linear-gradient(145deg, #D2B48C 0%, #DEB887 50%, #D2B48C 100%);
     border: 2px solid #8B4513;
     color: #4A4A4A;
@@ -119,14 +142,14 @@
 
   /* Titres médiévaux */
   .medieval-title {
-    @apply font-bold text-2xl;
+    @apply font-bold text-2xl relative z-10;
     color: #8B4513;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
     font-family: 'Cinzel', 'Times New Roman', serif;
   }
 
   .medieval-subtitle {
-    @apply font-semibold text-lg;
+    @apply font-semibold text-lg relative z-10;
     color: #A0522D;
     text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
   }
@@ -135,18 +158,29 @@
   .medieval-text {
     color: #4A4A4A;
     line-height: 1.6;
+    position: relative;
+    z-index: 10;
   }
 
   /* Menu latéral médiéval */
   .medieval-sidebar {
-    @apply parchment-panel;
-    background: linear-gradient(180deg, 
-      #E8D5B7 0%, 
-      #F2E4C1 25%, 
-      #EDD8BB 50%, 
-      #F2E4C1 75%, 
-      #E8D5B7 100%
-    );
+    background: 
+      radial-gradient(circle at 30% 70%, rgba(139, 69, 19, 0.15) 0%, transparent 40%),
+      radial-gradient(circle at 70% 30%, rgba(139, 69, 19, 0.15) 0%, transparent 40%),
+      linear-gradient(180deg, 
+        #E8D5B7 0%, 
+        #F2E4C1 25%, 
+        #EDD8BB 50%, 
+        #F2E4C1 75%, 
+        #E8D5B7 100%
+      );
+    border: 3px solid #8B4513;
+    box-shadow: 
+      inset 2px 2px 8px rgba(139, 69, 19, 0.3),
+      inset -2px -2px 8px rgba(245, 230, 211, 0.8),
+      0 4px 12px rgba(0, 0, 0, 0.4);
+    border-radius: 8px;
+    position: relative;
   }
 
   /* Effets de sceau et décoration */

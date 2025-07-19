@@ -208,10 +208,10 @@ export function MedievalHUD() {
             onMouseDown={(e) => e.stopPropagation()}
             onMouseUp={(e) => e.stopPropagation()}
           >
-            <div className="text-amber-900 font-bold text-sm">
-              <div className="text-xs text-amber-700">UTILISATEUR CONNECTÉ</div>
+            <div className="medieval-text font-bold text-sm">
+              <div className="text-xs medieval-text">UTILISATEUR CONNECTÉ</div>
               <div className="flex items-center justify-between">
-                <div className={`font-bold ${getUserColor()}`}>
+                <div className={`font-bold medieval-subtitle text-sm ${getUserColor()}`}>
                   {currentUser || 'Invité'} ({getUserRole()})
                 </div>
                 <button
@@ -219,7 +219,7 @@ export function MedievalHUD() {
                     e.stopPropagation();
                     setShowLogoutConfirm(true);
                   }}
-                  className="text-xs bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded"
+                  className="text-xs medieval-button medieval-button-danger px-2 py-1"
                   title="Verrouiller la session"
                 >
                   🗝️
