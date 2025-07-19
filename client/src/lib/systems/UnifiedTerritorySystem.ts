@@ -251,20 +251,28 @@ class UnifiedTerritorySystemClass {
     const controlledTerritories = this.getColonyControlledTerritories(colonyId);
     const terrains = new Set<string>();
     
+    console.log(`🌍 Debug terrains pour colonie ${colonyId}:`, {
+      controlledTerritories: controlledTerritories.map(t => `(${t.x},${t.y})`),
+      territoriesCount: controlledTerritories.length
+    });
+    
     // Récupérer les types de terrain de chaque case contrôlée
     controlledTerritories.forEach(territory => {
-      // Ici on devrait récupérer le type de terrain depuis la carte du jeu
-      // Pour l'instant on simule avec le gameEngine global
       const gameEngine = (window as any).gameEngine;
       if (gameEngine && gameEngine.mapData) {
         const hex = gameEngine.mapData[territory.y]?.[territory.x];
+        console.log(`🏞️ Terrain pour (${territory.x},${territory.y}):`, hex?.terrain);
         if (hex && hex.terrain) {
           terrains.add(hex.terrain);
         }
+      } else {
+        console.log('❌ GameEngine non disponible pour récupérer les terrains');
       }
     });
 
-    return Array.from(terrains);
+    const terrainsArray = Array.from(terrains);
+    console.log(`🎯 Terrains finaux pour colonie ${colonyId}:`, terrainsArray);
+    return terrainsArray;
   }
 
   // Vérifier la distance entre deux points hexagonaux

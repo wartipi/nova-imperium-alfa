@@ -26,8 +26,6 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
   const [showColonyModal, setShowColonyModal] = useState(false);
   const [selectedTerritory, setSelectedTerritory] = useState<Territory | null>(null);
   const [colonyName, setColonyName] = useState('');
-  const [showExpansionMode, setShowExpansionMode] = useState(false);
-  const [selectedColony, setSelectedColony] = useState<string | null>(null);
 
   // Charger les territoires
   const loadTerritories = () => {
@@ -226,82 +224,6 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
     }
   };
 
-  // Étendre le territoire d'une colonie
-  const handleExpandColonyTerritory = async () => {
-    if (!selectedColony) {
-      alert('Veuillez sélectionner une colonie');
-      return;
-    }
-
-    if (!isGameMaster && !playerFaction) {
-      alert('Vous devez faire partie d\'une faction pour étendre un territoire.');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const avatarPos = getAvatarPosition();
-      console.log('🎯 Position avatar pour extension:', avatarPos);
-
-      // Vérifier les Points d'Action (sauf en mode MJ)
-      const expandCost = 8;
-      if (!isGameMaster && actionPoints < expandCost) {
-        alert(`Pas assez de Points d'Action (${expandCost} PA requis)`);
-        return;
-      }
-
-      // Dépenser les PA (sauf en mode MJ)
-      if (!isGameMaster) {
-        const success = spendActionPoints(expandCost);
-        if (!success) {
-          alert('Impossible de dépenser les Points d\'Action');
-          return;
-        }
-      }
-
-      // Étendre le territoire de la colonie
-      const success = UnifiedTerritorySystem.expandColonyTerritory(
-        selectedColony,
-        avatarPos.x,
-        avatarPos.y,
-        'player',
-        playerName,
-        playerFaction?.id || 'gm_faction',
-        playerFaction?.name || 'Administration MJ'
-      );
-
-      if (success) {
-        const colony = territories.find(t => t.colonyId === selectedColony);
-        if (isGameMaster) {
-          alert(`[MODE MJ] Case (${avatarPos.x}, ${avatarPos.y}) ajoutée au territoire de ${colony?.colonyName}`);
-        } else {
-          alert(`Case (${avatarPos.x}, ${avatarPos.y}) ajoutée au territoire de ${colony?.colonyName} ! (${expandCost} PA dépensés)`);
-        }
-        loadTerritories();
-        
-        // Forcer le re-rendu de la carte
-        if ((window as any).gameEngine) {
-          (window as any).gameEngine.render();
-        }
-      } else {
-        alert('Impossible d\'étendre le territoire. Vérifiez que la case est adjacente et libre.');
-        // Rembourser les PA en cas d'échec
-        if (!isGameMaster) {
-          const { addActionPoints } = usePlayer.getState();
-          addActionPoints(expandCost);
-        }
-      }
-    } catch (error) {
-      console.error('Erreur lors de l\'extension territoriale:', error);
-      alert('Erreur lors de l\'extension territoriale');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Obtenir les colonies pour l'expansion territoriale
-  const hasColonies = territories.some(t => t.colonyId);
-
   return (
     <div className="medieval-text h-full overflow-y-auto">
       {/* En-tête */}
@@ -328,49 +250,6 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
           <p className="text-red-700 text-xs mt-3 font-medium">⚠️ Vous devez faire partie d'une faction</p>
         )}
       </div>
-
-      {/* Section d'expansion territoriale */}
-      {hasColonies && (
-        <div className="parchment-section p-4 mb-6">
-          <h4 className="medieval-subtitle mb-3">🗺️ Expansion Territoriale</h4>
-          <p className="medieval-text text-sm mb-4">
-            Étendez le territoire d'une colonie en ajoutant des cases adjacentes.
-          </p>
-          
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">Colonie à étendre:</label>
-            <select 
-              value={selectedColony || ''} 
-              onChange={(e) => setSelectedColony(e.target.value || null)}
-              className="w-full p-2 border border-amber-400 rounded bg-amber-50"
-            >
-              <option value="">Sélectionnez une colonie</option>
-              {territories
-                .filter(t => t.colonyId)
-                .map(territory => (
-                  <option key={territory.colonyId} value={territory.colonyId}>
-                    {territory.colonyName} ({territory.x}, {territory.y})
-                  </option>
-                ))
-              }
-            </select>
-          </div>
-          
-          <div className="text-xs text-gray-600 mb-3">
-            💡 Placez votre avatar sur une case adjacente à votre colonie pour l'ajouter à son territoire
-          </div>
-          
-          <button
-            onClick={handleExpandColonyTerritory}
-            disabled={isLoading || !selectedColony}
-            className="w-full medieval-button medieval-button-primary py-3 px-4 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? '⏳ Extension en cours...' : 
-             isGameMaster ? '🎯 Étendre Territoire (Mode MJ)' : 
-             '🗺️ Étendre Territoire (8 PA)'}
-          </button>
-        </div>
-      )}
 
       {/* Liste des territoires */}
       <div className="parchment-section p-4">
