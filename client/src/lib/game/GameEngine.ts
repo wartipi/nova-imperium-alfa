@@ -399,8 +399,7 @@ export class GameEngine {
         const explorationLevel = playerState.getCompetenceLevel?.('exploration') || 0;
         const hexExplored = playerState.isHexExplored?.(hex.x, hex.y) || false;
         
-        // Debug: log resource rendering attempts (réduit pour performance)
-        if (Math.random() < 0.001) { // 0.1% chance to log
+        if (Math.random() < 0.001) {
           console.log(`🔍 Tentative rendu ressource: ${hex.resource} sur (${hex.x},${hex.y}), MJ:${isGameMaster}, exploration:${explorationLevel}, exploré:${hexExplored}`);
         }
         
@@ -446,12 +445,11 @@ export class GameEngine {
             this.ctx.fillStyle = '#000';
             this.ctx.fillText(resourceInfo.symbol, x, y + 4);
             
-            // Debug: confirm resource rendered (réduit)
             if (Math.random() < 0.001) {
               console.log(`✅ Ressource rendue: ${resourceInfo.symbol} (${hex.resource}) mode MJ: ${isGameMaster}`);
             }
           } else {
-            // Fallback pour ressources non mappées
+
             this.ctx.fillStyle = '#FFFF00';
             this.ctx.globalAlpha = 0.7;
             this.ctx.fillRect(x - 6, y - 6, 12, 12);
@@ -572,7 +570,6 @@ export class GameEngine {
     // Render colonies from Nova Imperium store
     const { novaImperiums } = useNovaImperium.getState();
     
-    // Debug: Log villes (réduit)
     const totalCities = novaImperiums.reduce((count, ni) => count + ni.cities.length, 0);
     if (totalCities > 0) {
       console.log(`🏰 ${totalCities} colonies:`, 
@@ -592,7 +589,7 @@ export class GameEngine {
       });
     });
     
-    // Keep existing civilization rendering for compatibility
+
     this.civilizations.forEach(civ => {
       // Render cities
       civ.cities.forEach(city => {

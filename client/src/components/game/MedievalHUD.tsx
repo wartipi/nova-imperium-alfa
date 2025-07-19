@@ -87,7 +87,6 @@ export function MedievalHUD() {
   const [showReputationManagement, setShowReputationManagement] = useState(false);
   const { notification, showLevelUpNotification, hideLevelUpNotification } = useLevelUpNotification();
 
-  // Fonctions utilitaires pour l'authentification
   const getUserRole = () => {
     if (currentUser === 'admin') return 'Administrateur';
     if (currentUser === 'maitre') return 'Maître de Jeu';
@@ -104,7 +103,6 @@ export function MedievalHUD() {
     return currentUser === 'admin' || currentUser === 'maitre';
   };
 
-  // Exposer la fonction de notification au niveau global
   React.useEffect(() => {
     (window as any).showLevelUpNotification = showLevelUpNotification;
     return () => {
@@ -112,7 +110,6 @@ export function MedievalHUD() {
     };
   }, [showLevelUpNotification]);
 
-  // Gestionnaire d'événements pour ouvrir le panneau de territoire unifié
   React.useEffect(() => {
     const handleOpenTerritoryPanel = () => {
       setActiveSection('territory');
