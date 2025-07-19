@@ -79,29 +79,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     }
   ];
 
-  // Actions de territoire
-  const territoryActions = [
-    {
-      id: 'claim_territory',
-      name: 'Revendiquer Territoire',
-      description: 'Revendiquer le territoire actuel pour votre faction',
-      cost: 10,
-      icon: '🏰',
-      category: 'territory',
-      requiredCompetence: 'local_influence',
-      requiredLevel: 1
-    },
-    {
-      id: 'found_colony',
-      name: 'Fonder Colonie',
-      description: 'Fonder une nouvelle colonie sur territoire revendiqué',
-      cost: 25,
-      icon: '🏘️',
-      category: 'colony',
-      requiredCompetence: 'administration',
-      requiredLevel: 1
-    }
-  ];
+  // Actions de territoire supprimées - utiliser le menu GESTION DE TERRITOIRE
 
   // Actions avancées basées sur les compétences de haut niveau
   const getAdvancedActions = () => {
@@ -152,23 +130,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     // Vérifier les points d'action
     if (actionPoints < action.cost) return false;
     
-    // Vérification spéciale pour la revendication territoriale
-    if (action.id === 'claim_territory') {
-      // Doit faire partie d'une faction
-      if (!playerFaction) {
-        console.log(`❌ Action ${action.name} indisponible: aucune faction`);
-        return false;
-      }
-    }
-    
-    // Vérification spéciale pour la fondation de colonie
-    if (action.id === 'found_colony') {
-      // Doit faire partie d'une faction
-      if (!playerFaction) {
-        console.log(`❌ Action ${action.name} indisponible: aucune faction`);
-        return false;
-      }
-    }
+    // Vérifications spéciales supprimées - actions territoire gérées via menu GESTION DE TERRITOIRE
     
     // Vérifier les compétences requises
     if (action.requiredCompetence) {
@@ -199,30 +161,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       return;
     }
 
-    if (action.id === 'claim_territory') {
-      // Utiliser le nouveau système unifié de territoire
-      const avatarPos = getAvatarPosition();
-      const success = import('../../lib/systems/UnifiedTerritorySystem').then(({ UnifiedTerritorySystem }) => {
-        const claimed = UnifiedTerritorySystem.claimTerritory(
-          avatarPos.x,
-          avatarPos.y,
-          'player',
-          playerName || 'Joueur',
-          playerFaction?.id,
-          playerFaction?.name
-        );
-        
-        if (claimed) {
-          const cost = isGameMaster ? 0 : action.cost;
-          if (!isGameMaster) spendActionPoints(cost);
-          alert(`Territoire revendiqué en (${avatarPos.x}, ${avatarPos.y})!`);
-        } else {
-          alert('Ce territoire est déjà revendiqué.');
-        }
-      });
-      onClose();
-      return;
-    }
+    // Action claim_territory supprimée - utiliser le menu GESTION DE TERRITOIRE
 
     if (action.id === 'found_colony') {
       const { avatarPosition } = getGameData();
@@ -491,18 +430,12 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       return true;
     });
 
-    const filteredTerritoryActions = territoryActions.filter(action => {
-      if (action.requiredCompetence) {
-        return hasCompetenceLevel(action.requiredCompetence, action.requiredLevel || 1);
-      }
-      return true;
-    });
+    // filteredTerritoryActions supprimées - utiliser menu GESTION DE TERRITOIRE
     
     const allActions = [
       ...baseActions,
       ...filteredExplorationActions,
       ...filteredCompetenceActions,
-      ...filteredTerritoryActions,
       ...getAdvancedActions(),
       ...reputationActions.filter(action => 
         reputation === action.requiredReputation

@@ -137,6 +137,7 @@ Preferred communication style: Simple, everyday language.
 - **Cohésion Interface**: Thème médiéval unifié sur panneaux menu, modals, boutons et affichages d'information
 - **Correction Overlay Transparent (January 19, 2025)**: Supprimé overlay blanc semi-translucide qui créait un "voile" sur la carte
 - **Menu Renommé**: Section "TERRITOIRE" renommée en "GESTION DE TERRITOIRE" pour plus de clarté
+- **Nettoyage Actions Avatar (January 19, 2025)**: Supprimé les actions "Revendiquer Territoire" et "Fonder Colonie" du menu avatar pour éviter conflits avec UnifiedTerritoryPanel
 
 ### Système de Territoire Unifié (January 19, 2025)
 - **Suppression Complète des Anciens Systèmes**: Supprimé TerritorySystem.ts, TerritoryClaimPanel.tsx, TerritoryListPanel.tsx qui créaient des conflits
