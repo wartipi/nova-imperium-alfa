@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { UnifiedTerritorySystem, Territory } from '../../lib/systems/UnifiedTerritorySystem';
 import { usePlayer } from '../../lib/stores/usePlayer';
 import { useGameState } from '../../lib/stores/useGameState';
+import { useNovaImperium } from '../../lib/stores/useNovaImperium';
 import { useFactions } from '../../lib/stores/useFactions';
 import { useMap } from '../../lib/stores/useMap';
 
