@@ -102,8 +102,9 @@ export function GameCanvas() {
         const { currentNovaImperium } = useNovaImperium.getState();
         if (currentNovaImperium) {
           const city = currentNovaImperium.cities.find(c => c.x === hex.x && c.y === hex.y);
+          console.log('🏘️ Debug clic - Position:', hex.x, hex.y, 'Villes trouvées:', currentNovaImperium.cities.map(c => `${c.name}(${c.x},${c.y})`));
           if (city) {
-            console.log('🏘️ Clic sur la colonie:', city.name, 'à', hex.x, hex.y);
+            console.log('🏘️ Clic sur la colonie:', city.name, 'à', hex.x, hex.y, 'ID:', city.id);
             setSelectedCityId(city.id);
             setMouseDownPos(null);
             return;

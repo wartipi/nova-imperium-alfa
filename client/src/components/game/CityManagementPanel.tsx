@@ -26,7 +26,15 @@ export function CityManagementPanel({ cityId, onClose }: CityManagementPanelProp
   const colonyData = UnifiedTerritorySystem.getPlayerColoniesWithTerritories('player')
     .find(c => c.colony.x === city.x && c.colony.y === city.y);
 
-  const availableTerrains = colonyData?.availableTerrains || [];
+  const availableTerrains = UnifiedTerritorySystem.getColonyAvailableTerrains(cityId);
+  
+  console.log('🏘️ CityManagementPanel - Debug:', {
+    cityId,
+    cityPosition: { x: city.x, y: city.y },
+    colonyData,
+    availableTerrains,
+    allColonies: UnifiedTerritorySystem.getPlayerColoniesWithTerritories('player')
+  });
 
   // Bâtiments disponibles pour cette ville basés sur ses terrains
   const buildings = [
