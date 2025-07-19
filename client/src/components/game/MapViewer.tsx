@@ -55,14 +55,14 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     ctx.closePath();
   };
 
-  // Fonction pour convertir les coordonnées hex en coordonnées pixel (EXACTEMENT comme GameEngine.ts)
+  // Fonction pour convertir les coordonnées hex en coordonnées pixel (grille hexagonale jointive)
   const hexToPixel = (hexX: number, hexY: number, hexRadius: number) => {
-    // Utiliser la même formule que GameEngine.ts
-    // Dans GameEngine: screenX = (x * hexSize * 1.5) - cameraX + canvas.width / 2;
-    // Dans GameEngine: screenY = (y * hexHeight + (x % 2) * (hexHeight / 2)) - cameraY + canvas.height / 2;
-    const hexHeight = hexRadius * Math.sqrt(3);
+    // Pour hexagones pointy-top jointifs
+    const hexWidth = hexRadius * Math.sqrt(3);  // largeur d'un hexagone
+    const hexHeight = hexRadius * 2;            // hauteur d'un hexagone
     
-    const x = hexX * (hexRadius * 1.5);
+    // Grille hexagonale avec offset par colonne
+    const x = hexX * hexWidth * 0.75;  // colonnes espacées de 3/4 de la largeur
     const y = hexY * hexHeight + (hexX % 2) * (hexHeight / 2);
     
     return { x, y };
@@ -110,15 +110,15 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const minY = Math.min(...tiles.map(t => t.y));
     const maxY = Math.max(...tiles.map(t => t.y));
 
-    // Calculer la taille des hexagones - formule corrigée pour espacement hexagonal
+    // Calculer la taille des hexagones - formule corrigée pour grille hexagonale jointive
     const mapWidth = maxX - minX + 1;
     const mapHeight = maxY - minY + 1;
     
-    // Pour orientation pointy-top: espacement horizontal = 1.5*radius, vertical = sqrt(3)*radius
-    const requiredWidth = mapWidth * 1.5 * 25 + 25; // 25 = radius minimal
-    const requiredHeight = mapHeight * Math.sqrt(3) * 25 + Math.sqrt(3) * 25;
+    // Pour hexagones pointy-top jointifs: espacement horizontal = 0.75*sqrt(3)*radius, vertical = 2*radius + offset
+    const requiredWidth = mapWidth * (Math.sqrt(3) * 0.75);
+    const requiredHeight = mapHeight * 2 + 1; // +1 pour l'offset des colonnes
     
-    const hexRadius = Math.min((width - 40) / requiredWidth * 25, (height - 40) / requiredHeight * 25);
+    const hexRadius = Math.min((width - 40) / requiredWidth, (height - 40) / requiredHeight);
 
     // Centre de la carte
     const centerX = width / 2;
@@ -227,31 +227,40 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const mapWidth = maxX - minX + 1;
     const mapHeight = maxY - minY + 1;
     
-    const requiredWidth = mapWidth * 1.5 * 25 + 25;
-    const requiredHeight = mapHeight * Math.sqrt(3) * 25 + Math.sqrt(3) * 25;
-    const hexRadius = Math.min((width - 40) / requiredWidth * 25, (height - 40) / requiredHeight * 25);
+    const requiredWidth = mapWidth * (Math.sqrt(3) * 0.75);
+    const requiredHeight = mapHeight * 2 + 1;
+    const hexRadius = Math.min((width - 40) / requiredWidth, (height - 40) / requiredHeight);
 
     const centerX = width / 2;
     const centerY = height / 2;
 
-    // Calculer les limites approximatives de la zone de rendu des hexagones
-    const mapRenderWidth = mapWidth * hexRadius * 1.5;
-    const mapRenderHeight = mapHeight * hexRadius * Math.sqrt(3);
+    // Calculer les limites réelles de la zone de rendu des hexagones
+    // Trouver les positions extrêmes des hexagones
+    let leftMost = Infinity, rightMost = -Infinity;
+    let topMost = Infinity, bottomMost = -Infinity;
     
-    // Vérifier si la souris est dans la zone générale de la carte
-    const mapLeft = centerX - mapRenderWidth / 2;
-    const mapRight = centerX + mapRenderWidth / 2;
-    const mapTop = centerY - mapRenderHeight / 2;
-    const mapBottom = centerY + mapRenderHeight / 2;
+    const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
     
-    // Si la souris est complètement en dehors de la zone de carte, retourner null
-    if (mouseX < mapLeft - hexRadius || mouseX > mapRight + hexRadius ||
-        mouseY < mapTop - hexRadius || mouseY > mapBottom + hexRadius) {
+    tiles.forEach(tile => {
+      const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
+      const x = centerX + (hexPos.x - regionCenterPos.x);
+      const y = centerY + (hexPos.y - regionCenterPos.y);
+      
+      const hexWidth = hexRadius * Math.sqrt(3) / 2;
+      leftMost = Math.min(leftMost, x - hexWidth);
+      rightMost = Math.max(rightMost, x + hexWidth);
+      topMost = Math.min(topMost, y - hexRadius);
+      bottomMost = Math.max(bottomMost, y + hexRadius);
+    });
+    
+    // Ajouter une petite marge pour éviter les erreurs de précision
+    const margin = 5;
+    if (mouseX < leftMost - margin || mouseX > rightMost + margin ||
+        mouseY < topMost - margin || mouseY > bottomMost + margin) {
       return null;
     }
 
-    // Position du centre de la région
-    const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
+
     
     for (const tile of tiles) {
       // Utiliser les coordonnées absolues puis centrer la région
