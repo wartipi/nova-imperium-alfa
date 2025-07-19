@@ -121,15 +121,16 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
 
     // Dessiner chaque tuile comme hexagone
     tiles.forEach(tile => {
-      // console.log('Dessin tuile:', tile.x, tile.y, 'terrain:', tile.terrain);
+      // Utiliser des coordonnées relatives au centre de la carte
+      const relativeX = tile.x - mapData.region.centerX;
+      const relativeY = tile.y - mapData.region.centerY;
       
-      // Utiliser les coordonnées absolues comme dans le jeu
-      const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
+      // Convertir en position pixel relative
+      const hexPos = hexToPixel(relativeX, relativeY, hexRadius);
       
-      // Centrer la vue sur la région mappée
-      const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
-      const x = centerX + (hexPos.x - regionCenterPos.x);
-      const y = centerY + (hexPos.y - regionCenterPos.y);
+      // Position finale centrée sur le canvas
+      const x = centerX + hexPos.x;
+      const y = centerY + hexPos.y;
 
       // Couleur du terrain avec vérification
       const terrainColor = terrainColors[tile.terrain as keyof typeof terrainColors];
@@ -216,17 +217,23 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     let closestDistance = Infinity;
 
     for (const tile of tiles) {
-      const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
-      const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
-      const x = centerX + (hexPos.x - regionCenterPos.x);
-      const y = centerY + (hexPos.y - regionCenterPos.y);
+      // Utiliser des coordonnées relatives au centre de la carte
+      const relativeX = tile.x - mapData.region.centerX;
+      const relativeY = tile.y - mapData.region.centerY;
+      
+      // Convertir en position pixel relative
+      const hexPos = hexToPixel(relativeX, relativeY, hexRadius);
+      
+      // Position finale centrée sur le canvas
+      const x = centerX + hexPos.x;
+      const y = centerY + hexPos.y;
 
       // Distance du centre de l'hexagone
       const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
       
       // Debug pour voir les positions
       if (distance <= hexRadius * 1.2) { // Zone plus large pour debug
-        console.log(`🔍 Tile (${tile.x},${tile.y}): distance=${distance.toFixed(1)}, hexPos=(${hexPos.x.toFixed(1)},${hexPos.y.toFixed(1)}), screen=(${x.toFixed(1)},${y.toFixed(1)}), mouse=(${mouseX},${mouseY})`);
+        console.log(`🔍 Tile (${tile.x},${tile.y}): relative=(${relativeX},${relativeY}), distance=${distance.toFixed(1)}, hexPos=(${hexPos.x.toFixed(1)},${hexPos.y.toFixed(1)}), screen=(${x.toFixed(1)},${y.toFixed(1)}), mouse=(${mouseX},${mouseY})`);
       }
       
       if (distance <= hexRadius * 0.9 && distance < closestDistance) {
