@@ -39,11 +39,11 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
   const [hoveredTile, setHoveredTile] = useState<{ x: number; y: number; terrain: string; resources: string[] } | null>(null);
 
-  // Fonction pour dessiner un hexagone (flat-top - côtés plats en haut et bas)
+  // Fonction pour dessiner un hexagone (pointy-top comme dans GameEngine)
   const drawHexagon = (ctx: CanvasRenderingContext2D, centerX: number, centerY: number, radius: number) => {
     ctx.beginPath();
     for (let i = 0; i < 6; i++) {
-      const angle = (Math.PI / 3) * i; // Pas de rotation pour flat-top
+      const angle = (i * Math.PI) / 3; // EXACTEMENT comme GameEngine.ts ligne 290
       const x = centerX + radius * Math.cos(angle);
       const y = centerY + radius * Math.sin(angle);
       if (i === 0) {
