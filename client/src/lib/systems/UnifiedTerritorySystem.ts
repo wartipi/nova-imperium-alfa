@@ -58,13 +58,26 @@ class UnifiedTerritorySystemClass {
       t.playerId === playerId && t.colonyId
     );
 
+    console.log(`🔍 Recherche de colonies pour ${playerName}:`, playerColonies.map(c => ({
+      colonyId: c.colonyId,
+      colonyName: c.colonyName,
+      position: `(${c.x},${c.y})`
+    })));
+
     let addedToColony = false;
     for (const colony of playerColonies) {
       // Vérifier si la nouvelle case est adjacente à des territoires contrôlés par cette colonie
       const colonyControlledTerritories = this.getColonyControlledTerritories(colony.colonyId!);
-      const isAdjacentToColony = colonyControlledTerritories.some(controlledTerritory => 
-        this.isAdjacent(controlledTerritory.x, controlledTerritory.y, x, y)
-      );
+      console.log(`🏘️ Territoires contrôlés par colonie "${colony.colonyName}":`, 
+        colonyControlledTerritories.map(t => `(${t.x},${t.y})`));
+      
+      const isAdjacentToColony = colonyControlledTerritories.some(controlledTerritory => {
+        const adjacent = this.isAdjacent(controlledTerritory.x, controlledTerritory.y, x, y);
+        console.log(`🧭 Adjacent check: (${controlledTerritory.x},${controlledTerritory.y}) -> (${x},${y}) = ${adjacent}`);
+        return adjacent;
+      });
+
+      console.log(`🎯 Case (${x},${y}) adjacente à colonie "${colony.colonyName}": ${isAdjacentToColony}`);
 
       if (isAdjacentToColony) {
         // Ajouter automatiquement cette case au territoire de la colonie
@@ -136,23 +149,26 @@ class UnifiedTerritorySystemClass {
     return true;
   }
 
-  // Vérifier si une case est adjacente à une position donnée
+  // Vérifier si une case est adjacente à une position donnée (système hexagonal proper)
   private isAdjacent(x1: number, y1: number, x2: number, y2: number): boolean {
-    const dx = Math.abs(x1 - x2);
-    const dy = Math.abs(y1 - y2);
+    // Calcul correct pour un système hexagonal avec décalage par colonnes
+    const dx = x2 - x1;
+    const dy = y2 - y1;
     
-    // Dans un système hexagonal, les cases adjacentes ont des patterns spécifiques
-    if (dx === 0 && dy === 1) return true; // Nord/Sud
-    if (dy === 0 && dx === 1) return true; // Est/Ouest
-    if (dx === 1 && dy === 1) {
-      // Diagonales dans un système hexagonal
-      if (x1 % 2 === 0) {
-        return y2 === y1 - 1; // Pour colonnes paires
-      } else {
-        return y2 === y1 + 1; // Pour colonnes impaires
-      }
-    }
-    return false;
+    // Les 6 directions possibles dans un système hexagonal
+    const hexDirections = [
+      { dx: 0, dy: -1 }, // Nord
+      { dx: 1, dy: x1 % 2 === 0 ? -1 : 0 }, // Nord-Est
+      { dx: 1, dy: x1 % 2 === 0 ? 0 : 1 }, // Sud-Est
+      { dx: 0, dy: 1 }, // Sud
+      { dx: -1, dy: x1 % 2 === 0 ? 0 : 1 }, // Sud-Ouest
+      { dx: -1, dy: x1 % 2 === 0 ? -1 : 0 } // Nord-Ouest
+    ];
+    
+    const isAdjacent = hexDirections.some(dir => dir.dx === dx && dir.dy === dy);
+    console.log(`🧭 Adjacent check détaillé: (${x1},${y1}) -> (${x2},${y2}), dx=${dx}, dy=${dy}, result=${isAdjacent}`);
+    
+    return isAdjacent;
   }
 
   // Étendre le territoire d'une colonie en revendiquant une case adjacente
