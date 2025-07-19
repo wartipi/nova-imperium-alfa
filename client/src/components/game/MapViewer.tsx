@@ -57,9 +57,11 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
 
   // Fonction pour convertir les coordonnées hex en coordonnées pixel (EXACTEMENT comme GameEngine.ts)
   const hexToPixel = (hexX: number, hexY: number, hexRadius: number) => {
+    // Utiliser la même formule que GameEngine.ts
+    // Dans GameEngine: screenX = (x * hexSize * 1.5) - cameraX + canvas.width / 2;
+    // Dans GameEngine: screenY = (y * hexHeight + (x % 2) * (hexHeight / 2)) - cameraY + canvas.height / 2;
     const hexHeight = hexRadius * Math.sqrt(3);
     
-    // EXACTEMENT comme dans GameEngine.ts ligne 224-225
     const x = hexX * (hexRadius * 1.5);
     const y = hexY * hexHeight + (hexX % 2) * (hexHeight / 2);
     
@@ -221,6 +223,12 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
 
       // Distance du centre de l'hexagone
       const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
+      
+      // Debug pour voir les positions
+      if (distance <= hexRadius * 1.2) { // Zone plus large pour debug
+        console.log(`🔍 Tile (${tile.x},${tile.y}): distance=${distance.toFixed(1)}, hexPos=(${hexPos.x.toFixed(1)},${hexPos.y.toFixed(1)}), screen=(${x.toFixed(1)},${y.toFixed(1)}), mouse=(${mouseX},${mouseY})`);
+      }
+      
       if (distance <= hexRadius * 0.9 && distance < closestDistance) {
         closestDistance = distance;
         closestTile = tile;
