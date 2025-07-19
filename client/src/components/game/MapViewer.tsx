@@ -57,14 +57,13 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
 
   // Fonction pour convertir les coordonnées hex en coordonnées pixel (EXACTEMENT comme GameEngine.ts)
   const hexToPixel = (hexX: number, hexY: number, hexRadius: number) => {
-    // Dans GameEngine: x et y sont inversés dans le système de coordonnées
-    // screenX = x * (this.hexSize * 1.5) où x = colonne
-    // screenY = y * hexHeight + (x % 2) * (hexHeight / 2) où y = ligne
+    // Utiliser la même formule que GameEngine.ts
+    // Dans GameEngine: screenX = (x * hexSize * 1.5) - cameraX + canvas.width / 2;
+    // Dans GameEngine: screenY = (y * hexHeight + (x % 2) * (hexHeight / 2)) - cameraY + canvas.height / 2;
     const hexHeight = hexRadius * Math.sqrt(3);
     
-    // Inverser pour correspondre au système GameEngine
-    const x = hexY * (hexRadius * 1.5);
-    const y = hexX * hexHeight + (hexY % 2) * (hexHeight / 2);
+    const x = hexX * (hexRadius * 1.5);
+    const y = hexY * hexHeight + (hexX % 2) * (hexHeight / 2);
     
     return { x, y };
   };
