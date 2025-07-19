@@ -55,7 +55,6 @@ interface PlayerState {
 
   // Movement system
   pendingMovement: { x: number; y: number } | null;
-  isMovementMode: boolean;
   
   // Système d'expérience et de niveau
   gainExperience: (amount: number, source?: string) => void;
@@ -99,7 +98,6 @@ interface PlayerState {
   
   // Movement system
   setPendingMovement: (movement: { x: number; y: number } | null) => void;
-  setMovementMode: (mode: boolean) => void;
   
   // Avatar land positioning
   findLandHex: (mapData: any[][]) => { x: number; y: number };
@@ -158,7 +156,6 @@ export const usePlayer = create<PlayerState>((set, get) => {
   resourcesDiscovered: new Set(),
 
   pendingMovement: null,
-  isMovementMode: false,
 
   // Character methods
   setSelectedCharacter: (character) => set({ selectedCharacter: character }),
@@ -400,7 +397,6 @@ export const usePlayer = create<PlayerState>((set, get) => {
 
   // Movement system
   setPendingMovement: (movement) => set({ pendingMovement: movement }),
-  setMovementMode: (mode) => set({ isMovementMode: mode }),
 
   // Avatar land positioning
   findLandHex: (mapData) => {

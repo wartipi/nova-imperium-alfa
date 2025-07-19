@@ -31,25 +31,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
   const { setSelectedHex } = useMap();
   const { foundColony } = useNovaImperium();
 
-  // Actions de base disponibles pour tous les joueurs
-  const baseActions = [
-    {
-      id: 'move',
-      name: 'Se Déplacer',
-      description: 'Déplacer l\'avatar vers une nouvelle position',
-      cost: 1,
-      icon: '🚶',
-      category: 'movement'
-    },
-    {
-      id: 'rest',
-      name: 'Se Reposer',
-      description: 'Récupérer des points d\'action',
-      cost: 0,
-      icon: '🛌',
-      category: 'utility'
-    }
-  ];
+  // Actions de base supprimées - déplacement par clic direct sur la carte
 
   // Action d'exploration nécessitant la compétence exploration niveau 1
   const explorationActions = [
@@ -154,12 +136,6 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
 
   const handleActionClick = async (action: any) => {
     if (!isActionAvailable(action)) return;
-    
-    if (action.id === 'move') {
-      onMoveRequest();
-      onClose();
-      return;
-    }
 
     // Action claim_territory supprimée - utiliser le menu GESTION DE TERRITOIRE
 
@@ -435,7 +411,6 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     // filteredTerritoryActions supprimées - utiliser menu GESTION DE TERRITOIRE
     
     const allActions = [
-      ...baseActions,
       ...filteredExplorationActions,
       ...filteredCompetenceActions,
       ...getAdvancedActions(),
