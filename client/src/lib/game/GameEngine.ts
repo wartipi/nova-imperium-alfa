@@ -522,10 +522,10 @@ export class GameEngine {
     // Render colonies from Nova Imperium store
     const { novaImperiums } = useNovaImperium.getState();
     
-    // Debug: Log Nova Imperium cities for troubleshooting (réduit)
+    // Debug: Log villes (réduit)
     const totalCities = novaImperiums.reduce((count, ni) => count + ni.cities.length, 0);
     if (totalCities > 0) {
-      console.log(`🏰 Rendu de ${totalCities} nouvelles villes:`, 
+      console.log(`🏰 ${totalCities} colonies:`, 
         novaImperiums.flatMap(ni => ni.cities.map(c => `${c.name} (${c.x},${c.y})`))
       );
     }

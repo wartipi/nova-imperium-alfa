@@ -33,41 +33,8 @@ const createInitialNovaImperiums = (): NovaImperium[] => {
       color: "#FF0000",
       isPlayer: true,
       isDefeated: false,
-      cities: [], // Plus de villes par défaut - elles seront créées via le système de colonies
-      units: [
-        {
-          id: "warrior1",
-          name: "Guerrier Impérial",
-          type: "warrior",
-          x: 25,
-          y: 14,
-          strength: 4,
-          attack: 4,
-          defense: 3,
-          health: 100,
-          maxHealth: 100,
-          movement: 2,
-          maxMovement: 2,
-          experience: 0,
-          abilities: ["melee"]
-        },
-        {
-          id: "settler1",
-          name: "Colon Impérial",
-          type: "settler",
-          x: 26,
-          y: 15,
-          strength: 0,
-          attack: 0,
-          defense: 1,
-          health: 100,
-          maxHealth: 100,
-          movement: 2,
-          maxMovement: 2,
-          experience: 0,
-          abilities: ["civilian"]
-        }
-      ],
+      cities: [], // Villes créées via le système de colonies
+      units: [], // Unités créées via le système de recrutement
       resources: {
         food: 40,
         action_points: 25,
@@ -93,25 +60,8 @@ const createInitialNovaImperiums = (): NovaImperium[] => {
       color: "#0000FF",
       isPlayer: false,
       isDefeated: false,
-      cities: [], // Plus de villes par défaut - elles seront créées via le système de colonies
-      units: [
-        {
-          id: "ai_warrior1",
-          name: "Guerrier Rival",
-          type: "warrior",
-          x: 15,
-          y: 19,
-          strength: 4,
-          attack: 4,
-          defense: 3,
-          health: 100,
-          maxHealth: 100,
-          movement: 2,
-          maxMovement: 2,
-          experience: 0,
-          abilities: ["melee"]
-        }
-      ],
+      cities: [], // Villes créées via le système de colonies
+      units: [], // Unités créées via le système de recrutement
       resources: {
         food: 30,
         action_points: 20,
