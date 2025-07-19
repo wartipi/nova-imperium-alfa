@@ -55,14 +55,11 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     ctx.closePath();
   };
 
-  // Fonction pour convertir les coordonnées hex en coordonnées pixel (grille hexagonale jointive)
+  // Fonction pour convertir les coordonnées hex en coordonnées pixel (EXACTEMENT comme GameEngine.ts)
   const hexToPixel = (hexX: number, hexY: number, hexRadius: number) => {
-    // Pour hexagones pointy-top jointifs
-    const hexWidth = hexRadius * Math.sqrt(3);  // largeur d'un hexagone
-    const hexHeight = hexRadius * 2;            // hauteur d'un hexagone
-    
-    // Grille hexagonale avec offset par colonne
-    const x = hexX * hexWidth * 0.75;  // colonnes espacées de 3/4 de la largeur
+    // EXACTEMENT la même formule que GameEngine.ts lignes 257-258
+    const hexHeight = hexRadius * Math.sqrt(3);
+    const x = hexX * (hexRadius * 1.5);
     const y = hexY * hexHeight + (hexX % 2) * (hexHeight / 2);
     
     return { x, y };
@@ -110,15 +107,10 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const minY = Math.min(...tiles.map(t => t.y));
     const maxY = Math.max(...tiles.map(t => t.y));
 
-    // Calculer la taille des hexagones - formule corrigée pour grille hexagonale jointive
+    // Calculer la taille des hexagones - même formule que la version originale qui marchait
     const mapWidth = maxX - minX + 1;
     const mapHeight = maxY - minY + 1;
-    
-    // Pour hexagones pointy-top jointifs: espacement horizontal = 0.75*sqrt(3)*radius, vertical = 2*radius + offset
-    const requiredWidth = mapWidth * (Math.sqrt(3) * 0.75);
-    const requiredHeight = mapHeight * 2 + 1; // +1 pour l'offset des colonnes
-    
-    const hexRadius = Math.min((width - 40) / requiredWidth, (height - 40) / requiredHeight);
+    const hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
 
     // Centre de la carte
     const centerX = width / 2;
@@ -226,10 +218,7 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     // Utiliser le même calcul de hexRadius que dans useEffect
     const mapWidth = maxX - minX + 1;
     const mapHeight = maxY - minY + 1;
-    
-    const requiredWidth = mapWidth * (Math.sqrt(3) * 0.75);
-    const requiredHeight = mapHeight * 2 + 1;
-    const hexRadius = Math.min((width - 40) / requiredWidth, (height - 40) / requiredHeight);
+    const hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
 
     const centerX = width / 2;
     const centerY = height / 2;
