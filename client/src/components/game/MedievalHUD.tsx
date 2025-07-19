@@ -488,16 +488,16 @@ export function MedievalHUD() {
       {/* Left Menu Panel - Back to far left */}
       <div className="absolute top-1/2 left-4 transform -translate-y-1/2 pointer-events-auto">
         <div className="relative">
-          {/* Parchemin médiéval du menu principal */}
+          {/* Menu principal unifié */}
           <div 
-            className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-lg p-6 w-64"
+            className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-lg p-4 w-64"
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
             onMouseUp={(e) => e.stopPropagation()}
           >
 
             
-            <div className="space-y-3">
+            <div className="space-y-2">
               {menuItems.map((item) => (
                 <button
                   key={item.id}
@@ -509,13 +509,13 @@ export function MedievalHUD() {
                   }}
                   onMouseDown={(e) => e.stopPropagation()}
                   onMouseUp={(e) => e.stopPropagation()}
-                  className={`w-full text-left px-4 py-2 rounded border-2 border-amber-700 font-bold transition-all duration-200 flex items-center space-x-3 ${
+                  className={`w-full text-left px-3 py-2 rounded border border-amber-700 font-bold transition-all duration-200 flex items-center space-x-2 ${
                     activeSection === item.id
                       ? 'bg-amber-300 text-amber-900'
-                      : 'bg-amber-100 hover:bg-amber-200 text-amber-800'
+                      : 'bg-amber-50 hover:bg-amber-100 text-amber-800'
                   }`}
                 >
-                  <span className="text-lg">{item.icon}</span>
+                  <span className="text-base">{item.icon}</span>
                   <span className="font-medium text-sm">{item.label}</span>
                 </button>
               ))}
@@ -532,25 +532,24 @@ export function MedievalHUD() {
         onMouseUp={(e) => e.stopPropagation()}
       >
         <div className="flex space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
+          <button
             onClick={toggleMute}
-            className="bg-amber-100 border-amber-800 text-amber-800 hover:bg-amber-200"
+            className="bg-amber-100 border border-amber-700 text-amber-800 hover:bg-amber-200 px-3 py-1 rounded text-sm font-bold"
           >
             {isMuted ? "🔇" : "🔊"}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
+          </button>
+          <button
             onClick={(e) => {
               e.stopPropagation();
               toggleGameMaster();
             }}
-            className={`${isGameMaster ? 'bg-red-100 border-red-800 text-red-800 hover:bg-red-200' : 'bg-gray-100 border-gray-800 text-gray-800 hover:bg-gray-200'}`}
+            className={`px-3 py-1 rounded text-sm font-bold border ${isGameMaster 
+              ? 'bg-red-100 border-red-700 text-red-800 hover:bg-red-200' 
+              : 'bg-amber-100 border-amber-700 text-amber-800 hover:bg-amber-200'
+            }`}
           >
             {isGameMaster ? "👁️ MJ" : "👤 PJ"}
-          </Button>
+          </button>
         </div>
       </div>
 
@@ -569,13 +568,13 @@ export function MedievalHUD() {
         <div className="fixed inset-0 flex items-center justify-center pointer-events-auto z-50">
           <div className="absolute inset-0 bg-black bg-opacity-40" onClick={() => setActiveSection(null)}></div>
           <div 
-            className="relative parchment-panel p-6 w-[700px] max-h-[70vh] overflow-y-auto"
+            className="relative bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-lg p-6 w-[700px] max-h-[70vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
             onMouseUp={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-6">
-              <h3 className="medieval-title">
+              <h3 className="font-bold text-xl text-amber-900">
                 {menuItems.find(item => item.id === activeSection)?.label}
               </h3>
               <button
@@ -585,7 +584,7 @@ export function MedievalHUD() {
                 }}
                 onMouseDown={(e) => e.stopPropagation()}
                 onMouseUp={(e) => e.stopPropagation()}
-                className="medieval-button medieval-button-danger px-3 py-1 text-lg"
+                className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-lg font-bold"
               >
                 ✕
               </button>

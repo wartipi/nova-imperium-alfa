@@ -124,7 +124,7 @@ export function TreasuryPanel() {
   return (
     <div className="space-y-4">
       <div className="text-center">
-        <h4 className="font-bold text-base mb-3">Trésorerie</h4>
+        <h4 className="font-bold text-base mb-3 text-amber-900">Trésorerie</h4>
       </div>
       
       <div className="bg-gradient-to-b from-amber-200 to-amber-300 border-2 border-amber-800 rounded-lg p-4">
