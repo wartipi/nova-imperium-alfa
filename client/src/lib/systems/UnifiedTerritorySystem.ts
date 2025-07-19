@@ -53,8 +53,36 @@ class UnifiedTerritorySystemClass {
       claimedDate: Date.now()
     };
 
+    // Vérifier si cette case est adjacente à une colonie existante du même joueur
+    const playerColonies = Array.from(this.territories.values()).filter(t => 
+      t.playerId === playerId && t.colonyId
+    );
+
+    let addedToColony = false;
+    for (const colony of playerColonies) {
+      // Vérifier si la nouvelle case est adjacente à des territoires contrôlés par cette colonie
+      const colonyControlledTerritories = this.getColonyControlledTerritories(colony.colonyId!);
+      const isAdjacentToColony = colonyControlledTerritories.some(controlledTerritory => 
+        this.isAdjacent(controlledTerritory.x, controlledTerritory.y, x, y)
+      );
+
+      if (isAdjacentToColony) {
+        // Ajouter automatiquement cette case au territoire de la colonie
+        territory.controlledByColony = colony.colonyId;
+        addedToColony = true;
+        console.log(`🏘️ Case (${x},${y}) automatiquement ajoutée au territoire de la colonie "${colony.colonyName}"`);
+        break;
+      }
+    }
+
     this.territories.set(key, territory);
-    console.log(`✅ Territoire (${x},${y}) revendiqué par ${playerName} pour la faction ${factionName}`);
+    
+    if (addedToColony) {
+      console.log(`✅ Territoire (${x},${y}) revendiqué et ajouté à une colonie existante`);
+    } else {
+      console.log(`✅ Territoire (${x},${y}) revendiqué par ${playerName} pour la faction ${factionName}`);
+    }
+    
     return true;
   }
 
