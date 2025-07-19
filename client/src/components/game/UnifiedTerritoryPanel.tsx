@@ -114,7 +114,68 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
     }
   };
 
-  // Fonder une colonie
+  // Vérifier si l'avatar du joueur est présent sur ce territoire
+  const isAvatarOnTerritory = (territory: Territory): boolean => {
+    const { avatarPosition } = usePlayer.getState();
+    return avatarPosition.x === territory.x && avatarPosition.y === territory.y;
+  };
+
+  // Fonction pour fonder une colonie directement depuis la liste des territoires
+  const handleFoundColonyFromTerritory = async (territory: Territory) => {
+    const { isGameMaster } = useGameState.getState();
+    
+    // Validation des règles (sauf pour MJ)
+    if (!isGameMaster) {
+      const validation = UnifiedTerritorySystem.canFoundColony(territory.x, territory.y, territory.playerId);
+      if (!validation.canFound) {
+        alert(`❌ Impossible de fonder une colonie :\n${validation.reason}`);
+        return;
+      }
+    }
+
+    // Demander le nom de la colonie
+    const colonyName = prompt("Nom de la colonie :") || null;
+    if (!colonyName) return;
+
+    // Fondation de la colonie
+    const colonyId = `colony_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    const success = UnifiedTerritorySystem.foundColony(
+      territory.x,
+      territory.y,
+      colonyId,
+      colonyName.trim(),
+      territory.playerId,
+      territory.playerName,
+      territory.factionId,
+      territory.factionName
+    );
+
+    if (success) {
+      // Dépenser les PA (sauf mode MJ)
+      if (!isGameMaster) {
+        const { spendActionPoints } = usePlayer.getState();
+        spendActionPoints(15);
+        alert(`✅ Colonie "${colonyName}" fondée avec succès ! (15 PA dépensés)`);
+      } else {
+        alert(`[MODE MJ] Colonie "${colonyName}" fondée avec succès !`);
+      }
+      
+      // Rafraîchir la liste
+      loadTerritories();
+      
+      // Rafraîchir l'affichage de la carte
+      setTimeout(() => {
+        const gameEngine = (window as any).gameEngine;
+        if (gameEngine) {
+          gameEngine.render();
+        }
+      }, 100);
+    } else {
+      alert('Erreur lors de la fondation de la colonie.');
+    }
+  };
+
+  // Fonder une colonie (ancienne méthode pour le modal)
   const handleFoundColony = () => {
     if (!selectedTerritory || !colonyName.trim()) return;
 
@@ -344,6 +405,18 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
                     )}
                   </div>
                   
+                  {/* Bouton Fonder une Colonie - seulement si l'avatar est présent sur ce territoire */}
+                  {!territory.colonyId && isAvatarOnTerritory(territory) && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleFoundColonyFromTerritory(territory);
+                      }}
+                      className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded font-medium"
+                    >
+                      🏘️ Fonder une Colonie
+                    </button>
+                  )}
 
                 </div>
               </div>

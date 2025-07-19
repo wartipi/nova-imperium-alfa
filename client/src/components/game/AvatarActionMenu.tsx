@@ -79,17 +79,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     }
   ];
 
-  // Action de fondation de colonie avec validations strictes
-  const colonyFoundingActions = [
-    {
-      id: 'found_colony_validated',
-      name: 'Fonder une Colonie',
-      description: 'Fonder une colonie sur ce territoire (règles strictes appliquées)',
-      cost: 15,
-      icon: '🏘️',
-      category: 'colony'
-    }
-  ];
+  // Actions de fondation de colonie supprimées - utiliser le menu GESTION DE TERRITOIRE
 
   // Actions avancées basées sur les compétences de haut niveau
   const getAdvancedActions = () => {
@@ -173,89 +163,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
 
     // Action claim_territory supprimée - utiliser le menu GESTION DE TERRITOIRE
 
-    if (action.id === 'found_colony_validated') {
-      const { avatarPosition } = getGameData();
-      
-      // Importer UnifiedTerritorySystem pour les validations
-      const { UnifiedTerritorySystem } = await import('../../lib/systems/UnifiedTerritorySystem');
-      
-      // En mode MJ, moins de restrictions mais validation de base
-      if (isGameMaster) {
-        const validation = UnifiedTerritorySystem.canFoundColony(avatarPosition.x, avatarPosition.y, 'player');
-        if (!validation.canFound && !validation.reason?.includes('avatar doit être présent')) {
-          alert(`❌ Impossible de fonder une colonie :\n${validation.reason}`);
-          onClose();
-          return;
-        }
-        
-        const colonyName = prompt("Nom de la colonie (Mode MJ):") || "Colonie MJ";
-        const colonyId = `colony_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-        
-        const success = UnifiedTerritorySystem.foundColony(
-          avatarPosition.x,
-          avatarPosition.y,
-          colonyId,
-          colonyName,
-          'player',
-          'Maître de Jeu',
-          'gm_faction',
-          'Administration MJ'
-        );
-        
-        if (success) {
-          alert(`[MODE MJ] Colonie "${colonyName}" fondée avec succès !`);
-        } else {
-          alert('Impossible de fonder une colonie ici.');
-        }
-        onClose();
-        return;
-      }
-      
-      // Pour les joueurs normaux : validations strictes
-      const validation = UnifiedTerritorySystem.canFoundColony(avatarPosition.x, avatarPosition.y, 'player');
-      if (!validation.canFound) {
-        alert(`❌ Impossible de fonder une colonie :\n${validation.reason}`);
-        onClose();
-        return;
-      }
-      
-      // Si toutes les validations passent, demander le nom de la colonie
-      const colonyName = prompt("Nom de la colonie :") || null;
-      if (!colonyName) {
-        onClose();
-        return;
-      }
-      
-      const colonyId = `colony_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-      const success = UnifiedTerritorySystem.foundColony(
-        avatarPosition.x,
-        avatarPosition.y,
-        colonyId,
-        colonyName,
-        'player',
-        playerName || 'Joueur',
-        playerFaction?.id || 'player_faction',
-        playerFaction?.name || 'Faction du Joueur'
-      );
-      
-      if (success) {
-        // Dépenser les PA
-        spendActionPoints(action.cost);
-        alert(`✅ Colonie "${colonyName}" fondée avec succès ! (${action.cost} PA dépensés)`);
-        
-        // Rafraîchir l'affichage
-        setTimeout(() => {
-          const gameEngine = (window as any).gameEngine;
-          if (gameEngine) {
-            gameEngine.render();
-          }
-        }, 100);
-      } else {
-        alert('Erreur lors de la fondation de la colonie.');
-      }
-      onClose();
-      return;
-    }
+
 
     if (action.id === 'found_colony') {
       const { avatarPosition } = getGameData();
@@ -530,7 +438,6 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       ...baseActions,
       ...filteredExplorationActions,
       ...filteredCompetenceActions,
-      ...colonyFoundingActions,
       ...getAdvancedActions(),
       ...reputationActions.filter(action => 
         reputation === action.requiredReputation
