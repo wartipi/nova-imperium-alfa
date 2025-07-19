@@ -18,6 +18,17 @@
   }
 }
 
+/* Styles unifiés Nova Imperium - Pas de classes CSS complexes */
+@layer components {
+  /* Style unifié pour tous les panneaux HUD */
+  .unified-panel {
+    background: linear-gradient(to bottom, #F5E6D3, #E8D5B7);
+    border: 2px solid #8B4513;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  }
+}
+
 /* Styles médiévaux pour Nova Imperium */
 @layer components {
   /* Parchemin principal simplifié */

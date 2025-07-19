@@ -203,15 +203,15 @@ export function MedievalHUD() {
         <div className="flex items-center space-x-4">
           {/* Player Info */}
           <div 
-            className="parchment-panel px-4 py-5 w-64"
+            className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-lg px-4 py-5 w-64"
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
             onMouseUp={(e) => e.stopPropagation()}
           >
-            <div className="medieval-text font-bold text-sm">
-              <div className="text-xs medieval-text">UTILISATEUR CONNECTÉ</div>
+            <div className="text-amber-900 font-bold text-sm">
+              <div className="text-xs text-amber-700">UTILISATEUR CONNECTÉ</div>
               <div className="flex items-center justify-between">
-                <div className={`font-bold medieval-subtitle text-sm ${getUserColor()}`}>
+                <div className={`font-bold ${getUserColor()}`}>
                   {currentUser || 'Invité'} ({getUserRole()})
                 </div>
                 <button
@@ -219,7 +219,7 @@ export function MedievalHUD() {
                     e.stopPropagation();
                     setShowLogoutConfirm(true);
                   }}
-                  className="text-xs medieval-button medieval-button-danger px-2 py-1"
+                  className="text-xs bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded"
                   title="Verrouiller la session"
                 >
                   🗝️
@@ -509,10 +509,10 @@ export function MedievalHUD() {
                   }}
                   onMouseDown={(e) => e.stopPropagation()}
                   onMouseUp={(e) => e.stopPropagation()}
-                  className={`w-full text-left px-4 py-2 medieval-button flex items-center space-x-3 ${
+                  className={`w-full text-left px-4 py-2 rounded border-2 border-amber-700 font-bold transition-all duration-200 flex items-center space-x-3 ${
                     activeSection === item.id
-                      ? 'medieval-button-primary'
-                      : ''
+                      ? 'bg-amber-300 text-amber-900'
+                      : 'bg-amber-100 hover:bg-amber-200 text-amber-800'
                   }`}
                 >
                   <span className="text-lg">{item.icon}</span>

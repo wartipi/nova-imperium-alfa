@@ -204,7 +204,7 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
                         setSelectedTerritory(territory);
                         setShowColonyModal(true);
                       }}
-                      className="text-xs medieval-button medieval-button-primary px-2 py-1"
+                      className="text-xs bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded"
                     >
                       🏘️ Fonder
                     </button>
@@ -217,19 +217,19 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
       </div>
 
       {/* Statistiques */}
-      <div className="mt-6 text-center">
-        <div className="medieval-text text-sm">
+      <div className="mt-4 text-center">
+        <div className="text-amber-700 text-sm">
           📊 Total: {territories.length} territoire{territories.length > 1 ? 's' : ''} | 
           🏘️ Colonies: {territories.filter(t => t.colonyId).length}
         </div>
       </div>
 
-      {/* Modal de fondation de colonie - Style médiéval */}
+      {/* Modal de fondation de colonie */}
       {showColonyModal && selectedTerritory && (
         <div className="fixed inset-0 flex items-center justify-center z-[60] pointer-events-auto">
           <div className="absolute inset-0 bg-black bg-opacity-50"></div>
-          <div className="relative parchment-panel p-6 w-96">
-            <h4 className="medieval-subtitle mb-4">
+          <div className="relative bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-lg p-6 w-96">
+            <h4 className="font-bold text-amber-900 mb-4">
               🏘️ Fonder une Colonie en ({selectedTerritory.x}, {selectedTerritory.y})
             </h4>
             <input
@@ -237,7 +237,7 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
               value={colonyName}
               onChange={(e) => setColonyName(e.target.value)}
               placeholder="Nom de la colonie"
-              className="w-full border-2 border-amber-700 rounded px-3 py-2 mb-4 bg-amber-50 medieval-text"
+              className="w-full border-2 border-amber-700 rounded px-3 py-2 mb-4 bg-amber-50"
               maxLength={30}
             />
             <div className="flex space-x-3">
@@ -247,14 +247,14 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
                   setSelectedTerritory(null);
                   setColonyName('');
                 }}
-                className="flex-1 medieval-button py-2 px-4"
+                className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded"
               >
                 Annuler
               </button>
               <button
                 onClick={handleFoundColony}
                 disabled={!colonyName.trim()}
-                className="flex-1 medieval-button medieval-button-success py-2 px-4 disabled:opacity-50"
+                className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white py-2 px-4 rounded"
               >
                 Fonder
               </button>

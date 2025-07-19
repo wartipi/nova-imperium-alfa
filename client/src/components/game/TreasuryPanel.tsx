@@ -127,16 +127,16 @@ export function TreasuryPanel() {
         <h4 className="font-bold text-base mb-3">Trésorerie</h4>
       </div>
       
-      <div className="parchment-section p-4">
-        <div className="text-center mb-4">
-          <h5 className="medieval-subtitle">Réserves Actuelles</h5>
+      <div className="bg-gradient-to-b from-amber-200 to-amber-300 border-2 border-amber-800 rounded-lg p-4">
+        <div className="text-center mb-3">
+          <h5 className="font-bold text-amber-900">Réserves Actuelles</h5>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div className="parchment-section p-3">
+          <div className="bg-amber-50 border border-amber-700 rounded p-2">
             <div className="text-center">
               <div className="text-xl mb-1">💰</div>
-              <div className="text-xs medieval-text font-medium">Or</div>
-              <div className="text-sm font-bold medieval-subtitle">{resources.gold}</div>
+              <div className="text-xs font-medium">Or</div>
+              <div className="text-sm font-bold text-amber-900">{resources.gold}</div>
             </div>
           </div>
           <div className="bg-amber-50 border border-amber-700 rounded p-2">
