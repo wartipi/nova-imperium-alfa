@@ -197,6 +197,21 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
 
   }, [mapData, width, height]);
 
+  // Fonction pour vérifier si un point est dans un hexagone (géométrie exacte)
+  const isPointInHexagon = (pointX: number, pointY: number, hexCenterX: number, hexCenterY: number, hexRadius: number) => {
+    const dx = Math.abs(pointX - hexCenterX);
+    const dy = Math.abs(pointY - hexCenterY);
+    
+    // Pour un hexagone pointy-top, collision précise
+    const hexWidth = hexRadius * Math.sqrt(3) / 2;
+    
+    if (dx > hexWidth) return false;
+    if (dy > hexRadius) return false;
+    
+    // Test diagonale pour les coins coupés
+    return (dx * Math.sqrt(3) + dy <= hexRadius * Math.sqrt(3));
+  };
+
   // Fonction pour détecter quel hexagone est sous la souris
   const getHexAtMouse = (mouseX: number, mouseY: number) => {
     const tiles = mapData.region.tiles;
@@ -208,17 +223,16 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const minY = Math.min(...tiles.map(t => t.y));
     const maxY = Math.max(...tiles.map(t => t.y));
 
-    // Calculer la taille des hexagones (exactement comme dans le useEffect)
+    // Utiliser le même calcul de hexRadius que dans useEffect
     const mapWidth = maxX - minX + 1;
     const mapHeight = maxY - minY + 1;
-    const hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
+    
+    const requiredWidth = mapWidth * 1.5 * 25 + 25;
+    const requiredHeight = mapHeight * Math.sqrt(3) * 25 + Math.sqrt(3) * 25;
+    const hexRadius = Math.min((width - 40) / requiredWidth * 25, (height - 40) / requiredHeight * 25);
 
     const centerX = width / 2;
     const centerY = height / 2;
-
-    // Trouver l'hexagone le plus proche
-    let closestTile = null;
-    let closestDistance = Infinity;
 
     // Position du centre de la région
     const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
@@ -231,16 +245,12 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
       const x = centerX + (hexPos.x - regionCenterPos.x);
       const y = centerY + (hexPos.y - regionCenterPos.y);
 
-      // Distance du centre de l'hexagone
-      const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
-      
-      // Zone de détection généreuse - un hexagone a un rayon inscrit d'environ 0.866 * hexRadius
-      if (distance <= hexRadius * 0.9 && distance < closestDistance) {
-        closestDistance = distance;
-        closestTile = tile;
+      // Test géométrique précis
+      if (isPointInHexagon(mouseX, mouseY, x, y, hexRadius)) {
+        return tile;
       }
     }
-    return closestTile;
+    return null;
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
