@@ -85,8 +85,11 @@ export function TerritoryListPanel() {
             }}
             className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm"
           >
-            🗺️ Ouvrir le gestionnaire de territoire
+            🗺️ Revendiquer un territoire
           </button>
+          <div className="text-xs text-amber-600 text-center">
+            ℹ️ Placez votre avatar sur une case libre et utilisez le bouton ci-dessus
+          </div>
         </div>
       </div>
     );

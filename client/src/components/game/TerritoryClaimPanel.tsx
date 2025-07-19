@@ -187,6 +187,8 @@ export function TerritoryClaimPanel({ onClose }: TerritoryClaimPanelProps) {
           factionId,
           factionName
         );
+        
+        console.log('🎯 Résultat revendication:', { claimed, avatarX, avatarY, factionId, factionName });
 
         if (claimed) {
           if (isGameMaster) {
