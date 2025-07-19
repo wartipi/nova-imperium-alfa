@@ -204,66 +204,67 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     return (dx * Math.sqrt(3) + dy <= hexRadius * Math.sqrt(3));
   };
 
-  // Fonction pour détecter quel hexagone est sous la souris
+  // Fonction pour détecter quel hexagone est sous la souris (méthode GameEngine adaptée)
   const getHexAtMouse = (mouseX: number, mouseY: number) => {
     const tiles = mapData.region.tiles;
     if (tiles.length === 0) return null;
 
-    // Calculer les limites de la région (exactement comme dans le useEffect)
     const minX = Math.min(...tiles.map(t => t.x));
     const maxX = Math.max(...tiles.map(t => t.x));
     const minY = Math.min(...tiles.map(t => t.y));
     const maxY = Math.max(...tiles.map(t => t.y));
 
-    // Utiliser le même calcul de hexRadius que dans useEffect
     const mapWidth = maxX - minX + 1;
     const mapHeight = maxY - minY + 1;
     const hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
+    const hexHeight = hexRadius * Math.sqrt(3);
 
     const centerX = width / 2;
     const centerY = height / 2;
-
-    // Calculer les limites réelles de la zone de rendu des hexagones
-    // Trouver les positions extrêmes des hexagones
-    let leftMost = Infinity, rightMost = -Infinity;
-    let topMost = Infinity, bottomMost = -Infinity;
     
-    const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
-    
-    tiles.forEach(tile => {
-      const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
-      const x = centerX + (hexPos.x - regionCenterPos.x);
-      const y = centerY + (hexPos.y - regionCenterPos.y);
-      
-      const hexWidth = hexRadius * Math.sqrt(3) / 2;
-      leftMost = Math.min(leftMost, x - hexWidth);
-      rightMost = Math.max(rightMost, x + hexWidth);
-      topMost = Math.min(topMost, y - hexRadius);
-      bottomMost = Math.max(bottomMost, y + hexRadius);
-    });
-    
-    // Ajouter une petite marge pour éviter les erreurs de précision
-    const margin = 5;
-    if (mouseX < leftMost - margin || mouseX > rightMost + margin ||
-        mouseY < topMost - margin || mouseY > bottomMost + margin) {
-      return null;
-    }
+    // Centre de la région
+    const regionCenterX = (minX + maxX) / 2;
+    const regionCenterY = (minY + maxY) / 2;
 
+    // Convertir position souris en coordonnées "monde" relatives au centre
+    const worldX = mouseX - centerX;
+    const worldY = mouseY - centerY;
 
-    
-    for (const tile of tiles) {
-      // Utiliser les coordonnées absolues puis centrer la région
-      const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
-      
-      // Position finale centrée sur le canvas
-      const x = centerX + (hexPos.x - regionCenterPos.x);
-      const y = centerY + (hexPos.y - regionCenterPos.y);
+    // Estimation initiale de la zone à tester (méthode GameEngine)
+    let centerHexX = Math.round(worldX / (hexRadius * 1.5));
+    let centerHexY = Math.round((worldY - (centerHexX % 2) * (hexHeight / 2)) / hexHeight);
 
-      // Test géométrique précis - utiliser le même rayon que le rendu (0.9)
-      if (isPointInHexagon(mouseX, mouseY, x, y, hexRadius * 0.9)) {
-        return tile;
+    // Tester l'hexagone central et ses voisins pour gérer les cas limites
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        const testHexX = centerHexX + dx;
+        const testHexY = centerHexY + dy;
+        
+        // Chercher si cette coordonnée correspond à un tile existant
+        const tile = tiles.find(t => {
+          const relativeX = t.x - regionCenterX;
+          const relativeY = t.y - regionCenterY;
+          return Math.round(relativeX) === testHexX && Math.round(relativeY) === testHexY;
+        });
+        
+        if (tile) {
+          // Calculer la position exacte de ce hex (même formule que le rendu)
+          const hexCenterX = testHexX * (hexRadius * 1.5);
+          const hexCenterY = testHexY * hexHeight + (testHexX % 2) * (hexHeight / 2);
+          
+          // Test géométrique précis (même fonction que GameEngine)
+          const dx = Math.abs(worldX - hexCenterX);
+          const dy = Math.abs(worldY - hexCenterY);
+          
+          if (dx <= hexRadius && dy <= hexRadius * Math.sqrt(3) / 2) {
+            if (dy <= hexRadius * Math.sqrt(3) / 2 - dx * Math.sqrt(3) / 3) {
+              return tile;
+            }
+          }
+        }
       }
     }
+    
     return null;
   };
 
