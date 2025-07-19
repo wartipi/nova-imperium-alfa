@@ -105,9 +105,9 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
   const navigateToTerritory = (territory: Territory) => {
     setSelectedHex({ x: territory.x, y: territory.y });
     
-    // Centrer la caméra
+    // Centrer la caméra avec la bonne méthode
     if ((window as any).gameEngine) {
-      (window as any).gameEngine.centerCameraOnHex(territory.x, territory.y);
+      (window as any).gameEngine.centerCameraOnPosition(territory.x, territory.y);
     }
   };
 
@@ -115,18 +115,43 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
   const handleFoundColony = () => {
     if (!selectedTerritory || !colonyName.trim()) return;
 
-    const success = UnifiedTerritorySystem.foundColony(
+    // 1. Créer la colonie dans UnifiedTerritorySystem
+    const territorySuccess = UnifiedTerritorySystem.foundColony(
       selectedTerritory.x,
       selectedTerritory.y,
       colonyName.trim()
     );
 
-    if (success) {
-      alert(`Colonie "${colonyName.trim()}" fondée avec succès!`);
-      setColonyName('');
-      setShowColonyModal(false);
-      setSelectedTerritory(null);
-      loadTerritories();
+    if (territorySuccess) {
+      // 2. Créer la ville dans le système useNovaImperium pour l'affichage
+      const { foundColony } = useNovaImperium.getState();
+      const colonySuccess = foundColony(
+        selectedTerritory.x,
+        selectedTerritory.y,
+        colonyName.trim(),
+        'player',
+        playerName || 'Joueur',
+        selectedTerritory.factionId || 'gm_faction',
+        selectedTerritory.factionName || 'Administration MJ'
+      );
+
+      if (colonySuccess) {
+        alert(`Colonie "${colonyName.trim()}" fondée avec succès!`);
+        setColonyName('');
+        setShowColonyModal(false);
+        setSelectedTerritory(null);
+        loadTerritories();
+        
+        // Rafraîchir l'affichage de la carte
+        setTimeout(() => {
+          const gameEngine = (window as any).gameEngine;
+          if (gameEngine) {
+            gameEngine.render();
+          }
+        }, 100);
+      } else {
+        alert('Erreur lors de la création de la ville sur la carte.');
+      }
     } else {
       alert('Impossible de fonder la colonie sur ce territoire.');
     }
@@ -204,9 +229,9 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
                         setSelectedTerritory(territory);
                         setShowColonyModal(true);
                       }}
-                      className="text-xs bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded"
+                      className="text-xs bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-2 rounded"
                     >
-                      🏘️ Fonder
+                      🏘️ Fonder une Colonie
                     </button>
                   )}
                 </div>
@@ -256,7 +281,7 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
                 disabled={!colonyName.trim()}
                 className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white py-2 px-4 rounded"
               >
-                Fonder
+                🏘️ Fonder la Colonie
               </button>
             </div>
           </div>
