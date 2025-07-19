@@ -234,6 +234,22 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const centerX = width / 2;
     const centerY = height / 2;
 
+    // Calculer les limites approximatives de la zone de rendu des hexagones
+    const mapRenderWidth = mapWidth * hexRadius * 1.5;
+    const mapRenderHeight = mapHeight * hexRadius * Math.sqrt(3);
+    
+    // Vérifier si la souris est dans la zone générale de la carte
+    const mapLeft = centerX - mapRenderWidth / 2;
+    const mapRight = centerX + mapRenderWidth / 2;
+    const mapTop = centerY - mapRenderHeight / 2;
+    const mapBottom = centerY + mapRenderHeight / 2;
+    
+    // Si la souris est complètement en dehors de la zone de carte, retourner null
+    if (mouseX < mapLeft - hexRadius || mouseX > mapRight + hexRadius ||
+        mouseY < mapTop - hexRadius || mouseY > mapBottom + hexRadius) {
+      return null;
+    }
+
     // Position du centre de la région
     const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
     
@@ -245,8 +261,8 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
       const x = centerX + (hexPos.x - regionCenterPos.x);
       const y = centerY + (hexPos.y - regionCenterPos.y);
 
-      // Test géométrique précis
-      if (isPointInHexagon(mouseX, mouseY, x, y, hexRadius)) {
+      // Test géométrique précis - utiliser le même rayon que le rendu (0.9)
+      if (isPointInHexagon(mouseX, mouseY, x, y, hexRadius * 0.9)) {
         return tile;
       }
     }
