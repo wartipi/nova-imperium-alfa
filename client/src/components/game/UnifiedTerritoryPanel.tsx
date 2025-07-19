@@ -116,8 +116,13 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
 
   // Vérifier si l'avatar du joueur est présent sur ce territoire
   const isAvatarOnTerritory = (territory: Territory): boolean => {
-    const { avatarPosition } = usePlayer.getState();
-    return avatarPosition.x === territory.x && avatarPosition.y === territory.y;
+    const avatarPos = getAvatarPosition();
+    console.log('🧭 Vérification position avatar:', {
+      avatarHex: avatarPos,
+      territoryHex: { x: territory.x, y: territory.y },
+      isOnTerritory: avatarPos.x === territory.x && avatarPos.y === territory.y
+    });
+    return avatarPos.x === territory.x && avatarPos.y === territory.y;
   };
 
   // Fonction pour fonder une colonie directement depuis la liste des territoires
@@ -406,16 +411,24 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
                   </div>
                   
                   {/* Bouton Fonder une Colonie - seulement si l'avatar est présent sur ce territoire */}
-                  {!territory.colonyId && isAvatarOnTerritory(territory) && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleFoundColonyFromTerritory(territory);
-                      }}
-                      className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded font-medium"
-                    >
-                      🏘️ Fonder une Colonie
-                    </button>
+                  {!territory.colonyId && (
+                    <div className="flex flex-col gap-2">
+                      {isAvatarOnTerritory(territory) ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleFoundColonyFromTerritory(territory);
+                          }}
+                          className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded font-medium"
+                        >
+                          🏘️ Fonder une Colonie
+                        </button>
+                      ) : (
+                        <div className="text-xs text-gray-500 px-3 py-2 border border-gray-300 rounded font-medium">
+                          🏘️ Déplacez votre avatar ici
+                        </div>
+                      )}
+                    </div>
                   )}
 
                 </div>
