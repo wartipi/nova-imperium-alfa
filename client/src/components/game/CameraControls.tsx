@@ -65,18 +65,5 @@ export function CameraControls() {
     }
   }, [gameEngine, avatarPosition]);
 
-  return (
-    <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-75 text-white px-4 py-2 rounded-lg text-sm z-40 pointer-events-none">
-      <div className="flex items-center gap-4">
-        <span className="flex items-center gap-1">
-          <span>🎮</span>
-          <span>Flèches : Déplacer la caméra</span>
-        </span>
-        <span className="flex items-center gap-1">
-          <span>🎯</span>
-          <span>Barre d'espace : Centrer sur l'avatar</span>
-        </span>
-      </div>
-    </div>
-  );
+  return null;
 }

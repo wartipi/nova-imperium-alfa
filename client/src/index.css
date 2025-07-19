@@ -20,90 +20,32 @@
 
 /* Styles médiévaux pour Nova Imperium */
 @layer components {
-  /* Parchemin principal */
+  /* Parchemin principal simplifié */
   .parchment-panel {
-    @apply relative;
-    background: 
-      radial-gradient(circle at 20% 80%, rgba(139, 69, 19, 0.1) 0%, transparent 50%),
-      radial-gradient(circle at 80% 20%, rgba(139, 69, 19, 0.1) 0%, transparent 50%),
-      linear-gradient(145deg, 
-        #F5E6D3 0%, 
-        #E8D5B7 15%, 
-        #F2E4C1 30%, 
-        #EDD8BB 50%, 
-        #F5E6D3 70%, 
-        #E8D5B7 85%, 
-        #F5E6D3 100%
-      );
-    border: 3px solid #8B4513;
-    box-shadow: 
-      inset 2px 2px 8px rgba(139, 69, 19, 0.3),
-      inset -2px -2px 8px rgba(245, 230, 211, 0.8),
-      0 4px 12px rgba(0, 0, 0, 0.4);
+    background: linear-gradient(to bottom, #F5E6D3, #E8D5B7);
+    border: 2px solid #8B4513;
     border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
   }
 
-  /* Effet parchemin brûlé sur les bords */
-  .parchment-panel::before {
-    content: '';
-    position: absolute;
-    top: -2px;
-    left: -2px;
-    right: -2px;
-    bottom: -2px;
-    background: linear-gradient(45deg, #8B4513, #A0522D, #D2B48C);
-    border-radius: 10px;
-    z-index: -1;
-    opacity: 0.6;
-  }
+  /* Suppression des effets complexes qui ne s'affichent pas correctement */
 
-  /* Texture de parchemin avec taches d'âge */
-  .parchment-panel::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-image: 
-      radial-gradient(circle at 15% 20%, rgba(139, 69, 19, 0.08) 5px, transparent 5px),
-      radial-gradient(circle at 85% 80%, rgba(139, 69, 19, 0.06) 3px, transparent 3px),
-      radial-gradient(circle at 45% 60%, rgba(160, 82, 45, 0.04) 7px, transparent 7px),
-      radial-gradient(circle at 70% 15%, rgba(139, 69, 19, 0.05) 4px, transparent 4px);
-    border-radius: 8px;
-    pointer-events: none;
-    z-index: 1;
-  }
-
-  /* Parchemin petit pour les sections */
+  /* Parchemin petit pour les sections simplifié */
   .parchment-section {
-    @apply relative;
-    background: 
-      radial-gradient(circle at 25% 75%, rgba(160, 82, 45, 0.1) 0%, transparent 30%),
-      linear-gradient(135deg, 
-        #F8F0E3 0%, 
-        #F0E2C7 50%, 
-        #F8F0E3 100%
-      );
+    background: linear-gradient(to bottom, #F8F0E3, #F0E2C7);
     border: 2px solid #A0522D;
-    box-shadow: 
-      inset 1px 1px 4px rgba(139, 69, 19, 0.2),
-      inset -1px -1px 4px rgba(248, 240, 227, 0.8),
-      0 2px 6px rgba(0, 0, 0, 0.2);
     border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
   }
 
-  /* Boutons médiévaux */
+  /* Boutons médiévaux simplifiés */
   .medieval-button {
-    @apply relative font-bold transition-all duration-200 z-10;
-    background: linear-gradient(145deg, #D2B48C 0%, #DEB887 50%, #D2B48C 100%);
+    @apply font-bold transition-all duration-200;
+    background: linear-gradient(to bottom, #D2B48C, #DEB887);
     border: 2px solid #8B4513;
     color: #4A4A4A;
-    text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);
-    box-shadow: 
-      0 3px 6px rgba(0, 0, 0, 0.3),
-      inset 0 1px 2px rgba(255, 255, 255, 0.5);
     border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   }
 
   .medieval-button:hover {
@@ -140,47 +82,29 @@
     text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
   }
 
-  /* Titres médiévaux */
+  /* Titres médiévaux simplifiés */
   .medieval-title {
-    @apply font-bold text-2xl relative z-10;
+    @apply font-bold text-2xl;
     color: #8B4513;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-    font-family: 'Cinzel', 'Times New Roman', serif;
   }
 
   .medieval-subtitle {
-    @apply font-semibold text-lg relative z-10;
+    @apply font-semibold text-lg;
     color: #A0522D;
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
   }
 
   /* Texte médiéval */
   .medieval-text {
     color: #4A4A4A;
     line-height: 1.6;
-    position: relative;
-    z-index: 10;
   }
 
-  /* Menu latéral médiéval */
+  /* Menu latéral simplifié */
   .medieval-sidebar {
-    background: 
-      radial-gradient(circle at 30% 70%, rgba(139, 69, 19, 0.15) 0%, transparent 40%),
-      radial-gradient(circle at 70% 30%, rgba(139, 69, 19, 0.15) 0%, transparent 40%),
-      linear-gradient(180deg, 
-        #E8D5B7 0%, 
-        #F2E4C1 25%, 
-        #EDD8BB 50%, 
-        #F2E4C1 75%, 
-        #E8D5B7 100%
-      );
-    border: 3px solid #8B4513;
-    box-shadow: 
-      inset 2px 2px 8px rgba(139, 69, 19, 0.3),
-      inset -2px -2px 8px rgba(245, 230, 211, 0.8),
-      0 4px 12px rgba(0, 0, 0, 0.4);
+    background: linear-gradient(to bottom, #F5E6D3, #E8D5B7);
+    border: 2px solid #8B4513;
     border-radius: 8px;
-    position: relative;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
   }
 
   /* Effets de sceau et décoration */

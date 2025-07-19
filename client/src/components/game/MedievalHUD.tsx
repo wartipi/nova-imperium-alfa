@@ -490,15 +490,12 @@ export function MedievalHUD() {
         <div className="relative">
           {/* Parchemin médiéval du menu principal */}
           <div 
-            className="parchment-panel medieval-sidebar p-6 w-64"
+            className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-lg p-6 w-64"
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
             onMouseUp={(e) => e.stopPropagation()}
           >
-            {/* Titre Nova Imperium */}
-            <div className="medieval-title text-center mb-6 text-base">
-              ⚔️ NOVA IMPERIUM ⚔️
-            </div>
+
             
             <div className="space-y-3">
               {menuItems.map((item) => (
