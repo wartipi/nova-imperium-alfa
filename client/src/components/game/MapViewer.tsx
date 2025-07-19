@@ -229,6 +229,11 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
       // Distance du centre de l'hexagone
       const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
       
+      // Debug temporaire - log seulement les 3 hexagones les plus proches
+      if (distance <= hexRadius * 1.5) {
+        console.log(`🔍 Tile (${tile.x},${tile.y}): distance=${distance.toFixed(1)}, screen=(${x.toFixed(1)},${y.toFixed(1)}), mouse=(${mouseX},${mouseY})`);
+      }
+      
       // Zone de détection plus généreuse
       if (distance <= hexRadius * 1.1 && distance < closestDistance) {
         closestDistance = distance;
