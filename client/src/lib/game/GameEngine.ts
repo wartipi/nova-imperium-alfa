@@ -199,25 +199,50 @@ export class GameEngine {
     console.log('Démarrage du jeu - caméra libre');
   }
 
+  // Fonction utilitaire pour tester si un point est dans un hexagone (géométrie précise)
+  private isPointInHexagon(pointX: number, pointY: number, hexCenterX: number, hexCenterY: number, hexRadius: number): boolean {
+    const dx = Math.abs(pointX - hexCenterX);
+    const dy = Math.abs(pointY - hexCenterY);
+    
+    // Test rapide pour un rectangle englobant
+    if (dx > hexRadius || dy > hexRadius * Math.sqrt(3) / 2) {
+      return false;
+    }
+    
+    // Test précis pour les bords inclinés de l'hexagone
+    return dy <= hexRadius * Math.sqrt(3) / 2 - dx * Math.sqrt(3) / 3;
+  }
+
   getHexAtPosition(screenX: number, screenY: number): HexTile | null {
     const worldX = (screenX - this.canvas.width / 2) / this.zoom + this.cameraX;
     const worldY = (screenY - this.canvas.height / 2) / this.zoom + this.cameraY;
     
-    // Proper hexagonal coordinate conversion
     const hexHeight = this.hexSize * Math.sqrt(3);
     
-    // First approximation
-    let hexX = Math.round(worldX / (this.hexSize * 1.5));
-    let hexY = Math.round((worldY - (hexX % 2) * (hexHeight / 2)) / hexHeight);
+    // Estimation initiale de la zone à tester
+    let centerHexX = Math.round(worldX / (this.hexSize * 1.5));
+    let centerHexY = Math.round((worldY - (centerHexX % 2) * (hexHeight / 2)) / hexHeight);
     
-    // Clamp to valid range
-    hexX = Math.max(0, Math.min(hexX, this.mapData[0]?.length - 1 || 0));
-    hexY = Math.max(0, Math.min(hexY, this.mapData.length - 1));
-    
-    // Verify the hex exists and return it
-    if (hexY >= 0 && hexY < this.mapData.length && 
-        hexX >= 0 && hexX < this.mapData[hexY].length) {
-      return this.mapData[hexY][hexX];
+    // Tester l'hexagone central et ses voisins pour gérer les cas limites
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        const testHexX = centerHexX + dx;
+        const testHexY = centerHexY + dy;
+        
+        // Vérifier si les coordonnées sont valides
+        if (testHexY >= 0 && testHexY < this.mapData.length && 
+            testHexX >= 0 && testHexX < this.mapData[testHexY].length) {
+          
+          // Calculer la position exacte de ce hex (même formule que le rendu)
+          const hexCenterX = testHexX * (this.hexSize * 1.5);
+          const hexCenterY = testHexY * hexHeight + (testHexX % 2) * (hexHeight / 2);
+          
+          // Test géométrique précis
+          if (this.isPointInHexagon(worldX, worldY, hexCenterX, hexCenterY, this.hexSize)) {
+            return this.mapData[testHexY][testHexX];
+          }
+        }
+      }
     }
     
     return null;
