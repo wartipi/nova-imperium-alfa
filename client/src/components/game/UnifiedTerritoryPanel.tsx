@@ -344,18 +344,7 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
                     )}
                   </div>
                   
-                  {!territory.colonyId && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedTerritory(territory);
-                        setShowColonyModal(true);
-                      }}
-                      className="text-xs bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-2 rounded"
-                    >
-                      🏘️ Fonder une Colonie
-                    </button>
-                  )}
+
                 </div>
               </div>
             ))}

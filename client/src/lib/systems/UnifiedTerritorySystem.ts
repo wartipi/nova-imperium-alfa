@@ -223,6 +223,71 @@ class UnifiedTerritorySystemClass {
     return Array.from(terrains);
   }
 
+  // Vérifier la distance entre deux points hexagonaux
+  private hexDistance(x1: number, y1: number, x2: number, y2: number): number {
+    const dx = x1 - x2;
+    const dy = y1 - y2;
+    
+    // Conversion en coordonnées cubiques pour calculer la distance hexagonale
+    const x1Cube = x1 - Math.floor((y1 + (y1 % 2)) / 2);
+    const z1Cube = y1;
+    const y1Cube = -x1Cube - z1Cube;
+    
+    const x2Cube = x2 - Math.floor((y2 + (y2 % 2)) / 2);
+    const z2Cube = y2;
+    const y2Cube = -x2Cube - z2Cube;
+    
+    return Math.max(Math.abs(x1Cube - x2Cube), Math.abs(y1Cube - y2Cube), Math.abs(z1Cube - z2Cube));
+  }
+
+  // Vérifier s'il est possible de fonder une colonie à cette position
+  canFoundColony(x: number, y: number, playerId: string): { canFound: boolean, reason?: string } {
+    // 1. Vérifier que l'avatar est présent sur la case
+    const { avatarPosition } = (window as any).usePlayer?.getState() || { avatarPosition: { x: -1, y: -1 } };
+    if (avatarPosition.x !== x || avatarPosition.y !== y) {
+      return { 
+        canFound: false, 
+        reason: "Votre avatar doit être présent sur cette case pour fonder une colonie." 
+      };
+    }
+
+    // 2. Vérifier que la case est bien revendiquée par le joueur
+    const territory = this.isTerritoryClaimed(x, y);
+    if (!territory || territory.playerId !== playerId) {
+      return { 
+        canFound: false, 
+        reason: "Vous devez d'abord revendiquer ce territoire pour y fonder une colonie." 
+      };
+    }
+
+    // 3. Vérifier qu'il n'y a pas déjà une colonie sur cette case
+    if (territory.colonyId) {
+      return { 
+        canFound: false, 
+        reason: "Il y a déjà une colonie sur ce territoire." 
+      };
+    }
+
+    // 4. Vérifier la distance minimale de 4 hexagones avec les autres colonies
+    const allColonies = Array.from(this.territories.values()).filter(t => t.colonyId);
+    for (const colony of allColonies) {
+      const distance = this.hexDistance(x, y, colony.x, colony.y);
+      if (distance < 4) {
+        return { 
+          canFound: false, 
+          reason: `Une colonie existe déjà à moins de 4 hexagones (distance: ${distance}). Distance minimale requise: 4 hexagones.` 
+        };
+      }
+    }
+
+    return { canFound: true };
+  }
+
+  // Obtenir toutes les colonies existantes
+  getAllColonies(): Territory[] {
+    return Array.from(this.territories.values()).filter(t => t.colonyId);
+  }
+
   // Obtenir les colonies d'un joueur avec leurs territoires contrôlés
   getPlayerColoniesWithTerritories(playerId: string): Array<{
     colony: Territory;
