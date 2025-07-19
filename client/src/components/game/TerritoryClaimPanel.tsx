@@ -145,15 +145,21 @@ export function TerritoryClaimPanel({ onClose }: TerritoryClaimPanelProps) {
     // En mode MJ, pas besoin de faction
     if (!isGameMaster && !currentFaction) return;
 
-    // Récupérer la position de l'avatar
-    const avatarPosition = getAvatarPosition();
-    const avatarX = Math.round(avatarPosition.x);
-    const avatarY = Math.round(avatarPosition.y);
+    // Récupérer la position de l'avatar en coordonnées hex
+    const avatarHexPosition = getAvatarPosition();
+    const avatarX = avatarHexPosition.x;
+    const avatarY = avatarHexPosition.y;
 
-    // Vérifier que l'avatar est sur l'hexagone sélectionné
-    if (selectedHex && (selectedHex.x !== avatarX || selectedHex.y !== avatarY)) {
-      alert(`Vous devez être physiquement présent sur l'hexagone pour le revendiquer.\nVotre avatar est en (${avatarX}, ${avatarY}) mais vous essayez de revendiquer (${selectedHex.x}, ${selectedHex.y})`);
-      return;
+    console.log('🎯 Revendication territoire - Avatar en:', { x: avatarX, y: avatarY });
+    console.log('🎯 Revendication territoire - Hex sélectionné:', selectedHex);
+
+    // En mode MJ, pas besoin de vérifier la position
+    if (!isGameMaster) {
+      // Vérifier que l'avatar est sur l'hexagone sélectionné
+      if (selectedHex && (selectedHex.x !== avatarX || selectedHex.y !== avatarY)) {
+        alert(`Vous devez être physiquement présent sur l'hexagone pour le revendiquer.\nVotre avatar est en (${avatarX}, ${avatarY}) mais vous essayez de revendiquer (${selectedHex.x}, ${selectedHex.y})`);
+        return;
+      }
     }
 
     setIsLoading(true);

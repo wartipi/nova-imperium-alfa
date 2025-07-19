@@ -297,7 +297,10 @@ export const usePlayer = create<PlayerState>((set, get) => {
   
   getAvatarPosition: () => {
     const state = get();
-    return state.avatarPosition;
+    // Convertir les coordonnées monde en coordonnées hex
+    const hexCoords = VisionSystem.worldToHex(state.avatarPosition.x, state.avatarPosition.z);
+    console.log('🎯 Position avatar - Monde:', state.avatarPosition, 'Hex:', hexCoords);
+    return hexCoords;
   },
 
   moveAvatarToHex: (hexX, hexY) => {
