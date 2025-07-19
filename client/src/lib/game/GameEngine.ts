@@ -203,10 +203,18 @@ export class GameEngine {
     const worldX = (screenX - this.canvas.width / 2) / this.zoom + this.cameraX;
     const worldY = (screenY - this.canvas.height / 2) / this.zoom + this.cameraY;
     
-    // Convert world coordinates to hex coordinates
-    const hexX = Math.floor(worldX / (this.hexSize * 1.5));
-    const hexY = Math.floor(worldY / (this.hexSize * Math.sqrt(3)));
+    // Proper hexagonal coordinate conversion
+    const hexHeight = this.hexSize * Math.sqrt(3);
     
+    // First approximation
+    let hexX = Math.round(worldX / (this.hexSize * 1.5));
+    let hexY = Math.round((worldY - (hexX % 2) * (hexHeight / 2)) / hexHeight);
+    
+    // Clamp to valid range
+    hexX = Math.max(0, Math.min(hexX, this.mapData[0]?.length - 1 || 0));
+    hexY = Math.max(0, Math.min(hexY, this.mapData.length - 1));
+    
+    // Verify the hex exists and return it
     if (hexY >= 0 && hexY < this.mapData.length && 
         hexX >= 0 && hexX < this.mapData[hexY].length) {
       return this.mapData[hexY][hexX];
@@ -301,7 +309,7 @@ export class GameEngine {
       this.ctx.fill();
       
       // Check and render territory claims using UnifiedTerritorySystem
-      const territoryInfo = UnifiedTerritorySystem.isTerritoryClaimed(hex.x, hex.y);
+      const territoryInfo = UnifiedTerritorySystem.getTerritory(hex.x, hex.y);
       if (territoryInfo) {
         // Couleurs par joueur/faction
         const playerColors: { [key: string]: { border: string } } = {
@@ -318,9 +326,14 @@ export class GameEngine {
         // Marquer les colonies avec un symbole spécial
         if (territoryInfo.colonyId) {
           this.ctx.fillStyle = colors.border;
-          this.ctx.font = 'bold 16px Arial';
+          this.ctx.font = 'bold 20px Arial';
           this.ctx.textAlign = 'center';
-          this.ctx.fillText('🏘️', x, y - 15);
+          this.ctx.fillText('🏘️', x, y + 5);
+          
+          // Ajouter un contour pour la visibilité
+          this.ctx.strokeStyle = '#FFFFFF';
+          this.ctx.lineWidth = 2;
+          this.ctx.strokeText('🏘️', x, y + 5);
         }
       }
 
