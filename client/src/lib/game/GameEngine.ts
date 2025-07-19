@@ -304,24 +304,16 @@ export class GameEngine {
       const territoryInfo = UnifiedTerritorySystem.isTerritoryClaimed(hex.x, hex.y);
       if (territoryInfo) {
         // Couleurs par joueur/faction
-        const playerColors: { [key: string]: { overlay: string, border: string } } = {
-          'gm_faction': { overlay: 'rgba(153, 50, 204, 0.25)', border: '#9932CC' }, // Violet pour MJ
-          'player_faction': { overlay: 'rgba(34, 139, 34, 0.25)', border: '#228B22' }, // Vert pour joueur
-          'player': { overlay: 'rgba(30, 144, 255, 0.25)', border: '#1E90FF' }, // Bleu pour joueur par défaut
+        const playerColors: { [key: string]: { border: string } } = {
+          'gm_faction': { border: '#9932CC' }, // Violet pour MJ
+          'player_faction': { border: '#228B22' }, // Vert pour joueur
+          'player': { border: '#1E90FF' }, // Bleu pour joueur par défaut
         };
         
         const colors = playerColors[territoryInfo.factionId] || playerColors['player'];
         
-        // Render territory overlay
-        this.ctx.fillStyle = colors.overlay;
-        this.ctx.fill();
-        
-        // Render territory border
-        this.ctx.strokeStyle = colors.border;
-        this.ctx.lineWidth = 2;
-        this.ctx.setLineDash([3, 3]);
-        this.ctx.stroke();
-        this.ctx.setLineDash([]);
+        // Dessiner seulement les contours externes des territoires
+        this.drawTerritoryBorders(hex.x, hex.y, territoryInfo, colors.border, x, y);
         
         // Marquer les colonies avec un symbole spécial
         if (territoryInfo.colonyId) {
@@ -852,5 +844,56 @@ export class GameEngine {
   // Get camera position
   getCameraPosition(): { x: number; y: number } {
     return { x: this.cameraX, y: this.cameraY };
+  }
+
+  // Dessiner les contours externes des territoires
+  private drawTerritoryBorders(hexX: number, hexY: number, territoryInfo: any, borderColor: string, screenX: number, screenY: number) {
+    const factionId = territoryInfo.factionId;
+    
+    // Vérifier chaque côté de l'hexagone pour voir s'il est une bordure externe
+    const hexSides = [
+      { dx: 0, dy: -1 }, // Nord
+      { dx: 1, dy: hexX % 2 === 0 ? -1 : 0 }, // Nord-Est
+      { dx: 1, dy: hexX % 2 === 0 ? 0 : 1 }, // Sud-Est
+      { dx: 0, dy: 1 }, // Sud
+      { dx: -1, dy: hexX % 2 === 0 ? 0 : 1 }, // Sud-Ouest
+      { dx: -1, dy: hexX % 2 === 0 ? -1 : 0 } // Nord-Ouest
+    ];
+
+    this.ctx.strokeStyle = borderColor;
+    this.ctx.lineWidth = 3;
+    this.ctx.setLineDash([]);
+
+    // Pour chaque côté de l'hexagone
+    for (let i = 0; i < 6; i++) {
+      const side = hexSides[i];
+      const neighborX = hexX + side.dx;
+      const neighborY = hexY + side.dy;
+      
+      // Vérifier si le voisin appartient à la même faction
+      const neighborTerritory = UnifiedTerritorySystem.isTerritoryClaimed(neighborX, neighborY);
+      const isSameFaction = neighborTerritory && neighborTerritory.factionId === factionId;
+      
+      // Si ce n'est pas la même faction, dessiner ce côté
+      if (!isSameFaction) {
+        this.drawHexSide(screenX, screenY, i);
+      }
+    }
+  }
+
+  // Dessiner un côté spécifique d'un hexagone
+  private drawHexSide(centerX: number, centerY: number, sideIndex: number) {
+    const angle1 = (sideIndex * Math.PI) / 3;
+    const angle2 = ((sideIndex + 1) * Math.PI) / 3;
+    
+    const x1 = centerX + this.hexSize * Math.cos(angle1);
+    const y1 = centerY + this.hexSize * Math.sin(angle1);
+    const x2 = centerX + this.hexSize * Math.cos(angle2);
+    const y2 = centerY + this.hexSize * Math.sin(angle2);
+    
+    this.ctx.beginPath();
+    this.ctx.moveTo(x1, y1);
+    this.ctx.lineTo(x2, y2);
+    this.ctx.stroke();
   }
 }
