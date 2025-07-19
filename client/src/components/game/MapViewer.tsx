@@ -119,18 +119,17 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const centerX = width / 2;
     const centerY = height / 2;
 
+    // Créer une grille centrée sur la région mappée
+    const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
+    
     // Dessiner chaque tuile comme hexagone
     tiles.forEach(tile => {
-      // Utiliser des coordonnées relatives au centre de la carte
-      const relativeX = tile.x - mapData.region.centerX;
-      const relativeY = tile.y - mapData.region.centerY;
-      
-      // Convertir en position pixel relative
-      const hexPos = hexToPixel(relativeX, relativeY, hexRadius);
+      // Utiliser les coordonnées absolues puis centrer la région
+      const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
       
       // Position finale centrée sur le canvas
-      const x = centerX + hexPos.x;
-      const y = centerY + hexPos.y;
+      const x = centerX + (hexPos.x - regionCenterPos.x);
+      const y = centerY + (hexPos.y - regionCenterPos.y);
 
       // Couleur du terrain avec vérification
       const terrainColor = terrainColors[tile.terrain as keyof typeof terrainColors];
@@ -216,17 +215,16 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     let closestTile = null;
     let closestDistance = Infinity;
 
+    // Position du centre de la région
+    const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
+    
     for (const tile of tiles) {
-      // Utiliser des coordonnées relatives au centre de la carte
-      const relativeX = tile.x - mapData.region.centerX;
-      const relativeY = tile.y - mapData.region.centerY;
-      
-      // Convertir en position pixel relative
-      const hexPos = hexToPixel(relativeX, relativeY, hexRadius);
+      // Utiliser les coordonnées absolues puis centrer la région
+      const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
       
       // Position finale centrée sur le canvas
-      const x = centerX + hexPos.x;
-      const y = centerY + hexPos.y;
+      const x = centerX + (hexPos.x - regionCenterPos.x);
+      const y = centerY + (hexPos.y - regionCenterPos.y);
 
       // Distance du centre de l'hexagone
       const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
