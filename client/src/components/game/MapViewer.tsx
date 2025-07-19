@@ -66,6 +66,25 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     return { x, y };
   };
 
+  // Fonction pour convertir les coordonnées pixel en coordonnées hex (EXACTEMENT comme GameEngine.ts)
+  const pixelToHex = (pixelX: number, pixelY: number, hexRadius: number, offsetX: number, offsetY: number) => {
+    const hexHeight = hexRadius * Math.sqrt(3);
+    
+    // Ajuster pour l'offset de la carte
+    const adjustedX = pixelX - offsetX;
+    const adjustedY = pixelY - offsetY;
+    
+    // Conversion inverse
+    const q = (adjustedX * 2/3) / hexRadius;
+    const r = (-adjustedX / 3 + adjustedY * Math.sqrt(3)/3) / hexRadius;
+    
+    // Arrondir aux coordonnées hex
+    const x = Math.round(q);
+    const y = Math.round(r - (x % 2) * 0.5);
+    
+    return { x, y };
+  };
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
