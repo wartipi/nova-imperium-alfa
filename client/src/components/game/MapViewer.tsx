@@ -231,12 +231,8 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
       // Distance du centre de l'hexagone
       const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
       
-      // Debug pour voir les positions
-      if (distance <= hexRadius * 1.2) { // Zone plus large pour debug
-        console.log(`🔍 Tile (${tile.x},${tile.y}): relative=(${relativeX},${relativeY}), distance=${distance.toFixed(1)}, hexPos=(${hexPos.x.toFixed(1)},${hexPos.y.toFixed(1)}), screen=(${x.toFixed(1)},${y.toFixed(1)}), mouse=(${mouseX},${mouseY})`);
-      }
-      
-      if (distance <= hexRadius * 0.9 && distance < closestDistance) {
+      // Zone de détection plus généreuse
+      if (distance <= hexRadius * 1.1 && distance < closestDistance) {
         closestDistance = distance;
         closestTile = tile;
       }
@@ -253,9 +249,6 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     setMousePos({ x: mouseX, y: mouseY });
 
     const tile = getHexAtMouse(mouseX, mouseY);
-    if (tile) {
-      console.log('🎯 Hexagone détecté:', tile.x, tile.y, 'terrain:', tile.terrain);
-    }
     setHoveredTile(tile);
   };
 
