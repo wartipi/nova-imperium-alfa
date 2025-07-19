@@ -164,8 +164,6 @@ export function MedievalHUD() {
 
   return (
     <div className="absolute inset-0 pointer-events-none z-10">
-      {/* Parchment Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-amber-50 to-amber-100 opacity-90"></div>
       
       {/* Top Information Banner */}
       <div className="absolute top-4 left-1/2 transform -translate-x-1/2 pointer-events-auto">
