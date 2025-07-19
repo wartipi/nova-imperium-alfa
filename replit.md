@@ -1,31 +1,36 @@
-# Nova Imperium - Nouveau Projet
+# Overview
 
-Ce projet est une nouvelle version complètement indépendante de Nova Imperium, créée pour résoudre les problèmes de détection de collision dans MapViewer et permettre des modifications majeures sans affecter le projet original.
+This is Nova Imperium, a strategic role-playing game built with React, TypeScript, and Express. Initially developed as a Civilization-style foundation, the game is evolving toward a dynamic world where player choices, alliances, and betrayals shape destiny. The application features a hexagonal tile-based map, faction-based gameplay, reputation systems, and immersive world-building mechanics. The game includes territory management, character progression, faction creation, and a complex honor/dishonor system overseen by the Guilde de Pandem.
 
-## Objectifs du Nouveau Projet
+## Nova Imperium Vision
+- Dynamic reputation system affecting available actions and alliances
+- Player-created factions that emerge from actions, not preset kingdoms
+- The Guilde de Pandem as the omnipresent overseeing faction
+- Real consequences for choices, promises, and betrayals
+- Evolving world where characters start humble but can rise or fall
+- Immersive experience combining strategy, roleplay, and world-building
 
-1. **Résoudre les problèmes de collision MapViewer** - Réécrire complètement le système de détection
-2. **Optimisation des performances** - Code plus propre et efficace
-3. **Architecture améliorée** - Systèmes mieux organisés et maintenables
+## User Preferences
 
-## État Actuel
+Preferred communication style: Simple, everyday language.
 
-- ✅ Structure de base copiée du projet original
-- ⏳ Configuration en cours
-- ⏳ Tests de fonctionnement
-- ⏳ Corrections MapViewer à implémenter
+**Important:** Always ask for confirmation before making deletions or significant modifications. Provide detailed explanations of planned changes to avoid unnecessary costs.
 
-## Technologies
+## Recent Changes
 
-- React avec TypeScript
-- Canvas-based rendering pour les cartes hexagonales
-- Zustand pour la gestion d'état
-- Express.js backend
-- System de cartes et territoires
+### MapViewer Collision System Issue (January 19, 2025)
+- **Persistent Collision Detection Problem**: Two bottom hexagonal tiles in MapViewer not responding to mouse hover
+- **Multiple Algorithm Attempts**: Tested radial distance, hexagonal geometry, and point-in-polygon methods  
+- **Issue Status**: UNRESOLVED - requires alternative approach or complete system redesign
+- **Current State**: Basic collision detection works for most tiles, bottom tiles remain unresponsive
+- **Cleanup**: Removed test projects and unnecessary files created during troubleshooting
 
-## Prochaines Étapes
+## System Architecture
 
-1. Configurer l'environnement de développement
-2. Tester le fonctionnement de base
-3. Implémenter une nouvelle solution pour la détection de collision MapViewer
-4. Optimiser les performances générales
+### Frontend Architecture
+- **React 18** with TypeScript for the main application
+- **Vite** for development and build tooling
+- **Tailwind CSS** with shadcn/ui components for styling
+- **Zustand** for state management
+- **React Query** for server state management
+- **Canvas-based game engine** for hex map rendering and game visualization
