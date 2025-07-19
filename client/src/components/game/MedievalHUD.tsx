@@ -168,13 +168,12 @@ export function MedievalHUD() {
       {/* Top Information Banner */}
       <div className="absolute top-4 left-1/2 transform -translate-x-1/2 pointer-events-auto">
         <div className="relative">
-          {/* Scroll Banner Background - TEST AVEC FOND BEIGE SOLIDE */}
+          {/* Scroll Banner Background */}
           <div 
-            className="border-4 border-amber-800 rounded-lg shadow-lg px-8 py-4"
+            className="bg-gradient-to-r from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-lg px-8 py-4"
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
             onMouseUp={(e) => e.stopPropagation()}
-            style={{ backgroundColor: '#F5F5DC' }}
           >
             <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-amber-800"></div>
             <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-amber-800"></div>
