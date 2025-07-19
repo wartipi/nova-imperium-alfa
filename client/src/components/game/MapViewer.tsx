@@ -189,22 +189,7 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
 
   }, [mapData, width, height]);
 
-  // Fonction pour vérifier si un point est dans un hexagone (géométrie exacte)
-  const isPointInHexagon = (pointX: number, pointY: number, hexCenterX: number, hexCenterY: number, hexRadius: number) => {
-    const dx = Math.abs(pointX - hexCenterX);
-    const dy = Math.abs(pointY - hexCenterY);
-    
-    // Pour un hexagone pointy-top, collision précise
-    const hexWidth = hexRadius * Math.sqrt(3) / 2;
-    
-    if (dx > hexWidth) return false;
-    if (dy > hexRadius) return false;
-    
-    // Test diagonale pour les coins coupés
-    return (dx * Math.sqrt(3) + dy <= hexRadius * Math.sqrt(3));
-  };
-
-  // Fonction pour détecter quel hexagone est sous la souris (méthode GameEngine adaptée)
+  // Détection simple par distance
   const getHexAtMouse = (mouseX: number, mouseY: number) => {
     const tiles = mapData.region.tiles;
     if (tiles.length === 0) return null;
@@ -217,55 +202,27 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const mapWidth = maxX - minX + 1;
     const mapHeight = maxY - minY + 1;
     const hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
-    const hexHeight = hexRadius * Math.sqrt(3);
 
     const centerX = width / 2;
     const centerY = height / 2;
-    
-    // Centre de la région
-    const regionCenterX = (minX + maxX) / 2;
-    const regionCenterY = (minY + maxY) / 2;
+    const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
 
-    // Convertir position souris en coordonnées "monde" relatives au centre
-    const worldX = mouseX - centerX;
-    const worldY = mouseY - centerY;
+    let closestTile = null;
+    let closestDistance = Infinity;
 
-    // Estimation initiale de la zone à tester (méthode GameEngine)
-    let centerHexX = Math.round(worldX / (hexRadius * 1.5));
-    let centerHexY = Math.round((worldY - (centerHexX % 2) * (hexHeight / 2)) / hexHeight);
+    for (const tile of tiles) {
+      const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
+      const x = centerX + (hexPos.x - regionCenterPos.x);
+      const y = centerY + (hexPos.y - regionCenterPos.y);
 
-    // Tester l'hexagone central et ses voisins pour gérer les cas limites
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dy = -1; dy <= 1; dy++) {
-        const testHexX = centerHexX + dx;
-        const testHexY = centerHexY + dy;
-        
-        // Chercher si cette coordonnée correspond à un tile existant
-        const tile = tiles.find(t => {
-          const relativeX = t.x - regionCenterX;
-          const relativeY = t.y - regionCenterY;
-          return Math.round(relativeX) === testHexX && Math.round(relativeY) === testHexY;
-        });
-        
-        if (tile) {
-          // Calculer la position exacte de ce hex (même formule que le rendu)
-          const hexCenterX = testHexX * (hexRadius * 1.5);
-          const hexCenterY = testHexY * hexHeight + (testHexX % 2) * (hexHeight / 2);
-          
-          // Test géométrique précis (même fonction que GameEngine avec rayon plein)
-          const dx = Math.abs(worldX - hexCenterX);
-          const dy = Math.abs(worldY - hexCenterY);
-          
-          if (dx <= hexRadius && dy <= hexRadius * Math.sqrt(3) / 2) {
-            if (dy <= hexRadius * Math.sqrt(3) / 2 - dx * Math.sqrt(3) / 3) {
-              return tile;
-            }
-          }
-        }
+      const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
+      if (distance < hexRadius && distance < closestDistance) {
+        closestDistance = distance;
+        closestTile = tile;
       }
     }
     
-    return null;
+    return closestTile;
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
