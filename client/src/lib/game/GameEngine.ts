@@ -3,7 +3,7 @@ import { ResourceRevealSystem } from "../systems/ResourceRevealSystem";
 import { usePlayer } from "../stores/usePlayer";
 import { useGameState } from "../stores/useGameState";
 import { useNovaImperium } from "../stores/useNovaImperium";
-import { TerritorySystem } from "../systems/TerritorySystem";
+import { UnifiedTerritorySystem } from "../systems/UnifiedTerritorySystem";
 
 export class GameEngine {
   private canvas: HTMLCanvasElement;
@@ -300,19 +300,36 @@ export class GameEngine {
       this.ctx.fillStyle = this.getTerrainColor(hex.terrain);
       this.ctx.fill();
       
-      // Check and render territory claims
-      const territoryInfo = TerritorySystem.isTerritoryClaimed(hex.x, hex.y);
+      // Check and render territory claims using UnifiedTerritorySystem
+      const territoryInfo = UnifiedTerritorySystem.isTerritoryClaimed(hex.x, hex.y);
       if (territoryInfo) {
+        // Couleurs par joueur/faction
+        const playerColors: { [key: string]: { overlay: string, border: string } } = {
+          'gm_faction': { overlay: 'rgba(153, 50, 204, 0.25)', border: '#9932CC' }, // Violet pour MJ
+          'player_faction': { overlay: 'rgba(34, 139, 34, 0.25)', border: '#228B22' }, // Vert pour joueur
+          'player': { overlay: 'rgba(30, 144, 255, 0.25)', border: '#1E90FF' }, // Bleu pour joueur par défaut
+        };
+        
+        const colors = playerColors[territoryInfo.factionId] || playerColors['player'];
+        
         // Render territory overlay
-        this.ctx.fillStyle = territoryInfo.factionId === 'gm_faction' ? 'rgba(153, 50, 204, 0.2)' : 'rgba(255, 69, 0, 0.2)';
+        this.ctx.fillStyle = colors.overlay;
         this.ctx.fill();
         
         // Render territory border
-        this.ctx.strokeStyle = territoryInfo.factionId === 'gm_faction' ? '#9932CC' : '#FF4500';
+        this.ctx.strokeStyle = colors.border;
         this.ctx.lineWidth = 2;
-        this.ctx.setLineDash([5, 5]);
+        this.ctx.setLineDash([3, 3]);
         this.ctx.stroke();
         this.ctx.setLineDash([]);
+        
+        // Marquer les colonies avec un symbole spécial
+        if (territoryInfo.colonyId) {
+          this.ctx.fillStyle = colors.border;
+          this.ctx.font = 'bold 16px Arial';
+          this.ctx.textAlign = 'center';
+          this.ctx.fillText('🏘️', x, y - 15);
+        }
       }
 
       // Highlight selected hex

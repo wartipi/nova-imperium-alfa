@@ -338,6 +338,18 @@ Preferred communication style: Simple, everyday language.
 - Updated localStorage keys to use 'nova_imperium_save' instead of 'civ_save'
 - All components now use consistent coding style and optimized structure
 
+### Colony Territorial Expansion System (January 19, 2025)
+- **Complete Colony Expansion System**: Implemented expandColonyTerritory() function in UnifiedTerritorySystem
+- **Territory Management Interface**: Added expansion section in UnifiedTerritoryPanel with colony selector
+- **Terrain-Based Construction**: Created ConstructionPanelSimple with filtered buildings per colony terrain types
+- **Territory Coloration System**: Added visual territory ownership with faction-based colors in GameEngine
+- **Workflow Integration**: Complete territory claiming → colony founding → territory expansion → terrain-based construction
+- **Visual Territory Indicators**: Territories now display with colored overlays and borders based on owning faction
+- **Expansion Cost System**: 8 PA cost for territory expansion (free for Game Masters)
+- **Adjacent Hex Validation**: System ensures only adjacent hexes can be added to colony territories
+- **UI Cleanup**: Removed duplicate and non-functional expansion panels for cleaner interface
+- **Color Coding**: Violet for GM faction, blue for players, green for player factions with visual colony markers
+
 ### Territory Control & Advanced Construction System (January 18, 2025)
 - **Complete Territory System**: Players must claim territory and found colonies before accessing construction
 - **Comprehensive Building Database**: 47+ buildings with terrain-specific requirements and realistic costs
