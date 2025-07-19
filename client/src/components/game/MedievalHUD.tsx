@@ -9,8 +9,7 @@ import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { MiniMap } from "./MiniMap";
 import { TreasuryPanel } from "./TreasuryPanel";
-import { ConstructionPanel } from "./ConstructionPanelSimple";
-import { RecruitmentPanel } from "./RecruitmentPanel";
+
 import { ActivityReportPanel } from "./ActivityReportPanel";
 import { CouriersPanel } from "./CouriersPanel";
 import { TreatiesPanel } from "./TreatiesPanel";
@@ -32,8 +31,6 @@ import { LevelUpNotification, useLevelUpNotification } from "./LevelUpNotificati
 
 type MenuSection = 
   | 'treasury' 
-  | 'construction' 
-  | 'recruitment' 
   | 'activities' 
   | 'courier' 
   | 'treaties'
@@ -131,8 +128,6 @@ export function MedievalHUD() {
 
   const menuItems = [
     { id: 'treasury' as MenuSection, label: 'TRÉSORERIE', icon: '💰' },
-    { id: 'construction' as MenuSection, label: 'CONSTRUCTION', icon: '🔨' },
-    { id: 'recruitment' as MenuSection, label: 'RECRUTEMENT', icon: '⚔️' },
     { id: 'activities' as MenuSection, label: 'RAPPORT D\'ACTIVITÉS', icon: '📊' },
     { id: 'courier' as MenuSection, label: 'COURRIER', icon: '✉️' },
     { id: 'treaties' as MenuSection, label: 'TRAITÉS', icon: '📜' },
@@ -590,8 +585,6 @@ export function MedievalHUD() {
             
             <div className="text-amber-800">
               {activeSection === 'treasury' && <TreasuryPanel />}
-              {activeSection === 'construction' && <ConstructionPanel />}
-              {activeSection === 'recruitment' && <RecruitmentPanel />}
               {activeSection === 'activities' && <ActivityReportPanel />}
               {activeSection === 'courier' && <CouriersPanel />}
               {activeSection === 'treaties' && <TreatiesPanel />}

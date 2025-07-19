@@ -9,6 +9,7 @@ import { AvatarActionMenu } from "./AvatarActionMenu";
 import { MovementConfirmationModal } from "./MovementConfirmationModal";
 import { getTerrainMovementCost } from "../../lib/game/TerrainCosts";
 import { CameraControls } from "./CameraControls";
+import { CityManagementPanel } from "./CityManagementPanel";
 
 export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -22,6 +23,7 @@ export function GameCanvas() {
   const [avatarMenuPosition, setAvatarMenuPosition] = useState({ x: 0, y: 0 });
   const [lastClickTime, setLastClickTime] = useState(0);
   const [lastClickPosition, setLastClickPosition] = useState<{ x: number; y: number } | null>(null);
+  const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
 
   // Initialize game engine
   useEffect(() => {
@@ -96,6 +98,18 @@ export function GameCanvas() {
 
       const hex = gameEngineRef.current.getHexAtPosition(x, y);
       if (hex) {
+        // Vérifier s'il y a une colonie sur cette case
+        const { currentNovaImperium } = useNovaImperium.getState();
+        if (currentNovaImperium) {
+          const city = currentNovaImperium.cities.find(c => c.x === hex.x && c.y === hex.y);
+          if (city) {
+            console.log('🏘️ Clic sur la colonie:', city.name, 'à', hex.x, hex.y);
+            setSelectedCityId(city.id);
+            setMouseDownPos(null);
+            return;
+          }
+        }
+
         // Vérifier si la case est explorée avant de permettre la sélection
         const { isHexExplored } = usePlayer.getState();
         const { isGameMaster } = useGameState.getState();
@@ -240,6 +254,13 @@ export function GameCanvas() {
           targetHex={pendingMovement}
           onConfirm={handleMovementConfirm}
           onCancel={handleMovementCancel}
+        />
+      )}
+
+      {selectedCityId && (
+        <CityManagementPanel
+          cityId={selectedCityId}
+          onClose={() => setSelectedCityId(null)}
         />
       )}
     </>
