@@ -267,7 +267,11 @@ export function CityManagementPanel({ cityId, onClose }: CityManagementPanelProp
                     <div><strong>Territoires contrôlés:</strong> {colonyData?.controlledTerritories.length || 1}</div>
                     <div><strong>Terrains disponibles:</strong> {availableTerrains.length}</div>
                     {city.currentProduction && (
-                      <div><strong>En construction:</strong> {city.currentProduction}</div>
+                      <div><strong>En construction:</strong> {
+                        typeof city.currentProduction === 'string' 
+                          ? city.currentProduction 
+                          : city.currentProduction.name || 'Projet en cours'
+                      }</div>
                     )}
                   </div>
                 </div>
@@ -292,9 +296,13 @@ export function CityManagementPanel({ cityId, onClose }: CityManagementPanelProp
               <div className="bg-blue-50 border border-blue-400 rounded p-4">
                 <h4 className="font-bold mb-2">🏗️ Bâtiments construits</h4>
                 <div className="grid grid-cols-2 gap-2">
-                  {city.buildings.map(building => (
-                    <div key={building} className="bg-blue-200 px-3 py-2 rounded text-sm">
-                      {buildings.find(b => b.id === building)?.name || building}
+                  {city.buildings.map((building, index) => (
+                    <div key={`${building}-${index}`} className="bg-blue-200 px-3 py-2 rounded text-sm">
+                      {
+                        typeof building === 'string' 
+                          ? (buildings.find(b => b.id === building)?.name || building)
+                          : (building.name || 'Bâtiment inconnu')
+                      }
                     </div>
                   ))}
                   {city.buildings.length === 0 && (
