@@ -10,6 +10,7 @@ import { MovementConfirmationModal } from "./MovementConfirmationModal";
 import { getTerrainMovementCost } from "../../lib/game/TerrainCosts";
 import { CameraControls } from "./CameraControls";
 import { CityManagementPanel } from "./CityManagementPanel";
+import { UnifiedTerritorySystem } from "../../lib/systems/UnifiedTerritorySystem";
 
 export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -99,10 +100,31 @@ export function GameCanvas() {
       const hex = gameEngineRef.current.getHexAtPosition(x, y);
       if (hex) {
         // Vérifier s'il y a une colonie sur cette case
-        const { currentNovaImperium } = useNovaImperium.getState();
+        const { currentNovaImperium, addCity } = useNovaImperium.getState();
         if (currentNovaImperium) {
-          const city = currentNovaImperium.cities.find(c => c.x === hex.x && c.y === hex.y);
+          let city = currentNovaImperium.cities.find(c => c.x === hex.x && c.y === hex.y);
           console.log('🏘️ Debug clic - Position:', hex.x, hex.y, 'Villes trouvées:', currentNovaImperium.cities.map(c => `${c.name}(${c.x},${c.y})`));
+          
+          // Si pas de ville trouvée mais il y a un territoire avec une colonie, créer la ville
+          if (!city) {
+            const territory = UnifiedTerritorySystem.getTerritory(hex.x, hex.y);
+            if (territory && territory.colonyId) {
+              console.log('🏘️ Territoire trouvé avec colonie, création de la ville:', territory);
+              city = {
+                id: territory.colonyId,
+                name: territory.colonyName || `Colonie ${territory.colonyId}`,
+                x: hex.x,
+                y: hex.y,
+                population: 1,
+                buildings: [],
+                currentProduction: null,
+                productionProgress: 0
+              };
+              addCity(city);
+              console.log('🏘️ Ville créée et ajoutée:', city);
+            }
+          }
+          
           if (city) {
             console.log('🏘️ Clic sur la colonie:', city.name, 'à', hex.x, hex.y, 'ID:', city.id);
             setSelectedCityId(city.id);
