@@ -110,10 +110,15 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const minY = Math.min(...tiles.map(t => t.y));
     const maxY = Math.max(...tiles.map(t => t.y));
 
-    // Calculer la taille des hexagones
+    // Calculer la taille des hexagones - formule corrigée pour espacement hexagonal
     const mapWidth = maxX - minX + 1;
     const mapHeight = maxY - minY + 1;
-    const hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
+    
+    // Pour orientation pointy-top: espacement horizontal = 1.5*radius, vertical = sqrt(3)*radius
+    const requiredWidth = mapWidth * 1.5 * 25 + 25; // 25 = radius minimal
+    const requiredHeight = mapHeight * Math.sqrt(3) * 25 + Math.sqrt(3) * 25;
+    
+    const hexRadius = Math.min((width - 40) / requiredWidth * 25, (height - 40) / requiredHeight * 25);
 
     // Centre de la carte
     const centerX = width / 2;
@@ -229,13 +234,8 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
       // Distance du centre de l'hexagone
       const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
       
-      // Debug temporaire - log seulement les 3 hexagones les plus proches
-      if (distance <= hexRadius * 1.5) {
-        console.log(`🔍 Tile (${tile.x},${tile.y}): distance=${distance.toFixed(1)}, screen=(${x.toFixed(1)},${y.toFixed(1)}), mouse=(${mouseX},${mouseY})`);
-      }
-      
-      // Zone de détection plus généreuse
-      if (distance <= hexRadius * 1.1 && distance < closestDistance) {
+      // Zone de détection généreuse - un hexagone a un rayon inscrit d'environ 0.866 * hexRadius
+      if (distance <= hexRadius * 0.9 && distance < closestDistance) {
         closestDistance = distance;
         closestTile = tile;
       }
