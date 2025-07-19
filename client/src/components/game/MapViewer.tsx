@@ -147,10 +147,12 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
 
   }, [mapData, width, height]);
 
+  // Approche simplifiée et robuste utilisant zones de capture étendues
   const getHexAtMouse = (mouseX: number, mouseY: number) => {
     const tiles = mapData.region.tiles;
     if (!tiles.length) return null;
 
+    // Reproduire exactement la même logique que le dessin
     const minX = Math.min(...tiles.map(t => t.x));
     const maxX = Math.max(...tiles.map(t => t.x));
     const minY = Math.min(...tiles.map(t => t.y));
@@ -164,36 +166,26 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const centerY = height / 2;
     const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
 
-    // Détection hexagonale précise avec point dans polygone
+    // Approche grille : trouver l'hexagone le plus proche selon une grille régulière
+    let bestTile = null;
+    let bestDistance = Infinity;
+
     for (const tile of tiles) {
       const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
       const x = centerX + (hexPos.x - regionCenterPos.x);
       const y = centerY + (hexPos.y - regionCenterPos.y);
 
-      // Créer les 6 points de l'hexagone
-      const hexPoints = [];
-      for (let i = 0; i < 6; i++) {
-        const angle = (i * Math.PI) / 3;
-        hexPoints.push({
-          x: x + hexRadius * Math.cos(angle),
-          y: y + hexRadius * Math.sin(angle)
-        });
-      }
-
-      // Test point dans polygone hexagonal
-      let inside = false;
-      for (let i = 0, j = 5; i < 6; j = i++) {
-        if (((hexPoints[i].y > mouseY) !== (hexPoints[j].y > mouseY)) &&
-            (mouseX < (hexPoints[j].x - hexPoints[i].x) * (mouseY - hexPoints[i].y) / (hexPoints[j].y - hexPoints[i].y) + hexPoints[i].x)) {
-          inside = !inside;
-        }
-      }
-
-      if (inside) {
-        return tile;
+      // Distance euclidienne simple avec tolérance très généreuse
+      const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
+      
+      // Zone de capture très large pour être sûr de ne rien manquer
+      if (distance <= hexRadius * 1.8 && distance < bestDistance) {
+        bestDistance = distance;
+        bestTile = tile;
       }
     }
-    return null;
+
+    return bestTile;
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {

@@ -338,13 +338,13 @@ Preferred communication style: Simple, everyday language.
 - Updated localStorage keys to use 'nova_imperium_save' instead of 'civ_save'
 - All components now use consistent coding style and optimized structure
 
-### MapViewer Collision System Optimization (January 19, 2025)
-- **Complete MapViewer Optimization**: Removed redundant code and optimized performance
-- **Direct Collision Detection**: Implemented geometric collision testing consistent with GameEngine methodology
-- **Code Cleanup**: Systematic removal of unnecessary comments while maintaining functionality
-- **Performance Enhancement**: Streamlined collision detection system for inventory map objects
-- **Consistent Architecture**: Unified collision detection approach across main game map and MapViewer
-- **User Confirmed Functional**: All game systems working correctly after optimization process
+### MapViewer Collision System Issue (January 19, 2025)
+- **Persistent Collision Detection Problem**: Two bottom hexagonal tiles in MapViewer not responding to mouse hover
+- **Multiple Algorithm Attempts**: Tested radial distance, hexagonal geometry, and point-in-polygon methods
+- **Project Clone Created**: Created nova-imperium-clone for major modification testing
+- **Issue Status**: UNRESOLVED - requires alternative approach or complete system redesign
+- **Current State**: Basic collision detection works for most tiles, bottom tiles remain unresponsive
+- **Next Steps**: Consider complete MapViewer rewrite or different collision detection strategy
 
 ### Decentralized City Management System (January 19, 2025)
 - **Complete System Overhaul**: Transformed from centralized to decentralized city management
