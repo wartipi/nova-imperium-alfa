@@ -18,19 +18,22 @@ export class GameEngine {
   private isDragging = false;
   private lastMouseX = 0;
   private lastMouseY = 0;
+  private isHexVisible: ((x: number, y: number) => boolean) | null = null;
+  private isHexInCurrentVision: ((x: number, y: number) => boolean) | null = null;
   private avatarPosition: { x: number; y: number; z: number } = { x: 5, y: 0, z: 5 };
   private avatarRotation: { x: number; y: number; z: number } = { x: 0, y: 0, z: 0 };
   private isAvatarMoving = false;
   private selectedCharacter: any = null;
-  private isHexVisible: ((x: number, y: number) => boolean) | null = null;
-  private isHexInCurrentVision: ((x: number, y: number) => boolean) | null = null;
   private pendingMovement: { x: number; y: number } | null = null;
   public hasInitialCentered: boolean = false;
-  
-  // Set vision callbacks for fog of war
   setVisionCallbacks(isHexVisible: (x: number, y: number) => boolean, isHexInCurrentVision: (x: number, y: number) => boolean) {
     this.isHexVisible = isHexVisible;
     this.isHexInCurrentVision = isHexInCurrentVision;
+  }
+
+  setPendingMovement(destination: { x: number; y: number } | null) {
+    this.pendingMovement = destination;
+    this.render();
   }
 
   constructor(canvas: HTMLCanvasElement, mapData: HexTile[][]) {
