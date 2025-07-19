@@ -169,13 +169,12 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
       const x = centerX + (hexPos.x - regionCenterPos.x);
       const y = centerY + (hexPos.y - regionCenterPos.y);
 
-      const dx = Math.abs(mouseX - x);
-      const dy = Math.abs(mouseY - y);
+      // Distance simple pour détecter l'hexagone
+      const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
       
-      if (dx <= hexRadius && dy <= hexRadius * Math.sqrt(3) / 2) {
-        if (dy <= hexRadius * Math.sqrt(3) / 2 - dx * Math.sqrt(3) / 3) {
-          return tile;
-        }
+      // Utiliser un rayon plus généreux pour la détection
+      if (distance <= hexRadius * 0.9) {
+        return tile;
       }
     }
     return null;
