@@ -124,6 +124,18 @@ Preferred communication style: Simple, everyday language.
 - **Ressources Visibles en Mode MJ**: Correction du problème d'affichage des ressources - 369+ ressources générées et visibles en mode Maître de Jeu
 - **TileInfoPanel Corrigé**: Résolution de l'erreur de hooks React qui empêchait l'affichage des informations des hexagones
 
+### Système de Territoire Unifié (January 19, 2025)
+- **Suppression Complète des Anciens Systèmes**: Supprimé TerritorySystem.ts, TerritoryClaimPanel.tsx, TerritoryListPanel.tsx qui créaient des conflits
+- **UnifiedTerritorySystem.ts Créé**: Nouveau système propre et simple pour la gestion des territoires
+- **UnifiedTerritoryPanel.tsx**: Interface unifiée intégrée dans le menu "TERRITOIRE" du HUD
+- **Revendication Simplifiée**: Utilise directement la position de l'avatar, coût 10 PA, prérequis faction
+- **Fondation de Colonies**: Système intégré permettant de fonder des colonies sur les territoires revendiqués
+- **Mode MJ Intégré**: Accès illimité pour les Maîtres de Jeu sans prérequis ni coûts
+- **Navigation Territoire**: Clic sur un territoire dans la liste centre la caméra sur celui-ci
+- **TileInfoPanel Mis à Jour**: Utilise maintenant UnifiedTerritorySystem pour afficher les informations de territoire
+- **Code Nettoyé**: Suppression de toutes les références aux anciens systèmes conflictuels
+- **Workflow Simplifié**: Avatar → Position → Revendication → Colonie → Construction (flux clair et logique)
+
 ### Game Master Mode Complete Implementation (January 18, 2025)
 - **Comprehensive GM Access**: Game Masters now have unrestricted access to ALL game functions without ANY prerequisites
 - **Construction System GM Mode**: ConstructionPanel allows GM access to all buildings without colony requirements or resource costs

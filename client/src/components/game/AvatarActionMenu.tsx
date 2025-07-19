@@ -200,8 +200,26 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     }
 
     if (action.id === 'claim_territory') {
-      // Rediriger vers le panneau de gestion de territoire pour éviter les conflits
-      alert('Utilisez le menu "Gestion de territoire" pour revendiquer un territoire.');
+      // Utiliser le nouveau système unifié de territoire
+      const avatarPos = getAvatarPosition();
+      const success = import('../../lib/systems/UnifiedTerritorySystem').then(({ UnifiedTerritorySystem }) => {
+        const claimed = UnifiedTerritorySystem.claimTerritory(
+          avatarPos.x,
+          avatarPos.y,
+          'player',
+          playerName || 'Joueur',
+          playerFaction?.id,
+          playerFaction?.name
+        );
+        
+        if (claimed) {
+          const cost = isGameMaster ? 0 : action.cost;
+          if (!isGameMaster) spendActionPoints(cost);
+          alert(`Territoire revendiqué en (${avatarPos.x}, ${avatarPos.y})!`);
+        } else {
+          alert('Ce territoire est déjà revendiqué.');
+        }
+      });
       onClose();
       return;
     }

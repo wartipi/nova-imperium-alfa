@@ -23,8 +23,7 @@ import { CompetenceTree } from "./CompetenceTree";
 import { TileInfoPanel } from "./TileInfoPanel";
 import { ReputationPanel } from "./ReputationPanel";
 import { FactionPanel } from "./FactionPanel";
-import { TerritoryClaimPanel } from "./TerritoryClaimPanel";
-import { TerritoryListPanel } from "./TerritoryListPanel";
+import { UnifiedTerritoryPanel } from "./UnifiedTerritoryPanel";
 import { ReputationManagementPanel } from "./ReputationManagementPanel";
 
 import { PlayerInventory } from "./PlayerInventory";
@@ -116,10 +115,10 @@ export function MedievalHUD() {
     };
   }, [showLevelUpNotification]);
 
-  // Gestionnaire d'événements pour ouvrir le panneau de territoire
+  // Gestionnaire d'événements pour ouvrir le panneau de territoire unifié
   React.useEffect(() => {
     const handleOpenTerritoryPanel = () => {
-      setShowTerritoryPanel(true);
+      setActiveSection('territory');
     };
 
     window.addEventListener('openTerritoryPanel', handleOpenTerritoryPanel);
@@ -604,7 +603,11 @@ export function MedievalHUD() {
               {activeSection === 'courier' && <CouriersPanel />}
               {activeSection === 'treaties' && <TreatiesPanel />}
               {activeSection === 'events' && <EventPanel />}
-              {activeSection === 'territory' && <TerritoryListPanel />}
+              {activeSection === 'territory' && (
+                <div className="h-full">
+                  <UnifiedTerritoryPanel onClose={() => setActiveSection(null)} />
+                </div>
+              )}
               {activeSection === 'announcements' && <PublicAnnouncementPanel />}
               {activeSection === 'guide' && <GameGuidePanel />}
               {activeSection === 'help' && <HelpPanel />}
@@ -776,10 +779,7 @@ export function MedievalHUD() {
         </div>
       )}
 
-      {/* Territory Claim Panel */}
-      {showTerritoryPanel && (
-        <TerritoryClaimPanel onClose={() => setShowTerritoryPanel(false)} />
-      )}
+
 
       {/* Reputation Management Panel */}
       {showReputationManagement && (

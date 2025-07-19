@@ -5,7 +5,7 @@ import { usePlayer } from "../../lib/stores/usePlayer";
 import { useGameState } from "../../lib/stores/useGameState";
 import { HexTile, City, Unit } from "../../lib/game/types";
 import { ResourceRevealSystem } from "../../lib/systems/ResourceRevealSystem";
-import { TerritorySystem } from "../../lib/systems/TerritorySystem";
+import { UnifiedTerritorySystem } from "../../lib/systems/UnifiedTerritorySystem";
 
 // Fonction pour obtenir le symbole et nom des ressources
 function getResourceInfo(resource: string) {
@@ -169,7 +169,7 @@ function TerritoryInfoSection({ selectedHex }: { selectedHex: HexTile }) {
   // S'assurer que les coordonnées sont des entiers pour la vérification
   const intX = Math.round(selectedHex.x);
   const intY = Math.round(selectedHex.y);
-  const territoryInfo = TerritorySystem.isTerritoryClaimed(intX, intY);
+  const territoryInfo = UnifiedTerritorySystem.getTerritory(intX, intY);
   
   console.log(`🏰 Vérification territoire (${intX},${intY}):`, territoryInfo);
   
@@ -182,14 +182,14 @@ function TerritoryInfoSection({ selectedHex }: { selectedHex: HexTile }) {
             <span className="font-medium">Faction:</span> {territoryInfo.factionName}
           </div>
           <div className="text-blue-800">
-            <span className="font-medium">Revendiqué par:</span> {territoryInfo.claimedByName}
+            <span className="font-medium">Revendiqué par:</span> {territoryInfo.playerName}
           </div>
           <div className="text-blue-800">
             <span className="font-medium">Date:</span> {new Date(territoryInfo.claimedDate).toLocaleDateString('fr-FR')}
           </div>
-          {territoryInfo.colonyId && (
+          {territoryInfo.colonyName && (
             <div className="text-blue-800 font-medium">
-              🏘️ <span className="font-medium">Colonie établie:</span> {territoryInfo.colonyId}
+              🏘️ <span className="font-medium">Colonie:</span> {territoryInfo.colonyName}
             </div>
           )}
         </div>
