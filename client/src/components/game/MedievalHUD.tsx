@@ -141,7 +141,7 @@ export function MedievalHUD() {
     { id: 'guide' as MenuSection, label: 'GUIDE DE JEUX', icon: '📖' },
     { id: 'help' as MenuSection, label: 'AIDE', icon: '❓' },
     { id: 'factions' as MenuSection, label: 'FACTIONS', icon: '🏛️' },
-    { id: 'territory' as MenuSection, label: 'TERRITOIRE', icon: '🗺️' }
+    { id: 'territory' as MenuSection, label: 'GESTION DE TERRITOIRE', icon: '🗺️' }
   ];
 
   const handleCharacterSelect = (character: CharacterOption) => {

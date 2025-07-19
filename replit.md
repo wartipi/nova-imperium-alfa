@@ -135,6 +135,8 @@ Preferred communication style: Simple, everyday language.
 - **Transformation HUD**: Converti tous panneaux majeurs (MedievalHUD, UnifiedTerritoryPanel, TreasuryPanel) à l'esthétique médiévale
 - **Profondeur Visuelle**: Box-shadows et effets inset renforcés pour créer profondeur parchemin réaliste
 - **Cohésion Interface**: Thème médiéval unifié sur panneaux menu, modals, boutons et affichages d'information
+- **Correction Overlay Transparent (January 19, 2025)**: Supprimé overlay blanc semi-translucide qui créait un "voile" sur la carte
+- **Menu Renommé**: Section "TERRITOIRE" renommée en "GESTION DE TERRITOIRE" pour plus de clarté
 
 ### Système de Territoire Unifié (January 19, 2025)
 - **Suppression Complète des Anciens Systèmes**: Supprimé TerritorySystem.ts, TerritoryClaimPanel.tsx, TerritoryListPanel.tsx qui créaient des conflits
