@@ -164,16 +164,32 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const centerY = height / 2;
     const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
 
+    // Détection hexagonale précise avec point dans polygone
     for (const tile of tiles) {
       const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
       const x = centerX + (hexPos.x - regionCenterPos.x);
       const y = centerY + (hexPos.y - regionCenterPos.y);
 
-      // Distance simple pour détecter l'hexagone
-      const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
-      
-      // Utiliser un rayon plus généreux pour la détection
-      if (distance <= hexRadius * 0.9) {
+      // Créer les 6 points de l'hexagone
+      const hexPoints = [];
+      for (let i = 0; i < 6; i++) {
+        const angle = (i * Math.PI) / 3;
+        hexPoints.push({
+          x: x + hexRadius * Math.cos(angle),
+          y: y + hexRadius * Math.sin(angle)
+        });
+      }
+
+      // Test point dans polygone hexagonal
+      let inside = false;
+      for (let i = 0, j = 5; i < 6; j = i++) {
+        if (((hexPoints[i].y > mouseY) !== (hexPoints[j].y > mouseY)) &&
+            (mouseX < (hexPoints[j].x - hexPoints[i].x) * (mouseY - hexPoints[i].y) / (hexPoints[j].y - hexPoints[i].y) + hexPoints[i].x)) {
+          inside = !inside;
+        }
+      }
+
+      if (inside) {
         return tile;
       }
     }
@@ -190,6 +206,11 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
 
     const tile = getHexAtMouse(mouseX, mouseY);
     setHoveredTile(tile);
+    
+    // Debug réduit - seulement si pas de tuile détectée dans le bas
+    if (mouseY > height * 0.7 && !tile) {
+      console.log('Zone bas non détectée:', { mouseX, mouseY });
+    }
   };
 
   const handleMouseLeave = () => {
