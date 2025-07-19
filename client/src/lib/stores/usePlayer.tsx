@@ -73,6 +73,9 @@ interface PlayerState {
   
   // Action Points methods
   spendActionPoints: (amount: number) => boolean;
+  
+  // Avatar position methods
+  getAvatarPosition: () => { x: number; y: number; z: number };
   addActionPoints: (amount: number) => void;
   increaseMaxActionPoints: (amount: number) => void;
   setMaxActionPointsForTesting: () => void;
@@ -291,6 +294,11 @@ export const usePlayer = create<PlayerState>((set, get) => {
   setAvatarPosition: (position) => set({ avatarPosition: position }),
   setAvatarRotation: (rotation) => set({ avatarRotation: rotation }),
   setIsMoving: (isMoving) => set({ isMoving }),
+  
+  getAvatarPosition: () => {
+    const state = get();
+    return state.avatarPosition;
+  },
 
   moveAvatarToHex: (hexX, hexY) => {
     const state = get();

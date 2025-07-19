@@ -12,7 +12,7 @@ interface TerritoryClaimPanelProps {
 
 export function TerritoryClaimPanel({ onClose }: TerritoryClaimPanelProps) {
   const { selectedHex, setSelectedHex } = useMap();
-  const { getCompetenceLevel, spendActionPoints, actionPoints } = usePlayer();
+  const { getCompetenceLevel, spendActionPoints, actionPoints, getAvatarPosition } = usePlayer();
   const { playerFaction, getFactionById } = useFactions();
   const { isGameMaster } = useGameState();
   const [isLoading, setIsLoading] = useState(false);
@@ -145,6 +145,17 @@ export function TerritoryClaimPanel({ onClose }: TerritoryClaimPanelProps) {
     // En mode MJ, pas besoin de faction
     if (!isGameMaster && !currentFaction) return;
 
+    // Récupérer la position de l'avatar
+    const avatarPosition = getAvatarPosition();
+    const avatarX = Math.round(avatarPosition.x);
+    const avatarY = Math.round(avatarPosition.y);
+
+    // Vérifier que l'avatar est sur l'hexagone sélectionné
+    if (selectedHex && (selectedHex.x !== avatarX || selectedHex.y !== avatarY)) {
+      alert(`Vous devez être physiquement présent sur l'hexagone pour le revendiquer.\nVotre avatar est en (${avatarX}, ${avatarY}) mais vous essayez de revendiquer (${selectedHex.x}, ${selectedHex.y})`);
+      return;
+    }
+
     setIsLoading(true);
     try {
       // Coût : 10 PA pour revendiquer un territoire (sauf en mode MJ)
@@ -161,8 +172,8 @@ export function TerritoryClaimPanel({ onClose }: TerritoryClaimPanelProps) {
         const factionName = currentFaction?.name || 'Faction MJ';
         
         const claimed = TerritorySystem.claimTerritory(
-          selectedHex.x,
-          selectedHex.y,
+          avatarX,
+          avatarY,
           'player',
           'Joueur', // TODO: get actual player name
           factionId,
@@ -171,9 +182,19 @@ export function TerritoryClaimPanel({ onClose }: TerritoryClaimPanelProps) {
 
         if (claimed) {
           if (isGameMaster) {
-            console.log(`[MODE MJ] Territoire revendiqué sans coût en PA`);
+            console.log(`[MODE MJ] Territoire revendiqué sans coût en PA en (${avatarX}, ${avatarY})`);
           }
-          alert(`Territoire revendiqué pour ${factionName} !`);
+          alert(`Territoire revendiqué pour ${factionName} en (${avatarX}, ${avatarY}) !`);
+          
+          // Actualiser l'affichage de l'hexagone
+          const gameEngine = (window as any).gameEngine;
+          if (gameEngine) {
+            const tileData = gameEngine.getTileAt(avatarX, avatarY);
+            if (tileData) {
+              setSelectedHex(tileData);
+            }
+          }
+          
           onClose();
         } else {
           alert('Échec de la revendication');
