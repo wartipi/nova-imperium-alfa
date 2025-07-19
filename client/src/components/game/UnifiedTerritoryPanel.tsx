@@ -133,65 +133,65 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
   };
 
   return (
-    <div className="text-amber-800 h-full overflow-y-auto">
+    <div className="medieval-text h-full overflow-y-auto">
       {/* En-tête */}
-      <div className="mb-4">
-        <h3 className="text-amber-900 font-bold text-xl mb-2">
+      <div className="mb-6">
+        <h3 className="medieval-subtitle mb-4">
           {isGameMaster ? 'Gestion de Territoire (Mode MJ)' : 'Mes Territoires'}
         </h3>
       </div>
 
       {/* Section de revendication */}
-      <div className="bg-green-50 border border-green-300 rounded p-4 mb-4">
-        <h4 className="font-bold text-green-800 mb-2">🗺️ Revendiquer un Territoire</h4>
-        <p className="text-green-700 text-sm mb-3">
+      <div className="parchment-section p-4 mb-6">
+        <h4 className="medieval-subtitle mb-3">🗺️ Revendiquer un Territoire</h4>
+        <p className="medieval-text text-sm mb-4">
           Placez votre avatar sur une case libre et cliquez sur le bouton ci-dessous.
         </p>
         <button
           onClick={handleClaimTerritory}
           disabled={isLoading || (!isGameMaster && !playerFaction)}
-          className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded"
+          className="w-full medieval-button medieval-button-success py-3 px-4 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isLoading ? 'Revendication...' : `🚩 Revendiquer (${isGameMaster ? '0' : '10'} PA)`}
         </button>
         {!isGameMaster && !playerFaction && (
-          <p className="text-red-600 text-xs mt-2">⚠️ Vous devez faire partie d'une faction</p>
+          <p className="text-red-700 text-xs mt-3 font-medium">⚠️ Vous devez faire partie d'une faction</p>
         )}
       </div>
 
       {/* Liste des territoires */}
-      <div className="bg-blue-50 border border-blue-300 rounded p-4">
-        <h4 className="font-bold text-blue-800 mb-3">
+      <div className="parchment-section p-4">
+        <h4 className="medieval-subtitle mb-4">
           📋 {isGameMaster ? 'Tous les Territoires' : 'Mes Territoires'} ({territories.length})
         </h4>
         
         {territories.length === 0 ? (
-          <div className="text-blue-700 text-center py-4">
+          <div className="medieval-text text-center py-6">
             {isGameMaster ? 'Aucun territoire revendiqué sur la carte' : 'Vous n\'avez encore revendiqué aucun territoire'}
           </div>
         ) : (
-          <div className="space-y-2 max-h-48 overflow-y-auto">
+          <div className="space-y-3 max-h-48 overflow-y-auto">
             {territories.map((territory) => (
               <div
                 key={`${territory.x}-${territory.y}`}
-                className="bg-white border border-blue-300 rounded p-3 hover:bg-blue-50 cursor-pointer"
+                className="parchment-section p-3 hover:transform hover:scale-105 transition-all duration-200 cursor-pointer"
                 onClick={() => navigateToTerritory(territory)}
               >
                 <div className="flex justify-between items-start">
                   <div>
-                    <div className="font-semibold text-blue-900">
+                    <div className="medieval-subtitle text-sm">
                       🏰 ({territory.x}, {territory.y})
                     </div>
                     {isGameMaster && (
-                      <div className="text-blue-700 text-sm">
+                      <div className="medieval-text text-sm">
                         {territory.playerName} - {territory.factionName}
                       </div>
                     )}
-                    <div className="text-blue-600 text-xs">
+                    <div className="medieval-text text-xs">
                       {new Date(territory.claimedDate).toLocaleDateString('fr-FR')}
                     </div>
                     {territory.colonyName && (
-                      <div className="text-green-700 text-sm font-medium mt-1">
+                      <div className="text-green-800 text-sm font-medium mt-1">
                         🏘️ {territory.colonyName}
                       </div>
                     )}
@@ -204,7 +204,7 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
                         setSelectedTerritory(territory);
                         setShowColonyModal(true);
                       }}
-                      className="text-xs bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded"
+                      className="text-xs medieval-button medieval-button-primary px-2 py-1"
                     >
                       🏘️ Fonder
                     </button>
@@ -217,19 +217,19 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
       </div>
 
       {/* Statistiques */}
-      <div className="mt-4 text-center">
-        <div className="text-amber-700 text-sm">
+      <div className="mt-6 text-center">
+        <div className="medieval-text text-sm">
           📊 Total: {territories.length} territoire{territories.length > 1 ? 's' : ''} | 
           🏘️ Colonies: {territories.filter(t => t.colonyId).length}
         </div>
       </div>
 
-      {/* Modal de fondation de colonie */}
+      {/* Modal de fondation de colonie - Style médiéval */}
       {showColonyModal && selectedTerritory && (
         <div className="fixed inset-0 flex items-center justify-center z-[60] pointer-events-auto">
           <div className="absolute inset-0 bg-black bg-opacity-50"></div>
-          <div className="relative bg-white border-2 border-amber-800 rounded-lg p-6 w-96">
-            <h4 className="font-bold text-amber-900 mb-4">
+          <div className="relative parchment-panel p-6 w-96">
+            <h4 className="medieval-subtitle mb-4">
               🏘️ Fonder une Colonie en ({selectedTerritory.x}, {selectedTerritory.y})
             </h4>
             <input
@@ -237,24 +237,24 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
               value={colonyName}
               onChange={(e) => setColonyName(e.target.value)}
               placeholder="Nom de la colonie"
-              className="w-full border border-gray-300 rounded px-3 py-2 mb-4"
+              className="w-full border-2 border-amber-700 rounded px-3 py-2 mb-4 bg-amber-50 medieval-text"
               maxLength={30}
             />
-            <div className="flex space-x-2">
+            <div className="flex space-x-3">
               <button
                 onClick={() => {
                   setShowColonyModal(false);
                   setSelectedTerritory(null);
                   setColonyName('');
                 }}
-                className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded"
+                className="flex-1 medieval-button py-2 px-4"
               >
                 Annuler
               </button>
               <button
                 onClick={handleFoundColony}
                 disabled={!colonyName.trim()}
-                className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white py-2 px-4 rounded"
+                className="flex-1 medieval-button medieval-button-success py-2 px-4 disabled:opacity-50"
               >
                 Fonder
               </button>

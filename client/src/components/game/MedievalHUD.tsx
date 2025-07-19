@@ -203,7 +203,7 @@ export function MedievalHUD() {
         <div className="flex items-center space-x-4">
           {/* Player Info */}
           <div 
-            className="bg-gradient-to-r from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-lg px-3 py-4 w-64"
+            className="parchment-panel px-4 py-5 w-64"
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
             onMouseUp={(e) => e.stopPropagation()}
@@ -488,20 +488,19 @@ export function MedievalHUD() {
       {/* Left Menu Panel - Back to far left */}
       <div className="absolute top-1/2 left-4 transform -translate-y-1/2 pointer-events-auto">
         <div className="relative">
-          {/* Scroll Background */}
+          {/* Parchemin médiéval du menu principal */}
           <div 
-            className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-lg p-6 w-64"
+            className="parchment-panel medieval-sidebar p-6 w-64"
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
             onMouseUp={(e) => e.stopPropagation()}
           >
-            {/* Decorative scroll edges */}
-            <div className="absolute -top-1 -left-1 w-4 h-4 bg-amber-800 rounded-full"></div>
-            <div className="absolute -top-1 -right-1 w-4 h-4 bg-amber-800 rounded-full"></div>
-            <div className="absolute -bottom-1 -left-1 w-4 h-4 bg-amber-800 rounded-full"></div>
-            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-amber-800 rounded-full"></div>
+            {/* Titre Nova Imperium */}
+            <div className="medieval-title text-center mb-6 text-base">
+              ⚔️ NOVA IMPERIUM ⚔️
+            </div>
             
-            <div className="space-y-2">
+            <div className="space-y-3">
               {menuItems.map((item) => (
                 <button
                   key={item.id}
@@ -513,10 +512,10 @@ export function MedievalHUD() {
                   }}
                   onMouseDown={(e) => e.stopPropagation()}
                   onMouseUp={(e) => e.stopPropagation()}
-                  className={`w-full text-left px-4 py-2 rounded-md transition-colors duration-200 flex items-center space-x-3 ${
+                  className={`w-full text-left px-4 py-2 medieval-button flex items-center space-x-3 ${
                     activeSection === item.id
-                      ? 'bg-amber-300 text-amber-900 shadow-inner'
-                      : 'text-amber-800 hover:bg-amber-200'
+                      ? 'medieval-button-primary'
+                      : ''
                   }`}
                 >
                   <span className="text-lg">{item.icon}</span>
@@ -568,18 +567,18 @@ export function MedievalHUD() {
         <MiniMap />
       </div>
 
-      {/* Active Section Panel - Centered with doubled width */}
+      {/* Active Section Panel - Style médiéval parchemin */}
       {activeSection && (
         <div className="fixed inset-0 flex items-center justify-center pointer-events-auto z-50">
-          <div className="absolute inset-0 bg-black bg-opacity-30" onClick={() => setActiveSection(null)}></div>
+          <div className="absolute inset-0 bg-black bg-opacity-40" onClick={() => setActiveSection(null)}></div>
           <div 
-            className="relative bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-2xl p-6 w-[640px] max-h-[60vh] overflow-y-auto"
+            className="relative parchment-panel p-6 w-[700px] max-h-[70vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
             onMouseUp={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-amber-900 font-bold text-lg">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="medieval-title">
                 {menuItems.find(item => item.id === activeSection)?.label}
               </h3>
               <button
@@ -589,7 +588,7 @@ export function MedievalHUD() {
                 }}
                 onMouseDown={(e) => e.stopPropagation()}
                 onMouseUp={(e) => e.stopPropagation()}
-                className="text-amber-800 hover:text-amber-900 text-xl font-bold px-2 py-1 rounded hover:bg-amber-300 transition-colors"
+                className="medieval-button medieval-button-danger px-3 py-1 text-lg"
               >
                 ✕
               </button>
