@@ -177,6 +177,8 @@ export function TerritoryClaimPanel({ onClose }: TerritoryClaimPanelProps) {
         const factionId = currentFaction?.id || 'gm_faction';
         const factionName = currentFaction?.name || 'Faction MJ';
         
+        console.log('🎯 Tentative revendication avec coordonnées:', { x: avatarX, y: avatarY, factionId, factionName });
+        
         const claimed = TerritorySystem.claimTerritory(
           avatarX,
           avatarY,
