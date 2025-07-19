@@ -128,31 +128,31 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
       const x = centerX + (hexPos.x - regionCenterPos.x);
       const y = centerY + (hexPos.y - regionCenterPos.y);
 
-      // Couleur du terrain avec vérification
+      // Couleur du terrain avec vérification  
       const terrainColor = terrainColors[tile.terrain as keyof typeof terrainColors];
       if (!terrainColor) {
         console.warn('Couleur terrain inconnue:', tile.terrain);
       }
       ctx.fillStyle = terrainColor || '#CCCCCC';
-      drawHexagon(ctx, x, y, hexRadius * 0.9);
+      drawHexagon(ctx, x, y, hexRadius);
       ctx.fill();
 
       // Contour noir mince pour toutes les tuiles
       ctx.strokeStyle = '#000000';
       ctx.lineWidth = 1;
-      drawHexagon(ctx, x, y, hexRadius * 0.9);
+      drawHexagon(ctx, x, y, hexRadius);
       ctx.stroke();
 
       // Bordure supplémentaire pour la qualité de la carte
       if (mapData.quality === 'masterwork') {
         ctx.strokeStyle = '#FFD700';
         ctx.lineWidth = 3;
-        drawHexagon(ctx, x, y, hexRadius * 0.85);
+        drawHexagon(ctx, x, y, hexRadius * 0.95);
         ctx.stroke();
       } else if (mapData.quality === 'detailed') {
         ctx.strokeStyle = '#C0C0C0';
         ctx.lineWidth = 2;
-        drawHexagon(ctx, x, y, hexRadius * 0.85);
+        drawHexagon(ctx, x, y, hexRadius * 0.95);
         ctx.stroke();
       }
 
@@ -252,7 +252,7 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
           const hexCenterX = testHexX * (hexRadius * 1.5);
           const hexCenterY = testHexY * hexHeight + (testHexX % 2) * (hexHeight / 2);
           
-          // Test géométrique précis (même fonction que GameEngine)
+          // Test géométrique précis (même fonction que GameEngine avec rayon plein)
           const dx = Math.abs(worldX - hexCenterX);
           const dy = Math.abs(worldY - hexCenterY);
           
