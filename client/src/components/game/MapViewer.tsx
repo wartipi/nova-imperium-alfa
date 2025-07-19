@@ -39,11 +39,10 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
   const [hoveredTile, setHoveredTile] = useState<{ x: number; y: number; terrain: string; resources: string[] } | null>(null);
 
-  // Fonction pour dessiner un hexagone (pointy-top comme dans GameEngine)
   const drawHexagon = (ctx: CanvasRenderingContext2D, centerX: number, centerY: number, radius: number) => {
     ctx.beginPath();
     for (let i = 0; i < 6; i++) {
-      const angle = (i * Math.PI) / 3; // EXACTEMENT comme GameEngine.ts ligne 290
+      const angle = (i * Math.PI) / 3;
       const x = centerX + radius * Math.cos(angle);
       const y = centerY + radius * Math.sin(angle);
       if (i === 0) {
@@ -55,32 +54,10 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     ctx.closePath();
   };
 
-  // Fonction pour convertir les coordonnées hex en coordonnées pixel (EXACTEMENT comme GameEngine.ts)
   const hexToPixel = (hexX: number, hexY: number, hexRadius: number) => {
-    // EXACTEMENT la même formule que GameEngine.ts lignes 257-258
     const hexHeight = hexRadius * Math.sqrt(3);
     const x = hexX * (hexRadius * 1.5);
     const y = hexY * hexHeight + (hexX % 2) * (hexHeight / 2);
-    
-    return { x, y };
-  };
-
-  // Fonction pour convertir les coordonnées pixel en coordonnées hex (EXACTEMENT comme GameEngine.ts)
-  const pixelToHex = (pixelX: number, pixelY: number, hexRadius: number, offsetX: number, offsetY: number) => {
-    const hexHeight = hexRadius * Math.sqrt(3);
-    
-    // Ajuster pour l'offset de la carte
-    const adjustedX = pixelX - offsetX;
-    const adjustedY = pixelY - offsetY;
-    
-    // Conversion inverse
-    const q = (adjustedX * 2/3) / hexRadius;
-    const r = (-adjustedX / 3 + adjustedY * Math.sqrt(3)/3) / hexRadius;
-    
-    // Arrondir aux coordonnées hex
-    const x = Math.round(q);
-    const y = Math.round(r - (x % 2) * 0.5);
-    
     return { x, y };
   };
 
@@ -107,43 +84,29 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const minY = Math.min(...tiles.map(t => t.y));
     const maxY = Math.max(...tiles.map(t => t.y));
 
-    // Calculer la taille des hexagones - même formule que la version originale qui marchait
     const mapWidth = maxX - minX + 1;
     const mapHeight = maxY - minY + 1;
     const hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
 
-    // Centre de la carte
     const centerX = width / 2;
     const centerY = height / 2;
-
-    // Créer une grille centrée sur la région mappée
     const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
     
-    // Dessiner chaque tuile comme hexagone
     tiles.forEach(tile => {
-      // Utiliser les coordonnées absolues puis centrer la région
       const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
-      
-      // Position finale centrée sur le canvas
       const x = centerX + (hexPos.x - regionCenterPos.x);
       const y = centerY + (hexPos.y - regionCenterPos.y);
 
-      // Couleur du terrain avec vérification  
-      const terrainColor = terrainColors[tile.terrain as keyof typeof terrainColors];
-      if (!terrainColor) {
-        console.warn('Couleur terrain inconnue:', tile.terrain);
-      }
-      ctx.fillStyle = terrainColor || '#CCCCCC';
+      const terrainColor = terrainColors[tile.terrain as keyof typeof terrainColors] || '#CCCCCC';
+      ctx.fillStyle = terrainColor;
       drawHexagon(ctx, x, y, hexRadius);
       ctx.fill();
 
-      // Contour noir mince pour toutes les tuiles
       ctx.strokeStyle = '#000000';
       ctx.lineWidth = 1;
       drawHexagon(ctx, x, y, hexRadius);
       ctx.stroke();
 
-      // Bordure supplémentaire pour la qualité de la carte
       if (mapData.quality === 'masterwork') {
         ctx.strokeStyle = '#FFD700';
         ctx.lineWidth = 3;
@@ -156,7 +119,6 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
         ctx.stroke();
       }
 
-      // Ressources (pour les cartes détaillées)
       if (mapData.quality !== 'rough' && tile.resources.length > 0) {
         ctx.fillStyle = '#FF6B6B';
         ctx.beginPath();
@@ -165,17 +127,14 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
       }
     });
 
-    // Titre de la carte
     ctx.fillStyle = '#333';
     ctx.font = '14px Arial';
     ctx.textAlign = 'center';
     ctx.fillText(mapData.name, width / 2, 15);
 
-    // Qualité de la carte
     ctx.font = '10px Arial';
     ctx.fillText(`Qualité: ${mapData.quality}`, width / 2, height - 5);
 
-    // Boussole simple
     ctx.strokeStyle = '#666';
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -184,15 +143,13 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     ctx.stroke();
     ctx.fillStyle = '#666';
     ctx.font = '8px Arial';
-    ctx.textAlign = 'center';
     ctx.fillText('N', width - 25, 12);
 
   }, [mapData, width, height]);
 
-  // Détection par collision directe (comme GameEngine)
   const getHexAtMouse = (mouseX: number, mouseY: number) => {
     const tiles = mapData.region.tiles;
-    if (tiles.length === 0) return null;
+    if (!tiles.length) return null;
 
     const minX = Math.min(...tiles.map(t => t.x));
     const maxX = Math.max(...tiles.map(t => t.x));
@@ -207,13 +164,11 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const centerY = height / 2;
     const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
 
-    // Test de collision directe avec chaque hexagone
     for (const tile of tiles) {
       const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
       const x = centerX + (hexPos.x - regionCenterPos.x);
       const y = centerY + (hexPos.y - regionCenterPos.y);
 
-      // Test collision hexagonale précise
       const dx = Math.abs(mouseX - x);
       const dy = Math.abs(mouseY - y);
       
@@ -223,7 +178,6 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
         }
       }
     }
-    
     return null;
   };
 
