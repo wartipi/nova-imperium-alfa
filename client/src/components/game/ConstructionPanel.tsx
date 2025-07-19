@@ -6,7 +6,7 @@ import { Button } from "../ui/button";
 import { getBuildingCost, canAffordAction } from "../../lib/game/ActionPointsCosts";
 import { getBuildingAPGeneration, getBuildingMaxAPIncrease } from "../../lib/game/ActionPointsGeneration";
 import { Resources } from "../../lib/game/types";
-import { TerritorySystem } from "../../lib/systems/TerritorySystem";
+import { UnifiedTerritorySystem } from "../../lib/systems/UnifiedTerritorySystem";
 import { useMap } from "../../lib/stores/useMap";
 import { useState } from "react";
 
@@ -21,25 +21,16 @@ export function ConstructionPanel() {
 
   if (!currentNovaImperium) return null;
 
-  // Vérifier l'état du joueur
-  const playerColonies = TerritorySystem.getPlayerColonies('player');
+  // Vérifier l'état du joueur - utiliser UnifiedTerritorySystem
+  const playerTerritories = UnifiedTerritorySystem.getPlayerTerritories('player');
+  const playerColonies = playerTerritories.filter(territory => territory.colonyId);
   const currentFaction = playerFaction ? getFactionById(playerFaction) : null;
   const hasColonies = playerColonies.length > 0;
 
   // Les MJ peuvent construire des bâtiments sans ville, directement sur le territoire
 
-  // Option spéciale pour fonder une colonie
-  const colonyFoundingOption = {
-    id: 'found_colony',
-    name: 'Fonder une Colonie',
-    cost: { action_points: 15 },
-    constructionTime: 1,
-    description: 'Établir une nouvelle colonie sur territoire revendiqué',
-    icon: '🏛️',
-    category: 'Colonie',
-    requiredTerrain: ['any'],
-    actionPointCost: 15
-  };
+  // Afficher les informations sur les colonies existantes
+  console.log('🏰', playerColonies.length, 'colonies:', playerColonies.map(c => `${c.colonyName} (${c.x},${c.y})`));
 
   const buildings = [
     // === TERRE EN FRICHE (wasteland) ===
@@ -653,8 +644,7 @@ export function ConstructionPanel() {
   };
 
   const canAffordBuilding = (buildingId: string): boolean => {
-    const building = buildings.find(b => b.id === buildingId) || 
-                    (buildingId === 'found_colony' ? colonyFoundingOption : null);
+    const building = buildings.find(b => b.id === buildingId);
     if (!building || !currentNovaImperium) return false;
     
     // En mode MJ, on peut toujours construire
@@ -673,90 +663,6 @@ export function ConstructionPanel() {
   };
 
   const handleBuild = (buildingId: string, cityId: string) => {
-    // Cas spécial pour fonder une colonie
-    if (buildingId === 'found_colony') {
-      if (isGameMaster || canAffordBuilding(buildingId)) {
-        if (!selectedHex) {
-          alert('Veuillez sélectionner un hexagone sur la carte pour fonder la colonie');
-          return;
-        }
-
-        // Vérifier si l'hexagone est sur terre
-        const gameEngine = (window as any).gameEngine;
-        if (gameEngine && gameEngine.map) {
-          const hex = gameEngine.map.getHex(selectedHex.x, selectedHex.y);
-          if (hex?.terrain === 'shallow_water' || hex?.terrain === 'deep_water') {
-            alert('Impossible de fonder une colonie sur l\'eau. Sélectionnez un hexagone terrestre.');
-            return;
-          }
-        }
-
-        // Vérifier si il y a déjà une ville sur cet hexagone
-        const existingCity = currentNovaImperium?.cities.find(city => city.x === selectedHex.x && city.y === selectedHex.y);
-        if (existingCity) {
-          alert(`Il y a déjà une ville (${existingCity.name}) sur cet hexagone.`);
-          return;
-        }
-
-        // Vérifier le territoire (sauf pour les MJ)
-        if (!isGameMaster) {
-          const territoryOwner = TerritorySystem.isTerritoryClaimed(selectedHex.x, selectedHex.y);
-          if (!territoryOwner || territoryOwner.factionId !== playerFaction) {
-            alert('Vous devez d\'abord revendiquer ce territoire avec votre faction pour y fonder une colonie.');
-            return;
-          }
-          spendActionPoints(15);
-        } else {
-          // En mode MJ, revendiquer automatiquement le territoire si pas déjà fait
-          const territoryOwner = TerritorySystem.isTerritoryClaimed(selectedHex.x, selectedHex.y);
-          if (!territoryOwner) {
-            TerritorySystem.claimTerritory(selectedHex.x, selectedHex.y, 'gm_faction', 'Administration MJ', 'gm_player', 'Maître de Jeu');
-            console.log(`🎯 Territoire (${selectedHex.x}, ${selectedHex.y}) automatiquement revendiqué en mode MJ`);
-          }
-        }
-
-        // Créer la nouvelle ville
-        const newCity = {
-          id: `city_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          name: isGameMaster ? `Colonie MJ ${selectedHex.x}-${selectedHex.y}` : `Nouvelle Colonie`,
-          population: 1,
-          buildings: [],
-          currentProduction: null,
-          productionProgress: 0,
-          x: selectedHex.x,
-          y: selectedHex.y
-        };
-
-        // Ajouter la ville au système Nova Imperium
-        addCity(newCity);
-        
-        // Si c'est un joueur normal (pas MJ), créer aussi une colonie dans le TerritorySystem
-        if (!isGameMaster && playerFaction) {
-          const faction = getFactionById(playerFaction);
-          if (faction) {
-            TerritorySystem.foundColony(
-              selectedHex.x, 
-              selectedHex.y, 
-              newCity.name, 
-              'player', 
-              'Joueur', 
-              playerFaction, 
-              faction.name
-            );
-          }
-        }
-        
-        console.log(`✅ Colonie fondée à (${selectedHex.x}, ${selectedHex.y}):`, newCity.name);
-        
-        // Forcer le re-rendu de la carte pour afficher la nouvelle ville
-        if ((window as any).gameEngine) {
-          (window as any).gameEngine.render();
-        }
-        
-        alert(`Colonie "${newCity.name}" fondée avec succès à (${selectedHex.x}, ${selectedHex.y}) !`);
-      }
-      return;
-    }
 
     const building = buildings.find(b => b.id === buildingId);
     if (!building || !currentNovaImperium) return;
@@ -809,40 +715,21 @@ export function ConstructionPanel() {
         )}
       </div>
 
-      {/* Option pour fonder une colonie (visible pour tous sauf MJ avec colonies) */}
-      {(!hasColonies || isGameMaster) && (
-        <div className="bg-blue-50 border border-blue-400 rounded p-3 mb-4">
-          <div className="font-medium text-sm mb-2">
-            🏛️ Fondation de Colonie
-            {isGameMaster && <span className="text-purple-600 text-xs ml-2">(Mode MJ)</span>}
+      {/* Information sur les colonies existantes */}
+      {hasColonies && (
+        <div className="bg-green-50 border border-green-400 rounded p-3 mb-4">
+          <div className="font-medium text-sm mb-2 text-green-800">
+            🏘️ Colonies fondées ({playerColonies.length})
           </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <span className="text-sm">{colonyFoundingOption.icon}</span>
-                <div>
-                  <div className="text-xs font-medium">{colonyFoundingOption.name}</div>
-                  <div className="text-xs text-blue-700">
-                    {formatResourceCost(colonyFoundingOption.cost)}
-                  </div>
-                  <div className="text-xs text-blue-600">
-                    ⚡ {colonyFoundingOption.actionPointCost} PA | 🕐 {colonyFoundingOption.constructionTime} tour
-                  </div>
-                  <div className="text-xs text-green-600">
-                    {isGameMaster ? '📍 Aucun prérequis en mode MJ' : '📍 Territoire revendiqué requis'}
-                  </div>
-                </div>
+          <div className="space-y-1">
+            {playerColonies.map(colony => (
+              <div key={colony.colonyId} className="text-xs text-green-700">
+                📍 {colony.colonyName} en ({colony.x}, {colony.y})
               </div>
-              <Button
-                size="sm"
-                onClick={() => handleBuild('found_colony', 'temp')}
-                disabled={!isGameMaster && !canAffordBuilding('found_colony')}
-                className="text-xs bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-              >
-                {isGameMaster ? 'Fonder (Instantané)' : 
-                 !canAffordBuilding('found_colony') ? 'Ressources insuffisantes' : 'Fonder'}
-              </Button>
-            </div>
+            ))}
+          </div>
+          <div className="text-xs text-green-600 mt-2">
+            💡 Utilisez le menu "GESTION DE TERRITOIRE" pour fonder de nouvelles colonies
           </div>
         </div>
       )}
@@ -851,8 +738,14 @@ export function ConstructionPanel() {
       {!isGameMaster && !hasColonies && (
         <div className="bg-yellow-50 border border-yellow-400 rounded p-3 mb-4">
           <div className="text-yellow-800 text-sm font-semibold">⚠️ Aucune colonie fondée</div>
-          <div className="text-yellow-700 text-xs">
+          <div className="text-yellow-700 text-xs mb-2">
             Les bâtiments ci-dessous nécessitent d'avoir fondé une colonie pour être construits.
+          </div>
+          <div className="text-yellow-600 text-xs">
+            💡 Workflow: Revendiquez un territoire → Fondez une colonie → Construisez des bâtiments
+          </div>
+          <div className="text-yellow-600 text-xs">
+            📍 Utilisez le menu "GESTION DE TERRITOIRE" pour commencer
           </div>
         </div>
       )}

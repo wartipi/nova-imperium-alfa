@@ -139,6 +139,7 @@ Preferred communication style: Simple, everyday language.
 - **Menu Renommé**: Section "TERRITOIRE" renommée en "GESTION DE TERRITOIRE" pour plus de clarté
 - **Nettoyage Actions Avatar (January 19, 2025)**: Supprimé les actions "Revendiquer Territoire" et "Fonder Colonie" du menu avatar pour éviter conflits avec UnifiedTerritoryPanel
 - **Corrections Intégration Système (January 19, 2025)**: Fixé erreur centerCameraOnHex → centerCameraOnPosition, ajouté import useNovaImperium manquant, amélioré textes boutons "Fonder une Colonie"
+- **Intégration Construction-Colonies (January 19, 2025)**: Lié mécaniques construction aux colonies, workflow unifié territoire→colonie→construction, supprimé doublons fondation colonie, affichage colonies existantes dans ConstructionPanel
 
 ### Système de Territoire Unifié (January 19, 2025)
 - **Suppression Complète des Anciens Systèmes**: Supprimé TerritorySystem.ts, TerritoryClaimPanel.tsx, TerritoryListPanel.tsx qui créaient des conflits
