@@ -18,19 +18,21 @@ export function ConstructionPanel() {
   const { selectedHex } = useMap();
   const [hoveredBuilding, setHoveredBuilding] = useState<string | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  const [selectedColony, setSelectedColony] = useState<string>('');
 
   if (!currentNovaImperium) return null;
 
-  // Vérifier l'état du joueur - utiliser UnifiedTerritorySystem
-  const playerTerritories = UnifiedTerritorySystem.getPlayerTerritories('player');
-  const playerColonies = playerTerritories.filter(territory => territory.colonyId);
+  // Obtenir les colonies du joueur avec leurs territoires contrôlés depuis UnifiedTerritorySystem
+  const playerColoniesWithTerritories = UnifiedTerritorySystem.getPlayerColoniesWithTerritories('player');
   const currentFaction = playerFaction ? getFactionById(playerFaction) : null;
-  const hasColonies = playerColonies.length > 0;
+  const hasColonies = playerColoniesWithTerritories.length > 0;
 
   // Les MJ peuvent construire des bâtiments sans ville, directement sur le territoire
 
-  // Afficher les informations sur les colonies existantes
-  console.log('🏰', playerColonies.length, 'colonies:', playerColonies.map(c => `${c.colonyName} (${c.x},${c.y})`));
+  // Afficher les informations sur les colonies existantes avec leurs terrains
+  console.log('🏰', playerColoniesWithTerritories.length, 'colonies:', 
+    playerColoniesWithTerritories.map(c => `${c.colony.colonyName} (${c.colony.x},${c.colony.y}) - ${c.controlledTerritories.length} cases - terrains: ${c.availableTerrains.join(', ')}`)
+  );
 
   const buildings = [
     // === TERRE EN FRICHE (wasteland) ===
@@ -719,12 +721,20 @@ export function ConstructionPanel() {
       {hasColonies && (
         <div className="bg-green-50 border border-green-400 rounded p-3 mb-4">
           <div className="font-medium text-sm mb-2 text-green-800">
-            🏘️ Colonies fondées ({playerColonies.length})
+            🏘️ Colonies fondées ({playerColoniesWithTerritories.length})
           </div>
           <div className="space-y-1">
-            {playerColonies.map(colony => (
-              <div key={colony.colonyId} className="text-xs text-green-700">
-                📍 {colony.colonyName} en ({colony.x}, {colony.y})
+            {playerColoniesWithTerritories.map(colonyData => (
+              <div key={colonyData.colony.colonyId} className="text-xs text-green-700">
+                📍 {colonyData.colony.colonyName} en ({colonyData.colony.x}, {colonyData.colony.y})
+                <div className="text-xs text-blue-600 ml-4">
+                  🗺️ {colonyData.controlledTerritories.length} case{colonyData.controlledTerritories.length > 1 ? 's' : ''} contrôlée{colonyData.controlledTerritories.length > 1 ? 's' : ''}
+                </div>
+                {colonyData.availableTerrains.length > 0 && (
+                  <div className="text-xs text-purple-600 ml-4">
+                    🌍 Terrains: {colonyData.availableTerrains.join(', ')}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -750,10 +760,34 @@ export function ConstructionPanel() {
         </div>
       )}
 
-      {/* Liste des villes ou zone de construction temporaire */}
-      {(hasColonies || isGameMaster ? currentNovaImperium.cities : [{id: 'temp', name: 'Construction (nécessite une colonie)', population: 0, buildings: [], currentProduction: null, productionProgress: 0, x: 0, y: 0}]).map(city => (
-        <div key={city.id} className={`bg-amber-50 border border-amber-700 rounded p-3 ${!hasColonies && !isGameMaster ? 'opacity-50' : ''}`}>
-          <div className="font-medium text-sm mb-2">{city.name}</div>
+      {/* Liste des colonies avec leurs constructions disponibles */}
+      {hasColonies ? playerColoniesWithTerritories.map(colonyData => {
+        // Trouver la ville correspondante dans le système Nova Imperium
+        const city = currentNovaImperium.cities.find(c => c.x === colonyData.colony.x && c.y === colonyData.colony.y) || {
+          id: colonyData.colony.colonyId!,
+          name: colonyData.colony.colonyName!,
+          population: 1,
+          buildings: [],
+          currentProduction: null,
+          productionProgress: 0,
+          x: colonyData.colony.x,
+          y: colonyData.colony.y
+        };
+        
+        // Filtrer les bâtiments selon les terrains disponibles dans cette colonie
+        const availableBuildings = buildings.filter(building => 
+          building.requiredTerrain.includes('any') || 
+          building.requiredTerrain.some(terrain => colonyData.availableTerrains.includes(terrain))
+        );
+        
+        return (
+        <div key={city.id} className="bg-amber-50 border border-amber-700 rounded p-3">
+          <div className="font-medium text-sm mb-2">
+            🏘️ {city.name} ({colonyData.controlledTerritories.length} case{colonyData.controlledTerritories.length > 1 ? 's' : ''})
+          </div>
+          <div className="text-xs text-purple-600 mb-3">
+            🌍 Terrains disponibles: {colonyData.availableTerrains.length > 0 ? colonyData.availableTerrains.join(', ') : 'Aucun'}
+          </div>
 
           {city.currentProduction && hasColonies ? (
             <div className="mb-3">
@@ -777,11 +811,11 @@ export function ConstructionPanel() {
 
           <div className="space-y-3">
             {['Basique', 'Production', 'Commerce', 'Défense', 'Spirituel', 'Magie', 'Éducation', 'Navigation', 'Stockage', 'Prestige'].map(category => {
-              const categoryBuildings = buildings.filter(b => b.category === category);
-              return (
+              const categoryBuildings = availableBuildings.filter(b => b.category === category);
+              return categoryBuildings.length > 0 ? (
                 <div key={category} className="space-y-1">
                   <div className="text-xs font-bold text-amber-800 border-b border-amber-300 pb-1">
-                    {category}
+                    {category} ({categoryBuildings.length})
                   </div>
                   {categoryBuildings.map(building => (
                     <div 
@@ -810,23 +844,80 @@ export function ConstructionPanel() {
                         size="sm"
                         onClick={() => handleBuild(building.id, city.id)}
                         disabled={
-                          (!hasColonies && !isGameMaster) ||
                           city.currentProduction !== null || 
                           city.buildings.includes(building.id as any) || 
-                          !canAffordBuilding(building.id) ||
-                          !canBuildBuilding(building).canBuild
+                          !canAffordBuilding(building.id)
                         }
-                        className={`text-xs ${
-                          (!hasColonies && !isGameMaster) ? 'bg-gray-400 hover:bg-gray-500' :
-                          !canBuildBuilding(building).canBuild 
-                            ? 'bg-red-500 hover:bg-red-600' 
-                            : 'bg-amber-600 hover:bg-amber-700'
-                        } disabled:opacity-50`}
+                        className="text-xs bg-amber-600 hover:bg-amber-700 disabled:opacity-50"
                       >
-                        {(!hasColonies && !isGameMaster) ? 'Colonie requise' :
-                         city.buildings.includes(building.id as any) ? 'Construit' : 
-                         !canBuildBuilding(building).canBuild ? 'Terrain requis' :
+                        {city.buildings.includes(building.id as any) ? 'Construit' : 
                          !canAffordBuilding(building.id) ? 'Ressources insuffisantes' : 'Construire'}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : null;
+            })}
+            
+            {availableBuildings.length === 0 && (
+              <div className="text-center py-4 text-amber-700">
+                🚫 Aucun bâtiment disponible avec les terrains actuels
+                <div className="text-xs mt-1">
+                  Étendez le territoire de votre colonie pour débloquer plus de constructions
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        );
+      }) : !isGameMaster ? (
+        <div className="bg-amber-50 border border-amber-700 rounded p-3 opacity-50">
+          <div className="font-medium text-sm mb-2">Construction (nécessite une colonie)</div>
+          <div className="text-amber-700 text-xs">
+            Fondez d'abord une colonie via "GESTION DE TERRITOIRE"
+          </div>
+        </div>
+      ) : currentNovaImperium.cities.map(city => (
+        <div key={city.id} className="bg-amber-50 border border-amber-700 rounded p-3">
+          <div className="font-medium text-sm mb-2">{city.name} (Mode MJ)</div>
+          <div className="space-y-3">
+            {['Basique', 'Production', 'Commerce', 'Défense', 'Spirituel', 'Magie', 'Éducation', 'Navigation', 'Stockage', 'Prestige'].map(category => {
+              const categoryBuildings = buildings.filter(b => b.category === category);
+              return (
+                <div key={category} className="space-y-1">
+                  <div className="text-xs font-bold text-amber-800 border-b border-amber-300 pb-1">
+                    {category}
+                  </div>
+                  {categoryBuildings.map(building => (
+                    <div 
+                      key={building.id} 
+                      className="flex items-center justify-between"
+                      onMouseEnter={(e) => handleMouseEnter(building.id, e)}
+                      onMouseLeave={handleMouseLeave}
+                      onMouseMove={handleMouseMove}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm">{building.icon}</span>
+                        <div>
+                          <div className="text-xs font-medium">{building.name}</div>
+                          <div className="text-xs text-amber-700">
+                            {formatResourceCost(building.cost)}
+                          </div>
+                          <div className="text-xs text-blue-600">
+                            ⚡ ∞ PA (Mode MJ) | 🕐 Instantané
+                          </div>
+                          <div className="text-xs text-green-600">
+                            📍 {building.requiredTerrain.map(terrain => getTerrainName(terrain)).join(' ou ')}
+                          </div>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => handleBuild(building.id, city.id)}
+                        disabled={city.buildings.includes(building.id as any)}
+                        className="text-xs bg-amber-600 hover:bg-amber-700 disabled:opacity-50"
+                      >
+                        {city.buildings.includes(building.id as any) ? 'Construit' : 'Construire'}
                       </Button>
                     </div>
                   ))}

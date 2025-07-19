@@ -9,7 +9,7 @@ import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { MiniMap } from "./MiniMap";
 import { TreasuryPanel } from "./TreasuryPanel";
-import { ConstructionPanel } from "./ConstructionPanel";
+import { ConstructionPanel } from "./ConstructionPanelSimple";
 import { RecruitmentPanel } from "./RecruitmentPanel";
 import { ActivityReportPanel } from "./ActivityReportPanel";
 import { CouriersPanel } from "./CouriersPanel";
