@@ -264,17 +264,70 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const tile = getHexAtMouse(mouseX, mouseY);
     setHoveredTile(tile);
     
-    // Debug réactivé pour diagnostiquer le problème
-    if (!tile) {
-      console.log('❌ Aucune tuile détectée:', { mouseX, mouseY, tileCount: mapData.region.tiles.length });
-    } else {
-      console.log('✅ Tuile détectée:', { x: tile.x, y: tile.y, terrain: tile.terrain });
-    }
+    // Debug désactivé - utilisation du système de clic maintenant
+    // if (!tile) {
+    //   console.log('❌ Aucune tuile détectée:', { mouseX, mouseY, tileCount: mapData.region.tiles.length });
+    // } else {
+    //   console.log('✅ Tuile détectée:', { x: tile.x, y: tile.y, terrain: tile.terrain });
+    // }
   };
 
   const handleMouseLeave = () => {
     setMousePos(null);
     setHoveredTile(null);
+  };
+
+  // Gestion simplifiée des clics - approche similaire à la carte principale
+  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    
+    // Méthode simplifiée : trouver la tuile la plus proche sans calculs complexes
+    const tiles = mapData.region.tiles;
+    const minX = Math.min(...tiles.map(t => t.x));
+    const maxX = Math.max(...tiles.map(t => t.x));
+    const minY = Math.min(...tiles.map(t => t.y));
+    const maxY = Math.max(...tiles.map(t => t.y));
+
+    const mapWidth = maxX - minX + 1;
+    const mapHeight = maxY - minY + 1;
+    const hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
+
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
+    
+    let bestTile = null;
+    let bestDistance = Infinity;
+    
+    // Recherche simple par distance euclidienne
+    for (const tile of tiles) {
+      const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
+      const tileScreenX = centerX + (hexPos.x - regionCenterPos.x);
+      const tileScreenY = centerY + (hexPos.y - regionCenterPos.y);
+      
+      const distance = Math.sqrt((clickX - tileScreenX) ** 2 + (clickY - tileScreenY) ** 2);
+      
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestTile = tile;
+      }
+    }
+    
+    if (bestTile && bestDistance <= hexRadius * 1.5) { // Zone de tolérance généreuse
+      console.log(`🎯 Clic détecté sur tuile: (${bestTile.x}, ${bestTile.y}) - ${bestTile.terrain}, distance: ${bestDistance.toFixed(1)}`);
+      setHoveredTile(bestTile); // Afficher les infos de la tuile cliquée
+      
+      // Optionnel : maintenir la position de la souris pour le tooltip
+      setMousePos({ x: clickX, y: clickY });
+    } else {
+      console.log(`❌ Clic en dehors des tuiles, distance minimale: ${bestDistance.toFixed(1)}`);
+      setHoveredTile(null);
+      setMousePos(null);
+    }
   };
 
   return (
@@ -284,6 +337,7 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
         width={width}
         height={height}
         className="border border-amber-300 rounded"
+        onClick={handleCanvasClick}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       />
