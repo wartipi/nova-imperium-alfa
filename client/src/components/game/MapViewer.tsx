@@ -147,7 +147,7 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
 
   }, [mapData, width, height]);
 
-  // Méthode de collision ultra-robuste avec zone de capture étendue  
+  // Debug avec informations détaillées  
   const getHexAtMouse = (mouseX: number, mouseY: number) => {
     const tiles = mapData.region.tiles;
     if (!tiles.length) return null;
@@ -166,18 +166,48 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const centerY = height / 2;
     const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
 
-    // Approche simple et directe : tester chaque tile avec une zone très permissive
+    // Debug: afficher les paramètres une seule fois
+    if (Math.random() < 0.01) {
+      console.log('Paramètres collision:', { 
+        canvasSize: { width, height }, 
+        hexRadius, 
+        centerX, centerY, 
+        regionCenter: mapData.region.centerX + ',' + mapData.region.centerY,
+        regionCenterPos,
+        tilesCount: tiles.length
+      });
+    }
+
+    // Tester chaque tuile avec debug complet
+    let found = false;
     for (const tile of tiles) {
       const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
       const hexScreenX = centerX + (hexPos.x - regionCenterPos.x);
       const hexScreenY = centerY + (hexPos.y - regionCenterPos.y);
 
-      // Zone de capture rectangulaire très large pour garantir la capture
-      const captureWidth = hexRadius * 2.2;
-      const captureHeight = hexRadius * 2.2;
+      // Zone de capture rectangulaire très large
+      const captureWidth = hexRadius * 2.5; // Encore plus large
+      const captureHeight = hexRadius * 2.5;
       
-      if (mouseX >= hexScreenX - captureWidth && mouseX <= hexScreenX + captureWidth &&
-          mouseY >= hexScreenY - captureHeight && mouseY <= hexScreenY + captureHeight) {
+      const inBounds = mouseX >= hexScreenX - captureWidth && mouseX <= hexScreenX + captureWidth &&
+                      mouseY >= hexScreenY - captureHeight && mouseY <= hexScreenY + captureHeight;
+      
+      if (inBounds) {
+        // Debug détaillé pour la tuile trouvée
+        if (Math.random() < 0.1) {
+          console.log('Tuile trouvée:', { 
+            tile: `(${tile.x},${tile.y})`,
+            hexPos,
+            screenPos: { x: hexScreenX, y: hexScreenY },
+            mousePos: { mouseX, mouseY },
+            bounds: { 
+              minX: hexScreenX - captureWidth, 
+              maxX: hexScreenX + captureWidth,
+              minY: hexScreenY - captureHeight, 
+              maxY: hexScreenY + captureHeight 
+            }
+          });
+        }
         return tile;
       }
     }
@@ -196,10 +226,10 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const tile = getHexAtMouse(mouseX, mouseY);
     setHoveredTile(tile);
     
-    // Debug désactivé - problème de collision résolu
-    // if (mouseY > height * 0.7 && !tile) {
-    //   console.log('Zone bas non détectée:', { mouseX, mouseY });
-    // }
+    // Debug temporaire pour identifier le problème
+    if (!tile) {
+      console.log('Aucune tuile détectée:', { mouseX, mouseY, tilesCount: mapData.region.tiles.length });
+    }
   };
 
   const handleMouseLeave = () => {
