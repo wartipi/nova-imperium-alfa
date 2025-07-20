@@ -394,20 +394,25 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
         onClick={handleClick}
       />
       
-      {/* Hover tooltip */}
+      {/* Hover tooltip avec debug */}
       {hoveredTile && mousePos && (
         <div 
-          className="absolute bg-black text-white p-2 rounded text-xs z-10 pointer-events-none"
+          className="absolute bg-black text-white p-2 rounded text-xs z-10 pointer-events-none border border-yellow-400"
           style={{
-            left: Math.min(mousePos.x + 10, width - 160),
-            top: Math.max(mousePos.y - 80, 10),
-            minWidth: '150px'
+            left: Math.min(mousePos.x + 15, width - 180),
+            top: Math.max(mousePos.y - 90, 5),
+            minWidth: '160px',
+            maxWidth: '200px'
           }}
         >
           <div><strong>Position:</strong> ({hoveredTile.x}, {hoveredTile.y})</div>
           <div><strong>Terrain:</strong> {terrainNames[hoveredTile.terrain as keyof typeof terrainNames] || hoveredTile.terrain}</div>
-          {/* Position info removed from hover tooltip */}
-          {/* Resource info removed from tooltip - awaiting new resource system */}
+          {/* Debug info */}
+          <div className="text-yellow-300 mt-1">
+            <div>Mouse: ({mousePos.x.toFixed(0)}, {mousePos.y.toFixed(0)})</div>
+            <div>Canvas: {width}x{height}</div>
+            <div>Tooltip: left={Math.min(mousePos.x + 15, width - 180)}, top={Math.max(mousePos.y - 90, 5)}</div>
+          </div>
         </div>
       )}
 
