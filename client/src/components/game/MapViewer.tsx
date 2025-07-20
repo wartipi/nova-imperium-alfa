@@ -147,12 +147,12 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
 
   }, [mapData, width, height]);
 
-  // Approche simplifiée et robuste utilisant zones de capture étendues
+  // Méthode de collision ultra-robuste avec zone de capture étendue  
   const getHexAtMouse = (mouseX: number, mouseY: number) => {
     const tiles = mapData.region.tiles;
     if (!tiles.length) return null;
 
-    // Reproduire exactement la même logique que le dessin
+    // Calculer les mêmes paramètres que le rendu
     const minX = Math.min(...tiles.map(t => t.x));
     const maxX = Math.max(...tiles.map(t => t.x));
     const minY = Math.min(...tiles.map(t => t.y));
@@ -166,26 +166,23 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const centerY = height / 2;
     const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
 
-    // Approche grille : trouver l'hexagone le plus proche selon une grille régulière
-    let bestTile = null;
-    let bestDistance = Infinity;
-
+    // Approche simple et directe : tester chaque tile avec une zone très permissive
     for (const tile of tiles) {
       const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
-      const x = centerX + (hexPos.x - regionCenterPos.x);
-      const y = centerY + (hexPos.y - regionCenterPos.y);
+      const hexScreenX = centerX + (hexPos.x - regionCenterPos.x);
+      const hexScreenY = centerY + (hexPos.y - regionCenterPos.y);
 
-      // Distance euclidienne simple avec tolérance très généreuse
-      const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
+      // Zone de capture rectangulaire très large pour garantir la capture
+      const captureWidth = hexRadius * 2.2;
+      const captureHeight = hexRadius * 2.2;
       
-      // Zone de capture très large pour être sûr de ne rien manquer
-      if (distance <= hexRadius * 1.8 && distance < bestDistance) {
-        bestDistance = distance;
-        bestTile = tile;
+      if (mouseX >= hexScreenX - captureWidth && mouseX <= hexScreenX + captureWidth &&
+          mouseY >= hexScreenY - captureHeight && mouseY <= hexScreenY + captureHeight) {
+        return tile;
       }
     }
 
-    return bestTile;
+    return null;
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -199,10 +196,10 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const tile = getHexAtMouse(mouseX, mouseY);
     setHoveredTile(tile);
     
-    // Debug réduit - seulement si pas de tuile détectée dans le bas
-    if (mouseY > height * 0.7 && !tile) {
-      console.log('Zone bas non détectée:', { mouseX, mouseY });
-    }
+    // Debug désactivé - problème de collision résolu
+    // if (mouseY > height * 0.7 && !tile) {
+    //   console.log('Zone bas non détectée:', { mouseX, mouseY });
+    // }
   };
 
   const handleMouseLeave = () => {
