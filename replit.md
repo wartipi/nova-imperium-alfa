@@ -18,6 +18,24 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Advanced Code Architecture Improvements (January 20, 2025)
+- **Status**: COMPLETED - Implementation of professional React/TypeScript architecture patterns
+- **New Modular Hooks System**:
+  - `useRessources.ts` - Centralized resource management with validation and production logic
+  - `useCarte.ts` - Map operations, tile queries, and spatial logic abstraction
+  - `useTour.ts` - Turn management, game flow control, and state transitions
+- **Centralized State Management**:
+  - `GameContext.tsx` - React Context eliminating props drilling across components
+  - Unified access to game state without performance bottlenecks
+- **Styled Components Implementation**:
+  - `StyledGameComponents.tsx` - Encapsulated styling preventing CSS conflicts
+  - Medieval-themed reusable components with animations and theming
+  - Professional component library approach
+- **Interactive MapViewer Enhancement**:
+  - `InteractiveMapViewer.tsx` - Replaced static map with fully interactive version
+  - Direct integration of game mechanics (movement, exploration, actions)
+  - Precise coordinate mapping eliminating approximation issues
+
 ### Code Modularization - Complete System Redesign (January 20, 2025)
 - **Status**: COMPLETED - Major modularization following French development best practices
 - **New Architecture**: Centralized game state with specialized modules for better maintainability
@@ -43,7 +61,13 @@ Preferred communication style: Simple, everyday language.
 ### Frontend Architecture
 - **React 18** with TypeScript for the main application
 - **Vite** for development and build tooling
-- **Tailwind CSS** with shadcn/ui components for styling
-- **Zustand** for state management
+- **Tailwind CSS** with shadcn/ui components + **Styled Components** for encapsulated styling
+- **Zustand** for state management + **React Context** for centralized state access
 - **React Query** for server state management
 - **Canvas-based game engine** for hex map rendering and game visualization
+- **Custom Hooks System** for business logic separation:
+  - Resource management (`useRessources`)
+  - Map operations (`useCarte`) 
+  - Turn management (`useTour`)
+- **Component Library** with medieval theming and animations
+- **Interactive Map System** with real-time game mechanics integration
