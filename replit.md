@@ -18,6 +18,12 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Suppression du Système de Génération Automatique d'Objets (Janvier 20, 2025)
+- **Cleanup ExchangeService**: Supprimé `createPredefinedUniqueItems()` et `initializeTestItems()`
+- **Service Simplifié**: ExchangeService maintenant initialisé vide, objets créés dynamiquement
+- **API Conservée**: Routes `/api/unique-items/create` disponibles pour création d'objets via actions
+- **Inventaire Vide par Design**: Plus de génération automatique, objets créés par gameplay seulement
+
 ### Migration et Optimisations Avancées (Janvier 20, 2025)
 - **Migration Replit Agent → Replit**: Migration réussie avec compatibilité complète
 - **Optimisation des Types**: Nouvelles interfaces précises (Ressource, Tuile, ÉtatJeu, Joueur, Faction)

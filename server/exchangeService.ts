@@ -47,50 +47,8 @@ class ExchangeService {
   private playerInventories: Map<string, string[]> = new Map(); // playerId -> itemIds
 
   constructor() {
-    // Initialiser vide - les objets seront créés via les actions du jeu
-  }
-
-  private initializeTestItems() {
-    // Créer des objets de test pour le joueur
-    const testItems = [
-      {
-        name: "Carte Marine",
-        type: "carte" as const,
-        rarity: "rare" as const,
-        description: "Carte des routes maritimes",
-        effects: ["Navigation +25%"],
-        value: 200
-      },
-      {
-        name: "Amulette de Puissance",
-        type: "objet_magique" as const,
-        rarity: "epique" as const,
-        description: "Amulette magique augmentant le mana",
-        effects: ["Mana +30"],
-        value: 800
-      },
-      {
-        name: "Épée Enchantée",
-        type: "equipement_legendaire" as const,
-        rarity: "legendaire" as const,
-        description: "Épée légendaire des anciens héros",
-        effects: ["Attaque +50%"],
-        value: 1500
-      }
-    ];
-
-    testItems.forEach(item => {
-      this.createUniqueItem(
-        item.name,
-        item.type,
-        item.rarity,
-        item.description,
-        "player",
-        item.effects,
-        [],
-        item.value
-      );
-    });
+    // Service d'échange initialisé vide
+    // Les objets uniques seront créés dynamiquement via les actions du jeu
   }
 
   // Créer une salle d'échange basée sur un traité
@@ -392,84 +350,7 @@ class ExchangeService {
     }
   }
 
-  // Créer des objets uniques prédéfinis pour le jeu
-  createPredefinedUniqueItems(): void {
-    // Cartes cartographiques
-    this.createUniqueItem(
-      "Carte des Îles Perdues",
-      "carte",
-      "rare",
-      "Révèle l'emplacement d'îles cachées riches en ressources",
-      "system",
-      ["Révèle 3 îles cachées", "Accès à des ressources rares"],
-      ["Compétence Navigation niveau 2"],
-      500,
-      { region: "north_archipelago", accuracy: 85 }
-    );
 
-    this.createUniqueItem(
-      "Carte du Temple Ancien",
-      "carte",
-      "epique",
-      "Localise un temple antique contenant des artefacts puissants",
-      "system",
-      ["Accès au Temple Ancien", "Chance de trouver des artefacts"],
-      ["Compétence Archéologie niveau 3"],
-      1200,
-      { temple_type: "ancient", danger_level: "high" }
-    );
-
-    // Objets magiques
-    this.createUniqueItem(
-      "Amulette de Vision",
-      "objet_magique",
-      "legendaire",
-      "Permet de voir au-delà du brouillard de guerre",
-      "system",
-      ["Vision étendue +2 hexagones", "Détection d'unités invisibles"],
-      ["Compétence Magie niveau 4"],
-      2000,
-      { vision_bonus: 2, duration: "permanent" }
-    );
-
-    this.createUniqueItem(
-      "Orbe de Téléportation",
-      "objet_magique",
-      "mythique",
-      "Permet de téléporter instantanément vers n'importe quelle île explorée",
-      "system",
-      ["Téléportation instantanée", "Pas de coût en Points d'Action"],
-      ["Compétence Magie niveau 5", "Réputation Honorable"],
-      5000,
-      { teleport_range: "explored_only", cooldown: 0 }
-    );
-
-    // Artefacts anciens
-    this.createUniqueItem(
-      "Relique des Anciens",
-      "artefact",
-      "legendaire",
-      "Artefact mystérieux augmentant la génération de mana",
-      "system",
-      ["Mana +50 par tour", "Accès à des rituels anciens"],
-      ["Réputation Neutre ou plus"],
-      3000,
-      { mana_bonus: 50, ritual_access: true }
-    );
-
-    // Équipement légendaire
-    this.createUniqueItem(
-      "Épée de l'Empereur",
-      "equipement_legendaire",
-      "mythique",
-      "Épée légendaire augmentant considérablement les capacités militaires",
-      "system",
-      ["Force militaire +100%", "Moral des troupes +50%"],
-      ["Compétence Commandement niveau 5"],
-      8000,
-      { military_bonus: 100, morale_bonus: 50 }
-    );
-  }
 
   // Obtenir les offres actives pour un joueur
   getActiveOffersForPlayer(playerId: string): ExchangeOffer[] {
