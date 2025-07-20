@@ -1,0 +1,60 @@
+Compris, je vais rédiger un prompt clair et structuré que tu pourras donner à l'IA de Replit. Ce prompt va guider l'IA pour qu'elle harmonise le code et le restructure selon les recommandations que j'ai faites. Voici ce prompt :
+
+---
+
+**Prompt pour l'IA de Replit :**
+
+**Contexte :** Nous avons un projet de jeu appelé "Nova Imperium" développé en HTML, CSS et JavaScript. Le code est actuellement centralisé dans un seul fichier `script.js` et nous souhaitons le rendre plus modulaire et maintenable. Voici les tâches à accomplir :
+
+1. **Modulariser le code :**
+
+   * Séparer la logique en plusieurs fichiers (modules) distincts :
+
+     * Un module pour la gestion de la carte (`Map.js`),
+     * Un module pour la gestion des ressources (`ResourceManager.js`),
+     * Un module pour la gestion des tours (`TurnManager.js`).
+
+2. **Créer une structure de données pour la carte :**
+
+   * Représenter la carte sous forme de tableau en mémoire, par exemple :
+
+     ```javascript
+     const carte = [
+       [{ type: 'plaine' }, { type: 'forêt' }], 
+       // ...
+     ];
+     ```
+   * Chaque tuile de la carte HTML doit être liée à son objet correspondant en mémoire.
+
+3. **Centraliser la gestion des ressources :**
+
+   * Créer un objet `GameState` pour suivre l’état du jeu, par exemple :
+
+     ```javascript
+     const GameState = {
+       tour: 1,
+       ressources: {
+         or: 100,
+         bois: 50,
+         nourriture: 75
+       }
+     };
+     ```
+
+4. **Implémenter une fonction `finDuTour()` qui :**
+
+   * Applique les productions de ressources,
+   * Actualise l’affichage des ressources,
+   * Passe au tour suivant.
+
+5. **Adapter le code existant :**
+
+   * Modifier les événements de clic et autres interactions pour utiliser ces nouvelles structures,
+   * S’assurer que chaque fonction soit bien séparée en modules logiques.
+
+**Objectif final :** Obtenir un code plus clair, maintenable et facile à faire évoluer en suivant ces étapes.
+
+---
+
+Avec ce prompt, l'IA de Replit devrait avoir une direction claire pour restructurer ton code. Si tu as d’autres précisions ou des ajustements à faire, n’hésite pas à me le dire!
+\[media pointer="sediment://file\_0000000089046230886f2990c00d1b7f"]
