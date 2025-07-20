@@ -303,10 +303,10 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
       return (
         <div
           key={`${tile.x}-${tile.y}`}
-          className="absolute cursor-pointer hover:bg-blue-300/20 rounded-full"
+          className="absolute cursor-pointer hover:bg-red-500/30 border border-red-500"
           style={{
-            left: x - size/2 + 8, // +8px pour compenser le padding (border) du conteneur
-            top: y - size/2 + 8,  // +8px pour compenser le padding (border) du conteneur
+            left: x - size/2,
+            top: y - size/2,
             width: size,
             height: size,
           }}
@@ -339,7 +339,7 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
       />
       
       {/* Zones cliquables invisibles superposées */}
-      <div className="absolute inset-0 p-2">
+      <div className="absolute" style={{ left: 8, top: 8, right: 8, bottom: 8 }}>
         {renderClickableAreas()}
       </div>
       
