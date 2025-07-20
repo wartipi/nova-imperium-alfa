@@ -345,16 +345,16 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
               strokeWidth="1"
               className="hover:fill-red-400/40"
             />
-            {/* Point de référence au centre pour debug */}
+            {/* Point de référence aligné sur la position souris */}
             <circle 
-              cx={hexRadius} 
+              cx={hexRadius - 15} 
               cy={hexRadius} 
               r="3" 
               fill="blue" 
             />
             {/* Coordonnées affichées */}
             <text 
-              x={hexRadius} 
+              x={hexRadius - 15} 
               y={hexRadius + 15} 
               textAnchor="middle" 
               fontSize="10" 
