@@ -84,9 +84,13 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
   };
 
   const hexToPixel = (hexX: number, hexY: number, hexRadius: number) => {
+    const hexWidth = hexRadius * 2;
     const hexHeight = hexRadius * Math.sqrt(3);
-    const x = hexX * (hexRadius * 1.5);
+    
+    // Correct hexagonal grid positioning
+    const x = hexX * (hexWidth * 0.75);
     const y = hexY * hexHeight + (hexX % 2) * (hexHeight / 2);
+    
     return { x, y };
   };
 
@@ -221,24 +225,13 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
         }
       }
 
-      // Movement cost indicator (for adjacent tiles)
-      if (Math.abs(tile.x - avatarPosition.x) <= 1 && Math.abs(tile.y - avatarPosition.y) <= 1 && 
-          !(tile.x === avatarPosition.x && tile.y === avatarPosition.y)) {
-        const movementCost = getTerrainMovementCost(tile.terrain as any);
-        if (movementCost < 999) {
-          ctx.fillStyle = movementCost <= actionPoints ? '#00FF00' : '#FF0000';
-          ctx.font = '10px Arial';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(movementCost.toString(), x, y + hexRadius * 0.7);
-        } else {
-          // Water - show blocked
-          ctx.fillStyle = '#FF0000';
-          ctx.font = '12px Arial';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText('✕', x, y + hexRadius * 0.7);
-        }
+      // Affichage des coordonnées pour le debug (optionnel)
+      if (hexRadius > 15) {
+        ctx.fillStyle = '#333';
+        ctx.font = `${Math.max(8, hexRadius * 0.2)}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${tile.x},${tile.y}`, x, y);
       }
     });
 
@@ -345,12 +338,13 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
     
     if (tile) {
       setSelectedTile(tile);
-      // Create a proper HexTile object for setSelectedHex
+      
+      // Créer un objet HexTile compatible mais sans déplacement possible
       const hexTile = {
         x: tile.x,
         y: tile.y,
         terrain: tile.terrain as any,
-        resource: tile.resources[0] || null,
+        resource: (tile.resources[0] as any) || null,
         resources: tile.resources,
         food: 0,
         action_points: 0,
@@ -366,62 +360,14 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
       };
       setSelectedHex(hexTile);
       
-      // Handle movement
-      if (tile.x !== avatarPosition.x || tile.y !== avatarPosition.y) {
-        const isAdjacent = Math.abs(tile.x - avatarPosition.x) <= 1 && Math.abs(tile.y - avatarPosition.y) <= 1;
-        
-        if (isAdjacent) {
-          const movementCost = getTerrainMovementCost(tile.terrain as any);
-          
-          // Check if water terrain
-          if (tile.terrain === 'shallow_water' || tile.terrain === 'deep_water') {
-            alert('Impossible de se déplacer sur l\'eau sans navire !');
-            return;
-          }
-          
-          if (movementCost < 999 && actionPoints >= movementCost) {
-            setPendingMovement(tile);
-          } else if (movementCost >= 999) {
-            alert('Terrain inaccessible !');
-          } else {
-            alert(`Pas assez de Points d'Action ! Coût: ${movementCost} PA (Disponibles: ${actionPoints} PA)`);
-          }
-        } else {
-          alert('Cette case est trop éloignée ! Vous ne pouvez vous déplacer que sur les cases adjacentes.');
-        }
-      }
-      
+      // Callback optionnel pour informer le parent (sans déplacement)
       if (onTileClick) {
         onTileClick(tile);
       }
     }
   };
 
-  const confirmMovement = () => {
-    if (pendingMovement) {
-      const movementCost = getTerrainMovementCost(pendingMovement.terrain as any);
-      if (spendActionPoints(movementCost)) {
-        moveAvatarToHex(pendingMovement.x, pendingMovement.y);
-        console.log('Movement confirmed:', { to: pendingMovement, cost: movementCost });
-      }
-      setPendingMovement(null);
-    }
-  };
-
-  const cancelMovement = () => {
-    setPendingMovement(null);
-  };
-
-  const handleExploreZone = () => {
-    if (actionPoints >= 5) {
-      if (spendActionPoints(5)) {
-        exploreCurrentLocation();
-        alert('Zone explorée ! Les ressources dans votre vision ont été révélées.');
-      }
-    } else {
-      alert('Pas assez de Points d\'Action ! (Coût: 5 PA)');
-    }
-  };
+  // Fonctions de déplacement supprimées - la mini-carte n'permet plus les déplacements
 
   return (
     <div className="border-2 border-amber-600 bg-amber-50 p-2 rounded-lg relative">
@@ -447,9 +393,7 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
         >
           <div><strong>Position:</strong> ({hoveredTile.x}, {hoveredTile.y})</div>
           <div><strong>Terrain:</strong> {terrainNames[hoveredTile.terrain as keyof typeof terrainNames] || hoveredTile.terrain}</div>
-          {hoveredTile.x !== avatarPosition.x || hoveredTile.y !== avatarPosition.y ? (
-            <div><strong>Coût déplacement:</strong> {getTerrainMovementCost(hoveredTile.terrain as any)} PA</div>
-          ) : (
+          {hoveredTile.x === avatarPosition.x && hoveredTile.y === avatarPosition.y && (
             <div><strong>Position actuelle</strong></div>
           )}
           {hoveredTile.resources.length > 0 && (
@@ -458,42 +402,7 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
         </div>
       )}
 
-      {/* Movement confirmation modal */}
-      {pendingMovement && (
-        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20">
-          <div className="bg-white p-4 rounded-lg shadow-lg">
-            <h3 className="font-bold mb-2">Confirmer le déplacement</h3>
-            <p>Aller vers ({pendingMovement.x}, {pendingMovement.y})</p>
-            <p><strong>Terrain:</strong> {terrainNames[pendingMovement.terrain as keyof typeof terrainNames]}</p>
-            <p><strong>Coût:</strong> {getTerrainMovementCost(pendingMovement.terrain as any)} PA</p>
-            <div className="flex gap-2 mt-3">
-              <button 
-                onClick={confirmMovement}
-                className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600"
-              >
-                Confirmer
-              </button>
-              <button 
-                onClick={cancelMovement}
-                className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
-              >
-                Annuler
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {/* Action panel */}
-      <div className="mt-2 flex gap-2 flex-wrap">
-        <button 
-          onClick={handleExploreZone}
-          disabled={actionPoints < 5}
-          className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400 text-xs"
-        >
-          Explorer (5 PA)
-        </button>
-      </div>
+      {/* Mini-carte affichage uniquement - pas de déplacement */}
       
       {/* Map info */}
       <div className="mt-2 text-xs text-amber-800">
