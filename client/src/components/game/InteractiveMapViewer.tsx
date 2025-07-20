@@ -142,13 +142,12 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
       hexRadius = Math.min(radiusFromWidth, radiusFromHeight) * 0.78; // 0.8 * 0.98 = 0.784 ≈ 0.78
     }
     
-    // Logs de débogage supprimés pour la production
-
+    // Calcul du centre et positionnement hexagonal
     const centerX = width / 2;
     const centerY = height / 2;
     const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
     
-    // Draw tiles
+    // Draw tiles avec positionnement hexagonal corrigé
     tiles.forEach((tile, index) => {
       const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
       const x = centerX + (hexPos.x - regionCenterPos.x);
