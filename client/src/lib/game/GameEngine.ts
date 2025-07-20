@@ -204,16 +204,14 @@ export class GameEngine {
 
   // Fonction utilitaire pour tester si un point est dans un hexagone (géométrie précise)
   private isPointInHexagon(pointX: number, pointY: number, hexCenterX: number, hexCenterY: number, hexRadius: number): boolean {
-    const dx = Math.abs(pointX - hexCenterX);
-    const dy = Math.abs(pointY - hexCenterY);
+    // Utiliser la méthode de test par rayon étendu pour une détection plus fiable
+    const distance = Math.sqrt((pointX - hexCenterX) ** 2 + (pointY - hexCenterY) ** 2);
     
-    // Test rapide pour un rectangle englobant
-    if (dx > hexRadius || dy > hexRadius * Math.sqrt(3) / 2) {
-      return false;
-    }
+    // Test simple par distance - plus permissif que la géométrie exacte
+    // Utilise un rayon légèrement élargi pour couvrir toute la zone hexagonale
+    const effectiveRadius = hexRadius * 1.1; // 10% de marge
     
-    // Test précis pour les bords inclinés de l'hexagone
-    return dy <= hexRadius * Math.sqrt(3) / 2 - dx * Math.sqrt(3) / 3;
+    return distance <= effectiveRadius;
   }
 
   getHexAtPosition(screenX: number, screenY: number): HexTile | null {
@@ -222,33 +220,29 @@ export class GameEngine {
     
     const hexHeight = this.hexSize * Math.sqrt(3);
     
-    // Estimation initiale de la zone à tester
-    let centerHexX = Math.round(worldX / (this.hexSize * 1.5));
-    let centerHexY = Math.round((worldY - (centerHexX % 2) * (hexHeight / 2)) / hexHeight);
+    // Approche directe : tester tous les hexagones et trouver le plus proche
+    let bestHex: HexTile | null = null;
+    let bestDistance = Infinity;
     
-    // Tester l'hexagone central et ses voisins pour gérer les cas limites
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dy = -1; dy <= 1; dy++) {
-        const testHexX = centerHexX + dx;
-        const testHexY = centerHexY + dy;
+    // Parcourir toute la carte pour trouver l'hexagone le plus proche
+    for (let y = 0; y < this.mapData.length; y++) {
+      for (let x = 0; x < this.mapData[y].length; x++) {
+        // Calculer la position exacte de cet hexagone (même formule que le rendu)
+        const hexCenterX = x * (this.hexSize * 1.5);
+        const hexCenterY = y * hexHeight + (x % 2) * (hexHeight / 2);
         
-        // Vérifier si les coordonnées sont valides
-        if (testHexY >= 0 && testHexY < this.mapData.length && 
-            testHexX >= 0 && testHexX < this.mapData[testHexY].length) {
-          
-          // Calculer la position exacte de ce hex (même formule que le rendu)
-          const hexCenterX = testHexX * (this.hexSize * 1.5);
-          const hexCenterY = testHexY * hexHeight + (testHexX % 2) * (hexHeight / 2);
-          
-          // Test géométrique précis
-          if (this.isPointInHexagon(worldX, worldY, hexCenterX, hexCenterY, this.hexSize)) {
-            return this.mapData[testHexY][testHexX];
-          }
+        // Calculer la distance au point
+        const distance = Math.sqrt((worldX - hexCenterX) ** 2 + (worldY - hexCenterY) ** 2);
+        
+        // Si c'est dans la zone de clic et c'est le plus proche
+        if (distance <= this.hexSize * 1.2 && distance < bestDistance) {
+          bestDistance = distance;
+          bestHex = this.mapData[y][x];
         }
       }
     }
     
-    return null;
+    return bestHex;
   }
 
   render() {
