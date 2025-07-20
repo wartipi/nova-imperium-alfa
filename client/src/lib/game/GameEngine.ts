@@ -202,65 +202,8 @@ export class GameEngine {
     console.log('Démarrage du jeu - caméra libre');
   }
 
-  // Fonction utilitaire pour tester si un point est dans un hexagone - UNIFIÉE
-  private isPointInHexagon(px: number, py: number, centerX: number, centerY: number, radius: number): boolean {
-    // Méthode unifiée utilisée partout dans Nova Imperium
-    const dx = Math.abs(px - centerX);
-    const dy = Math.abs(py - centerY);
-    
-    // Distance maximale pour un hexagone flat-top
-    const hexWidth = radius;
-    const hexHeight = radius * Math.sqrt(3) / 2;
-    
-    // Test rapide : si au-delà du rectangle englobant
-    if (dx > hexWidth || dy > hexHeight) {
-      return false;
-    }
-    
-    // Test des régions hexagonales (bords inclinés)
-    const slope = Math.sqrt(3);  // tan(60°)
-    
-    // Point dans la région centrale rectangulaire
-    if (dx <= hexWidth / 2) {
-      return true;
-    }
-    
-    // Test des bords inclinés
-    return (dy <= hexHeight - slope * (dx - hexWidth / 2));
-  }
-
   getHexAtPosition(screenX: number, screenY: number): HexTile | null {
-    const worldX = (screenX - this.canvas.width / 2) / this.zoom + this.cameraX;
-    const worldY = (screenY - this.canvas.height / 2) / this.zoom + this.cameraY;
-    
-    const hexHeight = this.hexSize * Math.sqrt(3);
-    
-    // Estimation initiale de la zone à tester
-    let centerHexX = Math.round(worldX / (this.hexSize * 1.5));
-    let centerHexY = Math.round((worldY - (centerHexX % 2) * (hexHeight / 2)) / hexHeight);
-    
-    // Tester l'hexagone central et ses voisins pour gérer les cas limites
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dy = -1; dy <= 1; dy++) {
-        const testHexX = centerHexX + dx;
-        const testHexY = centerHexY + dy;
-        
-        // Vérifier si les coordonnées sont valides
-        if (testHexY >= 0 && testHexY < this.mapData.length && 
-            testHexX >= 0 && testHexX < this.mapData[testHexY].length) {
-          
-          // Calculer la position exacte de ce hex (même formule que le rendu)
-          const hexCenterX = testHexX * (this.hexSize * 1.5);
-          const hexCenterY = testHexY * hexHeight + (testHexX % 2) * (hexHeight / 2);
-          
-          // Test géométrique précis
-          if (this.isPointInHexagon(worldX, worldY, hexCenterX, hexCenterY, this.hexSize)) {
-            return this.mapData[testHexY][testHexX];
-          }
-        }
-      }
-    }
-    
+    // Détection supprimée - gérée par InteractiveMapViewer uniquement
     return null;
   }
 

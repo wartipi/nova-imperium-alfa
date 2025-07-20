@@ -163,72 +163,8 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
 
   }, [mapData, width, height]);
 
-  // Approche simplifiée et robuste utilisant zones de capture étendues
+  // SUPPRIMÉ - Détection gérée par InteractiveMapViewer uniquement
   const getHexAtMouse = (mouseX: number, mouseY: number) => {
-    const tiles = mapData.region.tiles;
-    if (!tiles.length) return null;
-
-    // Reproduire exactement la même logique que le dessin
-    const minX = Math.min(...tiles.map(t => t.x));
-    const maxX = Math.max(...tiles.map(t => t.x));
-    const minY = Math.min(...tiles.map(t => t.y));
-    const maxY = Math.max(...tiles.map(t => t.y));
-
-    const mapWidth = maxX - minX + 1;
-    const mapHeight = maxY - minY + 1;
-    
-    // Utiliser la même logique de calcul de rayon que pour le rendu
-    const numTiles = tiles.length;
-    let hexRadius;
-    
-    if (numTiles <= 7) {
-      // Vision de base (7 hexagones) - rayon plus grand
-      hexRadius = Math.min(width / 8, height / 8);
-    } else if (numTiles <= 19) {
-      // Vision niveau 2 (19 hexagones) - rayon adapté
-      hexRadius = Math.min(width / 12, height / 12);
-    } else {
-      // Vision étendue - rayon plus petit
-      hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
-    }
-
-    const centerX = width / 2;
-    const centerY = height / 2;
-    const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
-
-    // Test de collision hexagonal précis (UNIFIÉ)
-    const isPointInHexagon = (px: number, py: number, centerX: number, centerY: number, radius: number): boolean => {
-      const dx = Math.abs(px - centerX);
-      const dy = Math.abs(py - centerY);
-      
-      const hexWidth = radius;
-      const hexHeight = radius * Math.sqrt(3) / 2;
-      
-      if (dx > hexWidth || dy > hexHeight) {
-        return false;
-      }
-      
-      const slope = Math.sqrt(3);
-      
-      if (dx <= hexWidth / 2) {
-        return true;
-      }
-      
-      return (dy <= hexHeight - slope * (dx - hexWidth / 2));
-    };
-
-    // Test de collision avec les mêmes coordonnées que le dessin
-    for (const tile of tiles) {
-      const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
-      const x = centerX + (hexPos.x - regionCenterPos.x);
-      const y = centerY + (hexPos.y - regionCenterPos.y);
-
-      // Hitbox hexagonale précise
-      if (isPointInHexagon(mouseX, mouseY, x, y, hexRadius)) {
-        return tile;
-      }
-    }
-
     return null;
   };
 

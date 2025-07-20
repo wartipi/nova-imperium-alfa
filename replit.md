@@ -49,13 +49,13 @@ Preferred communication style: Simple, everyday language.
 - **Backward Compatibility**: Hybrid system allows gradual migration without breaking existing features
 - **Validation**: System logs show successful initialization and 4/5 game systems operational
 
-### Hexagonal Detection System Unification (January 20, 2025)
-- **Status**: COMPLETED - Unified all hexagon detection methods across the entire project
-- **Code Cleanup**: Removed all conflicting detection methods (distance-based, approximations)
-- **Unified Method**: Single `isPointInHexagon` function used in GameEngine, InteractiveMapViewer, MapViewer
-- **Hexagonal Structure**: Fixed coordinate system using working implementation from nova-imperium-clone
-- **Performance**: Eliminated method conflicts that caused detection inconsistencies
-- **Mini-map Cleanup**: Removed world mini-map temporarily to avoid confusion during development
+### Hexagonal Detection System Cleanup (January 20, 2025)
+- **Status**: COMPLETED - Suppression complète des méthodes obsolètes, conservation uniquement de la méthode fonctionnelle
+- **Méthodes supprimées**: GameEngine.ts et MapViewer.tsx n'ont plus de détection hexagonale
+- **Méthode conservée**: Seule la méthode `isPointInHexagon` d'InteractiveMapViewer.tsx est gardée (celle qui fonctionnait)
+- **Simplification**: Retour à la méthode originale fonctionnelle au lieu d'une unification problématique
+- **Performance**: Une seule méthode active élimine tous les conflits de détection
+- **Architecture**: InteractiveMapViewer devient le seul responsable de la détection des clics hexagonaux
 
 ### Migration Replit Agent → Replit Standard (January 20, 2025)
 - **Migration Status**: COMPLETED - Project successfully migrated from Replit Agent to standard Replit environment
