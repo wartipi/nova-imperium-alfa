@@ -172,7 +172,7 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
     });
   }, [mapData, hexToPixel]);
 
-  // Trouver la tuile à une position pixel
+  // Trouver la tuile à une position pixel - méthode simplifiée
   const findTileAtPosition = useCallback((pixelX: number, pixelY: number): HexTile | null => {
     if (!mapData) return null;
 
@@ -194,7 +194,7 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
     const offsetX = (canvas.width - mapWidth) / 2 + HEX_SIZE * 2;
     const offsetY = (canvas.height - mapHeight) / 2 + HEX_SIZE * 2;
 
-    // Trouver la tuile la plus proche
+    // Méthode simple : trouver la tuile la plus proche par distance euclidienne
     let closestTile: HexTile | null = null;
     let closestDistance = Infinity;
 
@@ -205,7 +205,8 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
 
       const distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
       
-      if (distance < HEX_SIZE && distance < closestDistance) {
+      // Augmenter la zone de détection pour être plus permissif
+      if (distance < HEX_SIZE * 1.2 && distance < closestDistance) {
         closestDistance = distance;
         closestTile = tile;
       }
@@ -214,9 +215,19 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
     return closestTile;
   }, [mapData, hexToPixel]);
 
-  // Gestion du survol
+  // Gestion du survol avec debug
   const handleMouseMove = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    
     const tile = findTileAtPosition(event.clientX, event.clientY);
+    
+    // Debug pour voir les coordonnées
+    console.log('Mouse:', { mouseX: x, mouseY: y, tileFound: tile?.x, tileY: tile?.y });
     
     if (tile) {
       setTooltip({
