@@ -76,22 +76,23 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
   const getAdvancedActions = () => {
     const actions = [];
     
-    if (hasCompetenceLevel('exploration', 3)) {
+    // En mode MJ : débloquer toutes les actions avancées
+    if (isGameMaster || hasCompetenceLevel('exploration', 3)) {
       actions.push({
         id: 'advanced_exploration',
         name: 'Exploration Avancée',
-        description: 'Découvrir des secrets cachés dans la région',
+        description: isGameMaster ? '[MODE MJ] Découvrir des secrets cachés dans la région' : 'Découvrir des secrets cachés dans la région',
         cost: 15,
         icon: '🔍',
         category: 'exploration'
       });
     }
     
-    if (hasCompetenceLevel('cartography', 3)) {
+    if (isGameMaster || hasCompetenceLevel('cartography', 3)) {
       actions.push({
         id: 'masterwork_map',
         name: 'Carte de Maître',
-        description: 'Créer une carte de qualité exceptionnelle',
+        description: isGameMaster ? '[MODE MJ] Créer une carte de qualité exceptionnelle' : 'Créer une carte de qualité exceptionnelle',
         cost: 25,
         icon: '📜',
         category: 'cartography'
@@ -409,9 +410,25 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     console.log('🎯 Debug compétences actuelles:', {
       cartography: cartographyLevel,
       exploration: explorationLevel,
-      competences: competences
+      competences: competences,
+      isGameMaster: isGameMaster
     });
 
+    // En mode MJ : toutes les actions sont disponibles sans vérification de compétences
+    if (isGameMaster) {
+      console.log('🎮 MODE MJ : Toutes les actions débloquées');
+      const allActions = [
+        ...explorationActions,
+        ...competenceActions,
+        ...getAdvancedActions(),
+        ...reputationActions
+      ];
+      
+      console.log('🗺️ Actions MJ disponibles:', allActions.map(a => a.name));
+      return allActions;
+    }
+
+    // Mode normal : vérification des compétences
     const filteredCompetenceActions = competenceActions.filter(action => {
       if (action.requiredCompetence) {
         const hasLevel = hasCompetenceLevel(action.requiredCompetence, action.requiredLevel || 1);
@@ -470,42 +487,56 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
           
           <div className="text-sm text-amber-700 mb-4">
             Points d'Action: {isGameMaster ? '∞ (Mode MJ)' : actionPoints}
+            <div className="text-xs">
+              Debug: Cartographie:{getCompetenceLevel('cartography')} | Exploration:{getCompetenceLevel('exploration')}
+            </div>
           </div>
           {isGameMaster && (
-            <div className="text-xs text-green-600 font-medium mb-4">
-              🎯 Mode Maître de Jeu: Toutes les actions sont accessibles gratuitement
+            <div className="text-xs text-green-600 font-medium mb-4 p-2 bg-green-50 rounded">
+              🎯 Mode MJ Actif: Toutes les actions débloquées sans prérequis de compétences
             </div>
           )}
           
           <div className="space-y-2 max-h-64 overflow-y-auto">
-            {getAllAvailableActions().map((action) => (
-              <div
-                key={action.id}
-                className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                  isActionAvailable(action)
-                    ? 'bg-amber-50 border-amber-300 hover:bg-amber-100'
-                    : 'bg-gray-100 border-gray-300 opacity-50 cursor-not-allowed'
-                }`}
-                onClick={() => handleActionClick(action)}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">{action.icon}</span>
-                    <div>
-                      <div className="font-semibold text-amber-900">
-                        {action.name}
+            {getAllAvailableActions().length === 0 ? (
+              <div className="p-3 text-center text-amber-700">
+                Aucune action disponible
+              </div>
+            ) : (
+              getAllAvailableActions().map((action) => {
+                const actionAvailable = isActionAvailable(action);
+                console.log(`🎮 Rendu action ${action.name}: disponible=${actionAvailable}, PA=${actionPoints}/${action.cost}`);
+                
+                return (
+                  <div
+                    key={action.id}
+                    className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                      actionAvailable
+                        ? 'bg-amber-50 border-amber-300 hover:bg-amber-100'
+                        : 'bg-gray-100 border-gray-300 opacity-50 cursor-not-allowed'
+                    }`}
+                    onClick={() => handleActionClick(action)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{action.icon}</span>
+                        <div>
+                          <div className="font-semibold text-amber-900">
+                            {action.name} {!actionAvailable ? '(Indisponible)' : ''}
+                          </div>
+                          <div className="text-xs text-amber-700">
+                            {action.description}
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-xs text-amber-700">
-                        {action.description}
+                      <div className="text-sm font-bold text-amber-800">
+                        {action.cost} PA
                       </div>
                     </div>
                   </div>
-                  <div className="text-sm font-bold text-amber-800">
-                    {action.cost} PA
-                  </div>
-                </div>
-              </div>
-            ))}
+                );
+              })
+            )}
           </div>
         </div>
       </Card>

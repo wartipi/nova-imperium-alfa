@@ -163,60 +163,9 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
 
   }, [mapData, width, height]);
 
-  // Approche simplifiée et robuste utilisant zones de capture étendues
+  // SUPPRIMÉ - Détection gérée par InteractiveMapViewer uniquement
   const getHexAtMouse = (mouseX: number, mouseY: number) => {
-    const tiles = mapData.region.tiles;
-    if (!tiles.length) return null;
-
-    // Reproduire exactement la même logique que le dessin
-    const minX = Math.min(...tiles.map(t => t.x));
-    const maxX = Math.max(...tiles.map(t => t.x));
-    const minY = Math.min(...tiles.map(t => t.y));
-    const maxY = Math.max(...tiles.map(t => t.y));
-
-    const mapWidth = maxX - minX + 1;
-    const mapHeight = maxY - minY + 1;
-    
-    // Utiliser la même logique de calcul de rayon que pour le rendu
-    const numTiles = tiles.length;
-    let hexRadius;
-    
-    if (numTiles <= 7) {
-      // Vision de base (7 hexagones) - rayon plus grand
-      hexRadius = Math.min(width / 8, height / 8);
-    } else if (numTiles <= 19) {
-      // Vision niveau 2 (19 hexagones) - rayon adapté
-      hexRadius = Math.min(width / 12, height / 12);
-    } else {
-      // Vision étendue - rayon plus petit
-      hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
-    }
-
-    const centerX = width / 2;
-    const centerY = height / 2;
-    const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
-
-    // Approche grille : trouver l'hexagone le plus proche selon une grille régulière
-    let bestTile = null;
-    let bestDistance = Infinity;
-
-    for (const tile of tiles) {
-      const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
-      const x = centerX + (hexPos.x - regionCenterPos.x);
-      const y = centerY + (hexPos.y - regionCenterPos.y);
-
-      // Distance euclidienne simple avec tolérance très généreuse
-      const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
-      
-      // Zone de capture adaptée selon la taille de la carte
-      const captureRadius = numTiles <= 7 ? hexRadius * 1.5 : hexRadius * 1.2;
-      if (distance <= captureRadius && distance < bestDistance) {
-        bestDistance = distance;
-        bestTile = tile;
-      }
-    }
-
-    return bestTile;
+    return null;
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {

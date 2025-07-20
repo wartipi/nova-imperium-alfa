@@ -1,0 +1,45 @@
+Entendu, je vais te préparer un prompt très détaillé pour l'IA afin qu'elle puisse appliquer ces recommandations dans ton projet React/TypeScript. Voici ce que ça pourrait donner :
+
+---
+
+**Prompt pour l'IA de Replit :**
+
+**Contexte :** Nous travaillons sur un projet de jeu nommé "Nova Imperium" développé en **React** et **TypeScript**. L'objectif est d'améliorer la structure du code en le rendant plus modulaire, maintenable et évolutif. Nous souhaitons conserver l'architecture actuelle basée sur React et TypeScript.
+
+**Objectifs :**
+
+1. **Améliorer la modularité en créant des hooks personnalisés.**
+2. **Centraliser l'état global avec React Context pour éviter le props drilling.**
+3. **Séparer la logique métier (gestion des ressources, des tours, de la carte) dans des services dédiés.**
+4. **Encapsuler les styles avec des solutions modernes comme les styled-components ou les modules CSS.**
+
+**Tâches détaillées :**
+
+1. **Création de hooks personnalisés :**
+
+   * **`useRessources`** : Crée un hook qui gère toute la logique liée aux ressources (ajout, retrait, mise à jour des états).
+   * **`useCarte`** : Un hook dédié à la gestion de la carte (création, mise à jour des tuiles, gestion des clics sur les tuiles).
+   * **`useTour`** : Un hook pour gérer la logique de changement de tour, l’avancement du jeu, et les événements de fin de tour.
+
+2. **Centralisation de l'état global :**
+
+   * Implémenter un **React Context** pour les ressources globales (par exemple, créer un `RessourcesContext` qui fournit les ressources et les fonctions de mise à jour aux composants enfants).
+   * Utiliser ce context dans les composants qui ont besoin d'accéder ou de modifier les ressources, afin de réduire le passage de props inutile.
+
+3. **Séparation de la logique métier :**
+
+   * Déplacer la logique de gestion des ressources dans un service ou un hook dédié (`useRessources`).
+   * Faire de même pour la gestion des tours (`useTour`) et de la carte (`useCarte`).
+   * S’assurer que les composants se concentrent principalement sur l’affichage et l’interaction avec l’utilisateur, tandis que la logique métier est gérée en dehors des composants.
+
+4. **Encapsulation des styles :**
+
+   * Adopter une solution comme **styled-components** ou les **CSS modules** pour encapsuler les styles au niveau des composants.
+   * Cela permettra d’éviter les conflits de styles et de rendre les composants plus autonomes et réutilisables.
+
+**Objectif final :** Obtenir un code plus propre, mieux structuré, où la logique métier est clairement séparée des composants, facilitant ainsi la maintenance, l’évolution du projet et la collaboration au sein de l’équipe.
+
+---
+
+Ce prompt devrait donner à l’IA de Replit une direction claire et détaillée pour mettre en œuvre les améliorations. Si tu as besoin de plus de précisions ou d'ajustements, n'hésite pas !
+\[media pointer="sediment://file\_000000000f7462309ba27e82c9212dba"]

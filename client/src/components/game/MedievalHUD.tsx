@@ -7,7 +7,7 @@ import { usePlayer } from "../../lib/stores/usePlayer";
 import { useReputation } from "../../lib/stores/useReputation";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
-import { MiniMap } from "./MiniMap";
+// import InteractiveMapViewer from "./InteractiveMapViewer"; // Temporairement retiré
 import { TreasuryPanel } from "./TreasuryPanel";
 
 import { ActivityReportPanel } from "./ActivityReportPanel";
@@ -546,15 +546,7 @@ export function MedievalHUD() {
         </div>
       </div>
 
-      {/* MiniMap */}
-      <div 
-        className="absolute bottom-4 right-4 pointer-events-auto"
-        onClick={(e) => e.stopPropagation()}
-        onMouseDown={(e) => e.stopPropagation()}
-        onMouseUp={(e) => e.stopPropagation()}
-      >
-        <MiniMap />
-      </div>
+      {/* Mini-map du monde retirée temporairement pour éviter la confusion */}
 
       {/* Active Section Panel - Style médiéval parchemin */}
       {activeSection && (
@@ -598,7 +590,7 @@ export function MedievalHUD() {
               {activeSection === 'guide' && <GameGuidePanel />}
               {activeSection === 'help' && <HelpPanel />}
               {activeSection === 'competences' && <CompetenceTree />}
-              {activeSection === 'factions' && <FactionPanel />}
+              {activeSection === 'factions' && <FactionPanel onClose={() => setActiveSection(null)} />}
               {activeSection === 'enhanced_turns' && <EnhancedTurnPanel />}
             </div>
           </div>
