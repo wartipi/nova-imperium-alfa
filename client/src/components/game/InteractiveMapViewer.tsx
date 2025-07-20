@@ -84,13 +84,15 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
   };
 
   const hexToPixel = (hexX: number, hexY: number, hexRadius: number) => {
-    // Système de coordonnées hexagonal flat-top exact
-    const hexWidth = hexRadius * 2;
-    const hexHeight = hexRadius * Math.sqrt(3);
+    // Conversion coordonnées hexagonales vers pixels - flat-top hexagons
+    const hexWidth = hexRadius * 1.5;  // Distance horizontale entre centres
+    const hexHeight = hexRadius * Math.sqrt(3);  // Hauteur d'un hexagone
     
-    // Positionnement hexagonal précis avec offset pour lignes impaires
-    const x = hexX * (hexWidth * 0.75);
-    const y = (hexY * hexHeight) + ((hexX & 1) * hexHeight * 0.5);
+    // Position X : chaque colonne est espacée de hexWidth
+    const x = hexX * hexWidth;
+    
+    // Position Y : les lignes paires/impaires sont décalées de la moitié de la hauteur
+    const y = hexY * hexHeight * 0.75 + (hexX % 2) * (hexHeight * 0.5);
     
     return { x, y };
   };
@@ -305,24 +307,16 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
       hexRadius = Math.min(radiusFromWidth, radiusFromHeight) * 0.78;
     }
 
-    // MÊMES CALCULS que dans drawMap pour le positionnement
-    const hexWidth = hexRadius * 2 * 0.75; // Distance horizontale entre centres
-    const hexHeight = hexRadius * Math.sqrt(3); // Hauteur d'un hexagone
-    
-    const totalMapWidth = mapWidth * hexWidth;
-    const totalMapHeight = mapHeight * hexHeight;
-    
-    const offsetX = (width - totalMapWidth) / 2;
-    const offsetY = (height - totalMapHeight) / 2;
+    // Utiliser exactement la même logique que drawMap - hexToPixel
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
 
     // Test de collision avec les mêmes coordonnées que le dessin
     for (const tile of tiles) {
-      const relativeX = tile.x - minX;
-      const relativeY = tile.y - minY;
-      
-      // EXACTEMENT les mêmes formules que drawMap
-      const x = offsetX + relativeX * hexWidth + (relativeY % 2) * (hexWidth / 2) + hexRadius;
-      const y = offsetY + relativeY * hexHeight + hexRadius;
+      const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
+      const x = centerX + (hexPos.x - regionCenterPos.x);
+      const y = centerY + (hexPos.y - regionCenterPos.y);
 
       // Hitbox hexagonale PLUS GRANDE pour meilleure précision
       if (isPointInHexagon(mouseX, mouseY, x, y, hexRadius * 1.1)) {
@@ -413,12 +407,7 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
         style={{ opacity: 0.6 }}
       >
         {mapData.region.tiles.map((tile, index) => {
-          // Utiliser EXACTEMENT les mêmes calculs que getHexAtMouse
-          const minX = Math.min(...mapData.region.tiles.map(t => t.x));
-          const minY = Math.min(...mapData.region.tiles.map(t => t.y));
-          const mapWidth = Math.max(...mapData.region.tiles.map(t => t.x)) - minX + 1;
-          const mapHeight = Math.max(...mapData.region.tiles.map(t => t.y)) - minY + 1;
-          
+          // Utiliser EXACTEMENT les mêmes calculs que drawMap
           const numTiles = mapData.region.tiles.length;
           let hexRadius;
           
@@ -427,6 +416,13 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
           } else if (numTiles <= 19) {
             hexRadius = Math.min(width / 12, height / 12) * 0.98;
           } else {
+            const minX = Math.min(...mapData.region.tiles.map(t => t.x));
+            const maxX = Math.max(...mapData.region.tiles.map(t => t.x));
+            const minY = Math.min(...mapData.region.tiles.map(t => t.y));
+            const maxY = Math.max(...mapData.region.tiles.map(t => t.y));
+            
+            const mapWidth = maxX - minX + 1;
+            const mapHeight = maxY - minY + 1;
             const hexWidth = Math.sqrt(3) * 1.5;
             const hexHeight = 2 * 0.866;
             const radiusFromWidth = (width - 40) / (mapWidth * hexWidth);
@@ -434,27 +430,23 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
             hexRadius = Math.min(radiusFromWidth, radiusFromHeight) * 0.78;
           }
           
-          const hexWidth = hexRadius * 2 * 0.75;
-          const hexHeight = hexRadius * Math.sqrt(3);
-          const totalMapWidth = mapWidth * hexWidth;
-          const totalMapHeight = mapHeight * hexHeight;
-          const offsetX = (width - totalMapWidth) / 2;
-          const offsetY = (height - totalMapHeight) / 2;
-          
-          const relativeX = tile.x - minX;
-          const relativeY = tile.y - minY;
-          const centerX = offsetX + relativeX * hexWidth + (relativeY % 2) * (hexWidth / 2) + hexRadius;
-          const centerY = offsetY + relativeY * hexHeight + hexRadius;
+          // Calcul de position IDENTIQUE à drawMap
+          const centerX = width / 2;
+          const centerY = height / 2;
+          const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
+          const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
+          const tileX = centerX + (hexPos.x - regionCenterPos.x);
+          const tileY = centerY + (hexPos.y - regionCenterPos.y);
           
           // Hexagone SVG précis (hitbox agrandie de 10%)
           const r = hexRadius * 1.1;
           const points = [
-            `${centerX + r},${centerY}`,
-            `${centerX + r/2},${centerY - r * 0.866}`,
-            `${centerX - r/2},${centerY - r * 0.866}`,
-            `${centerX - r},${centerY}`,
-            `${centerX - r/2},${centerY + r * 0.866}`,
-            `${centerX + r/2},${centerY + r * 0.866}`
+            `${tileX + r},${tileY}`,
+            `${tileX + r/2},${tileY - r * 0.866}`,
+            `${tileX - r/2},${tileY - r * 0.866}`,
+            `${tileX - r},${tileY}`,
+            `${tileX - r/2},${tileY + r * 0.866}`,
+            `${tileX + r/2},${tileY + r * 0.866}`
           ].join(' ');
           
           const isHovered = hoveredTile?.x === tile.x && hoveredTile?.y === tile.y;
