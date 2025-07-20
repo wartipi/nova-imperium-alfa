@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Package, Sparkles, Scroll, Shield, Gem, Sword, ChevronDown, ChevronUp, Eye } from 'lucide-react';
-import { MapViewer } from './MapViewer';
+import InteractiveMapViewer from './InteractiveMapViewer';
 
 interface UniqueItem {
   id: string;
@@ -148,37 +148,11 @@ export function PlayerInventory({ playerId }: PlayerInventoryProps) {
       
       {/* Modal pour visualiser une carte */}
       {viewingMap && viewingMap.type === 'carte' && viewingMap.metadata?.mapData && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-4 max-w-lg w-full mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-amber-900">{viewingMap.name}</h3>
-              <button
-                onClick={() => setViewingMap(null)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="mb-4">
-              <MapViewer
-                mapData={{
-                  id: viewingMap.id,
-                  name: viewingMap.name,
-                  ...viewingMap.metadata.mapData
-                }}
-              />
-            </div>
-            
-            <div className="text-sm text-gray-600">
-              <p className="mb-2">{viewingMap.description}</p>
-              <div className="flex justify-between">
-                <span>Valeur: {viewingMap.value} ⚡</span>
-                <span>Rareté: {viewingMap.rarity}</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <InteractiveMapViewer
+          mapData={viewingMap.metadata.mapData}
+          onClose={() => setViewingMap(null)}
+          title={viewingMap.name}
+        />
       )}
       
       {/* Modal de debug si pas de mapData */}
