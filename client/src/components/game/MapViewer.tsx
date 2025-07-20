@@ -93,7 +93,11 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
 
     const centerX = width / 2;
     const centerY = height / 2;
-    const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
+    
+    // Centre de la région basé sur les tuiles actuelles (pas les coordonnées globales)
+    const regionCenterX = (minX + maxX) / 2;
+    const regionCenterY = (minY + maxY) / 2;
+    const regionCenterPos = hexToPixel(regionCenterX, regionCenterY, hexRadius);
     
     tiles.forEach(tile => {
       const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
@@ -287,10 +291,14 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const mapHeight = maxY - minY + 1;
     const hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
 
-    // Utiliser exactement les mêmes calculs que le rendu (lignes 95-102)
+    // Calcul du centre corrigé : utiliser le centre de la zone affichée, pas les coordonnées absolues
     const centerX = width / 2;
     const centerY = height / 2;
-    const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
+    
+    // Centre de la région basé sur les tuiles actuelles (pas les coordonnées globales)
+    const regionCenterX = (minX + maxX) / 2;
+    const regionCenterY = (minY + maxY) / 2;
+    const regionCenterPos = hexToPixel(regionCenterX, regionCenterY, hexRadius);
     
     let bestTile = null;
     let bestDistance = Infinity;
