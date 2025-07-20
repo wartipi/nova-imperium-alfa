@@ -272,7 +272,18 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
 
 
 
-  // Créer les zones cliquables pour chaque tuile
+  // Créer des zones hexagonales précises avec SVG
+  const createHexagonPath = (radius: number) => {
+    const points = [];
+    for (let i = 0; i < 6; i++) {
+      const angle = (Math.PI / 3) * i;
+      const x = radius + radius * Math.cos(angle);
+      const y = radius + radius * Math.sin(angle);
+      points.push(`${x},${y}`);
+    }
+    return `M ${points.join(' L ')} Z`;
+  };
+
   const renderClickableAreas = () => {
     const tiles = mapData.region.tiles;
     if (!tiles.length) return null;
@@ -297,18 +308,19 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
       const x = centerX + (hexPos.x - regionCenterPos.x);
       const y = centerY + (hexPos.y - regionCenterPos.y);
 
-      // Zone cliquable circulaire centrée sur l'hexagone
-      const size = hexRadius * 1.8; // Un peu plus large que l'hexagone
+      // Taille précise de l'hexagone sans chevauchement
+      const svgSize = hexRadius * 2;
+      const hexPath = createHexagonPath(hexRadius * 0.9); // Légèrement plus petit pour éviter le chevauchement
 
       return (
         <div
           key={`${tile.x}-${tile.y}`}
-          className="absolute cursor-pointer hover:bg-red-500/30 border border-red-500"
+          className="absolute cursor-pointer"
           style={{
-            left: x - size/2,
-            top: y - size/2,
-            width: size,
-            height: size,
+            left: x - hexRadius,
+            top: y - hexRadius,
+            width: svgSize,
+            height: svgSize,
           }}
           onClick={(e) => {
             e.stopPropagation();
@@ -324,7 +336,17 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
             setHoveredTile(null);
             setMousePos(null);
           }}
-        />
+        >
+          <svg width={svgSize} height={svgSize} className="absolute inset-0">
+            <path
+              d={hexPath}
+              fill="rgba(255, 0, 0, 0.2)"
+              stroke="red"
+              strokeWidth="1"
+              className="hover:fill-red-400/40"
+            />
+          </svg>
+        </div>
       );
     });
   };
