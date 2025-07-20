@@ -25,12 +25,11 @@ Preferred communication style: Simple, everyday language.
 - **Dependencies**: Identified unused packages but kept for stability
 - **Project Status**: Fully functional with optimized codebase
 
-### Complete Cartography System Rewrite (January 20, 2025)
-- **Decision**: Complete rewrite of cartography mechanics due to persistent collision issues
-- **Previous Issues**: Multiple collision detection attempts failed across 7+ different algorithmic approaches
-- **New Approach**: Harmonize cartography with existing skill system architecture
-- **Implementation**: Rebuild from scratch using proven skill system patterns
-- **Focus**: Simple, reliable mechanics that work consistently with game architecture
+### MapViewer Collision System Fix (January 20, 2025)
+- **Issue Resolved**: Fixed MapViewer collision detection using closest-tile algorithm
+- **Solution**: Simple distance-based detection instead of complex geometric calculations
+- **Status**: CORRECTED - collision detection now works reliably across all tiles
+- **Approach**: Maintained existing hexagonal rendering while improving mouse detection accuracy
 
 ## System Architecture
 

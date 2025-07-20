@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Package, Sparkles, Scroll, Shield, Gem, Sword, ChevronDown, ChevronUp, Eye } from 'lucide-react';
-import { SimpleMapViewer } from './SimpleMapViewer';
+import { MapViewer } from './MapViewer';
 
 interface UniqueItem {
   id: string;
@@ -161,7 +161,7 @@ export function PlayerInventory({ playerId }: PlayerInventoryProps) {
             </div>
             
             <div className="mb-4">
-              <SimpleMapViewer
+              <MapViewer
                 mapData={{
                   id: viewingMap.id,
                   name: viewingMap.name,
