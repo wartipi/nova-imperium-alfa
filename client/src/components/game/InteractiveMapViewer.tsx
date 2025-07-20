@@ -394,10 +394,57 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
         onClick={handleClick}
       />
       
+      {/* Debug: Hitbox zones visualization */}
+      {hoveredTile && mousePos && (
+        <>
+          {/* Zone de tooltip calculée - rouge */}
+          <div 
+            className="absolute border-2 border-red-500 bg-red-100 opacity-30 pointer-events-none z-5"
+            style={{
+              left: Math.min(mousePos.x + 15, width - 180),
+              top: Math.max(mousePos.y - 90, 5),
+              width: '180px',
+              height: '90px'
+            }}
+          />
+          
+          {/* Zone de marge droite - bleu */}
+          <div 
+            className="absolute border-2 border-blue-500 bg-blue-100 opacity-20 pointer-events-none z-5"
+            style={{
+              left: width - 180,
+              top: 0,
+              width: '180px',
+              height: height + 'px'
+            }}
+          />
+          
+          {/* Zone de marge haute - vert */}
+          <div 
+            className="absolute border-2 border-green-500 bg-green-100 opacity-20 pointer-events-none z-5"
+            style={{
+              left: 0,
+              top: 0,
+              width: width + 'px',
+              height: '90px'
+            }}
+          />
+          
+          {/* Position de la souris - point rouge */}
+          <div 
+            className="absolute w-2 h-2 bg-red-600 rounded-full pointer-events-none z-20"
+            style={{
+              left: mousePos.x - 1,
+              top: mousePos.y - 1
+            }}
+          />
+        </>
+      )}
+
       {/* Hover tooltip avec debug */}
       {hoveredTile && mousePos && (
         <div 
-          className="absolute bg-black text-white p-2 rounded text-xs z-10 pointer-events-none border border-yellow-400"
+          className="absolute bg-black text-white p-2 rounded text-xs z-10 pointer-events-none border-2 border-yellow-400"
           style={{
             left: Math.min(mousePos.x + 15, width - 180),
             top: Math.max(mousePos.y - 90, 5),
@@ -408,10 +455,11 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
           <div><strong>Position:</strong> ({hoveredTile.x}, {hoveredTile.y})</div>
           <div><strong>Terrain:</strong> {terrainNames[hoveredTile.terrain as keyof typeof terrainNames] || hoveredTile.terrain}</div>
           {/* Debug info */}
-          <div className="text-yellow-300 mt-1">
-            <div>Mouse: ({mousePos.x.toFixed(0)}, {mousePos.y.toFixed(0)})</div>
-            <div>Canvas: {width}x{height}</div>
-            <div>Tooltip: left={Math.min(mousePos.x + 15, width - 180)}, top={Math.max(mousePos.y - 90, 5)}</div>
+          <div className="text-yellow-300 mt-1 border-t border-yellow-600 pt-1">
+            <div>🎯 Mouse: ({mousePos.x.toFixed(0)}, {mousePos.y.toFixed(0)})</div>
+            <div>📐 Canvas: {width}x{height}</div>
+            <div>📍 Tooltip: L{Math.min(mousePos.x + 15, width - 180)}, T{Math.max(mousePos.y - 90, 5)}</div>
+            <div>🔄 Constraints: R-margin={width-180}, T-margin=90</div>
           </div>
         </div>
       )}
