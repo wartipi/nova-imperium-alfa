@@ -270,7 +270,7 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     setHoveredTile(null);
   };
 
-  // Gestion simplifiée des clics - méthode ultra-simple et robuste
+  // Système de détection adapté de GameEngine.getHexAtPosition
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -281,7 +281,7 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const tiles = mapData.region.tiles;
     if (!tiles.length) return;
 
-    // Utiliser les mêmes paramètres que pour le rendu
+    // Calculs identiques au rendu
     const minX = Math.min(...tiles.map(t => t.x));
     const maxX = Math.max(...tiles.map(t => t.x));
     const minY = Math.min(...tiles.map(t => t.y));
@@ -291,53 +291,63 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const mapHeight = maxY - minY + 1;
     const hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
 
-    // Calcul du centre corrigé : utiliser le centre de la zone affichée, pas les coordonnées absolues
     const centerX = width / 2;
     const centerY = height / 2;
-    
-    // Centre de la région basé sur les tuiles actuelles (pas les coordonnées globales)
     const regionCenterX = (minX + maxX) / 2;
     const regionCenterY = (minY + maxY) / 2;
     const regionCenterPos = hexToPixel(regionCenterX, regionCenterY, hexRadius);
     
-    let bestTile = null;
-    let bestDistance = Infinity;
+    // Conversion inverse : écran vers coordonnées monde relatives
+    const worldX = clickX - centerX + regionCenterPos.x;
+    const worldY = clickY - centerY + regionCenterPos.y;
     
-    // Système ultra-simplifié : créer une grille de positions absolues
-    const tilePositions = new Map();
+    const hexHeight = hexRadius * Math.sqrt(3);
+    const hexWidth = hexRadius * 1.5;
     
-    // Calculer toutes les positions une seule fois
-    tiles.forEach(tile => {
-      const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
-      const x = centerX + (hexPos.x - regionCenterPos.x);
-      const y = centerY + (hexPos.y - regionCenterPos.y);
-      tilePositions.set(`${tile.x},${tile.y}`, { x, y, tile });
-    });
+    // Méthode GameEngine : conversion axiale puis offset
+    const q = (Math.sqrt(3)/3 * worldX - 1/3 * worldY) / hexRadius;
+    const r = (2/3 * worldY) / hexRadius;
     
-    // Trouver la tuile la plus proche par force brute
-    for (const [key, pos] of tilePositions) {
-      const distance = Math.sqrt((clickX - pos.x) ** 2 + (clickY - pos.y) ** 2);
-      
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        bestTile = pos.tile;
-      }
-    }
+    // Conversion en coordonnées offset
+    const hexX = Math.round(q + (r - (Math.round(r) & 1)) / 2);
+    const hexY = Math.round(r);
     
-    // Tolérance plus généreuse pour faciliter les clics
-    const tolerance = hexRadius * 2.0; // Très permissif
+    // Rechercher cette tuile dans les données
+    const targetTile = tiles.find(t => 
+      Math.abs(t.x - (hexX + regionCenterX)) <= 1 && 
+      Math.abs(t.y - (hexY + regionCenterY)) <= 1
+    );
     
-    if (bestTile && bestDistance <= tolerance) {
-      console.log(`🎯 Clic détecté sur tuile: (${bestTile.x}, ${bestTile.y}) - ${bestTile.terrain}, distance: ${bestDistance.toFixed(1)}, tolérance: ${tolerance.toFixed(1)}`);
-      setHoveredTile(bestTile);
+    if (targetTile) {
+      console.log(`🎯 Clic détecté GameEngine style: (${targetTile.x}, ${targetTile.y}) - ${targetTile.terrain}`);
+      setHoveredTile(targetTile);
       setMousePos({ x: clickX, y: clickY });
     } else {
-      console.log(`❌ Clic manqué - plus proche: ${bestDistance.toFixed(1)}, tolérance: ${tolerance.toFixed(1)}`);
-      if (bestTile) {
-        console.log(`   Tuile la plus proche: (${bestTile.x}, ${bestTile.y}) - ${bestTile.terrain}`);
+      // Fallback vers la méthode distance si conversion précise échoue
+      let bestTile = null;
+      let bestDistance = Infinity;
+      
+      for (const tile of tiles) {
+        const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
+        const tileX = centerX + (hexPos.x - regionCenterPos.x);
+        const tileY = centerY + (hexPos.y - regionCenterPos.y);
+        const distance = Math.sqrt((clickX - tileX) ** 2 + (clickY - tileY) ** 2);
+        
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          bestTile = tile;
+        }
       }
-      setHoveredTile(null);
-      setMousePos(null);
+      
+      if (bestTile && bestDistance <= hexRadius * 1.5) {
+        console.log(`🔄 Clic détecté fallback: (${bestTile.x}, ${bestTile.y}) - ${bestTile.terrain}, distance: ${bestDistance.toFixed(1)}`);
+        setHoveredTile(bestTile);
+        setMousePos({ x: clickX, y: clickY });
+      } else {
+        console.log(`❌ Aucune tuile détectée`);
+        setHoveredTile(null);
+        setMousePos(null);
+      }
     }
   };
 
