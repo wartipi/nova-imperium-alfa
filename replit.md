@@ -25,13 +25,12 @@ Preferred communication style: Simple, everyday language.
 - **Dependencies**: Identified unused packages but kept for stability
 - **Project Status**: Fully functional with optimized codebase
 
-### MapViewer Collision System Issue (January 20, 2025)
-- **Persistent Collision Detection Problem**: MapViewer collision system fundamentally broken despite multiple algorithmic approaches
-- **Multiple Algorithm Attempts**: Tested radial distance, hexagonal geometry, point-in-polygon, rectangular zones, distance-based, and closest-tile methods
-- **Root Cause Analysis**: Mismatch between rendering coordinates and collision calculation coordinates
-- **Solution Implemented**: Ultimate approach storing actual render positions during canvas drawing for perfect collision accuracy
-- **Issue Status**: RESOLVED with position-caching collision system
-- **Current State**: Collision detection now uses exact render coordinates stored during drawing phase
+### Complete Cartography System Rewrite (January 20, 2025)
+- **Decision**: Complete rewrite of cartography mechanics due to persistent collision issues
+- **Previous Issues**: Multiple collision detection attempts failed across 7+ different algorithmic approaches
+- **New Approach**: Harmonize cartography with existing skill system architecture
+- **Implementation**: Rebuild from scratch using proven skill system patterns
+- **Focus**: Simple, reliable mechanics that work consistently with game architecture
 
 ## System Architecture
 

@@ -24,6 +24,7 @@ import { ReputationPanel } from "./ReputationPanel";
 import { FactionPanel } from "./FactionPanel";
 import { UnifiedTerritoryPanel } from "./UnifiedTerritoryPanel";
 import { ReputationManagementPanel } from "./ReputationManagementPanel";
+import { CartographyPanel } from "./CartographyPanel";
 
 import { PlayerInventory } from "./PlayerInventory";
 import { useAuth } from "../../lib/auth/AuthContext";
@@ -41,7 +42,8 @@ type MenuSection =
   | 'competences'
   | 'factions'
   | 'territory'
-  | 'reputation_management';
+  | 'reputation_management'
+  | 'cartography';
 
 export function MedievalHUD() {
   const { gamePhase, currentTurn, endTurn, isGameMaster, toggleGameMaster } = useGameState();
@@ -133,7 +135,8 @@ export function MedievalHUD() {
     { id: 'guide' as MenuSection, label: 'GUIDE DE JEUX', icon: '📖' },
     { id: 'help' as MenuSection, label: 'AIDE', icon: '❓' },
     { id: 'factions' as MenuSection, label: 'FACTIONS', icon: '🏛️' },
-    { id: 'territory' as MenuSection, label: 'GESTION DE TERRITOIRE', icon: '🗺️' }
+    { id: 'territory' as MenuSection, label: 'GESTION DE TERRITOIRE', icon: '🗺️' },
+    { id: 'cartography' as MenuSection, label: 'CARTOGRAPHIE', icon: '🧭' }
   ];
 
   const handleCharacterSelect = (character: CharacterOption) => {
@@ -596,6 +599,7 @@ export function MedievalHUD() {
               {activeSection === 'help' && <HelpPanel />}
               {activeSection === 'competences' && <CompetenceTree />}
               {activeSection === 'factions' && <FactionPanel />}
+              {activeSection === 'cartography' && <CartographyPanel />}
             </div>
           </div>
         </div>
