@@ -305,8 +305,8 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
           key={`${tile.x}-${tile.y}`}
           className="absolute cursor-pointer hover:bg-blue-300/20 rounded-full"
           style={{
-            left: x - size/2,
-            top: y - size/2,
+            left: x - size/2 + 8, // +8px pour compenser le padding (border) du conteneur
+            top: y - size/2 + 8,  // +8px pour compenser le padding (border) du conteneur
             width: size,
             height: size,
           }}
