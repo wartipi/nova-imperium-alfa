@@ -44,22 +44,26 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
   const HEX_WIDTH = HEX_SIZE * 2;
   const HEX_HEIGHT = HEX_SIZE * Math.sqrt(3);
   
-  // Couleurs des terrains
+  // Couleurs des terrains - exactement comme dans le jeu principal
   const getTerrainColor = (terrain: string): string => {
     const colors: { [key: string]: string } = {
-      'plains': '#90EE90',
-      'forest': '#228B22',
-      'mountains': '#8B4513',
-      'desert': '#F4A460',
-      'swamp': '#556B2F',
-      'shallow_water': '#87CEEB',
-      'deep_water': '#4682B4',
-      'wasteland': '#A0522D',
-      'hills': '#DEB887',
-      'fertile_land': '#32CD32',
-      'volcanic': '#FF4500',
-      'frozen': '#B0E0E6',
-      'coastal': '#20B2AA'
+      'wasteland': '#F5F5DC',        // Beige pâle
+      'forest': '#228B22',           // Vert foncé
+      'mountains': '#708090',        // Gris pierre
+      'fertile_land': '#90EE90',     // Vert clair
+      'hills': '#D2B48C',            // Brun clair
+      'shallow_water': '#87CEEB',    // Bleu clair
+      'deep_water': '#191970',       // Bleu foncé
+      'swamp': '#556B2F',            // Vert olive foncé
+      'desert': '#FFD700',           // Jaune doré
+      'sacred_plains': '#F0E68C',    // Blanc doré / beige lumineux
+      'caves': '#2F2F2F',            // Gris très foncé
+      'ancient_ruins': '#8B7355',    // Brun-gris
+      'volcano': '#B22222',          // Rouge foncé
+      'enchanted_meadow': '#50C878', // Vert émeraude
+      'plains': '#90EE90',           // Alias pour fertile_land
+      'volcanic': '#B22222',         // Alias pour volcano
+      'coastal': '#87CEEB'           // Alias pour shallow_water
     };
     return colors[terrain] || '#D3D3D3';
   };
@@ -84,19 +88,22 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
     return icons[resource] || '📦';
   };
 
-  // Conversion coordonnées hexagonales vers pixel - version simplifiée
+  // Conversion coordonnées hexagonales vers pixel - alignement correct
   const hexToPixel = useCallback((hexX: number, hexY: number): { x: number, y: number } => {
-    // Algorithme classique pour les hexagones pointy-top
-    const x = HEX_SIZE * 3/2 * hexX;
-    const y = HEX_SIZE * Math.sqrt(3) * (hexY + hexX/2);
+    // Utilise la même logique que le jeu principal (flat-top hexagons)
+    const hexHeight = HEX_SIZE * Math.sqrt(3);
+    const x = hexX * (HEX_SIZE * 1.5);
+    const y = hexY * hexHeight + (hexX % 2) * (hexHeight / 2);
     return { x, y };
   }, []);
 
-  // Dessiner un hexagone
+  // Dessiner un hexagone - style du jeu principal (flat-top)
   const drawHexagon = (ctx: CanvasRenderingContext2D, centerX: number, centerY: number, color: string) => {
     ctx.beginPath();
+    
+    // Hexagone flat-top (comme dans le jeu principal)
     for (let i = 0; i < 6; i++) {
-      const angle = (Math.PI / 3) * i;
+      const angle = (Math.PI / 3) * i + Math.PI / 6; // Décalage pour flat-top
       const x = centerX + HEX_SIZE * Math.cos(angle);
       const y = centerY + HEX_SIZE * Math.sin(angle);
       if (i === 0) {
@@ -106,6 +113,7 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
       }
     }
     ctx.closePath();
+    
     ctx.fillStyle = color;
     ctx.fill();
     ctx.strokeStyle = '#333';
@@ -128,7 +136,7 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
     const minY = Math.min(...tiles.map(t => t.y));
     const maxY = Math.max(...tiles.map(t => t.y));
 
-    console.log('Limites carte:', { minX, maxX, minY, maxY });
+    // console.log('Limites carte:', { minX, maxX, minY, maxY });
 
     // Dimensionner le canvas généreusement
     canvas.width = 600;
@@ -171,7 +179,7 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
       }
     });
 
-    console.log('Carte dessinée avec', tiles.length, 'tuiles');
+    // console.log('Carte dessinée avec', tiles.length, 'tuiles');
   }, [mapData, hexToPixel, drawHexagon, getTerrainColor, getResourceIcon]);
 
   // Détection simplifiée basée sur la distance au centre de chaque hexagone
@@ -224,10 +232,10 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
     
     const tile = findTileAtPosition(event.clientX, event.clientY);
     
-    // Debug léger pour voir la détection
-    if (tile) {
-      console.log('Tuile détectée:', tile.x, tile.y, tile.terrain);
-    }
+    // Debug léger pour voir la détection (peut être commenté)
+    // if (tile) {
+    //   console.log('Tuile détectée:', tile.x, tile.y, tile.terrain);
+    // }
     
     if (tile) {
       setTooltip({
@@ -291,21 +299,21 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" ref={containerRef}>
-      <div className="bg-white rounded-lg p-6 max-w-4xl max-h-[90vh] overflow-auto relative">
-        {/* En-tête */}
+      <div className="bg-amber-50 border-2 border-amber-600 rounded-lg p-4 max-w-4xl max-h-[90vh] overflow-auto relative shadow-xl">
+        {/* En-tête - style cohérent avec l'inventaire */}
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-gray-800">{title}</h2>
+          <h2 className="text-lg font-bold text-amber-900">{title}</h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            className="text-amber-700 hover:text-amber-900 transition-colors"
           >
             <X size={20} />
           </button>
         </div>
 
-        {/* Informations de la région */}
-        <div className="mb-4 p-3 bg-gray-100 rounded">
-          <p className="text-sm text-gray-600">
+        {/* Informations de la région - style cohérent */}
+        <div className="mb-4 p-3 bg-amber-100 border border-amber-300 rounded">
+          <p className="text-sm text-amber-800">
             <MapPin className="inline w-4 h-4 mr-1" />
             Région centrée sur ({mapData.region.centerX}, {mapData.region.centerY}) - 
             Rayon: {mapData.region.radius} - 
@@ -313,8 +321,8 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
           </p>
         </div>
 
-        {/* Canvas de la carte */}
-        <div className="relative border border-gray-300 rounded overflow-hidden">
+        {/* Canvas de la carte - style cohérent */}
+        <div className="relative border-2 border-amber-600 rounded bg-amber-100 overflow-hidden">
           <canvas
             ref={canvasRef}
             onMouseMove={handleMouseMove}
@@ -323,28 +331,28 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
           />
         </div>
 
-        {/* Légende */}
-        <div className="mt-4 text-xs text-gray-500">
+        {/* Légende - style cohérent */}
+        <div className="mt-4 text-xs text-amber-700">
           <p>Survolez les hexagones pour voir les détails. Coordonnées et ressources affichées sur chaque case.</p>
         </div>
 
-        {/* Tooltip */}
+        {/* Tooltip - style cohérent */}
         {tooltip.visible && (
           <div
-            className="fixed bg-gray-800 text-white p-2 rounded shadow-lg pointer-events-none z-60"
+            className="fixed bg-amber-900 text-amber-100 p-2 rounded border border-amber-600 shadow-lg pointer-events-none z-60"
             style={{
               left: Math.min(tooltip.x, window.innerWidth - 200),
               top: Math.max(tooltip.y, 10)
             }}
           >
-            <div className="text-sm font-bold">
+            <div className="text-sm font-bold text-amber-50">
               Hexagone ({tooltip.tile.x}, {tooltip.tile.y})
             </div>
-            <div className="text-xs">
+            <div className="text-xs text-amber-200">
               Terrain: {getTerrainName(tooltip.tile.terrain)}
             </div>
             {tooltip.tile.resources.length > 0 && (
-              <div className="text-xs">
+              <div className="text-xs text-amber-200">
                 Ressources: {tooltip.tile.resources.map(r => getResourceName(r)).join(', ')}
               </div>
             )}

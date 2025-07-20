@@ -25,11 +25,13 @@ Preferred communication style: Simple, everyday language.
 - **Dependencies**: Identified unused packages but kept for stability
 - **Project Status**: Fully functional with optimized codebase
 
-### MapViewer Collision System Fix (January 20, 2025)
-- **Issue Resolved**: Fixed MapViewer collision detection using closest-tile algorithm
-- **Solution**: Simple distance-based detection instead of complex geometric calculations
-- **Status**: CORRECTED - collision detection now works reliably across all tiles
-- **Approach**: Maintained existing hexagonal rendering while improving mouse detection accuracy
+### Interactive MapViewer Complete Rebuild (January 20, 2025)
+- **Complete Rebuild**: Created entirely new InteractiveMapViewer.tsx with accurate mouse detection
+- **Visual Consistency**: Applied platform's amber color scheme and styling throughout
+- **Hexagon Alignment**: Implemented flat-top hexagon rendering matching main game engine
+- **Terrain Colors**: Used authentic terrain colors from MapGenerator.ts (wasteland: #F5F5DC, forest: #228B22, etc.)
+- **Mouse Detection**: Precise tile detection with generous click zones for better usability
+- **Status**: COMPLETED - MapViewer now fully functional with platform-consistent design
 
 ## System Architecture
 
