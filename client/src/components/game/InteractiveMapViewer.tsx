@@ -120,7 +120,7 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
     const mapWidth = maxX - minX + 1;
     const mapHeight = maxY - minY + 1;
     
-    // Calculate hex radius based on number of tiles
+    // Calculate hex radius based on number of tiles - IMPROVED CALCULATION
     const numTiles = tiles.length;
     let hexRadius;
     
@@ -129,18 +129,44 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
     } else if (numTiles <= 19) {
       hexRadius = Math.min(width / 12, height / 12);
     } else {
-      hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
+      // Better calculation for larger maps
+      const hexWidth = Math.sqrt(3) * 1.5; // Width spacing between hex centers
+      const hexHeight = 2 * 0.866; // Height spacing between hex rows
+      
+      const radiusFromWidth = (width - 40) / (mapWidth * hexWidth);
+      const radiusFromHeight = (height - 40) / (mapHeight * hexHeight);
+      
+      hexRadius = Math.min(radiusFromWidth, radiusFromHeight) * 0.8; // Scale down slightly for padding
     }
+    
+    console.log('🔍 Debug carte:', { 
+      numTiles, 
+      mapWidth, 
+      mapHeight, 
+      hexRadius, 
+      calculatedSize: { width: width, height: height }
+    });
 
     const centerX = width / 2;
     const centerY = height / 2;
     const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
     
     // Draw tiles
-    tiles.forEach(tile => {
+    tiles.forEach((tile, index) => {
       const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
       const x = centerX + (hexPos.x - regionCenterPos.x);
       const y = centerY + (hexPos.y - regionCenterPos.y);
+      
+      // DEBUG: Log first few tile positions
+      if (index < 5) {
+        console.log(`🗺️ Debug tuile ${index}:`, {
+          logicalPos: { x: tile.x, y: tile.y },
+          hexPos,
+          screenPos: { x, y },
+          regionCenter: regionCenterPos,
+          terrain: tile.terrain
+        });
+      }
 
       const terrainColor = terrainColors[tile.terrain as keyof typeof terrainColors] || '#CCCCCC';
       
@@ -233,6 +259,22 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
         ctx.textBaseline = 'middle';
         ctx.fillText(`${tile.x},${tile.y}`, x, y);
       }
+
+      // DEBUG: Afficher les hitboxes pour diagnostiquer le problème
+      ctx.strokeStyle = '#FF00FF'; // Magenta pour les hitboxes
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 2]);
+      ctx.beginPath();
+      const captureRadius = numTiles <= 7 ? hexRadius * 1.5 : hexRadius * 1.2;
+      ctx.arc(x, y, captureRadius, 0, 2 * Math.PI);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      
+      // Point central pour debug
+      ctx.fillStyle = '#FF0000';
+      ctx.beginPath();
+      ctx.arc(x, y, 2, 0, 2 * Math.PI);
+      ctx.fill();
     });
 
     // Map title and info
@@ -320,6 +362,16 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
     setMousePos({ x: mouseX, y: mouseY });
 
     const tile = getHexAtMouse(mouseX, mouseY);
+    
+    // DEBUG: Log mouse position and found tile
+    if (tile) {
+      console.log('🎯 Debug souris:', { 
+        mousePos: { x: mouseX, y: mouseY }, 
+        foundTile: { x: tile.x, y: tile.y, screenX: tile.screenX, screenY: tile.screenY },
+        distance: Math.sqrt((mouseX - tile.screenX) ** 2 + (mouseY - tile.screenY) ** 2)
+      });
+    }
+    
     setHoveredTile(tile);
   };
 
