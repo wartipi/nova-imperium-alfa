@@ -394,16 +394,29 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
   };
 
   const getAllAvailableActions = () => {
+    // Debug des compétences
+    const cartographyLevel = usePlayer.getState().getCompetenceLevel('cartography');
+    const explorationLevel = usePlayer.getState().getCompetenceLevel('exploration');
+    console.log('🎯 Debug compétences actuelles:', {
+      cartography: cartographyLevel,
+      exploration: explorationLevel,
+      competences: competences
+    });
+
     const filteredCompetenceActions = competenceActions.filter(action => {
       if (action.requiredCompetence) {
-        return hasCompetenceLevel(action.requiredCompetence, action.requiredLevel || 1);
+        const hasLevel = hasCompetenceLevel(action.requiredCompetence, action.requiredLevel || 1);
+        console.log(`🔍 Action ${action.name}: compétence ${action.requiredCompetence} niveau ${action.requiredLevel || 1} - ${hasLevel ? 'DISPONIBLE' : 'INDISPONIBLE'}`);
+        return hasLevel;
       }
       return true;
     });
 
     const filteredExplorationActions = explorationActions.filter(action => {
       if (action.requiredCompetence) {
-        return hasCompetenceLevel(action.requiredCompetence, action.requiredLevel || 1);
+        const hasLevel = hasCompetenceLevel(action.requiredCompetence, action.requiredLevel || 1);
+        console.log(`🔍 Action ${action.name}: compétence ${action.requiredCompetence} niveau ${action.requiredLevel || 1} - ${hasLevel ? 'DISPONIBLE' : 'INDISPONIBLE'}`);
+        return hasLevel;
       }
       return true;
     });
@@ -419,7 +432,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       )
     ];
     
-    console.log('🗺️ Actions disponibles:', allActions.map(a => a.name));
+    console.log('🗺️ Actions finales disponibles:', allActions.map(a => a.name));
     return allActions;
   };
 
