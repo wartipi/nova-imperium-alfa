@@ -394,37 +394,38 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
         onClick={handleClick}
       />
       
-      {/* Debug: Grille visuelle des hitboxes hexagonales */}
-      <svg
-        className="absolute inset-0 pointer-events-none z-30"
-        viewBox={`0 0 ${width} ${height}`}
-        style={{ opacity: 0.3 }}
-      >
-        {region.tiles.map((tile, index) => {
-          const screenPos = hexToScreen(tile.x, tile.y);
-          const hexPoints = getHexagonPoints(screenPos.x, screenPos.y, hexSize);
-          const pointsStr = hexPoints.map(p => `${p.x},${p.y}`).join(' ');
+      {/* Debug: Grille visuelle des hitboxes */}
+      <div className="absolute inset-0 pointer-events-none z-30">
+        {mapData.region.tiles.map((tile, index) => {
+          const screenPos = hexToPixel(tile.x - mapData.region.centerX, tile.y - mapData.region.centerY, 15);
+          const centerX = screenPos.x + width/2;
+          const centerY = screenPos.y + height/2;
+          
+          const isHovered = hoveredTile?.x === tile.x && hoveredTile?.y === tile.y;
           
           return (
-            <polygon
+            <div
               key={`debug-${index}`}
-              points={pointsStr}
-              fill="none"
-              stroke={hoveredTile?.x === tile.x && hoveredTile?.y === tile.y ? "red" : "blue"}
-              strokeWidth="1"
-              opacity="0.5"
+              className={`absolute border-2 rounded-full ${isHovered ? 'border-red-500 bg-red-200' : 'border-cyan-400 bg-cyan-100'}`}
+              style={{
+                left: centerX - 15,
+                top: centerY - 15,
+                width: '30px',
+                height: '30px',
+                opacity: 0.5
+              }}
             />
           );
         })}
-      </svg>
+      </div>
 
       {/* Debug: Position de la souris */}
       {mousePos && (
         <div 
-          className="absolute w-1 h-1 bg-red-600 z-40 pointer-events-none"
+          className="absolute w-2 h-2 bg-red-600 rounded-full z-40 pointer-events-none"
           style={{
-            left: mousePos.x - 0.5,
-            top: mousePos.y - 0.5
+            left: mousePos.x - 1,
+            top: mousePos.y - 1
           }}
         />
       )}
