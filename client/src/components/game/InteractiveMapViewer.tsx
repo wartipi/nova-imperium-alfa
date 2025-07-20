@@ -236,30 +236,11 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
     drawMap();
   }, [drawMap]);
 
-  // Détection par collision simple - zone circulaire
-  const isPointInCollisionZone = (px: number, py: number, centerX: number, centerY: number, radius: number): boolean => {
-    // Distance euclidienne simple
-    const dx = px - centerX;
-    const dy = py - centerY;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    
-    // Zone de collision circulaire avec rayon ajusté pour les hexagones
-    return distance <= radius * 0.9;
-  };
-
-  const getHexAtMouse = (mouseX: number, mouseY: number) => {
+  // Fonction centralisée pour calculer les positions et rayons (évite les décalages)
+  const calculateHexPositions = () => {
     const tiles = mapData.region.tiles;
-    if (!tiles.length) return null;
+    if (!tiles.length) return { hexRadius: 0, positions: [] };
 
-    // UTILISER EXACTEMENT LA MÊME LOGIQUE QUE drawMap()
-    const minX = Math.min(...tiles.map(t => t.x));
-    const maxX = Math.max(...tiles.map(t => t.x));
-    const minY = Math.min(...tiles.map(t => t.y));
-    const maxY = Math.max(...tiles.map(t => t.y));
-
-    const mapWidth = maxX - minX + 1;
-    const mapHeight = maxY - minY + 1;
-    
     const numTiles = tiles.length;
     let hexRadius;
     
@@ -268,23 +249,62 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
     } else if (numTiles <= 19) {
       hexRadius = Math.min(width / 12, height / 12) * 0.98;
     } else {
-      // Calcul identique à drawMap pour la détection de collision
+      const minX = Math.min(...tiles.map(t => t.x));
+      const maxX = Math.max(...tiles.map(t => t.x));
+      const minY = Math.min(...tiles.map(t => t.y));
+      const maxY = Math.max(...tiles.map(t => t.y));
+      const mapWidth = maxX - minX + 1;
+      const mapHeight = maxY - minY + 1;
       hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
     }
 
-    // Utiliser exactement la même logique que drawMap - hexToPixel
     const centerX = width / 2;
     const centerY = height / 2;
     const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
 
-    // Test de collision avec les mêmes coordonnées que le dessin
-    for (const tile of tiles) {
+    const positions = tiles.map(tile => {
       const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
-      const x = centerX + (hexPos.x - regionCenterPos.x);
-      const y = centerY + (hexPos.y - regionCenterPos.y);
+      return {
+        tile,
+        x: centerX + (hexPos.x - regionCenterPos.x),
+        y: centerY + (hexPos.y - regionCenterPos.y)
+      };
+    });
 
-      // Zone de collision circulaire simple
-      if (isPointInCollisionZone(mouseX, mouseY, x, y, hexRadius)) {
+    return { hexRadius, positions };
+  };
+
+  // Détection par collision hexagonale précise
+  const isPointInHexagon = (px: number, py: number, centerX: number, centerY: number, radius: number): boolean => {
+    const dx = Math.abs(px - centerX);
+    const dy = Math.abs(py - centerY);
+    
+    // Dimensions de l'hexagone flat-top
+    const hexWidth = radius;
+    const hexHeight = radius * Math.sqrt(3) / 2;
+    
+    // Test rapide : si au-delà du rectangle englobant
+    if (dx > hexWidth || dy > hexHeight) {
+      return false;
+    }
+    
+    // Test des régions hexagonales (bords inclinés)
+    const slope = Math.sqrt(3);  // tan(60°)
+    
+    // Point dans la région centrale rectangulaire
+    if (dx <= hexWidth / 2) {
+      return true;
+    }
+    
+    // Test des bords inclinés
+    return (dy <= hexHeight - slope * (dx - hexWidth / 2));
+  };
+
+  const getHexAtMouse = (mouseX: number, mouseY: number) => {
+    const { hexRadius, positions } = calculateHexPositions();
+    
+    for (const { tile, x, y } of positions) {
+      if (isPointInHexagon(mouseX, mouseY, x, y, hexRadius)) {
         return { ...tile, screenX: x, screenY: y };
       }
     }
@@ -365,76 +385,59 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
         onClick={handleClick}
       />
       
-      {/* Debug: Hitboxes de collision circulaires */}
+      {/* Debug: Hitboxes hexagonales précises */}
       <svg
         className="absolute inset-0 pointer-events-none z-30"
         viewBox={`0 0 ${width} ${height}`}
         style={{ opacity: 0.7 }}
       >
-        {mapData.region.tiles.map((tile, index) => {
-          // Calculs IDENTIQUES à getHexAtMouse pour la collision
-          const numTiles = mapData.region.tiles.length;
-          let hexRadius;
-          
-          if (numTiles <= 7) {
-            hexRadius = Math.min(width / 8, height / 8) * 0.98;
-          } else if (numTiles <= 19) {
-            hexRadius = Math.min(width / 12, height / 12) * 0.98;
-          } else {
-            const minX = Math.min(...mapData.region.tiles.map(t => t.x));
-            const maxX = Math.max(...mapData.region.tiles.map(t => t.x));
-            const minY = Math.min(...mapData.region.tiles.map(t => t.y));
-            const maxY = Math.max(...mapData.region.tiles.map(t => t.y));
-            const mapWidth = maxX - minX + 1;
-            const mapHeight = maxY - minY + 1;
-            hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
-          }
-          
-          // Position IDENTIQUE à getHexAtMouse
-          const centerX = width / 2;
-          const centerY = height / 2;
-          const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
-          const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
-          const tileX = centerX + (hexPos.x - regionCenterPos.x);
-          const tileY = centerY + (hexPos.y - regionCenterPos.y);
-          
-          // Zone de collision circulaire (même que isPointInCollisionZone)
-          const collisionRadius = hexRadius * 0.9;
-          const isHovered = hoveredTile?.x === tile.x && hoveredTile?.y === tile.y;
-          
-          return (
-            <g key={`hitbox-${index}`}>
-              {/* Cercle de collision */}
-              <circle
-                cx={tileX}
-                cy={tileY}
-                r={collisionRadius}
-                fill={isHovered ? "rgba(255, 0, 0, 0.4)" : "rgba(0, 255, 0, 0.3)"}
-                stroke={isHovered ? "#ff0000" : "#00ff00"}
-                strokeWidth="2"
-                strokeDasharray="4,4"
-              />
-              {/* Point central */}
-              <circle
-                cx={tileX}
-                cy={tileY}
-                r="2"
-                fill={isHovered ? "#ff0000" : "#007700"}
-              />
-              {/* Coordonnées */}
-              <text
-                x={tileX}
-                y={tileY + 4}
-                fontSize="8"
-                textAnchor="middle"
-                fill="#333"
-                style={{ pointerEvents: 'none', userSelect: 'none' }}
-              >
-                {tile.x},{tile.y}
-              </text>
-            </g>
-          );
-        })}
+        {(() => {
+          const { hexRadius, positions } = calculateHexPositions();
+          return positions.map(({ tile, x: tileX, y: tileY }, index) => {
+            const isHovered = hoveredTile?.x === tile.x && hoveredTile?.y === tile.y;
+            
+            // Hexagone SVG précis (même forme que la détection)
+            const points = [
+              `${tileX + hexRadius},${tileY}`,
+              `${tileX + hexRadius/2},${tileY - hexRadius * 0.866}`,
+              `${tileX - hexRadius/2},${tileY - hexRadius * 0.866}`,
+              `${tileX - hexRadius},${tileY}`,
+              `${tileX - hexRadius/2},${tileY + hexRadius * 0.866}`,
+              `${tileX + hexRadius/2},${tileY + hexRadius * 0.866}`
+            ].join(' ');
+            
+            return (
+              <g key={`hitbox-${index}`}>
+                {/* Hitbox hexagonale */}
+                <polygon
+                  points={points}
+                  fill={isHovered ? "rgba(255, 0, 0, 0.4)" : "rgba(0, 255, 0, 0.3)"}
+                  stroke={isHovered ? "#ff0000" : "#00ff00"}
+                  strokeWidth="2"
+                  strokeDasharray="4,4"
+                />
+                {/* Point central */}
+                <circle
+                  cx={tileX}
+                  cy={tileY}
+                  r="2"
+                  fill={isHovered ? "#ff0000" : "#007700"}
+                />
+                {/* Coordonnées */}
+                <text
+                  x={tileX}
+                  y={tileY + 4}
+                  fontSize="8"
+                  textAnchor="middle"
+                  fill="#333"
+                  style={{ pointerEvents: 'none', userSelect: 'none' }}
+                >
+                  {tile.x},{tile.y}
+                </text>
+              </g>
+            );
+          });
+        })()}
       </svg>
 
       {/* Curseur précis pour minimap */}

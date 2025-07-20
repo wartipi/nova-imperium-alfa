@@ -49,13 +49,13 @@ Preferred communication style: Simple, everyday language.
 - **Backward Compatibility**: Hybrid system allows gradual migration without breaking existing features
 - **Validation**: System logs show successful initialization and 4/5 game systems operational
 
-### Hexagonal Detection System - Collision Method (January 20, 2025)
-- **Status**: COMPLETED - Remplacement par méthode de collision circulaire simple
-- **Ancienne méthode supprimée**: `isPointInHexagon` avec calculs géométriques trigonométriques
-- **Nouvelle méthode**: `isPointInCollisionZone` utilisant distance euclidienne simple
-- **Performance**: Détection plus rapide avec `Math.sqrt(dx² + dy²)` et rayon ajusté (0.9x)
-- **Simplicité**: Abandon des calculs de bords inclinés au profit d'une zone circulaire
-- **Tests validés**: La nouvelle méthode de collision détecte correctement les clics sur les hexagones
+### Hexagonal Detection System - Precise Hitboxes (January 20, 2025)
+- **Status**: COMPLETED - Hitboxes hexagonales précises avec fonction centralisée
+- **Méthode**: `isPointInHexagon` avec détection géométrique hexagonale exacte
+- **Architecture**: Fonction `calculateHexPositions` centralisée évitant tous les décalages
+- **Visualisation**: Hitboxes hexagonales SVG en temps réel (vertes/rouges en pointillés)
+- **Synchronisation**: Même calculs pour détection ET affichage, éliminant les problèmes de décalage souris
+- **Précision**: Test des bords inclinés avec formules trigonométriques pour forme hexagonale authentique
 
 ### Migration Replit Agent → Replit Standard (January 20, 2025)
 - **Migration Status**: COMPLETED - Project successfully migrated from Replit Agent to standard Replit environment
