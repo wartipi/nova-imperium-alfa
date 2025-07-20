@@ -54,9 +54,13 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     ctx.closePath();
   };
 
+  // Conversion hexagonale alignée avec GameEngine.ts pour précision
   const hexToPixel = (hexX: number, hexY: number, hexRadius: number) => {
     const hexHeight = hexRadius * Math.sqrt(3);
-    const x = hexX * (hexRadius * 1.5);
+    const hexWidth = hexRadius * 1.5;
+    
+    // Même formule que GameEngine pour cohérence
+    const x = hexX * hexWidth;
     const y = hexY * hexHeight + (hexX % 2) * (hexHeight / 2);
     return { x, y };
   };
@@ -263,7 +267,7 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     setHoveredTile(null);
   };
 
-  // Gestion simplifiée des clics - approche similaire à la carte principale
+  // Gestion simplifiée des clics - méthode ultra-simple et robuste
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -271,8 +275,10 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const clickX = e.clientX - rect.left;
     const clickY = e.clientY - rect.top;
     
-    // Méthode simplifiée : trouver la tuile la plus proche sans calculs complexes
     const tiles = mapData.region.tiles;
+    if (!tiles.length) return;
+
+    // Utiliser les mêmes paramètres que pour le rendu
     const minX = Math.min(...tiles.map(t => t.x));
     const maxX = Math.max(...tiles.map(t => t.x));
     const minY = Math.min(...tiles.map(t => t.y));
@@ -289,8 +295,8 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     let bestTile = null;
     let bestDistance = Infinity;
     
-    // Recherche simple par distance euclidienne
-    for (const tile of tiles) {
+    // Test simple : distance directe vers chaque centre d'hexagone rendu
+    tiles.forEach(tile => {
       const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
       const tileScreenX = centerX + (hexPos.x - regionCenterPos.x);
       const tileScreenY = centerY + (hexPos.y - regionCenterPos.y);
@@ -301,16 +307,20 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
         bestDistance = distance;
         bestTile = tile;
       }
-    }
+    });
     
-    if (bestTile && bestDistance <= hexRadius * 1.5) { // Zone de tolérance généreuse
-      console.log(`🎯 Clic détecté sur tuile: (${bestTile.x}, ${bestTile.y}) - ${bestTile.terrain}, distance: ${bestDistance.toFixed(1)}`);
-      setHoveredTile(bestTile); // Afficher les infos de la tuile cliquée
-      
-      // Position fixe pour le tooltip près du clic
+    // Tolérance ajustée selon la taille des hexagones
+    const tolerance = hexRadius * 1.2; // Plus conservateur
+    
+    if (bestTile && bestDistance <= tolerance) {
+      console.log(`🎯 Clic détecté sur tuile: (${bestTile.x}, ${bestTile.y}) - ${bestTile.terrain}, distance: ${bestDistance.toFixed(1)}, tolérance: ${tolerance.toFixed(1)}`);
+      setHoveredTile(bestTile);
       setMousePos({ x: clickX, y: clickY });
     } else {
-      console.log(`❌ Clic en dehors des tuiles, distance minimale: ${bestDistance.toFixed(1)}`);
+      console.log(`❌ Clic manqué - plus proche: ${bestDistance.toFixed(1)}, tolérance: ${tolerance.toFixed(1)}`);
+      if (bestTile) {
+        console.log(`   Tuile la plus proche: (${bestTile.x}, ${bestTile.y}) - ${bestTile.terrain}`);
+      }
       setHoveredTile(null);
       setMousePos(null);
     }
