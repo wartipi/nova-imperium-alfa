@@ -196,27 +196,40 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const centerY = height / 2;
     const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
 
-    // Approche grille : trouver l'hexagone le plus proche selon une grille régulière
-    let bestTile = null;
-    let bestDistance = Infinity;
+    // Test de collision hexagonal précis (UNIFIÉ)
+    const isPointInHexagon = (px: number, py: number, centerX: number, centerY: number, radius: number): boolean => {
+      const dx = Math.abs(px - centerX);
+      const dy = Math.abs(py - centerY);
+      
+      const hexWidth = radius;
+      const hexHeight = radius * Math.sqrt(3) / 2;
+      
+      if (dx > hexWidth || dy > hexHeight) {
+        return false;
+      }
+      
+      const slope = Math.sqrt(3);
+      
+      if (dx <= hexWidth / 2) {
+        return true;
+      }
+      
+      return (dy <= hexHeight - slope * (dx - hexWidth / 2));
+    };
 
+    // Test de collision avec les mêmes coordonnées que le dessin
     for (const tile of tiles) {
       const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
       const x = centerX + (hexPos.x - regionCenterPos.x);
       const y = centerY + (hexPos.y - regionCenterPos.y);
 
-      // Distance euclidienne simple avec tolérance très généreuse
-      const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
-      
-      // Zone de capture adaptée selon la taille de la carte
-      const captureRadius = numTiles <= 7 ? hexRadius * 1.5 : hexRadius * 1.2;
-      if (distance <= captureRadius && distance < bestDistance) {
-        bestDistance = distance;
-        bestTile = tile;
+      // Hitbox hexagonale précise
+      if (isPointInHexagon(mouseX, mouseY, x, y, hexRadius)) {
+        return tile;
       }
     }
 
-    return bestTile;
+    return null;
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {

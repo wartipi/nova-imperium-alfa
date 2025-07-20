@@ -202,18 +202,31 @@ export class GameEngine {
     console.log('Démarrage du jeu - caméra libre');
   }
 
-  // Fonction utilitaire pour tester si un point est dans un hexagone (géométrie précise)
-  private isPointInHexagon(pointX: number, pointY: number, hexCenterX: number, hexCenterY: number, hexRadius: number): boolean {
-    const dx = Math.abs(pointX - hexCenterX);
-    const dy = Math.abs(pointY - hexCenterY);
+  // Fonction utilitaire pour tester si un point est dans un hexagone - UNIFIÉE
+  private isPointInHexagon(px: number, py: number, centerX: number, centerY: number, radius: number): boolean {
+    // Méthode unifiée utilisée partout dans Nova Imperium
+    const dx = Math.abs(px - centerX);
+    const dy = Math.abs(py - centerY);
     
-    // Test rapide pour un rectangle englobant
-    if (dx > hexRadius || dy > hexRadius * Math.sqrt(3) / 2) {
+    // Distance maximale pour un hexagone flat-top
+    const hexWidth = radius;
+    const hexHeight = radius * Math.sqrt(3) / 2;
+    
+    // Test rapide : si au-delà du rectangle englobant
+    if (dx > hexWidth || dy > hexHeight) {
       return false;
     }
     
-    // Test précis pour les bords inclinés de l'hexagone
-    return dy <= hexRadius * Math.sqrt(3) / 2 - dx * Math.sqrt(3) / 3;
+    // Test des régions hexagonales (bords inclinés)
+    const slope = Math.sqrt(3);  // tan(60°)
+    
+    // Point dans la région centrale rectangulaire
+    if (dx <= hexWidth / 2) {
+      return true;
+    }
+    
+    // Test des bords inclinés
+    return (dy <= hexHeight - slope * (dx - hexWidth / 2));
   }
 
   getHexAtPosition(screenX: number, screenY: number): HexTile | null {
