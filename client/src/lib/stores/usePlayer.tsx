@@ -657,11 +657,6 @@ export const usePlayer = create<PlayerState>((set, get) => {
       competencePoints: 999 // Points illimités
     });
 
-    // Forcer la mise à jour de la vision avec le nouveau niveau d'exploration
-    setTimeout(() => {
-      get().updateVision();
-    }, 50);
-
     console.log('🎯 Mode MJ: Toutes les compétences ont été données au niveau maximum');
   }
   };

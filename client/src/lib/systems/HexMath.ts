@@ -46,49 +46,26 @@ export class HexMath {
 
   /**
    * Obtient tous les hexagones dans un rayon donné (incluant le centre)
-   * Approche simple par distance calculée
    */
   static getHexesInRadius(centerX: number, centerY: number, radius: number): HexCoord[] {
     const hexes: HexCoord[] = [];
     
-    // Parcourir une zone carrée autour du centre et calculer la distance hexagonale
-    const searchRadius = radius + 2; // Zone de recherche élargie
+    // Ajouter le centre
+    hexes.push({ x: centerX, y: centerY });
     
-    for (let x = centerX - searchRadius; x <= centerX + searchRadius; x++) {
-      for (let y = centerY - searchRadius; y <= centerY + searchRadius; y++) {
-        if (x >= 0 && y >= 0) { // Coordonnées valides
-          const distance = this.hexDistance(centerX, centerY, x, y);
-          if (distance <= radius) {
-            hexes.push({ x, y });
-          }
-        }
-      }
+    if (radius >= 1) {
+      // Ajouter les hexagones adjacents
+      const adjacent = this.getAdjacentHexes(centerX, centerY);
+      hexes.push(...adjacent);
+    }
+    
+    if (radius >= 2) {
+      // Rayon 2 : ajouter l'anneau extérieur (12 hexagones supplémentaires)
+      const radius2Hexes = this.getRadius2Hexes(centerX, centerY);
+      hexes.push(...radius2Hexes);
     }
     
     return hexes;
-  }
-
-  /**
-   * Calcule la distance hexagonale entre deux points
-   * Utilise la conversion cube puis distance Manhattan en cube
-   */
-  static hexDistance(x1: number, y1: number, x2: number, y2: number): number {
-    // Conversion offset vers cube coordinates
-    const cube1 = this.offsetToCube(x1, y1);
-    const cube2 = this.offsetToCube(x2, y2);
-    
-    // Distance en coordonnées cube
-    return (Math.abs(cube1.x - cube2.x) + Math.abs(cube1.y - cube2.y) + Math.abs(cube1.z - cube2.z)) / 2;
-  }
-
-  /**
-   * Convertit les coordonnées offset (x,y) en coordonnées cube (x,y,z)
-   */
-  static offsetToCube(col: number, row: number): { x: number, y: number, z: number } {
-    const x = col;
-    const z = row - (col - (col & 1)) / 2;
-    const y = -x - z;
-    return { x, y, z };
   }
 
   /**
