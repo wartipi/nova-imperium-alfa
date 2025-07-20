@@ -47,8 +47,7 @@ class ExchangeService {
   private playerInventories: Map<string, string[]> = new Map(); // playerId -> itemIds
 
   constructor() {
-    // Initialiser avec quelques objets de test
-    this.initializeTestItems();
+    // Initialiser vide - les objets seront créés via les actions du jeu
   }
 
   private initializeTestItems() {
@@ -362,6 +361,37 @@ class ExchangeService {
     return this.uniqueItems.get(itemId);
   }
 
+  // Vider complètement l'inventaire d'un joueur
+  clearPlayerInventory(playerId: string): boolean {
+    try {
+      // Supprimer tous les objets du joueur
+      const inventory = this.playerInventories.get(playerId) || [];
+      inventory.forEach(itemId => {
+        this.uniqueItems.delete(itemId);
+      });
+      
+      // Vider l'inventaire
+      this.playerInventories.set(playerId, []);
+      
+      return true;
+    } catch (error) {
+      console.error('Erreur lors du vidage de l\'inventaire:', error);
+      return false;
+    }
+  }
+
+  // Vider tous les inventaires et objets (pour debug/reset)
+  clearAllInventories(): boolean {
+    try {
+      this.uniqueItems.clear();
+      this.playerInventories.clear();
+      return true;
+    } catch (error) {
+      console.error('Erreur lors du vidage complet:', error);
+      return false;
+    }
+  }
+
   // Créer des objets uniques prédéfinis pour le jeu
   createPredefinedUniqueItems(): void {
     // Cartes cartographiques
@@ -527,9 +557,6 @@ class ExchangeService {
 }
 
 export const exchangeService = new ExchangeService();
-
-// Initialiser les objets uniques prédéfinis
-exchangeService.createPredefinedUniqueItems();
 
 // Nettoyer les offres expirées toutes les minutes
 setInterval(() => {

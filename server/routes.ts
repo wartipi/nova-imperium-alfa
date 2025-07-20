@@ -496,6 +496,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/unique-items/:playerId", async (req, res) => {
+    try {
+      const { playerId } = req.params;
+      const success = exchangeService.clearPlayerInventory(playerId);
+      
+      if (success) {
+        res.json({ success: true, message: "Player inventory cleared" });
+      } else {
+        res.status(400).json({ error: "Failed to clear inventory" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to clear player inventory" });
+    }
+  });
+
+  app.post("/api/unique-items/clear", async (req, res) => {
+    try {
+      const success = exchangeService.clearAllInventories();
+      
+      if (success) {
+        res.json({ success: true, message: "All inventories cleared" });
+      } else {
+        res.status(400).json({ error: "Failed to clear all inventories" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to clear all inventories" });
+    }
+  });
+
   // Endpoint pour créer une offre d'échange d'objets uniques
   app.post("/api/exchange/offer/unique", async (req, res) => {
     try {
