@@ -147,12 +147,24 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
 
   }, [mapData, width, height]);
 
-  // Méthode corrigée avec calculs identiques au rendu
+  // Nouvelle approche : mapping direct des coordonnées canvas
   const getHexAtMouse = (mouseX: number, mouseY: number) => {
     const tiles = mapData.region.tiles;
     if (!tiles.length) return null;
 
-    // Reproduire exactement la logique de rendu
+    // Créer une carte de collision basée sur les pixels réels du canvas
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+
+    // Obtenir le contexte pour accéder aux données de pixel (si nécessaire)
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    // Approche brute force mais fiable : tester distance à TOUS les hexagones rendus
+    let closestTile = null;
+    let closestDistance = Infinity;
+
+    // Recalculer exactement les mêmes paramètres que le rendu
     const minX = Math.min(...tiles.map(t => t.x));
     const maxX = Math.max(...tiles.map(t => t.x));
     const minY = Math.min(...tiles.map(t => t.y));
@@ -166,22 +178,22 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const centerY = height / 2;
     const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
 
-    // Parcourir chaque tuile avec le même calcul que le rendu
-    for (const tile of tiles) {
+    // Parcourir CHAQUE tuile et calculer sa distance exacte
+    tiles.forEach(tile => {
       const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
       const x = centerX + (hexPos.x - regionCenterPos.x);
       const y = centerY + (hexPos.y - regionCenterPos.y);
 
-      // Test de distance simple comme dans GameEngine
       const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
       
-      // Zone de capture généreuse
-      if (distance <= hexRadius * 1.5) {
-        return tile;
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestTile = tile;
       }
-    }
+    });
 
-    return null;
+    // Retourner la tuile la plus proche si elle est dans une zone raisonnable
+    return closestDistance <= hexRadius * 2 ? closestTile : null;
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -195,10 +207,10 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const tile = getHexAtMouse(mouseX, mouseY);
     setHoveredTile(tile);
     
-    // Debug désactivé - collision corrigée
-    // if (!tile) {
-    //   console.log('Aucune tuile détectée:', { mouseX, mouseY, tilesCount: mapData.region.tiles.length });
-    // }
+    // Debug temporaire pour nouvelle méthode
+    if (!tile && Math.random() < 0.1) {
+      console.log('Aucune tuile proche:', { mouseX, mouseY, tilesCount: mapData.region.tiles.length });
+    }
   };
 
   const handleMouseLeave = () => {

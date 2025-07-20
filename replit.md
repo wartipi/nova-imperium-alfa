@@ -25,11 +25,12 @@ Preferred communication style: Simple, everyday language.
 - **Dependencies**: Identified unused packages but kept for stability
 - **Project Status**: Fully functional with optimized codebase
 
-### MapViewer Collision System Issue (January 19, 2025)
-- **Persistent Collision Detection Problem**: Two bottom hexagonal tiles in MapViewer not responding to mouse hover
-- **Multiple Algorithm Attempts**: Tested radial distance, hexagonal geometry, and point-in-polygon methods  
-- **Issue Status**: UNRESOLVED - requires alternative approach or complete system redesign
-- **Current State**: Basic collision detection works for most tiles, bottom tiles remain unresponsive
+### MapViewer Collision System Issue (January 20, 2025)
+- **Persistent Collision Detection Problem**: MapViewer collision system fundamentally broken despite multiple fixes
+- **Multiple Algorithm Attempts**: Tested radial distance, hexagonal geometry, point-in-polygon, rectangular zones, and distance-based methods
+- **Root Cause Analysis**: Collision calculation method doesn't match rendering geometry exactly
+- **Issue Status**: CRITICAL - requires complete collision system redesign using canvas coordinate mapping
+- **Current State**: Partial collision detection, many tiles still unresponsive to mouse hover
 
 ## System Architecture
 
