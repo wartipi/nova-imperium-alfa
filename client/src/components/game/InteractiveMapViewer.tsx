@@ -154,13 +154,17 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
     const offsetX = canvas.width / 2;
     const offsetY = canvas.height / 2;
 
-    // Dessiner chaque tuile
+    // Trouver le centre géométrique réel pour centrer l'affichage
+    const avgX = tiles.reduce((sum, t) => sum + t.x, 0) / tiles.length;
+    const avgY = tiles.reduce((sum, t) => sum + t.y, 0) / tiles.length;
+
+    // Dessiner chaque tuile avec coordonnées absolues
     tiles.forEach(tile => {
-      // Convertir les coordonnées du jeu en position relative au centre
-      const relX = tile.x - mapData.region.centerX;
-      const relY = tile.y - mapData.region.centerY;
+      // Utiliser les coordonnées absolues mais centrées sur l'écran
+      const relX = tile.x - avgX;
+      const relY = tile.y - avgY;
       
-      // Calculer la position pixel
+      // Calculer la position pixel (exactement comme GameEngine)
       const pixelPos = hexToPixel(relX, relY);
       const centerX = pixelPos.x + offsetX;
       const centerY = pixelPos.y + offsetY;
@@ -168,7 +172,7 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
       // Dessiner l'hexagone
       drawHexagon(ctx, centerX, centerY, getTerrainColor(tile.terrain));
 
-      // Afficher les coordonnées
+      // Afficher les vraies coordonnées du jeu
       ctx.fillStyle = '#000';
       ctx.font = '10px Arial';
       ctx.textAlign = 'center';
@@ -205,10 +209,15 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
     let closestTile: HexTile | null = null;
     let closestDistance = Infinity;
 
-    mapData.region.tiles.forEach(tile => {
-      // Même calcul que dans drawMap
-      const relX = tile.x - mapData.region.centerX;
-      const relY = tile.y - mapData.region.centerY;
+    // Calculer le centre géométrique (même que dans drawMap)
+    const tiles = mapData.region.tiles;
+    const avgX = tiles.reduce((sum, t) => sum + t.x, 0) / tiles.length;
+    const avgY = tiles.reduce((sum, t) => sum + t.y, 0) / tiles.length;
+
+    tiles.forEach(tile => {
+      // Même calcul que dans drawMap - coordonnées centrées
+      const relX = tile.x - avgX;
+      const relY = tile.y - avgY;
       
       const pixelPos = hexToPixel(relX, relY);
       const hexCenterX = pixelPos.x + offsetX;
