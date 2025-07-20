@@ -125,9 +125,9 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
     let hexRadius;
     
     if (numTiles <= 7) {
-      hexRadius = Math.min(width / 8, height / 8);
+      hexRadius = Math.min(width / 8, height / 8) * 0.98; // Réduction de 2%
     } else if (numTiles <= 19) {
-      hexRadius = Math.min(width / 12, height / 12);
+      hexRadius = Math.min(width / 12, height / 12) * 0.98; // Réduction de 2%
     } else {
       // Better calculation for larger maps
       const hexWidth = Math.sqrt(3) * 1.5; // Width spacing between hex centers
@@ -136,16 +136,10 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
       const radiusFromWidth = (width - 40) / (mapWidth * hexWidth);
       const radiusFromHeight = (height - 40) / (mapHeight * hexHeight);
       
-      hexRadius = Math.min(radiusFromWidth, radiusFromHeight) * 0.8; // Scale down slightly for padding
+      hexRadius = Math.min(radiusFromWidth, radiusFromHeight) * 0.78; // 0.8 * 0.98 = 0.784 ≈ 0.78
     }
     
-    console.log('🔍 Debug carte:', { 
-      numTiles, 
-      mapWidth, 
-      mapHeight, 
-      hexRadius, 
-      calculatedSize: { width: width, height: height }
-    });
+    // Logs de débogage supprimés pour la production
 
     const centerX = width / 2;
     const centerY = height / 2;
@@ -157,16 +151,7 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
       const x = centerX + (hexPos.x - regionCenterPos.x);
       const y = centerY + (hexPos.y - regionCenterPos.y);
       
-      // DEBUG: Log first few tile positions
-      if (index < 5) {
-        console.log(`🗺️ Debug tuile ${index}:`, {
-          logicalPos: { x: tile.x, y: tile.y },
-          hexPos,
-          screenPos: { x, y },
-          regionCenter: regionCenterPos,
-          terrain: tile.terrain
-        });
-      }
+      // Position des tuiles calculées et affichées
 
       const terrainColor = terrainColors[tile.terrain as keyof typeof terrainColors] || '#CCCCCC';
       
@@ -260,19 +245,7 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
         ctx.fillText(`${tile.x},${tile.y}`, x, y);
       }
 
-      // DEBUG: Afficher les hitboxes hexagonales pour diagnostiquer le problème
-      ctx.strokeStyle = '#FF00FF'; // Magenta pour les hitboxes
-      ctx.lineWidth = 2;
-      ctx.setLineDash([3, 3]);
-      drawHexagon(ctx, x, y, hexRadius * 1.1); // Légèrement plus grand pour la zone de clic
-      ctx.stroke();
-      ctx.setLineDash([]);
-      
-      // Point central pour debug
-      ctx.fillStyle = '#FF0000';
-      ctx.beginPath();
-      ctx.arc(x, y, 3, 0, 2 * Math.PI);
-      ctx.fill();
+      // Hitboxes de débogage désactivées pour la production
     });
 
     // Map title and info
@@ -342,9 +315,9 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
     let hexRadius;
     
     if (numTiles <= 7) {
-      hexRadius = Math.min(width / 8, height / 8);
+      hexRadius = Math.min(width / 8, height / 8) * 0.98; // Réduction de 2%
     } else if (numTiles <= 19) {
-      hexRadius = Math.min(width / 12, height / 12);
+      hexRadius = Math.min(width / 12, height / 12) * 0.98; // Réduction de 2%
     } else {
       // Better calculation for larger maps
       const hexWidth = Math.sqrt(3) * 1.5;
@@ -353,7 +326,7 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
       const radiusFromWidth = (width - 40) / (mapWidth * hexWidth);
       const radiusFromHeight = (height - 40) / (mapHeight * hexHeight);
       
-      hexRadius = Math.min(radiusFromWidth, radiusFromHeight) * 0.8;
+      hexRadius = Math.min(radiusFromWidth, radiusFromHeight) * 0.78; // 0.8 * 0.98 = 0.784 ≈ 0.78
     }
 
     const centerX = width / 2;
@@ -368,11 +341,6 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
 
       // Vérifier si le point de la souris est dans l'hexagone
       if (isPointInHexagon(mouseX, mouseY, x, y, hexRadius)) {
-        console.log('🎯 Hexagone trouvé:', { 
-          tile: { x: tile.x, y: tile.y }, 
-          screenPos: { x, y },
-          mousePos: { x: mouseX, y: mouseY }
-        });
         return { ...tile, screenX: x, screenY: y };
       }
     }
@@ -390,14 +358,7 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
 
     const tile = getHexAtMouse(mouseX, mouseY);
     
-    // DEBUG: Log mouse position and found tile
-    if (tile) {
-      console.log('🎯 Debug souris:', { 
-        mousePos: { x: mouseX, y: mouseY }, 
-        foundTile: { x: tile.x, y: tile.y, screenX: tile.screenX, screenY: tile.screenY },
-        distance: Math.sqrt((mouseX - tile.screenX) ** 2 + (mouseY - tile.screenY) ** 2)
-      });
-    }
+    // Détection de la tuile sous la souris
     
     setHoveredTile(tile);
   };
