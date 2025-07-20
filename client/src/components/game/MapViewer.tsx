@@ -317,7 +317,7 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
           key={`${tile.x}-${tile.y}`}
           className="absolute cursor-pointer"
           style={{
-            left: x - hexRadius + 15, // Centrage ajusté pour la nouvelle taille
+            left: x - hexRadius, // Centre de la grille aligné sur les coordonnées souris
             top: y - hexRadius,
             width: svgSize,
             height: svgSize,
@@ -345,16 +345,16 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
               strokeWidth="1"
               className="hover:fill-red-400/40"
             />
-            {/* Point de référence aligné sur la position souris */}
+            {/* Point de référence au centre de la grille pour correspondre à la souris */}
             <circle 
-              cx={hexRadius - 15} 
+              cx={hexRadius} 
               cy={hexRadius} 
               r="3" 
               fill="blue" 
             />
             {/* Coordonnées affichées */}
             <text 
-              x={hexRadius - 15} 
+              x={hexRadius} 
               y={hexRadius + 15} 
               textAnchor="middle" 
               fontSize="10" 
