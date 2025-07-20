@@ -24,6 +24,15 @@ Preferred communication style: Simple, everyday language.
 - **API Conservée**: Routes `/api/unique-items/create` disponibles pour création d'objets via actions
 - **Inventaire Vide par Design**: Plus de génération automatique, objets créés par gameplay seulement
 
+### Gestion des États Complexes - Étape 4 Complétée (Janvier 20, 2025)
+- **Stores Spécialisés Zustand**: Création de 5 stores dédiés (Resources, MapState, Units, Buildings, GameManager)
+- **Optimisations Performances**: Hooks optimisés avec useCallback/useMemo, sélecteurs mémorisés, évitement des re-rendus
+- **Coordination Intelligente**: GameManager orchestre tous les stores avec synchronisation automatique
+- **Tests Unitaires Avancés**: Tests complets pour tous les nouveaux stores avec validation d'état
+- **Architecture Modulaire**: Séparation claire des responsabilités, 15 types de ressources, système de production
+- **Batch Operations**: Opérations groupées pour optimiser les performances de fin de tour
+- **Documentation Architecture**: Guide complet des stores avec exemples et bonnes pratiques
+
 ### Migration et Optimisations Avancées (Janvier 20, 2025)
 - **Migration Replit Agent → Replit**: Migration réussie avec compatibilité complète
 - **Optimisation des Types**: Nouvelles interfaces précises (Ressource, Tuile, ÉtatJeu, Joueur, Faction)
