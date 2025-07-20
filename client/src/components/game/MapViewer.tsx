@@ -147,7 +147,7 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
 
   }, [mapData, width, height]);
 
-  // Correction simple du système de collision existant  
+  // Système de détection optimisé utilisant la géométrie hexagonale précise
   const getHexAtMouse = (mouseX: number, mouseY: number) => {
     const tiles = mapData.region.tiles;
     if (!tiles.length) return null;
@@ -166,24 +166,59 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const centerY = height / 2;
     const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
 
-    // Trouver la tuile la plus proche - méthode simple et fiable
-    let closestTile = null;
-    let closestDistance = Infinity;
+    // Optimisation : tester d'abord les hexagones proches du point de clic
+    // Conversion inverse approximative pour trouver l'hexagone candidat
+    const relativeX = mouseX - centerX + regionCenterPos.x;
+    const relativeY = mouseY - centerY + regionCenterPos.y;
+    
+    // Estimation initiale basée sur la géométrie hexagonale
+    const hexHeight = hexRadius * Math.sqrt(3);
+    const estimatedHexX = Math.round(relativeX / (hexRadius * 1.5));
+    const estimatedHexY = Math.round((relativeY - (estimatedHexX % 2) * (hexHeight / 2)) / hexHeight);
 
-    for (const tile of tiles) {
-      const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
-      const x = centerX + (hexPos.x - regionCenterPos.x);
-      const y = centerY + (hexPos.y - regionCenterPos.y);
+    // Chercher la tuile correspondante dans les données
+    let bestTile = null;
+    let bestDistance = Infinity;
+    
+    // D'abord, vérifier l'hexagone estimé et ses voisins immédiats
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const testX = estimatedHexX + dx + mapData.region.centerX;
+        const testY = estimatedHexY + dy + mapData.region.centerY;
+        
+        const candidateTile = tiles.find(t => t.x === testX && t.y === testY);
+        if (candidateTile) {
+          const hexPos = hexToPixel(candidateTile.x, candidateTile.y, hexRadius);
+          const screenX = centerX + (hexPos.x - regionCenterPos.x);
+          const screenY = centerY + (hexPos.y - regionCenterPos.y);
+          
+          const distance = Math.sqrt((mouseX - screenX) ** 2 + (mouseY - screenY) ** 2);
+          
+          if (distance <= hexRadius * 1.15 && distance < bestDistance) {
+            bestDistance = distance;
+            bestTile = candidateTile;
+          }
+        }
+      }
+    }
+    
+    // Si aucune tuile trouvée avec la méthode optimisée, fallback vers la méthode complète
+    if (!bestTile) {
+      for (const tile of tiles) {
+        const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
+        const x = centerX + (hexPos.x - regionCenterPos.x);
+        const y = centerY + (hexPos.y - regionCenterPos.y);
 
-      const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
-      
-      if (distance < closestDistance && distance <= hexRadius * 1.2) {
-        closestDistance = distance;
-        closestTile = tile;
+        const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
+        
+        if (distance < bestDistance && distance <= hexRadius * 1.2) {
+          bestDistance = distance;
+          bestTile = tile;
+        }
       }
     }
 
-    return closestTile;
+    return bestTile;
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {

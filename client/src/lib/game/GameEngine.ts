@@ -219,38 +219,68 @@ export class GameEngine {
     const worldY = (screenY - this.canvas.height / 2) / this.zoom + this.cameraY;
     
     const hexHeight = this.hexSize * Math.sqrt(3);
+    const hexWidth = this.hexSize * 1.5;
     
-    // Estimation initiale plus précise
-    let estimatedHexX = Math.round(worldX / (this.hexSize * 1.5));
-    let estimatedHexY = Math.round((worldY - (estimatedHexX % 2) * (hexHeight / 2)) / hexHeight);
+    // Méthode de conversion coordonnées monde vers hexagones améliorée
+    // Utilise la géométrie hexagonale exacte pour une conversion précise
+    const q = (Math.sqrt(3)/3 * worldX - 1/3 * worldY) / this.hexSize;
+    const r = (2/3 * worldY) / this.hexSize;
     
-    // Tester l'hexagone estimé et ses voisins
+    // Conversion en coordonnées axiales puis vers offset
+    let hexX = Math.round(q + (r - (Math.round(r) & 1)) / 2);
+    let hexY = Math.round(r);
+    
+    // Vérifier que les coordonnées calculées sont dans les limites
+    if (hexY >= 0 && hexY < this.mapData.length && 
+        hexX >= 0 && hexX < this.mapData[hexY].length) {
+      
+      // Calculer la position précise de ce hex pour vérification
+      const hexCenterX = hexX * hexWidth;
+      const hexCenterY = hexY * hexHeight + (hexX % 2) * (hexHeight / 2);
+      
+      // Vérifier si le point cliqué est dans la zone acceptable de l'hexagone
+      const distance = Math.sqrt((worldX - hexCenterX) ** 2 + (worldY - hexCenterY) ** 2);
+      
+      if (distance <= this.hexSize * 1.15) { // Zone de tolérance élargie
+        console.log(`✅ Détection directe réussie: hex(${hexX},${hexY}), distance: ${distance.toFixed(2)}`);
+        return this.mapData[hexY][hexX];
+      }
+    }
+    
+    // Méthode de fallback : recherche par distance minimale dans un voisinage restreint
     let bestHex: HexTile | null = null;
     let bestDistance = Infinity;
     
-    for (let dy = -2; dy <= 2; dy++) {
-      for (let dx = -2; dx <= 2; dx++) {
+    // Estimation de base pour le fallback
+    const estimatedHexX = Math.round(worldX / hexWidth);
+    const estimatedHexY = Math.round((worldY - (estimatedHexX % 2) * (hexHeight / 2)) / hexHeight);
+    
+    // Recherche dans un voisinage plus petit et plus ciblé
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
         const testHexX = estimatedHexX + dx;
         const testHexY = estimatedHexY + dy;
         
-        // Vérifier les limites
         if (testHexY >= 0 && testHexY < this.mapData.length && 
             testHexX >= 0 && testHexX < this.mapData[testHexY].length) {
           
-          // Calculer la position exacte de cet hexagone
-          const hexCenterX = testHexX * (this.hexSize * 1.5);
+          const hexCenterX = testHexX * hexWidth;
           const hexCenterY = testHexY * hexHeight + (testHexX % 2) * (hexHeight / 2);
           
-          // Calculer la distance
           const distance = Math.sqrt((worldX - hexCenterX) ** 2 + (worldY - hexCenterY) ** 2);
           
-          // Si c'est dans la zone de clic et plus proche
-          if (distance <= this.hexSize * 1.1 && distance < bestDistance) {
+          if (distance <= this.hexSize * 1.2 && distance < bestDistance) {
             bestDistance = distance;
             bestHex = this.mapData[testHexY][testHexX];
           }
         }
       }
+    }
+    
+    if (bestHex) {
+      console.log(`🔄 Détection fallback réussie: hex(${bestHex.x},${bestHex.y}), distance: ${bestDistance.toFixed(2)}`);
+    } else {
+      console.log(`❌ Aucune tuile détectée au point (${screenX}, ${screenY})`);
     }
     
     return bestHex;
