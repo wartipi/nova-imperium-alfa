@@ -236,32 +236,15 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
     drawMap();
   }, [drawMap]);
 
-  // Test de collision hexagonal précis (flat-top hexagon)
-  const isPointInHexagon = (px: number, py: number, centerX: number, centerY: number, radius: number): boolean => {
-    // Conversion en coordonnées relatives au centre
-    const dx = Math.abs(px - centerX);
-    const dy = Math.abs(py - centerY);
+  // Détection par collision simple - zone circulaire
+  const isPointInCollisionZone = (px: number, py: number, centerX: number, centerY: number, radius: number): boolean => {
+    // Distance euclidienne simple
+    const dx = px - centerX;
+    const dy = py - centerY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
     
-    // Distance maximale pour un hexagone flat-top
-    const hexWidth = radius;
-    const hexHeight = radius * Math.sqrt(3) / 2;
-    
-    // Test rapide : si au-delà du rectangle englobant
-    if (dx > hexWidth || dy > hexHeight) {
-      return false;
-    }
-    
-    // Test des régions hexagonales (bords inclinés)
-    // Un hexagone flat-top a des bords inclinés à 30° et 150°
-    const slope = Math.sqrt(3);  // tan(60°)
-    
-    // Point dans la région centrale rectangulaire
-    if (dx <= hexWidth / 2) {
-      return true;
-    }
-    
-    // Test des bords inclinés
-    return (dy <= hexHeight - slope * (dx - hexWidth / 2));
+    // Zone de collision circulaire avec rayon ajusté pour les hexagones
+    return distance <= radius * 0.9;
   };
 
   const getHexAtMouse = (mouseX: number, mouseY: number) => {
@@ -300,8 +283,8 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
       const x = centerX + (hexPos.x - regionCenterPos.x);
       const y = centerY + (hexPos.y - regionCenterPos.y);
 
-      // Hitbox hexagonale PLUS GRANDE pour meilleure précision
-      if (isPointInHexagon(mouseX, mouseY, x, y, hexRadius * 1.1)) {
+      // Zone de collision circulaire simple
+      if (isPointInCollisionZone(mouseX, mouseY, x, y, hexRadius)) {
         return { ...tile, screenX: x, screenY: y };
       }
     }

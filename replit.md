@@ -49,13 +49,13 @@ Preferred communication style: Simple, everyday language.
 - **Backward Compatibility**: Hybrid system allows gradual migration without breaking existing features
 - **Validation**: System logs show successful initialization and 4/5 game systems operational
 
-### Hexagonal Detection System Cleanup (January 20, 2025)
-- **Status**: COMPLETED - Suppression complète des méthodes obsolètes, conservation uniquement de la méthode fonctionnelle
-- **Méthodes supprimées**: GameEngine.ts et MapViewer.tsx n'ont plus de détection hexagonale
-- **Méthode conservée**: Seule la méthode `isPointInHexagon` d'InteractiveMapViewer.tsx est gardée (celle qui fonctionnait)
-- **Simplification**: Retour à la méthode originale fonctionnelle au lieu d'une unification problématique
-- **Performance**: Une seule méthode active élimine tous les conflits de détection
-- **Architecture**: InteractiveMapViewer devient le seul responsable de la détection des clics hexagonaux
+### Hexagonal Detection System - Collision Method (January 20, 2025)
+- **Status**: COMPLETED - Remplacement par méthode de collision circulaire simple
+- **Ancienne méthode supprimée**: `isPointInHexagon` avec calculs géométriques trigonométriques
+- **Nouvelle méthode**: `isPointInCollisionZone` utilisant distance euclidienne simple
+- **Performance**: Détection plus rapide avec `Math.sqrt(dx² + dy²)` et rayon ajusté (0.9x)
+- **Simplicité**: Abandon des calculs de bords inclinés au profit d'une zone circulaire
+- **Tests validés**: La nouvelle méthode de collision détecte correctement les clics sur les hexagones
 
 ### Migration Replit Agent → Replit Standard (January 20, 2025)
 - **Migration Status**: COMPLETED - Project successfully migrated from Replit Agent to standard Replit environment
