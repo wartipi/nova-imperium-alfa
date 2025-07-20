@@ -10,8 +10,8 @@ interface MapViewerProps {
       radius: number;
       tiles: { x: number; y: number; terrain: string; resources: string[] }[];
     };
-    quality: 'rough' | 'detailed' | 'masterwork';
-    accuracy: number;
+    quality?: 'rough' | 'detailed' | 'masterwork';
+    accuracy?: number;
   };
   width?: number;
   height?: number;
@@ -141,8 +141,9 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
       />
       
       <div className="mt-2 text-xs text-amber-800">
-        <div>Précision: {mapData.accuracy}%</div>
+        {mapData.accuracy && <div>Précision: {mapData.accuracy}%</div>}
         <div>Région: {mapData.region.tiles.length} tuiles</div>
+        {mapData.quality && <div>Qualité: {mapData.quality}</div>}
       </div>
     </div>
   );
