@@ -303,22 +303,30 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const regionCenterY = (minY + maxY) / 2;
     const regionCenterPos = hexToPixel(regionCenterX, regionCenterY, hexRadius);
 
+    // ===== CONTRÔLES DE DÉBOGAGE MANUEL =====
+    // Modifiez ces valeurs pour ajuster l'alignement :
+    const debugOffsetX = 0;  // Décalage horizontal (+ = droite, - = gauche)
+    const debugOffsetY = 0;  // Décalage vertical (+ = bas, - = haut)
+    const debugSize = 2.0;   // Taille de la zone cliquable (défaut: 2.0)
+    const debugHexSize = 0.85; // Taille de l'hexagone rouge (défaut: 0.85)
+    // =========================================
+
     return tiles.map(tile => {
       const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
       const x = centerX + (hexPos.x - regionCenterPos.x);
       const y = centerY + (hexPos.y - regionCenterPos.y);
 
-      // Structure bien espacée sans chevauchement
-      const svgSize = hexRadius * 2.0; // Taille réduite pour éviter le chevauchement
-      const hexPath = createHexagonPath(hexRadius * 0.85); // Hexagone légèrement plus petit
+      // Structure avec contrôles de débogage
+      const svgSize = hexRadius * debugSize;
+      const hexPath = createHexagonPath(hexRadius * debugHexSize);
 
       return (
         <div
           key={`${tile.x}-${tile.y}`}
           className="absolute cursor-pointer"
           style={{
-            left: x - hexRadius, // Centre de la grille aligné sur les coordonnées souris
-            top: y - hexRadius,
+            left: x - hexRadius + debugOffsetX, // Appliquer le décalage de débogage X
+            top: y - hexRadius + debugOffsetY,  // Appliquer le décalage de débogage Y
             width: svgSize,
             height: svgSize,
           }}
