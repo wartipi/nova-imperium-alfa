@@ -24,6 +24,15 @@ Preferred communication style: Simple, everyday language.
 - **API Conservée**: Routes `/api/unique-items/create` disponibles pour création d'objets via actions
 - **Inventaire Vide par Design**: Plus de génération automatique, objets créés par gameplay seulement
 
+### Nouvelles Améliorations Architecturales - Étapes 1-4 Complétées (Janvier 20, 2025)
+- **GameContext Centralisé**: Contexte principal centralisant tous les états globaux et actions du jeu
+- **Système d'Effets de Tour**: Résolution automatisée des effets (production, maintenance, événements)
+- **Séparation Logique Métier**: Hooks dédiés pour combat, ressources, construction, exploration
+- **Tests Unitaires Complets**: Couverture complète avec Jest et React Testing Library
+- **Migration Progressive**: Wrapper de compatibilité pour transition en douceur
+- **Auto-sauvegarde**: Système de sauvegarde automatique toutes les 30 secondes
+- **Optimisation Temps Réel**: Synchronisation et validation automatiques des états
+
 ### Gestion des États Complexes - Étape 4 Complétée (Janvier 20, 2025)
 - **Stores Spécialisés Zustand**: Création de 5 stores dédiés (Resources, MapState, Units, Buildings, GameManager)
 - **Optimisations Performances**: Hooks optimisés avec useCallback/useMemo, sélecteurs mémorisés, évitement des re-rendus

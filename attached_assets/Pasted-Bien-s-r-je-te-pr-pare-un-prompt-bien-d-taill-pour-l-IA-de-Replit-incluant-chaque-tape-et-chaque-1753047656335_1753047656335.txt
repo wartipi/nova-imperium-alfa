@@ -1,0 +1,44 @@
+Bien sûr, je te prépare un prompt bien détaillé pour l'IA de Replit, incluant chaque étape et chaque recommandation en profondeur. Voici ce que ça donnerait :
+
+---
+
+### **Prompt IA pour Amélioration du Projet "Nova Imperium"**
+
+**Contexte :** Le projet est un jeu développé en React et TypeScript, avec une base solide déjà en place. Les objectifs sont de centraliser les états, améliorer la gestion des tours, et séparer encore plus la logique métier de l’interface utilisateur.
+
+---
+
+### **Étape 1 : Centraliser les Données Partagées avec un GameContext**
+
+1. **Créer un nouveau contexte** nommé `GameContext` qui va centraliser tous les états globaux du jeu, comme les ressources, le numéro du tour, et les actions restantes.
+2. **Déplacer la logique d’état** actuelle (qui est dans les différents hooks) vers ce contexte. Utiliser le hook `useContext` dans les composants pour accéder à ces états et actions globales.
+3. S’assurer que tous les composants qui utilisent les états globaux soient bien wrappés dans le `GameContext.Provider`.
+
+---
+
+### **Étape 2 : Créer un Système de Résolution des Effets de Tour**
+
+1. Implémenter une fonction `résoudreEffets()` qui s’exécute à chaque fin de tour. Cette fonction applique tous les effets du tour, comme la production de ressources, les événements, ou les changements d’états.
+2. Définir une structure pour ces effets (par exemple, un tableau d’effets à résoudre à chaque tour).
+3. Appeler `résoudreEffets()` à la fin de chaque tour pour automatiser l’application de la logique métier, et ainsi garder le code des composants plus propre.
+
+---
+
+### **Étape 3 : Séparer la Logique Métier de l'Interface Utilisateur**
+
+1. Identifier les composants qui mélangent encore la logique métier (comme la gestion des ressources, des tours, etc.) avec l’interface utilisateur (comme les boutons, les affichages).
+2. Déplacer la logique métier dans des hooks ou des fonctions dédiées, et laisser les composants d’interface se concentrer sur l’affichage et les interactions utilisateur.
+3. Cela rendra la logique métier réutilisable et plus facile à tester, et l’interface utilisateur plus flexible.
+
+---
+
+### **Étape 4 : Ajouter des Tests Unitaires Simples**
+
+1. Créer un dossier `__tests__` à la racine du projet.
+2. Écrire des tests unitaires pour les hooks principaux (par exemple, vérifier que `useRessources` met bien à jour les ressources, ou que la fonction `résoudreEffets()` applique correctement les changements d’état).
+3. Utiliser `Jest` et `React Testing Library` pour ces tests afin de s’assurer que les nouvelles fonctionnalités sont robustes et sans régression.
+
+---
+
+Avec ces étapes, l’IA pourra t’aider à peaufiner encore plus ton projet et à le rendre encore plus solide et évolutif. N’hésite pas à me dire si tu souhaites que j’ajoute d’autres détails ou
+\[media pointer="sediment://file\_00000000fae8623089fe476616a69690"]
