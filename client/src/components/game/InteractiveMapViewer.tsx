@@ -84,12 +84,13 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
   };
 
   const hexToPixel = (hexX: number, hexY: number, hexRadius: number) => {
+    // Système de coordonnées hexagonal flat-top exact
     const hexWidth = hexRadius * 2;
     const hexHeight = hexRadius * Math.sqrt(3);
     
-    // Correct hexagonal grid positioning
+    // Positionnement hexagonal précis avec offset pour lignes impaires
     const x = hexX * (hexWidth * 0.75);
-    const y = hexY * hexHeight + (hexX % 2) * (hexHeight / 2);
+    const y = (hexY * hexHeight) + ((hexX & 1) * hexHeight * 0.5);
     
     return { x, y };
   };
@@ -246,36 +247,39 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
     drawMap();
   }, [drawMap]);
 
-  // Fonction pour vérifier si un point est dans un hexagone
+  // Test de collision hexagonal précis (flat-top hexagon)
   const isPointInHexagon = (px: number, py: number, centerX: number, centerY: number, radius: number): boolean => {
-    // Hexagone flat-top, 6 sommets
-    const vertices = [];
-    for (let i = 0; i < 6; i++) {
-      const angle = (i * Math.PI) / 3;
-      vertices.push({
-        x: centerX + radius * Math.cos(angle),
-        y: centerY + radius * Math.sin(angle)
-      });
+    // Conversion en coordonnées relatives au centre
+    const dx = Math.abs(px - centerX);
+    const dy = Math.abs(py - centerY);
+    
+    // Distance maximale pour un hexagone flat-top
+    const hexWidth = radius;
+    const hexHeight = radius * Math.sqrt(3) / 2;
+    
+    // Test rapide : si au-delà du rectangle englobant
+    if (dx > hexWidth || dy > hexHeight) {
+      return false;
     }
-
-    // Algorithme point-in-polygon (ray casting)
-    let inside = false;
-    for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
-      const xi = vertices[i].x, yi = vertices[i].y;
-      const xj = vertices[j].x, yj = vertices[j].y;
-      
-      if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) {
-        inside = !inside;
-      }
+    
+    // Test des régions hexagonales (bords inclinés)
+    // Un hexagone flat-top a des bords inclinés à 30° et 150°
+    const slope = Math.sqrt(3);  // tan(60°)
+    
+    // Point dans la région centrale rectangulaire
+    if (dx <= hexWidth / 2) {
+      return true;
     }
-    return inside;
+    
+    // Test des bords inclinés
+    return (dy <= hexHeight - slope * (dx - hexWidth / 2));
   };
 
   const getHexAtMouse = (mouseX: number, mouseY: number) => {
     const tiles = mapData.region.tiles;
     if (!tiles.length) return null;
 
-    // Use same calculation logic as drawing
+    // UTILISER EXACTEMENT LA MÊME LOGIQUE QUE drawMap()
     const minX = Math.min(...tiles.map(t => t.x));
     const maxX = Math.max(...tiles.map(t => t.x));
     const minY = Math.min(...tiles.map(t => t.y));
@@ -288,32 +292,40 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
     let hexRadius;
     
     if (numTiles <= 7) {
-      hexRadius = Math.min(width / 8, height / 8) * 0.98; // Réduction de 2%
+      hexRadius = Math.min(width / 8, height / 8) * 0.98;
     } else if (numTiles <= 19) {
-      hexRadius = Math.min(width / 12, height / 12) * 0.98; // Réduction de 2%
+      hexRadius = Math.min(width / 12, height / 12) * 0.98;
     } else {
-      // Better calculation for larger maps
       const hexWidth = Math.sqrt(3) * 1.5;
       const hexHeight = 2 * 0.866;
       
       const radiusFromWidth = (width - 40) / (mapWidth * hexWidth);
       const radiusFromHeight = (height - 40) / (mapHeight * hexHeight);
       
-      hexRadius = Math.min(radiusFromWidth, radiusFromHeight) * 0.78; // 0.8 * 0.98 = 0.784 ≈ 0.78
+      hexRadius = Math.min(radiusFromWidth, radiusFromHeight) * 0.78;
     }
 
-    const centerX = width / 2;
-    const centerY = height / 2;
-    const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
+    // MÊMES CALCULS que dans drawMap pour le positionnement
+    const hexWidth = hexRadius * 2 * 0.75; // Distance horizontale entre centres
+    const hexHeight = hexRadius * Math.sqrt(3); // Hauteur d'un hexagone
+    
+    const totalMapWidth = mapWidth * hexWidth;
+    const totalMapHeight = mapHeight * hexHeight;
+    
+    const offsetX = (width - totalMapWidth) / 2;
+    const offsetY = (height - totalMapHeight) / 2;
 
-    // Find tile with hexagonal hit detection
+    // Test de collision avec les mêmes coordonnées que le dessin
     for (const tile of tiles) {
-      const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
-      const x = centerX + (hexPos.x - regionCenterPos.x);
-      const y = centerY + (hexPos.y - regionCenterPos.y);
+      const relativeX = tile.x - minX;
+      const relativeY = tile.y - minY;
+      
+      // EXACTEMENT les mêmes formules que drawMap
+      const x = offsetX + relativeX * hexWidth + (relativeY % 2) * (hexWidth / 2) + hexRadius;
+      const y = offsetY + relativeY * hexHeight + hexRadius;
 
-      // Vérifier si le point de la souris est dans l'hexagone
-      if (isPointInHexagon(mouseX, mouseY, x, y, hexRadius)) {
+      // Hitbox hexagonale PLUS GRANDE pour meilleure précision
+      if (isPointInHexagon(mouseX, mouseY, x, y, hexRadius * 1.1)) {
         return { ...tile, screenX: x, screenY: y };
       }
     }
@@ -388,46 +400,96 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
         ref={canvasRef}
         width={width}
         height={height}
-        className="border border-amber-300 rounded cursor-pointer"
+        className="border border-amber-300 rounded cursor-none"
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         onClick={handleClick}
       />
       
-      {/* Debug: Grille visuelle des hitboxes */}
-      <div className="absolute inset-0 pointer-events-none z-30">
+      {/* Debug: Hitboxes hexagonales précises */}
+      <svg
+        className="absolute inset-0 pointer-events-none z-30"
+        viewBox={`0 0 ${width} ${height}`}
+        style={{ opacity: 0.6 }}
+      >
         {mapData.region.tiles.map((tile, index) => {
-          const screenPos = hexToPixel(tile.x - mapData.region.centerX, tile.y - mapData.region.centerY, 15);
-          const centerX = screenPos.x + width/2;
-          const centerY = screenPos.y + height/2;
+          // Utiliser EXACTEMENT les mêmes calculs que getHexAtMouse
+          const minX = Math.min(...mapData.region.tiles.map(t => t.x));
+          const minY = Math.min(...mapData.region.tiles.map(t => t.y));
+          const mapWidth = Math.max(...mapData.region.tiles.map(t => t.x)) - minX + 1;
+          const mapHeight = Math.max(...mapData.region.tiles.map(t => t.y)) - minY + 1;
+          
+          const numTiles = mapData.region.tiles.length;
+          let hexRadius;
+          
+          if (numTiles <= 7) {
+            hexRadius = Math.min(width / 8, height / 8) * 0.98;
+          } else if (numTiles <= 19) {
+            hexRadius = Math.min(width / 12, height / 12) * 0.98;
+          } else {
+            const hexWidth = Math.sqrt(3) * 1.5;
+            const hexHeight = 2 * 0.866;
+            const radiusFromWidth = (width - 40) / (mapWidth * hexWidth);
+            const radiusFromHeight = (height - 40) / (mapHeight * hexHeight);
+            hexRadius = Math.min(radiusFromWidth, radiusFromHeight) * 0.78;
+          }
+          
+          const hexWidth = hexRadius * 2 * 0.75;
+          const hexHeight = hexRadius * Math.sqrt(3);
+          const totalMapWidth = mapWidth * hexWidth;
+          const totalMapHeight = mapHeight * hexHeight;
+          const offsetX = (width - totalMapWidth) / 2;
+          const offsetY = (height - totalMapHeight) / 2;
+          
+          const relativeX = tile.x - minX;
+          const relativeY = tile.y - minY;
+          const centerX = offsetX + relativeX * hexWidth + (relativeY % 2) * (hexWidth / 2) + hexRadius;
+          const centerY = offsetY + relativeY * hexHeight + hexRadius;
+          
+          // Hexagone SVG précis (hitbox agrandie de 10%)
+          const r = hexRadius * 1.1;
+          const points = [
+            `${centerX + r},${centerY}`,
+            `${centerX + r/2},${centerY - r * 0.866}`,
+            `${centerX - r/2},${centerY - r * 0.866}`,
+            `${centerX - r},${centerY}`,
+            `${centerX - r/2},${centerY + r * 0.866}`,
+            `${centerX + r/2},${centerY + r * 0.866}`
+          ].join(' ');
           
           const isHovered = hoveredTile?.x === tile.x && hoveredTile?.y === tile.y;
           
           return (
-            <div
+            <polygon
               key={`debug-${index}`}
-              className={`absolute border-2 rounded-full ${isHovered ? 'border-red-500 bg-red-200' : 'border-cyan-400 bg-cyan-100'}`}
-              style={{
-                left: centerX - 15,
-                top: centerY - 15,
-                width: '30px',
-                height: '30px',
-                opacity: 0.5
-              }}
+              points={points}
+              fill={isHovered ? "rgba(255, 0, 0, 0.3)" : "rgba(0, 255, 255, 0.2)"}
+              stroke={isHovered ? "red" : "cyan"}
+              strokeWidth="2"
             />
           );
         })}
-      </div>
+      </svg>
 
-      {/* Debug: Position de la souris */}
+      {/* Curseur précis pour minimap */}
       {mousePos && (
         <div 
-          className="absolute w-2 h-2 bg-red-600 rounded-full z-40 pointer-events-none"
+          className="absolute z-40 pointer-events-none"
           style={{
-            left: mousePos.x - 1,
-            top: mousePos.y - 1
+            left: mousePos.x - 6,
+            top: mousePos.y - 6,
+            width: '12px',
+            height: '12px'
           }}
-        />
+        >
+          {/* Croix de précision */}
+          <div className="absolute inset-0">
+            <div className="absolute w-full h-0.5 bg-red-500 top-1/2 transform -translate-y-1/2"></div>
+            <div className="absolute h-full w-0.5 bg-red-500 left-1/2 transform -translate-x-1/2"></div>
+          </div>
+          {/* Point central */}
+          <div className="absolute w-2 h-2 bg-red-600 rounded-full top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></div>
+        </div>
       )}
 
       {/* Hover tooltip - positioning intelligent */}
