@@ -260,20 +260,18 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
         ctx.fillText(`${tile.x},${tile.y}`, x, y);
       }
 
-      // DEBUG: Afficher les hitboxes pour diagnostiquer le problème
+      // DEBUG: Afficher les hitboxes hexagonales pour diagnostiquer le problème
       ctx.strokeStyle = '#FF00FF'; // Magenta pour les hitboxes
-      ctx.lineWidth = 1;
-      ctx.setLineDash([2, 2]);
-      ctx.beginPath();
-      const captureRadius = numTiles <= 7 ? hexRadius * 1.5 : hexRadius * 1.2;
-      ctx.arc(x, y, captureRadius, 0, 2 * Math.PI);
+      ctx.lineWidth = 2;
+      ctx.setLineDash([3, 3]);
+      drawHexagon(ctx, x, y, hexRadius * 1.1); // Légèrement plus grand pour la zone de clic
       ctx.stroke();
       ctx.setLineDash([]);
       
       // Point central pour debug
       ctx.fillStyle = '#FF0000';
       ctx.beginPath();
-      ctx.arc(x, y, 2, 0, 2 * Math.PI);
+      ctx.arc(x, y, 3, 0, 2 * Math.PI);
       ctx.fill();
     });
 
@@ -302,6 +300,31 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
     drawMap();
   }, [drawMap]);
 
+  // Fonction pour vérifier si un point est dans un hexagone
+  const isPointInHexagon = (px: number, py: number, centerX: number, centerY: number, radius: number): boolean => {
+    // Hexagone flat-top, 6 sommets
+    const vertices = [];
+    for (let i = 0; i < 6; i++) {
+      const angle = (i * Math.PI) / 3;
+      vertices.push({
+        x: centerX + radius * Math.cos(angle),
+        y: centerY + radius * Math.sin(angle)
+      });
+    }
+
+    // Algorithme point-in-polygon (ray casting)
+    let inside = false;
+    for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
+      const xi = vertices[i].x, yi = vertices[i].y;
+      const xj = vertices[j].x, yj = vertices[j].y;
+      
+      if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) {
+        inside = !inside;
+      }
+    }
+    return inside;
+  };
+
   const getHexAtMouse = (mouseX: number, mouseY: number) => {
     const tiles = mapData.region.tiles;
     if (!tiles.length) return null;
@@ -323,34 +346,38 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
     } else if (numTiles <= 19) {
       hexRadius = Math.min(width / 12, height / 12);
     } else {
-      hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
+      // Better calculation for larger maps
+      const hexWidth = Math.sqrt(3) * 1.5;
+      const hexHeight = 2 * 0.866;
+      
+      const radiusFromWidth = (width - 40) / (mapWidth * hexWidth);
+      const radiusFromHeight = (height - 40) / (mapHeight * hexHeight);
+      
+      hexRadius = Math.min(radiusFromWidth, radiusFromHeight) * 0.8;
     }
 
     const centerX = width / 2;
     const centerY = height / 2;
     const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
 
-    // Find closest tile
-    let bestTile = null;
-    let bestDistance = Infinity;
-    let bestScreenPos = { x: 0, y: 0 };
-
+    // Find tile with hexagonal hit detection
     for (const tile of tiles) {
       const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
       const x = centerX + (hexPos.x - regionCenterPos.x);
       const y = centerY + (hexPos.y - regionCenterPos.y);
 
-      const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
-      
-      const captureRadius = numTiles <= 7 ? hexRadius * 1.5 : hexRadius * 1.2;
-      if (distance <= captureRadius && distance < bestDistance) {
-        bestDistance = distance;
-        bestTile = tile;
-        bestScreenPos = { x, y };
+      // Vérifier si le point de la souris est dans l'hexagone
+      if (isPointInHexagon(mouseX, mouseY, x, y, hexRadius)) {
+        console.log('🎯 Hexagone trouvé:', { 
+          tile: { x: tile.x, y: tile.y }, 
+          screenPos: { x, y },
+          mousePos: { x: mouseX, y: mouseY }
+        });
+        return { ...tile, screenX: x, screenY: y };
       }
     }
 
-    return bestTile ? { ...bestTile, screenX: bestScreenPos.x, screenY: bestScreenPos.y } : null;
+    return null;
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
