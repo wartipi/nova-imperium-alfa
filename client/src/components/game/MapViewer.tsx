@@ -162,6 +162,20 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const mapHeight = maxY - minY + 1;
     const hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
 
+    // Facteur d'ajustement basé sur la taille de la carte
+    const tileCount = tiles.length;
+    let toleranceFactor = 1.15; // Base pour cartes moyennes
+    
+    if (tileCount <= 7) {
+      // Petites cartes (7 tuiles) - tolérance plus large car hexagones plus grands
+      toleranceFactor = 1.3;
+    } else if (tileCount >= 19) {
+      // Grandes cartes (19+ tuiles) - tolérance plus précise car hexagones plus petits
+      toleranceFactor = 1.1;
+    }
+    
+    console.log(`🎯 MapViewer détection: ${tileCount} tuiles, tolérance: ${toleranceFactor}, rayon: ${hexRadius.toFixed(1)}`);
+
     const centerX = width / 2;
     const centerY = height / 2;
     const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
@@ -194,7 +208,7 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
           
           const distance = Math.sqrt((mouseX - screenX) ** 2 + (mouseY - screenY) ** 2);
           
-          if (distance <= hexRadius * 1.15 && distance < bestDistance) {
+          if (distance <= hexRadius * toleranceFactor && distance < bestDistance) {
             bestDistance = distance;
             bestTile = candidateTile;
           }
@@ -211,7 +225,7 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
 
         const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
         
-        if (distance < bestDistance && distance <= hexRadius * 1.2) {
+        if (distance < bestDistance && distance <= hexRadius * (toleranceFactor + 0.05)) {
           bestDistance = distance;
           bestTile = tile;
         }

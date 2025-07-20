@@ -221,6 +221,24 @@ export class GameEngine {
     const hexHeight = this.hexSize * Math.sqrt(3);
     const hexWidth = this.hexSize * 1.5;
     
+    // Facteur d'ajustement basé sur le niveau de zoom et la densité de la carte
+    let toleranceFactor = 1.15; // Base
+    
+    if (this.zoom < 0.5) {
+      // Vue dézoomée - tolérance plus large
+      toleranceFactor = 1.4;
+    } else if (this.zoom > 1.5) {
+      // Vue zoomée - tolérance plus précise
+      toleranceFactor = 1.1;
+    } else {
+      // Vue normale - ajuster selon la taille des hexagones
+      if (this.hexSize < 20) {
+        toleranceFactor = 1.3; // Petits hexagones
+      } else if (this.hexSize > 40) {
+        toleranceFactor = 1.1; // Grands hexagones
+      }
+    }
+    
     // Méthode de conversion coordonnées monde vers hexagones améliorée
     // Utilise la géométrie hexagonale exacte pour une conversion précise
     const q = (Math.sqrt(3)/3 * worldX - 1/3 * worldY) / this.hexSize;
@@ -241,8 +259,8 @@ export class GameEngine {
       // Vérifier si le point cliqué est dans la zone acceptable de l'hexagone
       const distance = Math.sqrt((worldX - hexCenterX) ** 2 + (worldY - hexCenterY) ** 2);
       
-      if (distance <= this.hexSize * 1.15) { // Zone de tolérance élargie
-        console.log(`✅ Détection directe réussie: hex(${hexX},${hexY}), distance: ${distance.toFixed(2)}`);
+      if (distance <= this.hexSize * toleranceFactor) {
+        console.log(`✅ Détection directe réussie: hex(${hexX},${hexY}), distance: ${distance.toFixed(2)}, tolérance: ${toleranceFactor}`);
         return this.mapData[hexY][hexX];
       }
     }
@@ -269,7 +287,7 @@ export class GameEngine {
           
           const distance = Math.sqrt((worldX - hexCenterX) ** 2 + (worldY - hexCenterY) ** 2);
           
-          if (distance <= this.hexSize * 1.2 && distance < bestDistance) {
+          if (distance <= this.hexSize * (toleranceFactor + 0.05) && distance < bestDistance) {
             bestDistance = distance;
             bestHex = this.mapData[testHexY][testHexX];
           }
