@@ -345,6 +345,23 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
               strokeWidth="1"
               className="hover:fill-red-400/40"
             />
+            {/* Point de référence au centre pour debug */}
+            <circle 
+              cx={hexRadius} 
+              cy={hexRadius} 
+              r="3" 
+              fill="blue" 
+            />
+            {/* Coordonnées affichées */}
+            <text 
+              x={hexRadius} 
+              y={hexRadius + 15} 
+              textAnchor="middle" 
+              fontSize="10" 
+              fill="blue"
+            >
+              {tile.x},{tile.y}
+            </text>
           </svg>
         </div>
       );
