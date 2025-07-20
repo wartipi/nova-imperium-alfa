@@ -35,7 +35,7 @@ export function EnhancedTurnPanel() {
   };
 
   const handleStandardEndTurn = () => {
-    // Utiliser l'ancienne fonction pour comparaison
+    // Utiliser la fonction centralisée standard
     finDuTour();
   };
 
@@ -87,7 +87,7 @@ export function EnhancedTurnPanel() {
             variant="outline"
             className="border-amber-500 text-amber-400 hover:bg-amber-500/20"
           >
-            📜 Tour Standard
+            📜 Tour Simple
           </Button>
         </div>
 

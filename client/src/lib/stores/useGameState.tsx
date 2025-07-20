@@ -42,9 +42,18 @@ export const useGameState = create<GameState>()(
     },
     
     endTurn: () => {
-      const { currentTurn } = get();
-      set({ currentTurn: currentTurn + 1 });
-      console.log(`Turn ${currentTurn + 1} started`);
+      // Rediriger vers le nouveau système centralisé
+      try {
+        const { useCentralizedGameState } = require('./useCentralizedGameState');
+        const { finDuTour } = useCentralizedGameState.getState();
+        finDuTour();
+      } catch (error) {
+        console.error('Erreur lors de la redirection vers le système centralisé:', error);
+        // Fallback vers l'ancien système
+        const { currentTurn } = get();
+        set({ currentTurn: currentTurn + 1 });
+        console.log(`Turn ${currentTurn + 1} started (fallback)`);
+      }
     },
     
     pauseGame: () => {
