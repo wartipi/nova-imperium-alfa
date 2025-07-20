@@ -1,0 +1,84 @@
+Bien sûr, Keven ! Voici un nouveau prompt ultra détaillé que tu pourras donner à l'IA de Replit pour continuer d'améliorer ton code.
+
+---
+
+### **Prompt pour l'IA de Replit :**
+
+**Contexte :** Le projet "Nova Imperium" est un jeu stratégique développé en **React** et **TypeScript**. Des améliorations ont déjà été apportées, notamment la création de hooks personnalisés, l'implémentation d'un contexte global, et l'amélioration des styles.
+
+**Objectif :** Aller encore plus loin dans l'optimisation et la structuration du code en implémentant de nouvelles recommandations pour rendre le projet encore plus robuste et facile à maintenir.
+
+---
+
+### 1. **Optimisation des Types et des Interfaces**
+
+* **Problème actuel :** Certains types ou interfaces pourraient être affinés pour éviter les erreurs potentielles et rendre le code plus compréhensible.
+
+* **Solution proposée :**
+
+  * **Définir des interfaces précises** pour chaque entité du jeu, par exemple :
+
+    ```typescript
+    interface Ressource {
+      type: 'or' | 'bois' | 'nourriture';
+      quantité: number;
+    }
+
+    interface Tuile {
+      type: 'plaine' | 'forêt' | 'montagne';
+      batiment?: Batiment; // optionnel
+      unite?: Unite; // optionnel
+    }
+
+    interface GameState {
+      ressources: Ressource[];
+      carte: Tuile[][];
+      tour: number;
+    }
+    ```
+
+  * Assurer que chaque fonction utilise ces interfaces pour éviter les erreurs de typage.
+
+---
+
+### 2. **Optimisation des Performances**
+
+* **Problème actuel :** Avec l’augmentation de la complexité, il est important d’éviter les rendus inutiles et d'optimiser les performances.
+
+* **Solution proposée :**
+
+  * Utiliser `React.memo` pour les composants qui reçoivent les mêmes props et qui n'ont pas besoin de se re-render à chaque changement d'état global.
+  * Utiliser des sélecteurs mémoïsés avec des hooks comme `useMemo` et `useCallback` pour éviter de recréer des fonctions ou des valeurs à chaque rendu.
+
+  Exemple :
+
+  ```typescript
+  const incrementerTour = useCallback(() => {
+    setGameState((prev) => ({
+      ...prev,
+      tour: prev.tour + 1,
+    }));
+  }, []);
+  ```
+
+---
+
+### 3. **Renforcer les Tests et la Documentation**
+
+* **Problème actuel :** Pour assurer la stabilité et la maintenabilité du code, il est essentiel d’avoir des tests unitaires et une bonne documentation.
+
+* **Solution proposée :**
+
+  * **Ajouter des tests unitaires** pour chaque hook et composant en utilisant une librairie comme `React Testing Library` et `Jest`. Par exemple, tester que `useRessources` met bien à jour les ressources ou que `incrementerTour` augmente correctement le numéro du tour.
+  * **Documenter chaque hook et composant** : Ajouter des commentaires et une documentation claire sur l’utilisation et la logique de chaque partie du code.
+
+---
+
+### 4. **Affiner la Gestion des États Complexes**
+
+* **Problème actuel :** Certains états, comme la carte du jeu ou les ressources, peuvent devenir complexes à mesure que le jeu évolue.
+
+* **Solution proposée :**
+
+  * Envisager d’utiliser une bibliothèque de gestion d’état comme `Zustand` ou `Redux` pour gérer les états plus
+    \[media pointer="sediment://file\_000000004d446230ac24c1b791a7fe57"]

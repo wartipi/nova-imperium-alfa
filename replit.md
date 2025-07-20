@@ -18,6 +18,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Migration et Optimisations Avancées (Janvier 20, 2025)
+- **Migration Replit Agent → Replit**: Migration réussie avec compatibilité complète
+- **Optimisation des Types**: Nouvelles interfaces précises (Ressource, Tuile, ÉtatJeu, Joueur, Faction)
+- **Optimisation des Performances**: Composants React.memo, useCallback, useMemo pour MedievalHUD et GameCanvas
+- **Tests Unitaires**: Tests complets pour hooks useGameState et usePlayer, tests composants
+- **Documentation**: Guide architectural complet, bonnes pratiques, exemples d'usage
+- **Structure Optimisée**: Nouveau dossier `optimized/` pour composants haute performance
+- **TypeScript Strict**: Types stricts pour éviter les erreurs de compilation
+
 ### Complete Code Cleanup (January 20, 2025)
 - **Assets Cleanup**: Removed 66 unused files from attached_assets/ (8.9M → 0MB)
 - **UI Components Optimization**: Removed 20+ unused shadcn/ui components (256K → ~180K)
