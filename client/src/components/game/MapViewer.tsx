@@ -219,6 +219,10 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     // Si aucune tuile trouvée avec la méthode optimisée, fallback vers la méthode complète
     if (!bestTile) {
       console.log(`🔄 Fallback: test de ${tiles.length} tuiles avec tolérance ${(toleranceFactor + 0.05).toFixed(2)}`);
+      console.log(`📊 Paramètres: centerX=${centerX}, centerY=${centerY}, regionCenter=(${regionCenterPos.x.toFixed(1)}, ${regionCenterPos.y.toFixed(1)})`);
+      
+      // Reset bestDistance pour le fallback
+      bestDistance = Infinity;
       
       for (const tile of tiles) {
         const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
@@ -228,15 +232,21 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
         const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
         const tolerance = hexRadius * (toleranceFactor + 0.05);
         
-        if (distance < bestDistance && distance <= tolerance) {
+        // Garder la trace de la plus proche même si elle dépasse la tolérance
+        if (distance < bestDistance) {
           bestDistance = distance;
+        }
+        
+        if (distance <= tolerance) {
           bestTile = tile;
           console.log(`✅ Tuile trouvée: (${tile.x},${tile.y}), distance: ${distance.toFixed(1)}, tolérance: ${tolerance.toFixed(1)}`);
+          break; // Prendre la première tuile dans la tolérance
         }
       }
       
       if (!bestTile) {
         console.log(`❌ Aucune tuile dans la tolérance. Plus proche: ${bestDistance.toFixed(1)} vs max ${(hexRadius * (toleranceFactor + 0.05)).toFixed(1)}`);
+        console.log(`🎯 Position souris: (${mouseX}, ${mouseY})`);
       }
     }
 
@@ -256,7 +266,7 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     
     // Debug réactivé pour diagnostiquer le problème
     if (!tile) {
-      console.log('❌ Aucune tuile détectée:', { mouseX, mouseY, tileCount: tiles.length });
+      console.log('❌ Aucune tuile détectée:', { mouseX, mouseY, tileCount: mapData.region.tiles.length });
     } else {
       console.log('✅ Tuile détectée:', { x: tile.x, y: tile.y, terrain: tile.terrain });
     }
