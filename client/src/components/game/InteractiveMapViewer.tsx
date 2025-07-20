@@ -160,19 +160,7 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
       drawHexagon(ctx, x, y, hexRadius);
       ctx.fill();
 
-      // Avatar position highlight
-      if (avatarPosition.x === tile.x && avatarPosition.y === tile.y) {
-        ctx.fillStyle = 'rgba(255, 215, 0, 0.5)'; // Gold overlay for avatar
-        drawHexagon(ctx, x, y, hexRadius);
-        ctx.fill();
-        
-        // Avatar icon
-        ctx.fillStyle = '#000';
-        ctx.font = `${hexRadius * 0.8}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('🚶', x, y);
-      }
+      // Avatar position display removed from mini-map
 
       // Selected tile highlight
       if (selectedTile && selectedTile.x === tile.x && selectedTile.y === tile.y) {
@@ -433,9 +421,7 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
         >
           <div><strong>Position:</strong> ({hoveredTile.x}, {hoveredTile.y})</div>
           <div><strong>Terrain:</strong> {terrainNames[hoveredTile.terrain as keyof typeof terrainNames] || hoveredTile.terrain}</div>
-          {hoveredTile.x === avatarPosition.x && hoveredTile.y === avatarPosition.y && (
-            <div><strong>Position actuelle</strong></div>
-          )}
+          {/* Position info removed from hover tooltip */}
           {hoveredTile.resources.length > 0 && (
             <div><strong>Ressources:</strong> {hoveredTile.resources.join(', ')}</div>
           )}
