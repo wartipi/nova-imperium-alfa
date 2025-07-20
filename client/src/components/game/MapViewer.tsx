@@ -218,17 +218,25 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     
     // Si aucune tuile trouvée avec la méthode optimisée, fallback vers la méthode complète
     if (!bestTile) {
+      console.log(`🔄 Fallback: test de ${tiles.length} tuiles avec tolérance ${(toleranceFactor + 0.05).toFixed(2)}`);
+      
       for (const tile of tiles) {
         const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
         const x = centerX + (hexPos.x - regionCenterPos.x);
         const y = centerY + (hexPos.y - regionCenterPos.y);
 
         const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
+        const tolerance = hexRadius * (toleranceFactor + 0.05);
         
-        if (distance < bestDistance && distance <= hexRadius * (toleranceFactor + 0.05)) {
+        if (distance < bestDistance && distance <= tolerance) {
           bestDistance = distance;
           bestTile = tile;
+          console.log(`✅ Tuile trouvée: (${tile.x},${tile.y}), distance: ${distance.toFixed(1)}, tolérance: ${tolerance.toFixed(1)}`);
         }
+      }
+      
+      if (!bestTile) {
+        console.log(`❌ Aucune tuile dans la tolérance. Plus proche: ${bestDistance.toFixed(1)} vs max ${(hexRadius * (toleranceFactor + 0.05)).toFixed(1)}`);
       }
     }
 
@@ -246,10 +254,12 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const tile = getHexAtMouse(mouseX, mouseY);
     setHoveredTile(tile);
     
-    // Debug désactivé - collision corrigée
-    // if (!tile) {
-    //   console.log('Aucune tuile détectée:', { mouseX, mouseY });
-    // }
+    // Debug réactivé pour diagnostiquer le problème
+    if (!tile) {
+      console.log('❌ Aucune tuile détectée:', { mouseX, mouseY, tileCount: tiles.length });
+    } else {
+      console.log('✅ Tuile détectée:', { x: tile.x, y: tile.y, terrain: tile.terrain });
+    }
   };
 
   const handleMouseLeave = () => {
