@@ -54,13 +54,12 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     ctx.closePath();
   };
 
-  // Conversion hexagonale alignée avec GameEngine.ts pour précision
+  // Conversion hexagonale corrigée pour alignement parfait avec le rendu
   const hexToPixel = (hexX: number, hexY: number, hexRadius: number) => {
     const hexHeight = hexRadius * Math.sqrt(3);
-    const hexWidth = hexRadius * 1.5;
     
-    // Même formule que GameEngine pour cohérence
-    const x = hexX * hexWidth;
+    // Système offset: colonnes impaires décalées vers le bas
+    const x = hexX * (hexRadius * 1.5);
     const y = hexY * hexHeight + (hexX % 2) * (hexHeight / 2);
     return { x, y };
   };
@@ -288,6 +287,7 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const mapHeight = maxY - minY + 1;
     const hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
 
+    // Utiliser exactement les mêmes calculs que le rendu (lignes 95-102)
     const centerX = width / 2;
     const centerY = height / 2;
     const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
@@ -295,24 +295,25 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     let bestTile = null;
     let bestDistance = Infinity;
     
-    // Test simple : distance directe vers chaque centre d'hexagone rendu
     console.log(`🔍 Debug clic: (${clickX.toFixed(1)}, ${clickY.toFixed(1)}), hexRadius: ${hexRadius.toFixed(1)}`);
+    console.log(`   Centre canvas: (${centerX}, ${centerY}), regionCenter: (${regionCenterPos.x.toFixed(1)}, ${regionCenterPos.y.toFixed(1)})`);
     
     tiles.forEach(tile => {
+      // Reproduire exactement les calculs du rendu (useEffect, lignes 100-102)
       const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
-      const tileScreenX = centerX + (hexPos.x - regionCenterPos.x);
-      const tileScreenY = centerY + (hexPos.y - regionCenterPos.y);
+      const x = centerX + (hexPos.x - regionCenterPos.x);  // Ligne 101 du rendu
+      const y = centerY + (hexPos.y - regionCenterPos.y);  // Ligne 102 du rendu
       
-      const distance = Math.sqrt((clickX - tileScreenX) ** 2 + (clickY - tileScreenY) ** 2);
+      const distance = Math.sqrt((clickX - x) ** 2 + (clickY - y) ** 2);
       
       if (distance < bestDistance) {
         bestDistance = distance;
         bestTile = tile;
       }
       
-      // Debug pour les 3 tuiles les plus proches
+      // Debug: montrer la position calculée pour toutes les tuiles proches
       if (distance <= hexRadius * 2) {
-        console.log(`   Tuile (${tile.x},${tile.y}): centre écran (${tileScreenX.toFixed(1)}, ${tileScreenY.toFixed(1)}), distance: ${distance.toFixed(1)}`);
+        console.log(`   Tuile (${tile.x},${tile.y}): centre écran (${x.toFixed(1)}, ${y.toFixed(1)}), distance: ${distance.toFixed(1)}`);
       }
     });
     
