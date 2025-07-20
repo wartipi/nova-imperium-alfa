@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Package, Sparkles, Scroll, Shield, Gem, Sword, ChevronDown, ChevronUp, Eye } from 'lucide-react';
-import { InteractiveMapViewer } from './InteractiveMapViewer';
+import InteractiveMapViewer from './InteractiveMapViewer';
 
 interface UniqueItem {
   id: string;
@@ -162,11 +162,9 @@ export function PlayerInventory({ playerId }: PlayerInventoryProps) {
             
             <div className="mb-4">
               <InteractiveMapViewer
-                mapData={{
-                  id: viewingMap.id,
-                  name: viewingMap.name,
-                  ...viewingMap.metadata.mapData
-                }}
+                mapData={viewingMap.metadata.mapData}
+                onClose={() => setViewingMap(null)}
+                title={viewingMap.name}
               />
             </div>
             

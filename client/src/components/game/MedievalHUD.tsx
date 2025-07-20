@@ -7,7 +7,7 @@ import { usePlayer } from "../../lib/stores/usePlayer";
 import { useReputation } from "../../lib/stores/useReputation";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
-// import { InteractiveMapViewer } from "./InteractiveMapViewer"; // Temporairement retiré
+// import InteractiveMapViewer from "./InteractiveMapViewer"; // Temporairement retiré
 import { TreasuryPanel } from "./TreasuryPanel";
 
 import { ActivityReportPanel } from "./ActivityReportPanel";

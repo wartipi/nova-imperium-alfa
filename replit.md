@@ -49,13 +49,13 @@ Preferred communication style: Simple, everyday language.
 - **Backward Compatibility**: Hybrid system allows gradual migration without breaking existing features
 - **Validation**: System logs show successful initialization and 4/5 game systems operational
 
-### Hexagonal Detection System - Precise Hitboxes (January 20, 2025)
-- **Status**: COMPLETED - Hitboxes hexagonales précises avec fonction centralisée
-- **Méthode**: `isPointInHexagon` avec détection géométrique hexagonale exacte
-- **Architecture**: Fonction `calculateHexPositions` centralisée évitant tous les décalages
-- **Visualisation**: Hitboxes hexagonales SVG en temps réel (vertes/rouges en pointillés)
-- **Synchronisation**: Même calculs pour détection ET affichage, éliminant les problèmes de décalage souris
-- **Précision**: Test des bords inclinés avec formules trigonométriques pour forme hexagonale authentique
+### Hexagonal Detection System - Distance-Based Hitboxes (January 20, 2025)
+- **Status**: COMPLETED - Détection hexagonale fiable avec méthode par distance euclidienne
+- **Solution**: Remplacement complet du MapViewer par la version fonctionnelle de GitHub nova-imperium-alfa
+- **Méthode**: `findTileAtPosition` avec détection par distance au centre (HEX_SIZE * 1.5)
+- **Architecture**: Algorithme de calcul de positions identique entre drawMap et findTileAtPosition
+- **Avantages**: Zone de détection généreuse, sélection de la tuile la plus proche, aucun décalage
+- **Résultat**: Hitboxes parfaitement alignées avec les hexagones affichés
 
 ### Migration Replit Agent → Replit Standard (January 20, 2025)
 - **Migration Status**: COMPLETED - Project successfully migrated from Replit Agent to standard Replit environment
