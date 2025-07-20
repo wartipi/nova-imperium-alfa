@@ -270,18 +270,13 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     setHoveredTile(null);
   };
 
-  // Système de détection adapté de GameEngine.getHexAtPosition
-  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return;
 
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
-    
+
+  // Créer les zones cliquables pour chaque tuile
+  const renderClickableAreas = () => {
     const tiles = mapData.region.tiles;
-    if (!tiles.length) return;
+    if (!tiles.length) return null;
 
-    // Calculs identiques au rendu
     const minX = Math.min(...tiles.map(t => t.x));
     const maxX = Math.max(...tiles.map(t => t.x));
     const minY = Math.min(...tiles.map(t => t.y));
@@ -296,59 +291,42 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const regionCenterX = (minX + maxX) / 2;
     const regionCenterY = (minY + maxY) / 2;
     const regionCenterPos = hexToPixel(regionCenterX, regionCenterY, hexRadius);
-    
-    // Conversion inverse : écran vers coordonnées monde relatives
-    const worldX = clickX - centerX + regionCenterPos.x;
-    const worldY = clickY - centerY + regionCenterPos.y;
-    
-    const hexHeight = hexRadius * Math.sqrt(3);
-    const hexWidth = hexRadius * 1.5;
-    
-    // Méthode GameEngine : conversion axiale puis offset
-    const q = (Math.sqrt(3)/3 * worldX - 1/3 * worldY) / hexRadius;
-    const r = (2/3 * worldY) / hexRadius;
-    
-    // Conversion en coordonnées offset
-    const hexX = Math.round(q + (r - (Math.round(r) & 1)) / 2);
-    const hexY = Math.round(r);
-    
-    // Rechercher cette tuile dans les données
-    const targetTile = tiles.find(t => 
-      Math.abs(t.x - (hexX + regionCenterX)) <= 1 && 
-      Math.abs(t.y - (hexY + regionCenterY)) <= 1
-    );
-    
-    if (targetTile) {
-      console.log(`🎯 Clic détecté GameEngine style: (${targetTile.x}, ${targetTile.y}) - ${targetTile.terrain}`);
-      setHoveredTile(targetTile);
-      setMousePos({ x: clickX, y: clickY });
-    } else {
-      // Fallback vers la méthode distance si conversion précise échoue
-      let bestTile = null;
-      let bestDistance = Infinity;
-      
-      for (const tile of tiles) {
-        const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
-        const tileX = centerX + (hexPos.x - regionCenterPos.x);
-        const tileY = centerY + (hexPos.y - regionCenterPos.y);
-        const distance = Math.sqrt((clickX - tileX) ** 2 + (clickY - tileY) ** 2);
-        
-        if (distance < bestDistance) {
-          bestDistance = distance;
-          bestTile = tile;
-        }
-      }
-      
-      if (bestTile && bestDistance <= hexRadius * 1.5) {
-        console.log(`🔄 Clic détecté fallback: (${bestTile.x}, ${bestTile.y}) - ${bestTile.terrain}, distance: ${bestDistance.toFixed(1)}`);
-        setHoveredTile(bestTile);
-        setMousePos({ x: clickX, y: clickY });
-      } else {
-        console.log(`❌ Aucune tuile détectée`);
-        setHoveredTile(null);
-        setMousePos(null);
-      }
-    }
+
+    return tiles.map(tile => {
+      const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
+      const x = centerX + (hexPos.x - regionCenterPos.x);
+      const y = centerY + (hexPos.y - regionCenterPos.y);
+
+      // Zone cliquable circulaire centrée sur l'hexagone
+      const size = hexRadius * 1.8; // Un peu plus large que l'hexagone
+
+      return (
+        <div
+          key={`${tile.x}-${tile.y}`}
+          className="absolute cursor-pointer hover:bg-blue-300/20 rounded-full"
+          style={{
+            left: x - size/2,
+            top: y - size/2,
+            width: size,
+            height: size,
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            console.log(`🎯 Clic direct sur tuile: (${tile.x}, ${tile.y}) - ${tile.terrain}`);
+            setHoveredTile(tile);
+            setMousePos({ x, y });
+          }}
+          onMouseEnter={() => {
+            setHoveredTile(tile);
+            setMousePos({ x, y });
+          }}
+          onMouseLeave={() => {
+            setHoveredTile(null);
+            setMousePos(null);
+          }}
+        />
+      );
+    });
   };
 
   return (
@@ -358,10 +336,12 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
         width={width}
         height={height}
         className="border border-amber-300 rounded"
-        onClick={handleCanvasClick}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
       />
+      
+      {/* Zones cliquables invisibles superposées */}
+      <div className="absolute inset-0 p-2">
+        {renderClickableAreas()}
+      </div>
       
       {/* Tooltip au survol */}
       {hoveredTile && mousePos && (
