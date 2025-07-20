@@ -365,14 +365,14 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
         onClick={handleClick}
       />
       
-      {/* Debug: Hitboxes hexagonales précises */}
+      {/* Debug: Hitboxes de collision circulaires */}
       <svg
         className="absolute inset-0 pointer-events-none z-30"
         viewBox={`0 0 ${width} ${height}`}
-        style={{ opacity: 0.6 }}
+        style={{ opacity: 0.7 }}
       >
         {mapData.region.tiles.map((tile, index) => {
-          // Utiliser EXACTEMENT les mêmes calculs que drawMap
+          // Calculs IDENTIQUES à getHexAtMouse pour la collision
           const numTiles = mapData.region.tiles.length;
           let hexRadius;
           
@@ -385,17 +385,12 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
             const maxX = Math.max(...mapData.region.tiles.map(t => t.x));
             const minY = Math.min(...mapData.region.tiles.map(t => t.y));
             const maxY = Math.max(...mapData.region.tiles.map(t => t.y));
-            
             const mapWidth = maxX - minX + 1;
             const mapHeight = maxY - minY + 1;
-            const hexWidth = Math.sqrt(3) * 1.5;
-            const hexHeight = 2 * 0.866;
-            const radiusFromWidth = (width - 40) / (mapWidth * hexWidth);
-            const radiusFromHeight = (height - 40) / (mapHeight * hexHeight);
-            hexRadius = Math.min(radiusFromWidth, radiusFromHeight) * 0.78;
+            hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
           }
           
-          // Calcul de position IDENTIQUE à drawMap
+          // Position IDENTIQUE à getHexAtMouse
           const centerX = width / 2;
           const centerY = height / 2;
           const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
@@ -403,27 +398,41 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
           const tileX = centerX + (hexPos.x - regionCenterPos.x);
           const tileY = centerY + (hexPos.y - regionCenterPos.y);
           
-          // Hexagone SVG précis (hitbox agrandie de 10%)
-          const r = hexRadius * 1.1;
-          const points = [
-            `${tileX + r},${tileY}`,
-            `${tileX + r/2},${tileY - r * 0.866}`,
-            `${tileX - r/2},${tileY - r * 0.866}`,
-            `${tileX - r},${tileY}`,
-            `${tileX - r/2},${tileY + r * 0.866}`,
-            `${tileX + r/2},${tileY + r * 0.866}`
-          ].join(' ');
-          
+          // Zone de collision circulaire (même que isPointInCollisionZone)
+          const collisionRadius = hexRadius * 0.9;
           const isHovered = hoveredTile?.x === tile.x && hoveredTile?.y === tile.y;
           
           return (
-            <polygon
-              key={`debug-${index}`}
-              points={points}
-              fill={isHovered ? "rgba(255, 0, 0, 0.3)" : "rgba(0, 255, 255, 0.2)"}
-              stroke={isHovered ? "red" : "cyan"}
-              strokeWidth="2"
-            />
+            <g key={`hitbox-${index}`}>
+              {/* Cercle de collision */}
+              <circle
+                cx={tileX}
+                cy={tileY}
+                r={collisionRadius}
+                fill={isHovered ? "rgba(255, 0, 0, 0.4)" : "rgba(0, 255, 0, 0.3)"}
+                stroke={isHovered ? "#ff0000" : "#00ff00"}
+                strokeWidth="2"
+                strokeDasharray="4,4"
+              />
+              {/* Point central */}
+              <circle
+                cx={tileX}
+                cy={tileY}
+                r="2"
+                fill={isHovered ? "#ff0000" : "#007700"}
+              />
+              {/* Coordonnées */}
+              <text
+                x={tileX}
+                y={tileY + 4}
+                fontSize="8"
+                textAnchor="middle"
+                fill="#333"
+                style={{ pointerEvents: 'none', userSelect: 'none' }}
+              >
+                {tile.x},{tile.y}
+              </text>
+            </g>
           );
         })}
       </svg>
