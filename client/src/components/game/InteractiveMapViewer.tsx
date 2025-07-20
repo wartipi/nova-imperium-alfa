@@ -207,22 +207,7 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
         ctx.stroke();
       }
 
-      // Resource indicators
-      if (mapData.quality !== 'rough' && tile.resources.length > 0) {
-        ctx.fillStyle = '#FF6B6B';
-        ctx.beginPath();
-        ctx.arc(x + hexRadius * 0.5, y - hexRadius * 0.5, 4, 0, 2 * Math.PI);
-        ctx.fill();
-        
-        // Resource count
-        if (tile.resources.length > 1) {
-          ctx.fillStyle = '#FFF';
-          ctx.font = '8px Arial';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(tile.resources.length.toString(), x + hexRadius * 0.5, y - hexRadius * 0.5);
-        }
-      }
+      // Resource indicators removed - will be reimplemented with new resource system
 
       // Affichage des coordonnées pour le debug (optionnel)
       if (hexRadius > 15) {
@@ -422,9 +407,7 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
           <div><strong>Position:</strong> ({hoveredTile.x}, {hoveredTile.y})</div>
           <div><strong>Terrain:</strong> {terrainNames[hoveredTile.terrain as keyof typeof terrainNames] || hoveredTile.terrain}</div>
           {/* Position info removed from hover tooltip */}
-          {hoveredTile.resources.length > 0 && (
-            <div><strong>Ressources:</strong> {hoveredTile.resources.join(', ')}</div>
-          )}
+          {/* Resource info removed from tooltip - awaiting new resource system */}
         </div>
       )}
 
@@ -433,7 +416,7 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
       {/* Map info */}
       <div className="mt-2 text-xs text-amber-800">
         <div>Précision: {mapData.accuracy}% | PA: {actionPoints}</div>
-        <div>Région: {mapData.region.tiles.length} tuiles | Position: ({avatarPosition.x}, {avatarPosition.y})</div>
+        <div>Région: {mapData.region.tiles.length} tuiles</div>
         {selectedTile && (
           <div>Case sélectionnée: ({selectedTile.x}, {selectedTile.y}) - {terrainNames[selectedTile.terrain as keyof typeof terrainNames]}</div>
         )}
