@@ -84,16 +84,10 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
   };
 
   const hexToPixel = (hexX: number, hexY: number, hexRadius: number) => {
-    // Conversion coordonnées hexagonales vers pixels - flat-top hexagons authentique
-    const hexWidth = hexRadius * Math.sqrt(3);  // Distance horizontale entre centres
-    const hexHeight = hexRadius * 1.5;  // Distance verticale entre centres
-    
-    // Position X : colonnes paires alignées, colonnes impaires décalées
-    const x = hexX * hexWidth + (hexY % 2) * (hexWidth * 0.5);
-    
-    // Position Y : lignes espacées de hexHeight
-    const y = hexY * hexHeight;
-    
+    // Implémentation fonctionnelle copiée de nova-imperium-clone
+    const hexHeight = hexRadius * Math.sqrt(3);
+    const x = hexX * (hexRadius * 1.5);
+    const y = hexY * hexHeight + (hexX % 2) * (hexHeight / 2);
     return { x, y };
   };
 
@@ -132,14 +126,8 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
     } else if (numTiles <= 19) {
       hexRadius = Math.min(width / 12, height / 12) * 0.98; // Réduction de 2%
     } else {
-      // Calcul corrigé pour la disposition hexagonale authentique
-      const hexWidth = Math.sqrt(3); // Espacement horizontal réel entre centres
-      const hexHeight = 1.5; // Espacement vertical réel entre centres
-      
-      const radiusFromWidth = (width - 40) / (mapWidth * hexWidth);
-      const radiusFromHeight = (height - 40) / (mapHeight * hexHeight);
-      
-      hexRadius = Math.min(radiusFromWidth, radiusFromHeight) * 0.78;
+      // Calcul cohérent avec nova-imperium-clone
+      hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
     }
     
     // Calcul du centre et positionnement hexagonal
@@ -297,14 +285,8 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
     } else if (numTiles <= 19) {
       hexRadius = Math.min(width / 12, height / 12) * 0.98;
     } else {
-      // Calcul identique pour la détection de collision
-      const hexWidth = Math.sqrt(3);
-      const hexHeight = 1.5;
-      
-      const radiusFromWidth = (width - 40) / (mapWidth * hexWidth);
-      const radiusFromHeight = (height - 40) / (mapHeight * hexHeight);
-      
-      hexRadius = Math.min(radiusFromWidth, radiusFromHeight) * 0.78;
+      // Calcul identique à drawMap pour la détection de collision
+      hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
     }
 
     // Utiliser exactement la même logique que drawMap - hexToPixel
