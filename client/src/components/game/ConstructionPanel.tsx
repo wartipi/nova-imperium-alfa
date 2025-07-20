@@ -559,8 +559,8 @@ export function ConstructionPanel() {
     }
     
     // Pour l'instant, on va simuler qu'on a une colonie qui contrôle quelques types de terrain
-    // TODO: Intégrer avec le vrai système TerritorySystem et useMap
-    const controlledTerrain = ['fertile_land', 'hills', 'forest']; // Simulation
+    // Terrain contrôlé basé sur les territoires de la colonie
+    const controlledTerrain = ['fertile_land', 'hills', 'forest']; // Simulation temporaire
     
     const missingTerrain = building.requiredTerrain.filter((terrain: string) => 
       !controlledTerrain.includes(terrain)

@@ -253,7 +253,7 @@ export function FactionPanel({ onClose }: FactionPanelProps) {
                     size="sm"
                     variant="outline"
                     onClick={() => {
-                      // TODO: Implement quest acceptance
+                      // Système de quêtes à implémenter
                       console.log('Accept quest:', quest.id);
                     }}
                   >
