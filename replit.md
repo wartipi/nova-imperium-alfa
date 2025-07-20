@@ -56,6 +56,7 @@ Preferred communication style: Simple, everyday language.
 - **Architecture**: Algorithme de calcul de positions identique entre drawMap et findTileAtPosition
 - **Avantages**: Zone de détection généreuse, sélection de la tuile la plus proche, aucun décalage
 - **Résultat**: Hitboxes parfaitement alignées avec les hexagones affichés
+- **Validation**: Tests utilisateur confirmés - la détection fonctionne parfaitement
 
 ### Migration Replit Agent → Replit Standard (January 20, 2025)
 - **Migration Status**: COMPLETED - Project successfully migrated from Replit Agent to standard Replit environment
