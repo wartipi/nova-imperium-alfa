@@ -308,17 +308,17 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
       const x = centerX + (hexPos.x - regionCenterPos.x);
       const y = centerY + (hexPos.y - regionCenterPos.y);
 
-      // Structure agrandie pour remplir complètement les hexagones
-      const svgSize = hexRadius * 2.6; // Agrandir davantage la structure complète
-      const hexPath = createHexagonPath(hexRadius * 1.2); // Agrandir l'hexagone lui-même
+      // Structure bien espacée sans chevauchement
+      const svgSize = hexRadius * 2.0; // Taille réduite pour éviter le chevauchement
+      const hexPath = createHexagonPath(hexRadius * 0.85); // Hexagone légèrement plus petit
 
       return (
         <div
           key={`${tile.x}-${tile.y}`}
           className="absolute cursor-pointer"
           style={{
-            left: x - hexRadius * 1.3 + 15, // Ajuster le centrage
-            top: y - hexRadius * 1.3,
+            left: x - hexRadius + 15, // Centrage ajusté pour la nouvelle taille
+            top: y - hexRadius,
             width: svgSize,
             height: svgSize,
           }}
@@ -347,15 +347,15 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
             />
             {/* Point de référence au centre pour debug */}
             <circle 
-              cx={hexRadius * 1.3} 
-              cy={hexRadius * 1.3} 
+              cx={hexRadius} 
+              cy={hexRadius} 
               r="3" 
               fill="blue" 
             />
             {/* Coordonnées affichées */}
             <text 
-              x={hexRadius * 1.3} 
-              y={hexRadius * 1.3 + 15} 
+              x={hexRadius} 
+              y={hexRadius + 15} 
               textAnchor="middle" 
               fontSize="10" 
               fill="blue"
