@@ -43,6 +43,7 @@ export function GameCanvas() {
       // Expose stores to window for GameEngine access
       (window as any).gameState = useGameState.getState();
       (window as any).playerState = usePlayer.getState();
+      (window as any).usePlayer = usePlayer;
     }
   }, [mapData]);
 
@@ -54,6 +55,7 @@ export function GameCanvas() {
       // Update window stores before rendering
       (window as any).gameState = useGameState.getState();
       (window as any).playerState = usePlayer.getState();
+      (window as any).usePlayer = usePlayer;
       
       gameEngineRef.current.render();
     }

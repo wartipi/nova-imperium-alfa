@@ -87,6 +87,17 @@ export const useGameState = create<GameState>()(
       const state = get();
       const newGameMasterState = !state.isGameMaster;
       set({ isGameMaster: newGameMasterState });
+      
+      // Automatiquement donner toutes les compétences en mode MJ
+      if (newGameMasterState) {
+        setTimeout(() => {
+          const playerStore = (window as any).usePlayer?.getState();
+          if (playerStore?.giveAllMaxCompetences) {
+            playerStore.giveAllMaxCompetences();
+          }
+        }, 100);
+      }
+      
       console.log('Basculer mode MJ:', newGameMasterState);
     }
   }))

@@ -78,6 +78,8 @@ interface PlayerState {
   addActionPoints: (amount: number) => void;
   increaseMaxActionPoints: (amount: number) => void;
   setMaxActionPointsForTesting: () => void;
+  // Fonction pour donner toutes les compétences au maximum en mode MJ
+  giveAllMaxCompetences: () => void;
   
   // Avatar movement methods
   setAvatarPosition: (position: { x: number; y: number; z: number }) => void;
@@ -633,6 +635,29 @@ export const usePlayer = create<PlayerState>((set, get) => {
       maxActionPoints: 999
     });
     console.log('Points d\'action mis au maximum pour les tests: 999/999');
+  },
+
+  // Fonction pour donner toutes les compétences au maximum en mode MJ
+  giveAllMaxCompetences: () => {
+    const allCompetenceIds = [
+      'connaissance_des_traites', 'local_influence', 'personal_prestige', 'political_network',
+      'cartography', 'exploration', 'stealth_agent', 'civil_spy_network',
+      'command', 'logistics', 'siege_engineering', 'naval_strategy',
+      'builder', 'optimized_extraction', 'influence_network', 'commercial_expertise',
+      'scholar_knowledge', 'arcane_research', 'mysterious_contacts', 'ancient_knowledge'
+    ];
+
+    const maxCompetences = allCompetenceIds.map(id => ({
+      competence: id,
+      level: 4 // Niveau maximum
+    }));
+
+    set({ 
+      competences: maxCompetences,
+      competencePoints: 999 // Points illimités
+    });
+
+    console.log('🎯 Mode MJ: Toutes les compétences ont été données au niveau maximum');
   }
   };
 });

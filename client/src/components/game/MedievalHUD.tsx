@@ -73,7 +73,8 @@ export function MedievalHUD() {
     getCurrentAvatar,
     updateAvatarName,
     canCreateNewAvatar,
-    setMaxActionPointsForTesting
+    setMaxActionPointsForTesting,
+    giveAllMaxCompetences
   } = usePlayer();
   const { honor, reputation, getReputationLevel } = useReputation();
   const [activeSection, setActiveSection] = useState<MenuSection | null>(null);
@@ -370,15 +371,29 @@ export function MedievalHUD() {
               <div className="text-xs text-amber-700 mt-1">COMPÉTENCES</div>
               <div className="flex items-center justify-between">
                 <div className="text-purple-600">{competences.length} apprises ({competencePoints} pts)</div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowCompetenceModal(true);
-                  }}
-                  className="text-xs bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded"
-                >
-                  🎯
-                </button>
+                <div className="flex space-x-1">
+                  {isGameMaster && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        giveAllMaxCompetences();
+                      }}
+                      className="text-xs bg-red-500 hover:bg-red-600 text-white px-1 py-0.5 rounded"
+                      title="MJ: Toutes compétences max"
+                    >
+                      ⚡
+                    </button>
+                  )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowCompetenceModal(true);
+                    }}
+                    className="text-xs bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded"
+                  >
+                    🎯
+                  </button>
+                </div>
               </div>
               
               {/* Bouton de test pour gagner de l'expérience */}
