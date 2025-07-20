@@ -39,8 +39,8 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<TooltipInfo>({ x: 0, y: 0, tile: { x: 0, y: 0, terrain: '', resources: [] }, visible: false });
   
-  // Configuration hexagonale
-  const HEX_SIZE = 20;
+  // Configuration hexagonale simplifiée
+  const HEX_SIZE = 25;
   const HEX_WIDTH = HEX_SIZE * 2;
   const HEX_HEIGHT = HEX_SIZE * Math.sqrt(3);
   
@@ -84,18 +84,12 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
     return icons[resource] || '📦';
   };
 
-  // Conversion coordonnées hexagonales vers pixel
-  const hexToPixel = useCallback((col: number, row: number): { x: number, y: number } => {
-    const x = HEX_SIZE * (3/2 * col);
-    const y = HEX_SIZE * (Math.sqrt(3)/2 * col + Math.sqrt(3) * row);
+  // Conversion coordonnées hexagonales vers pixel - version simplifiée
+  const hexToPixel = useCallback((hexX: number, hexY: number): { x: number, y: number } => {
+    // Algorithme classique pour les hexagones pointy-top
+    const x = HEX_SIZE * 3/2 * hexX;
+    const y = HEX_SIZE * Math.sqrt(3) * (hexY + hexX/2);
     return { x, y };
-  }, []);
-
-  // Conversion pixel vers coordonnées hexagonales
-  const pixelToHex = useCallback((x: number, y: number): { col: number, row: number } => {
-    const q = (2/3 * x) / HEX_SIZE;
-    const r = (-1/3 * x + Math.sqrt(3)/3 * y) / HEX_SIZE;
-    return { col: Math.round(q), row: Math.round(r) };
   }, []);
 
   // Dessiner un hexagone
@@ -119,7 +113,7 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
     ctx.stroke();
   };
 
-  // Dessiner la carte
+  // Dessiner la carte - version complètement refaite
   const drawMap = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !mapData) return;
@@ -127,28 +121,34 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Calculer les dimensions de la carte
-    const minX = Math.min(...mapData.region.tiles.map(t => t.x));
-    const maxX = Math.max(...mapData.region.tiles.map(t => t.x));
-    const minY = Math.min(...mapData.region.tiles.map(t => t.y));
-    const maxY = Math.max(...mapData.region.tiles.map(t => t.y));
+    // Calculer les limites de la grille
+    const tiles = mapData.region.tiles;
+    const minX = Math.min(...tiles.map(t => t.x));
+    const maxX = Math.max(...tiles.map(t => t.x));
+    const minY = Math.min(...tiles.map(t => t.y));
+    const maxY = Math.max(...tiles.map(t => t.y));
 
-    const mapWidth = (maxX - minX + 3) * HEX_SIZE * 1.5;
-    const mapHeight = (maxY - minY + 3) * HEX_HEIGHT;
+    console.log('Limites carte:', { minX, maxX, minY, maxY });
 
-    canvas.width = Math.max(400, mapWidth);
-    canvas.height = Math.max(300, mapHeight);
+    // Dimensionner le canvas généreusement
+    canvas.width = 600;
+    canvas.height = 500;
 
-    // Effacer le canvas
+    // Effacer
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Centrer la carte
-    const offsetX = (canvas.width - mapWidth) / 2 + HEX_SIZE * 2;
-    const offsetY = (canvas.height - mapHeight) / 2 + HEX_SIZE * 2;
+    // Calculer offset pour centrer
+    const offsetX = canvas.width / 2;
+    const offsetY = canvas.height / 2;
 
-    // Dessiner chaque hexagone
-    mapData.region.tiles.forEach(tile => {
-      const pixelPos = hexToPixel(tile.x - minX, tile.y - minY);
+    // Dessiner chaque tuile
+    tiles.forEach(tile => {
+      // Convertir les coordonnées du jeu en position relative au centre
+      const relX = tile.x - mapData.region.centerX;
+      const relY = tile.y - mapData.region.centerY;
+      
+      // Calculer la position pixel
+      const pixelPos = hexToPixel(relX, relY);
       const centerX = pixelPos.x + offsetX;
       const centerY = pixelPos.y + offsetY;
 
@@ -163,16 +163,18 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
 
       // Afficher les ressources
       if (tile.resources.length > 0) {
-        ctx.font = '12px Arial';
+        ctx.font = '14px Arial';
         tile.resources.forEach((resource, index) => {
           const icon = getResourceIcon(resource);
           ctx.fillText(icon, centerX - 8 + (index * 16), centerY + 8);
         });
       }
     });
-  }, [mapData, hexToPixel]);
 
-  // Trouver la tuile à une position pixel - méthode simplifiée
+    console.log('Carte dessinée avec', tiles.length, 'tuiles');
+  }, [mapData, hexToPixel, drawHexagon, getTerrainColor, getResourceIcon]);
+
+  // Détection simplifiée basée sur la distance au centre de chaque hexagone
   const findTileAtPosition = useCallback((pixelX: number, pixelY: number): HexTile | null => {
     if (!mapData) return null;
 
@@ -180,33 +182,29 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
     if (!canvas) return null;
 
     const rect = canvas.getBoundingClientRect();
-    const x = pixelX - rect.left;
-    const y = pixelY - rect.top;
+    const mouseX = pixelX - rect.left;
+    const mouseY = pixelY - rect.top;
 
-    // Calculer l'offset comme dans drawMap
-    const minX = Math.min(...mapData.region.tiles.map(t => t.x));
-    const minY = Math.min(...mapData.region.tiles.map(t => t.y));
-    const maxX = Math.max(...mapData.region.tiles.map(t => t.x));
-    const maxY = Math.max(...mapData.region.tiles.map(t => t.y));
+    // Utiliser le même système de coordonnées que drawMap
+    const offsetX = canvas.width / 2;
+    const offsetY = canvas.height / 2;
 
-    const mapWidth = (maxX - minX + 3) * HEX_SIZE * 1.5;
-    const mapHeight = (maxY - minY + 3) * HEX_HEIGHT;
-    const offsetX = (canvas.width - mapWidth) / 2 + HEX_SIZE * 2;
-    const offsetY = (canvas.height - mapHeight) / 2 + HEX_SIZE * 2;
-
-    // Méthode simple : trouver la tuile la plus proche par distance euclidienne
     let closestTile: HexTile | null = null;
     let closestDistance = Infinity;
 
     mapData.region.tiles.forEach(tile => {
-      const pixelPos = hexToPixel(tile.x - minX, tile.y - minY);
-      const centerX = pixelPos.x + offsetX;
-      const centerY = pixelPos.y + offsetY;
-
-      const distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
+      // Même calcul que dans drawMap
+      const relX = tile.x - mapData.region.centerX;
+      const relY = tile.y - mapData.region.centerY;
       
-      // Augmenter la zone de détection pour être plus permissif
-      if (distance < HEX_SIZE * 1.2 && distance < closestDistance) {
+      const pixelPos = hexToPixel(relX, relY);
+      const hexCenterX = pixelPos.x + offsetX;
+      const hexCenterY = pixelPos.y + offsetY;
+
+      const distance = Math.sqrt((mouseX - hexCenterX) ** 2 + (mouseY - hexCenterY) ** 2);
+      
+      // Zone de détection généreuse
+      if (distance < HEX_SIZE * 1.5 && distance < closestDistance) {
         closestDistance = distance;
         closestTile = tile;
       }
@@ -226,8 +224,10 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
     
     const tile = findTileAtPosition(event.clientX, event.clientY);
     
-    // Debug pour voir les coordonnées
-    console.log('Mouse:', { mouseX: x, mouseY: y, tileFound: tile?.x, tileY: tile?.y });
+    // Debug léger pour voir la détection
+    if (tile) {
+      console.log('Tuile détectée:', tile.x, tile.y, tile.terrain);
+    }
     
     if (tile) {
       setTooltip({
