@@ -330,8 +330,9 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
           key={`${tile.x}-${tile.y}`}
           className="absolute cursor-pointer"
           style={{
-            left: x - hexRadius + debugOffsetX, // Appliquer le décalage de débogage X
-            top: y - hexRadius + debugOffsetY,  // Appliquer le décalage de débogage Y
+            // Centre de l'hexagone cliquable = coordonnées exactes de la souris (x, y)
+            left: x - (svgSize / 2) + debugOffsetX, // Centrer l'hexagone sur x
+            top: y - (svgSize / 2) + debugOffsetY,  // Centrer l'hexagone sur y
             width: svgSize,
             height: svgSize,
           }}
@@ -351,13 +352,15 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
           }}
         >
           <svg width={svgSize} height={svgSize} className="absolute inset-0">
-            <path
-              d={hexPath}
-              fill="rgba(255, 0, 0, 0.1)"
-              stroke="red"
-              strokeWidth="1"
-              className="hover:fill-blue-400/20"
-            />
+            <g transform={`translate(${svgSize/2}, ${svgSize/2})`}>
+              <path
+                d={hexPath}
+                fill="rgba(255, 0, 0, 0.1)"
+                stroke="red"
+                strokeWidth="1"
+                className="hover:fill-blue-400/20"
+              />
+            </g>
 
           </svg>
         </div>
