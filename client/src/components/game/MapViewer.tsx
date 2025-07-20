@@ -296,6 +296,8 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     let bestDistance = Infinity;
     
     // Test simple : distance directe vers chaque centre d'hexagone rendu
+    console.log(`🔍 Debug clic: (${clickX.toFixed(1)}, ${clickY.toFixed(1)}), hexRadius: ${hexRadius.toFixed(1)}`);
+    
     tiles.forEach(tile => {
       const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
       const tileScreenX = centerX + (hexPos.x - regionCenterPos.x);
@@ -306,6 +308,11 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
       if (distance < bestDistance) {
         bestDistance = distance;
         bestTile = tile;
+      }
+      
+      // Debug pour les 3 tuiles les plus proches
+      if (distance <= hexRadius * 2) {
+        console.log(`   Tuile (${tile.x},${tile.y}): centre écran (${tileScreenX.toFixed(1)}, ${tileScreenY.toFixed(1)}), distance: ${distance.toFixed(1)}`);
       }
     });
     
