@@ -470,6 +470,9 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
           
           <div className="text-sm text-amber-700 mb-4">
             Points d'Action: {isGameMaster ? '∞ (Mode MJ)' : actionPoints}
+            <div className="text-xs">
+              Debug: Cartographie:{getCompetenceLevel('cartography')} | Exploration:{getCompetenceLevel('exploration')}
+            </div>
           </div>
           {isGameMaster && (
             <div className="text-xs text-green-600 font-medium mb-4">
@@ -478,34 +481,45 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
           )}
           
           <div className="space-y-2 max-h-64 overflow-y-auto">
-            {getAllAvailableActions().map((action) => (
-              <div
-                key={action.id}
-                className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                  isActionAvailable(action)
-                    ? 'bg-amber-50 border-amber-300 hover:bg-amber-100'
-                    : 'bg-gray-100 border-gray-300 opacity-50 cursor-not-allowed'
-                }`}
-                onClick={() => handleActionClick(action)}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">{action.icon}</span>
-                    <div>
-                      <div className="font-semibold text-amber-900">
-                        {action.name}
+            {getAllAvailableActions().length === 0 ? (
+              <div className="p-3 text-center text-amber-700">
+                Aucune action disponible
+              </div>
+            ) : (
+              getAllAvailableActions().map((action) => {
+                const actionAvailable = isActionAvailable(action);
+                console.log(`🎮 Rendu action ${action.name}: disponible=${actionAvailable}, PA=${actionPoints}/${action.cost}`);
+                
+                return (
+                  <div
+                    key={action.id}
+                    className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                      actionAvailable
+                        ? 'bg-amber-50 border-amber-300 hover:bg-amber-100'
+                        : 'bg-gray-100 border-gray-300 opacity-50 cursor-not-allowed'
+                    }`}
+                    onClick={() => handleActionClick(action)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{action.icon}</span>
+                        <div>
+                          <div className="font-semibold text-amber-900">
+                            {action.name} {!actionAvailable ? '(Indisponible)' : ''}
+                          </div>
+                          <div className="text-xs text-amber-700">
+                            {action.description}
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-xs text-amber-700">
-                        {action.description}
+                      <div className="text-sm font-bold text-amber-800">
+                        {action.cost} PA
                       </div>
                     </div>
                   </div>
-                  <div className="text-sm font-bold text-amber-800">
-                    {action.cost} PA
-                  </div>
-                </div>
-              </div>
-            ))}
+                );
+              })
+            )}
           </div>
         </div>
       </Card>
