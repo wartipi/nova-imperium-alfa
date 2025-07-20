@@ -86,7 +86,23 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
 
     const mapWidth = maxX - minX + 1;
     const mapHeight = maxY - minY + 1;
-    const hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
+    
+    // Calculer le rayon adapté selon le nombre d'hexagones
+    const numTiles = tiles.length;
+    let hexRadius;
+    
+    if (numTiles <= 7) {
+      // Vision de base (7 hexagones) - rayon plus grand
+      hexRadius = Math.min(width / 8, height / 8);
+    } else if (numTiles <= 19) {
+      // Vision niveau 2 (19 hexagones) - rayon adapté
+      hexRadius = Math.min(width / 12, height / 12);
+    } else {
+      // Vision étendue - rayon plus petit
+      hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
+    }
+    
+    console.log(`🗺️ MapViewer: ${numTiles} tuiles, rayon ${hexRadius.toFixed(1)}px`);
 
     const centerX = width / 2;
     const centerY = height / 2;
@@ -160,7 +176,21 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
 
     const mapWidth = maxX - minX + 1;
     const mapHeight = maxY - minY + 1;
-    const hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
+    
+    // Utiliser la même logique de calcul de rayon que pour le rendu
+    const numTiles = tiles.length;
+    let hexRadius;
+    
+    if (numTiles <= 7) {
+      // Vision de base (7 hexagones) - rayon plus grand
+      hexRadius = Math.min(width / 8, height / 8);
+    } else if (numTiles <= 19) {
+      // Vision niveau 2 (19 hexagones) - rayon adapté
+      hexRadius = Math.min(width / 12, height / 12);
+    } else {
+      // Vision étendue - rayon plus petit
+      hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
+    }
 
     const centerX = width / 2;
     const centerY = height / 2;
@@ -178,8 +208,9 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
       // Distance euclidienne simple avec tolérance très généreuse
       const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
       
-      // Zone de capture très large pour être sûr de ne rien manquer
-      if (distance <= hexRadius * 1.8 && distance < bestDistance) {
+      // Zone de capture adaptée selon la taille de la carte
+      const captureRadius = numTiles <= 7 ? hexRadius * 1.5 : hexRadius * 1.2;
+      if (distance <= captureRadius && distance < bestDistance) {
         bestDistance = distance;
         bestTile = tile;
       }

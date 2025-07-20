@@ -24,12 +24,21 @@ const getGameData = () => {
 };
 
 export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarActionMenuProps) {
-  const { actionPoints, spendActionPoints, addActionPoints, hasCompetenceLevel, competences, gainExperience, exploreCurrentLocation, discoverResourcesInVision, playerName } = usePlayer();
+  const { actionPoints, spendActionPoints, addActionPoints, hasCompetenceLevel, competences, gainExperience, exploreCurrentLocation, discoverResourcesInVision, playerName, getCompetenceLevel } = usePlayer();
   const { reputation } = useReputation();
   const { isGameMaster } = useGameState();
   const { playerFaction } = useFactions();
   const { setSelectedHex } = useMap();
   const { foundColony } = useNovaImperium();
+
+  // Debug immédiat des compétences
+  console.log('🎯 AvatarActionMenu - Debug compétences immédiat:', {
+    competences,
+    cartographyLevel: getCompetenceLevel('cartography'),
+    explorationLevel: getCompetenceLevel('exploration'),
+    hasCartography1: hasCompetenceLevel('cartography', 1),
+    hasExploration1: hasCompetenceLevel('exploration', 1)
+  });
 
   // Actions de base supprimées - déplacement par clic direct sur la carte
 
