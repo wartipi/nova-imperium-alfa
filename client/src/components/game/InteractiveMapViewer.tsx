@@ -394,73 +394,27 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
         onClick={handleClick}
       />
       
-      {/* Debug: Hitbox zones visualization */}
-      {hoveredTile && mousePos && (
-        <>
-          {/* Zone de tooltip calculée - rouge */}
-          <div 
-            className="absolute border-2 border-red-500 bg-red-100 opacity-30 pointer-events-none z-5"
-            style={{
-              left: Math.min(mousePos.x + 15, width - 180),
-              top: Math.max(mousePos.y - 90, 5),
-              width: '180px',
-              height: '90px'
-            }}
-          />
-          
-          {/* Zone de marge droite - bleu */}
-          <div 
-            className="absolute border-2 border-blue-500 bg-blue-100 opacity-20 pointer-events-none z-5"
-            style={{
-              left: width - 180,
-              top: 0,
-              width: '180px',
-              height: height + 'px'
-            }}
-          />
-          
-          {/* Zone de marge haute - vert */}
-          <div 
-            className="absolute border-2 border-green-500 bg-green-100 opacity-20 pointer-events-none z-5"
-            style={{
-              left: 0,
-              top: 0,
-              width: width + 'px',
-              height: '90px'
-            }}
-          />
-          
-          {/* Position de la souris - point rouge */}
-          <div 
-            className="absolute w-2 h-2 bg-red-600 rounded-full pointer-events-none z-20"
-            style={{
-              left: mousePos.x - 1,
-              top: mousePos.y - 1
-            }}
-          />
-        </>
-      )}
-
-      {/* Hover tooltip avec debug */}
+      {/* Hover tooltip - positioning intelligent */}
       {hoveredTile && mousePos && (
         <div 
-          className="absolute bg-black text-white p-2 rounded text-xs z-10 pointer-events-none border-2 border-yellow-400"
+          className="absolute bg-gray-900 bg-opacity-95 text-white p-2 rounded-lg text-xs z-50 pointer-events-none shadow-xl border border-gray-500"
           style={{
-            left: Math.min(mousePos.x + 15, width - 180),
-            top: Math.max(mousePos.y - 90, 5),
-            minWidth: '160px',
-            maxWidth: '200px'
+            left: mousePos.x + 15 > width - 160 ? mousePos.x - 170 : mousePos.x + 15,
+            top: mousePos.y - 15 < 70 ? mousePos.y + 15 : mousePos.y - 70,
+            width: '155px'
           }}
         >
-          <div><strong>Position:</strong> ({hoveredTile.x}, {hoveredTile.y})</div>
-          <div><strong>Terrain:</strong> {terrainNames[hoveredTile.terrain as keyof typeof terrainNames] || hoveredTile.terrain}</div>
-          {/* Debug info */}
-          <div className="text-yellow-300 mt-1 border-t border-yellow-600 pt-1">
-            <div>🎯 Mouse: ({mousePos.x.toFixed(0)}, {mousePos.y.toFixed(0)})</div>
-            <div>📐 Canvas: {width}x{height}</div>
-            <div>📍 Tooltip: L{Math.min(mousePos.x + 15, width - 180)}, T{Math.max(mousePos.y - 90, 5)}</div>
-            <div>🔄 Constraints: R-margin={width-180}, T-margin=90</div>
+          <div className="font-medium text-amber-300 mb-1">
+            🗺️ ({hoveredTile.x}, {hoveredTile.y})
           </div>
+          <div className="text-gray-100 text-xs">
+            {terrainNames[hoveredTile.terrain as keyof typeof terrainNames] || hoveredTile.terrain}
+          </div>
+          {hoveredTile.resources && hoveredTile.resources.length > 0 && (
+            <div className="text-green-300 text-xs mt-1">
+              💎 {hoveredTile.resources.join(', ')}
+            </div>
+          )}
         </div>
       )}
 
