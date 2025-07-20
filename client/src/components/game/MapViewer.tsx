@@ -340,28 +340,11 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
           <svg width={svgSize} height={svgSize} className="absolute inset-0">
             <path
               d={hexPath}
-              fill="rgba(255, 0, 0, 0.2)"
-              stroke="red"
-              strokeWidth="1"
-              className="hover:fill-red-400/40"
+              fill="transparent"
+              stroke="transparent"
+              strokeWidth="0"
+              className="hover:fill-blue-400/20"
             />
-            {/* Point de référence au centre de la grille pour correspondre à la souris */}
-            <circle 
-              cx={hexRadius} 
-              cy={hexRadius} 
-              r="3" 
-              fill="blue" 
-            />
-            {/* Coordonnées affichées */}
-            <text 
-              x={hexRadius} 
-              y={hexRadius + 15} 
-              textAnchor="middle" 
-              fontSize="10" 
-              fill="blue"
-            >
-              {tile.x},{tile.y}
-            </text>
           </svg>
         </div>
       );
