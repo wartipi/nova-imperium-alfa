@@ -30,8 +30,9 @@ Preferred communication style: Simple, everyday language.
 - **Visual Consistency**: Applied platform's amber color scheme and styling throughout
 - **Hexagon Alignment**: Implemented flat-top hexagon rendering matching main game engine
 - **Terrain Colors**: Used authentic terrain colors from MapGenerator.ts (wasteland: #F5F5DC, forest: #228B22, etc.)
-- **Mouse Detection**: Precise tile detection with generous click zones for better usability
-- **Status**: COMPLETED - MapViewer now fully functional with platform-consistent design
+- **Coordinate System**: Fixed hexagonal positioning using exact GameEngine.ts algorithm (screenX = x * 1.5, screenY with alternating offset)
+- **Mouse Detection**: Precise tile detection synchronized with rendering coordinates
+- **Status**: COMPLETED AND VERIFIED - MapViewer displays authentic hex coordinates and works perfectly
 
 ## System Architecture
 
