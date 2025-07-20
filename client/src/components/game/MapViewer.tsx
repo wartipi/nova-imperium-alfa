@@ -308,17 +308,17 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
       const x = centerX + (hexPos.x - regionCenterPos.x);
       const y = centerY + (hexPos.y - regionCenterPos.y);
 
-      // Taille précise de l'hexagone sans chevauchement
-      const svgSize = hexRadius * 2;
-      const hexPath = createHexagonPath(hexRadius * 0.9); // Légèrement plus petit pour éviter le chevauchement
+      // Taille agrandie et ajustement de position
+      const svgSize = hexRadius * 2.2; // Agrandir un peu
+      const hexPath = createHexagonPath(hexRadius); // Taille normale maintenant
 
       return (
         <div
           key={`${tile.x}-${tile.y}`}
           className="absolute cursor-pointer"
           style={{
-            left: x - hexRadius,
-            top: y - hexRadius,
+            left: x - hexRadius * 1.1 + 15, // Décaler vers la droite (+15px)
+            top: y - hexRadius * 1.1,
             width: svgSize,
             height: svgSize,
           }}
@@ -347,15 +347,15 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
             />
             {/* Point de référence au centre pour debug */}
             <circle 
-              cx={hexRadius} 
-              cy={hexRadius} 
+              cx={hexRadius * 1.1} 
+              cy={hexRadius * 1.1} 
               r="3" 
               fill="blue" 
             />
             {/* Coordonnées affichées */}
             <text 
-              x={hexRadius} 
-              y={hexRadius + 15} 
+              x={hexRadius * 1.1} 
+              y={hexRadius * 1.1 + 15} 
               textAnchor="middle" 
               fontSize="10" 
               fill="blue"
