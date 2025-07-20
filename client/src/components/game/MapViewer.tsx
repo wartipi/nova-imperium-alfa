@@ -254,22 +254,8 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return;
-
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-    setMousePos({ x: mouseX, y: mouseY });
-
-    const tile = getHexAtMouse(mouseX, mouseY);
-    setHoveredTile(tile);
-    
-    // Debug désactivé - utilisation du système de clic maintenant
-    // if (!tile) {
-    //   console.log('❌ Aucune tuile détectée:', { mouseX, mouseY, tileCount: mapData.region.tiles.length });
-    // } else {
-    //   console.log('✅ Tuile détectée:', { x: tile.x, y: tile.y, terrain: tile.terrain });
-    // }
+    // Système de survol désactivé - seul le clic active l'affichage d'informations
+    // Le tooltip garde sa position fixe après un clic
   };
 
   const handleMouseLeave = () => {
@@ -321,7 +307,7 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
       console.log(`🎯 Clic détecté sur tuile: (${bestTile.x}, ${bestTile.y}) - ${bestTile.terrain}, distance: ${bestDistance.toFixed(1)}`);
       setHoveredTile(bestTile); // Afficher les infos de la tuile cliquée
       
-      // Optionnel : maintenir la position de la souris pour le tooltip
+      // Position fixe pour le tooltip près du clic
       setMousePos({ x: clickX, y: clickY });
     } else {
       console.log(`❌ Clic en dehors des tuiles, distance minimale: ${bestDistance.toFixed(1)}`);
