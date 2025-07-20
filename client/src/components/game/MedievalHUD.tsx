@@ -7,7 +7,7 @@ import { usePlayer } from "../../lib/stores/usePlayer";
 import { useReputation } from "../../lib/stores/useReputation";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
-import { InteractiveMapViewer } from "./InteractiveMapViewer";
+// import { InteractiveMapViewer } from "./InteractiveMapViewer"; // Temporairement retiré
 import { TreasuryPanel } from "./TreasuryPanel";
 
 import { ActivityReportPanel } from "./ActivityReportPanel";
@@ -546,23 +546,7 @@ export function MedievalHUD() {
         </div>
       </div>
 
-      {/* Carte Interactive Miniature */}
-      <div 
-        className="absolute bottom-4 right-4 pointer-events-auto"
-        onClick={(e) => e.stopPropagation()}
-        onMouseDown={(e) => e.stopPropagation()}
-        onMouseUp={(e) => e.stopPropagation()}
-      >
-        <div className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-lg p-3">
-          <div className="text-amber-900 font-bold text-xs mb-2 text-center">CARTE DU MONDE</div>
-          <div className="bg-amber-50 border border-amber-700 rounded p-1">
-            {/* Placeholder pour la nouvelle carte interactive */}
-            <div className="w-48 h-32 bg-amber-100 rounded flex items-center justify-center text-xs text-amber-700">
-              🗺️ Carte Interactive
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Mini-map du monde retirée temporairement pour éviter la confusion */}
 
       {/* Active Section Panel - Style médiéval parchemin */}
       {activeSection && (
