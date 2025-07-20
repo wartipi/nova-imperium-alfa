@@ -38,6 +38,8 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
   const [hoveredTile, setHoveredTile] = useState<{ x: number; y: number; terrain: string; resources: string[] } | null>(null);
+  
+
 
   const drawHexagon = (ctx: CanvasRenderingContext2D, centerX: number, centerY: number, radius: number) => {
     ctx.beginPath();
@@ -303,13 +305,16 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const regionCenterY = (minY + maxY) / 2;
     const regionCenterPos = hexToPixel(regionCenterX, regionCenterY, hexRadius);
 
-    // ===== CONTRÔLES DE DÉBOGAGE MANUEL =====
-    // Modifiez ces valeurs pour ajuster l'alignement :
-    const debugOffsetX = 0;  // Décalage horizontal (+ = droite, - = gauche)
-    const debugOffsetY = 0;  // Décalage vertical (+ = bas, - = haut)
-    const debugSize = 2.0;   // Taille de la zone cliquable (défaut: 2.0)
-    const debugHexSize = 0.85; // Taille de l'hexagone rouge (défaut: 0.85)
-    // =========================================
+    // ===== OUTIL DE DÉBOGAGE SIMPLE =====
+    // CHANGEZ CES VALEURS POUR DÉPLACER LA GRILLE :
+    const debugOffsetX = 0;    // ← MODIFIEZ ICI (+ = droite, - = gauche)
+    const debugOffsetY = 0;    // ← MODIFIEZ ICI (+ = bas, - = haut)
+    // Exemples : debugOffsetX = 10 (décale de 10px à droite)
+    //           debugOffsetY = -5 (décale de 5px vers le haut)
+    
+    const debugSize = 2.0;     // Taille zone cliquable
+    const debugHexSize = 0.85; // Taille hexagone rouge
+    // =====================================
 
     return tiles.map(tile => {
       const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
