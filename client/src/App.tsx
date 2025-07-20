@@ -9,6 +9,8 @@ import { useMap } from "./lib/stores/useMap";
 import { useNovaImperium } from "./lib/stores/useNovaImperium";
 import { useAudio } from "./lib/stores/useAudio";
 import { usePlayer } from "./lib/stores/usePlayer";
+import { useCentralizedGameState } from "./lib/stores/useCentralizedGameState";
+import { GameStateAdapter } from "./lib/adapters/GameStateAdapter";
 import { GameEngineProvider } from "./lib/contexts/GameEngineContext";
 import "@fontsource/inter";
 import "./index.css";
@@ -29,10 +31,13 @@ function GameApp() {
     audio.volume = 0.3;
     setBackgroundMusic(audio);
 
-    // Initialize game
+    // Initialize game with hybrid system
     generateMap(50, 30); // Generate 50x30 hex map
     initializeNovaImperiums();
     initializeGame();
+    
+    // Initialize the new centralized system
+    GameStateAdapter.initializeHybridSystem();
     
     // Initialize avatar on land and validate all systems
     setTimeout(() => {
@@ -43,10 +48,13 @@ function GameApp() {
         const landPosition = findLandHex(mapData);
         moveAvatarToHex(landPosition.x, landPosition.y);
         
-        // Validate all game systems after initialization
+        // Validate both old and new game systems
         import('./lib/systems/GameSystemValidator').then(({ GameSystemValidator }) => {
           GameSystemValidator.logSystemValidation();
         });
+        
+        // Validate the new centralized system
+        GameStateAdapter.validateNewSystem();
       }
     }, 100);
   }, []);

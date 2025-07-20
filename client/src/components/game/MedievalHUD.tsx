@@ -26,6 +26,7 @@ import { UnifiedTerritoryPanel } from "./UnifiedTerritoryPanel";
 import { ReputationManagementPanel } from "./ReputationManagementPanel";
 
 import { PlayerInventory } from "./PlayerInventory";
+import { EnhancedTurnPanel } from "./EnhancedTurnPanel";
 import { useAuth } from "../../lib/auth/AuthContext";
 import { LevelUpNotification, useLevelUpNotification } from "./LevelUpNotification";
 
@@ -41,7 +42,8 @@ type MenuSection =
   | 'competences'
   | 'factions'
   | 'territory'
-  | 'reputation_management';
+  | 'reputation_management'
+  | 'enhanced_turns';
 
 export function MedievalHUD() {
   const { gamePhase, currentTurn, endTurn, isGameMaster, toggleGameMaster } = useGameState();
@@ -133,7 +135,8 @@ export function MedievalHUD() {
     { id: 'guide' as MenuSection, label: 'GUIDE DE JEUX', icon: '📖' },
     { id: 'help' as MenuSection, label: 'AIDE', icon: '❓' },
     { id: 'factions' as MenuSection, label: 'FACTIONS', icon: '🏛️' },
-    { id: 'territory' as MenuSection, label: 'GESTION DE TERRITOIRE', icon: '🗺️' }
+    { id: 'territory' as MenuSection, label: 'GESTION DE TERRITOIRE', icon: '🗺️' },
+    { id: 'enhanced_turns' as MenuSection, label: 'SYSTÈME DE TOURS AMÉLIORÉ', icon: '🚀' }
   ];
 
   const handleCharacterSelect = (character: CharacterOption) => {
@@ -596,6 +599,7 @@ export function MedievalHUD() {
               {activeSection === 'help' && <HelpPanel />}
               {activeSection === 'competences' && <CompetenceTree />}
               {activeSection === 'factions' && <FactionPanel />}
+              {activeSection === 'enhanced_turns' && <EnhancedTurnPanel />}
             </div>
           </div>
         </div>
