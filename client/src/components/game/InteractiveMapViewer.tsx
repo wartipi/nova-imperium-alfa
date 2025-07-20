@@ -274,57 +274,26 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
     return { hexRadius, positions };
   };
 
-  // Détection par collision hexagonale précise
-  const isPointInHexagon = (px: number, py: number, centerX: number, centerY: number, radius: number): boolean => {
-    const dx = Math.abs(px - centerX);
-    const dy = Math.abs(py - centerY);
-    
-    // Dimensions de l'hexagone flat-top
-    const hexWidth = radius;
-    const hexHeight = radius * Math.sqrt(3) / 2;
-    
-    // Test rapide : si au-delà du rectangle englobant
-    if (dx > hexWidth || dy > hexHeight) {
-      return false;
-    }
-    
-    // Test des régions hexagonales (bords inclinés)
-    const slope = Math.sqrt(3);  // tan(60°)
-    
-    // Point dans la région centrale rectangulaire
-    if (dx <= hexWidth / 2) {
-      return true;
-    }
-    
-    // Test des bords inclinés
-    return (dy <= hexHeight - slope * (dx - hexWidth / 2));
-  };
+  // Détection simplifiée par distance uniquement
 
+  // Détection simplifiée basée sur la distance - exactement comme la version fonctionnelle
   const getHexAtMouse = (mouseX: number, mouseY: number) => {
     const { hexRadius, positions } = calculateHexPositions();
     
-    console.log('🔍 Debug détection:', { mouseX, mouseY, hexRadius, positionsCount: positions.length });
-    
+    let closestTile = null;
+    let closestDistance = Infinity;
+
     for (const { tile, x, y } of positions) {
       const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
-      const inHex = isPointInHexagon(mouseX, mouseY, x, y, hexRadius);
       
-      if (distance < hexRadius * 1.2) { // Debug proche
-        console.log('🎯 Test tuile:', { 
-          coord: `${tile.x},${tile.y}`, 
-          center: `${x.toFixed(1)},${y.toFixed(1)}`, 
-          distance: distance.toFixed(1), 
-          inHex 
-        });
-      }
-      
-      if (inHex) {
-        console.log('✅ Tuile détectée:', tile.x, tile.y);
-        return { ...tile, screenX: x, screenY: y };
+      // Zone de détection généreuse - exactement comme la version fonctionnelle
+      if (distance < hexRadius * 1.5 && distance < closestDistance) {
+        closestDistance = distance;
+        closestTile = { ...tile, screenX: x, screenY: y };
       }
     }
 
-    return null;
+    return closestTile;
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
