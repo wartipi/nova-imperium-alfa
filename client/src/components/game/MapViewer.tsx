@@ -92,10 +92,16 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const centerY = height / 2;
     const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
     
+    // Nouvelle Map pour stocker les positions réelles
+    const newHexPositions = new Map<string, {x: number, y: number, radius: number}>();
+    
     tiles.forEach(tile => {
       const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
       const x = centerX + (hexPos.x - regionCenterPos.x);
       const y = centerY + (hexPos.y - regionCenterPos.y);
+
+      // Stocker la position réelle pour la collision
+      newHexPositions.set(`${tile.x},${tile.y}`, { x, y, radius: hexRadius });
 
       const terrainColor = terrainColors[tile.terrain as keyof typeof terrainColors] || '#CCCCCC';
       ctx.fillStyle = terrainColor;
@@ -144,56 +150,36 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     ctx.fillStyle = '#666';
     ctx.font = '8px Arial';
     ctx.fillText('N', width - 25, 12);
+    
+    // Mettre à jour les positions de collision après le rendu
+    setHexPositions(newHexPositions);
 
   }, [mapData, width, height]);
 
-  // Nouvelle approche : mapping direct des coordonnées canvas
+  // Solution ultime : stockage des positions réelles lors du rendu
+  const [hexPositions, setHexPositions] = React.useState<Map<string, {x: number, y: number, radius: number}>>(new Map());
+  
   const getHexAtMouse = (mouseX: number, mouseY: number) => {
-    const tiles = mapData.region.tiles;
-    if (!tiles.length) return null;
-
-    // Créer une carte de collision basée sur les pixels réels du canvas
-    const canvas = canvasRef.current;
-    if (!canvas) return null;
-
-    // Obtenir le contexte pour accéder aux données de pixel (si nécessaire)
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-
-    // Approche brute force mais fiable : tester distance à TOUS les hexagones rendus
+    if (!hexPositions.size) return null;
+    
     let closestTile = null;
     let closestDistance = Infinity;
-
-    // Recalculer exactement les mêmes paramètres que le rendu
-    const minX = Math.min(...tiles.map(t => t.x));
-    const maxX = Math.max(...tiles.map(t => t.x));
-    const minY = Math.min(...tiles.map(t => t.y));
-    const maxY = Math.max(...tiles.map(t => t.y));
-
-    const mapWidth = maxX - minX + 1;
-    const mapHeight = maxY - minY + 1;
-    const hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
-
-    const centerX = width / 2;
-    const centerY = height / 2;
-    const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
-
-    // Parcourir CHAQUE tuile et calculer sa distance exacte
-    tiles.forEach(tile => {
-      const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
-      const x = centerX + (hexPos.x - regionCenterPos.x);
-      const y = centerY + (hexPos.y - regionCenterPos.y);
-
-      const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
+    
+    // Utiliser les positions stockées depuis le rendu
+    for (const [tileKey, pos] of hexPositions) {
+      const [x, y] = tileKey.split(',').map(Number);
+      const tile = mapData.region.tiles.find(t => t.x === x && t.y === y);
+      if (!tile) continue;
       
-      if (distance < closestDistance) {
+      const distance = Math.sqrt((mouseX - pos.x) ** 2 + (mouseY - pos.y) ** 2);
+      
+      if (distance <= pos.radius * 1.5 && distance < closestDistance) {
         closestDistance = distance;
         closestTile = tile;
       }
-    });
-
-    // Retourner la tuile la plus proche si elle est dans une zone raisonnable
-    return closestDistance <= hexRadius * 2 ? closestTile : null;
+    }
+    
+    return closestTile;
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -207,9 +193,9 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const tile = getHexAtMouse(mouseX, mouseY);
     setHoveredTile(tile);
     
-    // Debug temporaire pour nouvelle méthode
-    if (!tile && Math.random() < 0.1) {
-      console.log('Aucune tuile proche:', { mouseX, mouseY, tilesCount: mapData.region.tiles.length });
+    // Debug final - solution ultime implémentée
+    if (!tile && Math.random() < 0.05) {
+      console.log('Collision ultime test:', { mouseX, mouseY, positionsStored: hexPositions.size });
     }
   };
 
