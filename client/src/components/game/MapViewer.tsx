@@ -147,12 +147,12 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
 
   }, [mapData, width, height]);
 
-  // Debug avec informations détaillées  
+  // Méthode corrigée avec calculs identiques au rendu
   const getHexAtMouse = (mouseX: number, mouseY: number) => {
     const tiles = mapData.region.tiles;
     if (!tiles.length) return null;
 
-    // Calculer les mêmes paramètres que le rendu
+    // Reproduire exactement la logique de rendu
     const minX = Math.min(...tiles.map(t => t.x));
     const maxX = Math.max(...tiles.map(t => t.x));
     const minY = Math.min(...tiles.map(t => t.y));
@@ -166,48 +166,17 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const centerY = height / 2;
     const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
 
-    // Debug: afficher les paramètres une seule fois
-    if (Math.random() < 0.01) {
-      console.log('Paramètres collision:', { 
-        canvasSize: { width, height }, 
-        hexRadius, 
-        centerX, centerY, 
-        regionCenter: mapData.region.centerX + ',' + mapData.region.centerY,
-        regionCenterPos,
-        tilesCount: tiles.length
-      });
-    }
-
-    // Tester chaque tuile avec debug complet
-    let found = false;
+    // Parcourir chaque tuile avec le même calcul que le rendu
     for (const tile of tiles) {
       const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
-      const hexScreenX = centerX + (hexPos.x - regionCenterPos.x);
-      const hexScreenY = centerY + (hexPos.y - regionCenterPos.y);
+      const x = centerX + (hexPos.x - regionCenterPos.x);
+      const y = centerY + (hexPos.y - regionCenterPos.y);
 
-      // Zone de capture rectangulaire très large
-      const captureWidth = hexRadius * 2.5; // Encore plus large
-      const captureHeight = hexRadius * 2.5;
+      // Test de distance simple comme dans GameEngine
+      const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
       
-      const inBounds = mouseX >= hexScreenX - captureWidth && mouseX <= hexScreenX + captureWidth &&
-                      mouseY >= hexScreenY - captureHeight && mouseY <= hexScreenY + captureHeight;
-      
-      if (inBounds) {
-        // Debug détaillé pour la tuile trouvée
-        if (Math.random() < 0.1) {
-          console.log('Tuile trouvée:', { 
-            tile: `(${tile.x},${tile.y})`,
-            hexPos,
-            screenPos: { x: hexScreenX, y: hexScreenY },
-            mousePos: { mouseX, mouseY },
-            bounds: { 
-              minX: hexScreenX - captureWidth, 
-              maxX: hexScreenX + captureWidth,
-              minY: hexScreenY - captureHeight, 
-              maxY: hexScreenY + captureHeight 
-            }
-          });
-        }
+      // Zone de capture généreuse
+      if (distance <= hexRadius * 1.5) {
         return tile;
       }
     }
@@ -226,10 +195,10 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     const tile = getHexAtMouse(mouseX, mouseY);
     setHoveredTile(tile);
     
-    // Debug temporaire pour identifier le problème
-    if (!tile) {
-      console.log('Aucune tuile détectée:', { mouseX, mouseY, tilesCount: mapData.region.tiles.length });
-    }
+    // Debug désactivé - collision corrigée
+    // if (!tile) {
+    //   console.log('Aucune tuile détectée:', { mouseX, mouseY, tilesCount: mapData.region.tiles.length });
+    // }
   };
 
   const handleMouseLeave = () => {

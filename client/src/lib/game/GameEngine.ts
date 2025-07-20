@@ -220,24 +220,35 @@ export class GameEngine {
     
     const hexHeight = this.hexSize * Math.sqrt(3);
     
-    // Approche directe : tester tous les hexagones et trouver le plus proche
+    // Estimation initiale plus précise
+    let estimatedHexX = Math.round(worldX / (this.hexSize * 1.5));
+    let estimatedHexY = Math.round((worldY - (estimatedHexX % 2) * (hexHeight / 2)) / hexHeight);
+    
+    // Tester l'hexagone estimé et ses voisins
     let bestHex: HexTile | null = null;
     let bestDistance = Infinity;
     
-    // Parcourir toute la carte pour trouver l'hexagone le plus proche
-    for (let y = 0; y < this.mapData.length; y++) {
-      for (let x = 0; x < this.mapData[y].length; x++) {
-        // Calculer la position exacte de cet hexagone (même formule que le rendu)
-        const hexCenterX = x * (this.hexSize * 1.5);
-        const hexCenterY = y * hexHeight + (x % 2) * (hexHeight / 2);
+    for (let dy = -2; dy <= 2; dy++) {
+      for (let dx = -2; dx <= 2; dx++) {
+        const testHexX = estimatedHexX + dx;
+        const testHexY = estimatedHexY + dy;
         
-        // Calculer la distance au point
-        const distance = Math.sqrt((worldX - hexCenterX) ** 2 + (worldY - hexCenterY) ** 2);
-        
-        // Si c'est dans la zone de clic et c'est le plus proche
-        if (distance <= this.hexSize * 1.2 && distance < bestDistance) {
-          bestDistance = distance;
-          bestHex = this.mapData[y][x];
+        // Vérifier les limites
+        if (testHexY >= 0 && testHexY < this.mapData.length && 
+            testHexX >= 0 && testHexX < this.mapData[testHexY].length) {
+          
+          // Calculer la position exacte de cet hexagone
+          const hexCenterX = testHexX * (this.hexSize * 1.5);
+          const hexCenterY = testHexY * hexHeight + (testHexX % 2) * (hexHeight / 2);
+          
+          // Calculer la distance
+          const distance = Math.sqrt((worldX - hexCenterX) ** 2 + (worldY - hexCenterY) ** 2);
+          
+          // Si c'est dans la zone de clic et plus proche
+          if (distance <= this.hexSize * 1.1 && distance < bestDistance) {
+            bestDistance = distance;
+            bestHex = this.mapData[testHexY][testHexX];
+          }
         }
       }
     }
