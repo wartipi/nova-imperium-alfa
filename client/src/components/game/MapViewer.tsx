@@ -303,30 +303,29 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     let bestTile = null;
     let bestDistance = Infinity;
     
-    console.log(`🔍 Debug clic: (${clickX.toFixed(1)}, ${clickY.toFixed(1)}), hexRadius: ${hexRadius.toFixed(1)}`);
-    console.log(`   Centre canvas: (${centerX}, ${centerY}), regionCenter: (${regionCenterPos.x.toFixed(1)}, ${regionCenterPos.y.toFixed(1)})`);
+    // Système ultra-simplifié : créer une grille de positions absolues
+    const tilePositions = new Map();
     
+    // Calculer toutes les positions une seule fois
     tiles.forEach(tile => {
-      // Reproduire exactement les calculs du rendu (useEffect, lignes 100-102)
       const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
-      const x = centerX + (hexPos.x - regionCenterPos.x);  // Ligne 101 du rendu
-      const y = centerY + (hexPos.y - regionCenterPos.y);  // Ligne 102 du rendu
-      
-      const distance = Math.sqrt((clickX - x) ** 2 + (clickY - y) ** 2);
+      const x = centerX + (hexPos.x - regionCenterPos.x);
+      const y = centerY + (hexPos.y - regionCenterPos.y);
+      tilePositions.set(`${tile.x},${tile.y}`, { x, y, tile });
+    });
+    
+    // Trouver la tuile la plus proche par force brute
+    for (const [key, pos] of tilePositions) {
+      const distance = Math.sqrt((clickX - pos.x) ** 2 + (clickY - pos.y) ** 2);
       
       if (distance < bestDistance) {
         bestDistance = distance;
-        bestTile = tile;
+        bestTile = pos.tile;
       }
-      
-      // Debug: montrer la position calculée pour toutes les tuiles proches
-      if (distance <= hexRadius * 2) {
-        console.log(`   Tuile (${tile.x},${tile.y}): centre écran (${x.toFixed(1)}, ${y.toFixed(1)}), distance: ${distance.toFixed(1)}`);
-      }
-    });
+    }
     
-    // Tolérance ajustée selon la taille des hexagones
-    const tolerance = hexRadius * 1.2; // Plus conservateur
+    // Tolérance plus généreuse pour faciliter les clics
+    const tolerance = hexRadius * 2.0; // Très permissif
     
     if (bestTile && bestDistance <= tolerance) {
       console.log(`🎯 Clic détecté sur tuile: (${bestTile.x}, ${bestTile.y}) - ${bestTile.terrain}, distance: ${bestDistance.toFixed(1)}, tolérance: ${tolerance.toFixed(1)}`);
