@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 
 interface MapViewerProps {
   mapData: {
@@ -10,8 +10,8 @@ interface MapViewerProps {
       radius: number;
       tiles: { x: number; y: number; terrain: string; resources: string[] }[];
     };
-    quality?: 'rough' | 'detailed' | 'masterwork';
-    accuracy?: number;
+    quality: 'rough' | 'detailed' | 'masterwork';
+    accuracy: number;
   };
   width?: number;
   height?: number;
@@ -36,6 +36,8 @@ const terrainColors = {
 
 export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
+  const [hoveredTile, setHoveredTile] = useState<{ x: number; y: number; terrain: string; resources: string[] } | null>(null);
 
   const drawHexagon = (ctx: CanvasRenderingContext2D, centerX: number, centerY: number, radius: number) => {
     ctx.beginPath();
@@ -52,11 +54,8 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     ctx.closePath();
   };
 
-  // Conversion hexagonale pour alignement parfait avec le rendu
   const hexToPixel = (hexX: number, hexY: number, hexRadius: number) => {
     const hexHeight = hexRadius * Math.sqrt(3);
-    
-    // Système offset: colonnes impaires décalées vers le bas
     const x = hexX * (hexRadius * 1.5);
     const y = hexY * hexHeight + (hexX % 2) * (hexHeight / 2);
     return { x, y };
@@ -72,64 +71,175 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
     // Effacer le canvas
     ctx.clearRect(0, 0, width, height);
 
-    const tiles = mapData.region.tiles;
-    if (!tiles.length) return;
+    // Fond beige de la carte
+    ctx.fillStyle = '#f5f5dc';
+    ctx.fillRect(0, 0, width, height);
 
     // Calculer les limites de la région
+    const tiles = mapData.region.tiles;
+    if (tiles.length === 0) return;
+
     const minX = Math.min(...tiles.map(t => t.x));
     const maxX = Math.max(...tiles.map(t => t.x));
     const minY = Math.min(...tiles.map(t => t.y));
     const maxY = Math.max(...tiles.map(t => t.y));
 
-    // Calculer la taille optimale des hexagones
     const mapWidth = maxX - minX + 1;
     const mapHeight = maxY - minY + 1;
-    const hexRadius = Math.min(
-      (width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2),
-      (height - 40) / (mapHeight * 1.5 + 0.5)
-    );
+    
+    // Calculer le rayon adapté selon le nombre d'hexagones
+    const numTiles = tiles.length;
+    let hexRadius;
+    
+    if (numTiles <= 7) {
+      // Vision de base (7 hexagones) - rayon plus grand
+      hexRadius = Math.min(width / 8, height / 8);
+    } else if (numTiles <= 19) {
+      // Vision niveau 2 (19 hexagones) - rayon adapté
+      hexRadius = Math.min(width / 12, height / 12);
+    } else {
+      // Vision étendue - rayon plus petit
+      hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
+    }
+    
+    console.log(`🗺️ MapViewer: ${numTiles} tuiles, rayon ${hexRadius.toFixed(1)}px`);
 
-    // Centre de l'affichage
     const centerX = width / 2;
     const centerY = height / 2;
-
-    // Centre de la région
-    const regionCenterX = (minX + maxX) / 2;
-    const regionCenterY = (minY + maxY) / 2;
-    const regionCenterPos = hexToPixel(regionCenterX, regionCenterY, hexRadius);
-
-    // Dessiner chaque tuile
+    const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
+    
     tiles.forEach(tile => {
       const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
       const x = centerX + (hexPos.x - regionCenterPos.x);
       const y = centerY + (hexPos.y - regionCenterPos.y);
 
-      // Couleur du terrain
-      const color = terrainColors[tile.terrain as keyof typeof terrainColors] || '#DDD';
-      
-      // Dessiner l'hexagone
-      drawHexagon(ctx, x, y, hexRadius * 0.9);
-      ctx.fillStyle = color;
+      const terrainColor = terrainColors[tile.terrain as keyof typeof terrainColors] || '#CCCCCC';
+      ctx.fillStyle = terrainColor;
+      drawHexagon(ctx, x, y, hexRadius);
       ctx.fill();
-      ctx.strokeStyle = '#B8860B'; // Doré
-      ctx.lineWidth = 2;
+
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1;
+      drawHexagon(ctx, x, y, hexRadius);
       ctx.stroke();
 
-      // Afficher les ressources avec de petits points
-      if (tile.resources.length > 0) {
-        tile.resources.forEach((resource, index) => {
-          const angle = (index * 2 * Math.PI) / tile.resources.length;
-          const resourceX = x + (hexRadius * 0.4) * Math.cos(angle);
-          const resourceY = y + (hexRadius * 0.4) * Math.sin(angle);
-          
-          ctx.beginPath();
-          ctx.arc(resourceX, resourceY, 3, 0, 2 * Math.PI);
-          ctx.fillStyle = '#000';
-          ctx.fill();
-        });
+      if (mapData.quality === 'masterwork') {
+        ctx.strokeStyle = '#FFD700';
+        ctx.lineWidth = 3;
+        drawHexagon(ctx, x, y, hexRadius * 0.95);
+        ctx.stroke();
+      } else if (mapData.quality === 'detailed') {
+        ctx.strokeStyle = '#C0C0C0';
+        ctx.lineWidth = 2;
+        drawHexagon(ctx, x, y, hexRadius * 0.95);
+        ctx.stroke();
+      }
+
+      if (mapData.quality !== 'rough' && tile.resources.length > 0) {
+        ctx.fillStyle = '#FF6B6B';
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, 2 * Math.PI);
+        ctx.fill();
       }
     });
+
+    ctx.fillStyle = '#333';
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(mapData.name, width / 2, 15);
+
+    ctx.font = '10px Arial';
+    ctx.fillText(`Qualité: ${mapData.quality}`, width / 2, height - 5);
+
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(width - 25, 25);
+    ctx.lineTo(width - 25, 15);
+    ctx.stroke();
+    ctx.fillStyle = '#666';
+    ctx.font = '8px Arial';
+    ctx.fillText('N', width - 25, 12);
+
   }, [mapData, width, height]);
+
+  // Approche simplifiée et robuste utilisant zones de capture étendues
+  const getHexAtMouse = (mouseX: number, mouseY: number) => {
+    const tiles = mapData.region.tiles;
+    if (!tiles.length) return null;
+
+    // Reproduire exactement la même logique que le dessin
+    const minX = Math.min(...tiles.map(t => t.x));
+    const maxX = Math.max(...tiles.map(t => t.x));
+    const minY = Math.min(...tiles.map(t => t.y));
+    const maxY = Math.max(...tiles.map(t => t.y));
+
+    const mapWidth = maxX - minX + 1;
+    const mapHeight = maxY - minY + 1;
+    
+    // Utiliser la même logique de calcul de rayon que pour le rendu
+    const numTiles = tiles.length;
+    let hexRadius;
+    
+    if (numTiles <= 7) {
+      // Vision de base (7 hexagones) - rayon plus grand
+      hexRadius = Math.min(width / 8, height / 8);
+    } else if (numTiles <= 19) {
+      // Vision niveau 2 (19 hexagones) - rayon adapté
+      hexRadius = Math.min(width / 12, height / 12);
+    } else {
+      // Vision étendue - rayon plus petit
+      hexRadius = Math.min((width - 40) / (mapWidth * Math.sqrt(3) + Math.sqrt(3)/2), (height - 40) / (mapHeight * 1.5 + 0.5));
+    }
+
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const regionCenterPos = hexToPixel(mapData.region.centerX, mapData.region.centerY, hexRadius);
+
+    // Approche grille : trouver l'hexagone le plus proche selon une grille régulière
+    let bestTile = null;
+    let bestDistance = Infinity;
+
+    for (const tile of tiles) {
+      const hexPos = hexToPixel(tile.x, tile.y, hexRadius);
+      const x = centerX + (hexPos.x - regionCenterPos.x);
+      const y = centerY + (hexPos.y - regionCenterPos.y);
+
+      // Distance euclidienne simple avec tolérance très généreuse
+      const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
+      
+      // Zone de capture adaptée selon la taille de la carte
+      const captureRadius = numTiles <= 7 ? hexRadius * 1.5 : hexRadius * 1.2;
+      if (distance <= captureRadius && distance < bestDistance) {
+        bestDistance = distance;
+        bestTile = tile;
+      }
+    }
+
+    return bestTile;
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    setMousePos({ x: mouseX, y: mouseY });
+
+    const tile = getHexAtMouse(mouseX, mouseY);
+    setHoveredTile(tile);
+    
+    // Debug réduit - seulement si pas de tuile détectée dans le bas
+    if (mouseY > height * 0.7 && !tile) {
+      console.log('Zone bas non détectée:', { mouseX, mouseY });
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setMousePos(null);
+    setHoveredTile(null);
+  };
 
   return (
     <div className="border-2 border-amber-600 bg-amber-50 p-2 rounded-lg relative">
@@ -138,12 +248,31 @@ export function MapViewer({ mapData, width = 400, height = 300 }: MapViewerProps
         width={width}
         height={height}
         className="border border-amber-300 rounded"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
       />
       
+      {/* Tooltip au survol */}
+      {hoveredTile && mousePos && (
+        <div 
+          className="absolute bg-black text-white p-2 rounded text-xs z-10 pointer-events-none"
+          style={{
+            left: mousePos.x + 10,
+            top: mousePos.y - 50,
+            minWidth: '120px'
+          }}
+        >
+          <div><strong>Position:</strong> ({hoveredTile.x}, {hoveredTile.y})</div>
+          <div><strong>Terrain:</strong> {hoveredTile.terrain === 'wasteland' ? 'Terre en friche' : hoveredTile.terrain}</div>
+          {hoveredTile.resources.length > 0 && (
+            <div><strong>Ressources:</strong> {hoveredTile.resources.join(', ')}</div>
+          )}
+        </div>
+      )}
+      
       <div className="mt-2 text-xs text-amber-800">
-        {mapData.accuracy && <div>Précision: {mapData.accuracy}%</div>}
+        <div>Précision: {mapData.accuracy}%</div>
         <div>Région: {mapData.region.tiles.length} tuiles</div>
-        {mapData.quality && <div>Qualité: {mapData.quality}</div>}
       </div>
     </div>
   );

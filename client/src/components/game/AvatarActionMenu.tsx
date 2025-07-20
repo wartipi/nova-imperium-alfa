@@ -24,12 +24,21 @@ const getGameData = () => {
 };
 
 export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarActionMenuProps) {
-  const { actionPoints, spendActionPoints, addActionPoints, hasCompetenceLevel, competences, gainExperience, exploreCurrentLocation, discoverResourcesInVision, playerName } = usePlayer();
+  const { actionPoints, spendActionPoints, addActionPoints, hasCompetenceLevel, competences, gainExperience, exploreCurrentLocation, discoverResourcesInVision, playerName, getCompetenceLevel } = usePlayer();
   const { reputation } = useReputation();
   const { isGameMaster } = useGameState();
   const { playerFaction } = useFactions();
   const { setSelectedHex } = useMap();
   const { foundColony } = useNovaImperium();
+
+  // Debug immédiat des compétences
+  console.log('🎯 AvatarActionMenu - Debug compétences immédiat:', {
+    competences,
+    cartographyLevel: getCompetenceLevel('cartography'),
+    explorationLevel: getCompetenceLevel('exploration'),
+    hasCartography1: hasCompetenceLevel('cartography', 1),
+    hasExploration1: hasCompetenceLevel('exploration', 1)
+  });
 
   // Actions de base supprimées - déplacement par clic direct sur la carte
 
@@ -394,16 +403,29 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
   };
 
   const getAllAvailableActions = () => {
+    // Debug des compétences
+    const cartographyLevel = usePlayer.getState().getCompetenceLevel('cartography');
+    const explorationLevel = usePlayer.getState().getCompetenceLevel('exploration');
+    console.log('🎯 Debug compétences actuelles:', {
+      cartography: cartographyLevel,
+      exploration: explorationLevel,
+      competences: competences
+    });
+
     const filteredCompetenceActions = competenceActions.filter(action => {
       if (action.requiredCompetence) {
-        return hasCompetenceLevel(action.requiredCompetence, action.requiredLevel || 1);
+        const hasLevel = hasCompetenceLevel(action.requiredCompetence, action.requiredLevel || 1);
+        console.log(`🔍 Action ${action.name}: compétence ${action.requiredCompetence} niveau ${action.requiredLevel || 1} - ${hasLevel ? 'DISPONIBLE' : 'INDISPONIBLE'}`);
+        return hasLevel;
       }
       return true;
     });
 
     const filteredExplorationActions = explorationActions.filter(action => {
       if (action.requiredCompetence) {
-        return hasCompetenceLevel(action.requiredCompetence, action.requiredLevel || 1);
+        const hasLevel = hasCompetenceLevel(action.requiredCompetence, action.requiredLevel || 1);
+        console.log(`🔍 Action ${action.name}: compétence ${action.requiredCompetence} niveau ${action.requiredLevel || 1} - ${hasLevel ? 'DISPONIBLE' : 'INDISPONIBLE'}`);
+        return hasLevel;
       }
       return true;
     });
@@ -419,7 +441,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       )
     ];
     
-    console.log('🗺️ Actions disponibles:', allActions.map(a => a.name));
+    console.log('🗺️ Actions finales disponibles:', allActions.map(a => a.name));
     return allActions;
   };
 

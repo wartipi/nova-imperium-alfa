@@ -1,0 +1,56 @@
+Parfait, allons-y avec les deux tableaux comme convenu :
+
+---
+
+## 🗺️ **Tableau de référence des 7 types de case (Version brouillon complète)**
+
+| Code Type de terrain Ressources principales Bâtiments possibles Modificateur de déplacement Notes spéciales |                  |                           |                                                         |                             |                                                                |
+| ----------------------------------------------------------------------------------------------------------- | ---------------- | ------------------------- | ------------------------------------------------------- | --------------------------- | -------------------------------------------------------------- |
+| 1                                                                                                           | Terre en friche  | Aucune (potentiel vierge) | Campement temporaire, Avant-poste                       | Aucun                       | Peut être terraformée vers un autre type avec effort           |
+| 2                                                                                                           | Forêt            | Bois, gibier              | Scierie, Poste de chasse, Temple druidique              | -1                          | Ralentit les troupes, peut abriter des créatures               |
+| 3                                                                                                           | Montagne         | Pierre, minerai (fer/or)  | Mine, Forteresse, Tour de guet                          | -2                          | Vue dégagée (bonus vision), impassable pour certains véhicules |
+| 4                                                                                                           | Terre fertile    | Nourriture, plantes rares | Ferme, Marché, Moulin, Monastère                        | Aucun                       | Haut potentiel de croissance démographique                     |
+| 5                                                                                                           | Colline          | Pierre (limitée), herbes  | Fortifications légères, Tour de guet, Place rituelle    | -1                          | Bonus défensif naturel (position élevée)                       |
+| 6                                                                                                           | Eau peu profonde | Poisson, sel              | Port, Chantier naval, Comptoir de pêche                 | Navigation nécessaire       | Permet des connexions entre îles, dépend des marées            |
+| 7                                                                                                           | Eau profonde     | Aucun (standard)          | Aucune (structures flottantes possibles avec recherche) | Infranchissable sans navire | Peut dissimuler ruines ou créatures marines                    |
+
+---
+
+## 🏗️ **Tableau créatif (nouvelles cases + suggestions de bâtiments sur toutes cases)**
+
+### 🆕 **Nouveaux types de terrain suggérés**
+
+| Code Nom du terrain Description Idées de ressources Modificateurs Remarques spéciales |                     |                                                                  |                                 |                       |                                                          |
+| ------------------------------------------------------------------------------------- | ------------------- | ---------------------------------------------------------------- | ------------------------------- | --------------------- | -------------------------------------------------------- |
+| 8                                                                                     | Marais              | Terrain humide et instable                                       | Herbes rares, poison            | -2                    | Difficulté de construction, possibilité de magie occulte |
+| 9                                                                                     | Désert              | Étendue aride, très faible fertilité                             | Sable, verre, minerai rare      | -1 jour/nuit          | Accueille des ruines ou tribus nomades                   |
+| 10                                                                                    | Plaine sacrée       | Ancien lieu mystique recouvert de légendes                       | Énergie magique, reliques       | Aucun                 | Utilisé pour rituels puissants                           |
+| 11                                                                                    | Grotte / Souterrain | Entrée vers un niveau inférieur (donjon, cave, monde souterrain) | Minerai rare, créatures         | -3 (entrée difficile) | Exploration PvE avancée                                  |
+| 12                                                                                    | Ruines anciennes    | Ancienne cité ou structure abandonnée                            | Artefacts, connaissances        | -1                    | Peut être restaurée ou exploitée                         |
+| 13                                                                                    | Volcan              | Montagne active ou dormante                                      | Obsidienne, magma, cristaux     | -3                    | Haut risque, récompenses élevées                         |
+| 14                                                                                    | Prairie enchantée   | Zone de nature luxuriante marquée par des phénomènes étranges    | Mana naturelle, plantes uniques | Aucun                 | Augmente régénération ou effets spéciaux                 |
+
+---
+
+### 🏰 **Suggestions de bâtiments par type de terrain**
+
+| Terrain Bâtiments spécifiques proposés |                                                                                   |
+| -------------------------------------- | --------------------------------------------------------------------------------- |
+| Terre en friche                        | Avant-poste, Camp d’exploration, Tour d’observation                               |
+| Forêt                                  | Scierie, Poste de chasse, Temple druidique, Maison de l’herboriste                |
+| Montagne                               | Mine, Forteresse, Tour de guet, Forge magique                                     |
+| Terre fertile                          | Ferme, Grenier, Marché, Monastère, Académie agricole                              |
+| Colline                                | Fortifications légères, Lieu de cérémonie, Phare d’altitude                       |
+| Eau peu profonde (littoral)            | Port, Chantier naval, Comptoir de pêche, Tour marine                              |
+| Eau profonde                           | Plateforme maritime (avec technologie avancée), Repaire flottant                  |
+| Marais                                 | Sanctuaire occulte, Cabane d’alchimiste, Puits maudit                             |
+| Désert                                 | Campement nomade, Obélisque solaire, Verrerie, Puits profond                      |
+| Plaine sacrée                          | Cercle de pierre, Temple oublié, Portail mystique                                 |
+| Grotte / Souterrain                    | Entrée fortifiée, Mine avancée, Base souterraine                                  |
+| Ruines anciennes                       | Bibliothèque perdue, Sanctuaire restauré, Hall antique (confère savoir ou boosts) |
+| Volcan                                 | Forge légendaire, Temple du feu, Laboratoire élémentaire                          |
+| Prairie enchantée                      | Jardin d’éveil, Fontaine de mana, Arbre des esprits                               |
+
+---
+
+Souhaites-tu que je te propose maintenant une **légende graphique ou code couleur** pour intégrer ces types de terrain et bâtiments sur ta carte ? Ou préfères-tu continuer avec la configuration des mécaniques de **construction/exploration** à partir de la première colonie dans Unity ?

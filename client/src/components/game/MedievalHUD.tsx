@@ -25,8 +25,8 @@ import { FactionPanel } from "./FactionPanel";
 import { UnifiedTerritoryPanel } from "./UnifiedTerritoryPanel";
 import { ReputationManagementPanel } from "./ReputationManagementPanel";
 
-
 import { PlayerInventory } from "./PlayerInventory";
+import { EnhancedTurnPanel } from "./EnhancedTurnPanel";
 import { useAuth } from "../../lib/auth/AuthContext";
 import { LevelUpNotification, useLevelUpNotification } from "./LevelUpNotification";
 
@@ -42,7 +42,8 @@ type MenuSection =
   | 'competences'
   | 'factions'
   | 'territory'
-  | 'reputation_management';
+  | 'reputation_management'
+  | 'enhanced_turns';
 
 export function MedievalHUD() {
   const { gamePhase, currentTurn, endTurn, isGameMaster, toggleGameMaster } = useGameState();
@@ -73,8 +74,7 @@ export function MedievalHUD() {
     getCurrentAvatar,
     updateAvatarName,
     canCreateNewAvatar,
-    setMaxActionPointsForTesting,
-    giveAllMaxCompetences
+    setMaxActionPointsForTesting
   } = usePlayer();
   const { honor, reputation, getReputationLevel } = useReputation();
   const [activeSection, setActiveSection] = useState<MenuSection | null>(null);
@@ -136,7 +136,7 @@ export function MedievalHUD() {
     { id: 'help' as MenuSection, label: 'AIDE', icon: '❓' },
     { id: 'factions' as MenuSection, label: 'FACTIONS', icon: '🏛️' },
     { id: 'territory' as MenuSection, label: 'GESTION DE TERRITOIRE', icon: '🗺️' },
-
+    { id: 'enhanced_turns' as MenuSection, label: 'SYSTÈME DE TOURS AMÉLIORÉ', icon: '🚀' }
   ];
 
   const handleCharacterSelect = (character: CharacterOption) => {
@@ -371,29 +371,15 @@ export function MedievalHUD() {
               <div className="text-xs text-amber-700 mt-1">COMPÉTENCES</div>
               <div className="flex items-center justify-between">
                 <div className="text-purple-600">{competences.length} apprises ({competencePoints} pts)</div>
-                <div className="flex space-x-1">
-                  {isGameMaster && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        giveAllMaxCompetences();
-                      }}
-                      className="text-xs bg-red-500 hover:bg-red-600 text-white px-1 py-0.5 rounded"
-                      title="MJ: Toutes compétences max"
-                    >
-                      ⚡
-                    </button>
-                  )}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowCompetenceModal(true);
-                    }}
-                    className="text-xs bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded"
-                  >
-                    🎯
-                  </button>
-                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowCompetenceModal(true);
+                  }}
+                  className="text-xs bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded"
+                >
+                  🎯
+                </button>
               </div>
               
               {/* Bouton de test pour gagner de l'expérience */}
@@ -613,6 +599,7 @@ export function MedievalHUD() {
               {activeSection === 'help' && <HelpPanel />}
               {activeSection === 'competences' && <CompetenceTree />}
               {activeSection === 'factions' && <FactionPanel />}
+              {activeSection === 'enhanced_turns' && <EnhancedTurnPanel />}
             </div>
           </div>
         </div>

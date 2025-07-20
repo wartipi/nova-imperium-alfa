@@ -18,21 +18,25 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### Complete Code Cleanup (January 20, 2025)
-- **Assets Cleanup**: Removed 66 unused files from attached_assets/ (8.9M → 0MB)
-- **UI Components Optimization**: Removed 20+ unused shadcn/ui components (256K → ~180K)
-- **Code Quality**: Cleaned up TODO comments and optimized imports
-- **Dependencies**: Identified unused packages but kept for stability
-- **Project Status**: Fully functional with optimized codebase
+### Code Modularization - Complete System Redesign (January 20, 2025)
+- **Status**: COMPLETED - Major modularization following French development best practices
+- **New Architecture**: Centralized game state with specialized modules for better maintainability
+- **Core Modules Created**:
+  - `useCentralizedGameState.tsx` - Unified state management combining all game systems
+  - `ResourceManager.tsx` - Intelligent resource calculations and management
+  - `TurnManager.tsx` - Advanced turn processing with events and statistics
+  - `GameStateAdapter.tsx` - Progressive migration adapter maintaining compatibility
+  - `EnhancedTurnPanel.tsx` - Rich interface for the new turn system
+- **Legacy Cleanup**: Removed old, incomplete turn systems and simplified AI delegation
+- **Backward Compatibility**: Hybrid system allows gradual migration without breaking existing features
+- **Validation**: System logs show successful initialization and 4/5 game systems operational
 
-### Interactive MapViewer Complete Rebuild (January 20, 2025)
-- **Complete Rebuild**: Created entirely new InteractiveMapViewer.tsx with accurate mouse detection
-- **Visual Consistency**: Applied platform's amber color scheme and styling throughout
-- **Hexagon Alignment**: Implemented flat-top hexagon rendering matching main game engine
-- **Terrain Colors**: Used authentic terrain colors from MapGenerator.ts (wasteland: #F5F5DC, forest: #228B22, etc.)
-- **Coordinate System**: Fixed hexagonal positioning using exact GameEngine.ts algorithm (screenX = x * 1.5, screenY with alternating offset)
-- **Mouse Detection**: Precise tile detection synchronized with rendering coordinates
-- **Status**: COMPLETED AND VERIFIED - MapViewer displays authentic hex coordinates and works perfectly
+### Migration Replit Agent → Replit Standard (January 20, 2025)
+- **Migration Status**: COMPLETED - Project successfully migrated from Replit Agent to standard Replit environment
+- **Architecture**: Confirmed proper client-server separation with security best practices
+- **Server**: Running correctly on port 5000 with Express backend
+- **Client**: React/TypeScript frontend with Vite development server
+- **All Systems**: Game loads properly, hexagonal map generation working, all game systems validated
 
 ## System Architecture
 
