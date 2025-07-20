@@ -88,22 +88,27 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
     return icons[resource] || '📦';
   };
 
-  // Conversion coordonnées hexagonales vers pixel - alignement correct
+  // Conversion coordonnées hexagonales vers pixel - exactement comme GameEngine.ts
   const hexToPixel = useCallback((hexX: number, hexY: number): { x: number, y: number } => {
-    // Utilise la même logique que le jeu principal (flat-top hexagons)
+    // Algorithme exact du GameEngine pour flat-top hexagons
     const hexHeight = HEX_SIZE * Math.sqrt(3);
+    const hexWidth = HEX_SIZE * 2;
+    
+    // Position X: chaque colonne est décalée de 3/4 de la largeur
     const x = hexX * (HEX_SIZE * 1.5);
+    // Position Y: alternance pour créer la grille hexagonale
     const y = hexY * hexHeight + (hexX % 2) * (hexHeight / 2);
+    
     return { x, y };
   }, []);
 
-  // Dessiner un hexagone - style du jeu principal (flat-top)
+  // Dessiner un hexagone - exactement comme dans GameEngine.ts
   const drawHexagon = (ctx: CanvasRenderingContext2D, centerX: number, centerY: number, color: string) => {
     ctx.beginPath();
     
-    // Hexagone flat-top (comme dans le jeu principal)
+    // Algorithme exact du GameEngine - flat-top hexagons
     for (let i = 0; i < 6; i++) {
-      const angle = (Math.PI / 3) * i + Math.PI / 6; // Décalage pour flat-top
+      const angle = (i * Math.PI) / 3; // Exactement comme dans GameEngine
       const x = centerX + HEX_SIZE * Math.cos(angle);
       const y = centerY + HEX_SIZE * Math.sin(angle);
       if (i === 0) {
