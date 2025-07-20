@@ -394,6 +394,41 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
         onClick={handleClick}
       />
       
+      {/* Debug: Grille visuelle des hitboxes hexagonales */}
+      <svg
+        className="absolute inset-0 pointer-events-none z-30"
+        viewBox={`0 0 ${width} ${height}`}
+        style={{ opacity: 0.3 }}
+      >
+        {region.tiles.map((tile, index) => {
+          const screenPos = hexToScreen(tile.x, tile.y);
+          const hexPoints = getHexagonPoints(screenPos.x, screenPos.y, hexSize);
+          const pointsStr = hexPoints.map(p => `${p.x},${p.y}`).join(' ');
+          
+          return (
+            <polygon
+              key={`debug-${index}`}
+              points={pointsStr}
+              fill="none"
+              stroke={hoveredTile?.x === tile.x && hoveredTile?.y === tile.y ? "red" : "blue"}
+              strokeWidth="1"
+              opacity="0.5"
+            />
+          );
+        })}
+      </svg>
+
+      {/* Debug: Position de la souris */}
+      {mousePos && (
+        <div 
+          className="absolute w-1 h-1 bg-red-600 z-40 pointer-events-none"
+          style={{
+            left: mousePos.x - 0.5,
+            top: mousePos.y - 0.5
+          }}
+        />
+      )}
+
       {/* Hover tooltip - positioning intelligent */}
       {hoveredTile && mousePos && (
         <div 
@@ -415,6 +450,9 @@ export function InteractiveMapViewer({ mapData, width = 400, height = 300, onTil
               💎 {hoveredTile.resources.join(', ')}
             </div>
           )}
+          <div className="text-cyan-300 text-xs mt-1 border-t border-gray-600 pt-1">
+            Mouse: ({mousePos.x.toFixed(0)}, {mousePos.y.toFixed(0)})
+          </div>
         </div>
       )}
 
