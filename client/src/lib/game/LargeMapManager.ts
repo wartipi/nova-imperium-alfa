@@ -1,6 +1,6 @@
 /**
  * Gestionnaire Principal pour Cartes Massives - Nova Imperium
- * Coordonne la génération, l'optimisation et le rendu des cartes 10000x3000
+ * Coordonne la génération, l'optimisation et le rendu des cartes 2500x750
  */
 
 import { LargeMapOptimizer, ViewportInfo } from './LargeMapOptimizer';
@@ -36,8 +36,8 @@ export class LargeMapManager {
       maxX: 1000,
       minY: 0,
       maxY: 1000,
-      centerX: 5000, // Centre de la carte massive
-      centerY: 1500,
+      centerX: 1250, // Centre de la carte 2500x750
+      centerY: 375,
       zoom: 1
     };
     
@@ -45,7 +45,7 @@ export class LargeMapManager {
   }
 
   // Initialisation avec préchargement autour de la position de départ
-  async initialize(startX: number = 5000, startY: number = 1500): Promise<void> {
+  async initialize(startX: number = 1250, startY: number = 375): Promise<void> {
     console.log(`🚀 Initialisation carte massive, position de départ: (${startX}, ${startY})`);
     
     // Centrer le viewport sur la position de départ

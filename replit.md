@@ -51,15 +51,15 @@ Preferred communication style: Simple, everyday language.
 - **Structure Optimisée**: Nouveau dossier `optimized/` pour composants haute performance
 - **TypeScript Strict**: Types stricts pour éviter les erreurs de compilation
 
-### Expansion Massive de la Carte - Format 10000x3000 (Janvier 23, 2025)
-- **Carte Massive**: Expansion de 50x30 à 10000x3000 hexagones (30 millions de tuiles)
-- **Génération Optimisée**: Système de génération procédurale par chunks pour cartes massives
-- **Système d'Optimisation**: LargeMapOptimizer avec chargement à la demande et gestion mémoire
-- **Rendu LOD**: LargeMapRenderer avec 3 niveaux de détail selon la distance
-- **Gestionnaire Principal**: LargeMapManager coordonnant génération, optimisation et rendu
-- **Canvas Optimisé**: LargeMapCanvas avec navigation fluide, pan/zoom et statistiques temps réel
-- **Performance**: 7,497,242 ressources générées avec chunks de 100x100 et cache intelligent
-- **Navigation**: Viewport culling, préchargement intelligent et contrôles utilisateur avancés
+### Ajustement Carte Réaliste - Format 2500x750 (Janvier 23, 2025)
+- **Taille Optimale**: Ajustement de 10000x3000 à 2500x750 hexagones (1,875 millions de tuiles)
+- **Performance Améliorée**: Réduction significative de la charge mémoire et temps de génération
+- **Système d'Optimisation**: LargeMapOptimizer adapté avec chunks 100x100 et 30 chunks max
+- **Rendu LOD**: LargeMapRenderer optimisé pour cartes de taille réaliste
+- **Centre Ajusté**: Position centrale (1250, 375) pour navigation équilibrée
+- **Configuration**: Seuil de carte massive abaissé à 500x500 pour activation optimisations
+- **Génération**: Système procédural adapté pour monde réaliste et explorable
+- **Navigation**: Viewport et contrôles ajustés aux nouvelles dimensions
 
 ### Complete Code Cleanup (January 20, 2025)
 - **Assets Cleanup**: Removed 66 unused files from attached_assets/ (8.9M → 0MB)

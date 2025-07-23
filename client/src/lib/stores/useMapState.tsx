@@ -109,8 +109,8 @@ interface MapState {
 export const useMapState = create<MapState>()(
   subscribeWithSelector((set, get) => ({
     // État initial - configuré pour cartes massives
-    mapWidth: 10000,
-    mapHeight: 3000,
+    mapWidth: 2500,
+    mapHeight: 750,
     isLargeMap: true,
     tiles: new Map(),
     regions: new Map(),
@@ -123,7 +123,7 @@ export const useMapState = create<MapState>()(
     
     // Initialisation
     initializeMap: (width, height) => {
-      const isLargeMap = width > 1000 || height > 1000;
+      const isLargeMap = width > 500 || height > 500;
       console.log(`🗺️ Initialisation carte: ${width}x${height} ${isLargeMap ? '(MASSIVE)' : '(normale)'}`);
       
       set({

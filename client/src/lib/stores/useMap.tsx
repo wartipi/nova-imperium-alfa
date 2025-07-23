@@ -30,7 +30,7 @@ export const useMap = create<MapState>()(
     
     generateMap: (width: number, height: number) => {
       console.log(`Generating map: ${width}x${height}`);
-      const isLargeMap = width > 1000 || height > 1000;
+      const isLargeMap = width > 500 || height > 500;
       const mapData = MapGenerator.generateMap(width, height);
       
       set({ 

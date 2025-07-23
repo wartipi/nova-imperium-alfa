@@ -51,7 +51,7 @@ export class MapGenerator {
     console.log(`🗺️ Génération d'une carte massive ${width}x${height} (${width * height} hexagones)`);
     
     // Pour les cartes massives, utiliser la génération optimisée par chunks
-    if (width > 1000 || height > 1000) {
+    if (width > 500 || height > 500) {
       return this.generateLargeMap(width, height);
     }
     
