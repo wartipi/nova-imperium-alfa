@@ -11,7 +11,7 @@ import { getTerrainMovementCost } from "../../lib/game/TerrainCosts";
 import { CameraControls } from "./CameraControls";
 import { CityManagementPanel } from "./CityManagementPanel";
 import { UnifiedTerritorySystem } from "../../lib/systems/UnifiedTerritorySystem";
-import { LargeMapCanvas } from "./optimized/LargeMapCanvas";
+import { SimpleMapCanvas } from "./SimpleMapCanvas";
 
 export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -19,13 +19,13 @@ export function GameCanvas() {
   const { mapData, selectedHex, setSelectedHex, isLargeMap } = useMap();
   
   const { gamePhase, isGameMaster } = useGameState();
-  // Pour les cartes massives, utiliser le composant optimisé
-  if (isLargeMap) {
-    return <LargeMapCanvas className="w-full h-full" />;
-  }
-
   const { novaImperiums, selectedUnit, moveUnit } = useNovaImperium();
   const { avatarPosition, avatarRotation, isMoving, selectedCharacter, moveAvatarToHex, isHexVisible, isHexInCurrentVision, pendingMovement, setPendingMovement } = usePlayer();
+  
+  // Pour les cartes massives, utiliser le composant simple
+  if (isLargeMap) {
+    return <SimpleMapCanvas className="w-full h-full" />;
+  }
   const [mouseDownPos, setMouseDownPos] = useState<{ x: number; y: number } | null>(null);
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
   const [avatarMenuPosition, setAvatarMenuPosition] = useState({ x: 0, y: 0 });

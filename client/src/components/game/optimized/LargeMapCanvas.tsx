@@ -20,41 +20,108 @@ export const LargeMapCanvas: React.FC<LargeMapCanvasProps> = ({ className = "" }
   const { mapData, isLargeMap, largeMapManager, initializeLargeMapManager } = useMap();
   const { avatarPosition } = usePlayer();
 
-  // Initialisation du gestionnaire de carte massive
+  // Initialisation du canvas
   useEffect(() => {
-    if (canvasRef.current && isLargeMap && !largeMapManager && !isInitialized) {
+    if (canvasRef.current && !isInitialized) {
       console.log('🚀 Initialisation du canvas pour carte massive');
-      initializeLargeMapManager(canvasRef.current);
+      
+      // Configurer le canvas
+      const canvas = canvasRef.current;
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+      
+      // Initialiser le gestionnaire si possible
+      if (isLargeMap && !largeMapManager) {
+        try {
+          initializeLargeMapManager(canvas);
+        } catch (error) {
+          console.error('Erreur initialisation LargeMapManager:', error);
+        }
+      }
+      
       setIsInitialized(true);
     }
   }, [canvasRef.current, isLargeMap, largeMapManager, isInitialized]);
 
-  // Rendu continu
+  // Rendu continu avec gestion d'erreurs améliorée
   useEffect(() => {
-    if (!largeMapManager || !isInitialized) return;
+    if (!isInitialized) return;
 
     let animationFrameId: number;
     
-    const renderLoop = async () => {
+    const renderLoop = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      
       try {
-        await largeMapManager.render();
+        if (largeMapManager) {
+          largeMapManager.render();
+        } else {
+          // Rendu simple sans manager
+          ctx.fillStyle = '#191970';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          
+          // Grille hexagonale simple
+          ctx.strokeStyle = '#ffffff30';
+          ctx.lineWidth = 1;
+          
+          const hexSize = 20;
+          const centerX = canvas.width / 2;
+          const centerY = canvas.height / 2;
+          
+          // Dessiner des hexagones simples
+          for (let x = -10; x <= 10; x++) {
+            for (let y = -10; y <= 10; y++) {
+              const screenX = centerX + x * hexSize * 1.5;
+              const screenY = centerY + y * hexSize * Math.sqrt(3) + (x % 2) * hexSize * Math.sqrt(3) / 2;
+              
+              if (screenX > -hexSize && screenX < canvas.width + hexSize && 
+                  screenY > -hexSize && screenY < canvas.height + hexSize) {
+                
+                ctx.beginPath();
+                for (let i = 0; i < 6; i++) {
+                  const angle = (i * Math.PI) / 3;
+                  const px = screenX + hexSize * Math.cos(angle);
+                  const py = screenY + hexSize * Math.sin(angle);
+                  if (i === 0) {
+                    ctx.moveTo(px, py);
+                  } else {
+                    ctx.lineTo(px, py);
+                  }
+                }
+                ctx.closePath();
+                ctx.stroke();
+              }
+            }
+          }
+          
+          // Position centrale
+          ctx.fillStyle = '#ff4444';
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, 8, 0, 2 * Math.PI);
+          ctx.fill();
+          
+          // Informations
+          ctx.fillStyle = '#ffffff';
+          ctx.font = '16px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText('Carte Nova Imperium 2500x750', centerX, centerY - 40);
+          ctx.fillText('Position: Centre de la carte', centerX, centerY + 40);
+        }
       } catch (error) {
         console.error('Erreur de rendu:', error);
-        // Rendu de fallback simple
-        const canvas = canvasRef.current;
-        if (canvas) {
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.fillStyle = '#191970';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            ctx.fillStyle = '#ffffff';
-            ctx.font = '20px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('Carte Nova Imperium 2500x750', canvas.width / 2, canvas.height / 2);
-          }
-        }
+        // Fallback ultime
+        ctx.fillStyle = '#191970';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '20px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Carte Nova Imperium', canvas.width / 2, canvas.height / 2);
       }
+      
       animationFrameId = requestAnimationFrame(renderLoop);
     };
 
