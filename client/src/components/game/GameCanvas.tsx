@@ -125,11 +125,18 @@ export function GameCanvas() {
                 x: hex.x,
                 y: hex.y,
                 population: 1,
+                populationCap: 10,
+                foodPerTurn: 2,
+                productionPerTurn: 1,
+                sciencePerTurn: 1,
+
                 buildings: [],
                 currentProduction: null,
                 productionProgress: 0
               };
-              addCity(city);
+              if (city) {
+                addCity(city);
+              }
               console.log('🏘️ Ville créée et ajoutée:', city);
             }
           }
@@ -168,7 +175,7 @@ export function GameCanvas() {
         // Handle avatar movement - double click movement
         if (!selectedUnit && !showAvatarMenu) {
           const gameEngine = gameEngineRef.current;
-          const currentAvatar = gameEngine?.avatarPosition;
+          const currentAvatar = gameEngine?.getAvatarScreenPosition();
           const currentTime = Date.now();
           
           // Vérifier si c'est un double-clic (dans les 500ms et sur la même position)
@@ -178,7 +185,7 @@ export function GameCanvas() {
                                lastClickPosition.x === hex.x && 
                                lastClickPosition.y === hex.y;
           
-          if (isDoubleClick && currentAvatar && (hex.x !== currentAvatar.x || hex.y !== currentAvatar.y)) {
+          if (isDoubleClick && avatarPosition && (hex.x !== avatarPosition.x || hex.y !== avatarPosition.y)) {
             if (isTerrainWalkable(hex.terrain)) {
               setPendingMovement({ x: hex.x, y: hex.y });
               console.log('Double-clic détecté - Déplacement proposé vers:', hex.x, hex.y, 'terrain:', hex.terrain);

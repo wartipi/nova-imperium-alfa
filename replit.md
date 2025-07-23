@@ -68,6 +68,13 @@ Preferred communication style: Simple, everyday language.
 - **Dependencies**: Identified unused packages but kept for stability
 - **Project Status**: Fully functional with optimized codebase
 
+### Suppression Définitive de la MiniMap (Janvier 23, 2025)
+- **Suppression Complète**: Fichier MiniMap.tsx supprimé définitivement du projet
+- **Nettoyage des Imports**: Tous les imports MiniMap retirés du MedievalHUD.tsx
+- **Architecture Simplifiée**: Interface utilisateur allégée sans composant minimap obsolète
+- **Préparation Future**: Base propre pour une future réimplémentation adaptée aux cartes massives
+- **Status**: TERMINÉ - Plus aucune référence à MiniMap dans le code
+
 ### Interactive MapViewer Complete Rebuild (January 20, 2025)
 - **Complete Rebuild**: Created entirely new InteractiveMapViewer.tsx with accurate mouse detection
 - **Visual Consistency**: Applied platform's amber color scheme and styling throughout
