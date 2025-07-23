@@ -36,7 +36,25 @@ export const LargeMapCanvas: React.FC<LargeMapCanvasProps> = ({ className = "" }
     let animationFrameId: number;
     
     const renderLoop = async () => {
-      await largeMapManager.render();
+      try {
+        await largeMapManager.render();
+      } catch (error) {
+        console.error('Erreur de rendu:', error);
+        // Rendu de fallback simple
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.fillStyle = '#191970';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '20px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Carte Nova Imperium 2500x750', canvas.width / 2, canvas.height / 2);
+          }
+        }
+      }
       animationFrameId = requestAnimationFrame(renderLoop);
     };
 

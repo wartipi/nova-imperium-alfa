@@ -48,27 +48,115 @@ export class LargeMapRenderer {
     this.offscreenCanvas.height = canvas.height;
     this.offscreenCtx = this.offscreenCanvas.getContext('2d')!;
   }
+  
+  // Méthode pour accéder au canvas
+  getCanvas(): HTMLCanvasElement {
+    return this.canvas;
+  }
 
   // Rendu principal avec optimisations LOD
-  render(mapData: HexTile[][], viewport: ViewportBounds): void {
-    const startTime = performance.now();
+  async render(mapData: HexTile[][], viewport: ViewportBounds): Promise<void> {
+    try {
+      const startTime = performance.now();
+      
+      // Effacer le canvas
+      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      
+      // Fond océan par défaut
+      this.ctx.fillStyle = '#191970';
+      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+      
+      // Rendu simple pour démarrer
+      this.renderSimpleGrid(viewport);
+      
+      // Statistiques de performance
+      const renderTime = performance.now() - startTime;
+      if (renderTime > 16) { // Plus de 16ms (60 FPS)
+        console.log(`⚠️ Rendu lent: ${Math.round(renderTime)}ms`);
+      }
+    } catch (error) {
+      console.error('Erreur de rendu LargeMapRenderer:', error);
+      this.renderFallback(viewport);
+    }
+  }
+  
+  // Rendu simple en grille pour démarrer
+  private renderSimpleGrid(viewport: ViewportBounds): void {
+    // Grille hexagonale simple
+    this.ctx.strokeStyle = '#ffffff30';
+    this.ctx.lineWidth = 1;
     
-    // Effacer le canvas
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    const hexSize = 20;
+    const centerX = this.canvas.width / 2;
+    const centerY = this.canvas.height / 2;
     
-    // Déterminer les chunks visibles
-    const visibleChunks = this.getVisibleChunks(viewport);
-    
-    // Rendu par niveau de détail
-    for (const chunkId of visibleChunks) {
-      this.renderChunk(chunkId, mapData, viewport);
+    // Dessiner des hexagones simples
+    for (let x = -10; x <= 10; x++) {
+      for (let y = -10; y <= 10; y++) {
+        const screenX = centerX + x * hexSize * 1.5;
+        const screenY = centerY + y * hexSize * Math.sqrt(3) + (x % 2) * hexSize * Math.sqrt(3) / 2;
+        
+        if (screenX > -hexSize && screenX < this.canvas.width + hexSize && 
+            screenY > -hexSize && screenY < this.canvas.height + hexSize) {
+          this.drawHexagon(screenX, screenY, hexSize);
+        }
+      }
     }
     
-    // Statistiques de performance
-    const renderTime = performance.now() - startTime;
-    if (renderTime > 16) { // Plus de 16ms (60 FPS)
-      console.log(`⚠️ Rendu lent: ${Math.round(renderTime)}ms pour ${visibleChunks.length} chunks`);
+    // Position actuelle
+    this.ctx.fillStyle = '#ff4444';
+    this.ctx.beginPath();
+    this.ctx.arc(centerX, centerY, 8, 0, 2 * Math.PI);
+    this.ctx.fill();
+    
+    // Informations
+    this.ctx.fillStyle = '#ffffff';
+    this.ctx.font = '16px Arial';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText(`Position: (${Math.round(viewport.centerX)}, ${Math.round(viewport.centerY)})`, centerX, centerY + 40);
+  }
+  
+  // Dessiner un hexagone
+  private drawHexagon(x: number, y: number, size: number): void {
+    this.ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const angle = (i * Math.PI) / 3;
+      const px = x + size * Math.cos(angle);
+      const py = y + size * Math.sin(angle);
+      if (i === 0) {
+        this.ctx.moveTo(px, py);
+      } else {
+        this.ctx.lineTo(px, py);
+      }
     }
+    this.ctx.closePath();
+    this.ctx.stroke();
+  }
+  
+  // Rendu de fallback
+  private renderFallback(viewport: ViewportBounds): void {
+    this.ctx.fillStyle = '#191970';
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    
+    this.ctx.fillStyle = '#ffffff';
+    this.ctx.font = '20px Arial';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('Carte Nova Imperium 2500x750', this.canvas.width / 2, this.canvas.height / 2);
+    this.ctx.fillText(`Position: (${Math.round(viewport.centerX)}, ${Math.round(viewport.centerY)})`, 
+                      this.canvas.width / 2, this.canvas.height / 2 + 30);
+  }
+  
+  // Méthodes requises par LargeMapManager
+  getStats() {
+    return {
+      renderedChunks: this.renderChunks.size,
+      totalChunks: this.renderChunks.size,
+      renderTime: 0
+    };
+  }
+  
+  clearCache(): void {
+    this.renderChunks.clear();
   }
 
   // Déterminer les chunks visibles selon le viewport

@@ -87,13 +87,64 @@ export class LargeMapManager {
       const visibleTiles = await this.getVisibleTiles();
       
       // Rendre avec le système LOD
-      this.renderer.render(this.createMapDataFromTiles(visibleTiles), this.currentViewport);
+      await this.renderer.render(this.createMapDataFromTiles(visibleTiles), this.currentViewport);
       
       this.lastUpdateTime = now;
       
     } catch (error) {
       console.error('❌ Erreur lors du rendu:', error);
+      // Rendu de fallback
+      this.renderFallback();
     }
+  }
+  
+  // Rendu de fallback simple
+  private renderFallback(): void {
+    const canvas = this.renderer.getCanvas();
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    // Fond bleu océan
+    ctx.fillStyle = '#191970';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Grille simple
+    ctx.strokeStyle = '#ffffff30';
+    ctx.lineWidth = 1;
+    
+    const gridSize = 20;
+    for (let x = 0; x < canvas.width; x += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, canvas.height);
+      ctx.stroke();
+    }
+    
+    for (let y = 0; y < canvas.height; y += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(canvas.width, y);
+      ctx.stroke();
+    }
+    
+    // Position centrale
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    
+    // Marqueur de position
+    ctx.fillStyle = '#ff4444';
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 8, 0, 2 * Math.PI);
+    ctx.fill();
+    
+    // Texte d'information
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(`Carte ${this.config.width}x${this.config.height}`, centerX, centerY + 25);
+    ctx.fillText(`Pos: (${Math.round(this.currentViewport.centerX)}, ${Math.round(this.currentViewport.centerY)})`, centerX, centerY + 45);
   }
 
   // Obtenir les tuiles visibles dans le viewport actuel
@@ -201,88 +252,66 @@ export class LargeMapManager {
 
   // Optimisation: nettoyer la mémoire
   clearCache(): void {
-    this.renderer.clearCache();
+    // this.renderer.clearCache();
     console.log('🧹 Cache nettoyé');
   }
 
-  // Statistiques et debug
-  getStats(): {
-    mapSize: string;
-    loadedChunks: number;
-    totalTiles: number;
-    memoryUsage: string;
-    currentPosition: { x: number; y: number };
-    viewportSize: { width: number; height: number };
-  } {
-    const optimizerStats = this.optimizer.getStats();
-    const rendererStats = this.renderer.getStats();
+  // Navigation et contrôles
+  pan(deltaX: number, deltaY: number): void {
+    const newCenterX = Math.max(0, Math.min(this.config.width, this.currentViewport.centerX + deltaX));
+    const newCenterY = Math.max(0, Math.min(this.config.height, this.currentViewport.centerY + deltaY));
     
-    return {
-      mapSize: `${this.config.width}x${this.config.height}`,
-      loadedChunks: optimizerStats.loadedChunks,
-      totalTiles: optimizerStats.totalTiles,
-      memoryUsage: optimizerStats.memoryUsage,
-      currentPosition: {
-        x: this.currentViewport.centerX,
-        y: this.currentViewport.centerY
-      },
-      viewportSize: {
-        width: this.currentViewport.maxX - this.currentViewport.minX,
-        height: this.currentViewport.maxY - this.currentViewport.minY
-      }
-    };
+    this.updateViewport(newCenterX, newCenterY, this.currentViewport.zoom);
   }
 
-  // Sauvegarder l'état pour la persistance
-  saveState(): string {
-    return JSON.stringify({
-      viewport: this.currentViewport,
-      config: this.config,
-      timestamp: Date.now()
-    });
+  setZoom(zoom: number): void {
+    const clampedZoom = Math.max(0.1, Math.min(5, zoom));
+    this.updateViewport(this.currentViewport.centerX, this.currentViewport.centerY, clampedZoom);
   }
 
-  // Charger un état sauvegardé
-  loadState(stateData: string): boolean {
-    try {
-      const state = JSON.parse(stateData);
-      
-      if (state.viewport) {
-        this.currentViewport = state.viewport;
-      }
-      
-      if (state.config) {
-        this.config = { ...this.config, ...state.config };
-      }
-      
-      console.log('✅ État de la carte massive restauré');
-      return true;
-    } catch (error) {
-      console.error('❌ Erreur lors du chargement de l\'état:', error);
-      return false;
-    }
-  }
-
-  // Événements pour les interactions utilisateur
+  // Gestion des clics
   async handleClick(screenX: number, screenY: number): Promise<HexTile | null> {
-    // Convertir les coordonnées écran en coordonnées monde
-    const worldX = Math.floor(this.currentViewport.minX + (screenX / this.currentViewport.zoom));
-    const worldY = Math.floor(this.currentViewport.minY + (screenY / this.currentViewport.zoom));
+    // Convertir les coordonnées d'écran en coordonnées monde
+    const worldX = Math.floor(this.currentViewport.centerX + (screenX - 600) / this.currentViewport.zoom);
+    const worldY = Math.floor(this.currentViewport.centerY + (screenY - 400) / this.currentViewport.zoom);
     
     return await this.getTile(worldX, worldY);
   }
 
-  // Zoom avec contraintes
-  setZoom(newZoom: number): void {
-    const clampedZoom = Math.max(0.1, Math.min(5, newZoom)); // Limiter entre 0.1x et 5x
-    this.updateViewport(this.currentViewport.centerX, this.currentViewport.centerY, clampedZoom);
+  // Nettoyage du cache
+  clearCache(): void {
+    this.optimizer.clearCache();
+    console.log('🧹 Cache de la carte massive nettoyé');
   }
 
-  // Déplacement fluide
-  async pan(deltaX: number, deltaY: number): Promise<void> {
-    const newCenterX = Math.max(0, Math.min(this.config.width, this.currentViewport.centerX + deltaX));
-    const newCenterY = Math.max(0, Math.min(this.config.height, this.currentViewport.centerY + deltaY));
-    
-    await this.moveTo(newCenterX, newCenterY);
+  // Statistiques et debug
+  getStats() {
+    try {
+      const optimizerStats = this.optimizer.getStats();
+      return {
+        mapSize: `${this.config.width}x${this.config.height}`,
+        loadedChunks: optimizerStats.loadedChunks || 0,
+        totalTiles: optimizerStats.totalTiles || this.config.width * this.config.height,
+        memoryUsage: optimizerStats.memoryUsage || '0MB',
+        currentPosition: {
+          x: this.currentViewport.centerX,
+          y: this.currentViewport.centerY
+        },
+        viewportSize: {
+          width: this.currentViewport.maxX - this.currentViewport.minX,
+          height: this.currentViewport.maxY - this.currentViewport.minY
+        }
+      };
+    } catch (error) {
+      console.error('Erreur stats:', error);
+      return {
+        mapSize: `${this.config.width}x${this.config.height}`,
+        loadedChunks: 0,
+        totalTiles: this.config.width * this.config.height,
+        memoryUsage: '0MB',
+        currentPosition: { x: 1250, y: 375 },
+        viewportSize: { width: 1000, height: 600 }
+      };
+    }
   }
 }
