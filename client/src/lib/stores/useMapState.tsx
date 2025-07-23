@@ -33,6 +33,7 @@ interface MapState {
   // État de la carte
   mapWidth: number;
   mapHeight: number;
+  isLargeMap: boolean; // Pour cartes > 1000x1000
   tiles: Map<string, HexTile>;
   regions: Map<string, MapRegion>;
   
@@ -107,9 +108,10 @@ interface MapState {
 
 export const useMapState = create<MapState>()(
   subscribeWithSelector((set, get) => ({
-    // État initial
-    mapWidth: 50,
-    mapHeight: 30,
+    // État initial - configuré pour cartes massives
+    mapWidth: 10000,
+    mapHeight: 3000,
+    isLargeMap: true,
     tiles: new Map(),
     regions: new Map(),
     visibleTiles: new Set(),
@@ -121,31 +123,19 @@ export const useMapState = create<MapState>()(
     
     // Initialisation
     initializeMap: (width, height) => {
-      const tiles = new Map<string, HexTile>();
-      
-      for (let x = 0; x < width; x++) {
-        for (let y = 0; y < height; y++) {
-          const key = `${x},${y}`;
-          const tile: HexTile = {
-            x,
-            y,
-            terrain: 'grass', // Terrain par défaut
-            height: 0,
-            isVisible: false,
-            isExplored: false,
-            hasResource: false,
-            isOccupied: false
-          };
-          tiles.set(key, tile);
-        }
-      }
+      const isLargeMap = width > 1000 || height > 1000;
+      console.log(`🗺️ Initialisation carte: ${width}x${height} ${isLargeMap ? '(MASSIVE)' : '(normale)'}`);
       
       set({
         mapWidth: width,
         mapHeight: height,
-        tiles,
+        isLargeMap,
+        tiles: new Map(),
+        regions: new Map(),
         visibleTiles: new Set(),
-        exploredTiles: new Set()
+        exploredTiles: new Set(),
+        selectedTile: null,
+        hoveredTile: null
       });
     },
     
