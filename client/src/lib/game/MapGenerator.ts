@@ -48,13 +48,6 @@ export class MapGenerator {
   };
 
   static generateMap(width: number, height: number): HexTile[][] {
-    console.log(`🗺️ Génération d'une carte massive ${width}x${height} (${width * height} hexagones)`);
-    
-    // Pour les cartes massives, utiliser la génération optimisée par chunks
-    if (width > 500 || height > 500) {
-      return this.generateLargeMap(width, height);
-    }
-    
     const map: HexTile[][] = [];
     
     for (let y = 0; y < height; y++) {
@@ -95,135 +88,6 @@ export class MapGenerator {
     console.log(`🎯 Carte générée avec ${resourceCount} ressources sur ${width}x${height} hexagones`);
     
     return map;
-  }
-
-  // Génération optimisée pour les cartes massives
-  private static generateLargeMap(width: number, height: number): HexTile[][] {
-    console.log(`⚡ Utilisation de la génération optimisée pour carte massive`);
-    
-    const map: HexTile[][] = [];
-    const chunkSize = 100;
-    
-    // Générer par chunks pour éviter les problèmes de mémoire
-    for (let chunkY = 0; chunkY < Math.ceil(height / chunkSize); chunkY++) {
-      const startY = chunkY * chunkSize;
-      const endY = Math.min(startY + chunkSize, height);
-      
-      for (let y = startY; y < endY; y++) {
-        const row: HexTile[] = [];
-        map.push(row);
-        
-        for (let chunkX = 0; chunkX < Math.ceil(width / chunkSize); chunkX++) {
-          const startX = chunkX * chunkSize;
-          const endX = Math.min(startX + chunkSize, width);
-          
-          for (let x = startX; x < endX; x++) {
-            const tile = this.generateProceduralTile(x, y, width, height);
-            row.push(tile);
-          }
-        }
-      }
-      
-      // Afficher le progrès tous les 10 chunks
-      if (chunkY % 10 === 0) {
-        const progress = Math.round((chunkY / Math.ceil(height / chunkSize)) * 100);
-        console.log(`📊 Génération: ${progress}% (chunk ${chunkY}/${Math.ceil(height / chunkSize)})`);
-      }
-    }
-    
-    console.log(`✅ Carte massive générée: ${width}x${height}`);
-    return map;
-  }
-
-  // Génération procédurale optimisée pour les grandes cartes
-  private static generateProceduralTile(x: number, y: number, mapWidth: number, mapHeight: number): HexTile {
-    // Utiliser des fonctions de bruit cohérentes pour créer un monde réaliste
-    const noiseScale = 0.001; // Plus petit pour les grandes cartes
-    const elevation = this.simpleNoise(x * noiseScale, y * noiseScale);
-    const temperature = this.simpleNoise(x * noiseScale * 0.5, y * noiseScale * 0.5, 1000);
-    const moisture = this.simpleNoise(x * noiseScale * 0.7, y * noiseScale * 0.7, 2000);
-    
-    // Créer des continents et des îles à grande échelle
-    const continentalScale = 0.0001;
-    const continentalNoise = this.simpleNoise(x * continentalScale, y * continentalScale, 5000);
-    
-    let terrain: TerrainType = 'deep_water';
-    
-    // Déterminer le terrain basé sur le bruit continental et l'élévation
-    if (continentalNoise > 0.3 && elevation > 0.2) {
-      // Zone terrestre
-      if (elevation > 0.8) {
-        terrain = 'mountains';
-      } else if (elevation > 0.6) {
-        terrain = 'hills';
-      } else {
-        // Terrain basé sur température et humidité
-        if (temperature > 0.7) {
-          terrain = moisture > 0.6 ? 'swamp' : 'desert';
-        } else if (temperature > 0.4) {
-          terrain = moisture > 0.5 ? 'forest' : 'fertile_land';
-        } else {
-          terrain = 'wasteland';
-        }
-      }
-    } else if (continentalNoise > 0.2 || elevation > 0.1) {
-      terrain = 'shallow_water';
-    }
-    
-    // Ajouter des terrains spéciaux rares
-    const specialRand = this.simpleNoise(x * 0.01, y * 0.01, 9999);
-    if (terrain !== 'deep_water' && specialRand > 0.99) {
-      const specials = ['volcano', 'ancient_ruins', 'sacred_plains', 'enchanted_meadow'];
-      terrain = specials[Math.floor((specialRand - 0.99) * 100 * specials.length)] as TerrainType;
-    }
-    
-    // Déterminer les ressources (réduit pour les grandes cartes)
-    let resource = null;
-    const resourceRand = this.simpleNoise(x * 0.05, y * 0.05, 3333);
-    if (resourceRand > 0.95) { // 5% de chance
-      const resources = this.getResourcesForTerrain(terrain);
-      if (resources.length > 0) {
-        resource = resources[Math.floor((resourceRand - 0.95) * 20 * resources.length)];
-        if (resourceRand > 0.98) {
-          console.log(`📍 Ressource générée: ${resource} sur ${terrain} en (${x},${y})`);
-        }
-      }
-    }
-    
-    const yields = this.TERRAIN_YIELDS[terrain];
-    return {
-      x,
-      y,
-      terrain,
-      food: yields.food,
-      action_points: yields.action_points,
-      gold: yields.gold,
-      resource,
-      hasRiver: false,
-      hasRoad: false,
-      improvement: null,
-      isVisible: false,
-      isExplored: false
-    };
-  }
-
-  private static getResourcesForTerrain(terrain: TerrainType): string[] {
-    const terrainResources: Record<string, string[]> = {
-      'mountains': ['iron', 'gold', 'gems', 'stone', 'copper'],
-      'hills': ['stone', 'copper', 'coal', 'iron'],
-      'forest': ['wood', 'herbs', 'fur'],
-      'fertile_land': ['wheat', 'cattle'],
-      'deep_water': ['fish', 'whales', 'oil'],
-      'shallow_water': ['fish', 'crabs'],
-      'desert': ['oil', 'gems'],
-      'swamp': ['herbs', 'oil'],
-      'volcano': ['iron', 'gems'],
-      'ancient_ruins': ['gold', 'ancient_artifacts'],
-      'sacred_plains': ['sacred_stones'],
-      'enchanted_meadow': ['mana_stones', 'enchanted_wood']
-    };
-    
-    return terrainResources[terrain] || [];
   }
 
   private static generateArchipelagoIslands(map: HexTile[][], width: number, height: number) {
@@ -357,9 +221,9 @@ export class MapGenerator {
     return noise;
   }
 
-  private static simpleNoise(x: number, y: number, seed: number = 0): number {
-    // Fonction de bruit améliorée pour la génération procédurale
-    const n = Math.sin(x * 12.9898 + y * 78.233 + seed) * 43758.5453;
+  private static simpleNoise(x: number, y: number): number {
+    // Simple pseudo-random noise function
+    const n = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
     return (n - Math.floor(n));
   }
 

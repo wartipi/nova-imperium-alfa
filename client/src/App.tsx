@@ -29,8 +29,8 @@ function GameApp() {
     audio.volume = 0.3;
     setBackgroundMusic(audio);
 
-    // Initialize massive game world
-    generateMap(2500, 750); // Generate 2500x750 hex map
+    // Initialize game
+    generateMap(50, 30); // Generate 50x30 hex map
     initializeNovaImperiums();
     initializeGame();
     

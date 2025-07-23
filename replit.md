@@ -51,29 +51,12 @@ Preferred communication style: Simple, everyday language.
 - **Structure Optimisée**: Nouveau dossier `optimized/` pour composants haute performance
 - **TypeScript Strict**: Types stricts pour éviter les erreurs de compilation
 
-### Ajustement Carte Réaliste - Format 2500x750 (Janvier 23, 2025)
-- **Taille Optimale**: Ajustement de 10000x3000 à 2500x750 hexagones (1,875 millions de tuiles)
-- **Performance Améliorée**: Réduction significative de la charge mémoire et temps de génération
-- **Système d'Optimisation**: LargeMapOptimizer adapté avec chunks 100x100 et 30 chunks max
-- **Rendu LOD**: LargeMapRenderer optimisé pour cartes de taille réaliste
-- **Centre Ajusté**: Position centrale (1250, 375) pour navigation équilibrée
-- **Configuration**: Seuil de carte massive abaissé à 500x500 pour activation optimisations
-- **Génération**: Système procédural adapté pour monde réaliste et explorable
-- **Navigation**: Viewport et contrôles ajustés aux nouvelles dimensions
-
 ### Complete Code Cleanup (January 20, 2025)
 - **Assets Cleanup**: Removed 66 unused files from attached_assets/ (8.9M → 0MB)
 - **UI Components Optimization**: Removed 20+ unused shadcn/ui components (256K → ~180K)
 - **Code Quality**: Cleaned up TODO comments and optimized imports
 - **Dependencies**: Identified unused packages but kept for stability
 - **Project Status**: Fully functional with optimized codebase
-
-### Suppression Définitive de la MiniMap (Janvier 23, 2025)
-- **Suppression Complète**: Fichier MiniMap.tsx supprimé définitivement du projet
-- **Nettoyage des Imports**: Tous les imports MiniMap retirés du MedievalHUD.tsx
-- **Architecture Simplifiée**: Interface utilisateur allégée sans composant minimap obsolète
-- **Préparation Future**: Base propre pour une future réimplémentation adaptée aux cartes massives
-- **Status**: TERMINÉ - Plus aucune référence à MiniMap dans le code
 
 ### Interactive MapViewer Complete Rebuild (January 20, 2025)
 - **Complete Rebuild**: Created entirely new InteractiveMapViewer.tsx with accurate mouse detection

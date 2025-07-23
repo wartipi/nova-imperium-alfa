@@ -7,7 +7,7 @@ import { usePlayer } from "../../lib/stores/usePlayer";
 import { useReputation } from "../../lib/stores/useReputation";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
-
+import { MiniMap } from "./MiniMap";
 import { TreasuryPanel } from "./TreasuryPanel";
 
 import { ActivityReportPanel } from "./ActivityReportPanel";
@@ -560,7 +560,15 @@ export function MedievalHUD() {
         </div>
       </div>
 
-
+      {/* MiniMap */}
+      <div 
+        className="absolute bottom-4 right-4 pointer-events-auto"
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        onMouseUp={(e) => e.stopPropagation()}
+      >
+        <MiniMap />
+      </div>
 
       {/* Active Section Panel - Style médiéval parchemin */}
       {activeSection && (

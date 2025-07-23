@@ -11,21 +11,14 @@ import { getTerrainMovementCost } from "../../lib/game/TerrainCosts";
 import { CameraControls } from "./CameraControls";
 import { CityManagementPanel } from "./CityManagementPanel";
 import { UnifiedTerritorySystem } from "../../lib/systems/UnifiedTerritorySystem";
-import { SimpleMapCanvas } from "./SimpleMapCanvas";
 
 export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { gameEngineRef } = useGameEngine();
-  const { mapData, selectedHex, setSelectedHex, isLargeMap } = useMap();
-  
+  const { mapData, selectedHex, setSelectedHex } = useMap();
   const { gamePhase, isGameMaster } = useGameState();
   const { novaImperiums, selectedUnit, moveUnit } = useNovaImperium();
   const { avatarPosition, avatarRotation, isMoving, selectedCharacter, moveAvatarToHex, isHexVisible, isHexInCurrentVision, pendingMovement, setPendingMovement } = usePlayer();
-  
-  // Pour les cartes massives, utiliser le composant simple
-  if (isLargeMap) {
-    return <SimpleMapCanvas className="w-full h-full" />;
-  }
   const [mouseDownPos, setMouseDownPos] = useState<{ x: number; y: number } | null>(null);
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
   const [avatarMenuPosition, setAvatarMenuPosition] = useState({ x: 0, y: 0 });
@@ -125,18 +118,11 @@ export function GameCanvas() {
                 x: hex.x,
                 y: hex.y,
                 population: 1,
-                populationCap: 10,
-                foodPerTurn: 2,
-                productionPerTurn: 1,
-                sciencePerTurn: 1,
-
                 buildings: [],
                 currentProduction: null,
                 productionProgress: 0
               };
-              if (city) {
-                addCity(city);
-              }
+              addCity(city);
               console.log('🏘️ Ville créée et ajoutée:', city);
             }
           }
@@ -175,7 +161,7 @@ export function GameCanvas() {
         // Handle avatar movement - double click movement
         if (!selectedUnit && !showAvatarMenu) {
           const gameEngine = gameEngineRef.current;
-          const currentAvatar = gameEngine?.getAvatarScreenPosition();
+          const currentAvatar = gameEngine?.avatarPosition;
           const currentTime = Date.now();
           
           // Vérifier si c'est un double-clic (dans les 500ms et sur la même position)
@@ -185,7 +171,7 @@ export function GameCanvas() {
                                lastClickPosition.x === hex.x && 
                                lastClickPosition.y === hex.y;
           
-          if (isDoubleClick && avatarPosition && (hex.x !== avatarPosition.x || hex.y !== avatarPosition.y)) {
+          if (isDoubleClick && currentAvatar && (hex.x !== currentAvatar.x || hex.y !== currentAvatar.y)) {
             if (isTerrainWalkable(hex.terrain)) {
               setPendingMovement({ x: hex.x, y: hex.y });
               console.log('Double-clic détecté - Déplacement proposé vers:', hex.x, hex.y, 'terrain:', hex.terrain);
