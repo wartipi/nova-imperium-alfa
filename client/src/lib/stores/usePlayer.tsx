@@ -145,8 +145,8 @@ export const usePlayer = create<PlayerState>((set, get) => {
   experienceToNextLevel: 120, // 100 * 1.2^(2-1) = 100 * 1.2 = 120 XP pour niveau 2
   totalExperience: 0,
   
-  competences: [{ competence: 'exploration', level: 4 }], // Test avec exploration niveau 4
-  competencePoints: 999, // Points pour tests
+  competences: [],
+  competencePoints: 3, // Points de départ pour commencer
   actionPoints: 25,
   maxActionPoints: 100,
   avatarPosition: { x: 3 * 1.5, y: 0, z: 3 * Math.sqrt(3) * 0.5 },
@@ -327,13 +327,6 @@ export const usePlayer = create<PlayerState>((set, get) => {
     const state = get();
     const avatarHex = VisionSystem.worldToHex(state.avatarPosition.x, state.avatarPosition.z);
     const explorationLevel = state.getCompetenceLevel('exploration');
-    const expectedVisionRange = VisionSystem.getVisionRange(explorationLevel);
-    
-    console.log('🔍 DEBUG - Mise à jour vision:', {
-      explorationLevel,
-      expectedVisionRange,
-      competences: state.competences.filter(c => c.competence === 'exploration')
-    });
     
     // Calculate current vision
     const newCurrentVision = VisionSystem.calculateCurrentVision(
@@ -360,17 +353,6 @@ export const usePlayer = create<PlayerState>((set, get) => {
       currentVision: newCurrentVision,
       exploredHexes: newExploredHexes
     });
-    
-    // Forcer le re-rendu du GameEngine avec la nouvelle vision
-    if ((window as any).gameEngine) {
-      const gameEngine = (window as any).gameEngine;
-      gameEngine.setVisionCallbacks(
-        state.isHexVisible,
-        state.isHexInCurrentVision
-      );
-      gameEngine.render();
-      console.log('🎮 GameEngine forcé de re-rendre avec vision niveau', explorationLevel);
-    }
   },
 
   isHexVisible: (hexX, hexY) => {
@@ -694,26 +676,6 @@ export const usePlayer = create<PlayerState>((set, get) => {
     console.log('Points d\'action mis au maximum pour les tests: 999/999');
   },
 
-  // Fonction pour donner exploration niveau 4 en test
-  giveExplorationLevel4: () => {
-    const state = get();
-    
-    set({ 
-      competences: [
-        ...state.competences.filter(c => c.competence !== 'exploration'),
-        { competence: 'exploration', level: 4 }
-      ],
-      competencePoints: 999
-    });
-
-    // Forcer mise à jour de la vision immédiatement
-    setTimeout(() => {
-      get().updateVision();
-    }, 100);
-
-    console.log('🔍 TEST: Exploration niveau 4 donnée - Vision devrait être rayon 3');
-  },
-
   // Fonction pour donner toutes les compétences au maximum en mode MJ
   giveAllMaxCompetences: () => {
     const allCompetenceIds = [
@@ -733,11 +695,6 @@ export const usePlayer = create<PlayerState>((set, get) => {
       competences: maxCompetences,
       competencePoints: 999 // Points illimités
     });
-
-    // Forcer mise à jour de la vision après donner toutes les compétences
-    setTimeout(() => {
-      get().updateVision();
-    }, 100);
 
     console.log('🎯 Mode MJ: Toutes les compétences ont été données au niveau maximum');
   }
