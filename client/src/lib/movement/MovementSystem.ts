@@ -6,7 +6,6 @@
 import { HexPathfinding, type PathfindingResult } from '../pathfinding/HexPathfinding';
 import { usePlayer } from '../stores/usePlayer';
 import { HexMath, type HexCoord } from '../systems/HexMath';
-import { VisionSystem } from '../systems/VisionSystem';
 
 export interface MovementRequest {
   targetX: number;
@@ -43,16 +42,12 @@ export class MovementSystem {
    */
   static async planAndExecuteMovement(request: MovementRequest): Promise<MovementResult> {
     const playerStore = usePlayer.getState();
-    const currentPos = playerStore.getAvatarPosition();
-    
-    // Utiliser VisionSystem pour convertir correctement les coordonnées monde en hex
-    const startHex = VisionSystem.worldToHex(currentPos.x, currentPos.z);
+    const startHex = playerStore.getAvatarPosition();
     
     console.log('🚶 Planning movement:', {
       from: startHex,
       to: { x: request.targetX, y: request.targetY },
-      currentActionPoints: playerStore.actionPoints,
-      worldPosition: currentPos
+      currentActionPoints: playerStore.actionPoints
     });
 
     // Calculer le chemin avec pathfinding
@@ -219,13 +214,9 @@ export class MovementSystem {
     mapData: any[][]
   ): PathfindingResult {
     const playerStore = usePlayer.getState();
-    const currentPos = playerStore.getAvatarPosition();
-    
-    // Utiliser VisionSystem pour convertir correctement les coordonnées monde en hex
-    const startHex = VisionSystem.worldToHex(currentPos.x, currentPos.z);
+    const startHex = playerStore.getAvatarPosition();
 
     console.log('🔍 Preview movement:', {
-      worldPos: currentPos,
       startHex,
       target: { x: targetX, y: targetY }
     });
