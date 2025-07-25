@@ -52,6 +52,7 @@ Preferred communication style: Simple, everyday language.
 - **13 Nouvelles Ressources Magiques**: Mana crystals, dragon scales, phoenix feathers, etc.
 - **Validation Système**: 5/5 systèmes validés avec succès par GameSystemValidator
 - **Mécaniques Différenciées**: Exploration niveau 1 = ressources de base uniquement, niveau 3+ = ressources magiques incluses
+- **Correction Vision Hexagonale**: Algorithme de distance hexagonale pour cercles parfaits de rayon 3
 
 ### Migration et Optimisations Avancées (Janvier 20, 2025)
 - **Migration Replit Agent → Replit**: Migration réussie avec compatibilité complète
