@@ -62,6 +62,14 @@ Preferred communication style: Simple, everyday language.
 - **Système Unifié**: MovementSystem centralisé gérant planification et exécution
 - **Validation Terrain**: Vérification automatique des cases traversables et coûts variables
 
+### Système de Réduction des Coûts de Déplacement par Exploration (Janvier 25, 2025)
+- **Réductions Différenciées**: Niveau 2+ (terrains modérés 2-3→1-2 PA), Niveau 3+ (difficiles 4-5→3-4 PA), Niveau 4+ (extrêmes 8→4 PA)
+- **Integration Complète**: MovementSystem applique les réductions dans executeAnimatedMovement()
+- **Interface Visuelle**: TileInfoPanel affiche coûts originaux rayés + coûts réduits avec indication niveau
+- **Propriété Calculée**: explorationLevel ajoutée au PlayerState (calculée dynamiquement via getCompetenceLevel)
+- **Pathfinding Unifié**: HexPathfinding.getTerrainCost() intègre les réductions selon niveau d'exploration
+- **Déduction Correcte**: Points d'action maintenant correctement déduits avec les bonnes réductions lors des déplacements réels
+
 ### Élimination Complète de VisionSystem.worldToHex (Janvier 25, 2025)
 - **Stockage Dual**: avatarPosition (monde) + avatarHexPosition (hex) pour éviter conversions défaillantes
 - **Architecture Simplifiée**: Plus de conversion monde→hex, coordonnées hex stockées directement
