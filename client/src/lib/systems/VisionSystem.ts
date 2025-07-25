@@ -85,12 +85,9 @@ export class VisionSystem {
   }
 
   /**
-   * Convertit les coordonnées monde de l'avatar en coordonnées hexagonales
+   * DEPRECATED: Cette fonction a été supprimée - utilisez directement avatarHexPosition du store
+   * @deprecated Utilisez usePlayer.getState().avatarHexPosition à la place
    */
-  static worldToHex(worldX: number, worldZ: number): HexCoordinate {
-    const hex = HexMath.worldToHex(worldX, worldZ);
-    return { x: hex.x, y: hex.y };
-  }
 
   /**
    * Convertit les coordonnées hexagonales en coordonnées monde

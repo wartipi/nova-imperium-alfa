@@ -62,6 +62,14 @@ Preferred communication style: Simple, everyday language.
 - **Système Unifié**: MovementSystem centralisé gérant planification et exécution
 - **Validation Terrain**: Vérification automatique des cases traversables et coûts variables
 
+### Élimination Complète de VisionSystem.worldToHex (Janvier 25, 2025)
+- **Stockage Dual**: avatarPosition (monde) + avatarHexPosition (hex) pour éviter conversions défaillantes
+- **Architecture Simplifiée**: Plus de conversion monde→hex, coordonnées hex stockées directement
+- **Performance Optimisée**: Élimination de calculs de conversion répétitifs dans updateVision()
+- **Compatibilité Maintenue**: Rendu 3D utilise avatarPosition, logique de jeu utilise avatarHexPosition
+- **Migration Réussie**: Tous les systèmes (movement, vision, exploration) fonctionnent parfaitement
+- **VisionSystem.worldToHex DEPRECATED**: Fonction marquée obsolète, remplacée par accès direct au store
+
 ### Migration et Optimisations Avancées (Janvier 20, 2025)
 - **Migration Replit Agent → Replit**: Migration réussie avec compatibilité complète
 - **Optimisation des Types**: Nouvelles interfaces précises (Ressource, Tuile, ÉtatJeu, Joueur, Faction)

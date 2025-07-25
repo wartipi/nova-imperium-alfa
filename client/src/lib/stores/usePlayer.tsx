@@ -19,7 +19,8 @@ interface Avatar {
   competencePoints: number;
   actionPoints: number;
   maxActionPoints: number;
-  position: { x: number; y: number; z: number };
+  position: { x: number; y: number; z: number }; // Coordonnées monde pour rendu 3D
+  hexPosition: { x: number; y: number }; // Coordonnées hex pour logique de jeu
   currentVision: Set<string>;
   exploredHexes: Set<string>;
   resourcesDiscovered: Set<string>; // Ressources découvertes par action "Explorer la Zone"
@@ -44,7 +45,8 @@ interface PlayerState {
   actionPoints: number;
   maxActionPoints: number;
   // Avatar position and movement
-  avatarPosition: { x: number; y: number; z: number };
+  avatarPosition: { x: number; y: number; z: number }; // Coordonnées monde pour le rendu 3D
+  avatarHexPosition: { x: number; y: number }; // Coordonnées hex pour la logique de jeu
   avatarRotation: { x: number; y: number; z: number };
   isMoving: boolean;
   movementSpeed: number;
@@ -118,7 +120,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
   const initialAvatar: Avatar = {
     id: 'avatar_1',
     name: 'Avatar Principal',
-    character: { id: 'knight', name: 'Chevalier', image: '🛡️' },
+    character: { id: 'knight', name: 'Chevalier', image: '🛡️', description: 'Un noble chevalier' },
     level: 1,
     experience: 0,
     totalExperience: 0,
@@ -127,6 +129,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
     actionPoints: 25,
     maxActionPoints: 100,
     position: { x: 3 * 1.5, y: 0, z: 3 * Math.sqrt(3) * 0.5 },
+    hexPosition: { x: 3, y: 3 },
     currentVision: new Set(),
     exploredHexes: new Set(),
     resourcesDiscovered: new Set()
@@ -136,7 +139,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
     // Système d'avatars multiples
     avatars: [initialAvatar],
     currentAvatarId: 'avatar_1',
-    selectedCharacter: { id: 'knight', name: 'Chevalier', image: '🛡️' },
+    selectedCharacter: { id: 'knight', name: 'Chevalier', image: '🛡️', description: 'Un noble chevalier' },
     playerName: "Joueur",
   
   // Système de niveau - commence au niveau 1
@@ -150,6 +153,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
   actionPoints: 25,
   maxActionPoints: 100,
   avatarPosition: { x: 3 * 1.5, y: 0, z: 3 * Math.sqrt(3) * 0.5 },
+  avatarHexPosition: { x: 3, y: 3 },
   avatarRotation: { x: 0, y: 0, z: 0 },
   isMoving: false,
   movementSpeed: 2,
@@ -211,7 +215,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
       if (competence === 'exploration') {
         setTimeout(() => {
           const newState = get();
-          const avatarHex = VisionSystem.worldToHex(newState.avatarPosition.x, newState.avatarPosition.z);
+          const avatarHex = newState.avatarHexPosition;
           const newExplorationLevel = newState.getCompetenceLevel('exploration');
           
           // Force immediate vision update with new level
@@ -265,7 +269,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
   hasCompetenceLevel: (competence, level) => {
     const state = get();
     const existingCompetence = state.competences.find(c => c.competence === competence);
-    return existingCompetence && existingCompetence.level >= level;
+    return existingCompetence ? existingCompetence.level >= level : false;
   },
 
   // Action Points methods
@@ -290,16 +294,17 @@ export const usePlayer = create<PlayerState>((set, get) => {
   },
 
   // Avatar movement methods
-  setAvatarPosition: (position) => set({ avatarPosition: position }),
+  setAvatarPosition: (position) => {
+    // Note: Pour une coordination complète, utilisez moveAvatarToHex() qui met à jour les deux positions
+    set({ avatarPosition: position });
+  },
   setAvatarRotation: (rotation) => set({ avatarRotation: rotation }),
   setIsMoving: (isMoving) => set({ isMoving }),
   
   getAvatarPosition: () => {
     const state = get();
-    // Convertir les coordonnées monde en coordonnées hex
-    const hexCoords = VisionSystem.worldToHex(state.avatarPosition.x, state.avatarPosition.z);
-    console.log('🎯 Position avatar - Monde:', state.avatarPosition, 'Hex:', hexCoords);
-    return hexCoords;
+    console.log('🎯 Position avatar - Monde:', state.avatarPosition, 'Hex:', state.avatarHexPosition);
+    return state.avatarHexPosition;
   },
 
   moveAvatarToHex: (hexX, hexY) => {
@@ -308,6 +313,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
     
     set({ 
       avatarPosition: { x: worldCoords.x, y: 0, z: worldCoords.z },
+      avatarHexPosition: { x: hexX, y: hexY },
       avatarRotation: { x: 0, y: 0, z: 0 },
       isMoving: false
     });
@@ -325,7 +331,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
 
   updateVision: () => {
     const state = get();
-    const avatarHex = VisionSystem.worldToHex(state.avatarPosition.x, state.avatarPosition.z);
+    const avatarHex = state.avatarHexPosition;
     const explorationLevel = state.getCompetenceLevel('exploration');
     
     // Calculate current vision
@@ -379,7 +385,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
 
   exploreCurrentLocation: () => {
     const state = get();
-    const avatarHex = VisionSystem.worldToHex(state.avatarPosition.x, state.avatarPosition.z);
+    const avatarHex = state.avatarHexPosition;
     const avatar = state.getCurrentAvatar();
     
     if (!avatar) return false;
@@ -520,6 +526,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
       actionPoints: 25,
       maxActionPoints: 100,
       position: { x: landHex.x * 1.5, y: 0, z: landHex.y * Math.sqrt(3) * 0.5 },
+      hexPosition: { x: landHex.x, y: landHex.y },
       currentVision: new Set(),
       exploredHexes: new Set(),
       resourcesDiscovered: new Set()
@@ -544,6 +551,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
         actionPoints: avatar.actionPoints,
         maxActionPoints: avatar.maxActionPoints,
         avatarPosition: avatar.position,
+        avatarHexPosition: avatar.hexPosition,
         currentVision: avatar.currentVision,
         exploredHexes: avatar.exploredHexes,
         resourcesDiscovered: avatar.resourcesDiscovered
