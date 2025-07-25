@@ -16,6 +16,8 @@ Preferred communication style: Simple, everyday language.
 
 **Important:** Always ask for confirmation before making deletions or significant modifications. Provide detailed explanations of planned changes to avoid unnecessary costs.
 
+**Development Process:** Always ask the user for confirmation before implementing any solution or code change. Present the proposed approach first and wait for approval before proceeding with the implementation.
+
 ## Recent Changes
 
 ### Suppression du Système de Génération Automatique d'Objets (Janvier 20, 2025)
