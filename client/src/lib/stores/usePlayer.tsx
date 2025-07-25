@@ -72,6 +72,9 @@ interface PlayerState {
   getCompetenceLevel: (competence: string) => number;
   hasCompetenceLevel: (competence: string, level: number) => boolean;
   
+  // Propriété calculée pour le niveau d'exploration
+  explorationLevel: number;
+  
   // Action Points methods
   spendActionPoints: (amount: number) => boolean;
   
@@ -304,7 +307,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
   getAvatarPosition: () => {
     const state = get();
     console.log('🎯 Position avatar - Monde:', state.avatarPosition, 'Hex:', state.avatarHexPosition);
-    return state.avatarHexPosition;
+    return { ...state.avatarHexPosition, z: 0 };
   },
 
   moveAvatarToHex: (hexX, hexY) => {
@@ -705,6 +708,11 @@ export const usePlayer = create<PlayerState>((set, get) => {
     });
 
     console.log('🎯 Mode MJ: Toutes les compétences ont été données au niveau maximum');
+  },
+
+  // Propriété calculée pour le niveau d'exploration
+  get explorationLevel() {
+    return get().getCompetenceLevel('exploration');
   }
   };
 });
