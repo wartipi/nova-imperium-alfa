@@ -6,6 +6,33 @@ import { useGameState } from "../../lib/stores/useGameState";
 import { HexTile, City, Unit } from "../../lib/game/types";
 import { ResourceRevealSystem } from "../../lib/systems/ResourceRevealSystem";
 import { UnifiedTerritorySystem } from "../../lib/systems/UnifiedTerritorySystem";
+import { HexPathfinding } from "../../lib/pathfinding/HexPathfinding";
+import { HexMath } from "../../lib/systems/HexMath";
+
+// Fonction pour obtenir les informations de coût de déplacement
+function getMovementCostInfo(terrain: string) {
+  const terrainCosts = {
+    'fertile_land': { cost: 1, name: 'Terres fertiles', color: '#10B981', difficulty: 'Facile' },
+    'forest': { cost: 2, name: 'Forêt', color: '#059669', difficulty: 'Modéré' },
+    'hills': { cost: 2, name: 'Collines', color: '#7C3AED', difficulty: 'Modéré' },
+    'mountains': { cost: 5, name: 'Montagnes', color: '#9333EA', difficulty: 'Difficile' },
+    'desert': { cost: 3, name: 'Désert', color: '#F59E0B', difficulty: 'Modéré' },
+    'swamp': { cost: 4, name: 'Marécages', color: '#059669', difficulty: 'Difficile' },
+    'wasteland': { cost: 2, name: 'Terres désolées', color: '#6B7280', difficulty: 'Modéré' },
+    'caves': { cost: 3, name: 'Grottes', color: '#374151', difficulty: 'Modéré' },
+    'volcano': { cost: 8, name: 'Volcan', color: '#DC2626', difficulty: 'Extrême' },
+    'tundra': { cost: 3, name: 'Toundra', color: '#0EA5E9', difficulty: 'Modéré' },
+    'shallow_water': { cost: 999, name: 'Eau peu profonde', color: '#3B82F6', difficulty: 'Bloqué' },
+    'deep_water': { cost: 999, name: 'Eau profonde', color: '#1D4ED8', difficulty: 'Bloqué' },
+  };
+  
+  return terrainCosts[terrain as keyof typeof terrainCosts] || { 
+    cost: 2, 
+    name: terrain, 
+    color: '#6B7280', 
+    difficulty: 'Inconnu' 
+  };
+}
 
 // Fonction pour obtenir le symbole et nom des ressources
 function getResourceInfo(resource: string) {
@@ -147,6 +174,124 @@ function ResourceInfoSection({ selectedHex }: { selectedHex: HexTile }) {
                 : "Cette zone a été explorée - les ressources sont visibles si présentes."
             }
           </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Composant pour les informations de déplacement
+function MovementInfoSection({ selectedHex }: { selectedHex: HexTile }) {
+  const { getAvatarPosition, actionPoints } = usePlayer();
+  const { mapData } = useMap();
+  
+  const avatarPos = getAvatarPosition();
+  const movementInfo = getMovementCostInfo(selectedHex.terrain);
+  
+  // Calculer la distance depuis la position actuelle
+  const distance = HexMath.hexDistance(avatarPos.x, avatarPos.y, selectedHex.x, selectedHex.y);
+  
+  // Calculer le coût total du trajet si possible
+  let totalCost = 0;
+  let pathFound = false;
+  
+  if (distance > 0 && mapData && mapData.length > 0) {
+    try {
+      const pathResult = HexPathfinding.findPath(
+        avatarPos.x,
+        avatarPos.y, 
+        selectedHex.x,
+        selectedHex.y,
+        mapData
+      );
+      if (pathResult.success) {
+        totalCost = pathResult.totalCost;
+        pathFound = true;
+      }
+    } catch (error) {
+      // En cas d'erreur de pathfinding, utiliser une estimation
+      totalCost = distance * movementInfo.cost;
+    }
+  }
+  
+  const isCurrentPosition = distance === 0;
+  const canAfford = totalCost <= actionPoints;
+  
+  return (
+    <div className="bg-green-50 border border-green-700 rounded p-2 mb-3">
+      <div className="text-green-900 font-semibold mb-2">🚶 Déplacement</div>
+      
+      <div className="space-y-2 text-sm">
+        {/* Coût de terrain */}
+        <div className="flex items-center justify-between">
+          <span className="text-green-800">Coût du terrain:</span>
+          <div className="flex items-center gap-2">
+            <span 
+              className={`px-2 py-1 rounded text-xs font-medium text-white`}
+              style={{ backgroundColor: movementInfo.color }}
+            >
+              {movementInfo.cost === 999 ? 'Bloqué' : `${movementInfo.cost} PA`}
+            </span>
+            <span className="text-xs text-gray-600">({movementInfo.difficulty})</span>
+          </div>
+        </div>
+        
+        {/* Distance et coût total */}
+        {isCurrentPosition ? (
+          <div className="text-green-600 text-sm italic font-medium">
+            📍 Position actuelle
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between">
+              <span className="text-green-800">Distance:</span>
+              <span className="font-medium">{distance} hexagone{distance > 1 ? 's' : ''}</span>
+            </div>
+            
+            {pathFound ? (
+              <div className="flex items-center justify-between">
+                <span className="text-green-800">Coût total trajet:</span>
+                <div className="flex items-center gap-2">
+                  <span className={`font-bold ${canAfford ? 'text-green-700' : 'text-red-600'}`}>
+                    {totalCost} PA
+                  </span>
+                  {!canAfford && (
+                    <span className="text-xs text-red-600">(Insuffisant)</span>
+                  )}
+                </div>
+              </div>
+            ) : movementInfo.cost < 999 && (
+              <div className="flex items-center justify-between">
+                <span className="text-green-800">Coût estimé:</span>
+                <span className="font-medium text-gray-600">~{distance * movementInfo.cost} PA</span>
+              </div>
+            )}
+            
+            {/* Points d'action actuels */}
+            <div className="flex items-center justify-between border-t pt-2">
+              <span className="text-green-800">PA disponibles:</span>
+              <span className="font-bold text-blue-600">{actionPoints} PA</span>
+            </div>
+            
+            {/* Statut de faisabilité */}
+            {movementInfo.cost === 999 ? (
+              <div className="bg-red-100 text-red-800 text-xs p-2 rounded">
+                ❌ Terrain inaccessible
+              </div>
+            ) : !pathFound && distance > 0 ? (
+              <div className="bg-yellow-100 text-yellow-800 text-xs p-2 rounded">
+                ⚠️ Chemin non calculable - terrain bloqué
+              </div>
+            ) : canAfford && distance > 0 ? (
+              <div className="bg-green-100 text-green-800 text-xs p-2 rounded">
+                ✅ Déplacement possible
+              </div>
+            ) : distance > 0 ? (
+              <div className="bg-red-100 text-red-800 text-xs p-2 rounded">
+                ❌ Points d'action insuffisants
+              </div>
+            ) : null}
+          </>
         )}
       </div>
     </div>
@@ -370,6 +515,9 @@ export function TileInfoPanel() {
 
       {/* Territory Information */}
       <TerritoryInfoSection selectedHex={selectedHex} />
+
+      {/* Movement Information */}
+      <MovementInfoSection selectedHex={selectedHex} />
 
       {/* Terrain Information */}
       <div className="bg-amber-50 border border-amber-700 rounded p-2 mb-3">
