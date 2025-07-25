@@ -54,6 +54,14 @@ Preferred communication style: Simple, everyday language.
 - **Mécaniques Différenciées**: Exploration niveau 1 = ressources de base uniquement, niveau 3+ = ressources magiques incluses
 - **Correction Vision Hexagonale**: Algorithme de distance hexagonale pour cercles parfaits de rayon 3
 
+### Système de Pathfinding et Déplacement Avancé (Janvier 25, 2025)
+- **Pathfinding A* Hexagonal**: Algorithme de recherche de chemin optimal avec gestion des terrains
+- **Animation Progressive**: Déplacement case par case avec décompte de PA pour chaque étape
+- **Calcul Coût Total**: Prévisualisation du trajet complet et coût avant confirmation
+- **Modal Enrichi**: Affichage du chemin calculé, distance et étapes intermédiaires
+- **Système Unifié**: MovementSystem centralisé gérant planification et exécution
+- **Validation Terrain**: Vérification automatique des cases traversables et coûts variables
+
 ### Migration et Optimisations Avancées (Janvier 20, 2025)
 - **Migration Replit Agent → Replit**: Migration réussie avec compatibilité complète
 - **Optimisation des Types**: Nouvelles interfaces précises (Ressource, Tuile, ÉtatJeu, Joueur, Faction)

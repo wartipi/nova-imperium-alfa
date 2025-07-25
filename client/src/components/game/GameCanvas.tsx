@@ -11,6 +11,7 @@ import { getTerrainMovementCost } from "../../lib/game/TerrainCosts";
 import { CameraControls } from "./CameraControls";
 import { CityManagementPanel } from "./CityManagementPanel";
 import { UnifiedTerritorySystem } from "../../lib/systems/UnifiedTerritorySystem";
+import { MovementSystem } from "../../lib/movement/MovementSystem";
 
 export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -216,33 +217,47 @@ export function GameCanvas() {
     return !waterTerrains.includes(terrain);
   };
 
-  const handleMovementConfirm = () => {
+  const handleMovementConfirm = async () => {
     if (pendingMovement && mapData) {
-      const { spendActionPoints } = usePlayer.getState();
+      // Vérifier si un déplacement est déjà en cours
+      if (MovementSystem.isMoving()) {
+        alert('Un déplacement est déjà en cours !');
+        return;
+      }
+
       const targetTile = mapData[pendingMovement.y] && mapData[pendingMovement.y][pendingMovement.x];
       
       if (targetTile) {
-        const movementCost = getTerrainMovementCost(targetTile.terrain as any);
-        
         // Prevent movement to water terrain
         if (targetTile.terrain === 'shallow_water' || targetTile.terrain === 'deep_water') {
           alert('Impossible de se déplacer sur l\'eau sans navire !');
           setPendingMovement(null);
           return;
         }
-        
-        if (movementCost < 999 && spendActionPoints(movementCost)) {
-          moveAvatarToHex(pendingMovement.x, pendingMovement.y);
-          setPendingMovement(null);
-          console.log('Movement confirmed:', { 
-            to: pendingMovement, 
-            terrain: targetTile.terrain, 
-            cost: movementCost 
+
+        try {
+          // Utiliser le nouveau système de pathfinding
+          const result = await MovementSystem.planAndExecuteMovement({
+            targetX: pendingMovement.x,
+            targetY: pendingMovement.y,
+            mapData: mapData
           });
-        } else {
-          alert(`Pas assez de Points d'Action ! Coût: ${movementCost} PA`);
-          setPendingMovement(null);
+
+          if (result.success) {
+            console.log('✅ Movement completed:', {
+              path: result.path,
+              totalCost: result.totalCost,
+              message: result.message
+            });
+          } else {
+            alert(result.message);
+          }
+        } catch (error) {
+          console.error('❌ Movement error:', error);
+          alert('Erreur lors du déplacement');
         }
+
+        setPendingMovement(null);
       }
     }
   };
