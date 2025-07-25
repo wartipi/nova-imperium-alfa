@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useMap } from "../../lib/stores/useMap";
 import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { usePlayer } from "../../lib/stores/usePlayer";
@@ -182,11 +182,24 @@ function ResourceInfoSection({ selectedHex }: { selectedHex: HexTile }) {
 
 // Composant pour les informations de déplacement
 function MovementInfoSection({ selectedHex }: { selectedHex: HexTile }) {
-  const { getAvatarPosition, actionPoints } = usePlayer();
+  const player = usePlayer();
+  const { getAvatarPosition, actionPoints } = player;
   const { mapData } = useMap();
   
   const avatarPos = getAvatarPosition();
-  const movementInfo = getMovementCostInfo(selectedHex.terrain);
+  const explorationLevel = player.explorationLevel || 0;
+  const baseCost = getMovementCostInfo(selectedHex.terrain).cost;
+  
+  // Calculer le coût réduit avec exploration
+  const reducedCost = useMemo(() => {
+    if (!mapData) return baseCost;
+    return HexPathfinding.getTerrainCost(selectedHex.x, selectedHex.y, mapData, explorationLevel);
+  }, [selectedHex, mapData, explorationLevel, baseCost]);
+  
+  const movementInfo = {
+    ...getMovementCostInfo(selectedHex.terrain),
+    cost: reducedCost
+  };
   
   // Calculer la distance depuis la position actuelle
   const distance = HexMath.hexDistance(avatarPos.x, avatarPos.y, selectedHex.x, selectedHex.y);
@@ -202,7 +215,8 @@ function MovementInfoSection({ selectedHex }: { selectedHex: HexTile }) {
         avatarPos.y, 
         selectedHex.x,
         selectedHex.y,
-        mapData
+        mapData,
+        explorationLevel
       );
       if (pathResult.success) {
         totalCost = pathResult.totalCost;
@@ -210,7 +224,7 @@ function MovementInfoSection({ selectedHex }: { selectedHex: HexTile }) {
       }
     } catch (error) {
       // En cas d'erreur de pathfinding, utiliser une estimation
-      totalCost = distance * movementInfo.cost;
+      totalCost = distance * reducedCost;
     }
   }
   
@@ -226,12 +240,27 @@ function MovementInfoSection({ selectedHex }: { selectedHex: HexTile }) {
         <div className="flex items-center justify-between">
           <span className="text-green-800">Coût du terrain:</span>
           <div className="flex items-center gap-2">
-            <span 
-              className={`px-2 py-1 rounded text-xs font-medium text-white`}
-              style={{ backgroundColor: movementInfo.color }}
-            >
-              {movementInfo.cost === 999 ? 'Bloqué' : `${movementInfo.cost} PA`}
-            </span>
+            {baseCost !== reducedCost && baseCost < 999 ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 line-through">{baseCost} PA</span>
+                <span 
+                  className="px-2 py-1 rounded text-xs font-medium text-white"
+                  style={{ backgroundColor: '#059669' }}
+                >
+                  {reducedCost} PA
+                </span>
+                <span className="text-xs text-blue-600 font-medium">
+                  (-{baseCost - reducedCost} Exploration Lv.{explorationLevel})
+                </span>
+              </div>
+            ) : (
+              <span 
+                className={`px-2 py-1 rounded text-xs font-medium text-white`}
+                style={{ backgroundColor: movementInfo.color }}
+              >
+                {movementInfo.cost === 999 ? 'Bloqué' : `${movementInfo.cost} PA`}
+              </span>
+            )}
             <span className="text-xs text-gray-600">({movementInfo.difficulty})</span>
           </div>
         </div>

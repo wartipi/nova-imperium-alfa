@@ -48,7 +48,8 @@ export class HexPathfinding {
     startY: number, 
     endX: number, 
     endY: number,
-    mapData: any[][]
+    mapData: any[][],
+    explorationLevel: number = 0
   ): PathfindingResult {
     console.log('🗺️ Pathfinding Debug:', {
       start: { x: startX, y: startY },
@@ -109,8 +110,8 @@ export class HexPathfinding {
           continue;
         }
 
-        // Calculer le coût du terrain
-        const terrainCost = this.getTerrainCost(neighbor.x, neighbor.y, mapData);
+        // Calculer le coût du terrain avec réductions d'exploration
+        const terrainCost = this.getTerrainCost(neighbor.x, neighbor.y, mapData, explorationLevel);
         
         // Terrain bloqué (eau)
         if (terrainCost >= 999) {
@@ -188,30 +189,56 @@ export class HexPathfinding {
   }
 
   /**
-   * Obtient le coût de déplacement pour un terrain
+   * Obtient le coût de déplacement pour un terrain avec réductions d'exploration
    */
-  private static getTerrainCost(x: number, y: number, mapData: any[][]): number {
+  static getTerrainCost(x: number, y: number, mapData: any[][], explorationLevel: number = 0): number {
     if (!this.isValidHex(x, y, mapData)) {
       return 999;
     }
 
     const terrain = mapData[y][x].terrain;
-    const cost = this.TERRAIN_COSTS[terrain] || 2;
+    const baseCost = this.TERRAIN_COSTS[terrain] || 2;
     
+    // Appliquer les réductions d'exploration par type de terrain
+    return this.applyExplorationReduction(baseCost, explorationLevel);
+  }
 
-    
-    return cost;
+  /**
+   * Applique les réductions de coût basées sur le niveau d'exploration
+   */
+  private static applyExplorationReduction(baseCost: number, explorationLevel: number): number {
+    // Pas de réduction pour l'eau (999) ou niveau 0-1
+    if (baseCost >= 999 || explorationLevel <= 1) {
+      return baseCost;
+    }
+
+    // Niveau 2+ : Réduction sur terrains modérés (2-3 PA → 1-2 PA)
+    if (explorationLevel >= 2 && baseCost >= 2 && baseCost <= 3) {
+      return Math.max(1, baseCost - 1);
+    }
+
+    // Niveau 3+ : Réduction sur terrains difficiles (4-5 PA → 3-4 PA)
+    if (explorationLevel >= 3 && baseCost >= 4 && baseCost <= 5) {
+      return Math.max(1, baseCost - 1);
+    }
+
+    // Niveau 4+ : Réduction sur terrains extrêmes (8 PA → 4 PA)
+    if (explorationLevel >= 4 && baseCost >= 8) {
+      return Math.max(1, Math.floor(baseCost / 2));
+    }
+
+    return baseCost;
   }
 
   /**
    * Calcule le coût total d'un chemin donné
    */
-  static calculatePathCost(path: HexCoord[], mapData: any[][]): number {
+  static calculatePathCost(path: HexCoord[], mapData: any[][], explorationLevel: number = 0): number {
     let totalCost = 0;
     
     for (let i = 1; i < path.length; i++) {
       const hex = path[i];
-      totalCost += this.getTerrainCost(hex.x, hex.y, mapData);
+      totalCost += this.getTerrainCost(hex.x, hex.y, mapData, explorationLevel);
     }
     
     return totalCost;

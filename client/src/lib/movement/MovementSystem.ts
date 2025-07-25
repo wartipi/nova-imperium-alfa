@@ -50,13 +50,17 @@ export class MovementSystem {
       currentActionPoints: playerStore.actionPoints
     });
 
-    // Calculer le chemin avec pathfinding
+    // Obtenir le niveau d'exploration du joueur
+    const explorationLevel = playerStore.explorationLevel || 0;
+    
+    // Calculer le chemin avec pathfinding et réductions d'exploration
     const pathResult = HexPathfinding.findPath(
       startHex.x,
       startHex.y,
       request.targetX,
       request.targetY,
-      request.mapData
+      request.mapData,
+      explorationLevel
     );
 
     if (!pathResult.success) {
@@ -115,8 +119,8 @@ export class MovementSystem {
       const currentHex = pathResult.path[i];
       const previousHex = pathResult.path[i - 1];
       
-      // Calculer le coût de cette étape
-      const stepCost = this.getStepCost(currentHex.x, currentHex.y, mapData);
+      // Calculer le coût de cette étape avec réductions d'exploration
+      const stepCost = this.getStepCost(currentHex.x, currentHex.y, mapData, playerStore.explorationLevel || 0);
       
       // Décompter les points d'action pour cette étape
       if (!playerStore.spendActionPoints(stepCost)) {
@@ -150,31 +154,11 @@ export class MovementSystem {
   }
 
   /**
-   * Obtient le coût de déplacement pour un hexagone spécifique
+   * Obtient le coût de déplacement pour un hexagone spécifique avec réductions d'exploration
    */
-  private static getStepCost(x: number, y: number, mapData: any[][]): number {
-    if (y < 0 || y >= mapData.length || x < 0 || x >= mapData[0].length) {
-      return 999;
-    }
-
-    const terrain = mapData[y][x]?.terrain;
-    
-    const terrainCosts: { [key: string]: number } = {
-      'fertile_land': 1,
-      'forest': 2,
-      'hills': 2,
-      'mountains': 5,
-      'desert': 3,
-      'swamp': 4,
-      'wasteland': 2,
-      'caves': 3,
-      'volcano': 8,
-      'tundra': 3,
-      'shallow_water': 999,
-      'deep_water': 999
-    };
-
-    return terrainCosts[terrain] || 2;
+  private static getStepCost(x: number, y: number, mapData: any[][], explorationLevel: number = 0): number {
+    // Utiliser la même logique que HexPathfinding pour la cohérence
+    return HexPathfinding.getTerrainCost(x, y, mapData, explorationLevel);
   }
 
   /**
