@@ -117,65 +117,45 @@ export class HexMath {
 
   /**
    * Obtient les hexagones du rayon 3 (anneau extérieur)
+   * Utilise un algorithme de distance hexagonale pour créer un cercle parfait
    */
   static getRadius3Hexes(centerX: number, centerY: number): HexCoord[] {
-    const isOddColumn = centerX % 2 === 1;
+    const hexes: HexCoord[] = [];
     
-    if (isOddColumn) {
-      // Colonnes impaires (1, 3, 5...) - anneau rayon 3
-      return [
-        // Ligne horizontale haute
-        { x: centerX - 3, y: centerY },
-        { x: centerX + 3, y: centerY },
-        // Ligne horizontale basse  
-        { x: centerX, y: centerY - 3 },
-        { x: centerX, y: centerY + 3 },
-        // Diagonales principales
-        { x: centerX - 2, y: centerY - 1 },
-        { x: centerX + 2, y: centerY - 1 },
-        { x: centerX - 2, y: centerY + 2 },
-        { x: centerX + 2, y: centerY + 2 },
-        // Diagonales secondaires
-        { x: centerX - 1, y: centerY - 2 },
-        { x: centerX + 1, y: centerY - 2 },
-        { x: centerX - 1, y: centerY + 3 },
-        { x: centerX + 1, y: centerY + 3 },
-        // Points externes
-        { x: centerX - 3, y: centerY + 1 },
-        { x: centerX + 3, y: centerY + 1 },
-        { x: centerX - 3, y: centerY - 1 },
-        { x: centerX + 3, y: centerY - 1 },
-        { x: centerX - 2, y: centerY - 2 },
-        { x: centerX + 2, y: centerY - 2 }
-      ];
-    } else {
-      // Colonnes paires (0, 2, 4...) - anneau rayon 3
-      return [
-        // Ligne horizontale haute
-        { x: centerX - 3, y: centerY },
-        { x: centerX + 3, y: centerY },
-        // Ligne horizontale basse
-        { x: centerX, y: centerY - 3 },
-        { x: centerX, y: centerY + 3 },
-        // Diagonales principales
-        { x: centerX - 2, y: centerY + 1 },
-        { x: centerX + 2, y: centerY + 1 },
-        { x: centerX - 2, y: centerY - 2 },
-        { x: centerX + 2, y: centerY - 2 },
-        // Diagonales secondaires
-        { x: centerX - 1, y: centerY + 2 },
-        { x: centerX + 1, y: centerY + 2 },
-        { x: centerX - 1, y: centerY - 3 },
-        { x: centerX + 1, y: centerY - 3 },
-        // Points externes
-        { x: centerX - 3, y: centerY - 1 },
-        { x: centerX + 3, y: centerY - 1 },
-        { x: centerX - 3, y: centerY + 1 },
-        { x: centerX + 3, y: centerY + 1 },
-        { x: centerX - 2, y: centerY + 2 },
-        { x: centerX + 2, y: centerY + 2 }
-      ];
+    // Utiliser la distance hexagonale pour trouver tous les hexagones à exactement 3 cases de distance
+    for (let x = centerX - 3; x <= centerX + 3; x++) {
+      for (let y = centerY - 3; y <= centerY + 3; y++) {
+        const distance = this.hexDistance(centerX, centerY, x, y);
+        if (distance === 3) {
+          hexes.push({ x, y });
+        }
+      }
     }
+    
+    return hexes;
+  }
+
+  /**
+   * Calcule la distance hexagonale entre deux hexagones
+   * Utilise la conversion cube coordinates pour une distance précise
+   */
+  static hexDistance(x1: number, y1: number, x2: number, y2: number): number {
+    // Convertir les coordonnées offset vers cube coordinates
+    const cube1 = this.offsetToCube(x1, y1);
+    const cube2 = this.offsetToCube(x2, y2);
+    
+    // Distance cube = (|dx| + |dy| + |dz|) / 2
+    return (Math.abs(cube1.x - cube2.x) + Math.abs(cube1.y - cube2.y) + Math.abs(cube1.z - cube2.z)) / 2;
+  }
+
+  /**
+   * Convertit les coordonnées offset vers cube coordinates pour calculs précis
+   */
+  private static offsetToCube(col: number, row: number): { x: number, y: number, z: number } {
+    const x = col;
+    const z = row - (col - (col & 1)) / 2;
+    const y = -x - z;
+    return { x, y, z };
   }
 
   /**
