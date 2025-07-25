@@ -65,6 +65,12 @@ export class HexMath {
       hexes.push(...radius2Hexes);
     }
     
+    if (radius >= 3) {
+      // Rayon 3 : ajouter l'anneau extérieur (18 hexagones supplémentaires)
+      const radius3Hexes = this.getRadius3Hexes(centerX, centerY);
+      hexes.push(...radius3Hexes);
+    }
+    
     return hexes;
   }
 
@@ -105,6 +111,69 @@ export class HexMath {
         { x: centerX + 1, y: centerY - 2 }, // Haut-droite-haut
         { x: centerX - 2, y: centerY + 1 }, // Bas-gauche-2
         { x: centerX + 2, y: centerY + 1 }  // Bas-droite-2
+      ];
+    }
+  }
+
+  /**
+   * Obtient les hexagones du rayon 3 (anneau extérieur)
+   */
+  static getRadius3Hexes(centerX: number, centerY: number): HexCoord[] {
+    const isOddColumn = centerX % 2 === 1;
+    
+    if (isOddColumn) {
+      // Colonnes impaires (1, 3, 5...) - anneau rayon 3
+      return [
+        // Ligne horizontale haute
+        { x: centerX - 3, y: centerY },
+        { x: centerX + 3, y: centerY },
+        // Ligne horizontale basse  
+        { x: centerX, y: centerY - 3 },
+        { x: centerX, y: centerY + 3 },
+        // Diagonales principales
+        { x: centerX - 2, y: centerY - 1 },
+        { x: centerX + 2, y: centerY - 1 },
+        { x: centerX - 2, y: centerY + 2 },
+        { x: centerX + 2, y: centerY + 2 },
+        // Diagonales secondaires
+        { x: centerX - 1, y: centerY - 2 },
+        { x: centerX + 1, y: centerY - 2 },
+        { x: centerX - 1, y: centerY + 3 },
+        { x: centerX + 1, y: centerY + 3 },
+        // Points externes
+        { x: centerX - 3, y: centerY + 1 },
+        { x: centerX + 3, y: centerY + 1 },
+        { x: centerX - 3, y: centerY - 1 },
+        { x: centerX + 3, y: centerY - 1 },
+        { x: centerX - 2, y: centerY - 2 },
+        { x: centerX + 2, y: centerY - 2 }
+      ];
+    } else {
+      // Colonnes paires (0, 2, 4...) - anneau rayon 3
+      return [
+        // Ligne horizontale haute
+        { x: centerX - 3, y: centerY },
+        { x: centerX + 3, y: centerY },
+        // Ligne horizontale basse
+        { x: centerX, y: centerY - 3 },
+        { x: centerX, y: centerY + 3 },
+        // Diagonales principales
+        { x: centerX - 2, y: centerY + 1 },
+        { x: centerX + 2, y: centerY + 1 },
+        { x: centerX - 2, y: centerY - 2 },
+        { x: centerX + 2, y: centerY - 2 },
+        // Diagonales secondaires
+        { x: centerX - 1, y: centerY + 2 },
+        { x: centerX + 1, y: centerY + 2 },
+        { x: centerX - 1, y: centerY - 3 },
+        { x: centerX + 1, y: centerY - 3 },
+        // Points externes
+        { x: centerX - 3, y: centerY - 1 },
+        { x: centerX + 3, y: centerY - 1 },
+        { x: centerX - 3, y: centerY + 1 },
+        { x: centerX + 3, y: centerY + 1 },
+        { x: centerX - 2, y: centerY + 2 },
+        { x: centerX + 2, y: centerY + 2 }
       ];
     }
   }
