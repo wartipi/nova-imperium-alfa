@@ -145,8 +145,8 @@ export const usePlayer = create<PlayerState>((set, get) => {
   experienceToNextLevel: 120, // 100 * 1.2^(2-1) = 100 * 1.2 = 120 XP pour niveau 2
   totalExperience: 0,
   
-  competences: [],
-  competencePoints: 3, // Points de départ pour commencer
+  competences: [{ competence: 'exploration', level: 4 }], // Test avec exploration niveau 4
+  competencePoints: 999, // Points pour tests
   actionPoints: 25,
   maxActionPoints: 100,
   avatarPosition: { x: 3 * 1.5, y: 0, z: 3 * Math.sqrt(3) * 0.5 },
