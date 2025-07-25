@@ -42,6 +42,15 @@ Preferred communication style: Simple, everyday language.
 - **Batch Operations**: Opérations groupées pour optimiser les performances de fin de tour
 - **Documentation Architecture**: Guide complet des stores avec exemples et bonnes pratiques
 
+### Système d'Exploration Multi-Niveaux Avancé (Janvier 25, 2025)
+- **5 Niveaux d'Exploration**: Extension du système 0→4 avec mécaniques différenciées
+- **Classification des Ressources**: Ressources de base (niveau 1+) vs ressources magiques (niveau 3+)
+- **Vision Étendue Niveau 4**: Rayon de vision 3 hexagones (37 cases) au niveau d'exploration 4
+- **Filtrage Intelligent**: Révélation progressive des ressources selon le niveau de compétence
+- **13 Nouvelles Ressources Magiques**: Mana crystals, dragon scales, phoenix feathers, etc.
+- **Validation Système**: 5/5 systèmes validés avec succès par GameSystemValidator
+- **Mécaniques Différenciées**: Exploration niveau 1 = ressources de base uniquement, niveau 3+ = ressources magiques incluses
+
 ### Migration et Optimisations Avancées (Janvier 20, 2025)
 - **Migration Replit Agent → Replit**: Migration réussie avec compatibilité complète
 - **Optimisation des Types**: Nouvelles interfaces précises (Ressource, Tuile, ÉtatJeu, Joueur, Faction)

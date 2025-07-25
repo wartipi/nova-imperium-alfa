@@ -606,19 +606,58 @@ export const usePlayer = create<PlayerState>((set, get) => {
     state.spendActionPoints(5);
 
     // Utiliser directement le champ de vision actuel du joueur
-    // Cela inclut automatiquement tous les bonus de niveau d'exploration
+    // avec filtrage des ressources selon le niveau d'exploration
     const newResourcesDiscovered = new Set(state.resourcesDiscovered);
     let resourcesFound = 0;
+    let basicResourcesFound = 0;
+    let magicalResourcesFound = 0;
 
+    // Obtenir les données de carte du jeu pour vérifier les ressources
+    const gameEngine = (window as any).gameEngine;
+    
     state.currentVision.forEach(hexKey => {
       if (!state.resourcesDiscovered.has(hexKey)) {
-        newResourcesDiscovered.add(hexKey);
-        resourcesFound++;
+        const [x, y] = hexKey.split(',').map(Number);
+        const tileData = gameEngine?.getTileAt(x, y);
+        
+        if (tileData && tileData.resource) {
+          // Vérifier directement si la ressource peut être révélée selon le niveau
+          // Ressources de base : révélées niveau 1+
+          // Ressources magiques : révélées niveau 3+
+          const basicResources = ['wheat', 'cattle', 'fish', 'wood', 'stone', 'copper', 'iron', 'coal', 'gold', 'oil', 'uranium', 'silk', 'spices', 'gems', 'ivory'];
+          const magicalResources = ['herbs', 'crystals', 'sacred_stones', 'ancient_artifacts', 'mana_stones', 'enchanted_wood', 'mana_crystals', 'dragon_scales', 'phoenix_feathers', 'arcane_stones', 'elemental_essence', 'spirit_stones', 'void_shards'];
+          
+          let canReveal = false;
+          if (basicResources.includes(tileData.resource) && explorationLevel >= 1) {
+            canReveal = true;
+            basicResourcesFound++;
+          } else if (magicalResources.includes(tileData.resource) && explorationLevel >= 3) {
+            canReveal = true;
+            magicalResourcesFound++;
+          }
+          
+          if (canReveal) {
+            newResourcesDiscovered.add(hexKey);
+            resourcesFound++;
+          }
+        } else {
+          // Pas de ressource sur cette case, marquer comme explorée quand même
+          newResourcesDiscovered.add(hexKey);
+          resourcesFound++;
+        }
       }
     });
 
     // Mettre à jour l'état
     set({ resourcesDiscovered: newResourcesDiscovered });
+
+    // Log des résultats selon le niveau
+    if (explorationLevel >= 3 && magicalResourcesFound > 0) {
+      console.log(`🔮 Exploration niveau ${explorationLevel}: ${magicalResourcesFound} ressources magiques découvertes !`);
+    }
+    if (basicResourcesFound > 0) {
+      console.log(`⚒️ Exploration niveau ${explorationLevel}: ${basicResourcesFound} ressources de base découvertes`);
+    }
 
     // Gagner de l'expérience proportionnelle au nombre d'hexagones explorés
     const xpGained = Math.max(5, Math.floor(state.currentVision.size / 2));

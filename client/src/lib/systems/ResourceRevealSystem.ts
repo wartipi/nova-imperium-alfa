@@ -37,13 +37,22 @@ export class ResourceRevealSystem {
     gems: { type: 'gems', rarity: 'rare', symbol: '💎', color: '#00CED1', revealLevel: 1 },
     ivory: { type: 'ivory', rarity: 'rare', symbol: '🦴', color: '#FFF8DC', revealLevel: 1 },
     
-    // Ressources magiques (révélées niveau 1, mais plus rares)
-    herbs: { type: 'herbs', rarity: 'magical', symbol: '🌿', color: '#32CD32', revealLevel: 1 },
-    crystals: { type: 'crystals', rarity: 'magical', symbol: '💠', color: '#9370DB', revealLevel: 1 },
-    sacred_stones: { type: 'sacred_stones', rarity: 'magical', symbol: '🔮', color: '#8A2BE2', revealLevel: 1 },
-    ancient_artifacts: { type: 'ancient_artifacts', rarity: 'magical', symbol: '📿', color: '#DAA520', revealLevel: 1 },
-    mana_stones: { type: 'mana_stones', rarity: 'magical', symbol: '✨', color: '#4169E1', revealLevel: 1 },
-    enchanted_wood: { type: 'enchanted_wood', rarity: 'magical', symbol: '🌳', color: '#228B22', revealLevel: 1 }
+    // Ressources magiques (révélées niveau 3+ seulement)
+    herbs: { type: 'herbs', rarity: 'magical', symbol: '🌿', color: '#32CD32', revealLevel: 3 },
+    crystals: { type: 'crystals', rarity: 'magical', symbol: '💠', color: '#9370DB', revealLevel: 3 },
+    sacred_stones: { type: 'sacred_stones', rarity: 'magical', symbol: '🔮', color: '#8A2BE2', revealLevel: 3 },
+    ancient_artifacts: { type: 'ancient_artifacts', rarity: 'magical', symbol: '📿', color: '#DAA520', revealLevel: 3 },
+    mana_stones: { type: 'mana_stones', rarity: 'magical', symbol: '✨', color: '#4169E1', revealLevel: 3 },
+    enchanted_wood: { type: 'enchanted_wood', rarity: 'magical', symbol: '🌳', color: '#228B22', revealLevel: 3 },
+    
+    // Nouvelles ressources magiques avancées (niveau 3+)
+    mana_crystals: { type: 'mana_crystals', rarity: 'magical', symbol: '🔵', color: '#0066FF', revealLevel: 3 },
+    dragon_scales: { type: 'dragon_scales', rarity: 'magical', symbol: '🐲', color: '#FF4500', revealLevel: 3 },
+    phoenix_feathers: { type: 'phoenix_feathers', rarity: 'magical', symbol: '🔥', color: '#FF6600', revealLevel: 3 },
+    arcane_stones: { type: 'arcane_stones', rarity: 'magical', symbol: '⚡', color: '#9932CC', revealLevel: 3 },
+    elemental_essence: { type: 'elemental_essence', rarity: 'magical', symbol: '🌀', color: '#00FFFF', revealLevel: 3 },
+    spirit_stones: { type: 'spirit_stones', rarity: 'magical', symbol: '👻', color: '#E6E6FA', revealLevel: 3 },
+    void_shards: { type: 'void_shards', rarity: 'magical', symbol: '🕳️', color: '#2F2F2F', revealLevel: 3 }
   };
 
   /**
@@ -70,9 +79,10 @@ export class ResourceRevealSystem {
     // Les ressources ne sont visibles que si :
     // 1. Le joueur a la compétence exploration niveau 1+
     // 2. Cette case a été explorée avec l'action "Explorer la Zone"
+    // 3. Le niveau d'exploration permet de voir ce type de ressource
     if (hex.resource && explorationLevel >= 1 && isResourceDiscovered) {
       const resourceInfo = this.getResourceDisplayInfo(hex.resource);
-      if (resourceInfo) {
+      if (resourceInfo && this.canRevealResource(hex.resource, explorationLevel)) {
         visibleResources.push(resourceInfo);
       }
     }

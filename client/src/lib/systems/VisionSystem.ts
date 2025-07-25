@@ -24,11 +24,16 @@ export interface VisionState {
 export class VisionSystem {
   /**
    * Calcule la portée de vision basée sur le niveau d'exploration
+   * Niveau 0: 1 rayon (7 cases) - vision de base
+   * Niveau 1: 1 rayon (7 cases) - révèle ressources de base
+   * Niveau 2: 2 rayon (19 cases) 
+   * Niveau 3: 2 rayon (19 cases) - révèle ressources magiques
+   * Niveau 4: 3 rayon (37 cases) - vision étendue
    */
   static getVisionRange(explorationLevel: number): number {
+    if (explorationLevel >= 4) return 3; // 37 hexagones - vision étendue
     if (explorationLevel >= 2) return 2; // 19 hexagones
-    if (explorationLevel >= 1) return 1; // 7 hexagones
-    return 1; // Vision de base = 7 hexagones
+    return 1; // 7 hexagones - vision de base et niveau 1
   }
 
   /**

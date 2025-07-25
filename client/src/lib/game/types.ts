@@ -60,12 +60,15 @@ export type ImprovementType =
   | 'quarry';
 
 export type ResourceType = 
-  // Basic Resources
+  // Basic Resources (révélées niveau 1+)
   | 'wheat' | 'cattle' | 'fish' | 'stone' | 'copper' | 'iron' | 'gold' | 'wood'
-  // Strategic Resources  
+  // Strategic Resources (révélées niveau 1+)
   | 'oil' | 'coal' | 'uranium' | 'silk' | 'spices' | 'gems' | 'ivory'
-  // Magical Resources (Nova Imperium specific)
-  | 'herbs' | 'crystals' | 'sacred_stones' | 'ancient_artifacts' | 'mana_stones' | 'enchanted_wood';
+  // Magical Resources (révélées niveau 3+)
+  | 'herbs' | 'crystals' | 'sacred_stones' | 'ancient_artifacts' | 'mana_stones' | 'enchanted_wood'
+  // Advanced Magical Resources (révélées niveau 3+)
+  | 'mana_crystals' | 'dragon_scales' | 'phoenix_feathers' | 'arcane_stones' 
+  | 'elemental_essence' | 'spirit_stones' | 'void_shards';
 
 export interface Resources {
   food: number;
