@@ -50,6 +50,13 @@ export class HexPathfinding {
     endY: number,
     mapData: any[][]
   ): PathfindingResult {
+    console.log('🗺️ Pathfinding Debug:', {
+      start: { x: startX, y: startY },
+      end: { x: endX, y: endY },
+      mapSize: mapData ? [mapData.length, mapData[0]?.length] : 'null',
+      startTerrain: this.isValidHex(startX, startY, mapData) ? mapData[startY][startX].terrain : 'invalid',
+      endTerrain: this.isValidHex(endX, endY, mapData) ? mapData[endY][endX].terrain : 'invalid'
+    });
     const openSet: PathNode[] = [];
     const closedSet: Set<string> = new Set();
 
@@ -171,9 +178,13 @@ export class HexPathfinding {
    * Vérifie si un hexagone est valide sur la carte
    */
   private static isValidHex(x: number, y: number, mapData: any[][]): boolean {
-    return y >= 0 && y < mapData.length && 
+    const isValid = y >= 0 && y < mapData.length && 
            x >= 0 && x < mapData[0].length &&
            mapData[y] && mapData[y][x];
+    
+
+    
+    return isValid;
   }
 
   /**
@@ -185,7 +196,11 @@ export class HexPathfinding {
     }
 
     const terrain = mapData[y][x].terrain;
-    return this.TERRAIN_COSTS[terrain] || 2;
+    const cost = this.TERRAIN_COSTS[terrain] || 2;
+    
+
+    
+    return cost;
   }
 
   /**
