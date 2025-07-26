@@ -16,7 +16,7 @@ import { useBuildings } from '../lib/stores/useBuildings';
 // Types des effets de tour
 export interface TurnEffect {
   id: string;
-  type: 'resource_production' | 'building_production' | 'unit_maintenance' | 'random_event' | 'faction_event' | 'exploration_reveal' | 'diplomacy_update';
+  type: 'resource_production' | 'building_production' | 'unit_maintenance' | 'random_event' | 'faction_event' | 'exploration_reveal' | 'diplomacy_update' | 'auction_resolution';
   description: string;
   priority: number; // Ordre d'exécution (plus bas = plus prioritaire)
   playerId?: string; // Si l'effet est spécifique à un joueur
@@ -104,6 +104,15 @@ export class TurnEffectsSystem {
       description: 'Révélation de nouvelles zones explorées',
       priority: 6,
       execute: () => this.executeExplorationReveal()
+    });
+
+    // Effet 7: Résolution des enchères du marketplace
+    this.registerEffect({
+      id: 'auction_resolution',
+      type: 'auction_resolution',
+      description: 'Résolution des enchères du marché publique',
+      priority: 7,
+      execute: () => this.executeAuctionResolution()
     });
   }
 
@@ -324,6 +333,63 @@ export class TurnEffectsSystem {
       message: revealedCount > 0 ? `${revealedCount} nouvelles zones révélées` : 'Aucune nouvelle zone révélée',
       data: { revealedCount }
     };
+  }
+
+  private executeAuctionResolution(): TurnEffectResult {
+    const currentTurn = this.gameManager.currentTurn;
+    
+    try {
+      // Appeler l'API pour résoudre les enchères
+      fetch('/api/marketplace/resolve-auctions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ currentTurn })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success && data.results.length > 0) {
+          // Traiter les résultats des enchères
+          data.results.forEach((result: any) => {
+            const { item, result: auctionResult } = result;
+            
+            if (auctionResult === 'sold') {
+              this.gameManager.addGameEvent({
+                type: 'auction_completed',
+                description: `Enchère terminée: ${item.resourceType || item.uniqueItem?.name} vendue à ${item.currentBidder} pour ${item.currentBid} or`,
+                playerId: item.sellerId,
+                data: { item, winner: item.currentBidder, finalPrice: item.currentBid }
+              });
+            } else if (auctionResult === 'extended') {
+              this.gameManager.addGameEvent({
+                type: 'auction_extended',
+                description: `Enchère prolongée: ${item.resourceType || item.uniqueItem?.name} (aucune offre reçue)`,
+                playerId: item.sellerId,
+                data: { item, newEndTurn: item.auctionEndTurn }
+              });
+            }
+          });
+          
+          console.log(`✅ Résolution des enchères: ${data.results.length} enchères traitées`);
+        }
+      })
+      .catch(error => {
+        console.error('❌ Erreur lors de la résolution des enchères:', error);
+      });
+
+      return {
+        success: true,
+        message: 'Résolution des enchères initiée',
+        data: { currentTurn }
+      };
+    } catch (error) {
+      console.error('❌ Erreur lors de la résolution des enchères:', error);
+      return {
+        success: false,
+        message: 'Erreur lors de la résolution des enchères'
+      };
+    }
   }
 
   private handleUnpaidMaintenance(playerId: string, resource: string, cost: number) {

@@ -5,6 +5,7 @@ import { messageService } from "./messageService";
 import { treatyService } from "./treatyService";
 import { exchangeService, UniqueItem } from "./exchangeService";
 import { cartographyService } from "./cartographyService";
+import { marketplaceService } from "./marketplaceService";
 import { loginEndpoint } from "./middleware/auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -626,6 +627,210 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to purchase map" });
+    }
+  });
+
+  // === MARKETPLACE ENDPOINTS (NOUVEAU SYSTÈME COMPLET) ===
+  
+  // Obtenir tous les items actifs du marketplace
+  app.get("/api/marketplace/items", async (req, res) => {
+    try {
+      const items = marketplaceService.getActiveItems();
+      res.json(items);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get marketplace items" });
+    }
+  });
+
+  // Obtenir les items par type
+  app.get("/api/marketplace/items/:type", async (req, res) => {
+    try {
+      const { type } = req.params;
+      if (type !== 'resource' && type !== 'unique_item') {
+        return res.status(400).json({ error: "Invalid item type" });
+      }
+      const items = marketplaceService.getItemsByType(type as 'resource' | 'unique_item');
+      res.json(items);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get items by type" });
+    }
+  });
+
+  // Obtenir les items d'un vendeur
+  app.get("/api/marketplace/seller/:sellerId", async (req, res) => {
+    try {
+      const { sellerId } = req.params;
+      const items = marketplaceService.getItemsBySeller(sellerId);
+      res.json(items);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get seller items" });
+    }
+  });
+
+  // Rechercher des items
+  app.get("/api/marketplace/search", async (req, res) => {
+    try {
+      const { q } = req.query;
+      if (!q || typeof q !== 'string') {
+        return res.status(400).json({ error: "Search query required" });
+      }
+      const items = marketplaceService.searchItems(q);
+      res.json(items);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to search items" });
+    }
+  });
+
+  // Créer une vente directe
+  app.post("/api/marketplace/direct-sale", async (req, res) => {
+    try {
+      const { 
+        sellerId, 
+        sellerName, 
+        itemType, 
+        price, 
+        resourceType, 
+        quantity, 
+        uniqueItemId, 
+        uniqueItem, 
+        description, 
+        tags 
+      } = req.body;
+
+      if (!sellerId || !sellerName || !itemType || !price) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const item = marketplaceService.createDirectSale(
+        sellerId,
+        sellerName,
+        itemType,
+        price,
+        { resourceType, quantity, uniqueItemId, uniqueItem, description, tags }
+      );
+
+      res.json({ success: true, item });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create direct sale" });
+    }
+  });
+
+  // Créer une enchère
+  app.post("/api/marketplace/auction", async (req, res) => {
+    try {
+      const { 
+        sellerId, 
+        sellerName, 
+        itemType, 
+        startingBid, 
+        currentTurn,
+        resourceType, 
+        quantity, 
+        uniqueItemId, 
+        uniqueItem, 
+        description, 
+        tags,
+        minBidIncrement
+      } = req.body;
+
+      if (!sellerId || !sellerName || !itemType || !startingBid || currentTurn === undefined) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const item = marketplaceService.createAuction(
+        sellerId,
+        sellerName,
+        itemType,
+        startingBid,
+        currentTurn,
+        { resourceType, quantity, uniqueItemId, uniqueItem, description, tags, minBidIncrement }
+      );
+
+      res.json({ success: true, item });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create auction" });
+    }
+  });
+
+  // Acheter un item en vente directe
+  app.post("/api/marketplace/purchase/:itemId", async (req, res) => {
+    try {
+      const { itemId } = req.params;
+      const { buyerId, buyerName } = req.body;
+
+      if (!buyerId || !buyerName) {
+        return res.status(400).json({ error: "Buyer information required" });
+      }
+
+      const result = marketplaceService.purchaseDirectSale(itemId, buyerId, buyerName);
+      
+      if (result.success) {
+        res.json(result);
+      } else {
+        res.status(400).json({ error: result.message });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to purchase item" });
+    }
+  });
+
+  // Placer une enchère
+  app.post("/api/marketplace/bid/:itemId", async (req, res) => {
+    try {
+      const { itemId } = req.params;
+      const { playerId, playerName, bidAmount } = req.body;
+
+      if (!playerId || !playerName || !bidAmount) {
+        return res.status(400).json({ error: "Bid information required" });
+      }
+
+      const result = marketplaceService.placeBid(itemId, playerId, playerName, bidAmount);
+      
+      if (result.success) {
+        res.json(result);
+      } else {
+        res.status(400).json({ error: result.message });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to place bid" });
+    }
+  });
+
+  // Supprimer un item (seulement le vendeur)
+  app.delete("/api/marketplace/item/:itemId", async (req, res) => {
+    try {
+      const { itemId } = req.params;
+      const { sellerId } = req.body;
+
+      if (!sellerId) {
+        return res.status(400).json({ error: "Seller ID required" });
+      }
+
+      const success = marketplaceService.removeItem(itemId, sellerId);
+      
+      if (success) {
+        res.json({ success: true, message: "Item removed successfully" });
+      } else {
+        res.status(400).json({ error: "Failed to remove item" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to remove item" });
+    }
+  });
+
+  // Résoudre les enchères (appelé en fin de tour)
+  app.post("/api/marketplace/resolve-auctions", async (req, res) => {
+    try {
+      const { currentTurn } = req.body;
+
+      if (currentTurn === undefined) {
+        return res.status(400).json({ error: "Current turn required" });
+      }
+
+      const results = marketplaceService.resolveAuctions(currentTurn);
+      res.json({ success: true, results });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to resolve auctions" });
     }
   });
 

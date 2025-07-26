@@ -27,7 +27,7 @@ import { ReputationManagementPanel } from "./ReputationManagementPanel";
 
 
 import { PlayerInventory } from "./PlayerInventory";
-import { PublicMarketplace } from "./MapMarketplace";
+import { PublicMarketplace } from "./PublicMarketplace";
 import { useAuth } from "../../lib/auth/AuthContext";
 import { LevelUpNotification, useLevelUpNotification } from "./LevelUpNotification";
 
@@ -424,7 +424,7 @@ export function MedievalHUD() {
                   className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded flex items-center space-x-2 w-full"
                   title="Marché public pour acheter et vendre tout type de ressources et objets"
                 >
-                  <span>🗺️</span>
+                  <span>🏪</span>
                   <span>Marché Publique</span>
                 </button>
               </div>
