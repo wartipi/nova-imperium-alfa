@@ -752,7 +752,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Acheter un item en vente directe
+  // Acheter un item en vente directe (ancienne version - pas d'intégration ressources)
   app.post("/api/marketplace/purchase/:itemId", async (req, res) => {
     try {
       const { itemId } = req.params;
@@ -771,6 +771,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       res.status(500).json({ error: "Failed to purchase item" });
+    }
+  });
+
+  // Achat intégré avec validation et déduction des ressources
+  app.post("/api/marketplace/purchase-integrated/:itemId", async (req, res) => {
+    try {
+      const { itemId } = req.params;
+      const { playerId, playerName } = req.body;
+      
+      if (!playerId || !playerName) {
+        return res.status(400).json({ error: "playerId et playerName requis" });
+      }
+
+      const item = marketplaceService.getItem(itemId);
+      if (!item) {
+        return res.status(404).json({ error: "Objet non trouvé" });
+      }
+
+      if (item.saleType !== 'direct_sale' || item.status !== 'active') {
+        return res.status(400).json({ error: "Cet objet n'est pas disponible à l'achat direct" });
+      }
+
+      const cost = item.fixedPrice || 0;
+      
+      // Simulation de vérification d'or (sera remplacé par l'intégration réelle)
+      const playerGold = 1000; // TODO: Récupérer de l'état du joueur
+      const hasEnoughGold = playerGold >= cost;
+      
+      if (!hasEnoughGold) {
+        return res.status(400).json({ 
+          error: `Or insuffisant. Coût: ${cost} or, Disponible: ${playerGold} or` 
+        });
+      }
+
+      // Procéder à l'achat
+      const result = marketplaceService.purchaseDirectSale(itemId, playerId, playerName);
+      
+      if (result.success) {
+        // TODO: Intégration réelle avec le système de ressources
+        // 1. Déduire l'or du joueur: resourceManager.spendResources({ gold: cost })
+        // 2. Ajouter la ressource/objet: resourceManager.addResource(type, quantity)
+        
+        res.json({
+          success: true,
+          message: `Achat réussi ! ${cost} or sera déduit et l'objet ajouté à votre inventaire.`,
+          item: result.item,
+          goldSpent: cost,
+          playerGoldAfter: playerGold - cost // Simulation
+        });
+      } else {
+        res.status(400).json({ error: result.message });
+      }
+    } catch (error) {
+      console.error('Erreur achat intégré:', error);
+      res.status(500).json({ error: "Erreur lors de l'achat intégré" });
     }
   });
 

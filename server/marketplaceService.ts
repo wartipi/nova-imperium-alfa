@@ -356,6 +356,14 @@ class MarketplaceService {
 
   // === GESTION DES DONNÉES ===
   
+  getAllItems(): MarketplaceItem[] {
+    return Array.from(this.marketItems.values());
+  }
+
+  getItem(itemId: string): MarketplaceItem | undefined {
+    return this.marketItems.get(itemId);
+  }
+
   getActiveItems(): MarketplaceItem[] {
     return Array.from(this.marketItems.values())
       .filter(item => item.status === 'active')

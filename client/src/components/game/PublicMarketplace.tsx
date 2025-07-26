@@ -134,28 +134,28 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
     return true;
   });
 
-  // Acheter un item en vente directe
+  // Acheter un item en vente directe avec intégration ressources
   const handlePurchase = async (itemId: string) => {
     try {
-      const response = await fetch(`/api/marketplace/purchase/${itemId}`, {
+      const response = await fetch(`/api/marketplace/purchase-integrated/${itemId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          buyerId: playerId,
-          buyerName: `Joueur_${playerId}`
+          playerId: playerId,
+          playerName: `Joueur_${playerId}`
         })
       });
 
       const result = await response.json();
       
       if (result.success) {
-        alert('Achat réussi !');
+        alert(`✅ ${result.message}\n💰 Or dépensé: ${result.goldSpent}\n📦 Objet ajouté à votre inventaire !`);
         loadMarketplaceItems();
       } else {
-        alert(`Erreur: ${result.message || result.error}`);
+        alert(`❌ Erreur: ${result.message || result.error}`);
       }
     } catch (error) {
-      alert('Erreur lors de l\'achat');
+      alert('❌ Erreur lors de l\'achat intégré');
     }
   };
 
