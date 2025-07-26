@@ -5,6 +5,7 @@ import { useGameState } from '../../lib/stores/useGameState';
 import { useNovaImperium } from '../../lib/stores/useNovaImperium';
 import { useFactions } from '../../lib/stores/useFactions';
 import { useMap } from '../../lib/stores/useMap';
+import { useCustomAlert } from '../ui/CustomAlert';
 
 interface UnifiedTerritoryPanelProps {
   onClose: () => void;
@@ -20,6 +21,7 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
   const { isGameMaster } = useGameState();
   const { playerFaction } = useFactions();
   const { setSelectedHex } = useMap();
+  const { showAlert, AlertComponent } = useCustomAlert();
   
   const [isLoading, setIsLoading] = useState(false);
   const [territories, setTerritories] = useState<Territory[]>([]);
@@ -41,7 +43,7 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
   }, [isGameMaster]);
 
   // Revendiquer le territoire à la position de l'avatar
-  const handleClaimTerritory = async () => {
+  const handleClaimTerritory = () => {
     if (!isGameMaster && !playerFaction) {
       alert('Vous devez faire partie d\'une faction pour revendiquer un territoire.');
       return;
@@ -81,9 +83,17 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
 
       if (success) {
         if (isGameMaster) {
-          alert(`[MODE MJ] Territoire revendiqué en (${avatarPos.x}, ${avatarPos.y})`);
+          showAlert({
+            title: "Territoire Revendiqué (Mode MJ)",
+            message: `Territoire revendiqué en (${avatarPos.x}, ${avatarPos.y})`,
+            type: "success"
+          });
         } else {
-          alert(`Territoire revendiqué en (${avatarPos.x}, ${avatarPos.y}) pour ${playerFaction?.name}!`);
+          showAlert({
+            title: "Territoire Revendiqué",
+            message: `Territoire revendiqué en (${avatarPos.x}, ${avatarPos.y}) pour ${playerFaction?.name}!`,
+            type: "success"
+          });
         }
         loadTerritories();
       } else {
@@ -92,11 +102,19 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
           const { addActionPoints } = usePlayer.getState();
           addActionPoints(claimCost);
         }
-        alert('Ce territoire est déjà revendiqué par un autre joueur.');
+        showAlert({
+          title: "Revendication Échouée",
+          message: "Ce territoire est déjà revendiqué par un autre joueur.",
+          type: "error"
+        });
       }
     } catch (error) {
       console.error('Erreur lors de la revendication:', error);
-      alert('Erreur lors de la revendication du territoire');
+      showAlert({
+        title: "Erreur",
+        message: "Erreur lors de la revendication du territoire",
+        type: "error"
+      });
     } finally {
       setIsLoading(false);
     }
@@ -174,7 +192,11 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
         }
       }, 100);
     } else {
-      alert('Erreur lors de la fondation de la colonie.');
+      showAlert({
+        title: "Erreur",
+        message: "Erreur lors de la fondation de la colonie.",
+        type: "error"
+      });
     }
   };
 
@@ -203,7 +225,11 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
       );
 
       if (colonySuccess) {
-        alert(`Colonie "${colonyName.trim()}" fondée avec succès!`);
+        showAlert({
+          title: "Colonie Fondée",
+          message: `Colonie "${colonyName.trim()}" fondée avec succès!`,
+          type: "success"
+        });
         setColonyName('');
         setShowColonyModal(false);
         setSelectedTerritory(null);
@@ -217,10 +243,18 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
           }
         }, 100);
       } else {
-        alert('Erreur lors de la création de la ville sur la carte.');
+        showAlert({
+          title: "Erreur",
+          message: "Erreur lors de la création de la ville sur la carte.",
+          type: "error"
+        });
       }
     } else {
-      alert('Impossible de fonder la colonie sur ce territoire.');
+      showAlert({
+        title: "Fondation Impossible",
+        message: "Impossible de fonder la colonie sur ce territoire.",
+        type: "error"
+      });
     }
   };
 

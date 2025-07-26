@@ -120,6 +120,7 @@ export interface Unit {
 export interface City {
   id: string;
   name: string;
+  displayName?: string; // Nom choisi par le joueur (optionnel, utilise name si absent)
   x: number;
   y: number;
   population: number;
@@ -136,6 +137,8 @@ export interface City {
   } | null;
   productionProgress: number;
   workingHexes: { x: number; y: number }[];
+  playerName?: string; // Propriétaire de la ville
+  factionName?: string; // Faction propriétaire
 }
 
 export interface Technology {

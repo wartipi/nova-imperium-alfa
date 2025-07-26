@@ -678,20 +678,23 @@ export class GameEngine {
     this.ctx.lineWidth = 3;
     this.ctx.stroke();
     
-    // Draw colony icon in large size - use simple text if emoji doesn't work
-    this.ctx.fillStyle = '#8B0000';
-    this.ctx.font = 'bold 16px Arial';
+    // Draw house icon instead of "CITY" text
+    this.ctx.fillStyle = '#8B4513';
+    this.ctx.font = 'bold 20px Arial';
     this.ctx.textAlign = 'center';
-    // Fallback to simple text if emoji support is limited
-    this.ctx.fillText('CITY', screenX, screenY + 4);
+    this.ctx.fillText('🏠', screenX, screenY + 6);
     
-    // Draw city name with background
-    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-    this.ctx.fillRect(screenX - 25, screenY - this.hexSize - 5, 50, 12);
-    this.ctx.fillStyle = '#000';
+    // Draw city display name (preferred) or name with background
+    const displayName = city.displayName || city.name;
+    const nameWidth = Math.max(50, displayName.length * 6);
+    
+    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    this.ctx.fillRect(screenX - nameWidth/2, screenY - this.hexSize - 5, nameWidth, 12);
+    
+    this.ctx.fillStyle = '#000000';
     this.ctx.font = 'bold 10px Arial';
     this.ctx.textAlign = 'center';
-    this.ctx.fillText(city.name, screenX, screenY - this.hexSize + 5);
+    this.ctx.fillText(displayName, screenX, screenY - this.hexSize + 4);
   }
 
   private drawUnit(unit: Unit, color: string) {

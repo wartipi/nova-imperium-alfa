@@ -20,6 +20,7 @@ interface NovaImperiumState {
   trainUnit: (cityId: string, unitType: string, cost?: Record<string, number>, recruitmentTime?: number) => void;
   addCity: (city: City) => void;
   foundColony: (x: number, y: number, colonyName: string, playerId: string, playerName: string, factionId: string, factionName: string) => boolean;
+  renameCityDisplayName: (cityId: string, newDisplayName: string) => boolean;
   researchTechnology: (techId: string) => void;
   sendDiplomaticProposal: (targetNIId: string, type: string) => void;
   processTurn: () => void;
@@ -346,7 +347,8 @@ export const useNovaImperium = create<NovaImperiumState>()(
       // Créer la nouvelle colonie
       const newColony = {
         id: `colony_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        name: colonyName,
+        name: `colony_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // ID technique
+        displayName: colonyName, // Nom choisi par le joueur
         x,
         y,
         population: 1,
@@ -358,7 +360,9 @@ export const useNovaImperium = create<NovaImperiumState>()(
         buildings: ["settlement"], // Commencer avec un simple campement
         currentProduction: null,
         productionProgress: 0,
-        workingHexes: []
+        workingHexes: [],
+        playerName,
+        factionName
       };
       
       set((state) => {
@@ -378,6 +382,43 @@ export const useNovaImperium = create<NovaImperiumState>()(
         
         return { 
           novaImperiums: newNovaImperiums,
+          currentNovaImperium: updatedCurrentNI
+        };
+      });
+      
+      return true;
+    },
+
+    renameCityDisplayName: (cityId: string, newDisplayName: string) => {
+      // Validation du nom (3-25 caractères, alphanumériques + espaces)
+      if (!newDisplayName.trim() || newDisplayName.length < 3 || newDisplayName.length > 25) {
+        return false;
+      }
+      
+      const cleanName = newDisplayName.trim().replace(/[^a-zA-Z0-9À-ÿ\s\-']/g, '');
+      if (cleanName !== newDisplayName.trim()) {
+        return false;
+      }
+
+      set(state => {
+        const updatedNIs = state.novaImperiums.map(ni => 
+          ni.id === state.currentNovaImperiumId ? {
+            ...ni,
+            cities: ni.cities.map(city => 
+              city.id === cityId ? {
+                ...city,
+                displayName: cleanName
+              } : city
+            )
+          } : ni
+        );
+        
+        const updatedCurrentNI = updatedNIs.find(ni => ni.id === state.currentNovaImperiumId) || null;
+        
+        console.log(`✅ Ville ${cityId} renommée : "${cleanName}"`);
+        
+        return {
+          novaImperiums: updatedNIs,
           currentNovaImperium: updatedCurrentNI
         };
       });

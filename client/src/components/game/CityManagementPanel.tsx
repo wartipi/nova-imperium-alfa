@@ -4,6 +4,8 @@ import { useGameState } from '../../lib/stores/useGameState';
 import { UnifiedTerritorySystem } from '../../lib/systems/UnifiedTerritorySystem';
 import { ConstructionPanelZustand } from './ConstructionPanelZustand';
 import { RecruitmentPanelZustand } from './RecruitmentPanelZustand';
+import { CityRenameModal } from './CityRenameModal';
+import { useCustomAlert } from '../ui/CustomAlert';
 
 interface CityManagementPanelProps {
   cityId: string;
@@ -14,6 +16,8 @@ export function CityManagementPanel({ cityId, onClose }: CityManagementPanelProp
   const { currentNovaImperium } = useNovaImperium();
   const { isGameMaster } = useGameState();
   const [activeTab, setActiveTab] = useState<'overview' | 'construction' | 'recruitment'>('overview');
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const { AlertComponent } = useCustomAlert();
   
   // MIGRATION FINALISÉE - Nouveaux systèmes Zustand activés définitivement
   const useZustandSystems = true;
@@ -42,7 +46,16 @@ export function CityManagementPanel({ cityId, onClose }: CityManagementPanelProp
       <div className="bg-amber-50 border-4 border-amber-800 rounded-lg w-full max-w-4xl h-full max-h-[90vh] overflow-hidden shadow-2xl">
         {/* En-tête */}
         <div className="bg-amber-700 text-white p-4 flex justify-between items-center">
-          <h2 className="text-xl font-bold">🏘️ Gestion de {city.name}</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-bold">🏘️ Gestion de {city.displayName || city.name}</h2>
+            <button
+              onClick={() => setShowRenameModal(true)}
+              className="text-amber-200 hover:text-white text-sm bg-amber-600 hover:bg-amber-500 px-3 py-1 rounded transition-colors"
+              title="Renommer la ville"
+            >
+              ✏️ Renommer
+            </button>
+          </div>
           <button
             onClick={onClose}
             className="text-white hover:text-amber-200 text-2xl font-bold"
@@ -185,6 +198,26 @@ export function CityManagementPanel({ cityId, onClose }: CityManagementPanelProp
           )}
         </div>
       </div>
+
+      {/* Modal de renommage de ville */}
+      {showRenameModal && (
+        <CityRenameModal
+          city={city}
+          onClose={() => setShowRenameModal(false)}
+          onSuccess={() => {
+            // Rafraîchir l'affichage de la carte
+            setTimeout(() => {
+              const gameEngine = (window as any).gameEngine;
+              if (gameEngine) {
+                gameEngine.render();
+              }
+            }, 100);
+          }}
+        />
+      )}
+
+      {/* Composant d'alerte customisé */}
+      {AlertComponent}
     </div>
   );
 }
