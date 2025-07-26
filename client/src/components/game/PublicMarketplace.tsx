@@ -350,8 +350,20 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-amber-50 border-4 border-amber-800 rounded-lg shadow-2xl w-[95vw] h-[90vh] max-w-6xl flex flex-col">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]" 
+      style={{ zIndex: 9999 }}
+      onClick={(e) => {
+        // Empêcher la fermeture si on clique à l'intérieur de la modal
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div 
+        className="bg-amber-50 border-4 border-amber-800 rounded-lg shadow-2xl w-[95vw] h-[90vh] max-w-6xl flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b-2 border-amber-200">
           <div className="flex items-center gap-3">
@@ -430,7 +442,15 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                   </div>
                 ) : filteredItems.length === 0 ? (
                   <div className="text-center py-8">
-                    <div className="text-gray-600">Aucun objet trouvé</div>
+                    <div className="text-gray-600">
+                      {searchQuery || selectedFilter !== 'all' 
+                        ? 'Aucun objet trouvé avec ces critères'
+                        : 'Le marché est actuellement vide'
+                      }
+                    </div>
+                    <div className="text-sm text-amber-600 mt-2">
+                      Allez dans l'onglet "Vendre" pour créer la première offre !
+                    </div>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -474,7 +494,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
 
       {/* Modal de création de vente */}
       {showSellModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-60">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center" style={{ zIndex: 10000 }}>
           <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold">Créer une vente</h3>

@@ -70,6 +70,17 @@ Preferred communication style: Simple, everyday language.
 - **Pathfinding Unifié**: HexPathfinding.getTerrainCost() intègre les réductions selon niveau d'exploration
 - **Déduction Correcte**: Points d'action maintenant correctement déduits avec les bonnes réductions lors des déplacements réels
 
+### Système de Marché Publique Hybride Complet (Janvier 26, 2025)
+- **Architecture Hybride**: Combinaison vente directe (prix fixe) + enchères (prix variable) dans un même système
+- **Service Backend Complet**: MarketplaceService avec gestion complète des deux types de vente et système de notifications
+- **APIs REST Complètes**: 10 endpoints pour création, achat, enchères, recherche et gestion des objets
+- **Interface Utilisateur Moderne**: PublicMarketplace.tsx avec onglets Acheter/Vendre, recherche, filtres et modals
+- **Enchères par Tours**: Système d'enchères qui se terminent automatiquement en fin de tour via TurnEffectsSystem
+- **Support Multi-Types**: Ressources (wood, stone, iron, etc.) et objets uniques avec métadonnées complètes
+- **Notifications Temps Réel**: Système de notifications pour vendeurs et enchérisseurs avec mise à jour auto
+- **Bouton HUD Intégré**: Accès direct via "🏪 Marché Publique" dans l'interface principale
+- **Tests Validés**: Système testé avec objets de démonstration (bois premium, fer rare, amulette magique)
+
 ### Élimination Complète de VisionSystem.worldToHex (Janvier 25, 2025)
 - **Stockage Dual**: avatarPosition (monde) + avatarHexPosition (hex) pour éviter conversions défaillantes
 - **Architecture Simplifiée**: Plus de conversion monde→hex, coordonnées hex stockées directement
