@@ -79,7 +79,9 @@ Preferred communication style: Simple, everyday language.
 - **Support Multi-Types**: Ressources (wood, stone, iron, etc.) et objets uniques avec métadonnées complètes
 - **Notifications Temps Réel**: Système de notifications pour vendeurs et enchérisseurs avec mise à jour auto
 - **Bouton HUD Intégré**: Accès direct via "🏪 Marché Publique" dans l'interface principale
-- **Tests Validés**: Système testé avec objets de démonstration (bois premium, fer rare, amulette magique)
+- **Intégration Ressources Complète**: Route `/api/marketplace/purchase-integrated` avec déduction d'or et ajout de ressources réels
+- **Accès Direct aux Stores**: Utilisation optimisée de useResources() pour performance maximale (1000+ joueurs)
+- **Plan d'Optimisation Futur**: Migration vers GameProvider planifiée pour améliorer l'architecture long terme
 
 ### Élimination Complète de VisionSystem.worldToHex (Janvier 25, 2025)
 - **Stockage Dual**: avatarPosition (monde) + avatarHexPosition (hex) pour éviter conversions défaillantes

@@ -65,8 +65,8 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'resource' | 'unique_item'>('all');
   const [showSellModal, setShowSellModal] = useState(false);
   
-  // Accès au système de ressources du jeu
-  const { resourceManager } = useGameContext();
+  // Accès direct aux stores pour l'intégration ressources
+  const { resources, addResource, spendResources, hasResources } = useResources();
 
 
 
@@ -151,8 +151,8 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
       const cost = item.fixedPrice || 0;
       
       // Vérifier si on a assez d'or AVANT d'appeler l'API
-      if (!resourceManager.hasResources({ gold: cost })) {
-        const currentGold = resourceManager.resources.gold || 0;
+      if (!hasResources({ gold: cost })) {
+        const currentGold = resources.gold || 0;
         alert(`❌ Or insuffisant !\nCoût: ${cost} or\nDisponible: ${currentGold} or`);
         return;
       }
@@ -171,12 +171,12 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
       
       if (result.success) {
         // INTÉGRATION RÉELLE : Appliquer les changements au jeu immédiatement
-        const goldDeducted = resourceManager.spendResources({ gold: cost });
+        const goldDeducted = spendResources({ gold: cost });
         
         if (goldDeducted) {
           // Ajouter la ressource/objet à l'inventaire
           if (item.itemType === 'resource' && item.resourceType && item.quantity) {
-            resourceManager.addResource(item.resourceType, item.quantity);
+            addResource(item.resourceType as any, item.quantity);
             alert(`✅ Achat réussi !\n💰 ${cost} or déduit\n📦 +${item.quantity} ${item.resourceType} ajouté !`);
           } else {
             // Pour les objets uniques, on pourrait ajouter à un inventaire d'objets
