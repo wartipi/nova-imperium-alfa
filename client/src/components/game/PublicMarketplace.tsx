@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { ShoppingCart, Plus, Gavel, DollarSign, Clock, User, Search, Filter, X } from "lucide-react";
-import { useGameContext } from '../../contexts/GameContext';
+import { useResources } from '../../lib/stores/useResources';
 
 // Types pour le nouveau système de marketplace
 interface MarketplaceItem {
