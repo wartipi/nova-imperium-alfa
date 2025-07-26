@@ -5,6 +5,8 @@ import { useGameState } from '../../lib/stores/useGameState';
 import { UnifiedTerritorySystem } from '../../lib/systems/UnifiedTerritorySystem';
 import { getBuildingCost, canAffordAction } from '../../lib/game/ActionPointsCosts';
 import { Resources } from '../../lib/game/types';
+import { ConstructionPanelZustand } from './ConstructionPanelZustand';
+import { RecruitmentPanelZustand } from './RecruitmentPanelZustand';
 
 interface CityManagementPanelProps {
   cityId: string;
@@ -16,6 +18,9 @@ export function CityManagementPanel({ cityId, onClose }: CityManagementPanelProp
   const { actionPoints, spendActionPoints } = usePlayer();
   const { isGameMaster } = useGameState();
   const [activeTab, setActiveTab] = useState<'overview' | 'construction' | 'recruitment'>('overview');
+  
+  // SWITCH POUR MIGRATION PROGRESSIVE - Option 1: Remplacement Direct
+  const useZustandSystems = true; // À basculer sur false pour revenir à l'ancien système
 
   if (!currentNovaImperium) return null;
 
@@ -231,8 +236,16 @@ export function CityManagementPanel({ cityId, onClose }: CityManagementPanelProp
           <div className="flex space-x-2">
             {[
               { id: 'overview', label: '📊 Vue d\'ensemble', icon: '📊' },
-              { id: 'construction', label: '🏗️ Construction', icon: '🏗️' },
-              { id: 'recruitment', label: '⚔️ Recrutement', icon: '⚔️' }
+              { 
+                id: 'construction', 
+                label: `🏗️ Construction ${useZustandSystems ? '(Nova)' : '(Legacy)'}`, 
+                icon: '🏗️' 
+              },
+              { 
+                id: 'recruitment', 
+                label: `⚔️ Recrutement ${useZustandSystems ? '(Nova)' : '(Legacy)'}`, 
+                icon: '⚔️' 
+              }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -315,123 +328,153 @@ export function CityManagementPanel({ cityId, onClose }: CityManagementPanelProp
 
           {/* Construction */}
           {activeTab === 'construction' && (
-            <div className="space-y-4">
-              <div className="bg-amber-100 border border-amber-400 rounded p-3">
-                <h3 className="font-bold mb-2">🏗️ Bâtiments disponibles</h3>
-                <p className="text-sm text-amber-700 mb-3">
-                  Construisez des bâtiments en fonction des terrains contrôlés par votre ville.
-                </p>
-                {isGameMaster && (
-                  <div className="bg-purple-100 border border-purple-400 rounded p-2 mb-3">
-                    <div className="text-purple-800 text-sm font-semibold">🎯 Mode Maître de Jeu</div>
-                    <div className="text-purple-700 text-xs">Construction instantanée et gratuite</div>
+            useZustandSystems ? (
+              <div className="space-y-4">
+                <div className="bg-blue-100 border border-blue-400 rounded p-3">
+                  <h3 className="font-bold mb-2">🏗️ Nouveau Système de Construction (Zustand)</h3>
+                  <p className="text-sm text-blue-700 mb-1">
+                    Système Nova Imperium avec 18 bâtiments organisés par terrain
+                  </p>
+                  <div className="text-xs text-blue-600">
+                    ✅ Migration progressive activée - Stats collaboratives en cours
                   </div>
-                )}
+                </div>
+                <ConstructionPanelZustand />
               </div>
-
-              <div className="grid gap-4">
-                {availableBuildings.length === 0 ? (
-                  <div className="text-center py-8 text-amber-700">
-                    <div className="text-lg mb-2">🚫 Aucun bâtiment disponible</div>
-                    <div className="text-sm">
-                      Étendez le territoire de votre ville pour débloquer plus de constructions
+            ) : (
+              <div className="space-y-4">
+                <div className="bg-amber-100 border border-amber-400 rounded p-3">
+                  <h3 className="font-bold mb-2">🏗️ Bâtiments disponibles</h3>
+                  <p className="text-sm text-amber-700 mb-3">
+                    Construisez des bâtiments en fonction des terrains contrôlés par votre ville.
+                  </p>
+                  {isGameMaster && (
+                    <div className="bg-purple-100 border border-purple-400 rounded p-2 mb-3">
+                      <div className="text-purple-800 text-sm font-semibold">🎯 Mode Maître de Jeu</div>
+                      <div className="text-purple-700 text-xs">Construction instantanée et gratuite</div>
                     </div>
-                  </div>
-                ) : (
-                  availableBuildings.map(building => (
-                    <div key={building.id} className="bg-white border border-amber-400 rounded p-4">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="text-2xl">{building.icon}</span>
-                            <h4 className="font-bold">{building.name}</h4>
-                            <span className="bg-amber-200 px-2 py-1 rounded text-xs">{building.category}</span>
-                          </div>
-                          <p className="text-sm text-gray-600 mb-2">{building.description}</p>
-                          <div className="text-xs space-y-1">
-                            <div><strong>Coût:</strong> {formatResourceCost(building.cost)}</div>
-                            <div><strong>Points d'Action:</strong> {isGameMaster ? '0 (Mode MJ)' : `${building.actionPointCost} PA`}</div>
-                            <div><strong>Temps:</strong> {building.constructionTime} tours</div>
-                            <div><strong>Terrain requis:</strong> {building.requiredTerrain.map(getTerrainName).join(' ou ')}</div>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handleBuild(building.id)}
-                          disabled={
-                            city.currentProduction !== null || 
-                            city.buildings.includes(building.id as any)
-                          }
-                          className="ml-4 px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {city.buildings.includes(building.id as any) ? 'Construit' : 
-                           city.currentProduction !== null ? 'En construction' : 'Construire'}
-                        </button>
+                  )}
+                </div>
+
+                <div className="grid gap-4">
+                  {availableBuildings.length === 0 ? (
+                    <div className="text-center py-8 text-amber-700">
+                      <div className="text-lg mb-2">🚫 Aucun bâtiment disponible</div>
+                      <div className="text-sm">
+                        Étendez le territoire de votre ville pour débloquer plus de constructions
                       </div>
                     </div>
-                  ))
-                )}
+                  ) : (
+                    availableBuildings.map(building => (
+                      <div key={building.id} className="bg-white border border-amber-400 rounded p-4">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-2xl">{building.icon}</span>
+                              <h4 className="font-bold">{building.name}</h4>
+                              <span className="bg-amber-200 px-2 py-1 rounded text-xs">{building.category}</span>
+                            </div>
+                            <p className="text-sm text-gray-600 mb-2">{building.description}</p>
+                            <div className="text-xs space-y-1">
+                              <div><strong>Coût:</strong> {formatResourceCost(building.cost)}</div>
+                              <div><strong>Points d'Action:</strong> {isGameMaster ? '0 (Mode MJ)' : `${building.actionPointCost} PA`}</div>
+                              <div><strong>Temps:</strong> {building.constructionTime} tours</div>
+                              <div><strong>Terrain requis:</strong> {building.requiredTerrain.map(getTerrainName).join(' ou ')}</div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleBuild(building.id)}
+                            disabled={
+                              city.currentProduction !== null || 
+                              city.buildings.includes(building.id as any)
+                            }
+                            className="ml-4 px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {city.buildings.includes(building.id as any) ? 'Construit' : 
+                             city.currentProduction !== null ? 'En construction' : 'Construire'}
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
-            </div>
+            )
           )}
 
           {/* Recrutement */}
           {activeTab === 'recruitment' && (
-            <div className="space-y-4">
-              <div className="bg-red-100 border border-red-400 rounded p-3">
-                <h3 className="font-bold mb-2">⚔️ Unités disponibles</h3>
-                <p className="text-sm text-red-700 mb-3">
-                  Recrutez des unités pour défendre vos territoires et conquérir de nouvelles terres.
-                </p>
-                {isGameMaster && (
-                  <div className="bg-purple-100 border border-purple-400 rounded p-2 mb-3">
-                    <div className="text-purple-800 text-sm font-semibold">🎯 Mode Maître de Jeu</div>
-                    <div className="text-purple-700 text-xs">Recrutement instantané et gratuit</div>
+            useZustandSystems ? (
+              <div className="space-y-4">
+                <div className="bg-green-100 border border-green-400 rounded p-3">
+                  <h3 className="font-bold mb-2">⚔️ Nouveau Système de Recrutement (Zustand)</h3>
+                  <p className="text-sm text-green-700 mb-1">
+                    Système Nova Imperium avec 15 unités organisées par catégorie
+                  </p>
+                  <div className="text-xs text-green-600">
+                    ✅ Migration progressive activée - Stats collaboratives en cours
                   </div>
-                )}
+                </div>
+                <RecruitmentPanelZustand />
               </div>
-
-              <div className="grid gap-4">
-                {availableUnits.length === 0 ? (
-                  <div className="text-center py-8 text-red-700">
-                    <div className="text-lg mb-2">🚫 Aucune unité disponible</div>
-                    <div className="text-sm">
-                      Construisez une caserne pour débloquer le recrutement
+            ) : (
+              <div className="space-y-4">
+                <div className="bg-red-100 border border-red-400 rounded p-3">
+                  <h3 className="font-bold mb-2">⚔️ Unités disponibles</h3>
+                  <p className="text-sm text-red-700 mb-3">
+                    Recrutez des unités pour défendre vos territoires et conquérir de nouvelles terres.
+                  </p>
+                  {isGameMaster && (
+                    <div className="bg-purple-100 border border-purple-400 rounded p-2 mb-3">
+                      <div className="text-purple-800 text-sm font-semibold">🎯 Mode Maître de Jeu</div>
+                      <div className="text-purple-700 text-xs">Recrutement instantané et gratuit</div>
                     </div>
-                  </div>
-                ) : (
-                  availableUnits.map(unit => (
-                    <div key={unit.id} className="bg-white border border-red-400 rounded p-4">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="text-2xl">{unit.icon}</span>
-                            <h4 className="font-bold">{unit.name}</h4>
-                            <span className="bg-red-200 px-2 py-1 rounded text-xs">{unit.category}</span>
-                          </div>
-                          <p className="text-sm text-gray-600 mb-2">{unit.description}</p>
-                          <div className="grid grid-cols-2 gap-4 text-xs">
-                            <div>
-                              <div><strong>Coût:</strong> {formatResourceCost(unit.cost)}</div>
-                              <div><strong>Points d'Action:</strong> {isGameMaster ? '0 (Mode MJ)' : `${unit.cost.action_points || 0} PA`}</div>
-                            </div>
-                            <div>
-                              <div><strong>Attaque:</strong> {unit.attack} | <strong>Défense:</strong> {unit.defense}</div>
-                              <div><strong>Santé:</strong> {unit.health} | <strong>Mouvement:</strong> {unit.movement}</div>
-                            </div>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handleRecruit(unit.id)}
-                          className="ml-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-                        >
-                          Recruter
-                        </button>
+                  )}
+                </div>
+
+                <div className="grid gap-4">
+                  {availableUnits.length === 0 ? (
+                    <div className="text-center py-8 text-red-700">
+                      <div className="text-lg mb-2">🚫 Aucune unité disponible</div>
+                      <div className="text-sm">
+                        Construisez une caserne pour débloquer le recrutement
                       </div>
                     </div>
-                  ))
-                )}
+                  ) : (
+                    availableUnits.map(unit => (
+                      <div key={unit.id} className="bg-white border border-red-400 rounded p-4">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-2xl">{unit.icon}</span>
+                              <h4 className="font-bold">{unit.name}</h4>
+                              <span className="bg-red-200 px-2 py-1 rounded text-xs">{unit.category}</span>
+                            </div>
+                            <p className="text-sm text-gray-600 mb-2">{unit.description}</p>
+                            <div className="grid grid-cols-2 gap-4 text-xs">
+                              <div>
+                                <div><strong>Coût:</strong> {formatResourceCost(unit.cost)}</div>
+                                <div><strong>Points d'Action:</strong> {isGameMaster ? '0 (Mode MJ)' : `${unit.cost.action_points || 0} PA`}</div>
+                              </div>
+                              <div>
+                                <div><strong>Attaque:</strong> {unit.attack} | <strong>Défense:</strong> {unit.defense}</div>
+                                <div><strong>Santé:</strong> {unit.health} | <strong>Mouvement:</strong> {unit.movement}</div>
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleRecruit(unit.id)}
+                            className="ml-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                          >
+                            Recruter
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
-            </div>
+            )
           )}
         </div>
       </div>
