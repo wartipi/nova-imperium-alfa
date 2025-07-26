@@ -83,6 +83,16 @@ Preferred communication style: Simple, everyday language.
 - **Accès Direct aux Stores**: Utilisation optimisée de useResources() pour performance maximale (1000+ joueurs)
 - **Plan d'Optimisation Futur**: Migration vers GameProvider planifiée pour améliorer l'architecture long terme
 
+### Migration Système de Ressources vers Zustand (Janvier 26, 2025)
+- **Problème Résolu**: Incompatibilité entre TreasuryPanel (useNovaImperium) et marketplace (useResources)
+- **TreasuryPanelZustand.tsx**: Nouvelle trésorerie optimisée utilisant le store Zustand de ressources
+- **Hook de Synchronisation**: useDualResourceSync.tsx pour maintenir cohérence entre systèmes pendant migration
+- **Migration Sécurisée**: Switch conditionnel permettant de basculer entre ancienne/nouvelle trésorerie sans risque
+- **Performance Optimisée**: Zustand choisi pour gestion optimale avec 1000+ joueurs concurrent
+- **Intégration Marketplace**: Marketplace maintenant parfaitement intégré avec système de ressources unifié
+- **Tests Validés**: Achat/vente fonctionnent avec déduction d'or et ajout de ressources automatiques
+- **Architecture Future**: Plan de migration progressive de RecruitmentPanel.tsx et ConstructionPanelSimple.tsx
+
 ### Élimination Complète de VisionSystem.worldToHex (Janvier 25, 2025)
 - **Stockage Dual**: avatarPosition (monde) + avatarHexPosition (hex) pour éviter conversions défaillantes
 - **Architecture Simplifiée**: Plus de conversion monde→hex, coordonnées hex stockées directement

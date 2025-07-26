@@ -9,6 +9,8 @@ import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { MiniMap } from "./MiniMap";
 import { TreasuryPanel } from "./TreasuryPanel";
+import { TreasuryPanelZustand } from "./TreasuryPanelZustand";
+import { useDualResourceSync } from "../../hooks/useDualResourceSync";
 
 import { ActivityReportPanel } from "./ActivityReportPanel";
 import { CouriersPanel } from "./CouriersPanel";
@@ -51,6 +53,12 @@ export function MedievalHUD() {
   const { novaImperiums, currentNovaImperium } = useNovaImperium();
   const { selectedHex } = useMap();
   const { isMuted, toggleMute } = useAudio();
+  
+  // Synchronisation des systèmes de ressources
+  const { isInSync } = useDualResourceSync();
+  
+  // Flag pour tester la nouvelle trésorerie (peut être basculé dynamiquement)
+  const useZustandTreasury = true;
   const { 
     selectedCharacter, 
     playerName, 
@@ -615,7 +623,9 @@ export function MedievalHUD() {
             </div>
             
             <div className="text-amber-800">
-              {activeSection === 'treasury' && <TreasuryPanel />}
+              {activeSection === 'treasury' && (
+                useZustandTreasury ? <TreasuryPanelZustand /> : <TreasuryPanel />
+              )}
               {activeSection === 'activities' && <ActivityReportPanel />}
               {activeSection === 'courier' && <CouriersPanel />}
               {activeSection === 'treaties' && <TreatiesPanel />}
