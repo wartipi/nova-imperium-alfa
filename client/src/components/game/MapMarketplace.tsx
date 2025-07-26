@@ -35,7 +35,7 @@ interface MapMarketplaceProps {
   onClose: () => void;
 }
 
-export function MapMarketplace({ playerId, onClose }: MapMarketplaceProps) {
+export function PublicMarketplace({ playerId, onClose }: MapMarketplaceProps) {
   const [marketOffers, setMarketOffers] = useState<MarketOffer[]>([]);
   const [playerMaps, setPlayerMaps] = useState<UniqueItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -157,7 +157,7 @@ export function MapMarketplace({ playerId, onClose }: MapMarketplaceProps) {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <ShoppingCart className="w-6 h-6 text-amber-800" />
-              <h2 className="text-2xl font-bold text-amber-900">Marché des Cartes</h2>
+              <h2 className="text-2xl font-bold text-amber-900">Marché Publique</h2>
             </div>
             <button
               onClick={onClose}

@@ -27,7 +27,7 @@ import { ReputationManagementPanel } from "./ReputationManagementPanel";
 
 
 import { PlayerInventory } from "./PlayerInventory";
-import { MapMarketplace } from "./MapMarketplace";
+import { PublicMarketplace } from "./MapMarketplace";
 import { useAuth } from "../../lib/auth/AuthContext";
 import { LevelUpNotification, useLevelUpNotification } from "./LevelUpNotification";
 
@@ -422,10 +422,10 @@ export function MedievalHUD() {
                     setShowMapMarketplace(true);
                   }}
                   className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded flex items-center space-x-2 w-full"
-                  title="Marché public pour acheter et vendre des cartes"
+                  title="Marché public pour acheter et vendre tout type de ressources et objets"
                 >
                   <span>🗺️</span>
-                  <span>Marché des Cartes</span>
+                  <span>Marché Publique</span>
                 </button>
               </div>
 
@@ -805,7 +805,7 @@ export function MedievalHUD() {
 
       {/* Map Marketplace */}
       {showMapMarketplace && (
-        <MapMarketplace 
+        <PublicMarketplace 
           playerId="player" 
           onClose={() => setShowMapMarketplace(false)} 
         />
