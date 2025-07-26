@@ -756,7 +756,7 @@ export class GameEngine {
     const avatarSprite = this.createAvatarSprite();
     
     // Draw avatar with proper scaling
-    const spriteSize = 48; // Increased size for better visibility
+    const spriteSize = 32; // Taille réduite pour un affichage plus discret
     this.ctx.save();
     
     // Handle rotation
