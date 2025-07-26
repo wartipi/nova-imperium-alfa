@@ -688,6 +688,11 @@ export class GameEngine {
     const displayName = city.displayName || city.name;
     const nameWidth = Math.max(50, displayName.length * 6);
     
+    // Debug pour vérifier les noms de villes
+    if (city.name.includes('colony_')) {
+      console.log(`🏘️ Debug ville: name="${city.name}", displayName="${city.displayName}", affiché="${displayName}"`);
+    }
+    
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
     this.ctx.fillRect(screenX - nameWidth/2, screenY - this.hexSize - 5, nameWidth, 12);
     

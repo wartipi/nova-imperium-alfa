@@ -100,8 +100,8 @@ export function CityRenameModal({ city, onClose, onSuccess }: CityRenameModalPro
         return;
       }
       
-      await showAlert({
-        title: "Ville Renommée",
+      showAlert({
+        title: "Ville Renommée", 
         message: `La ville a été renommée "${cleanName}" avec succès !`,
         type: "success"
       });
