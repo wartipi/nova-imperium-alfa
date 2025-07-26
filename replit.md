@@ -93,6 +93,16 @@ Preferred communication style: Simple, everyday language.
 - **Tests Validés**: Achat/vente fonctionnent avec déduction d'or et ajout de ressources automatiques
 - **Architecture Future**: Plan de migration progressive de RecruitmentPanel.tsx et ConstructionPanelSimple.tsx
 
+### Système Construction/Recrutement Zustand avec Stats Collaboratives (Janvier 26, 2025)
+- **Migration Progressive Option 1**: ConstructionPanelZustand.tsx et RecruitmentPanelZustand.tsx créés avec stats vides
+- **Logique Terrain Conservée**: Système de dépendance terrain maintenu (wasteland→Avant-poste, forest→Scierie, etc.)
+- **18 Bâtiments Transférés**: Tous les bâtiments Nova Imperium organisés par terrain avec stats à définir ensemble
+- **15 Unités Transférées**: Système complet d'unités (Civil, Militaire, Magique, Spirituel, Siège) avec stats vides
+- **Interface Collaborative**: Boutons "Voir détails" affichent les statistiques à définir (PA, coûts, durée, production)
+- **Prochaine Étape**: Définition collaborative des coûts PA, matériaux, durée construction/recrutement, et production
+- **Système Sécurisé**: Composants prêts pour activation sans risque de casser le système actuel
+- **Architecture Cohérente**: Même approche progressive que la trésorerie pour migration en douceur
+
 ### Élimination Complète de VisionSystem.worldToHex (Janvier 25, 2025)
 - **Stockage Dual**: avatarPosition (monde) + avatarHexPosition (hex) pour éviter conversions défaillantes
 - **Architecture Simplifiée**: Plus de conversion monde→hex, coordonnées hex stockées directement

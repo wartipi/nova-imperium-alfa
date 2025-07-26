@@ -3,10 +3,13 @@ import { useResources } from "../../lib/stores/useResources";
 import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 
 interface BuildingCost {
-  gold: number;
-  stone: number;
-  wood: number;
+  wood?: number;
+  stone?: number;
   iron?: number;
+  gold?: number;
+  food?: number;
+  mana?: number;
+  action_points?: number;
 }
 
 interface BuildingType {
@@ -14,61 +17,259 @@ interface BuildingType {
   name: string;
   icon: string;
   description: string;
+  category: string;
+  requiredTerrain: string[];
+  // STATS À DÉFINIR ENSEMBLE - Actuellement vides
   cost: BuildingCost;
   constructionTime: number;
+  actionPointCost: number;
   yields: {
-    food?: number;
-    gold?: number;
-    culture?: number;
-    science?: number;
+    [key: string]: number;
   };
 }
 
+// SYSTÈME NOVA IMPERIUM - Bâtiments par terrain avec stats VIDES à définir ensemble
 const availableBuildings: BuildingType[] = [
+  
+  // === TERRE EN FRICHE (wasteland) ===
   {
-    id: 'granary',
-    name: 'Grenier',
-    icon: '🏪',
-    description: 'Augmente la production de nourriture',
-    cost: { gold: 60, stone: 30, wood: 40 },
-    constructionTime: 2,
-    yields: { food: 3 }
-  },
-  {
-    id: 'market',
-    name: 'Marché',
-    icon: '🏬',
-    description: 'Génère de l\'or par tour',
-    cost: { gold: 80, stone: 50, wood: 30 },
-    constructionTime: 3,
-    yields: { gold: 4 }
-  },
-  {
-    id: 'barracks',
-    name: 'Caserne',
-    icon: '🏰',
-    description: 'Permet de recruter des unités militaires',
-    cost: { gold: 100, stone: 60, wood: 40, iron: 20 },
-    constructionTime: 4,
+    id: 'outpost',
+    name: 'Avant-poste', 
+    icon: '🏗️', 
+    description: 'Structure d\'observation et de défense basique',
+    category: 'Basique',
+    requiredTerrain: ['wasteland'],
+    // À DÉFINIR ENSEMBLE :
+    cost: {},
+    constructionTime: 0,
+    actionPointCost: 0,
     yields: {}
   },
   {
-    id: 'library',
-    name: 'Bibliothèque',
-    icon: '📚',
-    description: 'Augmente la recherche scientifique',
-    cost: { gold: 120, stone: 40, wood: 80 },
-    constructionTime: 3,
-    yields: { science: 3 }
+    id: 'exploration_camp',
+    name: 'Camp d\'exploration',
+    icon: '⛺',
+    description: 'Base temporaire pour l\'exploration',
+    category: 'Basique',
+    requiredTerrain: ['wasteland'],
+    // À DÉFINIR ENSEMBLE :
+    cost: {},
+    constructionTime: 0,
+    actionPointCost: 0,
+    yields: {}
   },
   {
-    id: 'temple',
-    name: 'Temple',
-    icon: '⛪',
-    description: 'Génère de la culture et améliore la satisfaction',
-    cost: { gold: 150, stone: 80, wood: 60 },
-    constructionTime: 4,
-    yields: { culture: 3, gold: 1 }
+    id: 'observation_tower',
+    name: 'Tour d\'observation',
+    icon: '🗼',
+    description: 'Tour pour surveiller les environs',
+    category: 'Défense',
+    requiredTerrain: ['wasteland', 'hills'],
+    // À DÉFINIR ENSEMBLE :
+    cost: {},
+    constructionTime: 0,
+    actionPointCost: 0,
+    yields: {}
+  },
+
+  // === TERRE FERTILE (fertile_land) ===
+  {
+    id: 'farm',
+    name: 'Ferme',
+    icon: '🚜',
+    description: 'Production agricole intensive',
+    category: 'Production',
+    requiredTerrain: ['fertile_land'],
+    // À DÉFINIR ENSEMBLE :
+    cost: {},
+    constructionTime: 0,
+    actionPointCost: 0,
+    yields: {}
+  },
+  {
+    id: 'granary',
+    name: 'Grenier',
+    icon: '🌾',
+    description: 'Stockage et conservation des récoltes',
+    category: 'Production',
+    requiredTerrain: ['fertile_land'],
+    // À DÉFINIR ENSEMBLE :
+    cost: {},
+    constructionTime: 0,
+    actionPointCost: 0,
+    yields: {}
+  },
+
+  // === FORÊT (forest) ===
+  {
+    id: 'lumber_mill',
+    name: 'Scierie',
+    icon: '🪚',
+    description: 'Production de bois optimisée',
+    category: 'Production',
+    requiredTerrain: ['forest'],
+    // À DÉFINIR ENSEMBLE :
+    cost: {},
+    constructionTime: 0,
+    actionPointCost: 0,
+    yields: {}
+  },
+  {
+    id: 'hunting_post',
+    name: 'Poste de chasse',
+    icon: '🏹',
+    description: 'Chasse au gibier forestier',
+    category: 'Production',
+    requiredTerrain: ['forest'],
+    // À DÉFINIR ENSEMBLE :
+    cost: {},
+    constructionTime: 0,
+    actionPointCost: 0,
+    yields: {}
+  },
+  {
+    id: 'druidic_temple',
+    name: 'Temple druidique',
+    icon: '🌳',
+    description: 'Temple en harmonie avec la nature',
+    category: 'Spirituel',
+    requiredTerrain: ['forest', 'enchanted_meadow'],
+    // À DÉFINIR ENSEMBLE :
+    cost: {},
+    constructionTime: 0,
+    actionPointCost: 0,
+    yields: {}
+  },
+  {
+    id: 'herbalist_house',
+    name: 'Maison de l\'herboriste',
+    icon: '🌿',
+    description: 'Préparation de remèdes naturels',
+    category: 'Production',
+    requiredTerrain: ['forest', 'enchanted_meadow'],
+    // À DÉFINIR ENSEMBLE :
+    cost: {},
+    constructionTime: 0,
+    actionPointCost: 0,
+    yields: {}
+  },
+
+  // === MONTAGNES (mountains) ===
+  {
+    id: 'mine',
+    name: 'Mine',
+    icon: '⛏️',
+    description: 'Extraction de minerais précieux',
+    category: 'Production',
+    requiredTerrain: ['mountains'],
+    // À DÉFINIR ENSEMBLE :
+    cost: {},
+    constructionTime: 0,
+    actionPointCost: 0,
+    yields: {}
+  },
+  {
+    id: 'forge',
+    name: 'Forge',
+    icon: '🔨',
+    description: 'Transformation des minerais en outils',
+    category: 'Production',
+    requiredTerrain: ['mountains'],
+    // À DÉFINIR ENSEMBLE :
+    cost: {},
+    constructionTime: 0,
+    actionPointCost: 0,
+    yields: {}
+  },
+
+  // === COLLINES (hills) ===
+  {
+    id: 'quarry',
+    name: 'Carrière',
+    icon: '🪨',
+    description: 'Extraction de pierre de construction',
+    category: 'Production',
+    requiredTerrain: ['hills'],
+    // À DÉFINIR ENSEMBLE :
+    cost: {},
+    constructionTime: 0,
+    actionPointCost: 0,
+    yields: {}
+  },
+
+  // === MARÉCAGE (swamp) ===
+  {
+    id: 'alchemist_lab',
+    name: 'Laboratoire d\'alchimie',
+    icon: '🧪',
+    description: 'Recherche et création de potions magiques',
+    category: 'Production',
+    requiredTerrain: ['swamp'],
+    // À DÉFINIR ENSEMBLE :
+    cost: {},
+    constructionTime: 0,
+    actionPointCost: 0,
+    yields: {}
+  },
+
+  // === PLAINES SACRÉES (sacred_plains) ===
+  {
+    id: 'sacred_altar',
+    name: 'Autel sacré',
+    icon: '⛩️',
+    description: 'Centre spirituel et de recueillement',
+    category: 'Spirituel',
+    requiredTerrain: ['sacred_plains'],
+    // À DÉFINIR ENSEMBLE :
+    cost: {},
+    constructionTime: 0,
+    actionPointCost: 0,
+    yields: {}
+  },
+
+  // === GROTTES (caves) ===
+  {
+    id: 'underground_storage',
+    name: 'Entrepôt souterrain',
+    icon: '🕳️',
+    description: 'Stockage sécurisé et protégé',
+    category: 'Stockage',
+    requiredTerrain: ['caves'],
+    // À DÉFINIR ENSEMBLE :
+    cost: {},
+    constructionTime: 0,
+    actionPointCost: 0,
+    yields: {}
+  },
+
+  // === RUINES ANTIQUES (ancient_ruins) ===
+  {
+    id: 'archaeological_site',
+    name: 'Site archéologique',
+    icon: '🏛️',
+    description: 'Fouilles et recherche de connaissances anciennes',
+    category: 'Recherche',
+    requiredTerrain: ['ancient_ruins'],
+    // À DÉFINIR ENSEMBLE :
+    cost: {},
+    constructionTime: 0,
+    actionPointCost: 0,
+    yields: {}
+  },
+
+  // === PRAIRIE ENCHANTÉE (enchanted_meadow) ===
+  {
+    id: 'mana_well',
+    name: 'Puits de mana',
+    icon: '💫',
+    description: 'Source d\'énergie magique pure',
+    category: 'Magique',
+    requiredTerrain: ['enchanted_meadow'],
+    // À DÉFINIR ENSEMBLE :
+    cost: {},
+    constructionTime: 0,
+    actionPointCost: 0,
+    yields: {}
   }
 ];
 
@@ -76,66 +277,91 @@ export function ConstructionPanelZustand() {
   const { resources, spendResources } = useResources();
   const { currentNovaImperium, buildInCity } = useNovaImperium();
 
+  // FONCTION TEMPORAIRE - Stats vides
   const canAfford = (cost: BuildingCost): boolean => {
-    return resources.gold >= cost.gold &&
-           resources.stone >= cost.stone &&
-           resources.wood >= cost.wood &&
-           (!cost.iron || resources.iron >= cost.iron);
+    // Toujours retourner true car costs sont vides
+    return true;
   };
 
   const handleConstruct = (building: BuildingType) => {
-    if (!currentNovaImperium?.cities?.length) {
-      alert("Aucune ville disponible pour construire");
-      return;
-    }
-
-    if (!canAfford(building.cost)) {
-      alert(`Ressources insuffisantes pour construire ${building.name}`);
-      return;
-    }
-
-    // Convertir le coût en format compatible Zustand
-    const resourceCost: any = {
-      gold: building.cost.gold,
-      stone: building.cost.stone,
-      wood: building.cost.wood
-    };
-    
-    if (building.cost.iron) resourceCost.iron = building.cost.iron;
-
-    // Dépenser les ressources via Zustand
-    const success = spendResources(resourceCost);
-    
-    if (success) {
-      console.log(`✅ Construction ${building.name} réussie - Ressources déduites:`, resourceCost);
-      
-      // Ajouter le bâtiment au système NovaImperium
-      const firstCity = currentNovaImperium.cities[0];
-      buildInCity(firstCity.id, building.id, resourceCost, building.constructionTime, false);
-    } else {
-      alert(`Erreur lors de la construction de ${building.name}`);
-    }
+    // Afficher un message informatif pour définition collaborative
+    alert(`🏗️ BÂTIMENT: ${building.name}\n\n` +
+          `📍 TERRAIN REQUIS: ${building.requiredTerrain.join(', ')}\n` +
+          `📝 DESCRIPTION: ${building.description}\n\n` +
+          `⚠️ STATS À DÉFINIR ENSEMBLE:\n` +
+          `• Coût en PA: [À définir]\n` +
+          `• Coût matériaux: [À définir]\n` +
+          `• Durée construction: [À définir]\n` +
+          `• Production: [À définir]`);
   };
 
   const getYieldsText = (yields: any): string => {
-    const yieldTexts: string[] = [];
-    if (yields.food) yieldTexts.push(`🌾 +${yields.food} nourriture`);
-    if (yields.gold) yieldTexts.push(`💰 +${yields.gold} or`);
-    if (yields.culture) yieldTexts.push(`🎭 +${yields.culture} culture`);
-    if (yields.science) yieldTexts.push(`🔬 +${yields.science} science`);
-    return yieldTexts.join(', ') || 'Fonctionnalité spéciale';
+    if (Object.keys(yields).length === 0) {
+      return '📝 Production à définir ensemble';
+    }
+    return 'Production configurée';
+  };
+
+  const getCostText = (cost: BuildingCost): string => {
+    if (Object.keys(cost).length === 0) {
+      return '📝 Coûts à définir ensemble';
+    }
+    return Object.entries(cost)
+      .map(([key, value]) => `${value} ${getResourceIcon(key)}`)
+      .join(', ');
+  };
+
+  const getResourceIcon = (resource: string) => {
+    const icons: { [key: string]: string } = {
+      food: '🌾',
+      gold: '💰',
+      wood: '🪵',
+      stone: '🪨',
+      iron: '⚙️',
+      mana: '✨',
+      action_points: '⚡'
+    };
+    return icons[resource] || resource;
+  };
+
+  // Grouper par terrain pour meilleure organisation
+  const buildingsByTerrain = availableBuildings.reduce((acc, building) => {
+    building.requiredTerrain.forEach(terrain => {
+      if (!acc[terrain]) acc[terrain] = [];
+      acc[terrain].push(building);
+    });
+    return acc;
+  }, {} as { [terrain: string]: BuildingType[] });
+
+  const getTerrainName = (terrain: string) => {
+    const names: { [key: string]: string } = {
+      wasteland: '🏜️ Terre en friche',
+      fertile_land: '🌾 Terre fertile',
+      forest: '🌲 Forêt',
+      mountains: '⛰️ Montagnes',
+      hills: '🏔️ Collines',
+      swamp: '🦎 Marécage',
+      sacred_plains: '⛩️ Plaines sacrées',
+      caves: '🕳️ Grottes',
+      ancient_ruins: '🏛️ Ruines antiques',
+      enchanted_meadow: '🌸 Prairie enchantée'
+    };
+    return names[terrain] || terrain;
   };
 
   return (
     <div className="space-y-4">
       <div className="text-center">
-        <h4 className="font-bold text-base mb-3 text-amber-900">Construction (Zustand)</h4>
+        <h4 className="font-bold text-base mb-3 text-amber-900">Construction Nova Imperium (Zustand)</h4>
+        <div className="text-xs text-orange-700 bg-orange-100 border border-orange-300 rounded p-2">
+          📝 Version collaborative - Stats à définir ensemble
+        </div>
       </div>
 
       {/* Ressources disponibles */}
       <div className="bg-gradient-to-b from-amber-200 to-amber-300 border-2 border-amber-800 rounded-lg p-3">
         <div className="text-center mb-2">
-          <h5 className="font-bold text-amber-900 text-sm">Ressources de Construction</h5>
+          <h5 className="font-bold text-amber-900 text-sm">Ressources Actuelles</h5>
         </div>
         <div className="grid grid-cols-4 gap-2 text-xs text-center">
           <div>
@@ -157,91 +383,66 @@ export function ConstructionPanelZustand() {
         </div>
       </div>
 
-      {/* État des villes */}
-      {currentNovaImperium?.cities?.length ? (
-        <div className="bg-gradient-to-b from-blue-200 to-blue-300 border-2 border-blue-800 rounded-lg p-3">
-          <div className="text-center mb-2">
-            <h5 className="font-bold text-blue-900 text-sm">Villes Disponibles</h5>
-          </div>
-          {currentNovaImperium.cities.map((city, index) => (
-            <div key={city.id} className="text-xs text-blue-800 text-center">
-              🏘️ {city.name} (Pop: {city.population})
-              {index === 0 && <span className="text-green-600"> ← Construction ici</span>}
+      {/* Bâtiments par terrain */}
+      <div className="space-y-4">
+        {Object.entries(buildingsByTerrain).map(([terrain, buildings]) => (
+          <div key={terrain} className="bg-white border-2 border-amber-600 rounded-lg p-3">
+            <h5 className="font-bold text-amber-800 text-sm mb-3 text-center">
+              {getTerrainName(terrain)}
+            </h5>
+            
+            <div className="space-y-2">
+              {buildings.map((building) => (
+                <div 
+                  key={building.id}
+                  className="bg-gradient-to-b from-yellow-100 to-yellow-200 border border-yellow-600 rounded-lg p-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="text-xl">{building.icon}</div>
+                      <div>
+                        <div className="font-bold text-amber-900 text-sm">{building.name}</div>
+                        <div className="text-xs text-amber-700">{building.description}</div>
+                        <div className="text-xs text-blue-600 mt-1">
+                          Catégorie: {building.category}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="text-right">
+                      {/* Statuts actuels */}
+                      <div className="text-xs text-orange-700 mb-2 space-y-1">
+                        <div>⚡ PA: {building.actionPointCost || 'À définir'}</div>
+                        <div>⏱️ Durée: {building.constructionTime || 'À définir'}</div>
+                        <div>💰 Coût: {getCostText(building.cost)}</div>
+                        <div>📈 Produit: {getYieldsText(building.yields)}</div>
+                      </div>
+                      
+                      {/* Bouton d'information */}
+                      <button
+                        onClick={() => handleConstruct(building)}
+                        className="px-3 py-1 rounded text-xs font-bold bg-orange-400 hover:bg-orange-500 text-white transition-colors"
+                      >
+                        📝 Voir détails
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="bg-red-200 border-2 border-red-600 rounded-lg p-3 text-center">
-          <div className="text-red-800 font-bold text-sm">
-            ⚠️ Aucune ville disponible
           </div>
-          <div className="text-xs text-red-700 mt-1">
-            Fondez une colonie pour commencer à construire
-          </div>
-        </div>
-      )}
+        ))}
+      </div>
 
-      {/* Liste des bâtiments disponibles */}
-      <div className="space-y-3">
-        {availableBuildings.map((building) => {
-          const canAffordBuilding = canAfford(building.cost);
-          const hasCity = currentNovaImperium?.cities?.length > 0;
-          const canBuild = canAffordBuilding && hasCity;
-          
-          return (
-            <div 
-              key={building.id}
-              className={`bg-gradient-to-b border-2 rounded-lg p-3 ${
-                canBuild 
-                  ? 'from-green-200 to-green-300 border-green-800'
-                  : !hasCity
-                  ? 'from-red-200 to-red-300 border-red-600'
-                  : 'from-gray-200 to-gray-300 border-gray-600'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="text-2xl">{building.icon}</div>
-                  <div>
-                    <div className="font-bold text-amber-900">{building.name}</div>
-                    <div className="text-xs text-amber-700">{building.description}</div>
-                    <div className="text-xs text-green-700 mt-1">
-                      Rapporte: {getYieldsText(building.yields)}
-                    </div>
-                    <div className="text-xs text-amber-600">
-                      Temps: {building.constructionTime} tour{building.constructionTime > 1 ? 's' : ''}
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="text-right">
-                  {/* Coût */}
-                  <div className="text-xs text-amber-700 mb-2">
-                    <div>💰 {building.cost.gold} or</div>
-                    <div>🪨 {building.cost.stone} pierre</div>
-                    <div>🪵 {building.cost.wood} bois</div>
-                    {building.cost.iron && <div>⚔️ {building.cost.iron} fer</div>}
-                  </div>
-                  
-                  {/* Bouton de construction */}
-                  <button
-                    onClick={() => handleConstruct(building)}
-                    disabled={!canBuild}
-                    className={`px-3 py-1 rounded text-xs font-bold transition-colors ${
-                      canBuild
-                        ? 'bg-green-500 hover:bg-green-600 text-white'
-                        : !hasCity
-                        ? 'bg-red-400 text-red-700'
-                        : 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                    }`}
-                  >
-                    {!hasCity ? 'Pas de ville' : canAffordBuilding ? 'Construire' : 'Insuffisant'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+      {/* Note importante */}
+      <div className="bg-blue-100 border-2 border-blue-600 rounded-lg p-3 text-center">
+        <div className="text-blue-800 font-bold text-sm mb-1">
+          🏗️ Système Prêt pour Configuration
+        </div>
+        <div className="text-xs text-blue-700">
+          {availableBuildings.length} bâtiments Nova Imperium transférés vers Zustand
+          <br />Prêt pour définition collaborative des statistiques
+        </div>
       </div>
     </div>
   );
