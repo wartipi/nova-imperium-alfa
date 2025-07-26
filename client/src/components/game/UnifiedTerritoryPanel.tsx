@@ -6,6 +6,7 @@ import { useNovaImperium } from '../../lib/stores/useNovaImperium';
 import { useFactions } from '../../lib/stores/useFactions';
 import { useMap } from '../../lib/stores/useMap';
 import { useCustomAlert } from '../ui/CustomAlert';
+import { CityFoundingModal } from './CityFoundingModal';
 
 interface UnifiedTerritoryPanelProps {
   onClose: () => void;
@@ -26,6 +27,7 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [territories, setTerritories] = useState<Territory[]>([]);
   const [showColonyModal, setShowColonyModal] = useState(false);
+  const [showFoundingModal, setShowFoundingModal] = useState(false);
   const [selectedTerritory, setSelectedTerritory] = useState<Territory | null>(null);
   const [colonyName, setColonyName] = useState('');
 
@@ -141,56 +143,98 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
     return avatarPos.x === territory.x && avatarPos.y === territory.y;
   };
 
-  // Fonction pour fonder une colonie directement depuis la liste des territoires
-  const handleFoundColonyFromTerritory = async (territory: Territory) => {
+  // Fonder une colonie directement à la position de l'avatar avec modal
+  const handleFoundColonyAtAvatar = () => {
+    const avatarPos = getAvatarPosition();
     const { isGameMaster } = useGameState.getState();
     
     // Validation des règles (sauf pour MJ)
     if (!isGameMaster) {
-      const validation = UnifiedTerritorySystem.canFoundColony(territory.x, territory.y, territory.playerId);
+      const validation = UnifiedTerritorySystem.canFoundColony(avatarPos.x, avatarPos.y, 'player');
       if (!validation.canFound) {
-        alert(`❌ Impossible de fonder une colonie :\n${validation.reason}`);
+        showAlert({
+          title: "Fondation Impossible",
+          message: validation.reason,
+          type: "error"
+        });
         return;
       }
     }
 
-    // Demander le nom de la colonie
-    const colonyName = prompt("Nom de la colonie :") || null;
-    if (!colonyName) return;
+    // Stocker la position pour le modal
+    setSelectedTerritory({
+      x: avatarPos.x,
+      y: avatarPos.y,
+      playerId: 'player',
+      playerName: playerName,
+      factionId: playerFaction?.id || 'gm_faction',
+      factionName: playerFaction?.name || 'Administration MJ',
+      claimedDate: Date.now(),
+      colonyId: null,
+      colonyName: null,
+      controlledByColony: null
+    });
+    setShowFoundingModal(true);
+  };
 
-    // Fondation de la colonie
+  // Confirmer la fondation avec le nom choisi
+  const handleConfirmFounding = (cityName: string) => {
+    if (!selectedTerritory) return;
+
+    const { isGameMaster } = useGameState.getState();
     const colonyId = `colony_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    
+    // 1. Créer dans UnifiedTerritorySystem
     const success = UnifiedTerritorySystem.foundColony(
-      territory.x,
-      territory.y,
+      selectedTerritory.x,
+      selectedTerritory.y,
       colonyId,
-      colonyName.trim(),
-      territory.playerId,
-      territory.playerName,
-      territory.factionId,
-      territory.factionName
+      cityName,
+      selectedTerritory.playerId,
+      selectedTerritory.playerName,
+      selectedTerritory.factionId,
+      selectedTerritory.factionName
     );
 
     if (success) {
-      // Dépenser les PA (sauf mode MJ)
-      if (!isGameMaster) {
-        const { spendActionPoints } = usePlayer.getState();
-        spendActionPoints(15);
-        alert(`✅ Colonie "${colonyName}" fondée avec succès ! (15 PA dépensés)`);
-      } else {
-        alert(`[MODE MJ] Colonie "${colonyName}" fondée avec succès !`);
-      }
-      
-      // Rafraîchir la liste
-      loadTerritories();
-      
-      // Rafraîchir l'affichage de la carte
-      setTimeout(() => {
-        const gameEngine = (window as any).gameEngine;
-        if (gameEngine) {
-          gameEngine.render();
+      // 2. Créer dans Nova Imperium avec displayName
+      const { foundColony, renameCityDisplayName } = useNovaImperium.getState();
+      const citySuccess = foundColony(
+        selectedTerritory.x,
+        selectedTerritory.y,
+        colonyId,
+        selectedTerritory.playerId,
+        selectedTerritory.playerName,
+        selectedTerritory.factionId,
+        selectedTerritory.factionName
+      );
+
+      if (citySuccess) {
+        // 3. Définir le displayName pour affichage
+        renameCityDisplayName(colonyId, cityName);
+
+        // 4. Dépenser les PA et afficher le succès
+        if (!isGameMaster) {
+          spendActionPoints(15);
         }
-      }, 100);
+
+        showAlert({
+          title: "Colonie Fondée",
+          message: isGameMaster 
+            ? `[MODE MJ] Colonie "${cityName}" fondée avec succès !`
+            : `Colonie "${cityName}" fondée avec succès ! (15 PA dépensés)`,
+          type: "success"
+        });
+        
+        // 5. Rafraîchir
+        loadTerritories();
+        setTimeout(() => {
+          const gameEngine = (window as any).gameEngine;
+          if (gameEngine) {
+            gameEngine.render();
+          }
+        }, 100);
+      }
     } else {
       showAlert({
         title: "Erreur",
@@ -198,6 +242,31 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
         type: "error"
       });
     }
+
+    setShowFoundingModal(false);
+    setSelectedTerritory(null);
+  };
+
+  // Fonction pour fonder une colonie directement depuis la liste des territoires
+  const handleFoundColonyFromTerritory = (territory: Territory) => {
+    const { isGameMaster } = useGameState.getState();
+    
+    // Validation des règles (sauf pour MJ)
+    if (!isGameMaster) {
+      const validation = UnifiedTerritorySystem.canFoundColony(territory.x, territory.y, territory.playerId);
+      if (!validation.canFound) {
+        showAlert({
+          title: "Fondation Impossible",
+          message: validation.reason,
+          type: "error"
+        });
+        return;
+      }
+    }
+
+    // Utiliser le même modal pour la cohérence
+    setSelectedTerritory(territory);
+    setShowFoundingModal(true);
   };
 
   // Fonder une colonie (ancienne méthode pour le modal)
@@ -276,12 +345,25 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
         <button
           onClick={handleClaimTerritory}
           disabled={isLoading || (!isGameMaster && !playerFaction)}
-          className="w-full medieval-button medieval-button-success py-3 px-4 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full medieval-button medieval-button-success py-3 px-4 disabled:opacity-50 disabled:cursor-not-allowed mb-3"
         >
           {isLoading ? 'Revendication...' : `🚩 Revendiquer (${isGameMaster ? '0' : '10'} PA)`}
         </button>
+
+        {/* Bouton pour fonder une colonie directement */}
+        <button
+          onClick={handleFoundColonyAtAvatar}
+          disabled={isLoading || (!isGameMaster && actionPoints < 15)}
+          className="w-full medieval-button medieval-button-primary py-3 px-4 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoading ? 'Fondation...' : `🏘️ Fonder une Colonie (${isGameMaster ? '0' : '15'} PA)`}
+        </button>
+
         {!isGameMaster && !playerFaction && (
           <p className="text-red-700 text-xs mt-3 font-medium">⚠️ Vous devez faire partie d'une faction</p>
+        )}
+        {!isGameMaster && actionPoints < 15 && (
+          <p className="text-red-700 text-xs mt-2 font-medium">⚠️ Pas assez de PA pour fonder une colonie</p>
         )}
       </div>
 
@@ -358,6 +440,18 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
           🏘️ Colonies: {territories.filter(t => t.colonyId).length}
         </div>
       </div>
+
+      {/* Modal de Fondation Moderne */}
+      {showFoundingModal && selectedTerritory && (
+        <CityFoundingModal 
+          onClose={() => {
+            setShowFoundingModal(false);
+            setSelectedTerritory(null);
+          }}
+          onConfirm={handleConfirmFounding}
+          position={{ x: selectedTerritory.x, y: selectedTerritory.y }}
+        />
+      )}
 
       {/* Modal de fondation de colonie */}
       {showColonyModal && selectedTerritory && (
