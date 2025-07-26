@@ -562,6 +562,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Map Marketplace endpoints
+  app.get("/api/marketplace/maps", async (req, res) => {
+    try {
+      // Get all tradeable maps from all players
+      const allPlayers = ['player', 'player2', 'player3'];
+      const marketOffers = [];
+      
+      for (const playerId of allPlayers) {
+        const inventory = exchangeService.getPlayerInventory(playerId);
+        const maps = inventory.filter(item => item.type === 'carte' && item.tradeable);
+        
+        for (const map of maps) {
+          marketOffers.push({
+            id: `offer_${map.id}`,
+            item: map,
+            sellerId: playerId,
+            sellerName: playerId === 'player' ? 'Vous' : `Joueur_${playerId}`,
+            price: Math.floor(map.value * 0.8),
+            currency: 'gold',
+            description: `Carte authentique créée par ${playerId}`,
+            createdAt: map.createdAt
+          });
+        }
+      }
+
+      res.json(marketOffers);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get marketplace offers" });
+    }
+  });
+
+  app.post("/api/marketplace/maps/sell", async (req, res) => {
+    try {
+      const { itemId, sellerId, price } = req.body;
+      
+      if (!itemId || !sellerId || !price) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      res.json({ 
+        success: true, 
+        message: "Map listed for sale",
+        listingId: `listing_${Date.now()}`
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to list map for sale" });
+    }
+  });
+
+  app.post("/api/marketplace/maps/buy", async (req, res) => {
+    try {
+      const { offerId, buyerId } = req.body;
+      
+      if (!offerId || !buyerId) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      res.json({ 
+        success: true, 
+        message: "Map purchased successfully",
+        transactionId: `tx_${Date.now()}`
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to purchase map" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

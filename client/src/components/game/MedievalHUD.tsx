@@ -27,6 +27,7 @@ import { ReputationManagementPanel } from "./ReputationManagementPanel";
 
 
 import { PlayerInventory } from "./PlayerInventory";
+import { MapMarketplace } from "./MapMarketplace";
 import { useAuth } from "../../lib/auth/AuthContext";
 import { LevelUpNotification, useLevelUpNotification } from "./LevelUpNotification";
 
@@ -87,6 +88,7 @@ export function MedievalHUD() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showTerritoryPanel, setShowTerritoryPanel] = useState(false);
   const [showReputationManagement, setShowReputationManagement] = useState(false);
+  const [showMapMarketplace, setShowMapMarketplace] = useState(false);
   const { notification, showLevelUpNotification, hideLevelUpNotification } = useLevelUpNotification();
 
   const getUserRole = () => {
@@ -411,6 +413,21 @@ export function MedievalHUD() {
               
               {/* Inventaire d'objets uniques */}
               <PlayerInventory playerId="player" />
+
+              {/* Marché des Cartes */}
+              <div className="mt-2 pt-2 border-t border-amber-300">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowMapMarketplace(true);
+                  }}
+                  className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded flex items-center space-x-2 w-full"
+                  title="Marché public pour acheter et vendre des cartes"
+                >
+                  <span>🗺️</span>
+                  <span>Marché des Cartes</span>
+                </button>
+              </div>
 
               {/* Panneau d'administration intégré */}
               {canAccessAdmin() && (
@@ -784,6 +801,14 @@ export function MedievalHUD() {
       {/* Reputation Management Panel */}
       {showReputationManagement && (
         <ReputationManagementPanel onClose={() => setShowReputationManagement(false)} />
+      )}
+
+      {/* Map Marketplace */}
+      {showMapMarketplace && (
+        <MapMarketplace 
+          playerId="player" 
+          onClose={() => setShowMapMarketplace(false)} 
+        />
       )}
     </div>
   );
