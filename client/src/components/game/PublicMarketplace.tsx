@@ -84,8 +84,9 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
   // Charger les items du marketplace
   const loadMarketplaceItems = async () => {
     try {
-      // Ne pas afficher le loading si on a déjà des items (évite le scintillement)
-      if (marketItems.length === 0) {
+      // Ne jamais afficher le loading après le premier chargement pour éviter les scintillements
+      const isFirstLoad = marketItems.length === 0;
+      if (isFirstLoad) {
         setLoading(true);
       }
       
@@ -93,22 +94,22 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
       
       if (response.ok) {
         const items = await response.json();
-        console.log('Items du marketplace chargés:', items.length, items);
         setMarketItems(items);
       }
     } catch (error) {
       console.error('Erreur lors du chargement:', error);
     } finally {
-      setLoading(false);
+      // Seulement arrêter le loading si c'était le premier chargement
+      if (marketItems.length === 0) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
     loadMarketplaceItems();
-    
-    // Actualiser moins fréquemment pour éviter les scintillements
-    const interval = setInterval(loadMarketplaceItems, 15000);
-    return () => clearInterval(interval);
+    // Plus de rafraîchissement automatique pour éviter complètement les scintillements
+    // L'utilisateur peut utiliser le bouton 🔄 pour actualiser manuellement
   }, []);
 
   // Filtrer les items selon la recherche et les filtres
@@ -435,6 +436,14 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                       className="w-full pl-10 pr-4 py-2 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500"
                     />
                   </div>
+                  <button
+                    onClick={loadMarketplaceItems}
+                    className="px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm transition-colors"
+                    title="Actualiser le marché"
+                    style={{ userSelect: 'none', pointerEvents: 'auto' }}
+                  >
+                    🔄
+                  </button>
                   <select
                     value={selectedFilter}
                     onChange={(e) => setSelectedFilter(e.target.value as 'all' | 'resource' | 'unique_item')}
