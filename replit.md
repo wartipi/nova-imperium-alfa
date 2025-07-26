@@ -93,6 +93,15 @@ Preferred communication style: Simple, everyday language.
 - **Tests Validés**: Achat/vente fonctionnent avec déduction d'or et ajout de ressources automatiques
 - **Architecture Future**: Plan de migration progressive de RecruitmentPanel.tsx et ConstructionPanelSimple.tsx
 
+### Système de Fondation de Ville Unifié et Résolution Conflits de Noms (Janvier 26, 2025)
+- **Problème Résolu**: Conflit entre noms techniques (colony_ID) et noms d'affichage utilisateur
+- **Solution Unifiée**: foundColony() utilise directement le nom choisi par l'utilisateur comme displayName
+- **Interface Épurée**: Suppression du bouton "Fonder une Colonie" redondant, fondation uniquement via territoires
+- **Synchronisation Corrigée**: UnifiedTerritorySystem et Nova Imperium Cities maintenant synchronisés
+- **CityFoundingModal**: Modal moderne créé mais pas intégré (fonctionnalité existante privilégiée)
+- **Architecture Simplifiée**: Un seul point d'entrée pour fondation (liste des territoires contrôlés)
+- **Validation Confirmée**: Test réussi avec nouvelle colonie affichant le nom correct
+
 ### Migration Finalisation Systèmes Construction/Recrutement Zustand (Janvier 26, 2025)
 - **Migration Finalisée**: CityManagementPanel complètement migré vers nouveaux systèmes Zustand
 - **Code Legacy Supprimé**: Ancien code de construction/recrutement entièrement retiré et nettoyé
