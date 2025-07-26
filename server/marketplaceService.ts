@@ -62,6 +62,62 @@ class MarketplaceService {
   
   constructor() {
     console.log('MarketplaceService initialized');
+    this.initializeDemoItems();
+  }
+
+  // Initialiser quelques objets de démonstration
+  private initializeDemoItems() {
+    // Vente directe de bois
+    this.createDirectSale(
+      'demo_seller',
+      'Marchand Demo',
+      'resource',
+      25,
+      {
+        resourceType: 'wood',
+        quantity: 50,
+        description: 'Bois de qualité premium',
+        tags: ['premium', 'construction']
+      }
+    );
+
+    // Enchère de fer
+    this.createAuction(
+      'demo_auction',
+      'Encherisseur Demo',
+      'resource',
+      15,
+      1, // currentTurn
+      {
+        resourceType: 'iron',
+        quantity: 30,
+        minBidIncrement: 2,
+        description: 'Fer de guerre rare',
+        tags: ['rare', 'guerre']
+      }
+    );
+
+    // Objet magique en vente directe
+    this.createDirectSale(
+      'demo_mage',
+      'Mage Demo',
+      'unique_item',
+      100,
+      {
+        uniqueItem: {
+          name: 'Amulette de Protection',
+          type: 'objet_magique',
+          rarity: 'rare',
+          description: 'Protège des malédictions',
+          effects: ['protection +5', 'resistance magie +10'],
+          value: 150
+        },
+        description: 'Objet magique trouvé dans les ruines',
+        tags: ['magique', 'protection']
+      }
+    );
+    
+    console.log('Demo items initialized:', this.marketItems.size, 'items');
   }
 
   // === GESTION DES VENTES DIRECTES ===

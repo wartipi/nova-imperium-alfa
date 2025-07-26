@@ -101,10 +101,17 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
   useEffect(() => {
     loadMarketplaceItems();
     
-    // Actualiser toutes les 10 secondes pour les enchères temps réel
-    const interval = setInterval(loadMarketplaceItems, 10000);
+    // Actualiser toutes les 5 secondes pour voir les changements plus rapidement
+    const interval = setInterval(loadMarketplaceItems, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  // Forcer le rechargement quand on change d'onglet
+  useEffect(() => {
+    if (activeTab === 'buy') {
+      loadMarketplaceItems();
+    }
+  }, [activeTab]);
 
   // Filtrer les items selon la recherche et les filtres
   const filteredItems = marketItems.filter(item => {
