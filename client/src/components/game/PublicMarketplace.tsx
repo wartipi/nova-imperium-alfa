@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { ShoppingCart, Plus, Gavel, DollarSign, Clock, User, Search, Filter, X } from "lucide-react";
+import { useGameContext } from '../../contexts/GameContext';
 
 // Types pour le nouveau système de marketplace
 interface MarketplaceItem {
@@ -63,6 +64,9 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'resource' | 'unique_item'>('all');
   const [showSellModal, setShowSellModal] = useState(false);
+  
+  // Accès au système de ressources du jeu
+  const { resourceManager } = useGameContext();
 
 
 
@@ -134,9 +138,26 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
     return true;
   });
 
-  // Acheter un item en vente directe avec intégration ressources
+  // Acheter un item en vente directe avec intégration ressources COMPLÈTE
   const handlePurchase = async (itemId: string) => {
     try {
+      // Trouver l'item d'abord pour vérifier le coût
+      const item = marketItems.find(i => i.id === itemId);
+      if (!item) {
+        alert('❌ Objet non trouvé');
+        return;
+      }
+
+      const cost = item.fixedPrice || 0;
+      
+      // Vérifier si on a assez d'or AVANT d'appeler l'API
+      if (!resourceManager.hasResources({ gold: cost })) {
+        const currentGold = resourceManager.resources.gold || 0;
+        alert(`❌ Or insuffisant !\nCoût: ${cost} or\nDisponible: ${currentGold} or`);
+        return;
+      }
+
+      // Appel API backend pour validation serveur
       const response = await fetch(`/api/marketplace/purchase-integrated/${itemId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -149,13 +170,29 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
       const result = await response.json();
       
       if (result.success) {
-        alert(`✅ ${result.message}\n💰 Or dépensé: ${result.goldSpent}\n📦 Objet ajouté à votre inventaire !`);
-        loadMarketplaceItems();
+        // INTÉGRATION RÉELLE : Appliquer les changements au jeu immédiatement
+        const goldDeducted = resourceManager.spendResources({ gold: cost });
+        
+        if (goldDeducted) {
+          // Ajouter la ressource/objet à l'inventaire
+          if (item.itemType === 'resource' && item.resourceType && item.quantity) {
+            resourceManager.addResource(item.resourceType, item.quantity);
+            alert(`✅ Achat réussi !\n💰 ${cost} or déduit\n📦 +${item.quantity} ${item.resourceType} ajouté !`);
+          } else {
+            // Pour les objets uniques, on pourrait ajouter à un inventaire d'objets
+            alert(`✅ Achat réussi !\n💰 ${cost} or déduit\n🎯 ${item.uniqueItem?.name || 'Objet'} ajouté !`);
+          }
+          
+          loadMarketplaceItems(); // Recharger la liste
+        } else {
+          alert('❌ Erreur lors de la déduction de l\'or');
+        }
       } else {
         alert(`❌ Erreur: ${result.message || result.error}`);
       }
     } catch (error) {
-      alert('❌ Erreur lors de l\'achat intégré');
+      console.error('Erreur achat:', error);
+      alert('❌ Erreur lors de l\'achat');
     }
   };
 
