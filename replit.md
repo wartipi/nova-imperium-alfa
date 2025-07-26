@@ -93,15 +93,16 @@ Preferred communication style: Simple, everyday language.
 - **Tests Validés**: Achat/vente fonctionnent avec déduction d'or et ajout de ressources automatiques
 - **Architecture Future**: Plan de migration progressive de RecruitmentPanel.tsx et ConstructionPanelSimple.tsx
 
-### Système Construction/Recrutement Zustand avec Stats Collaboratives (Janvier 26, 2025)
-- **Migration Progressive Option 1**: ConstructionPanelZustand.tsx et RecruitmentPanelZustand.tsx créés avec stats vides
-- **Logique Terrain Conservée**: Système de dépendance terrain maintenu (wasteland→Avant-poste, forest→Scierie, etc.)
-- **18 Bâtiments Transférés**: Tous les bâtiments Nova Imperium organisés par terrain avec stats à définir ensemble
-- **15 Unités Transférées**: Système complet d'unités (Civil, Militaire, Magique, Spirituel, Siège) avec stats vides
-- **Interface Collaborative**: Boutons "Voir détails" affichent les statistiques à définir (PA, coûts, durée, production)
-- **Prochaine Étape**: Définition collaborative des coûts PA, matériaux, durée construction/recrutement, et production
-- **Système Sécurisé**: Composants prêts pour activation sans risque de casser le système actuel
-- **Architecture Cohérente**: Même approche progressive que la trésorerie pour migration en douceur
+### Migration Finalisation Systèmes Construction/Recrutement Zustand (Janvier 26, 2025)
+- **Migration Finalisée**: CityManagementPanel complètement migré vers nouveaux systèmes Zustand
+- **Code Legacy Supprimé**: Ancien code de construction/recrutement entièrement retiré et nettoyé
+- **Option 1 Implémentée**: Remplacement direct avec switch conditionnel activé définitivement
+- **Intégration Complète**: ConstructionPanelZustand et RecruitmentPanelZustand intégrés dans onglets
+- **18 Bâtiments Organisés**: Système terrain-dépendant opérationnel (wasteland→Avant-poste, forest→Scierie, etc.)
+- **15 Unités Organisées**: Système complet par catégories (Civil, Militaire, Magique, Spirituel, Siège)
+- **Indicateurs Visuels**: Onglets marqués "(Nova)" pour confirmer migration vers nouveaux systèmes
+- **Prochaine Étape**: Définition collaborative des statistiques complètes (PA, coûts, durée, production)
+- **Architecture Unifiée**: Tous les panneaux de gestion utilisent maintenant Zustand exclusivement
 
 ### Élimination Complète de VisionSystem.worldToHex (Janvier 25, 2025)
 - **Stockage Dual**: avatarPosition (monde) + avatarHexPosition (hex) pour éviter conversions défaillantes
