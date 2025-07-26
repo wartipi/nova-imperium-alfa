@@ -64,6 +64,15 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'resource' | 'unique_item'>('all');
   const [showSellModal, setShowSellModal] = useState(false);
 
+  // Debug logs
+  console.log('🔍 PublicMarketplace rendu - PlayerId:', playerId);
+  console.log('🔍 Données marketplace:', { 
+    marketItems: marketItems.length, 
+    loading, 
+    activeTab, 
+    showSellModal 
+  });
+
   // États pour la modal de vente
   const [sellForm, setSellForm] = useState({
     itemType: 'resource' as 'resource' | 'unique_item',
@@ -82,16 +91,23 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
   // Charger les items du marketplace
   const loadMarketplaceItems = async () => {
     try {
+      console.log('🔄 Chargement des items du marketplace...');
       setLoading(true);
       const response = await fetch('/api/marketplace/items');
+      console.log('📡 Réponse API:', response.status, response.ok);
+      
       if (response.ok) {
         const items = await response.json();
+        console.log('📦 Items reçus:', items.length, items);
         setMarketItems(items);
+      } else {
+        console.error('❌ Erreur réponse API:', response.status, response.statusText);
       }
     } catch (error) {
-      console.error('Erreur lors du chargement:', error);
+      console.error('❌ Erreur lors du chargement:', error);
     } finally {
       setLoading(false);
+      console.log('✅ Chargement terminé');
     }
   };
 
@@ -128,6 +144,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
   // Acheter un item en vente directe
   const handlePurchase = async (itemId: string) => {
     try {
+      console.log('🛒 Tentative d\'achat:', itemId, 'par', playerId);
       const response = await fetch(`/api/marketplace/purchase/${itemId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -138,6 +155,8 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
       });
 
       const result = await response.json();
+      console.log('📡 Résultat achat:', result);
+      
       if (result.success) {
         alert('Achat réussi !');
         loadMarketplaceItems();
@@ -145,6 +164,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
         alert(`Erreur: ${result.message || result.error}`);
       }
     } catch (error) {
+      console.error('❌ Erreur achat:', error);
       alert('Erreur lors de l\'achat');
     }
   };
@@ -351,18 +371,24 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]" 
-      style={{ zIndex: 9999 }}
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center" 
+      style={{ zIndex: 9999, pointerEvents: 'auto' }}
       onClick={(e) => {
+        console.log('🖱️ Clic sur overlay', e.target === e.currentTarget);
         // Empêcher la fermeture si on clique à l'intérieur de la modal
         if (e.target === e.currentTarget) {
+          console.log('❌ Fermeture via overlay');
           onClose();
         }
       }}
     >
       <div 
         className="bg-amber-50 border-4 border-amber-800 rounded-lg shadow-2xl w-[95vw] h-[90vh] max-w-6xl flex flex-col"
-        onClick={(e) => e.stopPropagation()}
+        style={{ pointerEvents: 'auto' }}
+        onClick={(e) => {
+          console.log('🖱️ Clic dans modal - propagation stoppée');
+          e.stopPropagation();
+        }}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b-2 border-amber-200">
@@ -374,8 +400,15 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
             </span>
           </div>
           <button
-            onClick={onClose}
-            className="text-amber-700 hover:text-amber-900 text-3xl font-bold"
+            onClick={(e) => {
+              console.log('❌ Clic bouton fermer', e);
+              e.preventDefault();
+              e.stopPropagation();
+              onClose();
+            }}
+            className="text-amber-700 hover:text-amber-900 text-3xl font-bold hover:bg-amber-200 rounded px-2"
+            style={{ userSelect: 'none', pointerEvents: 'auto' }}
+            title="Fermer le marché"
           >
             ×
           </button>
@@ -384,22 +417,34 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
         {/* Navigation */}
         <div className="flex border-b-2 border-amber-200">
           <button
-            onClick={() => setActiveTab('buy')}
+            onClick={(e) => {
+              console.log('🔄 Clic onglet Acheter', e);
+              e.preventDefault();
+              e.stopPropagation();
+              setActiveTab('buy');
+            }}
             className={`flex-1 py-4 px-6 font-medium transition-colors ${
               activeTab === 'buy'
                 ? 'bg-amber-200 text-amber-900 border-b-2 border-amber-600'
                 : 'text-amber-700 hover:bg-amber-100'
             }`}
+            style={{ userSelect: 'none', pointerEvents: 'auto' }}
           >
             🛒 Acheter
           </button>
           <button
-            onClick={() => setActiveTab('sell')}
+            onClick={(e) => {
+              console.log('🔄 Clic onglet Vendre', e);
+              e.preventDefault();
+              e.stopPropagation();
+              setActiveTab('sell');
+            }}
             className={`flex-1 py-4 px-6 font-medium transition-colors ${
               activeTab === 'sell'
                 ? 'bg-amber-200 text-amber-900 border-b-2 border-amber-600'
                 : 'text-amber-700 hover:bg-amber-100'
             }`}
+            style={{ userSelect: 'none', pointerEvents: 'auto' }}
           >
             💰 Vendre
           </button>
@@ -469,8 +514,14 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                 </div>
                 
                 <button
-                  onClick={() => setShowSellModal(true)}
+                  onClick={(e) => {
+                    console.log('➕ Clic bouton créer vente', e);
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowSellModal(true);
+                  }}
                   className="w-full bg-green-600 hover:bg-green-700 text-white py-4 px-6 rounded-lg font-medium flex items-center justify-center gap-2"
+                  style={{ userSelect: 'none', pointerEvents: 'auto' }}
                 >
                   <Plus className="w-5 h-5" />
                   Créer une nouvelle vente
