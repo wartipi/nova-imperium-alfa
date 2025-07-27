@@ -8,62 +8,87 @@ export function HelpPanel() {
       title: "Questions Fréquentes",
       items: [
         {
-          question: "Comment construire une nouvelle ville?",
-          answer: "Utilisez une unité Colon pour fonder une nouvelle ville. Placez-la sur un terrain approprié et cliquez sur 'Fonder une ville'."
+          question: "Comment explorer le monde et découvrir des ressources?",
+          answer: "Utilisez l'action 'Explorer la Zone' (5 PA) pour révéler les ressources cachées. Plus votre niveau d'exploration est élevé, plus vous découvrez de ressources rares."
         },
         {
-          question: "Pourquoi mes unités perdent-elles de la santé?",
-          answer: "Les unités perdent de la santé en combat ou en territoire ennemi. Déplacez-les en territoire ami ou dans une ville pour les soigner."
+          question: "Comment accéder au Marché Publique?",
+          answer: "Cliquez sur l'icône ⚖️ dans l'interface ou accédez via le menu de gauche. Vous pourrez acheter et vendre ressources et objets uniques avec d'autres joueurs."
         },
         {
-          question: "Comment rechercher de nouvelles technologies?",
-          answer: "Ouvrez le panneau de recherche et sélectionnez une technologie. Votre production scientifique détermine la vitesse de recherche."
+          question: "Pourquoi je ne vois pas toutes les ressources sur la carte?",
+          answer: "Les ressources sont révélées progressivement selon votre niveau d'exploration. Niveau 1+ révèle les ressources de base, niveau 3+ débloque les ressources magiques."
         },
         {
-          question: "Qu'est-ce que la culture et à quoi sert-elle?",
-          answer: "La culture étend les frontières de vos villes et peut influencer la victoire culturelle. Construisez des temples et monuments pour l'augmenter."
+          question: "Comment créer et vendre des cartes de région?",
+          answer: "Utilisez l'action 'Cartographier' (15 PA) sur une zone explorée pour créer une carte vendable. Les coordonnées restent cachées pour les acheteurs."
+        },
+        {
+          question: "Comment annuler une vente sur le marketplace?",
+          answer: "Dans l'onglet 'Vendre' du Marché Publique, cliquez sur le bouton rouge 'Annuler vente' sur vos objets en vente. Confirmez pour retirer l'objet du marché."
         }
       ]
     },
-    controls: {
-      title: "Contrôles",
+    navigation: {
+      title: "Navigation & Interface",
       items: [
         {
-          question: "Comment naviguer sur la carte?",
-          answer: "Utilisez WASD ou les flèches directionnelles pour vous déplacer. Glissez avec la souris pour naviguer rapidement."
+          question: "Comment me déplacer sur la carte hexagonale?",
+          answer: "Cliquez sur un hexagone adjacent pour déplacer votre avatar. Le coût en PA varie selon le terrain (1-8 PA). Les réductions s'appliquent selon votre niveau d'exploration."
         },
         {
-          question: "Comment zoomer?",
-          answer: "Utilisez la molette de la souris pour zoomer/dézoomer sur la carte."
+          question: "Comment accéder aux différents menus?",
+          answer: "Menu de gauche: Factions, Trésorerie, Marché Publique. Menu de droite: Aide, Guide, Actions contextuelles. Cliquez sur votre avatar pour l'inventaire."
         },
         {
-          question: "Comment sélectionner des unités?",
-          answer: "Cliquez sur une unité pour la sélectionner. Ses options d'action apparaîtront."
+          question: "Que signifient les icônes sur la carte?",
+          answer: "🌲 Forêt (bois), ⛰️ Collines (pierre), 🏔️ Montagnes (fer), etc. Les ressources apparaissent selon votre niveau d'exploration avec des fonds colorés."
         },
         {
-          question: "Comment terminer mon tour?",
-          answer: "Cliquez sur 'Terminer le tour' en bas à droite ou appuyez sur Entrée."
+          question: "Comment voir mes statistiques de déplacement?",
+          answer: "Le panneau d'informations de tuile affiche le coût en PA, les réductions d'exploration appliquées et les ressources disponibles sur chaque hexagone."
+        }
+      ]
+    },
+    marketplace: {
+      title: "Marché Publique",
+      items: [
+        {
+          question: "Comment vendre un objet sur le marketplace?",
+          answer: "Ouvrez le Marché Publique, onglet 'Vendre'. Sélectionnez l'objet dans votre inventaire, choisissez 'Vente directe' ou 'Enchère', fixez le prix et validez."
+        },
+        {
+          question: "Pourquoi mon objet apparaît grisé dans l'inventaire?",
+          answer: "Cet objet est déjà en vente sur le marketplace. Vous pouvez l'annuler avec le bouton rouge 'Annuler vente' pour le remettre dans votre inventaire."
+        },
+        {
+          question: "Comment fonctionne le système d'enchères?",
+          answer: "Les enchères se terminent automatiquement en fin de tour. Le plus offrant remporte l'objet. Vous recevez une notification du résultat."
+        },
+        {
+          question: "Pourquoi les coordonnées des cartes sont cachées?",
+          answer: "Pour protéger vos découvertes. Les cartes vendues affichent 'Hexagone (???, ???)' aux acheteurs, mais vous gardez les vraies coordonnées dans votre inventaire."
         }
       ]
     },
     troubleshooting: {
-      title: "Dépannage",
+      title: "Problèmes Techniques",
       items: [
         {
-          question: "Le jeu est lent, que faire?",
-          answer: "Fermez les autres applications, réduisez la taille de la fenêtre ou redémarrez votre navigateur."
+          question: "Les ressources n'apparaissent pas sur la carte",
+          answer: "Vérifiez votre niveau d'exploration. Utilisez 'Explorer la Zone' pour révéler les ressources cachées. Certaines ressources magiques nécessitent niveau 3+."
         },
         {
-          question: "Je ne peux pas cliquer sur certains éléments",
-          answer: "Vérifiez que vous n'êtes pas en train de faire glisser la carte. Essayez de cliquer plus précisément."
+          question: "Je ne peux pas me déplacer sur certains terrains",
+          answer: "Les eaux profondes et peu profondes bloquent le déplacement à pied. Certains terrains comme les volcans coûtent beaucoup de PA (8 sans réduction)."
         },
         {
-          question: "L'audio ne fonctionne pas",
-          answer: "Vérifiez que le son n'est pas coupé dans le jeu et dans votre navigateur. Certains navigateurs bloquent l'audio par défaut."
+          question: "Mes objets achetés n'apparaissent pas",
+          answer: "Les ressources vont automatiquement dans votre trésorerie. Les objets uniques apparaissent dans votre inventaire avatar accessible en cliquant sur votre personnage."
         },
         {
-          question: "La sauvegarde ne fonctionne pas",
-          answer: "Assurez-vous que vous avez une connexion internet stable. Les sauvegardes sont automatiques."
+          question: "Le marketplace ne se charge pas",
+          answer: "Vérifiez votre connexion internet. Le marketplace synchronise en temps réel avec le serveur. Essayez de fermer et rouvrir le panneau."
         }
       ]
     }
@@ -132,37 +157,45 @@ export function HelpPanel() {
       </div>
 
       <div className="bg-amber-50 border border-amber-700 rounded p-3">
-        <div className="font-medium text-sm mb-2">Liens Utiles</div>
+        <div className="font-medium text-sm mb-2">Actions Rapides</div>
         <div className="space-y-1">
           <button className="w-full text-left p-2 bg-amber-100 hover:bg-amber-200 rounded text-xs">
-            📖 Manual complet du jeu
+            📖 Ouvrir le Guide de Jeu complet
           </button>
           <button className="w-full text-left p-2 bg-amber-100 hover:bg-amber-200 rounded text-xs">
-            🎮 Tutoriels vidéo
+            ⚖️ Accéder au Marché Publique
           </button>
           <button className="w-full text-left p-2 bg-amber-100 hover:bg-amber-200 rounded text-xs">
-            👥 Forum de la communauté
+            💰 Consulter la Trésorerie
           </button>
           <button className="w-full text-left p-2 bg-amber-100 hover:bg-amber-200 rounded text-xs">
-            🐛 Signaler un bug
+            🎯 Voir l'inventaire Avatar
           </button>
         </div>
       </div>
 
       <div className="bg-amber-50 border border-amber-700 rounded p-3">
-        <div className="font-medium text-sm mb-2">Informations Système</div>
+        <div className="font-medium text-sm mb-2">Statut du Jeu</div>
         <div className="space-y-1 text-xs">
           <div className="flex justify-between">
-            <span>Version du jeu:</span>
-            <span>1.0.0</span>
+            <span>Version Nova Imperium:</span>
+            <span>2.0.0</span>
           </div>
           <div className="flex justify-between">
-            <span>Navigateur:</span>
-            <span>{navigator.userAgent.split(' ')[0]}</span>
+            <span>Système d'exploration:</span>
+            <span className="text-green-600">✓ 5 niveaux</span>
           </div>
           <div className="flex justify-between">
-            <span>Résolution:</span>
-            <span>{window.innerWidth}x{window.innerHeight}</span>
+            <span>Marché Publique:</span>
+            <span className="text-green-600">✓ Actif</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Ressources magiques:</span>
+            <span className="text-green-600">✓ Disponibles</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Sécurité coordonnées:</span>
+            <span className="text-green-600">✓ Protégées</span>
           </div>
         </div>
       </div>

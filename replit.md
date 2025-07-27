@@ -164,6 +164,15 @@ Preferred communication style: Simple, everyday language.
 - **Interface Pratique**: Navigation, menus, accès directs clairement décrits
 - **Conseils Stratégiques**: Remplace anciens conseils par stratégies modernes marketplace et exploration
 
+### Actualisation Complète Panneau d'Aide (Janvier 27, 2025)
+- **4 Nouvelles Catégories**: FAQ moderne, Navigation/Interface, Marché Publique, Problèmes Techniques
+- **Questions Modernisées**: Focus sur exploration, marketplace, ressources magiques, cartes de région
+- **Réponses Techniques**: Coûts PA, niveaux d'exploration, système de sécurité coordonnées
+- **Dépannage Spécialisé**: Problèmes marketplace, ressources non visibles, déplacement bloqué
+- **Actions Rapides**: Liens directs vers Guide, Marché, Trésorerie, Inventaire avatar
+- **Statut Système**: Version 2.0.0, fonctionnalités actives avec indicateurs verts
+- **Interface Cohérente**: Style uniforme avec GameGuidePanel, recherche intégrée
+
 ### Migration Finalisation Systèmes Construction/Recrutement Zustand (Janvier 26, 2025)
 - **Migration Finalisée**: CityManagementPanel complètement migré vers nouveaux systèmes Zustand
 - **Code Legacy Supprimé**: Ancien code de construction/recrutement entièrement retiré et nettoyé
