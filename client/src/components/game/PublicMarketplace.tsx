@@ -319,6 +319,44 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
     }
   };
 
+  // Annuler une vente
+  const handleCancelSale = async (uniqueItemId: string) => {
+    try {
+      // Trouver l'item de vente correspondant
+      const saleItem = marketItems.find(item => 
+        item.sellerId === playerId && item.uniqueItemId === uniqueItemId
+      );
+      
+      if (!saleItem) {
+        alert('❌ Vente non trouvée');
+        return;
+      }
+
+      // Confirmation
+      if (!confirm(`Êtes-vous sûr de vouloir annuler la vente de "${saleItem.uniqueItem?.name || 'cet objet'}" ?`)) {
+        return;
+      }
+
+      const response = await fetch(`/api/marketplace/item/${saleItem.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sellerId: playerId })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        alert('✅ Vente annulée avec succès !');
+        loadMarketplaceItems();
+        loadPlayerInventory(); // Rafraîchir pour mettre à jour l'état visuel
+      } else {
+        alert(`❌ Erreur: ${result.error || 'Impossible d\'annuler la vente'}`);
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'annulation:', error);
+      alert('❌ Erreur lors de l\'annulation de la vente');
+    }
+  };
+
   // Rendu d'un item du marketplace
   const renderMarketItem = (item: MarketplaceItem) => {
     const isMyItem = item.sellerId === playerId;
@@ -654,9 +692,13 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                                 Valeur: {item.value} or
                               </span>
                               {isOnSale ? (
-                                <span className="text-xs text-gray-500 px-3 py-1 bg-gray-200 rounded">
-                                  Déjà en vente
-                                </span>
+                                <button
+                                  onClick={() => handleCancelSale((item as any).id)}
+                                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm transition-colors"
+                                  title="Annuler la vente"
+                                >
+                                  Annuler vente
+                                </button>
                               ) : (
                                 <button
                                   onClick={() => {

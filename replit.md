@@ -149,6 +149,9 @@ Preferred communication style: Simple, everyday language.
 - **UX Optimisée**: Message clair "Cet objet est déjà en vente" au lieu du bouton de validation
 - **Architecture Réactive**: Mise à jour automatique des statuts lors de création/suppression de ventes
 - **Bug Fix Critique**: Correction de la vérification `uniqueItem?.id` vers `uniqueItemId` pour proper matching
+- **Bouton Annulation**: Ajout bouton "Annuler vente" rouge remplaçant le texte statique "Déjà en vente"
+- **API Intégrée**: Fonction handleCancelSale() utilisant l'endpoint DELETE `/api/marketplace/item/:itemId`
+- **Confirmation UX**: Dialog de confirmation avant annulation avec nom de l'objet
 
 ### Migration Finalisation Systèmes Construction/Recrutement Zustand (Janvier 26, 2025)
 - **Migration Finalisée**: CityManagementPanel complètement migré vers nouveaux systèmes Zustand
