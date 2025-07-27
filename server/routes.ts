@@ -5,10 +5,12 @@ import { messageService } from "./messageService";
 import { treatyService } from "./treatyService";
 import { exchangeService, UniqueItem } from "./exchangeService";
 import { cartographyService } from "./cartographyService";
-import { marketplaceService } from "./marketplaceService";
+import { marketplaceService, initializeMarketplaceService } from "./marketplaceService";
 import { loginEndpoint } from "./middleware/auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Initialiser le marketplace service avec exchangeService
+  initializeMarketplaceService(exchangeService);
   // Game save/load endpoints
   app.get("/api/game/save", async (req, res) => {
     try {

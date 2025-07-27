@@ -21,6 +21,7 @@ interface MarketplaceItem {
     description: string;
     effects?: string[];
     value: number;
+    metadata?: any;
   };
   
   // Type de vente (hybride)
@@ -59,9 +60,11 @@ interface BidResult {
 class MarketplaceService {
   private marketItems: Map<string, MarketplaceItem> = new Map();
   private subscribers: Map<string, ((data: any) => void)[]> = new Map();
+  private exchangeService: any; // Référence vers ExchangeService pour récupérer les détails des objets uniques
   
-  constructor() {
+  constructor(exchangeService?: any) {
     console.log('MarketplaceService initialized');
+    this.exchangeService = exchangeService;
     this.initializeDemoItems();
   }
 
@@ -364,10 +367,52 @@ class MarketplaceService {
     return this.marketItems.get(itemId);
   }
 
+  // Enrichir un item avec les détails de l'objet unique
+  private enrichUniqueItem(item: MarketplaceItem): MarketplaceItem {
+    if (item.itemType === 'unique_item' && item.uniqueItemId && this.exchangeService) {
+      try {
+        // Essayer d'abord avec le sellerId, puis avec 'player' en fallback
+        let uniqueItem = this.exchangeService.getPlayerItem(item.sellerId, item.uniqueItemId);
+        if (!uniqueItem && item.sellerId !== 'player') {
+          uniqueItem = this.exchangeService.getPlayerItem('player', item.uniqueItemId);
+        }
+        
+        if (uniqueItem) {
+          item.uniqueItem = {
+            name: uniqueItem.name,
+            type: uniqueItem.type,
+            rarity: uniqueItem.rarity,
+            description: uniqueItem.description,
+            effects: uniqueItem.effects,
+            value: uniqueItem.value,
+            metadata: uniqueItem.metadata // Important pour les cartes !
+          };
+          console.log('Enriched unique item:', item.uniqueItem.name, 'with metadata:', !!item.uniqueItem.metadata);
+        } else {
+          console.log('Could not find unique item:', item.uniqueItemId, 'for seller:', item.sellerId);
+        }
+      } catch (error) {
+        console.log('Error enriching unique item:', error);
+      }
+    }
+    return item;
+  }
+
   getActiveItems(): MarketplaceItem[] {
-    return Array.from(this.marketItems.values())
-      .filter(item => item.status === 'active')
-      .sort((a, b) => b.createdAt - a.createdAt);
+    const activeItems = Array.from(this.marketItems.values())
+      .filter(item => item.status === 'active');
+    
+    console.log('Active items before enrichment:', activeItems.length);
+    
+    const enrichedItems = activeItems.map(item => {
+      const enriched = this.enrichUniqueItem({ ...item });
+      if (item.itemType === 'unique_item') {
+        console.log(`Item ${item.uniqueItemId} enriched:`, !!enriched.uniqueItem);
+      }
+      return enriched;
+    });
+    
+    return enrichedItems.sort((a, b) => b.createdAt - a.createdAt);
   }
 
   getItemsByType(itemType: 'resource' | 'unique_item'): MarketplaceItem[] {
@@ -460,6 +505,11 @@ class MarketplaceService {
   }
 }
 
-// Instance globale du service
-export const marketplaceService = new MarketplaceService();
+// Instance globale du service - sera initialisée avec exchangeService dans routes.ts
+export let marketplaceService: MarketplaceService;
+
+// Fonction d'initialisation à appeler depuis routes.ts
+export function initializeMarketplaceService(exchangeService: any): void {
+  marketplaceService = new MarketplaceService(exchangeService);
+}
 export type { MarketplaceItem, BidResult };
