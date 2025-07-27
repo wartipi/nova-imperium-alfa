@@ -137,7 +137,7 @@ export function MedievalHUD() {
 
   const menuItems = [
     { id: 'treasury' as MenuSection, label: 'TRÉSORERIE', icon: '💰' },
-    { id: 'marketplace' as MenuSection, label: 'MARCHÉ PUBLIQUE', icon: '🏪' },
+    { id: 'marketplace' as MenuSection, label: 'MARCHÉ PUBLIQUE', icon: '⚖️' },
     { id: 'activities' as MenuSection, label: 'RAPPORT D\'ACTIVITÉS', icon: '📊' },
     { id: 'courier' as MenuSection, label: 'COURRIER', icon: '✉️' },
     { id: 'treaties' as MenuSection, label: 'TRAITÉS', icon: '📜' },
