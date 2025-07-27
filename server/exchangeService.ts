@@ -350,6 +350,11 @@ class ExchangeService {
     }
   }
 
+  // Obtenir un objet unique par ID (pour le marketplace)
+  getUniqueItemById(itemId: string): UniqueItem | undefined {
+    return this.uniqueItems.get(itemId);
+  }
+
 
 
   // Obtenir les offres actives pour un joueur

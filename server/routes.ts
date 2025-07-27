@@ -703,12 +703,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Missing required fields" });
       }
 
+      let enrichedUniqueItem = uniqueItem;
+      
+      // Si c'est un objet unique avec un ID, récupérer les métadonnées complètes
+      if (itemType === 'unique_item' && uniqueItemId && !uniqueItem) {
+        const fullUniqueItem = exchangeService.getUniqueItemById(uniqueItemId);
+        if (fullUniqueItem && fullUniqueItem.ownerId === sellerId) {
+          enrichedUniqueItem = {
+            name: fullUniqueItem.name,
+            type: fullUniqueItem.type,
+            rarity: fullUniqueItem.rarity,
+            description: fullUniqueItem.description,
+            effects: fullUniqueItem.effects,
+            value: fullUniqueItem.value,
+            metadata: fullUniqueItem.metadata // Important pour les cartes !
+          };
+          console.log('Enriched unique item for marketplace:', enrichedUniqueItem.name, 'with metadata:', !!enrichedUniqueItem.metadata);
+        }
+      }
+
       const item = marketplaceService.createDirectSale(
         sellerId,
         sellerName,
         itemType,
         price,
-        { resourceType, quantity, uniqueItemId, uniqueItem, description, tags }
+        { resourceType, quantity, uniqueItemId, uniqueItem: enrichedUniqueItem, description, tags }
       );
 
       res.json({ success: true, item });
