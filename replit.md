@@ -103,6 +103,15 @@ Preferred communication style: Simple, everyday language.
 - **Taille Avatar Optimisée**: Réduction de 48 à 32 pixels pour affichage plus discret sur la carte
 - **Validation Confirmée**: Test réussi avec nouvelle colonie affichant le nom correct
 
+### Correction Transfert Objets Uniques Marketplace (Janvier 27, 2025)
+- **Problème Résolu**: Les objets uniques achetés au marché n'apparaissaient pas dans l'inventaire du joueur
+- **Intégration ExchangeService**: Route `/api/marketplace/purchase-integrated` maintenant intégrée avec le système d'inventaire
+- **Transfert Automatique**: Objets uniques créés automatiquement dans l'inventaire de l'acheteur via `exchangeService.createUniqueItem()`
+- **Test Validé**: Achat d'amulette confirmé avec apparition immédiate dans l'inventaire avatar
+- **Icône Marketplace**: Changement de 🏪 vers ⚖️ (balance) pour symboliser l'équité des échanges
+- **Position Interface**: Marché publique déplacé dans le menu de gauche pour meilleure organisation
+- **Trésorerie Test**: Or initial augmenté à 500 pour faciliter les tests d'achat
+
 ### Migration Finalisation Systèmes Construction/Recrutement Zustand (Janvier 26, 2025)
 - **Migration Finalisée**: CityManagementPanel complètement migré vers nouveaux systèmes Zustand
 - **Code Legacy Supprimé**: Ancien code de construction/recrutement entièrement retiré et nettoyé
