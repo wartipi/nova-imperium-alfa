@@ -57,9 +57,27 @@ interface PublicMarketplaceProps {
   onClose: () => void;
 }
 
+// Interface pour objets uniques du joueur
+interface UniqueItem {
+  id: string;
+  name: string;
+  type: 'carte' | 'objet_magique' | 'artefact' | 'relique' | 'document' | 'equipement_legendaire';
+  rarity: 'commun' | 'rare' | 'epique' | 'legendaire' | 'mythique';
+  description: string;
+  effects?: string[];
+  requirements?: string[];
+  value: number;
+  tradeable: boolean;
+  ownerId: string;
+  createdAt: number;
+  metadata?: { [key: string]: any };
+}
+
 export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps) {
   const [marketItems, setMarketItems] = useState<MarketplaceItem[]>([]);
+  const [playerInventory, setPlayerInventory] = useState<UniqueItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [inventoryLoading, setInventoryLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'buy' | 'sell'>('buy');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'resource' | 'unique_item'>('all');
@@ -80,7 +98,8 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
     startingBid: 5,
     minBidIncrement: 1,
     description: '',
-    tags: ''
+    tags: '',
+    selectedUniqueItemId: '' // Pour sélectionner un objet unique du joueur
   });
 
   const currentTurn = 1; // TODO: Récupérer du GameManager
@@ -110,11 +129,28 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
     }
   };
 
+  // Charger l'inventaire du joueur
+  const loadPlayerInventory = async () => {
+    try {
+      setInventoryLoading(true);
+      const response = await fetch(`/api/unique-items/${playerId}`);
+      if (response.ok) {
+        const items = await response.json();
+        setPlayerInventory(items);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement de l\'inventaire:', error);
+    } finally {
+      setInventoryLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadMarketplaceItems();
+    loadPlayerInventory();
     // Plus de rafraîchissement automatique pour éviter complètement les scintillements
     // L'utilisateur peut utiliser le bouton 🔄 pour actualiser manuellement
-  }, []);
+  }, [playerId]);
 
   // Filtrer les items selon la recherche et les filtres
   const filteredItems = marketItems.filter(item => {
@@ -240,8 +276,9 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
               minBidIncrement: sellForm.minBidIncrement 
             }
         ),
-        resourceType: sellForm.itemType === 'resource' ? sellForm.resourceType : undefined,
-        quantity: sellForm.itemType === 'resource' ? sellForm.quantity : undefined,
+        ...(sellForm.itemType === 'resource' 
+          ? { resourceType: sellForm.resourceType, quantity: sellForm.quantity }
+          : { uniqueItemId: sellForm.selectedUniqueItemId }),
         description: sellForm.description,
         tags: sellForm.tags.split(',').map(t => t.trim()).filter(Boolean)
       };
@@ -265,7 +302,8 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
           startingBid: 5,
           minBidIncrement: 1,
           description: '',
-          tags: ''
+          tags: '',
+          selectedUniqueItemId: ''
         });
         loadMarketplaceItems();
       } else {
@@ -524,16 +562,79 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
               <div className="p-6">
                 <div className="text-center mb-6">
                   <h3 className="text-xl font-bold text-amber-900 mb-2">Vendre vos objets</h3>
-                  <p className="text-amber-700">Choisissez entre vente directe (prix fixe) ou enchères (prix variable)</p>
+                  <p className="text-amber-700">Sélectionnez un objet de votre inventaire pour le mettre en vente</p>
                 </div>
                 
+                {/* Mon inventaire d'objets uniques */}
+                <div className="mb-8">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-bold text-amber-900">Mon inventaire</h4>
+                    <button
+                      onClick={loadPlayerInventory}
+                      className="px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm transition-colors"
+                      title="Actualiser l'inventaire"
+                    >
+                      🔄
+                    </button>
+                  </div>
+                  
+                  {inventoryLoading ? (
+                    <div className="text-center py-4 text-amber-700">Chargement de votre inventaire...</div>
+                  ) : playerInventory.length === 0 ? (
+                    <div className="text-center py-8 bg-amber-50 rounded-lg border border-amber-200">
+                      <div className="text-amber-600">Votre inventaire est vide</div>
+                      <div className="text-sm text-amber-500 mt-1">Explorez le monde ou achetez des objets pour remplir votre inventaire</div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {playerInventory.map((item) => (
+                        <div key={item.id} className="bg-white border border-amber-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                          <div className="flex items-start justify-between mb-2">
+                            <h5 className="font-medium text-amber-900 truncate">{item.name}</h5>
+                            <span className={`text-xs px-2 py-1 rounded ${
+                              item.rarity === 'legendaire' ? 'bg-orange-100 text-orange-800' :
+                              item.rarity === 'epique' ? 'bg-purple-100 text-purple-800' :
+                              item.rarity === 'rare' ? 'bg-blue-100 text-blue-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {item.rarity}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 mb-3 line-clamp-2">{item.description}</p>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-amber-600">Valeur: {item.value} or</span>
+                            <button
+                              onClick={() => {
+                                setSellForm({
+                                  ...sellForm,
+                                  itemType: 'unique_item',
+                                  selectedUniqueItemId: item.id,
+                                  price: Math.floor(item.value * 0.8) // Prix de vente suggéré
+                                });
+                                setShowSellModal(true);
+                              }}
+                              className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition-colors"
+                            >
+                              Vendre
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Bouton pour vendre des ressources */}
                 <button
-                  onClick={() => setShowSellModal(true)}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white py-4 px-6 rounded-lg font-medium flex items-center justify-center gap-2"
+                  onClick={() => {
+                    setSellForm({...sellForm, itemType: 'resource', selectedUniqueItemId: ''});
+                    setShowSellModal(true);
+                  }}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-lg font-medium flex items-center justify-center gap-2 mb-6"
                   style={{ userSelect: 'none', pointerEvents: 'auto' }}
                 >
                   <Plus className="w-5 h-5" />
-                  Créer une nouvelle vente
+                  Vendre des ressources
                 </button>
 
                 {/* Mes ventes actives */}
@@ -616,12 +717,47 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                     <input
                       type="number"
                       min="1"
-                      value={sellForm.quantity}
-                      onChange={(e) => setSellForm({...sellForm, quantity: parseInt(e.target.value)})}
+                      value={sellForm.quantity || 1}
+                      onChange={(e) => setSellForm({...sellForm, quantity: parseInt(e.target.value) || 1})}
                       className="w-full px-3 py-2 border rounded-lg"
                     />
                   </div>
                 </>
+              )}
+
+              {/* Affichage de l'objet unique sélectionné */}
+              {sellForm.itemType === 'unique_item' && sellForm.selectedUniqueItemId && (
+                (() => {
+                  const selectedItem = playerInventory.find(item => item.id === sellForm.selectedUniqueItemId);
+                  return selectedItem ? (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                      <h4 className="font-medium text-amber-900 mb-2">Objet sélectionné:</h4>
+                      <div className="flex items-start justify-between mb-2">
+                        <span className="font-medium">{selectedItem.name}</span>
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          selectedItem.rarity === 'legendaire' ? 'bg-orange-100 text-orange-800' :
+                          selectedItem.rarity === 'epique' ? 'bg-purple-100 text-purple-800' :
+                          selectedItem.rarity === 'rare' ? 'bg-blue-100 text-blue-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {selectedItem.rarity}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-2">{selectedItem.description}</p>
+                      <p className="text-sm text-amber-600">Valeur estimée: {selectedItem.value} or</p>
+                    </div>
+                  ) : (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-600">
+                      Objet non trouvé dans votre inventaire
+                    </div>
+                  );
+                })()
+              )}
+
+              {sellForm.itemType === 'unique_item' && !sellForm.selectedUniqueItemId && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-600">
+                  Veuillez sélectionner un objet de votre inventaire depuis l'onglet "Vendre"
+                </div>
               )}
 
               {/* Prix selon le type de vente */}
@@ -631,8 +767,8 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                   <input
                     type="number"
                     min="1"
-                    value={sellForm.price}
-                    onChange={(e) => setSellForm({...sellForm, price: parseInt(e.target.value)})}
+                    value={sellForm.price || ''}
+                    onChange={(e) => setSellForm({...sellForm, price: parseInt(e.target.value) || 10})}
                     className="w-full px-3 py-2 border rounded-lg"
                   />
                 </div>
@@ -643,8 +779,8 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                     <input
                       type="number"
                       min="1"
-                      value={sellForm.startingBid}
-                      onChange={(e) => setSellForm({...sellForm, startingBid: parseInt(e.target.value)})}
+                      value={sellForm.startingBid || ''}
+                      onChange={(e) => setSellForm({...sellForm, startingBid: parseInt(e.target.value) || 5})}
                       className="w-full px-3 py-2 border rounded-lg"
                     />
                   </div>
@@ -653,8 +789,8 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                     <input
                       type="number"
                       min="1"
-                      value={sellForm.minBidIncrement}
-                      onChange={(e) => setSellForm({...sellForm, minBidIncrement: parseInt(e.target.value)})}
+                      value={sellForm.minBidIncrement || ''}
+                      onChange={(e) => setSellForm({...sellForm, minBidIncrement: parseInt(e.target.value) || 1})}
                       className="w-full px-3 py-2 border rounded-lg"
                     />
                   </div>
