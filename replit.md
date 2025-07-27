@@ -112,6 +112,17 @@ Preferred communication style: Simple, everyday language.
 - **Position Interface**: Marché publique déplacé dans le menu de gauche pour meilleure organisation
 - **Trésorerie Test**: Or initial augmenté à 500 pour faciliter les tests d'achat
 
+### Système de Sécurité Cartes - Masquage Coordonnées (Janvier 27, 2025)
+- **Sécurité Marketplace**: Coordonnées masquées dans prévisualisations marketplace (hideCoordinates=true)
+- **Accès Propriétaire**: Coordonnées visibles dans inventaire personnel (hideCoordinates=false)
+- **Noms Génériques**: Cartes affichées comme "Carte de Région [rareté]" dans marketplace
+- **Tooltip Sécurisé**: Affichage "Hexagone (???, ???)" au lieu des vraies coordonnées
+- **Titre Modal**: "Carte de Région (Prévisualisation Marketplace)" pour éviter révélation
+- **Zone Info Masquée**: Informations de région cachées dans marketplace
+- **Méthode getUniqueItemById**: Ajoutée à ExchangeService pour enrichissement métadonnées
+- **Enrichissement Confirmé**: Logs "enriched: true" validant le système fonctionnel
+- **Architecture Dual**: Système contextuel selon source (marketplace vs inventaire personnel)
+
 ### Migration Finalisation Systèmes Construction/Recrutement Zustand (Janvier 26, 2025)
 - **Migration Finalisée**: CityManagementPanel complètement migré vers nouveaux systèmes Zustand
 - **Code Legacy Supprimé**: Ancien code de construction/recrutement entièrement retiré et nettoyé

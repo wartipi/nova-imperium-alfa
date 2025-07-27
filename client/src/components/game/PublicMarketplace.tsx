@@ -865,7 +865,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
         <InteractiveMapViewer
           mapData={viewingMapItem.uniqueItem.metadata.mapData}
           onClose={() => setViewingMapItem(null)}
-          title={`Carte: ${viewingMapItem.uniqueItem.name}`}
+          title="Carte de Région (Prévisualisation Marketplace)"
           hideCoordinates={true}
         />
       )}

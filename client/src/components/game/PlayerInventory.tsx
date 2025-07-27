@@ -152,6 +152,7 @@ export function PlayerInventory({ playerId }: PlayerInventoryProps) {
           mapData={viewingMap.metadata.mapData}
           onClose={() => setViewingMap(null)}
           title={viewingMap.name}
+          hideCoordinates={false}  // Coordonnées VISIBLES dans l'inventaire du joueur
         />
       )}
       
