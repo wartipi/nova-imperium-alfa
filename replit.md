@@ -134,6 +134,13 @@ Preferred communication style: Simple, everyday language.
 - **Architecture Modulaire**: System d'icônes réutilisable pour futurs composants
 - **Test Validé**: Utilisateur confirme fonctionnement parfait avec cohérence visuelle totale
 
+### Amélioration Interface Marketplace - Scroll Bar Ventes (Janvier 27, 2025)
+- **Problème Résolu**: Section "Mes ventes actives" ne permettait pas de voir tous les items en cas de liste longue
+- **Solution Implémentée**: Scroll bar verticale avec hauteur maximale de 96 (24rem) et overflow-y-auto
+- **Amélioration UX**: Fond amber-25 avec bordure pour délimiter clairement la zone scrollable
+- **Message Vide**: Ajout d'un message informatif quand aucune vente active n'existe
+- **Test en Cours**: Interface améliorée déployée et prête pour validation utilisateur
+
 ### Migration Finalisation Systèmes Construction/Recrutement Zustand (Janvier 26, 2025)
 - **Migration Finalisée**: CityManagementPanel complètement migré vers nouveaux systèmes Zustand
 - **Code Legacy Supprimé**: Ancien code de construction/recrutement entièrement retiré et nettoyé

@@ -660,11 +660,19 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                 {/* Mes ventes actives */}
                 <div className="mt-8">
                   <h4 className="font-bold text-amber-900 mb-4">Mes ventes actives</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {marketItems
-                      .filter(item => item.sellerId === playerId)
-                      .map(renderMarketItem)
-                    }
+                  <div className="max-h-96 overflow-y-auto border border-amber-200 rounded-lg p-4 bg-amber-25">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {marketItems
+                        .filter(item => item.sellerId === playerId)
+                        .map(renderMarketItem)
+                      }
+                    </div>
+                    {marketItems.filter(item => item.sellerId === playerId).length === 0 && (
+                      <div className="text-center py-8 text-amber-600">
+                        <p>Vous n'avez aucune vente active pour le moment</p>
+                        <p className="text-sm text-amber-500 mt-1">Utilisez les boutons ci-dessus pour créer vos premières ventes</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
