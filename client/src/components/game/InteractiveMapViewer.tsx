@@ -35,7 +35,7 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
   mapData, 
   onClose, 
   title = "Carte Interactive",
-  hideCoordinates = false
+  hideCoordinates = true  // Par défaut masquer les coordonnées pour sécurité
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -177,11 +177,13 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
       // Dessiner l'hexagone
       drawHexagon(ctx, centerX, centerY, getTerrainColor(tile.terrain));
 
-      // Afficher les vraies coordonnées du jeu
-      ctx.fillStyle = '#000';
-      ctx.font = '10px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText(`${tile.x},${tile.y}`, centerX, centerY - 5);
+      // Afficher les coordonnées (masquées par défaut pour sécurité)
+      if (!hideCoordinates) {
+        ctx.fillStyle = '#000';
+        ctx.font = '10px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${tile.x},${tile.y}`, centerX, centerY - 5);
+      }
 
       // Afficher les ressources
       if (tile.resources.length > 0) {

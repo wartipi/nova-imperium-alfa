@@ -332,7 +332,9 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
             <h3 className="font-bold text-amber-900">
               {item.itemType === 'resource' 
                 ? `${item.resourceType} (${item.quantity})`
-                : item.uniqueItem?.name || 'Objet unique'
+                : (item.uniqueItem?.type === 'carte' 
+                  ? `Carte de Région ${item.uniqueItem?.rarity || 'Inconnue'}` 
+                  : (item.uniqueItem?.name || 'Objet unique'))
               }
             </h3>
             <p className="text-sm text-gray-600">
