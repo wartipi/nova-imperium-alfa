@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { X, MapPin, Mountain, Droplets, Trees, Zap } from 'lucide-react';
+import { getResourceDisplayInfo, getResourceIcon } from '../../lib/shared/ResourceIcons';
 
 interface HexTile {
   x: number;
@@ -70,25 +71,7 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
     return colors[terrain] || '#D3D3D3';
   };
 
-  // Icône des ressources
-  const getResourceIcon = (resource: string): string => {
-    const icons: { [key: string]: string } = {
-      'wood': '🌲',
-      'stone': '🪨',
-      'iron': '⚙️',
-      'copper': '🔶',
-      'gold': '💰',
-      'fish': '🐟',
-      'whales': '🐋',
-      'crabs': '🦀',
-      'wheat': '🌾',
-      'herbs': '🌿',
-      'oil': '🛢️',
-      'gems': '💎',
-      'coal': '⚫'
-    };
-    return icons[resource] || '📦';
-  };
+  // Note: getResourceIcon est maintenant importé du système partagé
 
   // Conversion coordonnées hexagonales vers pixel - exactement comme GameEngine.ts
   const hexToPixel = useCallback((hexX: number, hexY: number): { x: number, y: number } => {
@@ -185,12 +168,24 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
         ctx.fillText(`${tile.x},${tile.y}`, centerX, centerY - 5);
       }
 
-      // Afficher les ressources
+      // Afficher les ressources avec couleurs - exactement comme GameEngine.ts
       if (tile.resources.length > 0) {
-        ctx.font = '14px Arial';
         tile.resources.forEach((resource, index) => {
-          const icon = getResourceIcon(resource);
-          ctx.fillText(icon, centerX - 8 + (index * 16), centerY + 8);
+          const resourceInfo = getResourceDisplayInfo(resource);
+          
+          // Fond coloré comme dans GameEngine.ts
+          ctx.fillStyle = resourceInfo.color;
+          ctx.globalAlpha = 0.8;
+          const resourceX = centerX - 8 + (index * 16);
+          const resourceY = centerY + 8;
+          ctx.fillRect(resourceX - 8, resourceY - 8, 16, 16);
+          ctx.globalAlpha = 1.0;
+          
+          // Icône de la ressource
+          ctx.font = '14px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillStyle = '#000';
+          ctx.fillText(resourceInfo.symbol, resourceX, resourceY + 4);
         });
       }
     });
@@ -301,24 +296,7 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
     return names[terrain] || terrain;
   };
 
-  const getResourceName = (resource: string): string => {
-    const names: { [key: string]: string } = {
-      'wood': 'Bois',
-      'stone': 'Pierre',
-      'iron': 'Fer',
-      'copper': 'Cuivre',
-      'gold': 'Or',
-      'fish': 'Poisson',
-      'whales': 'Baleines',
-      'crabs': 'Crabes',
-      'wheat': 'Blé',
-      'herbs': 'Herbes',
-      'oil': 'Pétrole',
-      'gems': 'Gemmes',
-      'coal': 'Charbon'
-    };
-    return names[resource] || resource;
-  };
+  // Note: getResourceName remplacé par getResourceDisplayInfo du système partagé
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" ref={containerRef}>
@@ -378,7 +356,7 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
             </div>
             {tooltip.tile.resources.length > 0 && (
               <div className="text-xs text-amber-200">
-                Ressources: {tooltip.tile.resources.map(r => getResourceName(r)).join(', ')}
+                Ressources: {tooltip.tile.resources.map(r => getResourceDisplayInfo(r).name || r).join(', ')}
               </div>
             )}
           </div>
