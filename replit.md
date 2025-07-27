@@ -155,6 +155,15 @@ Preferred communication style: Simple, everyday language.
 - **Interface Parfaite**: Contenu grisé (opacité 60%) mais bouton "Annuler vente" reste rouge vif et cliquable
 - **Test Validé**: Annulation de vente fonctionnelle - objet retiré du marché et inventaire mis à jour
 
+### Actualisation Complète Guide de Jeu (Janvier 27, 2025)
+- **Guide Modernisé**: GameGuidePanel.tsx entièrement actualisé avec dernières fonctionnalités
+- **6 Nouvelles Sections**: Exploration, Marketplace, Ressources remplacent anciennes sections obsolètes
+- **Mécaniques Actuelles**: Système d'exploration 5 niveaux, réductions coûts déplacement intégrées
+- **Marketplace Complet**: Commerce hybride, sécurité coordonnées, prévention duplicatas documentés
+- **Ressources Modernes**: 15 ressources + ressources magiques niveau 3+ expliquées
+- **Interface Pratique**: Navigation, menus, accès directs clairement décrits
+- **Conseils Stratégiques**: Remplace anciens conseils par stratégies modernes marketplace et exploration
+
 ### Migration Finalisation Systèmes Construction/Recrutement Zustand (Janvier 26, 2025)
 - **Migration Finalisée**: CityManagementPanel complètement migré vers nouveaux systèmes Zustand
 - **Code Legacy Supprimé**: Ancien code de construction/recrutement entièrement retiré et nettoyé
