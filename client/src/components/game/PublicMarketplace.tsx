@@ -607,39 +607,76 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {playerInventory.map((item) => (
-                        <div key={item.id} className="bg-white border border-amber-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                          <div className="flex items-start justify-between mb-2">
-                            <h5 className="font-medium text-amber-900 truncate">{item.name}</h5>
-                            <span className={`text-xs px-2 py-1 rounded ${
-                              item.rarity === 'legendaire' ? 'bg-orange-100 text-orange-800' :
-                              item.rarity === 'epique' ? 'bg-purple-100 text-purple-800' :
-                              item.rarity === 'rare' ? 'bg-blue-100 text-blue-800' :
-                              'bg-gray-100 text-gray-800'
+                      {playerInventory.map((item) => {
+                        // Vérifier si cet objet est déjà en vente
+                        const isOnSale = marketItems.some(marketItem => 
+                          marketItem.sellerId === playerId && 
+                          marketItem.uniqueItem?.id === (item as any).id
+                        );
+
+                        return (
+                          <div key={item.id} className={`border rounded-lg p-4 transition-shadow ${
+                            isOnSale 
+                              ? 'bg-gray-50 border-gray-300 opacity-60' 
+                              : 'bg-white border-amber-200 hover:shadow-md'
+                          }`}>
+                            <div className="flex items-start justify-between mb-2">
+                              <h5 className={`font-medium truncate ${
+                                isOnSale ? 'text-gray-500' : 'text-amber-900'
+                              }`}>
+                                {item.name}
+                              </h5>
+                              <div className="flex flex-col items-end gap-1">
+                                <span className={`text-xs px-2 py-1 rounded ${
+                                  item.rarity === 'legendaire' ? 'bg-orange-100 text-orange-800' :
+                                  item.rarity === 'epique' ? 'bg-purple-100 text-purple-800' :
+                                  item.rarity === 'rare' ? 'bg-blue-100 text-blue-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {item.rarity}
+                                </span>
+                                {isOnSale && (
+                                  <span className="text-xs px-2 py-1 rounded bg-red-100 text-red-700">
+                                    En vente
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <p className={`text-sm mb-3 line-clamp-2 ${
+                              isOnSale ? 'text-gray-400' : 'text-gray-600'
                             }`}>
-                              {item.rarity}
-                            </span>
+                              {item.description}
+                            </p>
+                            <div className="flex items-center justify-between">
+                              <span className={`text-sm ${
+                                isOnSale ? 'text-gray-400' : 'text-amber-600'
+                              }`}>
+                                Valeur: {item.value} or
+                              </span>
+                              {isOnSale ? (
+                                <span className="text-xs text-gray-500 px-3 py-1 bg-gray-200 rounded">
+                                  Déjà en vente
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setSellForm({
+                                      ...sellForm,
+                                      itemType: 'unique_item',
+                                      selectedUniqueItemId: (item as any).id,
+                                      price: Math.floor(item.value * 0.8) // Prix de vente suggéré
+                                    });
+                                    setShowSellModal(true);
+                                  }}
+                                  className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition-colors"
+                                >
+                                  Vendre
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          <p className="text-sm text-gray-600 mb-3 line-clamp-2">{item.description}</p>
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-amber-600">Valeur: {item.value} or</span>
-                            <button
-                              onClick={() => {
-                                setSellForm({
-                                  ...sellForm,
-                                  itemType: 'unique_item',
-                                  selectedUniqueItemId: item.id,
-                                  price: Math.floor(item.value * 0.8) // Prix de vente suggéré
-                                });
-                                setShowSellModal(true);
-                              }}
-                              className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition-colors"
-                            >
-                              Vendre
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -857,12 +894,27 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                 >
                   Annuler
                 </button>
-                <button
-                  onClick={handleCreateSale}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg"
-                >
-                  {sellForm.saleType === 'direct_sale' ? 'Créer la vente' : 'Lancer l\'enchère'}
-                </button>
+                {(() => {
+                  // Vérifier si l'objet unique sélectionné est déjà en vente
+                  const isSelectedItemOnSale = sellForm.itemType === 'unique_item' && sellForm.selectedUniqueItemId && 
+                    marketItems.some(marketItem => 
+                      marketItem.sellerId === playerId && 
+                      marketItem.uniqueItem?.id === sellForm.selectedUniqueItemId
+                    );
+
+                  return isSelectedItemOnSale ? (
+                    <div className="flex-1 bg-red-100 border border-red-300 text-red-700 py-2 px-4 rounded-lg text-center">
+                      Cet objet est déjà en vente
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleCreateSale}
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg"
+                    >
+                      {sellForm.saleType === 'direct_sale' ? 'Créer la vente' : 'Lancer l\'enchère'}
+                    </button>
+                  );
+                })()}
               </div>
             </div>
           </div>

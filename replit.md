@@ -141,6 +141,14 @@ Preferred communication style: Simple, everyday language.
 - **Message Vide Amélioré**: Message informatif stylé quand aucune vente active n'existe
 - **UX Cohérente**: Navigation fluide dans tout l'onglet vente sans limitation de hauteur
 
+### Prévention Ventes Duplicatas d'Objets Uniques (Janvier 27, 2025)
+- **Problème Résolu**: Un même objet unique pouvait être mis en vente plusieurs fois simultanément
+- **Solution 1 Implémentée**: Filtrage côté client avec indicateurs visuels pour objets déjà en vente
+- **Interface Améliorée**: Objets en vente affichent badge "En vente", bouton désactivé et style grisé
+- **Sécurité Double**: Vérification dans l'inventaire ET dans le modal de création de vente
+- **UX Optimisée**: Message clair "Cet objet est déjà en vente" au lieu du bouton de validation
+- **Architecture Réactive**: Mise à jour automatique des statuts lors de création/suppression de ventes
+
 ### Migration Finalisation Systèmes Construction/Recrutement Zustand (Janvier 26, 2025)
 - **Migration Finalisée**: CityManagementPanel complètement migré vers nouveaux systèmes Zustand
 - **Code Legacy Supprimé**: Ancien code de construction/recrutement entièrement retiré et nettoyé
