@@ -152,6 +152,8 @@ Preferred communication style: Simple, everyday language.
 - **Bouton Annulation**: Ajout bouton "Annuler vente" rouge remplaçant le texte statique "Déjà en vente"
 - **API Intégrée**: Fonction handleCancelSale() utilisant l'endpoint DELETE `/api/marketplace/item/:itemId`
 - **Confirmation UX**: Dialog de confirmation avant annulation avec nom de l'objet
+- **Interface Parfaite**: Contenu grisé (opacité 60%) mais bouton "Annuler vente" reste rouge vif et cliquable
+- **Test Validé**: Annulation de vente fonctionnelle - objet retiré du marché et inventaire mis à jour
 
 ### Migration Finalisation Systèmes Construction/Recrutement Zustand (Janvier 26, 2025)
 - **Migration Finalisée**: CityManagementPanel complètement migré vers nouveaux systèmes Zustand
