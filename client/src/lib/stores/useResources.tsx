@@ -60,7 +60,7 @@ const initialResources: Resources = {
   // Ressources de base
   food: 40,
   action_points: 25,
-  gold: 80,
+  gold: 500,
   
   // Ressources stratégiques
   iron: 5,
