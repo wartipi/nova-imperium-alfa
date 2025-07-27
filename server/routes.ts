@@ -809,9 +809,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = marketplaceService.purchaseDirectSale(itemId, playerId, playerName);
       
       if (result.success) {
-        // TODO: Intégration réelle avec le système de ressources
-        // 1. Déduire l'or du joueur: resourceManager.spendResources({ gold: cost })
-        // 2. Ajouter la ressource/objet: resourceManager.addResource(type, quantity)
+        // INTÉGRATION AVEC INVENTORY: Transférer l'objet unique si applicable
+        if (item.itemType === 'unique_item' && item.uniqueItem) {
+          // Créer l'objet dans l'inventaire du joueur acheteur
+          const newItem = exchangeService.createUniqueItem(
+            item.uniqueItem.name,
+            item.uniqueItem.type,
+            item.uniqueItem.rarity,
+            item.uniqueItem.description,
+            playerId,
+            item.uniqueItem.effects || [],
+            [], // requirements
+            item.uniqueItem.value,
+            {} // metadata
+          );
+          
+          if (!newItem) {
+            return res.status(500).json({ 
+              error: "Erreur lors du transfert de l'objet vers votre inventaire" 
+            });
+          }
+        }
         
         res.json({
           success: true,
