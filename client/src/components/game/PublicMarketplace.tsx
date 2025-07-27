@@ -655,42 +655,49 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                         return (
                           <div key={item.id} className={`border rounded-lg p-4 transition-shadow ${
                             isOnSale 
-                              ? 'bg-gray-50 border-gray-300 opacity-60' 
+                              ? 'bg-gray-50 border-gray-300' 
                               : 'bg-white border-amber-200 hover:shadow-md'
                           }`}>
-                            <div className="flex items-start justify-between mb-2">
-                              <h5 className={`font-medium truncate ${
-                                isOnSale ? 'text-gray-500' : 'text-amber-900'
-                              }`}>
-                                {item.name}
-                              </h5>
-                              <div className="flex flex-col items-end gap-1">
-                                <span className={`text-xs px-2 py-1 rounded ${
-                                  item.rarity === 'legendaire' ? 'bg-orange-100 text-orange-800' :
-                                  item.rarity === 'epique' ? 'bg-purple-100 text-purple-800' :
-                                  item.rarity === 'rare' ? 'bg-blue-100 text-blue-800' :
-                                  'bg-gray-100 text-gray-800'
+                            {/* Contenu grisé séparément */}
+                            <div className={isOnSale ? 'opacity-60' : ''}>
+                              <div className="flex items-start justify-between mb-2">
+                                <h5 className={`font-medium truncate ${
+                                  isOnSale ? 'text-gray-500' : 'text-amber-900'
                                 }`}>
-                                  {item.rarity}
-                                </span>
-                                {isOnSale && (
-                                  <span className="text-xs px-2 py-1 rounded bg-red-100 text-red-700">
-                                    En vente
+                                  {item.name}
+                                </h5>
+                                <div className="flex flex-col items-end gap-1">
+                                  <span className={`text-xs px-2 py-1 rounded ${
+                                    item.rarity === 'legendaire' ? 'bg-orange-100 text-orange-800' :
+                                    item.rarity === 'epique' ? 'bg-purple-100 text-purple-800' :
+                                    item.rarity === 'rare' ? 'bg-blue-100 text-blue-800' :
+                                    'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {item.rarity}
                                   </span>
-                                )}
+                                  {isOnSale && (
+                                    <span className="text-xs px-2 py-1 rounded bg-red-100 text-red-700">
+                                      En vente
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <p className={`text-sm mb-3 line-clamp-2 ${
+                                isOnSale ? 'text-gray-400' : 'text-gray-600'
+                              }`}>
+                                {item.description}
+                              </p>
+                              <div className="flex items-center justify-between">
+                                <span className={`text-sm ${
+                                  isOnSale ? 'text-gray-400' : 'text-amber-600'
+                                }`}>
+                                  Valeur: {item.value} or
+                                </span>
                               </div>
                             </div>
-                            <p className={`text-sm mb-3 line-clamp-2 ${
-                              isOnSale ? 'text-gray-400' : 'text-gray-600'
-                            }`}>
-                              {item.description}
-                            </p>
-                            <div className="flex items-center justify-between">
-                              <span className={`text-sm ${
-                                isOnSale ? 'text-gray-400' : 'text-amber-600'
-                              }`}>
-                                Valeur: {item.value} or
-                              </span>
+                            
+                            {/* Actions - Non grisées, restent visibles */}
+                            <div className="flex justify-end mt-3">
                               {isOnSale ? (
                                 <button
                                   onClick={() => handleCancelSale((item as any).id)}
