@@ -148,6 +148,7 @@ Preferred communication style: Simple, everyday language.
 - **Sécurité Double**: Vérification dans l'inventaire ET dans le modal de création de vente
 - **UX Optimisée**: Message clair "Cet objet est déjà en vente" au lieu du bouton de validation
 - **Architecture Réactive**: Mise à jour automatique des statuts lors de création/suppression de ventes
+- **Bug Fix Critique**: Correction de la vérification `uniqueItem?.id` vers `uniqueItemId` pour proper matching
 
 ### Migration Finalisation Systèmes Construction/Recrutement Zustand (Janvier 26, 2025)
 - **Migration Finalisée**: CityManagementPanel complètement migré vers nouveaux systèmes Zustand

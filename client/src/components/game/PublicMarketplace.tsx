@@ -611,7 +611,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                         // Vérifier si cet objet est déjà en vente
                         const isOnSale = marketItems.some(marketItem => 
                           marketItem.sellerId === playerId && 
-                          marketItem.uniqueItem?.id === (item as any).id
+                          marketItem.uniqueItemId === (item as any).id
                         );
 
                         return (
@@ -899,7 +899,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                   const isSelectedItemOnSale = sellForm.itemType === 'unique_item' && sellForm.selectedUniqueItemId && 
                     marketItems.some(marketItem => 
                       marketItem.sellerId === playerId && 
-                      marketItem.uniqueItem?.id === sellForm.selectedUniqueItemId
+                      marketItem.uniqueItemId === sellForm.selectedUniqueItemId
                     );
 
                   return isSelectedItemOnSale ? (
