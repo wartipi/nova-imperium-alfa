@@ -124,6 +124,16 @@ Preferred communication style: Simple, everyday language.
 - **Architecture Dual**: Système contextuel selon source (marketplace vs inventaire personnel)
 - **Test Validé**: Fonctionnement parfait confirmé par l'utilisateur - sécurité et utilisabilité optimales
 
+### Unification Système d'Icônes MapViewer (Janvier 27, 2025)
+- **Problème Résolu**: MapViewer utilisait des icônes différentes du jeu principal
+- **Solution Unifiée**: Création de ResourceIcons.ts partagé avec toutes les icônes et couleurs
+- **Code Principal Préservé**: Aucune modification du GameEngine.ts ou autres composants principaux
+- **Synchronisation Parfaite**: MapViewer utilise maintenant exactement les mêmes icônes, couleurs et styles
+- **Fonds Colorés**: Système de fonds colorés des ressources identique au GameEngine.ts
+- **Tooltips Enrichis**: Noms de ressources synchronisés avec le système principal
+- **Architecture Modulaire**: System d'icônes réutilisable pour futurs composants
+- **Test Validé**: Utilisateur confirme fonctionnement parfait avec cohérence visuelle totale
+
 ### Migration Finalisation Systèmes Construction/Recrutement Zustand (Janvier 26, 2025)
 - **Migration Finalisée**: CityManagementPanel complètement migré vers nouveaux systèmes Zustand
 - **Code Legacy Supprimé**: Ancien code de construction/recrutement entièrement retiré et nettoyé
