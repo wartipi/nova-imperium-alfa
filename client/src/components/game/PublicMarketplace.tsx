@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { ShoppingCart, Plus, Gavel, DollarSign, Clock, User, Search, Filter, X } from "lucide-react";
+import { ShoppingCart, Plus, Gavel, DollarSign, Clock, User, Search, Filter, X, Eye } from "lucide-react";
 import { useResources } from '../../lib/stores/useResources';
+import InteractiveMapViewer from './InteractiveMapViewer';
 
 // Types pour le nouveau système de marketplace
 interface MarketplaceItem {
@@ -24,6 +25,9 @@ interface MarketplaceItem {
     description: string;
     effects?: string[];
     value: number;
+    metadata?: {
+      mapData?: any;
+    };
   };
   
   // Type de vente (hybride)
@@ -82,6 +86,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'resource' | 'unique_item'>('all');
   const [showSellModal, setShowSellModal] = useState(false);
+  const [viewingMapItem, setViewingMapItem] = useState<MarketplaceItem | null>(null);
   
   // Accès direct aux stores pour l'intégration ressources
   const { resources, addResource, spendResources, hasResources } = useResources();
@@ -352,6 +357,19 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
         {/* Description si disponible */}
         {item.description && (
           <p className="text-sm text-gray-700 mb-2">{item.description}</p>
+        )}
+
+        {/* Bouton Voir la carte pour les objets de type carte */}
+        {item.itemType === 'unique_item' && item.uniqueItem?.type === 'carte' && item.uniqueItem?.metadata?.mapData && (
+          <div className="mb-3">
+            <button
+              onClick={() => setViewingMapItem(item)}
+              className="w-full bg-amber-600 hover:bg-amber-700 text-white py-2 px-3 rounded flex items-center justify-center gap-2 text-sm transition-colors"
+            >
+              <Eye className="w-4 h-4" />
+              Voir la carte (sans coordonnées)
+            </button>
+          </div>
         )}
 
         {/* Prix ou enchère */}
@@ -838,6 +856,16 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal de visualisation de carte */}
+      {viewingMapItem && viewingMapItem.uniqueItem?.metadata?.mapData && (
+        <InteractiveMapViewer
+          mapData={viewingMapItem.uniqueItem.metadata.mapData}
+          onClose={() => setViewingMapItem(null)}
+          title={`Carte: ${viewingMapItem.uniqueItem.name}`}
+          hideCoordinates={true}
+        />
       )}
     </div>
   );

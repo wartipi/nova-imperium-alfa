@@ -21,6 +21,7 @@ interface InteractiveMapViewerProps {
   mapData: MapData;
   onClose: () => void;
   title?: string;
+  hideCoordinates?: boolean;
 }
 
 interface TooltipInfo {
@@ -33,7 +34,8 @@ interface TooltipInfo {
 const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({ 
   mapData, 
   onClose, 
-  title = "Carte Interactive" 
+  title = "Carte Interactive",
+  hideCoordinates = false
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -334,9 +336,11 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
         <div className="mb-4 p-3 bg-amber-100 border border-amber-300 rounded">
           <p className="text-sm text-amber-800">
             <MapPin className="inline w-4 h-4 mr-1" />
-            Région centrée sur ({mapData.region.centerX}, {mapData.region.centerY}) - 
-            Rayon: {mapData.region.radius} - 
-            {mapData.region.tiles.length} hexagones
+            {hideCoordinates ? (
+              <>Zone cartographiée - Rayon: {mapData.region.radius} - {mapData.region.tiles.length} hexagones</>
+            ) : (
+              <>Région centrée sur ({mapData.region.centerX}, {mapData.region.centerY}) - Rayon: {mapData.region.radius} - {mapData.region.tiles.length} hexagones</>
+            )}
           </p>
         </div>
 
@@ -352,7 +356,7 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
 
         {/* Légende - style cohérent */}
         <div className="mt-4 text-xs text-amber-700">
-          <p>Survolez les hexagones pour voir les détails. Coordonnées et ressources affichées sur chaque case.</p>
+          <p>Survolez les hexagones pour voir les détails. {hideCoordinates ? 'Terrains et ressources visibles.' : 'Coordonnées et ressources affichées sur chaque case.'}</p>
         </div>
 
         {/* Tooltip - style cohérent */}
@@ -365,7 +369,7 @@ const InteractiveMapViewer: React.FC<InteractiveMapViewerProps> = ({
             }}
           >
             <div className="text-sm font-bold text-amber-50">
-              Hexagone ({tooltip.tile.x}, {tooltip.tile.y})
+              {hideCoordinates ? 'Hexagone (???, ???)' : `Hexagone (${tooltip.tile.x}, ${tooltip.tile.y})`}
             </div>
             <div className="text-xs text-amber-200">
               Terrain: {getTerrainName(tooltip.tile.terrain)}
