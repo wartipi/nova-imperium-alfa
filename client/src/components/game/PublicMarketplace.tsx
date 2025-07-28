@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { ShoppingCart, Plus, Gavel, DollarSign, Clock, User, Search, Filter, X, Eye } from "lucide-react";
 import { useResources } from '../../lib/stores/useResources';
+import { useGameLogging } from '../../lib/hooks/useGameLogging';
 import InteractiveMapViewer from './InteractiveMapViewer';
 
 // Types pour le nouveau système de marketplace
@@ -90,6 +91,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
   
   // Accès direct aux stores pour l'intégration ressources
   const { resources, addResource, spendResources, hasResources } = useResources();
+  const gameLogging = useGameLogging();
 
 
 
@@ -218,9 +220,11 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
           // Ajouter la ressource/objet à l'inventaire
           if (item.itemType === 'resource' && item.resourceType && item.quantity) {
             addResource(item.resourceType as any, item.quantity);
+            gameLogging.logMarketplaceAction('buy', `${item.quantity}x ${item.resourceType}`, cost);
             alert(`✅ Achat réussi !\n💰 ${cost} or déduit\n📦 +${item.quantity} ${item.resourceType} ajouté !`);
           } else {
             // Pour les objets uniques, on pourrait ajouter à un inventaire d'objets
+            gameLogging.logMarketplaceAction('buy', item.uniqueItem?.name || 'Objet unique', cost);
             alert(`✅ Achat réussi !\n💰 ${cost} or déduit\n🎯 ${item.uniqueItem?.name || 'Objet'} ajouté !`);
           }
           
@@ -252,6 +256,8 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
 
       const result = await response.json();
       if (result.success) {
+        const item = marketItems.find(i => i.id === itemId);
+        gameLogging.logMarketplaceAction('bid', item?.uniqueItem?.name || item?.resourceType || 'Article', bidAmount);
         alert('Enchère placée !');
         loadMarketplaceItems();
       } else {
@@ -296,6 +302,11 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
 
       const result = await response.json();
       if (result.success) {
+        const itemName = sellForm.itemType === 'resource' 
+          ? `${sellForm.quantity}x ${sellForm.resourceType}`
+          : (playerInventory.find(item => item.id === sellForm.selectedUniqueItemId)?.name || 'Objet unique');
+        
+        gameLogging.logMarketplaceAction('sell', itemName, sellForm.saleType === 'direct_sale' ? sellForm.price : sellForm.startingBid);
         alert(sellForm.saleType === 'direct_sale' ? 'Vente créée !' : 'Enchère créée !');
         setShowSellModal(false);
         setSellForm({
@@ -345,6 +356,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
 
       const result = await response.json();
       if (result.success) {
+        gameLogging.logMarketplaceAction('cancel', saleItem.uniqueItem?.name || 'Objet');
         alert('✅ Vente annulée avec succès !');
         loadMarketplaceItems();
         loadPlayerInventory(); // Rafraîchir pour mettre à jour l'état visuel

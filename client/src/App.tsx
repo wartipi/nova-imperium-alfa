@@ -9,6 +9,7 @@ import { useMap } from "./lib/stores/useMap";
 import { useNovaImperium } from "./lib/stores/useNovaImperium";
 import { useAudio } from "./lib/stores/useAudio";
 import { usePlayer } from "./lib/stores/usePlayer";
+import { useGameLogging } from "./lib/hooks/useGameLogging";
 import { GameEngineProvider } from "./lib/contexts/GameEngineContext";
 import "@fontsource/inter";
 import "./index.css";
@@ -21,6 +22,9 @@ function GameApp() {
   const { generateMap, mapData } = useMap();
   const { initializeNovaImperiums } = useNovaImperium();
   const { setBackgroundMusic } = useAudio();
+  
+  // Initialize logging system
+  const gameLogging = useGameLogging();
 
   useEffect(() => {
     // Initialize background music
