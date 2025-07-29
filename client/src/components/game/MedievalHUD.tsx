@@ -480,8 +480,8 @@ export function MedievalHUD() {
         </div>
       </div>
 
-      {/* Faction Coat of Arms - Between banner and left menu */}
-      <div className="absolute top-20 left-4 pointer-events-auto">
+      {/* Faction Coat of Arms - Close to top banner */}
+      <div className="absolute top-4 left-4 pointer-events-auto">
         {playerFaction && (() => {
           const currentFaction = getFactionById(playerFaction);
           if (currentFaction) {
@@ -562,8 +562,8 @@ export function MedievalHUD() {
         </div>
       </div>
 
-      {/* Left Menu Panel - Adjusted position to avoid overlap with faction coat of arms */}
-      <div className="absolute top-1/2 left-4 transform -translate-y-1/2 pointer-events-auto" style={{ marginTop: '60px' }}>
+      {/* Left Menu Panel - Back to original position */}
+      <div className="absolute top-1/2 left-4 transform -translate-y-1/2 pointer-events-auto">
         <div className="relative">
           {/* Menu principal unifié */}
           <div 
