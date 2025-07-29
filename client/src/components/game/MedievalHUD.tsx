@@ -185,7 +185,7 @@ export function MedievalHUD() {
             <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-amber-800"></div>
             <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-amber-800"></div>
             
-            <div className="grid grid-cols-3 gap-8 text-amber-900 font-bold text-sm">
+            <div className="grid grid-cols-4 gap-6 text-amber-900 font-bold text-sm">
               <div className="text-center">
                 <div className="text-xs text-amber-700">DATE DE JEUX</div>
                 <div>{getGameDate(currentTurn)}</div>
@@ -197,6 +197,53 @@ export function MedievalHUD() {
               <div className="text-center">
                 <div className="text-xs text-amber-700">COMPÉTENCE ACTIVE</div>
                 <div>Stratégie</div>
+              </div>
+              {/* Faction Coat of Arms integrated in banner */}
+              <div className="text-center">
+                <div className="text-xs text-amber-700">FACTION</div>
+                {playerFaction && (() => {
+                  const currentFaction = getFactionById(playerFaction);
+                  if (currentFaction) {
+                    return (
+                      <div 
+                        className="flex flex-col items-center cursor-pointer hover:bg-amber-300 rounded p-1 transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveSection('factions');
+                        }}
+                        title={`${currentFaction.name} - Cliquez pour voir les détails`}
+                      >
+                        <div className="flex items-center space-x-1 mb-1">
+                          <span className="text-lg">{currentFaction.banner || currentFaction.emblem || '🏛️'}</span>
+                          <div 
+                            className="w-2 h-2 rounded-full border border-amber-800"
+                            style={{ backgroundColor: currentFaction.color }}
+                          />
+                        </div>
+                        <div className="text-xs font-medium">
+                          {currentFaction.name.length > 8 
+                            ? currentFaction.name.substring(0, 6) + '...' 
+                            : currentFaction.name
+                          }
+                        </div>
+                      </div>
+                    );
+                  }
+                })()}
+                
+                {!playerFaction && (
+                  <div 
+                    className="flex flex-col items-center cursor-pointer hover:bg-amber-300 rounded p-1 transition-colors opacity-60"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveSection('factions');
+                    }}
+                    title="Aucune faction - Cliquez pour rejoindre ou créer une faction"
+                  >
+                    <span className="text-lg">🏛️</span>
+                    <div className="text-xs">Sans Faction</div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -480,61 +527,7 @@ export function MedievalHUD() {
         </div>
       </div>
 
-      {/* Faction Coat of Arms - Close to top banner, moved even more right */}
-      <div className="absolute top-4 left-80 pointer-events-auto">
-        {playerFaction && (() => {
-          const currentFaction = getFactionById(playerFaction);
-          if (currentFaction) {
-            return (
-              <div 
-                className="w-20 h-24 bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-lg flex flex-col items-center justify-center cursor-pointer hover:bg-gradient-to-b hover:from-amber-300 hover:to-amber-400 transition-colors"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveSection('factions');
-                }}
-                onMouseDown={(e) => e.stopPropagation()}
-                onMouseUp={(e) => e.stopPropagation()}
-                title={`${currentFaction.name} - Cliquez pour voir les détails`}
-              >
-                {/* Faction Emblem */}
-                <div className="text-2xl mb-1">
-                  {currentFaction.banner || currentFaction.emblem || '🏛️'}
-                </div>
-                {/* Faction Color Indicator */}
-                <div 
-                  className="w-3 h-3 rounded-full border border-amber-800"
-                  style={{ backgroundColor: currentFaction.color }}
-                />
-                {/* Faction Name (truncated) */}
-                <div className="text-xs text-amber-900 font-bold text-center mt-1 px-1 leading-tight">
-                  {currentFaction.name.length > 12 
-                    ? currentFaction.name.substring(0, 10) + '...' 
-                    : currentFaction.name
-                  }
-                </div>
-              </div>
-            );
-          }
-        })()}
-        
-        {!playerFaction && (
-          <div 
-            className="w-20 h-24 bg-gradient-to-b from-gray-200 via-gray-100 to-gray-200 border-2 border-gray-400 rounded-lg shadow-lg flex flex-col items-center justify-center cursor-pointer hover:bg-gradient-to-b hover:from-gray-300 hover:to-gray-400 transition-colors opacity-60"
-            onClick={(e) => {
-              e.stopPropagation();
-              setActiveSection('factions');
-            }}
-            onMouseDown={(e) => e.stopPropagation()}
-            onMouseUp={(e) => e.stopPropagation()}
-            title="Aucune faction - Cliquez pour rejoindre ou créer une faction"
-          >
-            <div className="text-2xl mb-1">🏛️</div>
-            <div className="text-xs text-gray-600 font-bold text-center px-1 leading-tight">
-              Sans Faction
-            </div>
-          </div>
-        )}
-      </div>
+
 
       {/* Shield Emblem - Character Display - Positioned in empty space between banner and player info */}
       <div className="absolute top-8 right-72 pointer-events-auto">
