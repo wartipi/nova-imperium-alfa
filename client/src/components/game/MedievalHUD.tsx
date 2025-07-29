@@ -138,6 +138,7 @@ export function MedievalHUD() {
   const menuItems = [
     { id: 'treasury' as MenuSection, label: 'TRÉSORERIE', icon: '💰' },
     { id: 'marketplace' as MenuSection, label: 'MARCHÉ PUBLIQUE', icon: '⚖️' },
+    { id: 'territory' as MenuSection, label: 'GESTION DE TERRITOIRE', icon: '🗺️' },
     { id: 'treaties' as MenuSection, label: 'TRAITÉS', icon: '📜' },
     { id: 'courier' as MenuSection, label: 'COURRIER', icon: '✉️' },
     { id: 'activities' as MenuSection, label: 'RAPPORT D\'ACTIVITÉS', icon: '📊' },
@@ -146,7 +147,6 @@ export function MedievalHUD() {
     { id: 'guide' as MenuSection, label: 'GUIDE DE JEUX', icon: '📖' },
     { id: 'help' as MenuSection, label: 'AIDE', icon: '❓' },
     { id: 'factions' as MenuSection, label: 'FACTIONS', icon: '🏛️' },
-    { id: 'territory' as MenuSection, label: 'GESTION DE TERRITOIRE', icon: '🗺️' },
 
   ];
 
