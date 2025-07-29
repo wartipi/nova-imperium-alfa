@@ -480,8 +480,8 @@ export function MedievalHUD() {
         </div>
       </div>
 
-      {/* Faction Coat of Arms - Close to top banner, moved further right */}
-      <div className="absolute top-4 left-48 pointer-events-auto">
+      {/* Faction Coat of Arms - Close to top banner, moved more right */}
+      <div className="absolute top-4 left-64 pointer-events-auto">
         {playerFaction && (() => {
           const currentFaction = getFactionById(playerFaction);
           if (currentFaction) {
