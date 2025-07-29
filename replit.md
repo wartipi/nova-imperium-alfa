@@ -173,6 +173,14 @@ Preferred communication style: Simple, everyday language.
 - **Statut Système**: Version 2.0.0, fonctionnalités actives avec indicateurs verts
 - **Interface Cohérente**: Style uniforme avec GameGuidePanel, recherche intégrée
 
+### Système de Logs d'Activité en Temps Réel (Janvier 29, 2025)
+- **Store ActivityLogs**: Système de logs centralisé avec Zustand pour capturer toutes les actions du joueur
+- **Hook useGameLogging**: Interface simplifiée pour intégrer les logs dans tous les composants du jeu
+- **Panneau Modernisé**: ActivityReportPanel avec filtres par type, boutons de test et synchronisation temps réel
+- **Intégration Marketplace**: Logs automatiques pour achat, vente, enchères et annulation d'objets
+- **Types de Logs**: Support complet pour mouvement, exploration, marketplace, compétences, construction, recrutement
+- **Interface Réorganisée**: Inversion des positions "Traités" et "Rapport d'Activités" dans le menu HUD
+
 ### Migration Finalisation Systèmes Construction/Recrutement Zustand (Janvier 26, 2025)
 - **Migration Finalisée**: CityManagementPanel complètement migré vers nouveaux systèmes Zustand
 - **Code Legacy Supprimé**: Ancien code de construction/recrutement entièrement retiré et nettoyé
