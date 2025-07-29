@@ -179,7 +179,7 @@ Preferred communication style: Simple, everyday language.
 - **Panneau Modernisé**: ActivityReportPanel avec filtres par type, boutons de test et synchronisation temps réel
 - **Intégration Marketplace**: Logs automatiques pour achat, vente, enchères et annulation d'objets
 - **Types de Logs**: Support complet pour mouvement, exploration, marketplace, compétences, construction, recrutement
-- **Interface Réorganisée**: Inversion des positions "Traités" et "Rapport d'Activités" dans le menu HUD
+- **Interface Réorganisée**: Menu HUD optimisé - Gestion de Territoire sous Marché Publique, Factions sous Traités
 
 ### Migration Finalisation Systèmes Construction/Recrutement Zustand (Janvier 26, 2025)
 - **Migration Finalisée**: CityManagementPanel complètement migré vers nouveaux systèmes Zustand
