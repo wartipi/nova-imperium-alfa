@@ -26,7 +26,7 @@ import { ReputationPanel } from "./ReputationPanel";
 import { FactionPanel } from "./FactionPanel";
 import { UnifiedTerritoryPanel } from "./UnifiedTerritoryPanel";
 import { ReputationManagementPanel } from "./ReputationManagementPanel";
-
+import { useFactions } from "../../lib/stores/useFactions";
 
 import { PlayerInventory } from "./PlayerInventory";
 import { PublicMarketplace } from "./PublicMarketplace";
@@ -87,6 +87,7 @@ export function MedievalHUD() {
     giveAllMaxCompetences
   } = usePlayer();
   const { honor, reputation, getReputationLevel } = useReputation();
+  const { playerFaction, getFactionById } = useFactions();
   const [activeSection, setActiveSection] = useState<MenuSection | null>(null);
   const [showCharacterSelector, setShowCharacterSelector] = useState(false);
   const [showCompetenceModal, setShowCompetenceModal] = useState(false);
@@ -479,6 +480,62 @@ export function MedievalHUD() {
         </div>
       </div>
 
+      {/* Faction Coat of Arms - Between banner and left menu */}
+      <div className="absolute top-20 left-4 pointer-events-auto">
+        {playerFaction && (() => {
+          const currentFaction = getFactionById(playerFaction);
+          if (currentFaction) {
+            return (
+              <div 
+                className="w-20 h-24 bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-lg flex flex-col items-center justify-center cursor-pointer hover:bg-gradient-to-b hover:from-amber-300 hover:to-amber-400 transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveSection('factions');
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onMouseUp={(e) => e.stopPropagation()}
+                title={`${currentFaction.name} - Cliquez pour voir les détails`}
+              >
+                {/* Faction Emblem */}
+                <div className="text-2xl mb-1">
+                  {currentFaction.banner || currentFaction.emblem || '🏛️'}
+                </div>
+                {/* Faction Color Indicator */}
+                <div 
+                  className="w-3 h-3 rounded-full border border-amber-800"
+                  style={{ backgroundColor: currentFaction.color }}
+                />
+                {/* Faction Name (truncated) */}
+                <div className="text-xs text-amber-900 font-bold text-center mt-1 px-1 leading-tight">
+                  {currentFaction.name.length > 12 
+                    ? currentFaction.name.substring(0, 10) + '...' 
+                    : currentFaction.name
+                  }
+                </div>
+              </div>
+            );
+          }
+        })()}
+        
+        {!playerFaction && (
+          <div 
+            className="w-20 h-24 bg-gradient-to-b from-gray-200 via-gray-100 to-gray-200 border-2 border-gray-400 rounded-lg shadow-lg flex flex-col items-center justify-center cursor-pointer hover:bg-gradient-to-b hover:from-gray-300 hover:to-gray-400 transition-colors opacity-60"
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveSection('factions');
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onMouseUp={(e) => e.stopPropagation()}
+            title="Aucune faction - Cliquez pour rejoindre ou créer une faction"
+          >
+            <div className="text-2xl mb-1">🏛️</div>
+            <div className="text-xs text-gray-600 font-bold text-center px-1 leading-tight">
+              Sans Faction
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Shield Emblem - Character Display - Positioned in empty space between banner and player info */}
       <div className="absolute top-8 right-72 pointer-events-auto">
         <div 
@@ -505,8 +562,8 @@ export function MedievalHUD() {
         </div>
       </div>
 
-      {/* Left Menu Panel - Back to far left */}
-      <div className="absolute top-1/2 left-4 transform -translate-y-1/2 pointer-events-auto">
+      {/* Left Menu Panel - Adjusted position to avoid overlap with faction coat of arms */}
+      <div className="absolute top-1/2 left-4 transform -translate-y-1/2 pointer-events-auto" style={{ marginTop: '60px' }}>
         <div className="relative">
           {/* Menu principal unifié */}
           <div 

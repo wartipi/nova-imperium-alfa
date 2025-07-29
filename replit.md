@@ -180,6 +180,7 @@ Preferred communication style: Simple, everyday language.
 - **Intégration Marketplace**: Logs automatiques pour achat, vente, enchères et annulation d'objets
 - **Types de Logs**: Support complet pour mouvement, exploration, marketplace, compétences, construction, recrutement
 - **Interface Réorganisée**: Menu HUD optimisé - Gestion de Territoire sous Marché Publique, Factions sous Traités
+- **Armoiries de Faction**: Affichage des armoiries entre banderole et menu gauche avec emblème, couleur et nom de faction
 
 ### Migration Finalisation Systèmes Construction/Recrutement Zustand (Janvier 26, 2025)
 - **Migration Finalisée**: CityManagementPanel complètement migré vers nouveaux systèmes Zustand
