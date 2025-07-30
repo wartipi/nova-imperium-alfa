@@ -172,12 +172,12 @@ export function MedievalHUD() {
   return (
     <div className="absolute inset-0 pointer-events-none z-10">
       
-      {/* Top Information Banner - positioned to avoid overlapping with photo display */}
-      <div className="absolute top-4 left-4 pointer-events-auto">
+      {/* Top Information Banner */}
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 pointer-events-auto">
         <div className="relative">
           {/* Scroll Banner Background */}
           <div 
-            className="bg-gradient-to-r from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-lg px-6 py-4 w-96"
+            className="bg-gradient-to-r from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-lg px-8 py-4"
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
             onMouseUp={(e) => e.stopPropagation()}
@@ -195,8 +195,8 @@ export function MedievalHUD() {
                 <div>{getTimeRemaining()}</div>
               </div>
               <div className="text-center">
-                <div className="text-xs text-amber-700">COMPÉTENCE ACTIVE</div>
-                <div>Stratégie</div>
+                <div className="text-xs text-amber-700">BONUS ACTIF</div>
+                <div>Aucun</div>
               </div>
               {/* Faction Coat of Arms integrated in banner */}
               <div className="text-center">
