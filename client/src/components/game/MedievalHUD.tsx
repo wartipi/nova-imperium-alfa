@@ -195,8 +195,8 @@ export function MedievalHUD() {
                 <div>{getTimeRemaining()}</div>
               </div>
               <div className="text-center">
-                <div className="text-xs text-amber-700">BONUS ACTIF</div>
-                <div>Aucun</div>
+                <div className="text-xs text-amber-700">COMPÉTENCE ACTIVE</div>
+                <div>Stratégie</div>
               </div>
               {/* Faction Coat of Arms integrated in banner */}
               <div className="text-center">

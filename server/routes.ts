@@ -111,32 +111,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Test message endpoints
-  app.post("/api/messages/test", async (req, res) => {
-    try {
-      const { playerName = "Joueur Mystérieux" } = req.body;
-      const message = messageService.createPlayerTestMessage(playerName);
-      res.json({ success: true, message });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to create test message" });
-    }
-  });
-
-  app.post("/api/messages/test/custom", async (req, res) => {
-    try {
-      const { from, to = "player", content, type = "message" } = req.body;
-      
-      if (!from || !content) {
-        return res.status(400).json({ error: "From and content are required" });
-      }
-      
-      const message = messageService.addTestMessage(from, to, content, type);
-      res.json({ success: true, message });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to create custom test message" });
-    }
-  });
-
   // Treaty endpoints
   app.get("/api/treaties/player/:playerId", async (req, res) => {
     try {
