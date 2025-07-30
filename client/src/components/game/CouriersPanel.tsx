@@ -322,6 +322,84 @@ export function CouriersPanel() {
           <div>Coût total envois: {sentMessages.length * courierCost} PA</div>
         </div>
       </div>
+
+      {/* Tests de Messagerie */}
+      <div className="bg-blue-50 border border-blue-300 rounded p-3">
+        <div className="text-sm font-medium mb-2">🧪 Tests de Messagerie</div>
+        <div className="space-y-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full text-xs"
+            onClick={async () => {
+              try {
+                const response = await fetch('/api/messages/test', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ playerName: 'Joueur Mystérieux' })
+                });
+                if (response.ok) {
+                  loadMessages();
+                }
+              } catch (error) {
+                console.error('Erreur test message:', error);
+              }
+            }}
+          >
+            Recevoir un message aléatoire
+          </Button>
+          
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full text-xs"
+            onClick={async () => {
+              const playerNames = ['Empereur Maximus', 'Reine Elizaveta', 'Général Spartacus', 'Marchande Aria'];
+              const randomName = playerNames[Math.floor(Math.random() * playerNames.length)];
+              try {
+                const response = await fetch('/api/messages/test', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ playerName: randomName })
+                });
+                if (response.ok) {
+                  loadMessages();
+                }
+              } catch (error) {
+                console.error('Erreur test joueur:', error);
+              }
+            }}
+          >
+            Message d'un autre joueur
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full text-xs"
+            onClick={async () => {
+              try {
+                const response = await fetch('/api/messages/test/custom', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ 
+                    from: 'Dragon Ancien', 
+                    content: 'Mortel, tes terres m\'intéressent. Acceptes-tu de négocier ou préfères-tu que je les prenne par la force ?',
+                    type: 'warning'
+                  })
+                });
+                if (response.ok) {
+                  loadMessages();
+                }
+              } catch (error) {
+                console.error('Erreur message dragon:', error);
+              }
+            }}
+          >
+            Message épique (Dragon)
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
