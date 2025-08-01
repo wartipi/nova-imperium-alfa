@@ -4,6 +4,7 @@ import { useReputation } from "../../lib/stores/useReputation";
 import { useGameState } from "../../lib/stores/useGameState";
 import { useFactions } from "../../lib/stores/useFactions";
 import { useMap } from "../../lib/stores/useMap";
+import { useMapState } from "../../lib/stores/useMapState";
 import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { Card } from "../ui/card";
 
@@ -292,8 +293,12 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
           const gameEngine = (window as any).gameEngine;
           const avatarPosition = gameEngine?.getAvatarPosition() || { x: 25, y: 15 };
           
+          // NOUVELLE APPROCHE: Récupérer les données directement des stores
+          const { mapData } = useMapState.getState();
+          
           console.log('Cartographie - Position avatar:', avatarPosition);
           console.log('Cartographie - Vision actuelle:', currentVision.size, 'hexagones');
+          console.log('🗺️ MapData disponible:', mapData ? `${mapData.length}x${mapData[0]?.length}` : 'non défini');
           
           // Créer les données de tuiles basées sur le champ de vision complet du joueur
           const { getCompetenceLevel, isResourceDiscovered } = usePlayer.getState();
@@ -302,7 +307,26 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
           
           const cartographyTiles = Array.from(currentVision).map((hexCoord: string) => {
             const [x, y] = hexCoord.split(',').map(Number);
-            const tileData = gameEngine?.getTileAt(x, y);
+            
+            // MÉTHODE 1: Essayer gameEngine
+            let tileData = gameEngine?.getTileAt(x, y);
+            
+            // MÉTHODE 2: Si gameEngine échoue, utiliser mapData directement
+            if (!tileData?.terrain && mapData && mapData[y] && mapData[y][x]) {
+              tileData = mapData[y][x];
+              console.log(`📍 Récupération directe depuis mapData pour (${x},${y}):`, tileData);
+            }
+            
+            // Debug pour identifier le problème
+            if (x === avatarPosition.x && y === avatarPosition.y) {
+              console.log('🔍 Debug tile à la position avatar:', { 
+                x, y, 
+                tileDataGameEngine: gameEngine?.getTileAt(x, y),
+                tileDataMapState: mapData?.[y]?.[x],
+                finalTileData: tileData,
+                terrain: tileData?.terrain 
+              });
+            }
             
             // Pour les cartes niveau 2+, inclure les ressources si le joueur peut les voir
             let includeResources = [];
@@ -315,10 +339,20 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
               }
             }
             
+            // S'assurer que le terrain est bien récupéré
+            const actualTerrain = tileData?.terrain;
+            if (!actualTerrain || actualTerrain === 'undefined') {
+              console.warn(`⚠️ Terrain manquant pour (${x},${y}):`, { 
+                tileData, 
+                gameEngineTile: gameEngine?.getTileAt(x, y),
+                mapStateTile: mapData?.[y]?.[x]
+              });
+            }
+            
             return {
               x,
               y,
-              terrain: tileData?.terrain || 'unknown',
+              terrain: actualTerrain && actualTerrain !== 'undefined' ? actualTerrain : 'unknown',
               resources: includeResources
             };
           });
