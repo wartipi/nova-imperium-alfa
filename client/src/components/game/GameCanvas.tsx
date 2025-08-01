@@ -38,19 +38,25 @@ export function GameCanvas() {
   const { renderEngine, updateEngineStores } = useGameEngineAccess();
   const { selectCity } = useCitySelection();
 
-  // Initialize game engine - IMPROVED: No more window exposure
+  // REFACTORISATION : Initialize game engine avec injection des stores
   useEffect(() => {
     if (canvasRef.current && mapData) {
-      gameEngineRef.current = new GameEngine(canvasRef.current, mapData);
+      // Création des callbacks pour l'injection des stores
+      const getGameState = () => useGameState.getState();
+      const getPlayerState = () => usePlayer.getState();
+      
+      gameEngineRef.current = new GameEngine(
+        canvasRef.current, 
+        mapData, 
+        getGameState, 
+        getPlayerState
+      );
       
       // Set vision callbacks immediately
       const { isHexVisible, isHexInCurrentVision } = usePlayer.getState();
       gameEngineRef.current.setVisionCallbacks(isHexVisible, isHexInCurrentVision);
       
       gameEngineRef.current.render();
-      
-      // ARCHITECTURAL IMPROVEMENT: Removed window exposure
-      // Controlled access now available through useGameEngineAccess hook
     }
   }, [mapData]);
 

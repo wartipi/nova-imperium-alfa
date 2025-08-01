@@ -5,6 +5,19 @@ import { useGameState } from "../stores/useGameState";
 import { useNovaImperium } from "../stores/useNovaImperium";
 import { UnifiedTerritorySystem } from "../systems/UnifiedTerritorySystem";
 
+// Types pour l'injection des stores - REFACTORISATION ARCHITECTURE
+type GameStateAccessor = () => {
+  isGameMaster: boolean;
+  [key: string]: any;
+};
+
+type PlayerStateAccessor = () => {
+  getCompetenceLevel: (competence: string) => number;
+  isHexExplored: (x: number, y: number) => boolean;
+  isResourceDiscovered: (x: number, y: number) => boolean;
+  [key: string]: any;
+};
+
 export class GameEngine {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
@@ -26,6 +39,10 @@ export class GameEngine {
   private selectedCharacter: any = null;
   private pendingMovement: { x: number; y: number } | null = null;
   public hasInitialCentered: boolean = false;
+  
+  // REFACTORISATION : Injection explicite des stores au lieu de window
+  private getGameState: GameStateAccessor;
+  private getPlayerState: PlayerStateAccessor;
   setVisionCallbacks(isHexVisible: (x: number, y: number) => boolean, isHexInCurrentVision: (x: number, y: number) => boolean) {
     this.isHexVisible = isHexVisible;
     this.isHexInCurrentVision = isHexInCurrentVision;
@@ -36,10 +53,19 @@ export class GameEngine {
     this.render();
   }
 
-  constructor(canvas: HTMLCanvasElement, mapData: HexTile[][]) {
+  constructor(
+    canvas: HTMLCanvasElement, 
+    mapData: HexTile[][], 
+    getGameState: GameStateAccessor,
+    getPlayerState: PlayerStateAccessor
+  ) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d')!;
     this.mapData = mapData;
+    
+    // REFACTORISATION : Stockage des accesseurs de stores
+    this.getGameState = getGameState;
+    this.getPlayerState = getPlayerState;
     
     this.cameraX = (mapData[0].length * this.hexSize * 1.5) / 2;
     this.cameraY = (mapData.length * this.hexSize * Math.sqrt(3)) / 2;
@@ -442,11 +468,11 @@ export class GameEngine {
         this.ctx.fillText('➤', x, y + 7);
       }
       
-      // Système unifié de rendu des ressources avec accès direct au store
+      // REFACTORISATION : Système unifié de rendu des ressources avec injection
       if (hex.resource) {
-        // Accès direct au store depuis window
-        const gameState = (window as any).gameState || {};
-        const playerState = (window as any).playerState || {};
+        // NOUVEAU : Accès via les callbacks injectés au lieu de window
+        const gameState = this.getGameState();
+        const playerState = this.getPlayerState();
         
         const isGameMaster = gameState.isGameMaster || false;
         const explorationLevel = playerState.getCompetenceLevel?.('exploration') || 0;

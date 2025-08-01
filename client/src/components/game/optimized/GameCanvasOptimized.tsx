@@ -62,10 +62,19 @@ const useCanvasOptimized = (
     lastRenderTime: 0
   });
 
-  // Initialisation mémoïsée du moteur de jeu
+  // REFACTORISATION : Initialisation mémoïsée du moteur de jeu avec injection
   const initializeGameEngine = useCallback(() => {
     if (canvasRef.current && mapData && !canvasState.isInitialized) {
-      gameEngineRef.current = new GameEngine(canvasRef.current, mapData);
+      // Création des callbacks pour l'injection des stores
+      const getGameState = () => useGameState.getState();
+      const getPlayerState = () => usePlayer.getState();
+      
+      gameEngineRef.current = new GameEngine(
+        canvasRef.current, 
+        mapData, 
+        getGameState, 
+        getPlayerState
+      );
       
       // Configuration des callbacks de vision
       const { isHexVisible, isHexInCurrentVision } = usePlayer.getState();
@@ -73,11 +82,7 @@ const useCanvasOptimized = (
       
       gameEngineRef.current.render();
       
-      // Exposition globale pour l'accès cartographique
-      (window as any).gameEngine = gameEngineRef.current;
-      (window as any).gameState = useGameState.getState();
-      (window as any).playerState = usePlayer.getState();
-      (window as any).usePlayer = usePlayer;
+      // SUPPRIMÉ : Plus d'exposition globale - architecture propre
 
       setCanvasState(prev => ({
         ...prev,

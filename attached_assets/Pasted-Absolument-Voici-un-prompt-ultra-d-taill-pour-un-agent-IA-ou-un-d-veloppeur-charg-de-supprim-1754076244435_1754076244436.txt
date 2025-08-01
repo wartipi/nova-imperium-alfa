@@ -1,0 +1,136 @@
+Absolument ! Voici un **prompt ultra-détaillé** pour un agent IA ou un développeur chargé de supprimer toute dépendance à `window.gameState` et `window.playerState` dans le moteur de jeu (`GameEngine`) de Nova Imperium, pour une architecture saine et moderne.
+Ce prompt détaille chaque étape, explique pourquoi c’est crucial, et fournit des instructions concrètes sur la façon d’implémenter, de tester et de documenter la refonte.
+
+---
+
+## Prompt détaillé – Refactorisation de GameEngine pour injection explicite des stores
+
+**Contexte**
+Dans le projet Nova Imperium (React/TypeScript), certaines parties du moteur de jeu (`GameEngine`) accèdent aux données globales via `window.gameState` et `window.playerState`. Cette pratique rend l’application difficile à maintenir, non réactive, moins sécurisée et casse les principes modernes de React.
+
+**Objectif**
+Refactorise tout le code qui dépend de `window.gameState` et `window.playerState` pour utiliser des fonctions d’accès (callbacks) transmises explicitement au moteur via les props React ou en paramètre de construction. L’objectif : garantir la réactivité, la testabilité, la clarté et la robustesse du code.
+
+---
+
+### 1. **Cartographie et repérage**
+
+* Recherche dans tout le code (notamment dans `GameEngine.tsx`/`.ts`, ses hooks ou helpers) chaque accès à :
+
+  * `(window as any).gameState`
+  * `(window as any).playerState`
+  * Tout raccourci apparenté (`window['gameState']` etc.)
+* Liste les fonctions, méthodes, hooks ou effets où ces accès sont utilisés (lecture, écriture, initialisation, calcul de visibilité, etc.).
+
+---
+
+### 2. **Définition des interfaces propres**
+
+* Dans la définition du composant (ou de la classe) `GameEngine`, ajoute deux **props** (ou paramètres de constructeur) :
+
+  * `getGameState: () => GameState`
+  * `getPlayerState: () => PlayerState`
+* Si GameEngine est une classe, définis-les dans le constructeur et stocke-les dans le contexte d’exécution.
+* Si GameEngine est une fonction ou un hook, ajoute-les dans les arguments et stocke-les dans une closure ou via React context/ref si nécessaire.
+
+---
+
+### 3. **Injection explicite dans React**
+
+* Dans le composant React parent (probablement `GameCanvas.tsx`), récupère `gameState` et `playerState` depuis les hooks ou les stores locaux (Zustand, Context…).
+* Passe **explicitement** deux callbacks à GameEngine :
+
+  ```tsx
+  <GameEngine
+    getGameState={() => gameState}
+    getPlayerState={() => playerState}
+    {...autresProps}
+  />
+  ```
+* Documente bien ces props dans les JSDoc et dans le README si pertinent.
+
+---
+
+### 4. **Remplacement de l’accès global dans GameEngine**
+
+* Dans chaque méthode ou effet qui faisait :
+
+  ```js
+  const gs = (window as any).gameState;
+  ```
+
+  remplace par :
+
+  ```js
+  const gs = this.props.getGameState(); // ou getGameState() si fonctionnel
+  ```
+
+* Idem pour `playerState`.
+
+* Pour la logique qui doit être réactive :
+
+  * Si GameEngine utilise des effets ou des observers, assure-toi que les callbacks sont appelés à chaque fois qu’il faut les données à jour, et **pas** stockés en variable à l’initialisation.
+
+---
+
+### 5. **Gestion des callbacks « à jour »**
+
+* Si GameEngine est un module qui garde des références, utilise un **ref** React pour garantir que les callbacks pointent vers la version la plus à jour des stores.
+* Exemple :
+
+  ```tsx
+  const gameStateRef = useRef(gameState);
+  useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
+  <GameEngine getGameState={() => gameStateRef.current} ... />
+  ```
+
+---
+
+### 6. **Suppression de toute trace de window dans le client**
+
+* Supprime partout dans le code client :
+
+  * `window.gameState = ...`
+  * `window.playerState = ...`
+  * Toute assignation ou lecture liée à ces propriétés.
+* Si du code legacy a besoin d’accès temporaire, documente‑le, ajoute un log `console.warn` avec une date de suppression prévue.
+
+---
+
+### 7. **Tests et vérifications**
+
+* Lance l’application, vérifie :
+
+  * L’affichage et la gestion des ressources sur la carte fonctionnent bien.
+  * Les interactions utilisateur (clics, déplacements, création de ville…) exploitent bien les versions les plus récentes des stores.
+  * Aucun accès global à `window.*State` n’est détecté (recherche textuelle et runtime).
+* Si possible, ajoute des tests unitaires ou d’intégration pour vérifier la propagation correcte des stores vers le moteur.
+
+---
+
+### 8. **Documentation et nettoyage**
+
+* Documente les nouvelles props/callbacks dans le code et dans la documentation technique du projet.
+* Ajoute un commentaire de migration dans la PR, expliquant la suppression des accès globaux, pourquoi c’est crucial, et comment faire pour injecter un nouveau store dans le moteur à l’avenir.
+* Propose dans le changelog ou les release notes que **toute dépendance à window.* est strictement interdite côté client*\*.
+
+---
+
+### **Pourquoi cette approche ?**
+
+* **Réactivité :** les composants du moteur utilisent toujours la dernière version des états.
+* **Testabilité :** on peut injecter facilement des mock stores ou des états simulés pour les tests.
+* **Lisibilité et robustesse :** fini les accès magiques et les bugs “qui marchent sur mon ordi mais pas chez l’autre”.
+* **Sécurité :** aucune API interne n’est exposée globalement au navigateur.
+* **Évolutivité :** cette approche permet d’adapter GameEngine à d’autres sources d’état à l’avenir.
+
+---
+
+**Résultat attendu :**
+Plus aucun accès à `window.gameState`/`window.playerState` dans tout le code. Le moteur consomme les états uniquement via les callbacks passés en props.
+Le code est plus moderne, réactif et prêt pour la croissance future du projet.
+
+---
+
+**Fin du prompt.**
+*(N’hésite pas à demander un exemple de code modulaire si besoin.)*
