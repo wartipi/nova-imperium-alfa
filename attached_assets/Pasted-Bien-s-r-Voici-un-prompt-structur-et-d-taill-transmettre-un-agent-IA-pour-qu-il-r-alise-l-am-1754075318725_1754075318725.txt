@@ -1,0 +1,117 @@
+Bien sûr ! Voici un prompt structuré et détaillé à transmettre à un agent IA pour qu’il réalise l’amélioration du client **Nova Imperium**. Ce prompt décrit précisément chaque piste, explique son importance et fournit des instructions claires sur la façon de procéder.
+
+---
+
+## Prompt IA : Amélioration du client Nova Imperium
+
+**Contexte :**
+Tu es un agent IA chargé d’améliorer le code client du projet Nova Imperium (React/TypeScript). Voici 6 axes prioritaires d’amélioration. Pour chaque point, lis la justification, puis exécute les instructions étape par étape. Rends compte de chaque amélioration avec des exemples de code avant/après si nécessaire.
+
+---
+
+### 1. Nettoyer les effets et gérer l’audio proprement
+
+**Pourquoi :**
+Un composant React qui crée un objet Audio (musique de fond) sans nettoyage peut provoquer des fuites mémoire ou des comportements inattendus si le composant est démonté/remonté. Une gestion centralisée et moderne de l’audio facilite l’évolution du projet et évite des bugs subtils.
+
+**Instructions :**
+
+* Identifie chaque endroit où un objet `Audio` est créé dans les hooks React (`useEffect`, etc.), notamment dans `App.tsx`.
+* Remplace la gestion manuelle par une bibliothèque spécialisée comme `howler.js` si possible (sinon, améliore l’existant).
+* Ajoute systématiquement une fonction de nettoyage dans les hooks :
+
+  ```js
+  useEffect(() => {
+    const audio = new Audio('/assets/music/yourtrack.mp3');
+    audio.play();
+    return () => {
+      audio.pause();
+      audio.currentTime = 0;
+    };
+  }, []);
+  ```
+* Gère aussi les cas où plusieurs sons peuvent se chevaucher ou s’interrompre.
+
+---
+
+### 2. Éviter les fuites globales et l’utilisation abusive de window
+
+**Pourquoi :**
+Attacher des objets ou fonctions à `window` (par exemple dans `GameCanvas.tsx`) pollue l’espace global, rend le code difficile à maintenir, et pose des risques de sécurité (exposition accidentelle d’APIs internes côté client).
+
+**Instructions :**
+
+* Repère toutes les lignes du projet où on attache des éléments à `window` (ex : `window.engine = engine`).
+* Remplace cette pratique par une gestion via contextes React ou hooks personnalisés (`useGameEngine`).
+* Si des références doivent être accessibles par d’autres composants, crée un contexte React qui expose l’API voulue, ou utilise `forwardRef` et `useImperativeHandle`.
+* Documente et supprime tous les usages de `window.*` inutiles.
+
+---
+
+### 3. Décomposer les composants trop volumineux
+
+**Pourquoi :**
+Des composants géants (par ex. `GameCanvas.tsx`) rendent la maintenance et les tests difficiles. Ils augmentent les risques de régressions et freinent l’arrivée de nouvelles fonctionnalités.
+
+**Instructions :**
+
+* Identifie les composants de plus de 300 lignes ou ceux dont les hooks/effects traitent plusieurs responsabilités (input utilisateur, affichage, gestion d’état…).
+* Découpe la logique en hooks dédiés (ex : `useAvatarMovement`, `useCitySelection`, `useTileHover`) et crée des sous-composants pour chaque « bloc » logique ou visuel.
+* Veille à ce que chaque composant ait une seule responsabilité (Single Responsibility Principle).
+* Mets à jour les imports et assure la rétrocompatibilité.
+
+---
+
+### 4. Simplifier la gestion du double-clic
+
+**Pourquoi :**
+Coder manuellement la détection de double-clic via le temps (`Date.now()`) et la position du curseur est source de bugs (clics rapides, faux positifs) et complexe à relire. React propose une gestion native de l’événement `onDoubleClick`.
+
+**Instructions :**
+
+* Recherche dans le code toute gestion manuelle du double-clic (par exemple, variables `lastClick`, `lastClickTime`, etc.).
+* Remplace‑la par l’utilisation directe de `onDoubleClick` dans le JSX du composant concerné :
+
+  ```jsx
+  <div onDoubleClick={handleDoubleClick}>
+    {/* ... */}
+  </div>
+  ```
+* Si une détection personnalisée reste nécessaire, définis la durée de détection (`const DOUBLE_CLICK_DELAY = 500`) en constante, et documente clairement le fonctionnement.
+
+---
+
+### 5. Optimiser les re‑rendus React (mémoïsation)
+
+**Pourquoi :**
+Des callbacks ou calculs non mémoïsés déclenchent des re‑rendus inutiles et dégradent les performances, surtout sur une grande carte. `useMemo` et `useCallback` préviennent ces effets et rendent l’UI plus fluide.
+
+**Instructions :**
+
+* Passe en revue tous les hooks et callbacks (ex : `onTileClick`, `getTileColor`, etc.).
+* Utilise `useCallback` pour les fonctions passées en props ou utilisées dans des effets, et `useMemo` pour les calculs dérivés ou listes.
+* Ajoute systématiquement les dépendances dans les tableaux de dépendance des hooks.
+* Vérifie l’absence de re‑rendus intempestifs via des outils comme les devtools React ou un plugin de profilage.
+
+---
+
+### 6. Centraliser la définition des types de terrain
+
+**Pourquoi :**
+Dupliquer les chaînes de caractères pour les types de terrain (`'shallow_water'`, `'deep_water'`, etc.) augmente le risque de fautes de frappe et complexifie l’ajout futur de nouveaux types.
+
+**Instructions :**
+
+* Cherche toutes les occurrences où des types de terrain sont codés en dur dans le code client.
+* Crée une énumération ou un objet constant (par ex. : `const TerrainTypes = { SHALLOW_WATER: 'shallow_water', ... }`).
+* Remplace partout les chaînes en dur par les références à l’énumération.
+* Si un type de terrain est ajouté/supprimé, il suffit alors de modifier un seul endroit.
+
+---
+
+**Consignes finales :**
+Documente chacune de tes actions, explique brièvement chaque modification dans les PR ou les commits, et vérifie à chaque étape que le projet compile et fonctionne. L’objectif est d’améliorer la robustesse, la lisibilité, et la maintenabilité du code client de Nova Imperium.
+
+---
+
+**Fin du prompt.**

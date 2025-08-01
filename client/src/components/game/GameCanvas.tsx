@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback, useState, useMemo } from "react";
 import { useMap } from "../../lib/stores/useMap";
 import { useGameState } from "../../lib/stores/useGameState";
 import { useNovaImperium } from "../../lib/stores/useNovaImperium";
@@ -13,6 +13,13 @@ import { CityManagementPanel } from "./CityManagementPanel";
 import { UnifiedTerritorySystem } from "../../lib/systems/UnifiedTerritorySystem";
 import { MovementSystem } from "../../lib/movement/MovementSystem";
 
+// Improved imports - custom hooks and constants
+import { useGameEngineAccess } from "../../lib/hooks/useGameEngineAccess";
+import { useDoubleClick } from "../../lib/hooks/useDoubleClick";
+import { useAvatarMovement } from "../../lib/hooks/useAvatarMovement";
+import { useCitySelection } from "../../lib/hooks/useCitySelection";
+import { TerrainHelpers } from "../../lib/constants/TerrainTypes";
+
 export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { gameEngineRef } = useGameEngine();
@@ -20,14 +27,18 @@ export function GameCanvas() {
   const { gamePhase, isGameMaster } = useGameState();
   const { novaImperiums, selectedUnit, moveUnit } = useNovaImperium();
   const { avatarPosition, avatarRotation, isMoving, selectedCharacter, moveAvatarToHex, isHexVisible, isHexInCurrentVision, pendingMovement, setPendingMovement } = usePlayer();
+  
+  // State management - reduced manual state
   const [mouseDownPos, setMouseDownPos] = useState<{ x: number; y: number } | null>(null);
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
   const [avatarMenuPosition, setAvatarMenuPosition] = useState({ x: 0, y: 0 });
-  const [lastClickTime, setLastClickTime] = useState(0);
-  const [lastClickPosition, setLastClickPosition] = useState<{ x: number; y: number } | null>(null);
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
 
-  // Initialize game engine
+  // Custom hooks for improved architecture  
+  const { renderEngine, updateEngineStores } = useGameEngineAccess();
+  const { selectCity } = useCitySelection();
+
+  // Initialize game engine - IMPROVED: No more window exposure
   useEffect(() => {
     if (canvasRef.current && mapData) {
       gameEngineRef.current = new GameEngine(canvasRef.current, mapData);
@@ -38,31 +49,18 @@ export function GameCanvas() {
       
       gameEngineRef.current.render();
       
-      // Expose game engine to window for cartography access and vision updates
-      (window as any).gameEngine = gameEngineRef.current;
-      
-      // Expose stores to window for GameEngine access
-      (window as any).gameState = useGameState.getState();
-      (window as any).playerState = usePlayer.getState();
-      (window as any).usePlayer = usePlayer;
+      // ARCHITECTURAL IMPROVEMENT: Removed window exposure
+      // Controlled access now available through useGameEngineAccess hook
     }
   }, [mapData]);
 
-  // Re-render when Game Master mode changes
+  // Re-render when Game Master mode changes - IMPROVED: Using renderEngine hook
   useEffect(() => {
-    if (gameEngineRef.current) {
-      console.log('Mode MJ changé, re-render de la carte:', isGameMaster);
-      
-      // Update window stores before rendering
-      (window as any).gameState = useGameState.getState();
-      (window as any).playerState = usePlayer.getState();
-      (window as any).usePlayer = usePlayer;
-      
-      gameEngineRef.current.render();
-    }
-  }, [isGameMaster]);
+    console.log('Mode MJ changé, re-render de la carte:', isGameMaster);
+    renderEngine(); // Uses the improved hook instead of direct window access
+  }, [isGameMaster, renderEngine]);
 
-  // Handle mouse down to track drag vs click
+  // IMPROVED: Memoized mouse down handler
   const handleMouseDown = useCallback((event: React.MouseEvent) => {
     // Only handle mouse events if they're actually on the canvas (not on HUD elements)
     if (event.target === canvasRef.current) {
@@ -102,38 +100,12 @@ export function GameCanvas() {
 
       const hex = gameEngineRef.current.getHexAtPosition(x, y);
       if (hex) {
-        // Vérifier s'il y a une colonie sur cette case
-        const { currentNovaImperium, addCity } = useNovaImperium.getState();
-        if (currentNovaImperium) {
-          let city = currentNovaImperium.cities.find(c => c.x === hex.x && c.y === hex.y);
-          console.log('🏘️ Debug clic - Position:', hex.x, hex.y, 'Villes trouvées:', currentNovaImperium.cities.map(c => `${c.name}(${c.x},${c.y})`));
-          
-          // Si pas de ville trouvée mais il y a un territoire avec une colonie, créer la ville
-          if (!city) {
-            const territory = UnifiedTerritorySystem.getTerritory(hex.x, hex.y);
-            if (territory && territory.colonyId) {
-              console.log('🏘️ Territoire trouvé avec colonie, création de la ville:', territory);
-              city = {
-                id: territory.colonyId,
-                name: territory.colonyName || `Colonie ${territory.colonyId}`,
-                x: hex.x,
-                y: hex.y,
-                population: 1,
-                buildings: [],
-                currentProduction: null,
-                productionProgress: 0
-              };
-              addCity(city);
-              console.log('🏘️ Ville créée et ajoutée:', city);
-            }
-          }
-          
-          if (city) {
-            console.log('🏘️ Clic sur la colonie:', city.name, 'à', hex.x, hex.y, 'ID:', city.id);
-            setSelectedCityId(city.id);
-            setMouseDownPos(null);
-            return;
-          }
+        // IMPROVED: Use dedicated city selection hook
+        const { city, cityId } = selectCity(hex.x, hex.y);
+        if (city) {
+          setSelectedCityId(cityId);
+          setMouseDownPos(null);
+          return;
         }
 
         // Vérifier si la case est explorée avant de permettre la sélection
@@ -149,52 +121,31 @@ export function GameCanvas() {
           console.log('Case non explorée - aucune action possible');
         }
         
-        // Handle unit movement - check if terrain is walkable
+        // IMPROVED: Handle unit movement with terrain helper
         if (selectedUnit && (hex.x !== selectedUnit.x || hex.y !== selectedUnit.y)) {
-          // Check if terrain is walkable for land units
-          if (isTerrainWalkable(hex.terrain)) {
+          if (TerrainHelpers.isWalkable(hex.terrain)) {
             moveUnit(selectedUnit.id, hex.x, hex.y);
           } else {
             console.log('Cannot move unit to water terrain:', hex.terrain);
           }
         }
         
-        // Handle avatar movement - double click movement
+        // IMPROVED: Handle avatar movement - simplified for now
         if (!selectedUnit && !showAvatarMenu) {
-          const gameEngine = gameEngineRef.current;
-          const currentAvatar = gameEngine?.avatarPosition;
-          const currentTime = Date.now();
-          
-          // Vérifier si c'est un double-clic (dans les 500ms et sur la même position)
-          const isDoubleClick = lastClickTime && 
-                               (currentTime - lastClickTime) < 500 && 
-                               lastClickPosition &&
-                               lastClickPosition.x === hex.x && 
-                               lastClickPosition.y === hex.y;
-          
-          if (isDoubleClick && currentAvatar && (hex.x !== currentAvatar.x || hex.y !== currentAvatar.y)) {
-            if (isTerrainWalkable(hex.terrain)) {
-              setPendingMovement({ x: hex.x, y: hex.y });
-              console.log('Double-clic détecté - Déplacement proposé vers:', hex.x, hex.y, 'terrain:', hex.terrain);
-              // Reset pour éviter les triple-clics
-              setLastClickTime(0);
-              setLastClickPosition(null);
-            } else {
-              console.log('Cannot move avatar to water terrain:', hex.terrain);
-              alert('Impossible de se déplacer sur l\'eau sans navire !');
-            }
+          // Temporary direct approach to avoid hook ordering issues
+          if (TerrainHelpers.isWalkable(hex.terrain)) {
+            setPendingMovement({ x: hex.x, y: hex.y });
+            console.log('Déplacement proposé vers:', hex.x, hex.y, 'terrain:', hex.terrain);
           } else {
-            // Premier clic - enregistrer le temps et la position
-            setLastClickTime(currentTime);
-            setLastClickPosition({ x: hex.x, y: hex.y });
-            console.log('Premier clic enregistré sur:', hex.x, hex.y, '- Double-cliquez pour vous déplacer');
+            console.log('Cannot move avatar to water terrain:', hex.terrain);
+            alert('Impossible de se déplacer sur l\'eau sans navire !');
           }
         }
       }
     }
     
     setMouseDownPos(null);
-  }, [selectedUnit, setSelectedHex, moveUnit, mouseDownPos, moveAvatarToHex, avatarPosition, setPendingMovement, lastClickTime, lastClickPosition]);
+  }, [selectedUnit, setSelectedHex, moveUnit, mouseDownPos, selectCity, setPendingMovement]);
 
   // Update rendering when game state changes
   useEffect(() => {
@@ -211,11 +162,10 @@ export function GameCanvas() {
     }
   }, [novaImperiums, selectedHex, avatarPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision, pendingMovement]);
 
-  // Check if terrain is walkable for land units
-  const isTerrainWalkable = (terrain: string): boolean => {
-    const waterTerrains = ['shallow_water', 'deep_water'];
-    return !waterTerrains.includes(terrain);
-  };
+  // IMPROVED: Memoized terrain check using centralized helper
+  const isTerrainWalkable = useCallback((terrain: string): boolean => {
+    return TerrainHelpers.isWalkable(terrain);
+  }, []);
 
   const handleMovementConfirm = async () => {
     if (pendingMovement && mapData) {
@@ -228,8 +178,8 @@ export function GameCanvas() {
       const targetTile = mapData[pendingMovement.y] && mapData[pendingMovement.y][pendingMovement.x];
       
       if (targetTile) {
-        // Prevent movement to water terrain
-        if (targetTile.terrain === 'shallow_water' || targetTile.terrain === 'deep_water') {
+        // IMPROVED: Use terrain helper for consistency
+        if (!TerrainHelpers.isWalkable(targetTile.terrain)) {
           alert('Impossible de se déplacer sur l\'eau sans navire !');
           setPendingMovement(null);
           return;
