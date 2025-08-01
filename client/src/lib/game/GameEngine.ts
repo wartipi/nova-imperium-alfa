@@ -157,7 +157,7 @@ export class GameEngine {
     this.canvas.height = window.innerHeight;
   }
 
-  updateCivilizations(civilizations: Civilization[]) {
+  updateCivilizations(civilizations: any[]) {
     this.civilizations = civilizations;
   }
 
@@ -373,7 +373,7 @@ export class GameEngine {
         const isPendingDestination = this.pendingMovement && this.pendingMovement.x === x && this.pendingMovement.y === y;
         
         // Draw hex with vision state
-        this.drawHex(screenX, screenY, hex, isVisible || false, isInCurrentVision || false, isPendingDestination);
+        this.drawHex(screenX, screenY, hex, isVisible ?? false, isInCurrentVision ?? false, isPendingDestination);
         
         // Draw hex outline - different style for visible vs invisible
         if (isVisible) {
@@ -425,7 +425,7 @@ export class GameEngine {
           'player': { border: '#1E90FF' }, // Bleu pour joueur par défaut
         };
         
-        const colors = playerColors[territoryInfo.factionId] || playerColors['player'];
+        const colors = playerColors[territoryInfo.factionId ?? 'player'] || playerColors['player'];
         
         // Dessiner seulement les contours externes des territoires
         this.drawTerritoryBorders(hex.x, hex.y, territoryInfo, colors.border, x, y);
@@ -971,8 +971,12 @@ export class GameEngine {
     return { x: this.cameraX, y: this.cameraY };
   }
 
-  // Dessiner les contours externes des territoires
+  // Dessiner les contours externes des territoires - TEMPORAIREMENT DÉSACTIVÉ
   private drawTerritoryBorders(hexX: number, hexY: number, territoryInfo: any, borderColor: string, screenX: number, screenY: number) {
+    // CORRECTION TEMPORAIRE : Désactivation du rendu des bordures de territoire
+    // pour résoudre les artefacts visuels (lignes indésirables)
+    return;
+    
     const factionId = territoryInfo.factionId;
     
     // Vérifier chaque côté de l'hexagone pour voir s'il est une bordure externe
