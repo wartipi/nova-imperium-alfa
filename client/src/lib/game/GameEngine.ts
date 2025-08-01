@@ -1,4 +1,4 @@
-import type { HexTile, Civilization, Unit, City } from "./types";
+import type { HexTile, Unit, City } from "./types";
 import { ResourceRevealSystem } from "../systems/ResourceRevealSystem";
 import { usePlayer } from "../stores/usePlayer";
 import { useGameState } from "../stores/useGameState";
@@ -22,7 +22,7 @@ export class GameEngine {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private mapData: HexTile[][];
-  private civilizations: Civilization[] = [];
+  private civilizations: any[] = [];
   private selectedHex: HexTile | null = null;
   private cameraX = 0;
   private cameraY = 0;
@@ -373,7 +373,7 @@ export class GameEngine {
         const isPendingDestination = this.pendingMovement && this.pendingMovement.x === x && this.pendingMovement.y === y;
         
         // Draw hex with vision state
-        this.drawHex(screenX, screenY, hex, isVisible, isInCurrentVision, isPendingDestination);
+        this.drawHex(screenX, screenY, hex, isVisible || false, isInCurrentVision || false, isPendingDestination);
         
         // Draw hex outline - different style for visible vs invisible
         if (isVisible) {
@@ -512,7 +512,7 @@ export class GameEngine {
             obsidian: { symbol: '⚫', color: '#1C1C1C' }
           };
           
-          const resourceInfo = resourceMap[hex.resource as keyof typeof resourceMap];
+          const resourceInfo = resourceMap[hex.resource as keyof typeof resourceMap] || null;
           if (resourceInfo) {
             this.ctx.fillStyle = resourceInfo.color;
             this.ctx.globalAlpha = isGameMaster ? 0.8 : 0.6;
@@ -682,7 +682,7 @@ export class GameEngine {
     });
   }
 
-  private drawCity(city: City, color: string) {
+  private drawCity(city: any, color: string) {
     const hexHeight = this.hexSize * Math.sqrt(3);
     const screenX = city.x * (this.hexSize * 1.5);
     const screenY = city.y * hexHeight + (city.x % 2) * (hexHeight / 2);
@@ -728,7 +728,7 @@ export class GameEngine {
     this.ctx.fillText(displayName, screenX, screenY - this.hexSize + 4);
   }
 
-  private drawUnit(unit: Unit, color: string) {
+  private drawUnit(unit: any, color: string) {
     const hexHeight = this.hexSize * Math.sqrt(3);
     const screenX = unit.x * (this.hexSize * 1.5);
     const screenY = unit.y * hexHeight + (unit.x % 2) * (hexHeight / 2);
