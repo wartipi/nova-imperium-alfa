@@ -4,7 +4,7 @@ import { useReputation } from "../../lib/stores/useReputation";
 import { useGameState } from "../../lib/stores/useGameState";
 import { useFactions } from "../../lib/stores/useFactions";
 import { useMap } from "../../lib/stores/useMap";
-import { useMapState } from "../../lib/stores/useMapState";
+// import { useMapState } from "../../lib/stores/useMapState"; // Pas utilisé ici
 import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { Card } from "../ui/card";
 
@@ -294,7 +294,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
           const avatarPosition = gameEngine?.getAvatarPosition() || { x: 25, y: 15 };
           
           // NOUVELLE APPROCHE: Récupérer les données directement des stores
-          const { mapData } = useMapState.getState();
+          const { mapData } = useMap.getState(); // Utiliser useMap au lieu de useMapState
           
           console.log('Cartographie - Position avatar:', avatarPosition);
           console.log('Cartographie - Vision actuelle:', currentVision.size, 'hexagones');
@@ -324,7 +324,9 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
                 tileDataGameEngine: gameEngine?.getTileAt(x, y),
                 tileDataMapState: mapData?.[y]?.[x],
                 finalTileData: tileData,
-                terrain: tileData?.terrain 
+                terrain: tileData?.terrain,
+                gameEngineMapData: gameEngine?.getMapData(),
+                mapStateData: mapData
               });
             }
             
@@ -339,13 +341,23 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
               }
             }
             
+            // MÉTHODE 3: Utiliser les données brutes du générateur de cartes si les autres échouent
+            if (!tileData?.terrain) {
+              const gameMapData = gameEngine?.getMapData();
+              if (gameMapData && gameMapData[y] && gameMapData[y][x]) {
+                tileData = gameMapData[y][x];
+                console.log(`🔧 Récupération depuis gameEngine.mapData pour (${x},${y}):`, tileData);
+              }
+            }
+            
             // S'assurer que le terrain est bien récupéré
             const actualTerrain = tileData?.terrain;
             if (!actualTerrain || actualTerrain === 'undefined') {
               console.warn(`⚠️ Terrain manquant pour (${x},${y}):`, { 
                 tileData, 
                 gameEngineTile: gameEngine?.getTileAt(x, y),
-                mapStateTile: mapData?.[y]?.[x]
+                mapStateTile: mapData?.[y]?.[x],
+                gameEngineMapData: gameEngine?.getMapData()?.[y]?.[x]
               });
             }
             
