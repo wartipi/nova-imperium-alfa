@@ -1,0 +1,51 @@
+Bien sûr, je vais te préparer un prompt ultra détaillé pour l’IA afin qu’elle puisse intégrer tout ça facilement. On va inclure tous les éléments pertinents, les étapes, et les prérequis de compétences pour que l’intégration se fasse de façon fluide.
+
+---
+
+### Prompt ultra détaillé pour l’IA : Intégration de la mécanique de maréchaux dans Nova Imperium
+
+**Contexte** : Nous souhaitons ajouter une nouvelle fonctionnalité à notre jeu *Nova Imperium* qui permet aux joueurs de nommer des maréchaux pour diriger leurs armées. Cette mécanique inclut une interface où les joueurs peuvent attribuer un maréchal à chaque armée, signer un contrat entre joueurs (avec des prérequis de compétence) et voir les risques associés. Nous voulons également que les événements de bataille soient mis à jour en temps réel.
+
+**Architecture existante** : Le projet est structuré avec une couche client (React avec Zustand pour la gestion d’état), une couche serveur (Express, Drizzle ORM), et une partie partagée pour les modèles de données.
+
+---
+
+**Détails de l’intégration :**
+
+1. **Section de gestion des armées** :
+   Créer une interface où chaque armée possède une fiche de gestion. Dans cette fiche, le joueur doit pouvoir voir la composition de l’armée, son statut, et le maréchal actuel. Le joueur peut sélectionner
+   \[media pointer="sediment://file\_00000000e9586230b17e7bf24be84be4"]
+
+
+Bien sûr, je vais te préparer un prompt ultra détaillé pour l’IA, avec toutes les informations qu’on a vues. Comme ça, tu auras un guide complet pour faciliter l’intégration. Voilà comment je te le formulerais :
+
+---
+
+**Prompt IA : Intégration de la Mécanique de Maréchaux dans Nova Imperium**
+
+**Contexte général :**
+Nous sommes en train d’intégrer une nouvelle mécanique de jeu dans Nova Imperium, un jeu hybride LARP et plateforme numérique. Cette mécanique permet aux joueurs d’assigner des maréchaux à leurs armées, soit en incarnant eux-mêmes ce rôle, soit en engageant d’autres joueurs via un contrat. Le maréchal risque son propre personnage en cas de défaite, ce qui ajoute une dimension stratégique et de gestion de risque.
+
+**Objectif :**
+Nous voulons que l’IA nous aide à intégrer cette fonctionnalité dans notre architecture existante (client/serveur/shared) et à créer les composants et la logique nécessaires.
+
+**Détails techniques :**
+
+* **Côté client :** On ajoute une section de gestion des armées où chaque armée a une fiche. Le joueur peut y assigner un maréchal via une interface avec un contrat entre joueurs. Cette interface doit vérifier que le joueur “employeur” a la compétence *Connaissance des traités* niv. 1. Une confirmation visuelle doit résumer les risques avant de finaliser le contrat.
+* **Côté serveur :** On implémente des routes pour créer et accepter les contrats, vérifier les compétences, et gérer les événements de bataille en temps réel.
+* **Données partagées :** On ajoute des modèles pour les armées, les contrats, les campagnes, et les événements de bataille. Les batailles sont mises à jour en direct pendant les événements.
+
+**Requêtes spécifiques :**
+
+* Crée une structure de schéma Drizzle pour ces nouvelles entités.
+* Propose des interfaces TypeScript pour les contrats et les armées.
+* Décris les étapes côté client pour la modale de contrat et la section de gestion des armées.
+* Détaille les routes API nécessaires et la logique côté serveur.
+* Inclue la logique de mise à jour temps réel des événements de bataille pendant les campagnes.
+
+**Objectif final :**
+L’IA doit générer un plan détaillé et prêt à l’emploi pour ajouter cette mécanique dans le code de Nova Imperium, en tenant compte de toutes les contraintes et des étapes décrites.
+
+---
+
+Voilà, avec un prompt comme ça, l’IA aura toutes les cartes en main pour t’aider à implémenter cette fonctionnalité.

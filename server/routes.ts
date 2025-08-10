@@ -7,6 +7,7 @@ import { exchangeService, UniqueItem } from "./exchangeService";
 import { cartographyService } from "./cartographyService";
 import { marketplaceService, initializeMarketplaceService } from "./marketplaceService";
 import { loginEndpoint } from "./middleware/auth";
+import marshalRoutes from "./routes/marshal";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialiser le marketplace service avec exchangeService
@@ -927,6 +928,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to resolve auctions" });
     }
   });
+
+  // Marshal routes (armées, contrats, campagnes)
+  app.use('/api/marshal', marshalRoutes);
 
   const httpServer = createServer(app);
   return httpServer;
