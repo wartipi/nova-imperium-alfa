@@ -144,7 +144,6 @@ export function MedievalHUD() {
     { id: 'territory' as MenuSection, label: 'GESTION DE TERRITOIRE', icon: '🗺️' },
     { id: 'marshals' as MenuSection, label: 'GESTION DES ARMÉES', icon: '⚔️' },
     { id: 'treaties' as MenuSection, label: 'TRAITÉS', icon: '📜' },
-    { id: 'factions' as MenuSection, label: 'FACTIONS', icon: '🏛️' },
     { id: 'courier' as MenuSection, label: 'COURRIER', icon: '✉️' },
     { id: 'activities' as MenuSection, label: 'RAPPORT D\'ACTIVITÉS', icon: '📊' },
     { id: 'events' as MenuSection, label: 'ÉVÉNEMENT', icon: '🎭' },
