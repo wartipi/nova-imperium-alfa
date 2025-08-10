@@ -8,6 +8,7 @@ import { cartographyService } from "./cartographyService";
 import { marketplaceService, initializeMarketplaceService } from "./marketplaceService";
 import { loginEndpoint } from "./middleware/auth";
 import marshalRoutes from "./routes/marshal";
+import publicEventsRoutes from "./routes/publicEvents";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialiser le marketplace service avec exchangeService
@@ -931,6 +932,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Marshal routes (armées, contrats, campagnes)
   app.use('/api/marshal', marshalRoutes);
+  app.use('/api/public-events', publicEventsRoutes);
 
   const httpServer = createServer(app);
   return httpServer;

@@ -33,6 +33,7 @@ import { PublicMarketplace } from "./PublicMarketplace";
 import { useAuth } from "../../lib/auth/AuthContext";
 import { LevelUpNotification, useLevelUpNotification } from "./LevelUpNotification";
 import { MarshalPanel } from "../marshal/MarshalPanel";
+import { PublicEventsPanel } from "./PublicEventsPanel";
 
 type MenuSection = 
   | 'treasury' 
@@ -682,7 +683,7 @@ export function MedievalHUD() {
                 </div>
               )}
               {activeSection === 'marshals' && <MarshalPanel />}
-              {activeSection === 'announcements' && <PublicAnnouncementPanel />}
+              {activeSection === 'announcements' && <PublicEventsPanel />}
               {activeSection === 'guide' && <GameGuidePanel />}
               {activeSection === 'help' && <HelpPanel />}
               {activeSection === 'competences' && <CompetenceTree />}
