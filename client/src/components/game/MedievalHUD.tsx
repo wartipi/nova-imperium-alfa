@@ -32,6 +32,7 @@ import { PlayerInventory } from "./PlayerInventory";
 import { PublicMarketplace } from "./PublicMarketplace";
 import { useAuth } from "../../lib/auth/AuthContext";
 import { LevelUpNotification, useLevelUpNotification } from "./LevelUpNotification";
+import { MarshalPanel } from "../marshal/MarshalPanel";
 
 type MenuSection = 
   | 'treasury' 
@@ -681,57 +682,7 @@ export function MedievalHUD() {
                   <UnifiedTerritoryPanel onClose={() => setActiveSection(null)} />
                 </div>
               )}
-              {activeSection === 'marshals' && (
-                <div className="space-y-6">
-                  <div className="text-center py-12">
-                    <div className="text-6xl mb-4">⚔️</div>
-                    <h3 className="text-xl font-semibold mb-2">Système de Maréchaux</h3>
-                    <p className="text-muted-foreground mb-4 max-w-md mx-auto">
-                      Embauchez des commandants pour vos armées et créez des contrats militaires avec d'autres joueurs.
-                    </p>
-                    <div className="grid gap-4 md:grid-cols-2 max-w-lg mx-auto">
-                      <div className="p-4 border rounded-lg bg-amber-50">
-                        <h4 className="font-medium mb-2">Fonctionnalités</h4>
-                        <ul className="text-sm text-muted-foreground space-y-1 text-left">
-                          <li>• Créer et gérer des armées</li>
-                          <li>• Embaucher des maréchaux</li>
-                          <li>• Contrats entre joueurs</li>
-                          <li>• Campagnes militaires</li>
-                        </ul>
-                      </div>
-                      <div className="p-4 border rounded-lg bg-amber-50">
-                        <h4 className="font-medium mb-2">Compétences requises</h4>
-                        <ul className="text-sm text-muted-foreground space-y-1 text-left">
-                          <li>• Commandement (armées)</li>
-                          <li>• Traités (contrats)</li>
-                          <li>• Art de la guerre (tactiques)</li>
-                        </ul>
-                      </div>
-                    </div>
-                    <button 
-                      className="mt-6 bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded font-bold" 
-                      onClick={() => {
-                        console.log('Test API marshal endpoints pour player:', currentUser);
-                        // Test des endpoints
-                        fetch('/api/marshal/armies/player')
-                          .then(r => r.json())
-                          .then(data => console.log('Armies:', data))
-                          .catch(e => console.error('Error armies:', e));
-                        fetch('/api/marshal/marshals/player')
-                          .then(r => r.json())
-                          .then(data => console.log('Marshals:', data))
-                          .catch(e => console.error('Error marshals:', e));
-                        fetch('/api/marshal/contracts/player')
-                          .then(r => r.json())
-                          .then(data => console.log('Contracts:', data))
-                          .catch(e => console.error('Error contracts:', e));
-                      }}
-                    >
-                      Tester l'API
-                    </button>
-                  </div>
-                </div>
-              )}
+              {activeSection === 'marshals' && <MarshalPanel />}
               {activeSection === 'announcements' && <PublicAnnouncementPanel />}
               {activeSection === 'guide' && <GameGuidePanel />}
               {activeSection === 'help' && <HelpPanel />}
