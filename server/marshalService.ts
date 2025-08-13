@@ -26,6 +26,7 @@ export class MarshalService {
     const army: Army = {
       id: `army_${Date.now()}_${Math.random().toString(36).substring(2)}`,
       ...armyData,
+      position: armyData.position ?? { x: 0, y: 0 }, // Assurer que position est définie
       marshalId: null,
       marshalName: null,
       status: 'idle',
