@@ -229,7 +229,7 @@ class CartographyService {
 
   // Découvrir des secrets cachés selon la qualité de la carte
   private discoverSecrets(region: MapRegion, quality: 'rough' | 'detailed' | 'masterwork'): string[] {
-    const secrets = [];
+    const secrets: string[] = [];
     const possibleSecrets = [
       'ancient_ruins',
       'hidden_treasure',
@@ -258,7 +258,7 @@ class CartographyService {
 
   // Identifier les caractéristiques uniques d'une région
   private identifyUniqueFeatures(region: MapRegion, quality: 'rough' | 'detailed' | 'masterwork'): string[] {
-    const features = [];
+    const features: string[] = [];
     const possibleFeatures = [
       'natural_harbor',
       'mountain_pass',

@@ -14,11 +14,12 @@ class MessageService {
   private subscribers: Map<string, ((messages: Message[]) => void)[]> = new Map();
 
   // Envoyer un message
-  sendMessage(message: Omit<Message, 'id' | 'timestamp'>): Message {
+  sendMessage(message: Omit<Message, 'id' | 'timestamp' | 'read'>): Message {
     const newMessage: Message = {
       ...message,
       id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      read: false
     };
 
     this.messages.push(newMessage);

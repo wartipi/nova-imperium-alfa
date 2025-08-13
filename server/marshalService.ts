@@ -105,6 +105,16 @@ export class MarshalService {
       throw new Error("Seul le propriétaire de l'armée peut créer un contrat");
     }
 
+    // Empêcher la création de contrats multiples pour la même armée
+    const existingContract = this.contracts.find(c => 
+      c.armyId === contractData.armyId && 
+      (c.status === 'proposed' || c.status === 'active')
+    );
+    
+    if (existingContract) {
+      throw new Error(`Un contrat actif ou proposé existe déjà pour cette armée: ${existingContract.id}`);
+    }
+
     const contract: MarshalContract = {
       id: `contract_${Date.now()}_${Math.random().toString(36).substring(2)}`,
       ...contractData,
@@ -261,10 +271,25 @@ export class MarshalService {
     const battle = this.battleEvents.find(b => b.id === battleId);
     if (!battle) return false;
 
+    // Mapper le type d'événement à un niveau de sévérité
+    const getSeverityFromUpdateType = (updateType: string): 'info' | 'warning' | 'critical' => {
+      switch (updateType) {
+        case 'battle_start':
+        case 'phase_change':
+          return 'info';
+        case 'casualty_report':
+          return 'warning';
+        case 'battle_end':
+          return 'critical';
+        default:
+          return 'info';
+      }
+    };
+
     const realTimeUpdate = {
       timestamp: new Date(),
-      message: update.message,
-      type: update.type as 'info' | 'warning' | 'critical'
+      type: getSeverityFromUpdateType(update.type), // Utiliser le niveau de sévérité pour le type
+      message: update.message
     };
 
     const updates = (battle.realTimeUpdates as any[]) || [];
@@ -357,10 +382,43 @@ export class MarshalService {
    * Vérifier les compétences requises pour une action
    */
   checkCompetenceRequirement(playerId: string, competence: string, minLevel: number = 1): boolean {
-    // Cette fonction sera intégrée avec le système de compétences existant
-    // Pour l'instant, on simule la vérification
-    console.log(`🎓 Vérification compétence: ${competence} niveau ${minLevel} pour ${playerId}`);
-    return true; // À implémenter avec le store des joueurs
+    // TODO: Intégrer avec le système de compétences réel du jeu
+    // Cette méthode doit vérifier les compétences réelles du joueur
+    // Pour l'instant, nous utilisons une logique simulée basée sur l'ID du joueur
+    
+    const playerCompetences = this.getSimulatedPlayerCompetences(playerId);
+    const playerLevel = playerCompetences[competence] || 0;
+    
+    console.log(`🎯 Vérification compétence: ${playerId} - ${competence} niveau ${playerLevel}/${minLevel}`);
+    return playerLevel >= minLevel;
+  }
+
+  /**
+   * Méthode temporaire pour simuler les compétences d'un joueur
+   * À remplacer par l'intégration au vrai système de compétences
+   */
+  private getSimulatedPlayerCompetences(playerId: string): Record<string, number> {
+    // Simulation basique basée sur l'ID du joueur
+    const competences: Record<string, number> = {};
+    
+    // Attributions par défaut
+    competences['leadership'] = 1;
+    competences['tactics'] = 1;
+    competences['strategy'] = 1;
+    competences['logistics'] = 1;
+    
+    // Bonus selon l'ID (simulation)
+    if (playerId.includes('marshal') || playerId.includes('commander')) {
+      competences['leadership'] = 3;
+      competences['tactics'] = 2;
+    }
+    
+    if (playerId.includes('strategic') || playerId.includes('general')) {
+      competences['strategy'] = 3;
+      competences['logistics'] = 2;
+    }
+    
+    return competences;
   }
 
   /**

@@ -85,7 +85,7 @@ class TreatyService {
   private subscribers: Map<string, ((treaties: Treaty[]) => void)[]> = new Map();
 
   // Créer un nouveau traité
-  createTreaty(treaty: Omit<Treaty, 'id' | 'createdAt' | 'signatures' | 'status'>): Treaty {
+  createTreaty(treaty: Omit<Treaty, 'id' | 'createdAt' | 'status' | 'signatures' | 'actionPointsCost'>): Treaty {
     const newTreaty: Treaty = {
       ...treaty,
       id: Date.now().toString() + Math.random().toString(36).substr(2, 9),

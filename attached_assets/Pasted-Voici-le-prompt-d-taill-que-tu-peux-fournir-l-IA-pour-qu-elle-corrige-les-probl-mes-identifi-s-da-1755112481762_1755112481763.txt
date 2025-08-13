@@ -1,0 +1,64 @@
+Voici le prompt détaillé que tu peux fournir à l’IA pour qu’elle corrige les problèmes identifiés dans la branche **Ni‑architecture‑v9**. Il décrit chaque anomalie et la modification attendue :
+
+---
+
+**Contexte :** Tu analyses et modifies le code du dépôt *nova‑imperium‑alfa*, branche **Ni‑architecture‑v9**. Plusieurs services TypeScript comportent des erreurs de typage et de logique. Voici les correctifs à implémenter.
+
+### 1. Corriger les déclarations `Map` et `subscribers`
+
+Dans les services `cartographyService.ts`, `exchangeService.ts`, `marketplaceService.ts`, `messageService.ts` et `treatyService.ts`, la propriété `subscribers` est mal typée : on trouve `private subscribers: Map void)[]> = new Map();`,,,,.
+
+**Modifications à apporter :**
+
+* Déclarer `subscribers` avec des paramètres génériques explicites. Exemple :
+
+  ```ts
+  private subscribers: Map<string, ((data: any) => void)[]> = new Map();
+  ```
+* Appliquer la même correction à d’autres `Map` non typés comme `tradeRooms`, `activeOffers`, `uniqueItems`, etc., pour éviter l’usage implicite de `any`.
+
+### 2. Spécifier les paramètres génériques d’`Omit`
+
+Dans `messageService.ts`, la méthode `sendMessage` accepte un paramètre typé `Omit` sans préciser les champs à omettre. Dans `treatyService.ts`, `createTreaty` présente le même problème.
+
+**Modifications à apporter :**
+
+* Pour `sendMessage`, accepter un objet `Message` sans ses propriétés générées (`id`, `timestamp`, `read`) :
+
+  ```ts
+  sendMessage(message: Omit<Message, 'id' | 'timestamp' | 'read'>): Message
+  ```
+* Pour `createTreaty`, typer correctement l’argument en omettant les propriétés calculées (`id`, `createdAt`, `status`, etc.) :
+
+  ```ts
+  createTreaty(treaty: Omit<Treaty, 'id' | 'createdAt' | 'status' | 'signatures' | 'actionPointsCost'>): Treaty
+  ```
+
+### 3. Harmoniser le type des mises à jour en temps réel
+
+Dans `marshalService.ts`, la méthode `updateBattle` crée un `realTimeUpdate` avec une propriété `type` forcée à `'info' | 'warning' | 'critical'` alors que l’argument `update.type` peut valoir `'battle_start'`, `'phase_change'`, `'casualty_report'` ou `'battle_end'`.
+
+**Modifications à apporter :**
+
+* Soit créer un champ distinct (par exemple `severity`) pour `'info' | 'warning' | 'critical'` et transmettre `update.type` tel quel ;
+* Soit définir un mappage clair entre les types d’événements de bataille et leur niveau de sévérité.
+
+### 4. Empêcher la création de contrats multiples par armée
+
+Actuellement, `createContract` dans `marshalService.ts` n’empêche pas la création de plusieurs contrats pour la même armée. Ajouter une vérification avant l’insertion dans `this.contracts` pour s’assurer qu’aucun contrat actif ou proposé n’existe déjà pour cette armée.
+
+### 5. Implémenter réellement les vérifications de compétences
+
+La fonction `checkCompetenceRequirement` dans `marshalService.ts` est un stub qui retourne toujours `true`. Tu dois l’intégrer au système de compétences :
+
+* Vérifier la compétence du joueur (`competence`) et comparer avec `minLevel`.
+* Retourner `false` si le joueur ne remplit pas la condition.
+
+### 6. Ajustements complémentaires
+
+* S’assurer que `sendMessage` et `createTreaty` retournent des types corrects et déclenchent les notifications nécessaires via `notifySubscribers`.
+* Penser à vérifier qu’aucun joueur ne supprime une enchère ayant déjà des offres (`removeItem` dans `marketplaceService.ts` gère cette contrainte).
+
+---
+
+Ce prompt décrit précisément les changements à opérer pour corriger les erreurs de typage et améliorer la logique de ton projet. Assure-toi de parcourir chaque fichier concerné et d’appliquer ces modifications de manière cohérente.

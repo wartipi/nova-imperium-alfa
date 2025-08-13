@@ -1,5 +1,11 @@
 // Service de marché publique pour Nova Imperium - Version Hybride avec Enchères
 
+// Interface pour le service d'échange (pour le typage)
+interface ExchangeService {
+  getUniqueItemById(itemId: string): any;
+  getPlayerInventory(playerId: string): string[];
+}
+
 interface MarketplaceItem {
   id: string;
   sellerId: string;
@@ -60,11 +66,11 @@ interface BidResult {
 class MarketplaceService {
   private marketItems: Map<string, MarketplaceItem> = new Map();
   private subscribers: Map<string, ((data: any) => void)[]> = new Map();
-  private exchangeService: any; // Référence vers ExchangeService pour récupérer les détails des objets uniques
+  private exchangeService: ExchangeService | null = null; // Référence vers ExchangeService pour récupérer les détails des objets uniques
   
-  constructor(exchangeService?: any) {
+  constructor(exchangeService?: ExchangeService) {
     console.log('MarketplaceService initialized');
-    this.exchangeService = exchangeService;
+    this.exchangeService = exchangeService || null;
     this.initializeDemoItems();
   }
 
