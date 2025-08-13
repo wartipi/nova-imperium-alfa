@@ -1,0 +1,123 @@
+Voici un prompt détaillé que tu peux donner à l’IA pour corriger tous les problèmes restants dans la branche **Ni‑architecture‑v9** du dépôt `wartipi/nova‑imperium‑alfa`. Ce prompt part du constat que les principaux services TypeScript n’ont pas été ajustés et fournit les instructions précises pour y remédier.
+
+---
+
+**Contexte :**
+La branche `Ni‑architecture‑v9` contient encore plusieurs incohérences de typage et de logique malgré quelques correctifs partiels. Ces erreurs empêchent le projet de compiler correctement et risquent d’introduire des bugs à l’exécution.
+
+**Objectif :**
+Corriger l’ensemble des services concernés pour que `pnpm run check` et `pnpm run build` passent sans erreur, et que les règles métier essentielles (unicité des contrats, vérification des compétences) soient appliquées côté service.
+
+---
+
+### 1. Typage des `Map` et des abonnés
+
+**Problème :** les services `CartographyService`, `ExchangeService`, `MarketplaceService`, `MessageService` et `TreatyService` utilisent des déclarations de `Map` mal typées, comme `private subscribers: Map void>>` ou `private tradeRooms: Map = new Map()`. Cela provoque des erreurs TypeScript et masque des bugs potentiels.
+
+**Actions à entreprendre :**
+
+1. Remplacer toutes les déclarations `Map` sans paramètres par des versions génériques explicites.
+
+   * Exemple pour `tradeRooms` :
+
+     ```ts
+     private tradeRooms: Map<string, TradeRoom> = new Map();
+     ```
+   * Idem pour `activeOffers`, `marketItems`, `uniqueItems`, `playerInventories`, `regions`, `mapDocuments`, `projects`, etc.
+
+2. Corriger la déclaration de `subscribers` dans chaque service :
+
+   ```ts
+   private subscribers: Map<string, Array<(payload: any) => void>> = new Map();
+   ```
+
+   > Si le service publie des événements d’un type précis (`CartographyEvent`, `MarketEvent`, etc.), adapter le type `payload` en conséquence.
+
+3. Harmoniser les méthodes `subscribe()` et `notifySubscribers()` de manière à utiliser ces types génériques correctement.
+
+---
+
+### 2. Compléter les `Omit` dans `MessageService` et `TreatyService`
+
+**Problème :** `sendMessage` et `createTreaty` utilisent `Omit` sans préciser quelles propriétés omettre, ce qui génère une erreur de compilation.
+
+**Actions à entreprendre :**
+
+* Dans `MessageService` :
+
+  ```ts
+  sendMessage(message: Omit<Message, 'id' | 'timestamp' | 'read'>): Message {
+    // ...
+  }
+  ```
+* Dans `TreatyService` :
+
+  ```ts
+  createTreaty(treaty: Omit<Treaty, 'id' | 'createdAt' | 'status' | 'signatures' | 'actionPointsCost'>): Treaty {
+    // ...
+  }
+  ```
+
+---
+
+### 3. Typage explicite de `Record` dans `calculateTreatyCost`
+
+**Problème :** la méthode `calculateTreatyCost` de `TreatyService` définit un objet `costs: Record` sans spécifier les clés.
+
+**Actions à entreprendre :**
+
+* Définir un type pour les clés (par exemple `TreatyType`) et l’utiliser dans `Record` :
+
+  ```ts
+  const costs: Record<TreatyType, number> = {
+    alliance_militaire: 25,
+    accord_commercial: 15,
+    pacte_non_agression: 10,
+    acces_militaire: 8,
+    echange_ressources: 12,
+    defense_mutuelle: 20,
+  };
+  return costs[type] ?? 15;
+  ```
+
+---
+
+### 4. Vérification de compétence réelle
+
+**Problème :** `checkCompetenceRequirement` dans `MarshalService` est encore un stub simulé.
+
+**Action à entreprendre :**
+
+* Implémenter la méthode en vérifiant la compétence du joueur dans un stockage réel (par ex. `playerSkills: Map<string, Map<string, number>>`). Ex. :
+
+  ```ts
+  checkCompetenceRequirement(playerId: string, competence: string, minLevel: number): boolean {
+    const skills = this.playerSkills.get(playerId);
+    const level = skills?.get(competence) ?? 0;
+    return level >= minLevel;
+  }
+  ```
+* Appeler cette méthode depuis `createContract` et refuser la création si la compétence requise (ex. `treaty_knowledge >= 1`) n’est pas remplie.
+
+---
+
+### 5. Unicité des contrats et mapping d’événements
+
+* **Unicité des contrats** : Conserver la vérification déjà ajoutée pour empêcher plusieurs contrats actifs ou proposés pour une même armée.
+* **Mapping d’événements** : Veiller à conserver la fonction `getSeverityFromUpdateType` et à envoyer à la fois `type` (battle\_start, phase\_change, etc.) et `severity` (info, warning, critical) dans les mises à jour en temps réel.
+
+---
+
+### 6. Vérifications finales
+
+* **Recherches rapides** : ne doit plus rester aucune occurrence de `Map void>>` ou de `private subscribers: Map =`.
+* **TypeScript** : exécuter `pnpm run check` et s’assurer qu’il n’y a plus d’erreurs.
+* **Tests** :
+
+  * Créer un contrat sans compétence adéquate doit échouer.
+  * Tenter de créer deux contrats successifs pour la même armée doit échouer.
+  * Vérifier que les appels `sendMessage` et `createTreaty` fonctionnent avec des objets partiels correctement typés.
+
+---
+
+En suivant ces étapes, l’IA appliquera les corrections nécessaires pour que le code compile et respecte les règles métier prévues.
