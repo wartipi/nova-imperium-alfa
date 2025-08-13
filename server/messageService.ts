@@ -11,7 +11,7 @@ interface Message {
 
 class MessageService {
   private messages: Message[] = [];
-  private subscribers: Map<string, ((messages: Message[]) => void)[]> = new Map();
+  private subscribers: Map<string, Array<(messages: Message[]) => void>> = new Map();
 
   // Envoyer un message
   sendMessage(message: Omit<Message, 'id' | 'timestamp' | 'read'>): Message {

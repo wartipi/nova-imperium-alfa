@@ -82,7 +82,7 @@ interface Treaty {
 
 class TreatyService {
   private treaties: Treaty[] = [];
-  private subscribers: Map<string, ((treaties: Treaty[]) => void)[]> = new Map();
+  private subscribers: Map<string, Array<(treaties: Treaty[]) => void>> = new Map();
 
   // Créer un nouveau traité
   createTreaty(treaty: Omit<Treaty, 'id' | 'createdAt' | 'status' | 'signatures' | 'actionPointsCost'>): Treaty {

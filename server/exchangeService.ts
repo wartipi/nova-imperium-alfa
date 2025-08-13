@@ -42,7 +42,7 @@ interface TradeRoom {
 class ExchangeService {
   private tradeRooms: Map<string, TradeRoom> = new Map();
   private activeOffers: Map<string, ExchangeOffer> = new Map();
-  private subscribers: Map<string, ((data: any) => void)[]> = new Map();
+  private subscribers: Map<string, Array<(data: any) => void>> = new Map();
   private uniqueItems: Map<string, UniqueItem> = new Map();
   private playerInventories: Map<string, string[]> = new Map(); // playerId -> itemIds
 

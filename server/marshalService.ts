@@ -105,6 +105,11 @@ export class MarshalService {
       throw new Error("Seul le propriétaire de l'armée peut créer un contrat");
     }
 
+    // Vérifier les compétences de l'employeur pour créer un contrat
+    if (!this.checkCompetenceRequirement(contractData.employerId, 'treaty_knowledge', 1)) {
+      throw new Error("Compétence 'treaty_knowledge' niveau 1 requise pour créer un contrat de maréchal");
+    }
+
     // Empêcher la création de contrats multiples pour la même armée
     const existingContract = this.contracts.find(c => 
       c.armyId === contractData.armyId && 
@@ -118,6 +123,7 @@ export class MarshalService {
     const contract: MarshalContract = {
       id: `contract_${Date.now()}_${Math.random().toString(36).substring(2)}`,
       ...contractData,
+      proposalMessage: contractData.proposalMessage || null,
       status: 'proposed',
       createdAt: new Date(),
       acceptedAt: null,
@@ -288,7 +294,8 @@ export class MarshalService {
 
     const realTimeUpdate = {
       timestamp: new Date(),
-      type: getSeverityFromUpdateType(update.type), // Utiliser le niveau de sévérité pour le type
+      type: update.type, // Le type d'événement original
+      severity: getSeverityFromUpdateType(update.type), // Niveau de sévérité séparé
       message: update.message
     };
 
@@ -406,16 +413,24 @@ export class MarshalService {
     competences['tactics'] = 1;
     competences['strategy'] = 1;
     competences['logistics'] = 1;
+    competences['treaty_knowledge'] = 0; // Compétence pour créer des contrats
     
     // Bonus selon l'ID (simulation)
     if (playerId.includes('marshal') || playerId.includes('commander')) {
       competences['leadership'] = 3;
       competences['tactics'] = 2;
+      competences['treaty_knowledge'] = 2;
     }
     
     if (playerId.includes('strategic') || playerId.includes('general')) {
       competences['strategy'] = 3;
       competences['logistics'] = 2;
+      competences['treaty_knowledge'] = 1;
+    }
+    
+    // Joueurs avec 'admin' ou 'noble' ont accès aux traités
+    if (playerId.includes('admin') || playerId.includes('noble') || playerId.includes('lord')) {
+      competences['treaty_knowledge'] = 3;
     }
     
     return competences;

@@ -1,0 +1,318 @@
+Parfait. Voici un **prompt d’instructions ultra-précis** à donner à ton IA pour corriger les problèmes restants dans **`wartipi/nova-imperium-alfa`**, branche **`Ni-architecture-v9`**. Il est organisé **par fichier**, avec **modifs exactes**, **snippets prêts à coller** et **critères d’acceptation**.
+
+---
+
+# ✅ Objectif
+
+Corriger **toutes** les erreurs TypeScript restantes (génériques manquants, `Omit` incomplet, types `Map` invalides) et finaliser une vérification métier manquante, sans modifier l’API publique existante.
+
+# 🔧 Contrainte
+
+* Projet: `wartipi/nova-imperium-alfa`, branche `Ni-architecture-v9`.
+* Ne pas refactorer l’architecture, uniquement **corriger/compléter** les types et les guards métier.
+* Lint/Build doivent passer: `pnpm run check && pnpm run build`.
+
+---
+
+## 1) Corriger les `Map` et `subscribers` invalides (génériques manquants)
+
+### Fichiers concernés
+
+* `server/cartographyService.ts`
+* `server/exchangeService.ts`
+* `server/marketplaceService.ts`
+* `server/messageService.ts`
+* `server/treatyService.ts`
+
+### Problème
+
+Des déclarations de `Map` invalides du style :
+
+```ts
+private subscribers: Map void)[]> = new Map();
+// ou
+private subscribers: Map = new Map();
+```
+
+…et d’autres `Map`/`Set` sans paramètres : `tradeRooms`, `activeOffers`, `marketItems`, etc.
+
+### Changement à apporter (modèle)
+
+1. Remplacer **toutes** les déclarations de `subscribers` par :
+
+```ts
+private subscribers: Map<string, Array<(data: any) => void>> = new Map();
+```
+
+> Si un service notifie des types plus précis que `any`, utiliser une union/documenter le type :
+> `Map<string, Array<(data: MarketEvent | ExchangeEvent | CartographyEvent) => void>>`. Sinon, rester sur `any` pour ne rien casser.
+
+2. Typage explicite des autres `Map`/`Set` (exemples) :
+
+```ts
+private tradeRooms: Map<string, TradeRoom> = new Map();
+private activeOffers: Map<string, Offer> = new Map();
+private marketItems: Map<string, MarketItem> = new Map();
+private uniqueItems: Set<string> = new Set();
+```
+
+3. Fonctions utilitaires d’abonnement (si présentes) :
+
+```ts
+subscribe(key: string, cb: (data: any) => void) {
+  const list = this.subscribers.get(key) ?? [];
+  list.push(cb);
+  this.subscribers.set(key, list);
+}
+
+notifySubscribers(key: string, data: any) {
+  const list = this.subscribers.get(key);
+  if (!list) return;
+  for (const cb of list) cb(data);
+}
+```
+
+### Critères d’acceptation
+
+* Aucune occurrence résiduelle de `Map void)[]>`.
+* Aucune `Map`/`Set` sans paramètres génériques.
+* `tsc --noEmit` sans erreur.
+
+---
+
+## 2) Compléter les `Omit<…>` incomplets
+
+### Fichiers concernés
+
+* `server/messageService.ts` → méthode `sendMessage`
+* `server/treatyService.ts` → méthode `createTreaty`
+
+### Problème
+
+`Omit` est utilisé **sans** préciser les clés à omettre.
+
+### Changement à apporter
+
+**`messageService.ts`**
+
+* Supposons l’interface :
+
+```ts
+interface Message {
+  id: string;
+  senderId: string;
+  recipientId: string;
+  content: string;
+  timestamp: Date;
+  read: boolean;
+}
+```
+
+* Corriger la signature :
+
+```ts
+sendMessage(message: Omit<Message, 'id' | 'timestamp' | 'read'>): Message {
+  const newMsg: Message = {
+    id: crypto.randomUUID?.() ?? String(Date.now()),
+    timestamp: new Date(),
+    read: false,
+    ...message,
+  };
+  this.messages.push(newMsg);
+  this.notifySubscribers(message.recipientId, newMsg);
+  return newMsg;
+}
+```
+
+**`treatyService.ts`**
+
+* Supposons :
+
+```ts
+interface Treaty {
+  id: string;
+  title: string;
+  clauses: string[];
+  createdAt: Date;
+  status: 'draft' | 'active' | 'void';
+  signatures: Array<{ playerId: string; at: Date }>;
+  actionPointsCost: number;
+}
+```
+
+* Corriger la signature :
+
+```ts
+createTreaty(treaty: Omit<Treaty, 'id' | 'createdAt' | 'status' | 'signatures' | 'actionPointsCost'>): Treaty {
+  const full: Treaty = {
+    id: crypto.randomUUID?.() ?? String(Date.now()),
+    createdAt: new Date(),
+    status: 'draft',
+    signatures: [],
+    actionPointsCost: this.calculateTreatyCost(treaty),
+    ...treaty,
+  };
+  this.treaties.set(full.id, full);
+  this.notifySubscribers(full.id, full);
+  return full;
+}
+```
+
+### Critères d’acceptation
+
+* `Omit<…>` toujours avec **une liste de clés**.
+* Pas d’erreur `Generic type 'Omit' requires 2 type argument(s)`.
+
+---
+
+## 3) Harmoniser le typage des updates temps réel (déjà amorcé)
+
+### Fichier concerné
+
+* `server/marshalService.ts`
+
+### État actuel & objectif
+
+* `getSeverityFromUpdateType` existe et convertit `battle_*` → `info|warning|critical`.
+* **Conserver** ce mapping. Vérifier que `realTimeUpdate` expose **deux** champs cohérents :
+
+```ts
+type RealTimeUpdate = {
+  type: 'battle_start' | 'phase_change' | 'casualty_report' | 'battle_end';
+  severity: 'info' | 'warning' | 'critical';
+  payload: any; // ou un type précis si déjà défini
+};
+```
+
+* Et que l’émetteur WS envoie **les deux** champs (`type` et `severity`).
+
+### Critères d’acceptation
+
+* Aucun cast forcé du genre `as 'info'|'warning'|'critical'` sur un `type` de bataille.
+* Un seul endroit central pour le mapping (la fonction existante suffit).
+
+---
+
+## 4) Vérification d’unicité des contrats par armée (déjà ajouté)
+
+### Fichier concerné
+
+* `server/marshalService.ts` → `createContract`
+
+### À vérifier
+
+* Conserver la garde qui interdit un second contrat `proposed|active` pour la même armée.
+* Ajouter un test unitaire simple si présent (sinon, ignorer).
+
+---
+
+## 5) Implémenter réellement la vérification de compétence
+
+### Fichier concerné
+
+* `server/marshalService.ts` → `checkCompetenceRequirement`
+
+### Contexte
+
+Actuellement, c’est un **stub**. Il faut brancher la vraie vérification.
+
+### Changement à apporter (modèle)
+
+Si tu as déjà un service des compétences (ou une structure en mémoire), implémente minimalement :
+
+```ts
+private playerSkills: Map<string, Map<string, number>> = new Map();
+// exemple d’accès: playerSkills.get(playerId)?.get('treaty_knowledge') ?? 0
+
+checkCompetenceRequirement(playerId: string, competence: string, minLevel: number): boolean {
+  const byPlayer = this.playerSkills.get(playerId);
+  if (!byPlayer) return false;
+  const lvl = byPlayer.get(competence) ?? 0;
+  return lvl >= minLevel;
+}
+```
+
+> Si un vrai service/DB existe, remplacer ce stub par l’appel réel (Drizzle/DAO).
+
+### Critères d’acceptation
+
+* `createContract` échoue côté service si l’employeur n’a pas `treaty_knowledge >= 1`.
+* Validation côté route **et** côté service (défense en profondeur).
+
+---
+
+## 6) `Record` non typé dans `treatyService.ts`
+
+### Problème
+
+`calculateTreatyCost` s’appuie sur un `Record` sans types explicites.
+
+### Changement à apporter (exemple)
+
+```ts
+type ClauseKey = 'non_aggression' | 'trade_access' | 'defense_pact';
+const CLAUSE_COST: Record<ClauseKey, number> = {
+  non_aggression: 1,
+  trade_access: 2,
+  defense_pact: 3,
+};
+
+private calculateTreatyCost(treaty: Omit<Treaty, ...>): number {
+  // si clauses: string[], mapper vers ClauseKey si possible
+  let total = 0;
+  for (const c of treaty.clauses) {
+    if (c in CLAUSE_COST) total += CLAUSE_COST[c as ClauseKey];
+  }
+  return total;
+}
+```
+
+> À défaut, utiliser un commentaire `// TODO: typer les clauses` mais garder `Record<string, number>` **explicitement**.
+
+### Critères d’acceptation
+
+* Plus de `Record` « nu » (sans paramètres).
+* `calculateTreatyCost` retourne un `number` sans cast hasardeux.
+
+---
+
+## 7) Nettoyage final & garde-fous
+
+* Rechercher/remplacer résiduel :
+
+  * `Map void)[]>` → `Map<string, Array<(data: any) => void>>`
+  * `private subscribers: Map = new Map();` → version typée
+* S’assurer que **toutes** les routes qui créent/modifient **valident côté serveur** (Zod/drizzle-zod si déjà présent).
+* Vérifier que **tous** les services utilisent des identifiants `string` typés (éviter `any`).
+* Ajouter des `return` types explicites sur les méthodes publiques des services.
+
+---
+
+# ✅ Critères de réussite globaux (à exécuter après patch)
+
+1. **Type-check**
+
+```bash
+pnpm i
+pnpm run check
+```
+
+→ 0 erreur TS.
+
+2. **Build**
+
+```bash
+pnpm run build
+```
+
+→ Build OK.
+
+3. **Smoke test rapide**
+
+* Créer un contrat maréchal sans la compétence → **doit échouer** côté service.
+* Créer un second contrat `proposed` pour la même armée → **doit échouer**.
+* Émettre un `updateBattle` → payload WS contient `type` **et** `severity`.
+
+---
+
+Si tu veux, je peux aussi te fournir un **patch git** unique (diff) regroupant toutes ces corrections pour appliquer en un seul commit.

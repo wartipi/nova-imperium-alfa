@@ -4,6 +4,7 @@
 interface ExchangeService {
   getUniqueItemById(itemId: string): any;
   getPlayerInventory(playerId: string): string[];
+  getPlayerItem(playerId: string, itemId: string): any;
 }
 
 interface MarketplaceItem {
@@ -65,7 +66,7 @@ interface BidResult {
 
 class MarketplaceService {
   private marketItems: Map<string, MarketplaceItem> = new Map();
-  private subscribers: Map<string, ((data: any) => void)[]> = new Map();
+  private subscribers: Map<string, Array<(data: any) => void>> = new Map();
   private exchangeService: ExchangeService | null = null; // Référence vers ExchangeService pour récupérer les détails des objets uniques
   
   constructor(exchangeService?: ExchangeService) {

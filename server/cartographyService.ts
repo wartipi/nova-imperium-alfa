@@ -44,7 +44,7 @@ class CartographyService {
   private regions: Map<string, MapRegion> = new Map();
   private mapDocuments: Map<string, MapDocument> = new Map();
   private projects: Map<string, CartographyProject> = new Map();
-  private subscribers: Map<string, ((data: any) => void)[]> = new Map();
+  private subscribers: Map<string, Array<(data: any) => void>> = new Map();
 
   // Découvrir une nouvelle région à cartographier
   discoverRegion(
@@ -298,7 +298,7 @@ class CartographyService {
 
   // Trouver une région à des coordonnées données
   private findRegionAt(x: number, y: number, radius: number): MapRegion | null {
-    for (const region of this.regions.values()) {
+    for (const region of Array.from(this.regions.values())) {
       const distance = Math.sqrt((region.centerX - x) ** 2 + (region.centerY - y) ** 2);
       if (distance <= radius && Math.abs(region.radius - radius) <= 2) {
         return region;
