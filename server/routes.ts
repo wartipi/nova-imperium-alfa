@@ -77,8 +77,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         from,
         to,
         content,
-        type: type || 'message',
-        read
+        type: type || 'message'
       });
       
       res.json(message);

@@ -201,12 +201,6 @@ export const EventDisplayConfig = {
     priority: 'high' as EventPriority,
     template: 'Crise économique dans la région de {location}'
   },
-  plague_outbreak: {
-    icon: '🦠',
-    color: 'text-green-700',
-    priority: 'critical' as EventPriority,
-    template: 'Épidémie de {plagueType} à {location}'
-  },
   technological_advance: {
     icon: '⚙️',
     color: 'text-amber-600',
@@ -218,6 +212,24 @@ export const EventDisplayConfig = {
     color: 'text-purple-500',
     priority: 'medium' as EventPriority,
     template: 'Événement religieux: {eventName} à {location}'
+  },
+  diplomatic_mission: {
+    icon: '📋',
+    color: 'text-blue-500',
+    priority: 'medium' as EventPriority,
+    template: 'Mission diplomatique: {mission} entre {participants}'
+  },
+  leader_change: {
+    icon: '👑',
+    color: 'text-yellow-600',
+    priority: 'high' as EventPriority,
+    template: 'Changement de dirigeant: {newLeader} remplace {oldLeader}'
+  },
+  plague_outbreak: {
+    icon: '🦠',
+    color: 'text-green-700',
+    priority: 'critical' as EventPriority,
+    template: 'Épidémie de {plagueType} à {location}'
   }
 } as const;
 

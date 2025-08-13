@@ -25,10 +25,12 @@ router.get('/', (req, res) => {
     const filter: EventFilter = {};
 
     if (types) {
-      filter.types = Array.isArray(types) ? types as string[] : [types as string];
+      const typeArray = Array.isArray(types) ? types : [types];
+      filter.types = typeArray as ('alliance_signed' | 'alliance_broken' | 'war_declared' | 'peace_treaty_signed' | 'campaign_victory' | 'campaign_defeat' | 'territory_conquered' | 'city_founded' | 'trade_agreement' | 'diplomatic_mission' | 'faction_created' | 'faction_disbanded' | 'leader_change' | 'resource_discovery' | 'natural_disaster' | 'festival_event' | 'economic_crisis' | 'plague_outbreak' | 'technological_advance' | 'religious_event')[];
     }
     if (priorities) {
-      filter.priorities = Array.isArray(priorities) ? priorities as string[] : [priorities as string];
+      const priorityArray = Array.isArray(priorities) ? priorities : [priorities];
+      filter.priorities = priorityArray as ('critical' | 'high' | 'medium' | 'low')[];
     }
     if (participants) {
       filter.participants = Array.isArray(participants) ? participants as string[] : [participants as string];

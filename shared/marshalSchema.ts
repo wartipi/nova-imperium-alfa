@@ -3,7 +3,6 @@ import { z } from "zod";
 // Types exportés pour utilisation dans le client et serveur
 export type Army = z.infer<typeof armySchema>;
 export type MarshalContract = z.infer<typeof marshalContractSchema>;
-export type BattleEvent = z.infer<typeof battleEventSchema>;
 export type Campaign = z.infer<typeof campaignSchema>;
 
 // Schéma pour les armées
