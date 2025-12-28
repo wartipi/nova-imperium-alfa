@@ -1,0 +1,108 @@
+Pour guider l’IA dans l’implémentation de la phase 1 – Persistance des données dans ton dépôt nova‑imperium‑alfa (branche Ni‑architecture‑v9), voici un ensemble d’instructions détaillées et directes. Ces étapes visent à remplacer le stockage en mémoire par une base PostgreSQL via Drizzle, tout en exposant des API propres pour les armées, les événements publics et la cartographie.
+
+🎯 Objectif général
+
+Passer des structures en mémoire (tableaux et Map) à une base de données persistante et créer des endpoints API pour manipuler ces données en lecture/écriture.
+
+🛠️ 1. Mise en place de la base de données
+
+Choisir Drizzle et PostgreSQL comme ORM et SGBD (en cohérence avec le reste du projet).
+
+Ajouter une configuration de connexion (ex. db.ts) dans le dossier server/. Cette configuration doit lire les variables d’environnement (DATABASE_URL, DB_USER, DB_PASSWORD) et exposer une instance Drizzle connectée à PostgreSQL.
+
+Créer les tables nécessaires via des schémas Drizzle dans shared/schema ou dans un nouveau fichier dédié. Pour chaque entité, définir les colonnes et les relations :
+
+Armées et maréchaux : tables armies, marshal_contracts, campaigns, battle_events (avec colonnes id, ownerId, name, status, createdAt, etc.).
+
+Événements publics : table public_events avec id, type, title, participants, location, priority, timestamp.
+
+Cartographie : tables map_regions, map_documents, cartography_projects (pour remplacer les Map regions, mapDocuments, projects)
+raw.githubusercontent.com
+.
+
+Relations : utiliser des clés étrangères (armyId, regionId, playerId) et des index sur les colonnes les plus souvent requêtées.
+
+Écrire des migrations : ajouter des scripts (par exemple dans drizzle ou migrations/) pour créer les tables et les exécuter au démarrage du serveur.
+
+🔁 2. Adapter les services
+
+Pour chaque service, remplacer les structures en mémoire par des accès à la base via Drizzle.
+
+Service des maréchaux (marshalService.ts)
+
+Remplacer les tableaux armies, contracts, campaigns et battleEvents par des appels ORM. Exemple :
+
+// Avant : stockage en mémoire
+private armies: Army[] = [];
+
+// Après : plus de stockage local; utiliser une méthode Drizzle
+async getPlayerArmies(playerId: string): Promise<Army[]> {
+  return await db.query.armies.findMany({
+    where: { ownerId: playerId }
+  });
+}
+
+
+Modifier createArmy, createContract, createCampaign, createBattleEvent pour qu’ils effectuent une INSERT en base.
+
+Adapter acceptContract et joinCampaign pour mettre à jour les lignes (UPDATE) correspondantes.
+
+Laisser la logique métier (vérifications de compétences, unicité des contrats
+raw.githubusercontent.com
+, etc.) mais retirer les push sur des tableaux.
+
+Service de cartographie (cartographyService.ts)
+
+Remplacer regions, mapDocuments, projects et subscribers (qui sont des Map) par des tables SQL.
+
+Adapter discoverRegion, startCartographyProject, progressProject pour lire et écrire dans la base.
+
+Service des événements publics
+
+Créer un PublicEventsService relié à la table public_events. Les méthodes doivent lire et écrire les événements via Drizzle.
+
+🌐 3. Exposer des endpoints API
+
+Ajouter (ou compléter) des routes REST (ou tRPC) dans server/ pour interfacer le front‑end avec les services :
+
+Armées et maréchaux :
+
+POST /api/armies → crée une armée (appel à createArmy).
+
+GET /api/armies/:playerId → liste les armées d’un joueur (getPlayerArmies).
+
+POST /api/contracts → crée un contrat de maréchal (appel à createContract).
+
+POST /api/contracts/:id/accept → accepte un contrat (appel à acceptContract).
+
+Événements publics :
+
+GET /api/public-events → liste les événements, avec filtres facultatifs (type, priorité, participants).
+
+POST /api/public-events → enregistre un nouvel événement public.
+
+Cartographie :
+
+POST /api/cartography/regions → découvrir une région (discoverRegion).
+
+POST /api/cartography/projects → démarrer un projet (startCartographyProject).
+
+PATCH /api/cartography/projects/:id/progress → avancer un projet (progressProject).
+
+Pour chaque endpoint :
+
+Valider les entrées avec Zod ou une bibliothèque équivalente.
+
+Retourner des statuts HTTP appropriés et des messages clairs (201 pour création, 400 pour erreur de validation, 404 pour entité inexistante).
+
+🧪 4. Migrer et initialiser les données
+
+Créer un script de seed qui insère dans la base des exemples d’armées, d’événements publics et de régions pour le développement.
+
+Supprimer ou commenter les données de test en mémoire dans le front‑end et les remplacer par des appels aux API nouvellement créées.
+
+✔️ 5. Tests et vérifications
+
+Écrire des tests d’intégration pour chaque route (ex. création d’une armée, validation de contrat) afin de vérifier que les opérations en base fonctionnent.
+
+Exécuter les migrations et s’assurer que le serveur démarre bien avec la base connectée.

@@ -8,11 +8,6 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-});
-
 // Tables pour la mécanique de maréchaux
 export const armies = pgTable("armies", {
   id: text("id").primaryKey(),
@@ -71,6 +66,65 @@ export const battleEvents = pgTable("battle_events", {
   realTimeUpdates: jsonb("real_time_updates").notNull().default('[]') // Array de mises à jour temps réel
 });
 
+// Tables pour les événements publics (Journal du monde)
+export const publicEvents = pgTable("public_events", {
+  id: text("id").primaryKey(),
+  type: text("type").notNull(), // alliance_signed, war_declared, etc.
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  participants: jsonb("participants").notNull(), // Array de noms de joueurs/factions
+  location: jsonb("location"), // { x, y, regionName }
+  priority: text("priority").notNull().default('medium'), // low, medium, high, critical
+  turn: integer("turn").notNull(),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+  isVisible: boolean("is_visible").notNull().default(true),
+  icon: text("icon").notNull(),
+  consequences: jsonb("consequences"), // Array de conséquences
+  relatedEvents: jsonb("related_events"), // Array d'IDs d'événements liés
+  metadata: jsonb("metadata") // Données spécifiques au type d'événement
+});
+
+// Tables pour la cartographie
+export const mapRegions = pgTable("map_regions", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  centerX: integer("center_x").notNull(),
+  centerY: integer("center_y").notNull(),
+  radius: integer("radius").notNull(),
+  tiles: jsonb("tiles").notNull(), // Array de { x, y, terrain, resources }
+  exploredBy: text("explored_by").notNull(), // ID du joueur qui a exploré
+  explorationLevel: integer("exploration_level").notNull().default(25), // 0-100%
+  createdAt: timestamp("created_at").notNull().defaultNow()
+});
+
+export const mapDocuments = pgTable("map_documents", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  regionId: text("region_id").notNull(), // Référence à mapRegions
+  cartographer: text("cartographer").notNull(), // ID du joueur créateur
+  quality: text("quality").notNull().default('rough'), // 'rough', 'detailed', 'masterwork'
+  accuracy: integer("accuracy").notNull().default(60), // 0-100%
+  hiddenSecrets: jsonb("hidden_secrets").notNull().default('[]'), // Array de secrets
+  tradingValue: integer("trading_value").notNull().default(0),
+  uniqueFeatures: jsonb("unique_features").notNull().default('[]'), // Array de caractéristiques
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  lastUpdated: timestamp("last_updated").notNull().defaultNow(),
+  isUnique: boolean("is_unique").notNull().default(true)
+});
+
+export const cartographyProjects = pgTable("cartography_projects", {
+  id: text("id").primaryKey(),
+  playerId: text("player_id").notNull(),
+  regionId: text("region_id").notNull(), // Référence à mapRegions
+  progress: integer("progress").notNull().default(0), // 0-100%
+  requiredActionPoints: integer("required_action_points").notNull(),
+  spentActionPoints: integer("spent_action_points").notNull().default(0),
+  startedAt: timestamp("started_at").notNull().defaultNow(),
+  estimatedCompletion: timestamp("estimated_completion"),
+  tools: jsonb("tools").notNull().default('[]'), // Array d'outils utilisés
+  assistants: jsonb("assistants").notNull().default('[]') // Array d'assistants
+});
+
 // Schémas d'insertion pour validation
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
@@ -111,6 +165,50 @@ export const insertBattleEventSchema = createInsertSchema(battleEvents).pick({
   description: true
 });
 
+export const insertPublicEventSchema = createInsertSchema(publicEvents).pick({
+  type: true,
+  title: true,
+  description: true,
+  participants: true,
+  location: true,
+  priority: true,
+  turn: true,
+  icon: true,
+  consequences: true,
+  relatedEvents: true,
+  metadata: true
+});
+
+export const insertMapRegionSchema = createInsertSchema(mapRegions).pick({
+  name: true,
+  centerX: true,
+  centerY: true,
+  radius: true,
+  tiles: true,
+  exploredBy: true,
+  explorationLevel: true
+});
+
+export const insertMapDocumentSchema = createInsertSchema(mapDocuments).pick({
+  name: true,
+  regionId: true,
+  cartographer: true,
+  quality: true,
+  accuracy: true,
+  hiddenSecrets: true,
+  tradingValue: true,
+  uniqueFeatures: true,
+  isUnique: true
+});
+
+export const insertCartographyProjectSchema = createInsertSchema(cartographyProjects).pick({
+  playerId: true,
+  regionId: true,
+  requiredActionPoints: true,
+  tools: true,
+  assistants: true
+});
+
 // Types TypeScript
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -122,3 +220,11 @@ export type Campaign = typeof campaigns.$inferSelect;
 export type InsertCampaign = z.infer<typeof insertCampaignSchema>;
 export type BattleEvent = typeof battleEvents.$inferSelect;
 export type InsertBattleEvent = z.infer<typeof insertBattleEventSchema>;
+export type PublicEvent = typeof publicEvents.$inferSelect;
+export type InsertPublicEvent = z.infer<typeof insertPublicEventSchema>;
+export type MapRegion = typeof mapRegions.$inferSelect;
+export type InsertMapRegion = z.infer<typeof insertMapRegionSchema>;
+export type MapDocument = typeof mapDocuments.$inferSelect;
+export type InsertMapDocument = z.infer<typeof insertMapDocumentSchema>;
+export type CartographyProject = typeof cartographyProjects.$inferSelect;
+export type InsertCartographyProject = z.infer<typeof insertCartographyProjectSchema>;
