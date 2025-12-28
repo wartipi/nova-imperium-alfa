@@ -48,7 +48,7 @@ export const createMessageSchema = z.object({
   from: z.string().min(1, "From is required"),
   to: z.string().min(1, "To is required"),
   content: z.string().min(1, "Content is required"),
-  type: z.enum(['message', 'alliance', 'trade', 'warning']).default('message'),
+  type: z.enum(['private', 'system', 'treaty', 'trade']).default('private'),
   read: z.boolean().default(false)
 });
 

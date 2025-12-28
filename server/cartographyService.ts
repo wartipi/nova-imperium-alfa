@@ -1,4 +1,4 @@
-import { eq, and, lt, gt, gte, lte, sql } from "drizzle-orm";
+import { eq, and, lt, gt, gte, lte, sql, asc, desc } from "drizzle-orm";
 import { db } from "./db";
 import { 
   mapRegions, 
@@ -13,6 +13,11 @@ import type {
   InsertMapDocument,
   InsertCartographyProject
 } from "../shared/schema";
+import { 
+  createBoundingBoxCondition, 
+  createDistanceCondition,
+  orderByDistanceSQL 
+} from "./utils/geospatial";
 
 class CartographyService {
   private subscribers: Map<string, Array<(data: any) => void>> = new Map();
@@ -277,18 +282,76 @@ class CartographyService {
   }
 
   private async findRegionAt(x: number, y: number, radius: number): Promise<MapRegion | null> {
+    const boundingBox = createBoundingBoxCondition(
+      mapRegions.centerX,
+      mapRegions.centerY,
+      x,
+      y,
+      radius
+    );
+    
+    const distanceCondition = createDistanceCondition(
+      mapRegions.centerX,
+      mapRegions.centerY,
+      x,
+      y,
+      radius
+    );
+    
     const [region] = await db.select().from(mapRegions)
       .where(and(
-        gte(mapRegions.centerX, x - radius),
-        lte(mapRegions.centerX, x + radius),
-        gte(mapRegions.centerY, y - radius),
-        lte(mapRegions.centerY, y + radius),
-        sql`SQRT(POWER(${mapRegions.centerX} - ${x}, 2) + POWER(${mapRegions.centerY} - ${y}, 2)) <= ${radius}`,
+        ...boundingBox,
+        distanceCondition,
         sql`ABS(${mapRegions.radius} - ${radius}) <= 2`
       ))
       .limit(1);
     
     return region || null;
+  }
+
+  async findNearbyRegions(x: number, y: number, searchRadius: number, limit: number = 10): Promise<MapRegion[]> {
+    const boundingBox = createBoundingBoxCondition(
+      mapRegions.centerX,
+      mapRegions.centerY,
+      x,
+      y,
+      searchRadius
+    );
+    
+    const distanceCondition = createDistanceCondition(
+      mapRegions.centerX,
+      mapRegions.centerY,
+      x,
+      y,
+      searchRadius
+    );
+    
+    const orderByDistance = orderByDistanceSQL(
+      mapRegions.centerX,
+      mapRegions.centerY,
+      x,
+      y
+    );
+    
+    return await db.select().from(mapRegions)
+      .where(and(...boundingBox, distanceCondition))
+      .orderBy(asc(orderByDistance))
+      .limit(limit);
+  }
+
+  async findRegionsInArea(
+    minX: number,
+    maxX: number,
+    minY: number,
+    maxY: number
+  ): Promise<MapRegion[]> {
+    return await db.select().from(mapRegions)
+      .where(and(
+        gte(mapRegions.centerX, minX),
+        lte(mapRegions.centerX, maxX),
+        gte(mapRegions.centerY, minY),
+        lte(mapRegions.centerY, maxY)
+      ));
   }
 
   async getDiscoveredRegions(playerId: string): Promise<MapRegion[]> {

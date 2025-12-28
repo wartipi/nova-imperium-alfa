@@ -484,6 +484,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/cartography/regions/nearby", async (req, res) => {
+    try {
+      const { x, y, radius, limit } = req.query;
+      
+      if (!x || !y || !radius) {
+        return res.status(400).json({ error: "x, y, and radius are required" });
+      }
+      
+      const regions = await cartographyService.findNearbyRegions(
+        parseFloat(x as string),
+        parseFloat(y as string),
+        parseFloat(radius as string),
+        limit ? parseInt(limit as string) : 10
+      );
+      
+      res.json(regions);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to find nearby regions" });
+    }
+  });
+
+  app.get("/api/cartography/regions/area", async (req, res) => {
+    try {
+      const { minX, maxX, minY, maxY } = req.query;
+      
+      if (!minX || !maxX || !minY || !maxY) {
+        return res.status(400).json({ error: "minX, maxX, minY, and maxY are required" });
+      }
+      
+      const regions = await cartographyService.findRegionsInArea(
+        parseFloat(minX as string),
+        parseFloat(maxX as string),
+        parseFloat(minY as string),
+        parseFloat(maxY as string)
+      );
+      
+      res.json(regions);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to find regions in area" });
+    }
+  });
+
   // Endpoints pour les objets uniques
   app.get("/api/unique-items/:playerId", async (req, res) => {
     try {
@@ -847,16 +889,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = await marketplaceService.purchaseDirectSale(itemId, playerId, playerName);
       
       if (result.success) {
-        if (item.itemType === 'unique_item' && item.uniqueItem) {
+        const uniqueItemData = item.uniqueItem as { name: string; type: string; rarity: string; description: string; effects?: string[]; value: number } | null;
+        if (item.itemType === 'unique_item' && uniqueItemData) {
           const newItem = await exchangeService.createUniqueItem(
-            item.uniqueItem.name,
-            item.uniqueItem.type,
-            item.uniqueItem.rarity,
-            item.uniqueItem.description,
+            uniqueItemData.name,
+            uniqueItemData.type,
+            uniqueItemData.rarity,
+            uniqueItemData.description,
             playerId,
-            item.uniqueItem.effects || [],
+            uniqueItemData.effects || [],
             [],
-            item.uniqueItem.value,
+            uniqueItemData.value,
             {}
           );
           

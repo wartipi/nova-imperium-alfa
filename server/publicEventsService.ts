@@ -1,8 +1,9 @@
-import { eq, and, gte, lte, inArray, desc, sql, count, or } from "drizzle-orm";
+import { eq, and, gte, lte, inArray, desc, asc, sql, count, or } from "drizzle-orm";
 import { db } from "./db";
 import { publicEvents } from "../shared/schema";
 import type { PublicEvent, InsertPublicEvent } from "../shared/schema";
 import { EventDisplayConfig, type PublicEventType, type EventPriority } from '../shared/publicEventsSchema';
+import { createJsonbLocationDistanceCondition } from "./utils/geospatial";
 
 interface EventFilter {
   types?: string[];
@@ -72,18 +73,15 @@ export class PublicEventsService {
       
       if (filter.location) {
         const { x, y, radius } = filter.location;
-        conditions.push(
-          sql`${publicEvents.location} IS NOT NULL`
+        conditions.push(sql`${publicEvents.location} IS NOT NULL`);
+        
+        const locationConditions = createJsonbLocationDistanceCondition(
+          publicEvents.location,
+          x,
+          y,
+          radius
         );
-        conditions.push(
-          sql`(${publicEvents.location}->>'x')::float BETWEEN ${x - radius} AND ${x + radius}`
-        );
-        conditions.push(
-          sql`(${publicEvents.location}->>'y')::float BETWEEN ${y - radius} AND ${y + radius}`
-        );
-        conditions.push(
-          sql`SQRT(POWER((${publicEvents.location}->>'x')::float - ${x}, 2) + POWER((${publicEvents.location}->>'y')::float - ${y}, 2)) <= ${radius}`
-        );
+        conditions.push(...locationConditions);
       }
     }
 
@@ -113,6 +111,29 @@ export class PublicEventsService {
   async getEventsForParticipant(participantId: string, limit?: number): Promise<PublicEvent[]> {
     const filter: EventFilter = { participants: [participantId] };
     return this.getEvents(filter, limit);
+  }
+
+  async findNearbyEvents(x: number, y: number, radius: number, limit: number = 20): Promise<PublicEvent[]> {
+    const locationConditions = createJsonbLocationDistanceCondition(
+      publicEvents.location,
+      x,
+      y,
+      radius
+    );
+
+    const events = await db.select().from(publicEvents)
+      .where(and(
+        eq(publicEvents.isVisible, true),
+        sql`${publicEvents.location} IS NOT NULL`,
+        ...locationConditions
+      ))
+      .orderBy(
+        asc(sql`SQRT(POWER((${publicEvents.location}->>'x')::float - ${x}, 2) + POWER((${publicEvents.location}->>'y')::float - ${y}, 2))`),
+        desc(publicEvents.timestamp)
+      )
+      .limit(limit);
+
+    return events;
   }
 
   async setEventVisibility(eventId: string, isVisible: boolean): Promise<boolean> {

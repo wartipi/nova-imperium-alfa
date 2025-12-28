@@ -92,6 +92,28 @@ router.get('/priority/:priority', async (req, res) => {
   }
 });
 
+router.get('/nearby', async (req, res) => {
+  try {
+    const { x, y, radius, limit } = req.query;
+    
+    if (!x || !y || !radius) {
+      return res.status(400).json({ error: 'x, y, and radius are required' });
+    }
+    
+    const events = await publicEventsService.findNearbyEvents(
+      parseFloat(x as string),
+      parseFloat(y as string),
+      parseFloat(radius as string),
+      limit ? parseInt(limit as string) : 20
+    );
+    
+    res.json(events);
+  } catch (error) {
+    console.error('Erreur lors de la recherche géospatiale:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 router.get('/participant/:participantId', async (req, res) => {
   try {
     const { participantId } = req.params;
