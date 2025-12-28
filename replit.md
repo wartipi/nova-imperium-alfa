@@ -47,16 +47,27 @@ Preferred communication style: Simple, everyday language.
 # Database Architecture
 
 ## Phase 1 Optimizations (December 2025)
+- **JWT Authentication**: Full JWT-based authentication with `requireAuth`, `optionalAuth`, and `requireOwnership` middleware. Token generation and verification with configurable secret via `JWT_SECRET` environment variable
 - **SQL Query Optimization**: All services now use efficient SQL queries with WHERE clauses, JSONB filtering (@> operator), and bounding box filtering instead of in-memory filtering
 - **Distance Calculations in SQL**: PublicEventsService and CartographyService now use SQL SQRT/POWER for distance calculations directly in queries
-- **Transaction Wrapping**: executeExchange, resolveBattleConsequences, and progressProject are now wrapped in db.transaction() for atomic operations
+- **Transaction Wrapping**: executeExchange, resolveBattleConsequences, progressProject, acceptContract, and joinCampaign are now wrapped in db.transaction() for atomic operations
+- **Database Indexes**: 
+  - GIN indexes on JSONB columns: `trade_rooms.participants`, `campaigns.participating_armies`, `public_events.participants`
+  - B-tree indexes on frequently queried columns: `map_regions.center_x/y`, `armies.owner_id`, `marshal_contracts.army_id/status`, `exchange_offers.status/from_player/to_player`, `unique_items.owner_id`, `player_resources.player_id`, `cartography_projects.player_id`, `map_documents.cartographer`, `public_events.turn/type`, `battle_events.campaign_id`, `player_skills.player_id`
 - **Player Skills Table**: `playerSkills` table stores player competencies (leadership, tactics, strategy, logistics, treaty_knowledge) with levels and experience
 - **Exchange Service Tables**: 
   - `tradeRooms` for multi-player trading sessions
   - `exchangeOffers` for resource and item exchanges with expiration
   - `uniqueItems` for tradeable unique items with ownership tracking
   - `playerResources` for persistent resource tracking and transfers
-- **Zod Input Validation**: All main POST/PATCH routes now validate input with Zod schemas (exchange, cartography, messages)
+- **Comprehensive Zod Validation**: All POST/PATCH routes validate input with Zod schemas:
+  - Exchange: `createTradeRoom`, `createExchangeOffer`, `acceptOffer`, `rejectOffer`
+  - Cartography: `discoverRegion`, `startCartographyProject`, `progressProject`, `transferMap`
+  - Messages: `createMessage`
+  - Treaties: `createTreaty`, `signTreaty`
+  - Unique Items: `createUniqueItem`
+  - Marshal: `createArmy`, `createContract`, `acceptContract`, `createCampaign`, `joinCampaign`, `createBattleEvent`, `updateBattle`
+  - Marketplace: `marketplaceSell`, `marketplaceBid`, `marketplaceBuy`
 - **Async Database Operations**: All service methods use async/await for database operations
 - **Automatic Cleanup**: Expired offers are cleaned up automatically every 60 seconds
 

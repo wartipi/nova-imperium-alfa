@@ -159,14 +159,22 @@ export class MarshalService {
       return false;
     }
 
-    await db.update(marshalContracts)
-      .set({ 
-        status: 'active', 
-        acceptedAt: new Date() 
-      })
-      .where(eq(marshalContracts.id, contractId));
+    await db.transaction(async (tx) => {
+      await tx.update(marshalContracts)
+        .set({ 
+          status: 'active', 
+          acceptedAt: new Date() 
+        })
+        .where(eq(marshalContracts.id, contractId));
 
-    await this.assignMarshal(contract.armyId, contract.marshalId, contract.marshalName);
+      await tx.update(armies)
+        .set({ 
+          marshalId: contract.marshalId, 
+          marshalName: contract.marshalName, 
+          lastActivity: new Date() 
+        })
+        .where(eq(armies.id, contract.armyId));
+    });
 
     console.log(`✅ Contrat accepté: ${contract.marshalName} dirige ${contract.armyName}`);
     return true;
@@ -228,21 +236,24 @@ export class MarshalService {
 
     if (!campaign || !army) return false;
 
-    const participatingArmies = campaign.participatingArmies as string[];
-    if (!participatingArmies.includes(armyId)) {
-      participatingArmies.push(armyId);
-      
-      await db.update(campaigns)
-        .set({ participatingArmies })
-        .where(eq(campaigns.id, campaignId));
-      
-      await db.update(armies)
-        .set({ status: 'marching', lastActivity: new Date() })
-        .where(eq(armies.id, armyId));
-      
-      console.log(`⚔️ Armée ${army.name} rejoint la campagne ${campaign.name}`);
+    const existingArmies = campaign.participatingArmies as string[];
+    if (existingArmies.includes(armyId)) {
+      return true;
     }
 
+    await db.transaction(async (tx) => {
+      const updatedArmies = [...existingArmies, armyId];
+      
+      await tx.update(campaigns)
+        .set({ participatingArmies: updatedArmies })
+        .where(eq(campaigns.id, campaignId));
+      
+      await tx.update(armies)
+        .set({ status: 'marching', lastActivity: new Date() })
+        .where(eq(armies.id, armyId));
+    });
+    
+    console.log(`⚔️ Armée ${army.name} rejoint la campagne ${campaign.name}`);
     return true;
   }
 

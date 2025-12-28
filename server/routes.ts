@@ -6,7 +6,7 @@ import { treatyService } from "./treatyService";
 import { exchangeService, UniqueItem } from "./exchangeService";
 import { cartographyService } from "./cartographyService";
 import { marketplaceService, initializeMarketplaceService } from "./marketplaceService";
-import { loginEndpoint } from "./middleware/auth";
+import { loginEndpoint, requireAuth, optionalAuth, AuthRequest } from "./middleware/auth";
 import marshalRoutes from "./routes/marshal";
 import publicEventsRoutes from "./routes/publicEvents";
 import { 
@@ -17,7 +17,13 @@ import {
   startCartographyProjectSchema,
   progressProjectSchema,
   transferMapSchema,
-  createMessageSchema
+  createMessageSchema,
+  createTreatySchema,
+  signTreatySchema,
+  createUniqueItemSchema,
+  marketplaceSellSchema,
+  marketplaceBidSchema,
+  marketplaceBuySchema
 } from "../shared/exchangeValidation";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -143,23 +149,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/treaties", async (req, res) => {
     try {
-      const { title, type, parties, terms, createdBy, properties } = req.body;
-      
-      if (!title || !type || !parties || !terms || !createdBy) {
-        return res.status(400).json({ error: "Missing required fields" });
-      }
+      const validatedData = createTreatySchema.parse(req.body);
       
       const treaty = treatyService.createTreaty({
-        title,
-        type,
-        parties,
-        terms,
-        createdBy,
-        properties: properties || {}
+        title: validatedData.title,
+        type: validatedData.type,
+        parties: validatedData.parties,
+        terms: validatedData.terms,
+        createdBy: validatedData.createdBy,
+        properties: validatedData.properties || {}
       });
       
       res.json(treaty);
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
       res.status(500).json({ error: "Failed to create treaty" });
     }
   });
@@ -167,15 +172,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/treaties/:treatyId/sign", async (req, res) => {
     try {
       const { treatyId } = req.params;
-      const { playerId } = req.body;
+      const validatedData = signTreatySchema.parse(req.body);
       
-      if (!playerId) {
-        return res.status(400).json({ error: "Player ID required" });
-      }
-      
-      const success = treatyService.signTreaty(treatyId, playerId);
+      const success = treatyService.signTreaty(treatyId, validatedData.playerId);
       res.json({ success });
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
       res.status(500).json({ error: "Failed to sign treaty" });
     }
   });
@@ -183,15 +187,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/treaties/:treatyId/break", async (req, res) => {
     try {
       const { treatyId } = req.params;
-      const { playerId } = req.body;
+      const validatedData = signTreatySchema.parse(req.body);
       
-      if (!playerId) {
-        return res.status(400).json({ error: "Player ID required" });
-      }
-      
-      const success = treatyService.breakTreaty(treatyId, playerId);
+      const success = treatyService.breakTreaty(treatyId, validatedData.playerId);
       res.json({ success });
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
       res.status(500).json({ error: "Failed to break treaty" });
     }
   });
@@ -498,26 +501,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/unique-items/create", async (req, res) => {
     try {
-      const { name, type, rarity, description, ownerId, effects, requirements, value, metadata } = req.body;
-      
-      if (!name || !type || !rarity || !description || !ownerId) {
-        return res.status(400).json({ error: "Missing required fields" });
-      }
+      const validatedData = createUniqueItemSchema.parse(req.body);
       
       const item = await exchangeService.createUniqueItem(
-        name,
-        type,
-        rarity,
-        description,
-        ownerId,
-        effects,
-        requirements,
-        value,
-        metadata
+        validatedData.name,
+        validatedData.type,
+        validatedData.rarity,
+        validatedData.description,
+        validatedData.ownerId,
+        validatedData.effects,
+        validatedData.requirements,
+        validatedData.value,
+        validatedData.metadata
       );
       
       res.json(item);
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
       res.status(500).json({ error: "Failed to create unique item" });
     }
   });
