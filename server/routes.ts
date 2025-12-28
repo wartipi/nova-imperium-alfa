@@ -25,7 +25,10 @@ import {
   marketplaceBidSchema,
   marketplaceBuySchema,
   cartographyTransferSchema,
-  resolveAuctionsSchema
+  resolveAuctionsSchema,
+  uniqueItemOfferSchema,
+  mapSellSchema,
+  mapBuySchema
 } from "../shared/exchangeValidation";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -600,28 +603,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/exchange/offer/unique", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
-      const { 
-        roomId, 
-        toPlayer, 
-        uniqueItemsOffered, 
-        uniqueItemsRequested, 
-        message 
-      } = req.body;
+      const validatedData = uniqueItemOfferSchema.parse(req.body);
       const fromPlayer = req.user!.id;
       
-      if (!roomId || !toPlayer) {
-        return res.status(400).json({ error: "Missing required fields" });
-      }
-      
       const offer = await exchangeService.createExchangeOffer(
-        roomId,
+        validatedData.roomId,
         fromPlayer,
-        toPlayer,
+        validatedData.toPlayer,
         {},
         {},
-        uniqueItemsOffered || [],
-        uniqueItemsRequested || [],
-        message
+        validatedData.uniqueItemsOffered,
+        validatedData.uniqueItemsRequested,
+        validatedData.message
       );
       
       if (offer) {
@@ -629,7 +622,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         res.status(400).json({ error: "Failed to create exchange offer" });
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
       res.status(500).json({ error: "Failed to create exchange offer" });
     }
   });
@@ -667,38 +663,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/marketplace/maps/sell", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
+      const validatedData = mapSellSchema.parse(req.body);
       const sellerId = req.user!.id;
-      const { itemId, price } = req.body;
-      
-      if (!itemId || !price) {
-        return res.status(400).json({ error: "Missing required fields" });
-      }
 
       res.json({ 
         success: true, 
         message: "Map listed for sale",
-        listingId: `listing_${Date.now()}`
+        listingId: `listing_${Date.now()}`,
+        itemId: validatedData.itemId,
+        price: validatedData.price
       });
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
       res.status(500).json({ error: "Failed to list map for sale" });
     }
   });
 
   app.post("/api/marketplace/maps/buy", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
+      const validatedData = mapBuySchema.parse(req.body);
       const buyerId = req.user!.id;
-      const { offerId } = req.body;
-      
-      if (!offerId) {
-        return res.status(400).json({ error: "Missing required fields" });
-      }
 
       res.json({ 
         success: true, 
         message: "Map purchased successfully",
-        transactionId: `tx_${Date.now()}`
+        transactionId: `tx_${Date.now()}`,
+        offerId: validatedData.offerId
       });
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
       res.status(500).json({ error: "Failed to purchase map" });
     }
   });

@@ -195,6 +195,23 @@ export const resolveAuctionsSchema = z.object({
   currentTurn: z.number().int().min(0, "Current turn is required")
 });
 
+export const uniqueItemOfferSchema = z.object({
+  roomId: z.string().min(1, "Room ID is required"),
+  toPlayer: z.string().min(1, "To player is required"),
+  uniqueItemsOffered: z.array(z.string()).default([]),
+  uniqueItemsRequested: z.array(z.string()).default([]),
+  message: z.string().optional()
+});
+
+export const mapSellSchema = z.object({
+  itemId: z.string().min(1, "Item ID is required"),
+  price: z.number().min(1, "Price must be at least 1")
+});
+
+export const mapBuySchema = z.object({
+  offerId: z.string().min(1, "Offer ID is required")
+});
+
 export type CreateTradeRoomInput = z.infer<typeof createTradeRoomSchema>;
 export type CreateExchangeOfferInput = z.infer<typeof createExchangeOfferSchema>;
 export type AcceptRejectOfferInput = z.infer<typeof acceptRejectOfferSchema>;
@@ -219,3 +236,6 @@ export type MarketplaceBidInput = z.infer<typeof marketplaceBidSchema>;
 export type MarketplaceBuyInput = z.infer<typeof marketplaceBuySchema>;
 export type CartographyTransferInput = z.infer<typeof cartographyTransferSchema>;
 export type ResolveAuctionsInput = z.infer<typeof resolveAuctionsSchema>;
+export type UniqueItemOfferInput = z.infer<typeof uniqueItemOfferSchema>;
+export type MapSellInput = z.infer<typeof mapSellSchema>;
+export type MapBuyInput = z.infer<typeof mapBuySchema>;

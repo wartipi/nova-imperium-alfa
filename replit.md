@@ -66,13 +66,13 @@ Preferred communication style: Simple, everyday language.
   - `uniqueItems` for tradeable unique items with ownership tracking
   - `playerResources` for persistent resource tracking and transfers
 - **Comprehensive Zod Validation**: All POST/PATCH routes validate input with Zod schemas:
-  - Exchange: `createTradeRoom`, `createExchangeOffer`, `acceptOffer`, `rejectOffer`
+  - Exchange: `createTradeRoom`, `createExchangeOffer`, `uniqueItemOffer`, `acceptOffer`, `rejectOffer`
   - Cartography: `discoverRegion`, `startCartographyProject`, `progressProject`, `cartographyTransfer`
   - Messages: `createMessage`
   - Treaties: `createTreaty`, `signTreaty`
   - Unique Items: `createUniqueItem`
   - Marshal: `createArmy`, `createContract`, `acceptContract`, `createCampaign`, `joinCampaign`, `createBattleEvent`, `updateBattle`
-  - Marketplace: `marketplaceSell`, `marketplaceAuction`, `marketplaceBid`, `marketplaceBuy`, `resolveAuctions`
+  - Marketplace: `marketplaceSell`, `marketplaceAuction`, `marketplaceBid`, `marketplaceBuy`, `mapSell`, `mapBuy`, `resolveAuctions`
 - **Async Database Operations**: All service methods use async/await for database operations
 - **Automatic Cleanup**: Expired offers are cleaned up automatically every 60 seconds
 
