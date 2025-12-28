@@ -1,5 +1,6 @@
-import { Router } from 'express';
+import { Router, Response, NextFunction } from 'express';
 import { marshalService } from '../marshalService';
+import { requireAuth, AuthRequest } from '../middleware/auth';
 import { 
   createArmyRequestSchema,
   createContractRequestSchema,
@@ -9,9 +10,9 @@ import {
 
 const router = Router();
 
-router.get('/armies', async (req, res) => {
+router.get('/armies', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const playerId = 'player';
+    const playerId = req.user!.id;
     
     const armies = await marshalService.getPlayerArmies(playerId);
     res.json(armies);
@@ -21,9 +22,9 @@ router.get('/armies', async (req, res) => {
   }
 });
 
-router.post('/armies', async (req, res) => {
+router.post('/armies', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const playerId = 'player';
+    const playerId = req.user!.id;
     
     const validatedData = createArmyRequestSchema.parse(req.body);
     
@@ -58,10 +59,10 @@ router.post('/armies', async (req, res) => {
   }
 });
 
-router.put('/armies/:armyId/marshal', async (req, res) => {
+router.put('/armies/:armyId/marshal', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const { armyId } = req.params;
-    const playerId = 'player';
+    const playerId = req.user!.id;
     
     const validatedData = assignMarshalRequestSchema.parse(req.body);
     
@@ -99,10 +100,10 @@ router.put('/armies/:armyId/marshal', async (req, res) => {
   }
 });
 
-router.delete('/armies/:armyId/marshal', async (req, res) => {
+router.delete('/armies/:armyId/marshal', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const { armyId } = req.params;
-    const playerId = 'player';
+    const playerId = req.user!.id;
     
     const army = await marshalService.getArmyById(armyId);
     if (!army || army.ownerId !== playerId) {
@@ -122,9 +123,9 @@ router.delete('/armies/:armyId/marshal', async (req, res) => {
   }
 });
 
-router.get('/contracts', async (req, res) => {
+router.get('/contracts', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const playerId = 'player';
+    const playerId = req.user!.id;
     
     const contracts = await marshalService.getPlayerContracts(playerId);
     res.json(contracts);
@@ -134,9 +135,9 @@ router.get('/contracts', async (req, res) => {
   }
 });
 
-router.get('/contracts/proposed', async (req, res) => {
+router.get('/contracts/proposed', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const playerId = 'player';
+    const playerId = req.user!.id;
     
     const proposedContracts = await marshalService.getProposedContracts(playerId);
     res.json(proposedContracts);
@@ -146,10 +147,10 @@ router.get('/contracts/proposed', async (req, res) => {
   }
 });
 
-router.post('/contracts', async (req, res) => {
+router.post('/contracts', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const playerId = 'player';
-    const playerName = 'Joueur';
+    const playerId = req.user!.id;
+    const playerName = req.user!.username;
     
     const hasRequiredCompetence = await marshalService.checkCompetenceRequirement(
       playerId, 
@@ -195,10 +196,10 @@ router.post('/contracts', async (req, res) => {
   }
 });
 
-router.put('/contracts/:contractId/accept', async (req, res) => {
+router.put('/contracts/:contractId/accept', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const { contractId } = req.params;
-    const playerId = 'player';
+    const playerId = req.user!.id;
     
     const hasRequiredCompetence = await marshalService.checkCompetenceRequirement(
       playerId, 
@@ -225,10 +226,10 @@ router.put('/contracts/:contractId/accept', async (req, res) => {
   }
 });
 
-router.put('/contracts/:contractId/decline', async (req, res) => {
+router.put('/contracts/:contractId/decline', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const { contractId } = req.params;
-    const playerId = 'player';
+    const playerId = req.user!.id;
     
     const success = await marshalService.declineContract(contractId, playerId);
     
@@ -267,9 +268,9 @@ router.get('/battles/:campaignId', async (req, res) => {
   }
 });
 
-router.get('/player-data', async (req, res) => {
+router.get('/player-data', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const playerId = 'player';
+    const playerId = req.user!.id;
     
     const playerData = await marshalService.getPlayerData(playerId);
     res.json(playerData);

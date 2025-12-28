@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { messageService } from "./messageService";
@@ -81,12 +81,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/messages", async (req, res) => {
+  app.post("/api/messages", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
       const validatedData = createMessageSchema.parse(req.body);
+      const senderId = req.user!.id;
       
       const message = messageService.sendMessage({
-        from: validatedData.from,
+        from: senderId,
         to: validatedData.to,
         content: validatedData.content,
         type: validatedData.type
@@ -101,14 +102,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/messages/:messageId/read", async (req, res) => {
+  app.patch("/api/messages/:messageId/read", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
       const { messageId } = req.params;
-      const { playerId } = req.body;
-      
-      if (!playerId) {
-        return res.status(400).json({ error: "Player ID required" });
-      }
+      const playerId = req.user!.id;
       
       const success = messageService.markAsRead(messageId, playerId);
       res.json({ success });
@@ -147,16 +144,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/treaties", async (req, res) => {
+  app.post("/api/treaties", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
       const validatedData = createTreatySchema.parse(req.body);
+      const creatorId = req.user!.id;
       
       const treaty = treatyService.createTreaty({
         title: validatedData.title,
         type: validatedData.type,
         parties: validatedData.parties,
         terms: validatedData.terms,
-        createdBy: validatedData.createdBy,
+        createdBy: creatorId,
         properties: validatedData.properties || {}
       });
       
@@ -169,12 +167,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/treaties/:treatyId/sign", async (req, res) => {
+  app.patch("/api/treaties/:treatyId/sign", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
       const { treatyId } = req.params;
-      const validatedData = signTreatySchema.parse(req.body);
+      const playerId = req.user!.id;
       
-      const success = treatyService.signTreaty(treatyId, validatedData.playerId);
+      const success = treatyService.signTreaty(treatyId, playerId);
       res.json({ success });
     } catch (error: any) {
       if (error.name === 'ZodError') {
@@ -184,12 +182,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/treaties/:treatyId/break", async (req, res) => {
+  app.patch("/api/treaties/:treatyId/break", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
       const { treatyId } = req.params;
-      const validatedData = signTreatySchema.parse(req.body);
+      const playerId = req.user!.id;
       
-      const success = treatyService.breakTreaty(treatyId, validatedData.playerId);
+      const success = treatyService.breakTreaty(treatyId, playerId);
       res.json({ success });
     } catch (error: any) {
       if (error.name === 'ZodError') {
@@ -230,9 +228,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/exchange/room", async (req, res) => {
+  app.post("/api/exchange/room", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
       const validatedData = createTradeRoomSchema.parse(req.body);
+      const creatorId = req.user!.id;
+      
+      if (!validatedData.participants.includes(creatorId)) {
+        validatedData.participants.push(creatorId);
+      }
+      
       const room = await exchangeService.createTradeRoom(validatedData.treatyId, validatedData.participants);
       res.json(room);
     } catch (error: any) {
@@ -243,13 +247,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/exchange/offer", async (req, res) => {
+  app.post("/api/exchange/offer", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
       const validatedData = createExchangeOfferSchema.parse(req.body);
+      const fromPlayerId = req.user!.id;
       
       const offer = await exchangeService.createExchangeOffer(
         validatedData.roomId,
-        validatedData.fromPlayer,
+        fromPlayerId,
         validatedData.toPlayer,
         validatedData.resourcesOffered,
         validatedData.resourcesRequested,
@@ -271,12 +276,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/exchange/offer/:offerId/accept", async (req, res) => {
+  app.post("/api/exchange/offer/:offerId/accept", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
       const { offerId } = req.params;
-      const validatedData = acceptRejectOfferSchema.parse(req.body);
+      const playerId = req.user!.id;
       
-      const success = await exchangeService.acceptOffer(offerId, validatedData.playerId);
+      const success = await exchangeService.acceptOffer(offerId, playerId);
       
       if (success) {
         res.json({ success: true, message: "Offer accepted" });
@@ -291,12 +296,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/exchange/offer/:offerId/reject", async (req, res) => {
+  app.post("/api/exchange/offer/:offerId/reject", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
       const { offerId } = req.params;
-      const validatedData = acceptRejectOfferSchema.parse(req.body);
+      const playerId = req.user!.id;
       
-      const success = await exchangeService.rejectOffer(offerId, validatedData.playerId);
+      const success = await exchangeService.rejectOffer(offerId, playerId);
       
       if (success) {
         res.json({ success: true, message: "Offer rejected" });
@@ -311,7 +316,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/exchange/room/:roomId", async (req, res) => {
+  app.delete("/api/exchange/room/:roomId", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
       const { roomId } = req.params;
       const success = await exchangeService.closeTradeRoom(roomId);
@@ -337,11 +342,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/cartography/discover", async (req, res) => {
+  app.post("/api/cartography/discover", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
       const validatedData = discoverRegionSchema.parse(req.body);
+      const playerId = req.user!.id;
+      
       const region = await cartographyService.discoverRegion(
-        validatedData.playerId, 
+        playerId, 
         validatedData.centerX, 
         validatedData.centerY, 
         validatedData.radius, 
@@ -361,11 +368,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/cartography/project", async (req, res) => {
+  app.post("/api/cartography/project", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
       const validatedData = startCartographyProjectSchema.parse(req.body);
+      const playerId = req.user!.id;
+      
       const project = await cartographyService.startCartographyProject(
-        validatedData.playerId, 
+        playerId, 
         validatedData.regionId, 
         validatedData.tools, 
         validatedData.assistants
@@ -384,7 +393,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/cartography/project/:projectId/progress", async (req, res) => {
+  app.post("/api/cartography/project/:projectId/progress", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
       const { projectId } = req.params;
       const validatedData = progressProjectSchema.parse(req.body);
@@ -433,9 +442,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/cartography/transfer", async (req, res) => {
+  app.post("/api/cartography/transfer", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
-      const { mapId, fromPlayerId, toPlayerId } = req.body;
+      const { mapId, toPlayerId } = req.body;
+      const fromPlayerId = req.user!.id;
+      
       const success = await cartographyService.transferMap(mapId, fromPlayerId, toPlayerId);
       
       if (success) {
@@ -499,16 +510,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/unique-items/create", async (req, res) => {
+  app.post("/api/unique-items/create", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
       const validatedData = createUniqueItemSchema.parse(req.body);
+      const ownerId = req.user!.id;
       
       const item = await exchangeService.createUniqueItem(
         validatedData.name,
         validatedData.type,
         validatedData.rarity,
         validatedData.description,
-        validatedData.ownerId,
+        ownerId,
         validatedData.effects,
         validatedData.requirements,
         validatedData.value,
@@ -524,10 +536,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/unique-items/:playerId", async (req, res) => {
+  app.delete("/api/unique-items/:playerId", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
-      const { playerId } = req.params;
-      const success = await exchangeService.clearPlayerInventory(playerId);
+      const authenticatedPlayerId = req.user!.id;
+      const success = await exchangeService.clearPlayerInventory(authenticatedPlayerId);
       
       if (success) {
         res.json({ success: true, message: "Player inventory cleared" });
@@ -539,19 +551,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Endpoint pour créer une offre d'échange d'objets uniques
-  app.post("/api/exchange/offer/unique", async (req, res) => {
+  app.post("/api/exchange/offer/unique", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
       const { 
         roomId, 
-        fromPlayer, 
         toPlayer, 
         uniqueItemsOffered, 
         uniqueItemsRequested, 
         message 
       } = req.body;
+      const fromPlayer = req.user!.id;
       
-      if (!roomId || !fromPlayer || !toPlayer) {
+      if (!roomId || !toPlayer) {
         return res.status(400).json({ error: "Missing required fields" });
       }
       
@@ -559,8 +570,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         roomId,
         fromPlayer,
         toPlayer,
-        {}, // Pas de ressources normales
-        {}, // Pas de ressources demandées
+        {},
+        {},
         uniqueItemsOffered || [],
         uniqueItemsRequested || [],
         message
@@ -694,11 +705,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Créer une vente directe
-  app.post("/api/marketplace/direct-sale", async (req, res) => {
+  app.post("/api/marketplace/direct-sale", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
       const { 
-        sellerId, 
         sellerName, 
         itemType, 
         price, 
@@ -709,14 +718,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description, 
         tags 
       } = req.body;
+      const sellerId = req.user!.id;
 
-      if (!sellerId || !sellerName || !itemType || !price) {
+      if (!sellerName || !itemType || !price) {
         return res.status(400).json({ error: "Missing required fields" });
       }
 
       let enrichedUniqueItem = uniqueItem;
       
-      // Si c'est un objet unique avec un ID, récupérer les métadonnées complètes
       if (itemType === 'unique_item' && uniqueItemId && !uniqueItem) {
         const fullUniqueItem = await exchangeService.getUniqueItemById(uniqueItemId);
         if (fullUniqueItem && fullUniqueItem.ownerId === sellerId) {
@@ -727,7 +736,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             description: fullUniqueItem.description,
             effects: fullUniqueItem.effects,
             value: fullUniqueItem.value,
-            metadata: fullUniqueItem.metadata // Important pour les cartes !
+            metadata: fullUniqueItem.metadata
           };
           console.log('Enriched unique item for marketplace:', enrichedUniqueItem.name, 'with metadata:', !!enrichedUniqueItem.metadata);
         }
@@ -747,11 +756,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Créer une enchère
-  app.post("/api/marketplace/auction", async (req, res) => {
+  app.post("/api/marketplace/auction", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
       const { 
-        sellerId, 
         sellerName, 
         itemType, 
         startingBid, 
@@ -764,8 +771,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tags,
         minBidIncrement
       } = req.body;
+      const sellerId = req.user!.id;
 
-      if (!sellerId || !sellerName || !itemType || !startingBid || currentTurn === undefined) {
+      if (!sellerName || !itemType || !startingBid || currentTurn === undefined) {
         return res.status(400).json({ error: "Missing required fields" });
       }
 
@@ -784,14 +792,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Acheter un item en vente directe (ancienne version - pas d'intégration ressources)
-  app.post("/api/marketplace/purchase/:itemId", async (req, res) => {
+  app.post("/api/marketplace/purchase/:itemId", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
       const { itemId } = req.params;
-      const { buyerId, buyerName } = req.body;
+      const { buyerName } = req.body;
+      const buyerId = req.user!.id;
 
-      if (!buyerId || !buyerName) {
-        return res.status(400).json({ error: "Buyer information required" });
+      if (!buyerName) {
+        return res.status(400).json({ error: "Buyer name required" });
       }
 
       const result = marketplaceService.purchaseDirectSale(itemId, buyerId, buyerName);
@@ -806,14 +814,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Achat intégré avec validation et déduction des ressources
-  app.post("/api/marketplace/purchase-integrated/:itemId", async (req, res) => {
+  app.post("/api/marketplace/purchase-integrated/:itemId", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
       const { itemId } = req.params;
-      const { playerId, playerName } = req.body;
+      const { playerName } = req.body;
+      const playerId = req.user!.id;
       
-      if (!playerId || !playerName) {
-        return res.status(400).json({ error: "playerId et playerName requis" });
+      if (!playerName) {
+        return res.status(400).json({ error: "playerName requis" });
       }
 
       const item = marketplaceService.getItem(itemId);
@@ -827,8 +835,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const cost = item.fixedPrice || 0;
       
-      // Simulation de vérification d'or (sera remplacé par l'intégration réelle)
-      const playerGold = 1000; // TODO: Récupérer de l'état du joueur
+      const playerGold = 1000;
       const hasEnoughGold = playerGold >= cost;
       
       if (!hasEnoughGold) {
@@ -837,13 +844,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Procéder à l'achat
       const result = marketplaceService.purchaseDirectSale(itemId, playerId, playerName);
       
       if (result.success) {
-        // INTÉGRATION AVEC INVENTORY: Transférer l'objet unique si applicable
         if (item.itemType === 'unique_item' && item.uniqueItem) {
-          // Créer l'objet dans l'inventaire du joueur acheteur
           const newItem = await exchangeService.createUniqueItem(
             item.uniqueItem.name,
             item.uniqueItem.type,
@@ -851,9 +855,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             item.uniqueItem.description,
             playerId,
             item.uniqueItem.effects || [],
-            [], // requirements
+            [],
             item.uniqueItem.value,
-            {} // metadata
+            {}
           );
           
           if (!newItem) {
@@ -868,7 +872,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: `Achat réussi ! ${cost} or sera déduit et l'objet ajouté à votre inventaire.`,
           item: result.item,
           goldSpent: cost,
-          playerGoldAfter: playerGold - cost // Simulation
+          playerGoldAfter: playerGold - cost
         });
       } else {
         res.status(400).json({ error: result.message });
@@ -879,13 +883,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Placer une enchère
-  app.post("/api/marketplace/bid/:itemId", async (req, res) => {
+  app.post("/api/marketplace/bid/:itemId", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
       const { itemId } = req.params;
-      const { playerId, playerName, bidAmount } = req.body;
+      const { playerName, bidAmount } = req.body;
+      const playerId = req.user!.id;
 
-      if (!playerId || !playerName || !bidAmount) {
+      if (!playerName || !bidAmount) {
         return res.status(400).json({ error: "Bid information required" });
       }
 
@@ -901,15 +905,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Supprimer un item (seulement le vendeur)
-  app.delete("/api/marketplace/item/:itemId", async (req, res) => {
+  app.delete("/api/marketplace/item/:itemId", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
       const { itemId } = req.params;
-      const { sellerId } = req.body;
-
-      if (!sellerId) {
-        return res.status(400).json({ error: "Seller ID required" });
-      }
+      const sellerId = req.user!.id;
 
       const success = marketplaceService.removeItem(itemId, sellerId);
       

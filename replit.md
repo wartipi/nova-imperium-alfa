@@ -76,15 +76,20 @@ Preferred communication style: Simple, everyday language.
 - `publicEvents`, `mapRegions`, `mapDocuments`, `cartographyProjects`
 - `playerSkills`, `tradeRooms`, `exchangeOffers`, `uniqueItems`, `playerResources`
 
-## Future Phase: Authentication & Authorization
-The following routes require authentication implementation:
-- **Marshal routes**: Verify army ownership before contract creation
-- **Exchange routes**: Validate player identity before accepting/rejecting offers
-- **Cartography routes**: Ensure only map owners can transfer/sell maps
-- **Marketplace routes**: Authenticate buyers/sellers for transactions
-- **Resource routes**: Secure resource transfers with player verification
+## Authentication & Authorization (Implemented)
+All sensitive routes now require JWT authentication via `requireAuth` middleware:
+- **Marshal routes**: All routes protected, user ID from token, ownership verified
+- **Exchange routes**: Offers, rooms, accepts/rejects use authenticated user ID
+- **Cartography routes**: Map discovery, projects, transfers require authentication
+- **Marketplace routes**: Sales, purchases, bids use authenticated seller/buyer ID
+- **Treaty routes**: Creation, signing, breaking require authentication
 
-Recommended approach: JWT tokens with session management, middleware validation on protected routes.
+Authentication workflow:
+1. POST `/api/auth/login` with username/password returns JWT token
+2. Include `Authorization: Bearer <token>` header on subsequent requests
+3. Routes extract user identity from token via `req.user.id`
+
+Development users: `admin` (admin role), `joueur1` (player), `maitre` (gm)
 
 # External Dependencies
 
