@@ -1,4 +1,4 @@
-import { eq, and, or, inArray } from "drizzle-orm";
+import { eq, and, or, inArray, sql } from "drizzle-orm";
 import { db } from "./db";
 import { 
   armies, 
@@ -334,58 +334,66 @@ export class MarshalService {
   private async resolveBattleConsequences(battle: BattleEvent, result: any): Promise<void> {
     const armyIds = battle.armyIds as string[];
     
-    for (const armyId of armyIds) {
-      const army = await this.getArmyById(armyId);
-      if (!army) continue;
+    await db.transaction(async (tx) => {
+      for (const armyId of armyIds) {
+        const [army] = await tx.select().from(armies).where(eq(armies.id, armyId));
+        if (!army) continue;
 
-      let newStrength = army.totalStrength;
-      let newMorale = army.morale;
-      let newExperience = army.experience;
+        let newStrength = army.totalStrength;
+        let newMorale = army.morale;
+        let newExperience = army.experience;
 
-      if (result && result.casualties && result.casualties[armyId]) {
-        const casualties = result.casualties[armyId];
-        newStrength = Math.max(0, army.totalStrength - casualties);
-        
-        if (result.winner !== army.ownerId) {
-          newMorale = Math.max(0, army.morale - 20);
-        } else {
-          newExperience += 10;
-          newMorale = Math.min(100, army.morale + 10);
-        }
-      }
-
-      await db.update(armies)
-        .set({ 
-          status: 'returning', 
-          lastActivity: new Date(),
-          totalStrength: newStrength,
-          morale: newMorale,
-          experience: newExperience
-        })
-        .where(eq(armies.id, armyId));
-
-      if (army.marshalId && result?.marshalFate?.[army.marshalId]) {
-        const fate = result.marshalFate[army.marshalId];
-        
-        if (fate === 'killed' || fate === 'captured') {
-          this.handleMarshalConsequences(army.marshalId, fate);
+        if (result && result.casualties && result.casualties[armyId]) {
+          const casualties = result.casualties[armyId];
+          newStrength = Math.max(0, army.totalStrength - casualties);
           
-          const activeContracts = await db.select().from(marshalContracts)
-            .where(and(
-              eq(marshalContracts.armyId, armyId),
-              eq(marshalContracts.status, 'active')
-            ));
-          
-          if (activeContracts.length > 0) {
-            await db.update(marshalContracts)
-              .set({ status: fate === 'killed' ? 'breached' : 'completed' })
-              .where(eq(marshalContracts.id, activeContracts[0].id));
+          if (result.winner !== army.ownerId) {
+            newMorale = Math.max(0, army.morale - 20);
+          } else {
+            newExperience += 10;
+            newMorale = Math.min(100, army.morale + 10);
           }
+        }
+
+        await tx.update(armies)
+          .set({ 
+            status: 'returning', 
+            lastActivity: new Date(),
+            totalStrength: newStrength,
+            morale: newMorale,
+            experience: newExperience
+          })
+          .where(eq(armies.id, armyId));
+
+        if (army.marshalId && result?.marshalFate?.[army.marshalId]) {
+          const fate = result.marshalFate[army.marshalId];
           
-          await this.removeMarshal(armyId);
+          if (fate === 'killed' || fate === 'captured') {
+            this.handleMarshalConsequences(army.marshalId, fate);
+            
+            const activeContracts = await tx.select().from(marshalContracts)
+              .where(and(
+                eq(marshalContracts.armyId, armyId),
+                eq(marshalContracts.status, 'active')
+              ));
+            
+            if (activeContracts.length > 0) {
+              await tx.update(marshalContracts)
+                .set({ status: fate === 'killed' ? 'breached' : 'completed' })
+                .where(eq(marshalContracts.id, activeContracts[0].id));
+            }
+            
+            await tx.update(armies)
+              .set({ 
+                marshalId: null, 
+                marshalName: null, 
+                lastActivity: new Date() 
+              })
+              .where(eq(armies.id, armyId));
+          }
         }
       }
-    }
+    });
 
     console.log(`🏆 Conséquences de bataille résolues pour: ${battle.description}`);
   }
@@ -468,13 +476,19 @@ export class MarshalService {
     const proposedContracts = await this.getProposedContracts(playerId);
     
     const playerArmyIds = playerArmies.map(a => a.id);
-    const activeCampaigns = await db.select().from(campaigns)
-      .where(eq(campaigns.status, 'active'));
     
-    const relevantCampaigns = activeCampaigns.filter(c => {
-      const participatingArmies = c.participatingArmies as string[];
-      return playerArmyIds.some(id => participatingArmies.includes(id));
-    });
+    let relevantCampaigns: Campaign[] = [];
+    if (playerArmyIds.length > 0) {
+      const armyConditions = playerArmyIds.map(id => 
+        sql`${campaigns.participatingArmies}::jsonb @> ${JSON.stringify([id])}::jsonb`
+      );
+      
+      relevantCampaigns = await db.select().from(campaigns)
+        .where(and(
+          eq(campaigns.status, 'active'),
+          or(...armyConditions)!
+        ));
+    }
 
     return {
       armies: playerArmies,

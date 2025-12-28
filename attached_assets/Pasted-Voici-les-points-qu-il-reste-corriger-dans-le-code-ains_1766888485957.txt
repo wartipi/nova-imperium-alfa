@@ -1,0 +1,50 @@
+Voici les points qu’il reste à corriger dans le code, ainsi que des instructions précises pour les résoudre. Pour chacun, j’indique si j’avais déjà identifié ce problème dans nos échanges précédents ou s’il s’agit d’un point nouveau découvert lors de la dernière relecture.
+
+---
+
+## 🔧 Liste de corrections restantes
+
+1. **Filtrage en mémoire des participants et de la localisation dans `getEvents`**
+
+   * **Problème** : bien que le filtrage par type, priorité et plage de tours soit passé en SQL, les participants et la zone géographique sont toujours filtrés en JavaScript après avoir chargé la liste des événements.
+   * **Correction** : stocker les participants dans une colonne JSONB et utiliser un filtre `@>` ou `?` pour rechercher les participants en SQL. Pour la localisation, ajouter des colonnes `x` et `y` indexées et filtrer avec `BETWEEN` (`x BETWEEN x0‑r AND x0+r`), puis calculer la distance précise en mémoire sur cet ensemble restreint.
+   * **Statut** : **déjà signalé dans les instructions initiales** (optimisation du filtrage des événements publics) mais non résolu.
+
+2. **Filtrage des campagnes en mémoire dans `getPlayerData`**
+
+   * **Problème** : la méthode charge toutes les campagnes actives puis filtre en mémoire celles contenant au moins une armée du joueur.
+   * **Correction** : réorganiser la table `campaigns` pour que `participatingArmies` soit stockée en JSONB ou dans une table de jonction. Utiliser `where (participatingArmies @> ARRAY[armyId])` ou une jointure sur la table de jonction pour récupérer directement les campagnes concernées.
+   * **Statut** : **nouveau** – ce point n’avait pas été soulevé dans mes instructions précédentes.
+
+3. **Transfert de ressources non persistant dans `executeExchange`**
+
+   * **Problème** : les transferts de ressources sont simplement loggués avec `console.log` ; aucune mise à jour du solde des joueurs n’est réalisée.
+   * **Correction** : ajouter une table `playerResources` (player_id, resource_type, quantity) et, dans `executeExchange`, décrémenter les ressources offertes du joueur A et incrémenter celles du joueur B (et réciproquement pour les ressources demandées). Utiliser une transaction pour garantir la cohérence.
+   * **Statut** : **nouveau** – la persistance des offres et des objets uniques a été implémentée, mais pas celle des ressources.
+
+4. **Utilisation de transactions dans `resolveBattleConsequences`**
+
+   * **Problème** : cette méthode modifie plusieurs armées et leurs contrats sans transaction. Une erreur sur l’une des mises à jour pourrait laisser la base dans un état incohérent.
+   * **Correction** : encapsuler l’ensemble des mises à jour (armées, contrats) dans une transaction Drizzle (`db.transaction(async tx => { … })`). Si une mise à jour échoue, le rollback doit restaurer l’état précédent.
+   * **Statut** : **nouveau** – je n’avais pas insisté sur les transactions dans la première liste.
+
+5. **Filtrage des salles de troc en mémoire dans `getTradeRoomsForPlayer`**
+
+   * **Problème** : la méthode récupère toutes les salles actives puis filtre en mémoire celles où figure le joueur.
+   * **Correction** : stocker les participants dans une colonne JSONB ou utiliser une table de jonction `trade_room_participants`. Ensuite, utiliser une requête SQL (`WHERE participants @> ARRAY[playerId]`) ou une jointure pour ne récupérer que les salles qui concernent le joueur.
+   * **Statut** : **déjà signalé** – j’avais mentionné que le filtrage en mémoire pouvait être optimisé.
+
+6. **Authentification et autorisations**
+
+   * **Problème** : toutes les routes utilisent des identifiants de joueurs en clair sans authentification.
+   * **Correction** : mettre en place un système d’authentification (JWT, sessions) et vérifier les droits avant chaque action (par exemple, s’assurer que seul le propriétaire d’une armée peut créer un contrat).
+   * **Statut** : **déjà signalé** – cela faisait partie des remarques sur la sécurité.
+
+---
+
+### 📌 Résumé des statuts
+
+* **Déjà signalé mais pas corrigé** : filtres participants/localisation dans `getEvents`, optimisation des salles de troc et mise en place d’une authentification.
+* **Nouveaux points détectés** : filtrage des campagnes dans `getPlayerData`, absence de persistance des ressources dans `executeExchange`, et manque de transactions dans `resolveBattleConsequences`.
+
+En appliquant ces correctifs, tu élimineras les principaux goulots d’étranglement et risques d’incohérence restants.

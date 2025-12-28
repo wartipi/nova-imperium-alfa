@@ -1,4 +1,4 @@
-import { eq, and, gte, lte, inArray, desc, sql, count } from "drizzle-orm";
+import { eq, and, gte, lte, inArray, desc, sql, count, or } from "drizzle-orm";
 import { db } from "./db";
 import { publicEvents } from "../shared/schema";
 import type { PublicEvent, InsertPublicEvent } from "../shared/schema";
@@ -62,19 +62,29 @@ export class PublicEventsService {
         conditions.push(gte(publicEvents.turn, filter.turnRange.from));
         conditions.push(lte(publicEvents.turn, filter.turnRange.to));
       }
+      
+      if (filter.participants && filter.participants.length > 0) {
+        const participantConditions = filter.participants.map(p => 
+          sql`${publicEvents.participants}::jsonb @> ${JSON.stringify([p])}::jsonb`
+        );
+        conditions.push(or(...participantConditions)!);
+      }
+      
+      if (filter.location) {
+        const { x, y, radius } = filter.location;
+        conditions.push(
+          sql`(${publicEvents.location}->>'x')::float BETWEEN ${x - radius} AND ${x + radius}`
+        );
+        conditions.push(
+          sql`(${publicEvents.location}->>'y')::float BETWEEN ${y - radius} AND ${y + radius}`
+        );
+      }
     }
 
     let events = await db.select().from(publicEvents)
       .where(and(...conditions))
       .orderBy(desc(publicEvents.timestamp))
       .limit(limit ?? 100);
-
-    if (filter?.participants && filter.participants.length > 0) {
-      events = events.filter(event => {
-        const eventParticipants = event.participants as string[];
-        return eventParticipants.some(p => filter.participants!.includes(p));
-      });
-    }
 
     if (filter?.location) {
       const { x, y, radius } = filter.location;

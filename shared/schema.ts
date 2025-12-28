@@ -175,6 +175,15 @@ export const uniqueItems = pgTable("unique_items", {
   createdAt: timestamp("created_at").notNull().defaultNow()
 });
 
+// Table pour les ressources des joueurs
+export const playerResources = pgTable("player_resources", {
+  id: text("id").primaryKey(),
+  playerId: text("player_id").notNull(),
+  resourceType: text("resource_type").notNull(), // 'gold', 'wood', 'stone', 'iron', 'food', etc.
+  quantity: integer("quantity").notNull().default(0),
+  updatedAt: timestamp("updated_at").notNull().defaultNow()
+});
+
 // Schémas d'insertion pour validation
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
@@ -297,6 +306,12 @@ export const insertUniqueItemSchema = createInsertSchema(uniqueItems).pick({
   metadata: true
 });
 
+export const insertPlayerResourceSchema = createInsertSchema(playerResources).pick({
+  playerId: true,
+  resourceType: true,
+  quantity: true
+});
+
 // Types TypeScript
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -324,3 +339,5 @@ export type ExchangeOffer = typeof exchangeOffers.$inferSelect;
 export type InsertExchangeOffer = z.infer<typeof insertExchangeOfferSchema>;
 export type UniqueItem = typeof uniqueItems.$inferSelect;
 export type InsertUniqueItem = z.infer<typeof insertUniqueItemSchema>;
+export type PlayerResource = typeof playerResources.$inferSelect;
+export type InsertPlayerResource = z.infer<typeof insertPlayerResourceSchema>;

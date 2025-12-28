@@ -1,9 +1,10 @@
-import { eq, and, or, lt, gt } from "drizzle-orm";
+import { eq, and, or, lt, gt, sql } from "drizzle-orm";
 import { db } from "./db";
 import { 
   tradeRooms, 
   exchangeOffers, 
-  uniqueItems 
+  uniqueItems,
+  playerResources 
 } from "../shared/schema";
 import type { 
   TradeRoom, 
@@ -152,16 +153,23 @@ class ExchangeService {
       return false;
     }
 
-    await db.update(exchangeOffers)
-      .set({ status: 'accepted' })
-      .where(eq(exchangeOffers.id, offerId));
+    try {
+      await this.executeExchange(offer);
+      
+      await db.update(exchangeOffers)
+        .set({ status: 'accepted' })
+        .where(eq(exchangeOffers.id, offerId));
 
-    await this.executeExchange(offer);
+      this.notifySubscribers(offer.fromPlayer, { type: 'offer_accepted', offer });
+      this.notifySubscribers(offer.toPlayer, { type: 'offer_accepted', offer });
 
-    this.notifySubscribers(offer.fromPlayer, { type: 'offer_accepted', offer });
-    this.notifySubscribers(offer.toPlayer, { type: 'offer_accepted', offer });
-
-    return true;
+      return true;
+    } catch (error) {
+      console.error(`Échec de l'échange: ${error}`);
+      this.notifySubscribers(offer.fromPlayer, { type: 'offer_failed', offer, error: String(error) });
+      this.notifySubscribers(offer.toPlayer, { type: 'offer_failed', offer, error: String(error) });
+      return false;
+    }
   }
 
   async rejectOffer(offerId: string, playerId: string): Promise<boolean> {
@@ -187,23 +195,119 @@ class ExchangeService {
     
     const resourcesOffered = offer.resourcesOffered as Record<string, number>;
     const resourcesRequested = offer.resourcesRequested as Record<string, number>;
-    
-    Object.entries(resourcesOffered).forEach(([resource, amount]) => {
-      console.log(`Transfert: ${amount} ${resource} de ${offer.fromPlayer} vers ${offer.toPlayer}`);
-    });
-
-    Object.entries(resourcesRequested).forEach(([resource, amount]) => {
-      console.log(`Transfert: ${amount} ${resource} de ${offer.toPlayer} vers ${offer.fromPlayer}`);
-    });
-
     const itemsOffered = offer.itemsOffered as string[];
-    for (const itemId of itemsOffered) {
-      await this.transferUniqueItem(itemId, offer.fromPlayer, offer.toPlayer);
+    const itemsRequested = offer.itemsRequested as string[];
+
+    await db.transaction(async (tx) => {
+      for (const [resource, amount] of Object.entries(resourcesOffered)) {
+        await this.transferResourcesInTx(tx, offer.fromPlayer, offer.toPlayer, resource, amount);
+        console.log(`Transfert: ${amount} ${resource} de ${offer.fromPlayer} vers ${offer.toPlayer}`);
+      }
+
+      for (const [resource, amount] of Object.entries(resourcesRequested)) {
+        await this.transferResourcesInTx(tx, offer.toPlayer, offer.fromPlayer, resource, amount);
+        console.log(`Transfert: ${amount} ${resource} de ${offer.toPlayer} vers ${offer.fromPlayer}`);
+      }
+
+      for (const itemId of itemsOffered) {
+        await this.transferUniqueItemInTx(tx, itemId, offer.fromPlayer, offer.toPlayer);
+      }
+
+      for (const itemId of itemsRequested) {
+        await this.transferUniqueItemInTx(tx, itemId, offer.toPlayer, offer.fromPlayer);
+      }
+    });
+  }
+
+  private async transferResourcesInTx(tx: any, fromPlayer: string, toPlayer: string, resourceType: string, amount: number): Promise<void> {
+    const [fromResource] = await tx.select().from(playerResources)
+      .where(and(
+        eq(playerResources.playerId, fromPlayer),
+        eq(playerResources.resourceType, resourceType)
+      ));
+
+    if (!fromResource || fromResource.quantity < amount) {
+      throw new Error(`Ressources insuffisantes: ${fromPlayer} n'a pas ${amount} ${resourceType}`);
     }
 
-    const itemsRequested = offer.itemsRequested as string[];
-    for (const itemId of itemsRequested) {
-      await this.transferUniqueItem(itemId, offer.toPlayer, offer.fromPlayer);
+    await tx.update(playerResources)
+      .set({ 
+        quantity: fromResource.quantity - amount,
+        updatedAt: new Date()
+      })
+      .where(eq(playerResources.id, fromResource.id));
+
+    const [toResource] = await tx.select().from(playerResources)
+      .where(and(
+        eq(playerResources.playerId, toPlayer),
+        eq(playerResources.resourceType, resourceType)
+      ));
+
+    if (toResource) {
+      await tx.update(playerResources)
+        .set({ 
+          quantity: toResource.quantity + amount,
+          updatedAt: new Date()
+        })
+        .where(eq(playerResources.id, toResource.id));
+    } else {
+      const id = `resource_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+      await tx.insert(playerResources).values({
+        id,
+        playerId: toPlayer,
+        resourceType,
+        quantity: amount,
+        updatedAt: new Date()
+      });
+    }
+  }
+
+  private async transferUniqueItemInTx(tx: any, itemId: string, fromPlayer: string, toPlayer: string): Promise<void> {
+    const [item] = await tx.select().from(uniqueItems)
+      .where(eq(uniqueItems.id, itemId));
+    
+    if (!item || item.ownerId !== fromPlayer || !item.tradeable) {
+      throw new Error(`Objet ${itemId} non transférable par ${fromPlayer}`);
+    }
+
+    await tx.update(uniqueItems)
+      .set({ ownerId: toPlayer })
+      .where(eq(uniqueItems.id, itemId));
+
+    console.log(`Transfert objet unique: ${item.name} de ${fromPlayer} vers ${toPlayer}`);
+  }
+
+  async getPlayerResources(playerId: string): Promise<Record<string, number>> {
+    const resources = await db.select().from(playerResources)
+      .where(eq(playerResources.playerId, playerId));
+    
+    const result: Record<string, number> = {};
+    for (const r of resources) {
+      result[r.resourceType] = r.quantity;
+    }
+    return result;
+  }
+
+  async setPlayerResource(playerId: string, resourceType: string, quantity: number): Promise<void> {
+    const [existing] = await db.select().from(playerResources)
+      .where(and(
+        eq(playerResources.playerId, playerId),
+        eq(playerResources.resourceType, resourceType)
+      ));
+
+    if (existing) {
+      await db.update(playerResources)
+        .set({ quantity, updatedAt: new Date() })
+        .where(eq(playerResources.id, existing.id));
+    } else {
+      const id = `resource_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+      await db.insert(playerResources).values({
+        id,
+        playerId,
+        resourceType,
+        quantity,
+        updatedAt: new Date()
+      });
     }
   }
 
@@ -224,13 +328,11 @@ class ExchangeService {
   }
 
   async getTradeRoomsForPlayer(playerId: string): Promise<TradeRoom[]> {
-    const allRooms = await db.select().from(tradeRooms)
-      .where(eq(tradeRooms.isActive, true));
-    
-    return allRooms.filter(room => {
-      const participants = room.participants as string[];
-      return participants.includes(playerId);
-    });
+    return await db.select().from(tradeRooms)
+      .where(and(
+        eq(tradeRooms.isActive, true),
+        sql`${tradeRooms.participants}::jsonb @> ${JSON.stringify([playerId])}::jsonb`
+      ));
   }
 
   async getActiveOffersForPlayer(playerId: string): Promise<ExchangeOffer[]> {

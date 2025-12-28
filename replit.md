@@ -59,7 +59,17 @@ Preferred communication style: Simple, everyday language.
 ## Tables
 - `users`, `armies`, `marshalContracts`, `campaigns`, `battleEvents`
 - `publicEvents`, `mapRegions`, `mapDocuments`, `cartographyProjects`
-- `playerSkills`, `tradeRooms`, `exchangeOffers`, `uniqueItems`
+- `playerSkills`, `tradeRooms`, `exchangeOffers`, `uniqueItems`, `playerResources`
+
+## Future Phase: Authentication & Authorization
+The following routes require authentication implementation:
+- **Marshal routes**: Verify army ownership before contract creation
+- **Exchange routes**: Validate player identity before accepting/rejecting offers
+- **Cartography routes**: Ensure only map owners can transfer/sell maps
+- **Marketplace routes**: Authenticate buyers/sellers for transactions
+- **Resource routes**: Secure resource transfers with player verification
+
+Recommended approach: JWT tokens with session management, middleware validation on protected routes.
 
 # External Dependencies
 
