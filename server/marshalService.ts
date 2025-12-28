@@ -4,7 +4,8 @@ import {
   armies, 
   marshalContracts, 
   campaigns, 
-  battleEvents 
+  battleEvents,
+  playerSkills 
 } from "../shared/schema";
 import type { 
   Army, 
@@ -99,7 +100,8 @@ export class MarshalService {
       throw new Error("Seul le propriétaire de l'armée peut créer un contrat");
     }
 
-    if (!this.checkCompetenceRequirement(contractData.employerId, 'treaty_knowledge', 1)) {
+    const hasCompetence = await this.checkCompetenceRequirement(contractData.employerId, 'treaty_knowledge', 1);
+    if (!hasCompetence) {
       throw new Error("Compétence 'treaty_knowledge' niveau 1 requise pour créer un contrat de maréchal");
     }
 
@@ -392,40 +394,59 @@ export class MarshalService {
     console.log(`💀 Maréchal ${marshalId} - Sort: ${fate}`);
   }
 
-  checkCompetenceRequirement(playerId: string, competence: string, minLevel: number = 1): boolean {
-    const playerCompetences = this.getSimulatedPlayerCompetences(playerId);
-    const playerLevel = playerCompetences[competence] || 0;
+  async checkCompetenceRequirement(playerId: string, competence: string, minLevel: number = 1): Promise<boolean> {
+    const playerLevel = await this.getPlayerCompetenceLevel(playerId, competence);
     
     console.log(`🎯 Vérification compétence: ${playerId} - ${competence} niveau ${playerLevel}/${minLevel}`);
     return playerLevel >= minLevel;
   }
 
-  private getSimulatedPlayerCompetences(playerId: string): Record<string, number> {
-    const competences: Record<string, number> = {};
+  async getPlayerCompetenceLevel(playerId: string, skillName: string): Promise<number> {
+    const [skill] = await db.select().from(playerSkills)
+      .where(and(
+        eq(playerSkills.playerId, playerId),
+        eq(playerSkills.skillName, skillName)
+      ));
     
-    competences['leadership'] = 1;
-    competences['tactics'] = 1;
-    competences['strategy'] = 1;
-    competences['logistics'] = 1;
-    competences['treaty_knowledge'] = 0;
-    
-    if (playerId.includes('marshal') || playerId.includes('commander')) {
-      competences['leadership'] = 3;
-      competences['tactics'] = 2;
-      competences['treaty_knowledge'] = 2;
+    return skill?.level ?? 0;
+  }
+
+  async setPlayerCompetence(playerId: string, skillName: string, level: number, experience: number = 0): Promise<void> {
+    const [existing] = await db.select().from(playerSkills)
+      .where(and(
+        eq(playerSkills.playerId, playerId),
+        eq(playerSkills.skillName, skillName)
+      ));
+
+    if (existing) {
+      await db.update(playerSkills)
+        .set({ level, experience, updatedAt: new Date() })
+        .where(eq(playerSkills.id, existing.id));
+    } else {
+      const id = `skill_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+      await db.insert(playerSkills).values({
+        id,
+        playerId,
+        skillName,
+        level,
+        experience,
+        updatedAt: new Date()
+      });
     }
-    
-    if (playerId.includes('strategic') || playerId.includes('general')) {
-      competences['strategy'] = 3;
-      competences['logistics'] = 2;
-      competences['treaty_knowledge'] = 1;
+  }
+
+  async initializePlayerSkills(playerId: string): Promise<void> {
+    const defaultSkills = [
+      { name: 'leadership', level: 1 },
+      { name: 'tactics', level: 1 },
+      { name: 'strategy', level: 1 },
+      { name: 'logistics', level: 1 },
+      { name: 'treaty_knowledge', level: 1 }
+    ];
+
+    for (const skill of defaultSkills) {
+      await this.setPlayerCompetence(playerId, skill.name, skill.level);
     }
-    
-    if (playerId.includes('admin') || playerId.includes('noble') || playerId.includes('lord')) {
-      competences['treaty_knowledge'] = 3;
-    }
-    
-    return competences;
   }
 
   calculateContractCost(riskLevel: 'low' | 'medium' | 'high', duration: number, armyStrength: number): number {

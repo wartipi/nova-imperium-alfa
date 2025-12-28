@@ -201,7 +201,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/exchange/rooms/:playerId", async (req, res) => {
     try {
       const { playerId } = req.params;
-      const rooms = exchangeService.getTradeRoomsForPlayer(playerId);
+      const rooms = await exchangeService.getTradeRoomsForPlayer(playerId);
       res.json(rooms);
     } catch (error) {
       res.status(500).json({ error: "Failed to get trade rooms" });
@@ -211,7 +211,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/exchange/offers/:playerId", async (req, res) => {
     try {
       const { playerId } = req.params;
-      const offers = exchangeService.getActiveOffersForPlayer(playerId);
+      const offers = await exchangeService.getActiveOffersForPlayer(playerId);
       res.json(offers);
     } catch (error) {
       res.status(500).json({ error: "Failed to get offers" });
@@ -221,7 +221,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/exchange/room", async (req, res) => {
     try {
       const { treatyId, participants } = req.body;
-      const room = exchangeService.createTradeRoom(treatyId, participants);
+      const room = await exchangeService.createTradeRoom(treatyId, participants);
       res.json(room);
     } catch (error) {
       res.status(500).json({ error: "Failed to create trade room" });
@@ -241,7 +241,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message 
       } = req.body;
       
-      const offer = exchangeService.createExchangeOffer(
+      const offer = await exchangeService.createExchangeOffer(
         roomId,
         fromPlayer,
         toPlayer,
@@ -267,7 +267,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { offerId } = req.params;
       const { playerId } = req.body;
       
-      const success = exchangeService.acceptOffer(offerId, playerId);
+      const success = await exchangeService.acceptOffer(offerId, playerId);
       
       if (success) {
         res.json({ success: true, message: "Offer accepted" });
@@ -284,7 +284,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { offerId } = req.params;
       const { playerId } = req.body;
       
-      const success = exchangeService.rejectOffer(offerId, playerId);
+      const success = await exchangeService.rejectOffer(offerId, playerId);
       
       if (success) {
         res.json({ success: true, message: "Offer rejected" });
@@ -299,7 +299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/exchange/room/:roomId", async (req, res) => {
     try {
       const { roomId } = req.params;
-      const success = exchangeService.closeTradeRoom(roomId);
+      const success = await exchangeService.closeTradeRoom(roomId);
       
       if (success) {
         res.json({ success: true, message: "Room closed" });
@@ -442,7 +442,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/unique-items/:playerId", async (req, res) => {
     try {
       const { playerId } = req.params;
-      const inventory = exchangeService.getPlayerInventory(playerId);
+      const inventory = await exchangeService.getPlayerInventory(playerId);
       res.json(inventory);
     } catch (error) {
       res.status(500).json({ error: "Failed to get player inventory" });
@@ -452,7 +452,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/unique-items/item/:itemId", async (req, res) => {
     try {
       const { itemId } = req.params;
-      const item = exchangeService.getUniqueItem(itemId);
+      const item = await exchangeService.getUniqueItem(itemId);
       
       if (item) {
         res.json(item);
@@ -472,7 +472,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Missing required fields" });
       }
       
-      const item = exchangeService.createUniqueItem(
+      const item = await exchangeService.createUniqueItem(
         name,
         type,
         rarity,
@@ -493,7 +493,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/unique-items/:playerId", async (req, res) => {
     try {
       const { playerId } = req.params;
-      const success = exchangeService.clearPlayerInventory(playerId);
+      const success = await exchangeService.clearPlayerInventory(playerId);
       
       if (success) {
         res.json({ success: true, message: "Player inventory cleared" });
@@ -502,20 +502,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       res.status(500).json({ error: "Failed to clear player inventory" });
-    }
-  });
-
-  app.post("/api/unique-items/clear", async (req, res) => {
-    try {
-      const success = exchangeService.clearAllInventories();
-      
-      if (success) {
-        res.json({ success: true, message: "All inventories cleared" });
-      } else {
-        res.status(400).json({ error: "Failed to clear all inventories" });
-      }
-    } catch (error) {
-      res.status(500).json({ error: "Failed to clear all inventories" });
     }
   });
 
@@ -535,7 +521,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Missing required fields" });
       }
       
-      const offer = exchangeService.createExchangeOffer(
+      const offer = await exchangeService.createExchangeOffer(
         roomId,
         fromPlayer,
         toPlayer,
@@ -564,7 +550,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const marketOffers = [];
       
       for (const playerId of allPlayers) {
-        const inventory = exchangeService.getPlayerInventory(playerId);
+        const inventory = await exchangeService.getPlayerInventory(playerId);
         const maps = inventory.filter(item => item.type === 'carte' && item.tradeable);
         
         for (const map of maps) {
@@ -698,7 +684,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Si c'est un objet unique avec un ID, récupérer les métadonnées complètes
       if (itemType === 'unique_item' && uniqueItemId && !uniqueItem) {
-        const fullUniqueItem = exchangeService.getUniqueItemById(uniqueItemId);
+        const fullUniqueItem = await exchangeService.getUniqueItemById(uniqueItemId);
         if (fullUniqueItem && fullUniqueItem.ownerId === sellerId) {
           enrichedUniqueItem = {
             name: fullUniqueItem.name,
@@ -824,7 +810,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // INTÉGRATION AVEC INVENTORY: Transférer l'objet unique si applicable
         if (item.itemType === 'unique_item' && item.uniqueItem) {
           // Créer l'objet dans l'inventaire du joueur acheteur
-          const newItem = exchangeService.createUniqueItem(
+          const newItem = await exchangeService.createUniqueItem(
             item.uniqueItem.name,
             item.uniqueItem.type,
             item.uniqueItem.rarity,

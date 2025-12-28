@@ -1,0 +1,134 @@
+Voici les principaux points où la version actuelle du code reste perfectible, avec des instructions précises pour que l’IA puisse corriger chacune de ces lacunes. Les références montrent les lignes problématiques de la branche **NI‑architecturetest9.0‑agent3**.
+
+---
+
+### 1. Service de cartographie : recherches inefficaces
+
+* **findRegionAt** charge toutes les régions en mémoire puis calcule la distance en JavaScript. Sur une base volumineuse, c’est prohibitif.
+
+* **getTradableMaps** sélectionne toutes les cartes puis filtre en mémoire celles dont la valeur commerciale est positive.
+
+**Instructions de correction :**
+
+* Modifiez `findRegionAt(x, y, radius)` pour interroger la base plutôt que d’itérer sur toutes les lignes. Par exemple :
+
+  ```ts
+  const nearby = await db.select().from(mapRegions)
+    .where(and(
+      lt(abs(mapRegions.centerX - x), radius),
+      lt(abs(mapRegions.centerY - y), radius)
+    ));
+  for (const region of nearby) {
+    // calculer la distance exacte seulement sur ce sous-ensemble
+  }
+  ```
+
+  Pour Drizzle, utilisez `lt` et `abs` pour définir un rectangle englobant, puis calculez la distance dans la boucle finale.
+
+* Remplacez `getTradableMaps()` par une requête filtrée :
+
+  ```ts
+  return await db.select().from(mapDocuments)
+    .where(gt(mapDocuments.tradingValue, 0));
+  ```
+
+  Cela évite de charger toutes les cartes en mémoire pour ensuite les filtrer.
+
+---
+
+### 2. Service des événements publics : filtrage en mémoire
+
+La méthode `getEvents` récupère tous les événements visibles puis applique des `Array.filter()` successifs pour les types, priorités, participants, plages de tours ou distance. Ce filtrage côté serveur sera vite lent.
+
+**Instructions de correction :**
+
+* Construisez dynamiquement la requête en fonction des filtres :
+
+  ```ts
+  let query = db.select().from(publicEvents).where(eq(publicEvents.isVisible, true));
+  if (filter.types?.length) {
+    query = query.where(inArray(publicEvents.type, filter.types));
+  }
+  if (filter.priorities?.length) {
+    query = query.where(inArray(publicEvents.priority, filter.priorities));
+  }
+  if (filter.participants?.length) {
+    query = query.where(arrayOverlap(publicEvents.participants, filter.participants));
+  }
+  if (filter.turnRange) {
+    query = query.where(and(
+      gte(publicEvents.turn, filter.turnRange.from),
+      lte(publicEvents.turn, filter.turnRange.to)
+    ));
+  }
+  // pour filter.location: utilisez une borne rectangulaire (abs(x-x0) <= radius)
+  const events = await query.orderBy(desc(publicEvents.timestamp)).limit(limit ?? defaultLimit);
+  ```
+
+  Utilisez pour cela les helpers Drizzle (`inArray`, `gte`, `lte`, `and`, etc.). Pour le filtre géographique, appliquez une approximation par rectangle : sélectionnez les événements dont les coordonnées sont dans la plage `[x0 - r, x0 + r]` et `[y0 - r, y0 + r]`, puis calculez la distance exacte dans un second temps si nécessaire.
+
+* Pour `getEventStatistics`, remplacez l’agrégation en JavaScript par une requête SQL :
+
+  ```ts
+  const byType = await db.select({
+    type: publicEvents.type,
+    count: count(publicEvents.id)
+  }).from(publicEvents).groupBy(publicEvents.type);
+  ```
+
+  Répétez pour `priority` et `recentActivity`, afin d’éviter de charger tous les événements pour faire des `forEach()`.
+
+---
+
+### 3. Service des maréchaux : vérification de compétence simulée
+
+La fonction `checkCompetenceRequirement` s’appuie sur une méthode `getSimulatedPlayerCompetences` qui attribue des niveaux de compétences en fonction du nom du joueur. Cela fausse la logique métier.
+
+**Instructions de correction :**
+
+* Créez une table `playerSkills` ou ajoutez une colonne `competences` au modèle `users`/`players` dans votre schéma Drizzle.
+* Remplacez `getSimulatedPlayerCompetences(playerId)` par une méthode qui interroge la base :
+
+  ```ts
+  async getPlayerCompetence(playerId: string, competence: string): Promise<number> {
+    const [row] = await db.select().from(playerSkills)
+      .where(and(eq(playerSkills.playerId, playerId), eq(playerSkills.skillName, competence)));
+    return row?.level ?? 0;
+  }
+  ```
+* Modifiez `checkCompetenceRequirement` pour appeler cette méthode et comparer le niveau obtenu à `minLevel`.
+* Mettez à jour `createContract` en conséquence. Les vérifications devraient être faites en base et non sur une simulation.
+
+---
+
+### 4. Service d’échange : persistance absente
+
+L’ensemble du service d’échange (échanges de ressources, objets uniques) est encore basé sur des `Map` en mémoire. Les salles d’échange, offres actives, objets uniques et inventaires disparaissent au redémarrage du serveur.
+
+**Instructions de correction :**
+
+* Modélisez des tables SQL pour :
+
+  * `trade_rooms` (id, participants, treaty_id, is_active, created_at…)
+  * `exchange_offers` (id, room_id, from_player, to_player, resources_offered, resources_requested, items_offered, items_requested, status, created_at, expires_at, etc.)
+  * `unique_items` (id, owner_id, name, type, rarity, value, tradeable, metadata…)
+  * `player_inventories` (player_id, item_id)
+* Adaptez `ExchangeService` pour que :
+
+  * `createTradeRoom` fasse une insertion dans `trade_rooms` et retourne l’enregistrement.
+  * `createUniqueItem` insère dans `unique_items` et actualise `player_inventories`.
+  * `createExchangeOffer`, `acceptOffer` et `rejectOffer` lisent et écrivent dans `exchange_offers` (et mettent à jour les inventaires et le statut).
+  * `getTradeRoomsForPlayer`, `getActiveOffersForPlayer` et `getPlayerInventory` deviennent des requêtes SQL (`SELECT … WHERE participantId = …`).
+  * `executeExchange` mette à jour les ressources des joueurs et transfère réellement les objets uniques en modifiant la colonne `owner_id` dans la table `unique_items`, plutôt que d’afficher des `console.log()`.
+
+---
+
+### 5. Optimisations générales
+
+* **Transactions et concurrence** : plusieurs méthodes mettent à jour plusieurs tables à la suite (`resolveBattleConsequences` modifie des armées et des contrats). En cas d’erreur, il faut tout annuler. Utilisez `db.transaction()` pour regrouper ces opérations.
+* **Authentification et autorisations** : les routes utilisent des identifiants codés en dur. Prévoyez un système d’authentification (JWT, sessions) et vérifiez les droits du joueur avant chaque action.
+* **Tests et validation** : ajoutez des tests d’intégration pour vérifier que les nouvelles requêtes SQL renvoient les bons résultats et que les filtres se comportent correctement. Utilisez Zod pour valider les payloads reçus via l’API.
+
+---
+
+En appliquant ces corrections, vous éliminerez les principaux goulots d’étranglement (filtrage en mémoire), supprimerez les simulations de compétences et vous assurerez que tous les services reposent sur une base de données persistante. Ces améliorations renforceront la cohérence et la performance de votre code.

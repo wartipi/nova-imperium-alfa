@@ -151,7 +151,7 @@ router.post('/contracts', async (req, res) => {
     const playerId = 'player';
     const playerName = 'Joueur';
     
-    const hasRequiredCompetence = marshalService.checkCompetenceRequirement(
+    const hasRequiredCompetence = await marshalService.checkCompetenceRequirement(
       playerId, 
       REQUIRED_COMPETENCES.CREATE_CONTRACT, 
       1
@@ -200,7 +200,7 @@ router.put('/contracts/:contractId/accept', async (req, res) => {
     const { contractId } = req.params;
     const playerId = 'player';
     
-    const hasRequiredCompetence = marshalService.checkCompetenceRequirement(
+    const hasRequiredCompetence = await marshalService.checkCompetenceRequirement(
       playerId, 
       REQUIRED_COMPETENCES.MARSHAL_ARMY, 
       1

@@ -125,6 +125,56 @@ export const cartographyProjects = pgTable("cartography_projects", {
   assistants: jsonb("assistants").notNull().default('[]') // Array d'assistants
 });
 
+// Table pour les compétences des joueurs
+export const playerSkills = pgTable("player_skills", {
+  id: text("id").primaryKey(),
+  playerId: text("player_id").notNull(),
+  skillName: text("skill_name").notNull(), // 'leadership', 'tactics', 'strategy', 'logistics', 'treaty_knowledge'
+  level: integer("level").notNull().default(0),
+  experience: integer("experience").notNull().default(0),
+  updatedAt: timestamp("updated_at").notNull().defaultNow()
+});
+
+// Tables pour le système d'échange
+export const tradeRooms = pgTable("trade_rooms", {
+  id: text("id").primaryKey(),
+  participants: jsonb("participants").notNull(), // Array de playerIds
+  treatyId: text("treaty_id"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow()
+});
+
+export const exchangeOffers = pgTable("exchange_offers", {
+  id: text("id").primaryKey(),
+  roomId: text("room_id"),
+  fromPlayer: text("from_player").notNull(),
+  toPlayer: text("to_player").notNull(),
+  resourcesOffered: jsonb("resources_offered").notNull().default('{}'),
+  resourcesRequested: jsonb("resources_requested").notNull().default('{}'),
+  itemsOffered: jsonb("items_offered").notNull().default('[]'), // Array d'IDs
+  itemsRequested: jsonb("items_requested").notNull().default('[]'), // Array d'IDs
+  status: text("status").notNull().default('pending'), // 'pending', 'accepted', 'rejected', 'expired'
+  offerType: text("offer_type").notNull().default('resources'), // 'resources', 'unique_items', 'mixed'
+  message: text("message"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  expiresAt: timestamp("expires_at").notNull()
+});
+
+export const uniqueItems = pgTable("unique_items", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  type: text("type").notNull(), // 'carte', 'objet_magique', 'artefact', 'relique', 'document', 'equipement_legendaire'
+  rarity: text("rarity").notNull(), // 'commun', 'rare', 'epique', 'legendaire', 'mythique'
+  description: text("description").notNull(),
+  effects: jsonb("effects").notNull().default('[]'),
+  requirements: jsonb("requirements").notNull().default('[]'),
+  value: integer("value").notNull().default(100),
+  tradeable: boolean("tradeable").notNull().default(true),
+  ownerId: text("owner_id").notNull(),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").notNull().defaultNow()
+});
+
 // Schémas d'insertion pour validation
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
@@ -209,6 +259,44 @@ export const insertCartographyProjectSchema = createInsertSchema(cartographyProj
   assistants: true
 });
 
+export const insertPlayerSkillSchema = createInsertSchema(playerSkills).pick({
+  playerId: true,
+  skillName: true,
+  level: true,
+  experience: true
+});
+
+export const insertTradeRoomSchema = createInsertSchema(tradeRooms).pick({
+  participants: true,
+  treatyId: true
+});
+
+export const insertExchangeOfferSchema = createInsertSchema(exchangeOffers).pick({
+  roomId: true,
+  fromPlayer: true,
+  toPlayer: true,
+  resourcesOffered: true,
+  resourcesRequested: true,
+  itemsOffered: true,
+  itemsRequested: true,
+  offerType: true,
+  message: true,
+  expiresAt: true
+});
+
+export const insertUniqueItemSchema = createInsertSchema(uniqueItems).pick({
+  name: true,
+  type: true,
+  rarity: true,
+  description: true,
+  effects: true,
+  requirements: true,
+  value: true,
+  tradeable: true,
+  ownerId: true,
+  metadata: true
+});
+
 // Types TypeScript
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -228,3 +316,11 @@ export type MapDocument = typeof mapDocuments.$inferSelect;
 export type InsertMapDocument = z.infer<typeof insertMapDocumentSchema>;
 export type CartographyProject = typeof cartographyProjects.$inferSelect;
 export type InsertCartographyProject = z.infer<typeof insertCartographyProjectSchema>;
+export type PlayerSkill = typeof playerSkills.$inferSelect;
+export type InsertPlayerSkill = z.infer<typeof insertPlayerSkillSchema>;
+export type TradeRoom = typeof tradeRooms.$inferSelect;
+export type InsertTradeRoom = z.infer<typeof insertTradeRoomSchema>;
+export type ExchangeOffer = typeof exchangeOffers.$inferSelect;
+export type InsertExchangeOffer = z.infer<typeof insertExchangeOfferSchema>;
+export type UniqueItem = typeof uniqueItems.$inferSelect;
+export type InsertUniqueItem = z.infer<typeof insertUniqueItemSchema>;

@@ -44,8 +44,26 @@ Preferred communication style: Simple, everyday language.
 - **Intuitive Navigation**: Reorganized HUD menu for better accessibility to key features like Territory Management, Factions, and Public Market.
 - **Dynamic HUD Elements**: Integration of faction crests directly into the HUD banner.
 
+# Database Architecture
+
+## Phase 1 Optimizations (December 2025)
+- **SQL Query Optimization**: All services now use efficient SQL queries with WHERE clauses and bounding box filtering instead of in-memory filtering
+- **Player Skills Table**: `playerSkills` table stores player competencies (leadership, tactics, strategy, logistics, treaty_knowledge) with levels and experience
+- **Exchange Service Tables**: 
+  - `tradeRooms` for multi-player trading sessions
+  - `exchangeOffers` for resource and item exchanges with expiration
+  - `uniqueItems` for tradeable unique items with ownership tracking
+- **Async Database Operations**: All service methods use async/await for database operations
+- **Automatic Cleanup**: Expired offers are cleaned up automatically every 60 seconds
+
+## Tables
+- `users`, `armies`, `marshalContracts`, `campaigns`, `battleEvents`
+- `publicEvents`, `mapRegions`, `mapDocuments`, `cartographyProjects`
+- `playerSkills`, `tradeRooms`, `exchangeOffers`, `uniqueItems`
+
 # External Dependencies
 
 - **Express**: Backend framework for API endpoints and server-side logic.
+- **Drizzle ORM**: Type-safe database operations with PostgreSQL
+- **Neon Database**: Serverless PostgreSQL with WebSocket support
 - **Jest** and **React Testing Library**: For comprehensive unit testing.
-```

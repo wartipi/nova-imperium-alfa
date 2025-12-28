@@ -1,4 +1,4 @@
-import { eq, and, gte, lte, inArray, desc } from "drizzle-orm";
+import { eq, and, gte, lte, inArray, desc, sql, count } from "drizzle-orm";
 import { db } from "./db";
 import { publicEvents } from "../shared/schema";
 import type { PublicEvent, InsertPublicEvent } from "../shared/schema";
@@ -49,44 +49,46 @@ export class PublicEventsService {
   }
 
   async getEvents(filter?: EventFilter, limit?: number): Promise<PublicEvent[]> {
-    let query = db.select().from(publicEvents)
-      .where(eq(publicEvents.isVisible, true))
-      .orderBy(desc(publicEvents.timestamp));
-
-    let events = await query;
+    const conditions = [eq(publicEvents.isVisible, true)];
 
     if (filter) {
       if (filter.types && filter.types.length > 0) {
-        events = events.filter(event => filter.types!.includes(event.type));
+        conditions.push(inArray(publicEvents.type, filter.types));
       }
       if (filter.priorities && filter.priorities.length > 0) {
-        events = events.filter(event => filter.priorities!.includes(event.priority));
-      }
-      if (filter.participants && filter.participants.length > 0) {
-        events = events.filter(event => {
-          const eventParticipants = event.participants as string[];
-          return eventParticipants.some(p => filter.participants!.includes(p));
-        });
+        conditions.push(inArray(publicEvents.priority, filter.priorities));
       }
       if (filter.turnRange) {
-        events = events.filter(event => 
-          event.turn >= filter.turnRange!.from && event.turn <= filter.turnRange!.to
-        );
-      }
-      if (filter.location) {
-        events = events.filter(event => {
-          if (!event.location) return false;
-          const loc = event.location as { x: number; y: number };
-          const distance = Math.sqrt(
-            Math.pow(loc.x - filter.location!.x, 2) +
-            Math.pow(loc.y - filter.location!.y, 2)
-          );
-          return distance <= filter.location!.radius;
-        });
+        conditions.push(gte(publicEvents.turn, filter.turnRange.from));
+        conditions.push(lte(publicEvents.turn, filter.turnRange.to));
       }
     }
 
-    return limit ? events.slice(0, limit) : events;
+    let events = await db.select().from(publicEvents)
+      .where(and(...conditions))
+      .orderBy(desc(publicEvents.timestamp))
+      .limit(limit ?? 100);
+
+    if (filter?.participants && filter.participants.length > 0) {
+      events = events.filter(event => {
+        const eventParticipants = event.participants as string[];
+        return eventParticipants.some(p => filter.participants!.includes(p));
+      });
+    }
+
+    if (filter?.location) {
+      const { x, y, radius } = filter.location;
+      events = events.filter(event => {
+        if (!event.location) return false;
+        const loc = event.location as { x: number; y: number };
+        const distance = Math.sqrt(
+          Math.pow(loc.x - x, 2) + Math.pow(loc.y - y, 2)
+        );
+        return distance <= radius;
+      });
+    }
+
+    return events;
   }
 
   async getRecentEvents(currentTurn: number, turnsBack: number = 5, limit: number = 20): Promise<PublicEvent[]> {
@@ -378,25 +380,49 @@ export class PublicEventsService {
     byPriority: Record<string, number>;
     recentActivity: number;
   }> {
-    const events = await this.getEvents();
-    const byType: Record<string, number> = {};
-    const byPriority: Record<string, number> = {};
+    const [totalResult] = await db.select({ count: count() })
+      .from(publicEvents)
+      .where(eq(publicEvents.isVisible, true));
 
-    events.forEach(event => {
-      byType[event.type] = (byType[event.type] || 0) + 1;
-      byPriority[event.priority] = (byPriority[event.priority] || 0) + 1;
+    const typeStats = await db.select({
+      type: publicEvents.type,
+      count: count()
+    })
+      .from(publicEvents)
+      .where(eq(publicEvents.isVisible, true))
+      .groupBy(publicEvents.type);
+
+    const priorityStats = await db.select({
+      priority: publicEvents.priority,
+      count: count()
+    })
+      .from(publicEvents)
+      .where(eq(publicEvents.isVisible, true))
+      .groupBy(publicEvents.priority);
+
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const [recentResult] = await db.select({ count: count() })
+      .from(publicEvents)
+      .where(and(
+        eq(publicEvents.isVisible, true),
+        gte(publicEvents.timestamp, sevenDaysAgo)
+      ));
+
+    const byType: Record<string, number> = {};
+    typeStats.forEach(stat => {
+      byType[stat.type] = stat.count;
     });
 
-    const recentActivity = events.filter(e => {
-      const daysSinceEvent = (Date.now() - new Date(e.timestamp).getTime()) / (1000 * 60 * 60 * 24);
-      return daysSinceEvent <= 7;
-    }).length;
+    const byPriority: Record<string, number> = {};
+    priorityStats.forEach(stat => {
+      byPriority[stat.priority] = stat.count;
+    });
 
     return {
-      total: events.length,
+      total: totalResult?.count ?? 0,
       byType,
       byPriority,
-      recentActivity
+      recentActivity: recentResult?.count ?? 0
     };
   }
 }

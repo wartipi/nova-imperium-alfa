@@ -1,4 +1,4 @@
-import { eq, and, lt } from "drizzle-orm";
+import { eq, and, lt, gt, gte, lte, sql } from "drizzle-orm";
 import { db } from "./db";
 import { 
   mapRegions, 
@@ -268,9 +268,15 @@ class CartographyService {
   }
 
   private async findRegionAt(x: number, y: number, radius: number): Promise<MapRegion | null> {
-    const allRegions = await db.select().from(mapRegions);
+    const nearbyRegions = await db.select().from(mapRegions)
+      .where(and(
+        gte(mapRegions.centerX, x - radius),
+        lte(mapRegions.centerX, x + radius),
+        gte(mapRegions.centerY, y - radius),
+        lte(mapRegions.centerY, y + radius)
+      ));
     
-    for (const region of allRegions) {
+    for (const region of nearbyRegions) {
       const distance = Math.sqrt((region.centerX - x) ** 2 + (region.centerY - y) ** 2);
       if (distance <= radius && Math.abs(region.radius - radius) <= 2) {
         return region;
@@ -298,8 +304,8 @@ class CartographyService {
   }
 
   async getTradableMaps(): Promise<MapDocument[]> {
-    const allMaps = await db.select().from(mapDocuments);
-    return allMaps.filter(map => map.tradingValue > 0);
+    return await db.select().from(mapDocuments)
+      .where(gt(mapDocuments.tradingValue, 0));
   }
 
   async getMapById(mapId: string): Promise<MapDocument | null> {
