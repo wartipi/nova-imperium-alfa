@@ -82,6 +82,17 @@ Preferred communication style: Simple, everyday language.
 - **MessageService**: Migrated from in-memory array to PostgreSQL with indexed queries on fromPlayer/toPlayer
 - **MarketplaceService**: Migrated from in-memory Map to PostgreSQL with full persistence for items, auctions, and bids
 
+## Geospatial Search Optimization (December 2025)
+- **Geospatial Utilities**: `server/utils/geospatial.ts` provides reusable SQL-based geospatial functions
+  - `createBoundingBoxCondition`: Efficient bounding box filtering using B-tree indexes
+  - `createDistanceCondition`: SQL SQRT/POWER distance calculations
+  - `orderByDistanceSQL`: Distance-based ordering
+- **New Endpoints**:
+  - `GET /api/cartography/regions/nearby/:x/:y/:radius` - Find regions within radius
+  - `GET /api/cartography/regions/area` - Find regions in rectangular area
+  - `GET /api/public-events/nearby/:x/:y/:radius` - Find events within radius
+- **Performance**: Uses bounding box pre-filtering + distance calculation for O(log n) instead of O(n) queries
+
 ## Authentication & Authorization (Implemented)
 All sensitive routes now require JWT authentication via `requireAuth` middleware:
 - **Marshal routes**: All routes protected, user ID from token, ownership verified
