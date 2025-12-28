@@ -74,7 +74,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/messages/:playerId", async (req, res) => {
     try {
       const { playerId } = req.params;
-      const messages = messageService.getMessagesForPlayer(playerId);
+      const messages = await messageService.getMessagesForPlayer(playerId);
       res.json(messages);
     } catch (error) {
       res.status(500).json({ error: "Failed to get messages" });
@@ -86,7 +86,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = createMessageSchema.parse(req.body);
       const senderId = req.user!.id;
       
-      const message = messageService.sendMessage({
+      const message = await messageService.sendMessage({
         from: senderId,
         to: validatedData.to,
         content: validatedData.content,
@@ -107,7 +107,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { messageId } = req.params;
       const playerId = req.user!.id;
       
-      const success = messageService.markAsRead(messageId, playerId);
+      const success = await messageService.markAsRead(messageId, playerId);
       res.json({ success });
     } catch (error) {
       res.status(500).json({ error: "Failed to mark message as read" });
@@ -117,7 +117,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/messages/:playerId/stats", async (req, res) => {
     try {
       const { playerId } = req.params;
-      const stats = messageService.getStats(playerId);
+      const stats = await messageService.getStats(playerId);
       res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Failed to get message stats" });
@@ -128,7 +128,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/treaties/player/:playerId", async (req, res) => {
     try {
       const { playerId } = req.params;
-      const treaties = treatyService.getTreatiesForPlayer(playerId);
+      const treaties = await treatyService.getTreatiesForPlayer(playerId);
       res.json(treaties);
     } catch (error) {
       res.status(500).json({ error: "Failed to get treaties" });
@@ -149,7 +149,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = createTreatySchema.parse(req.body);
       const creatorId = req.user!.id;
       
-      const treaty = treatyService.createTreaty({
+      const treaty = await treatyService.createTreaty({
         title: validatedData.title,
         type: validatedData.type,
         parties: validatedData.parties,
@@ -172,7 +172,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { treatyId } = req.params;
       const playerId = req.user!.id;
       
-      const success = treatyService.signTreaty(treatyId, playerId);
+      const success = await treatyService.signTreaty(treatyId, playerId);
       res.json({ success });
     } catch (error: any) {
       if (error.name === 'ZodError') {
@@ -187,7 +187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { treatyId } = req.params;
       const playerId = req.user!.id;
       
-      const success = treatyService.breakTreaty(treatyId, playerId);
+      const success = await treatyService.breakTreaty(treatyId, playerId);
       res.json({ success });
     } catch (error: any) {
       if (error.name === 'ZodError') {
@@ -200,7 +200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/treaties/:playerId/stats", async (req, res) => {
     try {
       const { playerId } = req.params;
-      const stats = treatyService.getStats(playerId);
+      const stats = await treatyService.getStats(playerId);
       res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Failed to get treaty stats" });
@@ -659,7 +659,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Obtenir tous les items actifs du marketplace
   app.get("/api/marketplace/items", async (req, res) => {
     try {
-      const items = marketplaceService.getActiveItems();
+      const items = await marketplaceService.getActiveItems();
       res.json(items);
     } catch (error) {
       res.status(500).json({ error: "Failed to get marketplace items" });
@@ -673,7 +673,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (type !== 'resource' && type !== 'unique_item') {
         return res.status(400).json({ error: "Invalid item type" });
       }
-      const items = marketplaceService.getItemsByType(type as 'resource' | 'unique_item');
+      const items = await marketplaceService.getItemsByType(type as 'resource' | 'unique_item');
       res.json(items);
     } catch (error) {
       res.status(500).json({ error: "Failed to get items by type" });
@@ -684,7 +684,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/marketplace/seller/:sellerId", async (req, res) => {
     try {
       const { sellerId } = req.params;
-      const items = marketplaceService.getItemsBySeller(sellerId);
+      const items = await marketplaceService.getItemsBySeller(sellerId);
       res.json(items);
     } catch (error) {
       res.status(500).json({ error: "Failed to get seller items" });
@@ -698,7 +698,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!q || typeof q !== 'string') {
         return res.status(400).json({ error: "Search query required" });
       }
-      const items = marketplaceService.searchItems(q);
+      const items = await marketplaceService.searchItems(q);
       res.json(items);
     } catch (error) {
       res.status(500).json({ error: "Failed to search items" });
@@ -742,7 +742,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      const item = marketplaceService.createDirectSale(
+      const item = await marketplaceService.createDirectSale(
         sellerId,
         sellerName,
         itemType,
@@ -777,7 +777,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Missing required fields" });
       }
 
-      const item = marketplaceService.createAuction(
+      const item = await marketplaceService.createAuction(
         sellerId,
         sellerName,
         itemType,
@@ -802,7 +802,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Buyer name required" });
       }
 
-      const result = marketplaceService.purchaseDirectSale(itemId, buyerId, buyerName);
+      const result = await marketplaceService.purchaseDirectSale(itemId, buyerId, buyerName);
       
       if (result.success) {
         res.json(result);
@@ -824,7 +824,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "playerName requis" });
       }
 
-      const item = marketplaceService.getItem(itemId);
+      const item = await marketplaceService.getItem(itemId);
       if (!item) {
         return res.status(404).json({ error: "Objet non trouvé" });
       }
@@ -844,7 +844,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const result = marketplaceService.purchaseDirectSale(itemId, playerId, playerName);
+      const result = await marketplaceService.purchaseDirectSale(itemId, playerId, playerName);
       
       if (result.success) {
         if (item.itemType === 'unique_item' && item.uniqueItem) {
@@ -893,7 +893,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Bid information required" });
       }
 
-      const result = marketplaceService.placeBid(itemId, playerId, playerName, bidAmount);
+      const result = await marketplaceService.placeBid(itemId, playerId, playerName, bidAmount);
       
       if (result.success) {
         res.json(result);
@@ -910,7 +910,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { itemId } = req.params;
       const sellerId = req.user!.id;
 
-      const success = marketplaceService.removeItem(itemId, sellerId);
+      const success = await marketplaceService.removeItem(itemId, sellerId);
       
       if (success) {
         res.json({ success: true, message: "Item removed successfully" });
@@ -931,7 +931,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Current turn required" });
       }
 
-      const results = marketplaceService.resolveAuctions(currentTurn);
+      const results = await marketplaceService.resolveAuctions(currentTurn);
       res.json({ success: true, results });
     } catch (error) {
       res.status(500).json({ error: "Failed to resolve auctions" });

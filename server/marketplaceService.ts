@@ -1,60 +1,12 @@
-// Service de marché publique pour Nova Imperium - Version Hybride avec Enchères
+import { eq, and, or, lt, desc, sql, ne, gt } from "drizzle-orm";
+import { db } from "./db";
+import { marketplaceItems } from "../shared/schema";
+import type { MarketplaceItem } from "../shared/schema";
 
-// Interface pour le service d'échange (pour le typage)
 interface ExchangeService {
   getUniqueItemById(itemId: string): any;
   getPlayerInventory(playerId: string): string[];
   getPlayerItem(playerId: string, itemId: string): any;
-}
-
-interface MarketplaceItem {
-  id: string;
-  sellerId: string;
-  sellerName: string;
-  
-  // Type d'item
-  itemType: 'resource' | 'unique_item';
-  
-  // Pour les ressources
-  resourceType?: string; // 'wood', 'stone', 'iron', etc.
-  quantity?: number;
-  
-  // Pour les objets uniques
-  uniqueItemId?: string;
-  uniqueItem?: {
-    name: string;
-    type: 'carte' | 'objet_magique' | 'artefact' | 'relique' | 'document' | 'equipement_legendaire';
-    rarity: 'commun' | 'rare' | 'epique' | 'legendaire' | 'mythique';
-    description: string;
-    effects?: string[];
-    value: number;
-    metadata?: any;
-  };
-  
-  // Type de vente (hybride)
-  saleType: 'direct_sale' | 'auction';
-  
-  // Pour vente directe
-  fixedPrice?: number;
-  
-  // Pour enchères
-  startingBid?: number;
-  currentBid?: number;
-  currentBidder?: string;
-  bidHistory?: Array<{
-    playerId: string;
-    playerName: string;
-    amount: number;
-    timestamp: number;
-  }>;
-  auctionEndTurn?: number; // Turn où l'enchère se termine
-  minBidIncrement?: number; // Montant minimum pour une nouvelle enchère
-  
-  // Métadonnées communes
-  status: 'active' | 'sold' | 'expired' | 'cancelled';
-  createdAt: number;
-  description?: string;
-  tags?: string[];
 }
 
 interface BidResult {
@@ -65,9 +17,9 @@ interface BidResult {
 }
 
 class MarketplaceService {
-  private marketItems: Map<string, MarketplaceItem> = new Map();
   private subscribers: Map<string, Array<(data: any) => void>> = new Map();
-  private exchangeService: ExchangeService | null = null; // Référence vers ExchangeService pour récupérer les détails des objets uniques
+  private exchangeService: ExchangeService | null = null;
+  private initialized: boolean = false;
   
   constructor(exchangeService?: ExchangeService) {
     console.log('MarketplaceService initialized');
@@ -75,10 +27,17 @@ class MarketplaceService {
     this.initializeDemoItems();
   }
 
-  // Initialiser quelques objets de démonstration
-  private initializeDemoItems() {
-    // Vente directe de bois
-    this.createDirectSale(
+  private async initializeDemoItems() {
+    if (this.initialized) return;
+    
+    const existing = await db.select().from(marketplaceItems).limit(1);
+    if (existing.length > 0) {
+      this.initialized = true;
+      console.log('Demo items already exist, skipping initialization');
+      return;
+    }
+    
+    await this.createDirectSale(
       'demo_seller',
       'Marchand Demo',
       'resource',
@@ -91,13 +50,12 @@ class MarketplaceService {
       }
     );
 
-    // Enchère de fer
-    this.createAuction(
+    await this.createAuction(
       'demo_auction',
       'Encherisseur Demo',
       'resource',
       15,
-      1, // currentTurn
+      1,
       {
         resourceType: 'iron',
         quantity: 30,
@@ -107,8 +65,7 @@ class MarketplaceService {
       }
     );
 
-    // Objet magique en vente directe
-    this.createDirectSale(
+    await this.createDirectSale(
       'demo_mage',
       'Mage Demo',
       'unique_item',
@@ -127,12 +84,11 @@ class MarketplaceService {
       }
     );
     
-    console.log('Demo items initialized:', this.marketItems.size, 'items');
+    this.initialized = true;
+    console.log('Demo items initialized: 3 items');
   }
 
-  // === GESTION DES VENTES DIRECTES ===
-  
-  createDirectSale(
+  async createDirectSale(
     sellerId: string,
     sellerName: string,
     itemType: 'resource' | 'unique_item',
@@ -145,22 +101,26 @@ class MarketplaceService {
       description?: string;
       tags?: string[];
     }
-  ): MarketplaceItem {
-    const item: MarketplaceItem = {
-      id: `sale_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+  ): Promise<MarketplaceItem> {
+    const id = `sale_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+    
+    const [item] = await db.insert(marketplaceItems).values({
+      id,
       sellerId,
       sellerName,
       itemType,
       saleType: 'direct_sale',
       fixedPrice: price,
       status: 'active',
-      createdAt: Date.now(),
-      ...options
-    };
+      createdAt: new Date(),
+      resourceType: options.resourceType || null,
+      quantity: options.quantity || null,
+      uniqueItemId: options.uniqueItemId || null,
+      uniqueItem: options.uniqueItem || null,
+      description: options.description || null,
+      tags: options.tags || []
+    }).returning();
 
-    this.marketItems.set(item.id, item);
-    
-    // Notifier tous les abonnés
     this.notifyAllSubscribers({
       type: 'item_listed',
       item: item
@@ -169,9 +129,7 @@ class MarketplaceService {
     return item;
   }
 
-  // === GESTION DES ENCHÈRES ===
-  
-  createAuction(
+  async createAuction(
     sellerId: string,
     sellerName: string,
     itemType: 'resource' | 'unique_item',
@@ -186,26 +144,31 @@ class MarketplaceService {
       tags?: string[];
       minBidIncrement?: number;
     }
-  ): MarketplaceItem {
-    const item: MarketplaceItem = {
-      id: `auction_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+  ): Promise<MarketplaceItem> {
+    const id = `auction_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+    const minBidIncrement = options.minBidIncrement || Math.max(1, Math.floor(startingBid * 0.1));
+    
+    const [item] = await db.insert(marketplaceItems).values({
+      id,
       sellerId,
       sellerName,
       itemType,
       saleType: 'auction',
       startingBid,
       currentBid: startingBid,
-      bidHistory: [],
-      auctionEndTurn: currentTurn + 1, // Se termine au prochain tour
-      minBidIncrement: options.minBidIncrement || Math.max(1, Math.floor(startingBid * 0.1)),
+      bids: [],
+      endTurn: currentTurn + 1,
+      minBidIncrement,
       status: 'active',
-      createdAt: Date.now(),
-      ...options
-    };
+      createdAt: new Date(),
+      resourceType: options.resourceType || null,
+      quantity: options.quantity || null,
+      uniqueItemId: options.uniqueItemId || null,
+      uniqueItem: options.uniqueItem || null,
+      description: options.description || null,
+      tags: options.tags || []
+    }).returning();
 
-    this.marketItems.set(item.id, item);
-    
-    // Notifier tous les abonnés
     this.notifyAllSubscribers({
       type: 'auction_created',
       item: item
@@ -214,8 +177,9 @@ class MarketplaceService {
     return item;
   }
 
-  placeBid(itemId: string, playerId: string, playerName: string, bidAmount: number): BidResult {
-    const item = this.marketItems.get(itemId);
+  async placeBid(itemId: string, playerId: string, playerName: string, bidAmount: number): Promise<BidResult> {
+    const [item] = await db.select().from(marketplaceItems)
+      .where(eq(marketplaceItems.id, itemId));
     
     if (!item || item.saleType !== 'auction' || item.status !== 'active') {
       return { success: false, message: 'Enchère non disponible' };
@@ -233,24 +197,28 @@ class MarketplaceService {
       };
     }
 
-    // Enregistrer l'enchère
-    const previousBidder = item.currentBidder;
-    item.currentBid = bidAmount;
-    item.currentBidder = playerId;
-    
-    if (!item.bidHistory) item.bidHistory = [];
-    item.bidHistory.push({
-      playerId,
-      playerName,
+    const previousBidder = item.highestBidderId;
+    const bids = (item.bids as any[]) || [];
+    bids.push({
+      bidderId: playerId,
+      bidderName: playerName,
       amount: bidAmount,
       timestamp: Date.now()
     });
 
-    // Notifier le vendeur et l'ancien enchérisseur
+    await db.update(marketplaceItems)
+      .set({
+        currentBid: bidAmount,
+        highestBidderId: playerId,
+        highestBidderName: playerName,
+        bids
+      })
+      .where(eq(marketplaceItems.id, itemId));
+
     if (previousBidder && previousBidder !== playerId) {
       this.notifySubscribers(previousBidder, {
         type: 'bid_outbid',
-        item: item,
+        item: { ...item, currentBid: bidAmount, highestBidderId: playerId },
         newBidder: playerName,
         newBid: bidAmount
       });
@@ -258,29 +226,27 @@ class MarketplaceService {
 
     this.notifySubscribers(item.sellerId, {
       type: 'bid_received',
-      item: item,
+      item: { ...item, currentBid: bidAmount, highestBidderId: playerId },
       bidder: playerName,
       amount: bidAmount
     });
 
-    // Notifier tous les autres pour mise à jour temps réel
     this.notifyAllSubscribers({
       type: 'bid_placed',
-      item: item
+      item: { ...item, currentBid: bidAmount, highestBidderId: playerId }
     });
 
     return { 
       success: true, 
       message: 'Enchère placée avec succès',
       newCurrentBid: bidAmount,
-      previousBidder
+      previousBidder: previousBidder || undefined
     };
   }
 
-  // === ACHAT DIRECT ===
-  
-  purchaseDirectSale(itemId: string, buyerId: string, buyerName: string): { success: boolean; message: string; item?: MarketplaceItem } {
-    const item = this.marketItems.get(itemId);
+  async purchaseDirectSale(itemId: string, buyerId: string, buyerName: string): Promise<{ success: boolean; message: string; item?: MarketplaceItem }> {
+    const [item] = await db.select().from(marketplaceItems)
+      .where(eq(marketplaceItems.id, itemId));
     
     if (!item || item.saleType !== 'direct_sale' || item.status !== 'active') {
       return { success: false, message: 'Objet non disponible à la vente' };
@@ -290,70 +256,85 @@ class MarketplaceService {
       return { success: false, message: 'Vous ne pouvez pas acheter votre propre objet' };
     }
 
-    // Marquer comme vendu
-    item.status = 'sold';
-    
-    // Notifier le vendeur
+    await db.update(marketplaceItems)
+      .set({ 
+        status: 'sold',
+        buyerId,
+        buyerName,
+        soldAt: new Date()
+      })
+      .where(eq(marketplaceItems.id, itemId));
+
+    const updatedItem = { ...item, status: 'sold' as const, buyerId, buyerName };
+
     this.notifySubscribers(item.sellerId, {
       type: 'item_sold',
-      item: item,
+      item: updatedItem,
       buyer: buyerName
     });
 
-    // Notifier tous les autres
     this.notifyAllSubscribers({
       type: 'item_purchased',
-      item: item
+      item: updatedItem
     });
 
-    return { success: true, message: 'Achat réussi', item };
+    return { success: true, message: 'Achat réussi', item: updatedItem };
   }
 
-  // === RÉSOLUTION DES ENCHÈRES (APPELÉ EN FIN DE TOUR) ===
-  
-  resolveAuctions(currentTurn: number): Array<{ item: MarketplaceItem; result: 'sold' | 'extended' | 'expired' }> {
+  async resolveAuctions(currentTurn: number): Promise<Array<{ item: MarketplaceItem; result: 'sold' | 'extended' | 'expired' }>> {
     const results: Array<{ item: MarketplaceItem; result: 'sold' | 'extended' | 'expired' }> = [];
     
-    Array.from(this.marketItems.entries()).forEach(([itemId, item]) => {
-      if (item.saleType !== 'auction' || item.status !== 'active') return;
-      if (!item.auctionEndTurn || currentTurn < item.auctionEndTurn) return;
+    const auctions = await db.select().from(marketplaceItems)
+      .where(and(
+        eq(marketplaceItems.saleType, 'auction'),
+        eq(marketplaceItems.status, 'active')
+      ));
 
-      if (item.currentBidder && item.currentBid && item.currentBid > (item.startingBid || 0)) {
-        // Il y a eu des enchères - vendre l'objet
-        item.status = 'sold';
-        
-        // Notifier le gagnant
-        this.notifySubscribers(item.currentBidder, {
+    for (const item of auctions) {
+      if (!item.endTurn || currentTurn < item.endTurn) continue;
+
+      if (item.highestBidderId && item.currentBid && item.currentBid > (item.startingBid || 0)) {
+        await db.update(marketplaceItems)
+          .set({ 
+            status: 'sold',
+            buyerId: item.highestBidderId,
+            buyerName: item.highestBidderName,
+            soldAt: new Date()
+          })
+          .where(eq(marketplaceItems.id, item.id));
+
+        const soldItem = { ...item, status: 'sold' as const };
+
+        this.notifySubscribers(item.highestBidderId, {
           type: 'auction_won',
-          item: item,
+          item: soldItem,
           finalPrice: item.currentBid
         });
 
-        // Notifier le vendeur
         this.notifySubscribers(item.sellerId, {
           type: 'auction_completed',
-          item: item,
-          winner: item.currentBidder,
+          item: soldItem,
+          winner: item.highestBidderId,
           finalPrice: item.currentBid
         });
 
-        results.push({ item, result: 'sold' });
+        results.push({ item: soldItem, result: 'sold' });
       } else {
-        // Aucune enchère - prolonger l'enchère
-        item.auctionEndTurn = currentTurn + 1;
-        
-        // Notifier le vendeur
+        const newEndTurn = currentTurn + 1;
+        await db.update(marketplaceItems)
+          .set({ endTurn: newEndTurn })
+          .where(eq(marketplaceItems.id, item.id));
+
         this.notifySubscribers(item.sellerId, {
           type: 'auction_extended',
-          item: item,
-          newEndTurn: item.auctionEndTurn
+          item: { ...item, endTurn: newEndTurn },
+          newEndTurn
         });
 
-        results.push({ item, result: 'extended' });
+        results.push({ item: { ...item, endTurn: newEndTurn }, result: 'extended' });
       }
-    });
+    }
 
-    // Notifier tous les changements
     if (results.length > 0) {
       this.notifyAllSubscribers({
         type: 'auctions_resolved',
@@ -364,39 +345,37 @@ class MarketplaceService {
     return results;
   }
 
-  // === GESTION DES DONNÉES ===
-  
-  getAllItems(): MarketplaceItem[] {
-    return Array.from(this.marketItems.values());
+  async getAllItems(): Promise<MarketplaceItem[]> {
+    return await db.select().from(marketplaceItems);
   }
 
-  getItem(itemId: string): MarketplaceItem | undefined {
-    return this.marketItems.get(itemId);
+  async getItem(itemId: string): Promise<MarketplaceItem | null> {
+    const [item] = await db.select().from(marketplaceItems)
+      .where(eq(marketplaceItems.id, itemId));
+    return item || null;
   }
 
-  // Enrichir un item avec les détails de l'objet unique
   private enrichUniqueItem(item: MarketplaceItem): MarketplaceItem {
     if (item.itemType === 'unique_item' && item.uniqueItemId && this.exchangeService) {
       try {
-        // Essayer d'abord avec le sellerId, puis avec 'player' en fallback
         let uniqueItem = this.exchangeService.getPlayerItem(item.sellerId, item.uniqueItemId);
         if (!uniqueItem && item.sellerId !== 'player') {
           uniqueItem = this.exchangeService.getPlayerItem('player', item.uniqueItemId);
         }
         
         if (uniqueItem) {
-          item.uniqueItem = {
-            name: uniqueItem.name,
-            type: uniqueItem.type,
-            rarity: uniqueItem.rarity,
-            description: uniqueItem.description,
-            effects: uniqueItem.effects,
-            value: uniqueItem.value,
-            metadata: uniqueItem.metadata // Important pour les cartes !
+          return {
+            ...item,
+            uniqueItem: {
+              name: uniqueItem.name,
+              type: uniqueItem.type,
+              rarity: uniqueItem.rarity,
+              description: uniqueItem.description,
+              effects: uniqueItem.effects,
+              value: uniqueItem.value,
+              metadata: uniqueItem.metadata
+            }
           };
-          console.log('Enriched unique item:', item.uniqueItem.name, 'with metadata:', !!item.uniqueItem.metadata);
-        } else {
-          console.log('Could not find unique item:', item.uniqueItemId, 'for seller:', item.sellerId);
         }
       } catch (error) {
         console.log('Error enriching unique item:', error);
@@ -405,76 +384,76 @@ class MarketplaceService {
     return item;
   }
 
-  getActiveItems(): MarketplaceItem[] {
-    const activeItems = Array.from(this.marketItems.values())
-      .filter(item => item.status === 'active');
+  async getActiveItems(): Promise<MarketplaceItem[]> {
+    const activeItems = await db.select().from(marketplaceItems)
+      .where(eq(marketplaceItems.status, 'active'))
+      .orderBy(desc(marketplaceItems.createdAt));
     
-    console.log('Active items before enrichment:', activeItems.length);
+    return activeItems.map(item => this.enrichUniqueItem(item));
+  }
+
+  async getItemsByType(itemType: 'resource' | 'unique_item'): Promise<MarketplaceItem[]> {
+    const items = await db.select().from(marketplaceItems)
+      .where(and(
+        eq(marketplaceItems.status, 'active'),
+        eq(marketplaceItems.itemType, itemType)
+      ))
+      .orderBy(desc(marketplaceItems.createdAt));
     
-    const enrichedItems = activeItems.map(item => {
-      const enriched = this.enrichUniqueItem({ ...item });
-      if (item.itemType === 'unique_item') {
-        console.log(`Item ${item.uniqueItemId} enriched:`, !!enriched.uniqueItem);
-      }
-      return enriched;
-    });
+    return items.map(item => this.enrichUniqueItem(item));
+  }
+
+  async getItemsBySeller(sellerId: string): Promise<MarketplaceItem[]> {
+    return await db.select().from(marketplaceItems)
+      .where(eq(marketplaceItems.sellerId, sellerId))
+      .orderBy(desc(marketplaceItems.createdAt));
+  }
+
+  async searchItems(query: string): Promise<MarketplaceItem[]> {
+    const searchTerm = `%${query.toLowerCase()}%`;
     
-    return enrichedItems.sort((a, b) => b.createdAt - a.createdAt);
+    const items = await db.select().from(marketplaceItems)
+      .where(and(
+        eq(marketplaceItems.status, 'active'),
+        or(
+          sql`LOWER(${marketplaceItems.resourceType}) LIKE ${searchTerm}`,
+          sql`LOWER(${marketplaceItems.description}) LIKE ${searchTerm}`,
+          sql`${marketplaceItems.tags}::text ILIKE ${searchTerm}`
+        )
+      ))
+      .orderBy(desc(marketplaceItems.createdAt));
+    
+    return items.map(item => this.enrichUniqueItem(item));
   }
 
-  getItemsByType(itemType: 'resource' | 'unique_item'): MarketplaceItem[] {
-    return this.getActiveItems().filter(item => item.itemType === itemType);
-  }
-
-  getItemsBySeller(sellerId: string): MarketplaceItem[] {
-    return Array.from(this.marketItems.values())
-      .filter(item => item.sellerId === sellerId)
-      .sort((a, b) => b.createdAt - a.createdAt);
-  }
-
-  searchItems(query: string): MarketplaceItem[] {
-    const searchTerm = query.toLowerCase();
-    return this.getActiveItems().filter(item => {
-      const searchableText = [
-        item.resourceType,
-        item.uniqueItem?.name,
-        item.uniqueItem?.description,
-        item.description,
-        ...(item.tags || [])
-      ].filter(Boolean).join(' ').toLowerCase();
-      
-      return searchableText.includes(searchTerm);
-    });
-  }
-
-  removeItem(itemId: string, sellerId: string): boolean {
-    const item = this.marketItems.get(itemId);
+  async removeItem(itemId: string, sellerId: string): Promise<boolean> {
+    const [item] = await db.select().from(marketplaceItems)
+      .where(eq(marketplaceItems.id, itemId));
+    
     if (!item || item.sellerId !== sellerId) return false;
 
-    if (item.saleType === 'auction' && item.currentBidder) {
-      // Ne peut pas supprimer une enchère avec des offres
+    if (item.saleType === 'auction' && item.highestBidderId) {
       return false;
     }
 
-    item.status = 'cancelled';
-    
+    await db.update(marketplaceItems)
+      .set({ status: 'cancelled' })
+      .where(eq(marketplaceItems.id, itemId));
+
     this.notifyAllSubscribers({
       type: 'item_removed',
-      item: item
+      item: { ...item, status: 'cancelled' }
     });
 
     return true;
   }
 
-  // === SYSTÈME DE NOTIFICATIONS ===
-  
   subscribe(playerId: string, callback: (data: any) => void): () => void {
     if (!this.subscribers.has(playerId)) {
       this.subscribers.set(playerId, []);
     }
     this.subscribers.get(playerId)!.push(callback);
 
-    // Retourner une fonction de désabonnement
     return () => {
       const callbacks = this.subscribers.get(playerId);
       if (callbacks) {
@@ -512,10 +491,8 @@ class MarketplaceService {
   }
 }
 
-// Instance globale du service - sera initialisée avec exchangeService dans routes.ts
 export let marketplaceService: MarketplaceService;
 
-// Fonction d'initialisation à appeler depuis routes.ts
 export function initializeMarketplaceService(exchangeService: any): void {
   marketplaceService = new MarketplaceService(exchangeService);
 }

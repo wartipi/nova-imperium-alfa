@@ -75,6 +75,12 @@ Preferred communication style: Simple, everyday language.
 - `users`, `armies`, `marshalContracts`, `campaigns`, `battleEvents`
 - `publicEvents`, `mapRegions`, `mapDocuments`, `cartographyProjects`
 - `playerSkills`, `tradeRooms`, `exchangeOffers`, `uniqueItems`, `playerResources`
+- `treaties`, `messages`, `marketplaceItems` (Phase 2 - migrated from in-memory to PostgreSQL)
+
+## Phase 2 Migrations (December 2025)
+- **TreatyService**: Migrated from in-memory Map to PostgreSQL with JSONB @> operator for party membership queries
+- **MessageService**: Migrated from in-memory array to PostgreSQL with indexed queries on fromPlayer/toPlayer
+- **MarketplaceService**: Migrated from in-memory Map to PostgreSQL with full persistence for items, auctions, and bids
 
 ## Authentication & Authorization (Implemented)
 All sensitive routes now require JWT authentication via `requireAuth` middleware:

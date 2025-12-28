@@ -184,6 +184,61 @@ export const playerResources = pgTable("player_resources", {
   updatedAt: timestamp("updated_at").notNull().defaultNow()
 });
 
+// Table pour les traités
+export const treaties = pgTable("treaties", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  type: text("type").notNull(), // 'alliance_militaire', 'accord_commercial', 'pacte_non_agression', 'acces_militaire', 'echange_ressources', 'defense_mutuelle'
+  parties: jsonb("parties").notNull(), // Array de playerIds
+  terms: text("terms").notNull(),
+  status: text("status").notNull().default('proposed'), // 'draft', 'proposed', 'active', 'expired', 'broken'
+  createdBy: text("created_by").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  expiresAt: timestamp("expires_at"),
+  signatures: jsonb("signatures").notNull().default('[]'), // Array de { playerId, signedAt }
+  properties: jsonb("properties").notNull().default('{}'),
+  actionPointsCost: integer("action_points_cost").notNull().default(15)
+});
+
+// Table pour les messages
+export const messages = pgTable("messages", {
+  id: text("id").primaryKey(),
+  fromPlayer: text("from_player").notNull(),
+  toPlayer: text("to_player").notNull(),
+  content: text("content").notNull(),
+  type: text("type").notNull().default('private'), // 'private', 'system', 'treaty', 'trade'
+  isRead: boolean("is_read").notNull().default(false),
+  timestamp: timestamp("timestamp").notNull().defaultNow()
+});
+
+// Table pour le marketplace
+export const marketplaceItems = pgTable("marketplace_items", {
+  id: text("id").primaryKey(),
+  sellerId: text("seller_id").notNull(),
+  sellerName: text("seller_name").notNull(),
+  itemType: text("item_type").notNull(), // 'resource', 'unique_item', 'map', 'service'
+  saleType: text("sale_type").notNull(), // 'direct_sale', 'auction'
+  status: text("status").notNull().default('active'), // 'active', 'sold', 'cancelled', 'expired'
+  fixedPrice: integer("fixed_price"),
+  startingBid: integer("starting_bid"),
+  currentBid: integer("current_bid"),
+  highestBidderId: text("highest_bidder_id"),
+  highestBidderName: text("highest_bidder_name"),
+  minBidIncrement: integer("min_bid_increment").default(10),
+  bids: jsonb("bids").notNull().default('[]'), // Array de { bidderId, bidderName, amount, timestamp }
+  endTurn: integer("end_turn"),
+  resourceType: text("resource_type"),
+  quantity: integer("quantity"),
+  uniqueItemId: text("unique_item_id"),
+  uniqueItem: jsonb("unique_item"),
+  description: text("description"),
+  tags: jsonb("tags").default('[]'),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  soldAt: timestamp("sold_at"),
+  buyerId: text("buyer_id"),
+  buyerName: text("buyer_name")
+});
+
 // Schémas d'insertion pour validation
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
@@ -312,6 +367,39 @@ export const insertPlayerResourceSchema = createInsertSchema(playerResources).pi
   quantity: true
 });
 
+export const insertTreatySchema = createInsertSchema(treaties).pick({
+  title: true,
+  type: true,
+  parties: true,
+  terms: true,
+  createdBy: true,
+  expiresAt: true,
+  properties: true
+});
+
+export const insertMessageSchema = createInsertSchema(messages).pick({
+  fromPlayer: true,
+  toPlayer: true,
+  content: true,
+  type: true
+});
+
+export const insertMarketplaceItemSchema = createInsertSchema(marketplaceItems).pick({
+  sellerId: true,
+  sellerName: true,
+  itemType: true,
+  saleType: true,
+  fixedPrice: true,
+  startingBid: true,
+  endTurn: true,
+  resourceType: true,
+  quantity: true,
+  uniqueItemId: true,
+  uniqueItem: true,
+  description: true,
+  tags: true
+});
+
 // Types TypeScript
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -341,3 +429,9 @@ export type UniqueItem = typeof uniqueItems.$inferSelect;
 export type InsertUniqueItem = z.infer<typeof insertUniqueItemSchema>;
 export type PlayerResource = typeof playerResources.$inferSelect;
 export type InsertPlayerResource = z.infer<typeof insertPlayerResourceSchema>;
+export type Treaty = typeof treaties.$inferSelect;
+export type InsertTreaty = z.infer<typeof insertTreatySchema>;
+export type Message = typeof messages.$inferSelect;
+export type InsertMessage = z.infer<typeof insertMessageSchema>;
+export type MarketplaceItem = typeof marketplaceItems.$inferSelect;
+export type InsertMarketplaceItem = z.infer<typeof insertMarketplaceItemSchema>;

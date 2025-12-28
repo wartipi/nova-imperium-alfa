@@ -1,66 +1,72 @@
-// Service de messagerie temps réel pour Nova Imperium
-interface Message {
-  id: string;
-  from: string;
-  to: string;
-  content: string;
-  timestamp: number;
-  read: boolean;
-  type: 'message' | 'alliance' | 'trade' | 'warning';
-}
+import { eq, and, or, lt, desc, sql } from "drizzle-orm";
+import { db } from "./db";
+import { messages } from "../shared/schema";
+import type { Message } from "../shared/schema";
 
 class MessageService {
-  private messages: Message[] = [];
   private subscribers: Map<string, Array<(messages: Message[]) => void>> = new Map();
 
-  // Envoyer un message
-  sendMessage(message: Omit<Message, 'id' | 'timestamp' | 'read'>): Message {
-    const newMessage: Message = {
-      ...message,
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-      timestamp: Date.now(),
-      read: false
-    };
-
-    this.messages.push(newMessage);
+  async sendMessage(message: {
+    from: string;
+    to: string;
+    content: string;
+    type: 'private' | 'system' | 'treaty' | 'trade';
+  }): Promise<Message> {
+    const id = `msg_${Date.now()}_${Math.random().toString(36).substring(2)}`;
     
-    // Notifier les abonnés du destinataire
+    const [newMessage] = await db.insert(messages).values({
+      id,
+      fromPlayer: message.from,
+      toPlayer: message.to,
+      content: message.content,
+      type: message.type,
+      isRead: false,
+      timestamp: new Date()
+    }).returning();
+
     this.notifySubscribers(message.to);
     
     return newMessage;
   }
 
-  // Obtenir tous les messages pour un joueur
-  getMessagesForPlayer(playerId: string): Message[] {
-    return this.messages.filter(msg => msg.to === playerId || msg.from === playerId);
+  async getMessagesForPlayer(playerId: string): Promise<Message[]> {
+    return await db.select().from(messages)
+      .where(or(
+        eq(messages.toPlayer, playerId),
+        eq(messages.fromPlayer, playerId)
+      ))
+      .orderBy(desc(messages.timestamp));
   }
 
-  // Obtenir uniquement les messages reçus
-  getReceivedMessages(playerId: string): Message[] {
-    return this.messages.filter(msg => msg.to === playerId);
+  async getReceivedMessages(playerId: string): Promise<Message[]> {
+    return await db.select().from(messages)
+      .where(eq(messages.toPlayer, playerId))
+      .orderBy(desc(messages.timestamp));
   }
 
-  // Obtenir uniquement les messages envoyés
-  getSentMessages(playerId: string): Message[] {
-    return this.messages.filter(msg => msg.from === playerId);
+  async getSentMessages(playerId: string): Promise<Message[]> {
+    return await db.select().from(messages)
+      .where(eq(messages.fromPlayer, playerId))
+      .orderBy(desc(messages.timestamp));
   }
 
-  // Marquer un message comme lu
-  markAsRead(messageId: string, playerId: string): boolean {
-    const message = this.messages.find(msg => 
-      msg.id === messageId && msg.to === playerId
-    );
+  async markAsRead(messageId: string, playerId: string): Promise<boolean> {
+    const [message] = await db.select().from(messages)
+      .where(and(
+        eq(messages.id, messageId),
+        eq(messages.toPlayer, playerId)
+      ));
     
-    if (message) {
-      message.read = true;
-      this.notifySubscribers(playerId);
-      return true;
-    }
+    if (!message) return false;
     
-    return false;
+    await db.update(messages)
+      .set({ isRead: true })
+      .where(eq(messages.id, messageId));
+    
+    this.notifySubscribers(playerId);
+    return true;
   }
 
-  // S'abonner aux mises à jour de messages
   subscribe(playerId: string, callback: (messages: Message[]) => void): () => void {
     if (!this.subscribers.has(playerId)) {
       this.subscribers.set(playerId, []);
@@ -68,10 +74,11 @@ class MessageService {
     
     this.subscribers.get(playerId)!.push(callback);
     
-    // Envoyer les messages existants immédiatement
-    callback(this.getMessagesForPlayer(playerId));
+    (async () => {
+      const playerMessages = await this.getMessagesForPlayer(playerId);
+      callback(playerMessages);
+    })();
     
-    // Retourner une fonction de désabonnement
     return () => {
       const callbacks = this.subscribers.get(playerId);
       if (callbacks) {
@@ -83,37 +90,38 @@ class MessageService {
     };
   }
 
-  // Notifier tous les abonnés d'un joueur
-  private notifySubscribers(playerId: string): void {
+  private async notifySubscribers(playerId: string): Promise<void> {
     const callbacks = this.subscribers.get(playerId);
     if (callbacks) {
-      const messages = this.getMessagesForPlayer(playerId);
-      callbacks.forEach(callback => callback(messages));
+      const playerMessages = await this.getMessagesForPlayer(playerId);
+      callbacks.forEach(callback => callback(playerMessages));
     }
   }
 
-  // Obtenir des statistiques
-  getStats(playerId: string): {
+  async getStats(playerId: string): Promise<{
     totalReceived: number;
     totalSent: number;
     unreadCount: number;
     totalMessages: number;
-  } {
-    const received = this.getReceivedMessages(playerId);
-    const sent = this.getSentMessages(playerId);
+  }> {
+    const received = await this.getReceivedMessages(playerId);
+    const sent = await this.getSentMessages(playerId);
+    
+    const unreadCount = received.filter(msg => !msg.isRead).length;
     
     return {
       totalReceived: received.length,
       totalSent: sent.length,
-      unreadCount: received.filter(msg => !msg.read).length,
-      totalMessages: this.messages.length
+      unreadCount,
+      totalMessages: received.length + sent.length
     };
   }
 
-  // Nettoyer les anciens messages (optionnel)
-  cleanOldMessages(maxAge: number = 24 * 60 * 60 * 1000): void {
-    const now = Date.now();
-    this.messages = this.messages.filter(msg => now - msg.timestamp < maxAge);
+  async cleanOldMessages(maxAge: number = 24 * 60 * 60 * 1000): Promise<void> {
+    const cutoffDate = new Date(Date.now() - maxAge);
+    
+    await db.delete(messages)
+      .where(lt(messages.timestamp, cutoffDate));
   }
 }
 
