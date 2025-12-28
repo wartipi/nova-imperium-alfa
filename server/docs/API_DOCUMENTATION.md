@@ -13,23 +13,29 @@ Cette documentation décrit l'architecture backend de Nova Imperium, incluant le
 ```
 server/
 ├── db/
-│   └── indexes.ts          # Création des index de base de données
+│   └── indexes.ts              # Création des index de base de données
+├── docs/
+│   └── API_DOCUMENTATION.md    # Cette documentation
 ├── middleware/
-│   └── auth.ts             # Middlewares d'authentification JWT
+│   └── auth.ts                 # Middlewares d'authentification JWT
 ├── routes/
-│   ├── marshal.ts          # Routes du système de maréchaux
-│   └── publicEvents.ts     # Routes des événements publics
+│   ├── marshal.ts              # Routes du système de maréchaux
+│   └── publicEvents.ts         # Routes des événements publics
 ├── utils/
-│   └── geospatial.ts       # Utilitaires pour requêtes géospatiales
-├── cartographyService.ts   # Service de cartographie
-├── exchangeService.ts      # Service d'échange de ressources/objets
-├── marketplaceService.ts   # Service du marché public
-├── marshalService.ts       # Service de gestion des armées
-├── messageService.ts       # Service de messagerie
-├── publicEventsService.ts  # Service du journal du monde
-├── treatyService.ts        # Service des traités diplomatiques
-├── routes.ts               # Configuration principale des routes
-└── storage.ts              # Interface de stockage
+│   ├── geospatial.ts           # Utilitaires pour requêtes géospatiales
+│   └── jsonbQueries.ts         # Utilitaires pour requêtes JSONB
+├── cartographyService.ts       # Service de cartographie
+├── exchangeService.ts          # Service d'échange de ressources/objets
+├── marketplaceService.ts       # Service du marché public
+├── marshalService.ts           # Service de gestion des armées
+├── messageService.ts           # Service de messagerie
+├── publicEventsService.ts      # Service du journal du monde
+├── treatyService.ts            # Service des traités diplomatiques
+├── routes.ts                   # Configuration principale des routes
+└── storage.ts                  # Interface de stockage
+
+shared/
+└── exchangeValidation.ts       # Schémas Zod pour validation des entrées
 ```
 
 ---
@@ -358,20 +364,50 @@ server/
 
 ## Endpoints API
 
+### Routes protégées par `requireSelfOrAdmin`
+
+Ces routes nécessitent que l'utilisateur soit authentifié ET accède à ses propres données (ou soit admin/gm) :
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/messages/:playerId` | Messages d'un joueur |
+| `GET /api/messages/:playerId/stats` | Statistiques des messages |
+| `GET /api/treaties/player/:playerId` | Traités d'un joueur |
+| `GET /api/treaties/:playerId/stats` | Statistiques des traités |
+| `GET /api/exchange/rooms/:playerId` | Salles de troc d'un joueur |
+| `GET /api/exchange/offers/:playerId` | Offres d'échange d'un joueur |
+| `GET /api/cartography/regions/:playerId` | Régions explorées par un joueur |
+| `GET /api/cartography/maps/:playerId` | Documents cartographiques d'un joueur |
+| `GET /api/cartography/projects/:playerId` | Projets de cartographie d'un joueur |
+| `GET /api/cartography/stats/:playerId` | Statistiques de cartographie |
+| `GET /api/unique-items/:playerId` | Objets uniques d'un joueur |
+
+### Routes admin/gm uniquement (`requireRole`)
+
+| Endpoint | Rôles | Description |
+|----------|-------|-------------|
+| `POST /api/marketplace/resolve-auctions` | admin, gm | Résout les enchères terminées |
+| `POST /api/public-events/*` (création) | admin, gm | Création d'événements |
+| `PATCH /api/public-events/:id/visibility` | admin, gm | Visibilité des événements |
+| `DELETE /api/public-events/:id` | admin, gm | Suppression d'événements |
+
 ### Messages
 
 | Méthode | Endpoint | Auth | Description |
 |---------|----------|------|-------------|
-| GET | `/api/messages/:playerId` | Non | Récupère les messages d'un joueur |
+| GET | `/api/messages/:playerId` | Oui* | Récupère les messages d'un joueur |
 | POST | `/api/messages` | Oui | Envoie un message |
 | PATCH | `/api/messages/:messageId/read` | Oui | Marque un message comme lu |
-| GET | `/api/messages/:playerId/stats` | Non | Statistiques des messages |
+| GET | `/api/messages/:playerId/stats` | Oui* | Statistiques des messages |
+
+*Requiert `requireSelfOrAdmin` - l'utilisateur doit accéder à ses propres données
 
 ### Traités
 
 | Méthode | Endpoint | Auth | Description |
 |---------|----------|------|-------------|
-| GET | `/api/treaties/player/:playerId` | Non | Traités d'un joueur |
+| GET | `/api/treaties/player/:playerId` | Oui* | Traités d'un joueur |
+| GET | `/api/treaties/:playerId/stats` | Oui* | Statistiques des traités |
 | GET | `/api/treaties/types` | Non | Types de traités disponibles |
 | POST | `/api/treaties` | Oui | Crée un traité |
 | PATCH | `/api/treaties/:treatyId/sign` | Oui | Signe un traité |
@@ -381,29 +417,46 @@ server/
 
 | Méthode | Endpoint | Auth | Description |
 |---------|----------|------|-------------|
-| GET | `/api/exchange/rooms/:playerId` | Non | Salles de troc d'un joueur |
-| POST | `/api/exchange/rooms` | Oui | Crée une salle de troc |
-| POST | `/api/exchange/offers` | Oui | Crée une offre |
-| POST | `/api/exchange/offers/:offerId/accept` | Oui | Accepte une offre |
-| POST | `/api/exchange/offers/:offerId/reject` | Oui | Rejette une offre |
+| GET | `/api/exchange/rooms/:playerId` | Oui* | Salles de troc d'un joueur |
+| GET | `/api/exchange/offers/:playerId` | Oui* | Offres d'échange d'un joueur |
+| POST | `/api/exchange/room` | Oui | Crée une salle de troc |
+| DELETE | `/api/exchange/room/:roomId` | Oui | Supprime une salle de troc |
+| POST | `/api/exchange/offer` | Oui | Crée une offre d'échange |
+| POST | `/api/exchange/offer/unique` | Oui | Crée une offre d'objets uniques |
+| POST | `/api/exchange/offer/:offerId/accept` | Oui | Accepte une offre |
+| POST | `/api/exchange/offer/:offerId/reject` | Oui | Rejette une offre |
 | GET | `/api/exchange/items/:playerId` | Non | Objets uniques d'un joueur |
 | POST | `/api/exchange/items` | Oui | Crée un objet unique |
 | GET | `/api/exchange/resources/:playerId` | Non | Ressources d'un joueur |
+
+*Requiert `requireSelfOrAdmin`
+
+### Objets Uniques
+
+| Méthode | Endpoint | Auth | Description |
+|---------|----------|------|-------------|
+| GET | `/api/unique-items/:playerId` | Oui* | Objets uniques d'un joueur |
+
+*Requiert `requireSelfOrAdmin`
 
 ### Cartographie
 
 | Méthode | Endpoint | Auth | Description |
 |---------|----------|------|-------------|
-| GET | `/api/cartography/regions` | Non | Liste des régions |
-| GET | `/api/cartography/regions/:regionId` | Non | Détails d'une région |
-| GET | `/api/cartography/regions/nearby/:x/:y/:radius` | Non | Régions proches |
-| GET | `/api/cartography/regions/area` | Non | Régions dans une zone |
-| POST | `/api/cartography/regions/discover` | Oui | Découvre une région |
-| GET | `/api/cartography/documents/:playerId` | Non | Documents d'un joueur |
-| GET | `/api/cartography/projects/:playerId` | Non | Projets d'un joueur |
-| POST | `/api/cartography/projects` | Oui | Démarre un projet |
-| PATCH | `/api/cartography/projects/:projectId/progress` | Oui | Avance un projet |
+| GET | `/api/cartography/regions/:playerId` | Oui* | Régions explorées par un joueur |
+| GET | `/api/cartography/regions/nearby` | Non | Régions proches (query: x, y, radius, limit) |
+| GET | `/api/cartography/regions/area` | Non | Régions dans une zone (query: minX, maxX, minY, maxY) |
+| POST | `/api/cartography/discover` | Oui | Découvre une région |
+| GET | `/api/cartography/maps/:playerId` | Oui* | Documents cartographiques d'un joueur |
+| GET | `/api/cartography/maps/tradable` | Non | Documents échangeables |
+| GET | `/api/cartography/map/:mapId` | Non | Détails d'un document |
+| GET | `/api/cartography/projects/:playerId` | Oui* | Projets d'un joueur |
+| GET | `/api/cartography/stats/:playerId` | Oui* | Statistiques de cartographie |
+| POST | `/api/cartography/project` | Oui | Démarre un projet |
+| POST | `/api/cartography/project/:projectId/progress` | Oui | Avance un projet |
 | POST | `/api/cartography/transfer` | Oui | Transfère un document |
+
+*Requiert `requireSelfOrAdmin`
 
 ### Marketplace
 
@@ -424,13 +477,15 @@ server/
 | Méthode | Endpoint | Auth | Description |
 |---------|----------|------|-------------|
 | GET | `/api/marshal/armies/:playerId` | Non | Armées d'un joueur |
+| GET | `/api/marshal/armies/nearby` | Non | Armées proches (query: x, y, radius, limit?) |
 | POST | `/api/marshal/armies` | Oui | Crée une armée |
 | PUT | `/api/marshal/armies/:armyId` | Oui | Met à jour une armée |
 | GET | `/api/marshal/contracts/:playerId` | Non | Contrats d'un joueur |
 | POST | `/api/marshal/contracts` | Oui | Crée un contrat |
 | PATCH | `/api/marshal/contracts/:contractId/accept` | Oui | Accepte un contrat |
 | PATCH | `/api/marshal/contracts/:contractId/reject` | Oui | Rejette un contrat |
-| GET | `/api/marshal/campaigns` | Non | Liste des campagnes |
+| GET | `/api/marshal/campaigns` | Non | Liste des campagnes actives |
+| GET | `/api/marshal/battles/:campaignId` | Non | Batailles d'une campagne |
 | POST | `/api/marshal/campaigns` | Oui | Crée une campagne |
 | POST | `/api/marshal/campaigns/:campaignId/join` | Oui | Rejoint une campagne |
 | POST | `/api/marshal/battles` | Oui | Crée une bataille |
@@ -451,49 +506,132 @@ server/
 
 ## Validation des Données (Zod)
 
-Tous les endpoints POST/PATCH utilisent des schémas Zod pour valider les données entrantes :
+Tous les endpoints POST/PATCH utilisent des schémas Zod pour valider les données entrantes. Fichier source : `shared/exchangeValidation.ts`
 
-- `createTradeRoomSchema` - Création de salle de troc
-- `createExchangeOfferSchema` - Création d'offre d'échange
-- `acceptRejectOfferSchema` - Acceptation/rejet d'offre
-- `discoverRegionSchema` - Découverte de région
-- `startCartographyProjectSchema` - Démarrage de projet
-- `progressProjectSchema` - Progression de projet
-- `cartographyTransferSchema` - Transfert de document
-- `createMessageSchema` - Envoi de message
-- `createTreatySchema` - Création de traité
-- `signTreatySchema` - Signature de traité
-- `createUniqueItemSchema` - Création d'objet unique
-- `marketplaceSellSchema` - Mise en vente
-- `marketplaceAuctionSchema` - Mise aux enchères
-- `marketplaceBidSchema` - Placement d'enchère
-- `marketplaceBuySchema` - Achat direct
-- `resolveAuctionsSchema` - Résolution des enchères
+### Échanges et Commerce
+| Schéma | Description | Route |
+|--------|-------------|-------|
+| `createTradeRoomSchema` | Création de salle de troc | POST /api/exchange/room |
+| `createExchangeOfferSchema` | Création d'offre d'échange | POST /api/exchange/offer |
+| `uniqueItemOfferSchema` | Offre d'objets uniques | POST /api/exchange/offer/unique |
+| `acceptRejectOfferSchema` | Acceptation/rejet d'offre | POST /api/exchange/offer/:offerId/accept ou /reject |
+
+### Cartographie
+| Schéma | Description | Route |
+|--------|-------------|-------|
+| `discoverRegionSchema` | Découverte de région | POST /api/cartography/discover |
+| `startCartographyProjectSchema` | Démarrage de projet | POST /api/cartography/project |
+| `progressProjectSchema` | Progression de projet | POST /api/cartography/project/:id/progress |
+| `cartographyTransferSchema` | Transfert de document | POST /api/cartography/transfer |
+
+### Messages et Traités
+| Schéma | Description | Champs requis |
+|--------|-------------|---------------|
+| `createMessageSchema` | Envoi de message | toPlayer, content, type? |
+| `createTreatySchema` | Création de traité | title, type, parties, terms |
+| `signTreatySchema` | Signature de traité | treatyId |
+
+### Objets Uniques
+| Schéma | Description | Champs requis |
+|--------|-------------|---------------|
+| `createUniqueItemSchema` | Création d'objet unique | name, type, rarity, description |
+
+### Marketplace
+| Schéma | Description | Champs requis |
+|--------|-------------|---------------|
+| `marketplaceSellSchema` | Mise en vente (prix fixe) | itemType, price, resourceType/uniqueItemId |
+| `marketplaceAuctionSchema` | Mise aux enchères | itemType, startingBid, minBidIncrement, endTurn |
+| `marketplaceBidSchema` | Placement d'enchère | bidAmount |
+| `marketplaceBuySchema` | Achat direct | - |
+| `mapSellSchema` | Mise en vente de carte | itemId, price |
+| `mapBuySchema` | Achat de carte | offerId |
+| `resolveAuctionsSchema` | Résolution des enchères | currentTurn |
+
+### Maréchaux (dans `server/routes/marshal.ts`)
+| Schéma | Description | Champs requis |
+|--------|-------------|---------------|
+| `createArmySchema` | Création d'armée | name, composition |
+| `createContractSchema` | Création de contrat | armyId, terms |
+| `assignMarshalSchema` | Assignation de maréchal | marshalId, armyId |
+| `createCampaignSchema` | Création de campagne | name, rules |
+| `joinCampaignSchema` | Participation campagne | armyId |
+| `createBattleEventSchema` | Création de bataille | armyIds, description |
+| `updateBattleSchema` | Mise à jour bataille | phase?, status?, result? |
 
 ---
 
 ## Utilitaires
 
-### Requêtes Géospatiales (`server/utils/geospatial.ts`)
+### Requêtes JSONB (`server/utils/jsonbQueries.ts`)
+
+Fonctions réutilisables pour les requêtes sur colonnes JSONB avec l'opérateur `@>` :
 
 ```typescript
-// Condition de bounding box (pré-filtrage efficace)
+// Vérification de contenance générique
+jsonbContains(column, value)                    // column @> value
+
+// Vérification qu'un array contient un élément
+jsonbContainsArray(column, arrayItem)           // column @> [item]
+
+// Vérification qu'un objet contient des propriétés
+jsonbContainsObject(column, obj)                // column @> {key: value}
+
+// Vérification multi-valeurs (OR)
+jsonbArrayHasAny(column, values)                // Retourne array de conditions
+
+// Extraction de valeurs
+jsonbExtractText(column, key)                   // column->>'key' (texte)
+jsonbExtractNumber(column, key)                 // (column->>'key')::float
+```
+
+**Exemples d'utilisation :**
+```typescript
+// Trouver les campagnes avec une armée spécifique
+const condition = jsonbContainsArray(campaigns.participatingArmies, armyId);
+
+// Trouver les traités impliquant un joueur
+const condition = jsonbContainsArray(treaties.parties, playerId);
+```
+
+### Requêtes Géospatiales (`server/utils/geospatial.ts`)
+
+Fonctions réutilisables pour les recherches basées sur la distance avec optimisation via bounding box :
+
+```typescript
+// Condition de bounding box (pré-filtrage efficace avec index B-tree)
 createBoundingBoxCondition(xColumn, yColumn, centerX, centerY, radius)
 
-// Condition de distance exacte
+// Condition de distance exacte (Euclidienne)
 createDistanceCondition(xColumn, yColumn, targetX, targetY, maxDistance)
 
-// Condition pour colonnes JSONB avec location
+// Condition pour colonnes JSONB avec location {x, y}
 createJsonbLocationDistanceCondition(locationColumn, targetX, targetY, maxDistance)
 
-// Requête spatiale optimisée combinée
-createOptimizedSpatialQuery(options)
+// Requête spatiale optimisée combinée (bounding box + distance)
+createOptimizedSpatialQuery(options: GeospatialQueryOptions)
 
-// Tri par distance
+// Tri par distance croissante
 orderByDistanceSQL(xColumn, yColumn, targetX, targetY)
 
-// Calcul de distance en mémoire
+// Calcul de distance en mémoire (utilitaire)
 calculateDistance(x1, y1, x2, y2)
+```
+
+**Stratégie d'optimisation :**
+1. Le bounding box utilise les index B-tree pour un filtrage O(log n)
+2. La condition de distance affine le résultat pour les cas circulaires
+3. Combinaison des deux pour performance optimale
+
+**Exemple d'utilisation :**
+```typescript
+// Trouver les régions dans un rayon de 50 unités
+const results = await db.select()
+  .from(mapRegions)
+  .where(and(
+    ...createBoundingBoxCondition(mapRegions.centerX, mapRegions.centerY, x, y, 50),
+    createDistanceCondition(mapRegions.centerX, mapRegions.centerY, x, y, 50)
+  ))
+  .orderBy(orderByDistanceSQL(mapRegions.centerX, mapRegions.centerY, x, y));
 ```
 
 ### Index de Base de Données (`server/db/indexes.ts`)
