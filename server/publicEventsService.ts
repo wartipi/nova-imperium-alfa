@@ -73,30 +73,24 @@ export class PublicEventsService {
       if (filter.location) {
         const { x, y, radius } = filter.location;
         conditions.push(
+          sql`${publicEvents.location} IS NOT NULL`
+        );
+        conditions.push(
           sql`(${publicEvents.location}->>'x')::float BETWEEN ${x - radius} AND ${x + radius}`
         );
         conditions.push(
           sql`(${publicEvents.location}->>'y')::float BETWEEN ${y - radius} AND ${y + radius}`
         );
+        conditions.push(
+          sql`SQRT(POWER((${publicEvents.location}->>'x')::float - ${x}, 2) + POWER((${publicEvents.location}->>'y')::float - ${y}, 2)) <= ${radius}`
+        );
       }
     }
 
-    let events = await db.select().from(publicEvents)
+    const events = await db.select().from(publicEvents)
       .where(and(...conditions))
       .orderBy(desc(publicEvents.timestamp))
       .limit(limit ?? 100);
-
-    if (filter?.location) {
-      const { x, y, radius } = filter.location;
-      events = events.filter(event => {
-        if (!event.location) return false;
-        const loc = event.location as { x: number; y: number };
-        const distance = Math.sqrt(
-          Math.pow(loc.x - x, 2) + Math.pow(loc.y - y, 2)
-        );
-        return distance <= radius;
-      });
-    }
 
     return events;
   }

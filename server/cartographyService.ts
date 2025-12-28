@@ -100,23 +100,28 @@ class CartographyService {
     const newSpentActionPoints = project.spentActionPoints + actionPointsSpent;
     const newProgress = Math.min((newSpentActionPoints / project.requiredActionPoints) * 100, 100);
 
-    await db.update(cartographyProjects)
-      .set({ 
-        spentActionPoints: newSpentActionPoints, 
-        progress: Math.floor(newProgress) 
-      })
-      .where(eq(cartographyProjects.id, projectId));
+    let mapDocument: MapDocument | null = null;
 
-    if (newProgress >= 100) {
-      const mapDocument = await this.createMapDocument(project);
-      if (mapDocument) {
-        this.notifySubscribers(project.playerId, {
-          type: 'map_completed',
-          map: mapDocument,
-          project
-        });
+    await db.transaction(async (tx) => {
+      await tx.update(cartographyProjects)
+        .set({ 
+          spentActionPoints: newSpentActionPoints, 
+          progress: Math.floor(newProgress) 
+        })
+        .where(eq(cartographyProjects.id, projectId));
+
+      if (newProgress >= 100) {
+        mapDocument = await this.createMapDocumentInTx(tx, project);
       }
-    } else {
+    });
+
+    if (newProgress >= 100 && mapDocument) {
+      this.notifySubscribers(project.playerId, {
+        type: 'map_completed',
+        map: mapDocument,
+        project
+      });
+    } else if (newProgress < 100) {
       this.notifySubscribers(project.playerId, {
         type: 'project_progress',
         project: { ...project, progress: newProgress, spentActionPoints: newSpentActionPoints }
@@ -127,7 +132,11 @@ class CartographyService {
   }
 
   private async createMapDocument(project: CartographyProject): Promise<MapDocument | null> {
-    const [region] = await db.select().from(mapRegions)
+    return this.createMapDocumentInTx(db, project);
+  }
+
+  private async createMapDocumentInTx(tx: any, project: CartographyProject): Promise<MapDocument | null> {
+    const [region] = await tx.select().from(mapRegions)
       .where(eq(mapRegions.id, project.regionId));
     
     if (!region) return null;
@@ -152,7 +161,7 @@ class CartographyService {
     const uniqueFeatures = this.identifyUniqueFeatures(region, quality);
     const tradingValue = this.calculateTradingValue(region, quality, accuracy, hiddenSecrets.length);
 
-    const existingMaps = await db.select().from(mapDocuments)
+    const existingMaps = await tx.select().from(mapDocuments)
       .where(and(
         eq(mapDocuments.regionId, region.id),
         eq(mapDocuments.quality, quality)
@@ -161,7 +170,7 @@ class CartographyService {
 
     const id = `map_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    const [mapDocument] = await db.insert(mapDocuments).values({
+    const [mapDocument] = await tx.insert(mapDocuments).values({
       id,
       name: `Carte de ${region.name}`,
       regionId: region.id,
@@ -268,21 +277,18 @@ class CartographyService {
   }
 
   private async findRegionAt(x: number, y: number, radius: number): Promise<MapRegion | null> {
-    const nearbyRegions = await db.select().from(mapRegions)
+    const [region] = await db.select().from(mapRegions)
       .where(and(
         gte(mapRegions.centerX, x - radius),
         lte(mapRegions.centerX, x + radius),
         gte(mapRegions.centerY, y - radius),
-        lte(mapRegions.centerY, y + radius)
-      ));
+        lte(mapRegions.centerY, y + radius),
+        sql`SQRT(POWER(${mapRegions.centerX} - ${x}, 2) + POWER(${mapRegions.centerY} - ${y}, 2)) <= ${radius}`,
+        sql`ABS(${mapRegions.radius} - ${radius}) <= 2`
+      ))
+      .limit(1);
     
-    for (const region of nearbyRegions) {
-      const distance = Math.sqrt((region.centerX - x) ** 2 + (region.centerY - y) ** 2);
-      if (distance <= radius && Math.abs(region.radius - radius) <= 2) {
-        return region;
-      }
-    }
-    return null;
+    return region || null;
   }
 
   async getDiscoveredRegions(playerId: string): Promise<MapRegion[]> {

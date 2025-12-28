@@ -9,6 +9,16 @@ import { marketplaceService, initializeMarketplaceService } from "./marketplaceS
 import { loginEndpoint } from "./middleware/auth";
 import marshalRoutes from "./routes/marshal";
 import publicEventsRoutes from "./routes/publicEvents";
+import { 
+  createTradeRoomSchema, 
+  createExchangeOfferSchema, 
+  acceptRejectOfferSchema,
+  discoverRegionSchema,
+  startCartographyProjectSchema,
+  progressProjectSchema,
+  transferMapSchema,
+  createMessageSchema
+} from "../shared/exchangeValidation";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialiser le marketplace service avec exchangeService
@@ -67,21 +77,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/messages", async (req, res) => {
     try {
-      const { from, to, content, type, read = false } = req.body;
-      
-      if (!from || !to || !content) {
-        return res.status(400).json({ error: "Missing required fields" });
-      }
+      const validatedData = createMessageSchema.parse(req.body);
       
       const message = messageService.sendMessage({
-        from,
-        to,
-        content,
-        type: type || 'message'
+        from: validatedData.from,
+        to: validatedData.to,
+        content: validatedData.content,
+        type: validatedData.type
       });
       
       res.json(message);
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
       res.status(500).json({ error: "Failed to send message" });
     }
   });
@@ -220,36 +229,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/exchange/room", async (req, res) => {
     try {
-      const { treatyId, participants } = req.body;
-      const room = await exchangeService.createTradeRoom(treatyId, participants);
+      const validatedData = createTradeRoomSchema.parse(req.body);
+      const room = await exchangeService.createTradeRoom(validatedData.treatyId, validatedData.participants);
       res.json(room);
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
       res.status(500).json({ error: "Failed to create trade room" });
     }
   });
 
   app.post("/api/exchange/offer", async (req, res) => {
     try {
-      const { 
-        roomId, 
-        fromPlayer, 
-        toPlayer, 
-        resourcesOffered, 
-        resourcesRequested, 
-        uniqueItemsOffered, 
-        uniqueItemsRequested, 
-        message 
-      } = req.body;
+      const validatedData = createExchangeOfferSchema.parse(req.body);
       
       const offer = await exchangeService.createExchangeOffer(
-        roomId,
-        fromPlayer,
-        toPlayer,
-        resourcesOffered,
-        resourcesRequested,
-        uniqueItemsOffered,
-        uniqueItemsRequested,
-        message
+        validatedData.roomId,
+        validatedData.fromPlayer,
+        validatedData.toPlayer,
+        validatedData.resourcesOffered,
+        validatedData.resourcesRequested,
+        validatedData.uniqueItemsOffered,
+        validatedData.uniqueItemsRequested,
+        validatedData.message
       );
       
       if (offer) {
@@ -257,7 +260,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         res.status(400).json({ error: "Failed to create offer" });
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
       res.status(500).json({ error: "Failed to create offer" });
     }
   });
@@ -265,16 +271,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/exchange/offer/:offerId/accept", async (req, res) => {
     try {
       const { offerId } = req.params;
-      const { playerId } = req.body;
+      const validatedData = acceptRejectOfferSchema.parse(req.body);
       
-      const success = await exchangeService.acceptOffer(offerId, playerId);
+      const success = await exchangeService.acceptOffer(offerId, validatedData.playerId);
       
       if (success) {
         res.json({ success: true, message: "Offer accepted" });
       } else {
         res.status(400).json({ error: "Failed to accept offer" });
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
       res.status(500).json({ error: "Failed to accept offer" });
     }
   });
@@ -282,16 +291,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/exchange/offer/:offerId/reject", async (req, res) => {
     try {
       const { offerId } = req.params;
-      const { playerId } = req.body;
+      const validatedData = acceptRejectOfferSchema.parse(req.body);
       
-      const success = await exchangeService.rejectOffer(offerId, playerId);
+      const success = await exchangeService.rejectOffer(offerId, validatedData.playerId);
       
       if (success) {
         res.json({ success: true, message: "Offer rejected" });
       } else {
         res.status(400).json({ error: "Failed to reject offer" });
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
       res.status(500).json({ error: "Failed to reject offer" });
     }
   });
@@ -324,30 +336,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/cartography/discover", async (req, res) => {
     try {
-      const { playerId, centerX, centerY, radius, name } = req.body;
-      const region = await cartographyService.discoverRegion(playerId, centerX, centerY, radius, name);
+      const validatedData = discoverRegionSchema.parse(req.body);
+      const region = await cartographyService.discoverRegion(
+        validatedData.playerId, 
+        validatedData.centerX, 
+        validatedData.centerY, 
+        validatedData.radius, 
+        validatedData.name
+      );
       
       if (region) {
         res.json(region);
       } else {
         res.status(400).json({ error: "Region already exists" });
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
       res.status(500).json({ error: "Failed to discover region" });
     }
   });
 
   app.post("/api/cartography/project", async (req, res) => {
     try {
-      const { playerId, regionId, tools, assistants } = req.body;
-      const project = await cartographyService.startCartographyProject(playerId, regionId, tools, assistants);
+      const validatedData = startCartographyProjectSchema.parse(req.body);
+      const project = await cartographyService.startCartographyProject(
+        validatedData.playerId, 
+        validatedData.regionId, 
+        validatedData.tools, 
+        validatedData.assistants
+      );
       
       if (project) {
         res.json(project);
       } else {
         res.status(400).json({ error: "Failed to start project" });
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
       res.status(500).json({ error: "Failed to start cartography project" });
     }
   });
@@ -355,16 +384,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/cartography/project/:projectId/progress", async (req, res) => {
     try {
       const { projectId } = req.params;
-      const { actionPoints } = req.body;
+      const validatedData = progressProjectSchema.parse(req.body);
       
-      const success = await cartographyService.progressProject(projectId, actionPoints);
+      const success = await cartographyService.progressProject(projectId, validatedData.actionPoints);
       
       if (success) {
         res.json({ success: true, message: "Project progress updated" });
       } else {
         res.status(400).json({ error: "Failed to update project progress" });
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
       res.status(500).json({ error: "Failed to update project progress" });
     }
   });
