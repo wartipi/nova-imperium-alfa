@@ -70,28 +70,6 @@ class ExchangeService {
     return item;
   }
 
-  /**
-   * Crée une nouvelle offre d'échange entre deux joueurs.
-   * 
-   * Étapes de validation :
-   * 1. Vérifie que la salle de troc existe et est active (si roomId fourni)
-   * 2. Vérifie que les deux joueurs sont participants de la salle
-   * 3. Vérifie que les objets offerts appartiennent au joueur source et sont échangeables
-   * 4. Détermine le type d'offre (ressources, objets uniques, ou mixte)
-   * 
-   * L'offre expire automatiquement après 5 minutes si non acceptée.
-   * Les deux joueurs sont notifiés en temps réel de la création de l'offre.
-   * 
-   * @param roomId - ID de la salle de troc (optionnel pour échanges directs)
-   * @param fromPlayer - ID du joueur qui propose l'échange
-   * @param toPlayer - ID du joueur destinataire
-   * @param resourcesOffered - Ressources proposées {type: quantité}
-   * @param resourcesRequested - Ressources demandées {type: quantité}
-   * @param itemsOffered - IDs des objets uniques proposés
-   * @param itemsRequested - IDs des objets uniques demandés
-   * @param message - Message optionnel accompagnant l'offre
-   * @returns L'offre créée ou null si la validation échoue
-   */
   async createExchangeOffer(
     roomId: string | null,
     fromPlayer: string,
@@ -212,24 +190,6 @@ class ExchangeService {
     return true;
   }
 
-  /**
-   * Exécute l'échange de ressources et d'objets entre deux joueurs.
-   * 
-   * Cette méthode est appelée après l'acceptation d'une offre.
-   * Toutes les opérations sont effectuées dans une transaction atomique
-   * pour garantir la cohérence des données :
-   * 
-   * 1. Transfère les ressources offertes (fromPlayer -> toPlayer)
-   * 2. Transfère les ressources demandées (toPlayer -> fromPlayer)
-   * 3. Transfère les objets uniques offerts
-   * 4. Transfère les objets uniques demandés
-   * 
-   * En cas d'erreur (ressources insuffisantes, objet non transférable),
-   * toute la transaction est annulée et les deux joueurs sont notifiés.
-   * 
-   * @param offer - L'offre d'échange acceptée à exécuter
-   * @throws Error si les ressources sont insuffisantes ou objets non transférables
-   */
   private async executeExchange(offer: ExchangeOffer): Promise<void> {
     console.log(`Échange exécuté entre ${offer.fromPlayer} et ${offer.toPlayer}`);
     

@@ -96,29 +96,6 @@ class CartographyService {
     return project;
   }
 
-  /**
-   * Fait progresser un projet de cartographie en dépensant des points d'action.
-   * 
-   * Cette méthode gère la progression d'un projet de création de carte :
-   * 
-   * 1. Calcule le nouveau pourcentage de progression
-   * 2. Met à jour les points d'action dépensés
-   * 3. Si le projet atteint 100%, crée automatiquement le document de carte
-   * 
-   * Le document de carte créé inclut :
-   * - Qualité (rough/detailed/masterwork) basée sur les outils utilisés
-   * - Précision (60-95%) selon la qualité
-   * - Secrets cachés découverts
-   * - Caractéristiques uniques de la région
-   * - Valeur commerciale pour le trading
-   * 
-   * Toutes les opérations sont effectuées dans une transaction atomique.
-   * Le joueur est notifié en temps réel de la progression ou de la complétion.
-   * 
-   * @param projectId - ID du projet de cartographie
-   * @param actionPointsSpent - Nombre de points d'action à dépenser
-   * @returns true si la progression a réussi, false si le projet n'existe pas
-   */
   async progressProject(projectId: string, actionPointsSpent: number): Promise<boolean> {
     const [project] = await db.select().from(cartographyProjects)
       .where(eq(cartographyProjects.id, projectId));

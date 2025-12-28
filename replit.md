@@ -71,11 +71,6 @@ Preferred communication style: Simple, everyday language.
   - Marketplace: `marketplaceSell`, `marketplaceAuction`, `marketplaceBid`, `marketplaceBuy`, `resolveAuctions`
 - **Async Database Operations**: All service methods use async/await for database operations
 - **Automatic Cleanup**: Expired offers are cleaned up automatically every 60 seconds
-- **Code Documentation**: JSDoc comments added to key business functions:
-  - `resolveBattleConsequences`: Battle resolution with army/marshal consequences
-  - `createExchangeOffer`: Exchange offer creation with validation
-  - `executeExchange`: Atomic resource/item transfer execution
-  - `progressProject`: Cartography project progression with map creation
 
 ## Tables
 - `users`, `armies`, `marshalContracts`, `campaigns`, `battleEvents`
