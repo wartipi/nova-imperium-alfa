@@ -18,9 +18,9 @@ export function jsonbArrayHasAny(column: PgColumn, values: (string | number)[]):
 }
 
 export function jsonbExtractText(column: PgColumn, key: string): SQL {
-  return sql`${column}->>'${sql.raw(key)}'`;
+  return sql`${column}->>${sql.raw(`'${key}'`)}`; 
 }
 
 export function jsonbExtractNumber(column: PgColumn, key: string): SQL {
-  return sql`(${column}->>'${sql.raw(key)}')::float`;
+  return sql`(${column}->>${sql.raw(`'${key}'`)})::float`;
 }
