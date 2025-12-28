@@ -47,12 +47,16 @@ Preferred communication style: Simple, everyday language.
 # Database Architecture
 
 ## Phase 1 Optimizations (December 2025)
-- **SQL Query Optimization**: All services now use efficient SQL queries with WHERE clauses and bounding box filtering instead of in-memory filtering
+- **SQL Query Optimization**: All services now use efficient SQL queries with WHERE clauses, JSONB filtering (@> operator), and bounding box filtering instead of in-memory filtering
+- **Distance Calculations in SQL**: PublicEventsService and CartographyService now use SQL SQRT/POWER for distance calculations directly in queries
+- **Transaction Wrapping**: executeExchange, resolveBattleConsequences, and progressProject are now wrapped in db.transaction() for atomic operations
 - **Player Skills Table**: `playerSkills` table stores player competencies (leadership, tactics, strategy, logistics, treaty_knowledge) with levels and experience
 - **Exchange Service Tables**: 
   - `tradeRooms` for multi-player trading sessions
   - `exchangeOffers` for resource and item exchanges with expiration
   - `uniqueItems` for tradeable unique items with ownership tracking
+  - `playerResources` for persistent resource tracking and transfers
+- **Zod Input Validation**: All main POST/PATCH routes now validate input with Zod schemas (exchange, cartography, messages)
 - **Async Database Operations**: All service methods use async/await for database operations
 - **Automatic Cleanup**: Expired offers are cleaned up automatically every 60 seconds
 
