@@ -109,6 +109,55 @@ export async function createDatabaseIndexes(): Promise<void> {
     `);
     console.log('  ✅ Index B-tree créé sur player_skills.player_id');
 
+    // Phase 2: Index pour les tables migrées
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS idx_messages_to_player 
+      ON messages (to_player);
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS idx_messages_from_player 
+      ON messages (from_player);
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS idx_messages_timestamp 
+      ON messages (timestamp DESC);
+    `);
+    console.log('  ✅ Index B-tree créés sur messages (to_player, from_player, timestamp)');
+
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS idx_marketplace_items_status 
+      ON marketplace_items (status);
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS idx_marketplace_items_seller_id 
+      ON marketplace_items (seller_id);
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS idx_marketplace_items_sale_type 
+      ON marketplace_items (sale_type);
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS idx_marketplace_items_created_at 
+      ON marketplace_items (created_at DESC);
+    `);
+    console.log('  ✅ Index B-tree créés sur marketplace_items (status, seller_id, sale_type, created_at)');
+
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS idx_treaties_parties 
+      ON treaties USING GIN (parties);
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS idx_treaties_status 
+      ON treaties (status);
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS idx_treaties_created_by 
+      ON treaties (created_by);
+    `);
+    console.log('  ✅ Index créés sur treaties (parties GIN, status, created_by)');
+
+    // cartography_projects n'a pas de colonne status, l'index player_id est déjà créé
+
     console.log('📊 Tous les index ont été créés avec succès');
   } catch (error) {
     console.error('❌ Erreur lors de la création des index:', error);
@@ -138,7 +187,18 @@ export async function dropAllIndexes(): Promise<void> {
     'idx_public_events_turn',
     'idx_public_events_type',
     'idx_battle_events_campaign_id',
-    'idx_player_skills_player_id'
+    'idx_player_skills_player_id',
+    // Phase 2 indexes
+    'idx_messages_to_player',
+    'idx_messages_from_player',
+    'idx_messages_timestamp',
+    'idx_marketplace_items_status',
+    'idx_marketplace_items_seller_id',
+    'idx_marketplace_items_sale_type',
+    'idx_marketplace_items_created_at',
+    'idx_treaties_parties',
+    'idx_treaties_status',
+    'idx_treaties_created_by'
   ];
 
   for (const indexName of indexes) {

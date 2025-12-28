@@ -52,8 +52,9 @@ Preferred communication style: Simple, everyday language.
 - **Distance Calculations in SQL**: PublicEventsService and CartographyService now use SQL SQRT/POWER for distance calculations directly in queries
 - **Transaction Wrapping**: executeExchange, resolveBattleConsequences, progressProject, acceptContract, and joinCampaign are now wrapped in db.transaction() for atomic operations
 - **Database Indexes**: 
-  - GIN indexes on JSONB columns: `trade_rooms.participants`, `campaigns.participating_armies`, `public_events.participants`
+  - GIN indexes on JSONB columns: `trade_rooms.participants`, `campaigns.participating_armies`, `public_events.participants`, `treaties.parties`
   - B-tree indexes on frequently queried columns: `map_regions.center_x/y`, `armies.owner_id`, `marshal_contracts.army_id/status`, `exchange_offers.status/from_player/to_player`, `unique_items.owner_id`, `player_resources.player_id`, `cartography_projects.player_id`, `map_documents.cartographer`, `public_events.turn/type`, `battle_events.campaign_id`, `player_skills.player_id`
+  - Phase 2 indexes: `messages.to_player/from_player/timestamp`, `marketplace_items.status/seller_id/sale_type/created_at`, `treaties.status/created_by`
 - **Player Skills Table**: `playerSkills` table stores player competencies (leadership, tactics, strategy, logistics, treaty_knowledge) with levels and experience
 - **Exchange Service Tables**: 
   - `tradeRooms` for multi-player trading sessions
