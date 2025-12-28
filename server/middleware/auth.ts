@@ -134,6 +134,26 @@ export function requireOwnership(getResourceOwnerId: (req: AuthRequest) => Promi
   };
 }
 
+export function requireSelfOrAdmin(paramName: string = 'playerId') {
+  return (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentification requise' });
+    }
+    
+    if (req.user.role === 'admin' || req.user.role === 'gm') {
+      return next();
+    }
+    
+    const targetPlayerId = req.params[paramName];
+    
+    if (targetPlayerId && targetPlayerId !== req.user.id) {
+      return res.status(403).json({ error: 'Vous ne pouvez accéder qu\'à vos propres données' });
+    }
+    
+    next();
+  };
+}
+
 export function loginEndpoint(req: Request, res: Response) {
   const { username, password } = req.body;
   

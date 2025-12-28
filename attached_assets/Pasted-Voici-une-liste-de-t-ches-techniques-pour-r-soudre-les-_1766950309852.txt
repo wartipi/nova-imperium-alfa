@@ -1,0 +1,71 @@
+Voici une liste de tâches techniques pour résoudre les points encore partiellement résolus ou non traités dans ta dernière analyse. Chaque tâche correspond à un problème identifié et fournit des instructions concrètes pour y remédier.
+
+---
+
+### 1️⃣ Appliquer l’authentification et les autorisations à toutes les routes critiques
+
+* **Étendre le middleware** : utilise le module `auth.ts` existant (`requireAuth`, `requireRole`, `requireOwnership`) et crée un middleware `requireOwnership` générique prenant en paramètre la table concernée et l’ID du propriétaire à valider.
+* **Modifier `server/routes.ts`** : pour chaque route qui crée ou modifie des ressources (armées, contrats, échanges, cartographie, etc.), insère `requireAuth` en premier, puis `requireRole` ou `requireOwnership` selon le cas. Par exemple :
+
+  ```ts
+  router.post('/api/armies', requireAuth, requireRole(['admin', 'player']), createArmyHandler);
+  router.post('/api/armies/:id/contracts', requireAuth, requireOwnership('armies', 'id'), createContractHandler);
+  ```
+* **Adapter le front‑end** : fais en sorte que le token JWT soit envoyé dans l’en-tête `Authorization: Bearer <token>` à chaque requête API.
+
+---
+
+### 2️⃣ Transactionnaliser toutes les opérations multi‑écritures
+
+* **Cartographie** : entoure `startCartographyProject` et `progressProject` dans un `db.transaction`. Lors de la création d’un projet ou de la progression de celui‑ci, insère ou mets à jour les enregistrements de la table `cartography_projects` et crée la map correspondante dans la même transaction.
+* **Échanges** : vérifie que `createExchangeOffer`, `acceptOffer`, `cancelOffer` sont enveloppés dans une transaction pour que la création de l’offre, la mise à jour des ressources et le transfert des objets soient atomiques.
+* **Maréchaux** : assure‑toi que `acceptContract`, `joinCampaign` et la création des batailles utilisent également `db.transaction` pour mettre à jour simultanément contrats, armées et campagnes.
+* **Traitement des batailles** : `resolveBattleConsequences` est déjà transactionnalisé, mais vérifie les autres parties du système (ex. publication d’événements publics couplée à un changement d’état).
+
+---
+
+### 3️⃣ Optimiser la recherche géospatiale
+
+* **Adapter le schéma** : ajoute une colonne `point` de type `POINT` (ou `geography(Point,4326)` avec PostGIS) dans la table `map_regions` pour stocker les coordonnées du centre.
+* **Créer un index spatial** : si PostGIS est disponible :
+
+  ```sql
+  CREATE INDEX ON map_regions USING GIST (point);
+  ```
+
+  sinon, crée un index B‑tree sur `center_x` et `center_y`.
+* **Remplacer le filtrage en mémoire** : dans `findRegionAt`, utilise une requête type `ST_DWithin` (PostGIS) pour ne retourner que les régions dans un rayon donné, par exemple :
+
+  ```ts
+  await db.select().from(mapRegions)
+    .where(sql`ST_DWithin(point, ST_SetSRID(ST_Point(${x}, ${y}), 4326)::geography, ${radius})`);
+  ```
+* **Fallback** : si PostGIS n’est pas disponible, réduis la taille du rectangle via un `WHERE center_x BETWEEN x - radius AND x + radius` et `center_y BETWEEN y - radius AND y + radius` puis ajoute un `LIMIT` pour réduire la boucle en mémoire.
+
+---
+
+### 4️⃣ Introduire une validation systématique et des tests automatisés
+
+* **Créer des schémas Zod** : pour chaque payload (creation d’armée, contrat, événement public, offre d’échange, projet de cartographie, etc.), définis un schéma Zod qui précise les champs obligatoires et leurs types.
+* **Middleware de validation** : dans `server/routes.ts`, insère un middleware générique qui applique `schema.safeParse(req.body)` et renvoie une erreur 400 en cas d’échec. Cela garantit que seules des requêtes conformes atteignent les services.
+* **Tests unitaires et d’intégration** :
+
+  * Utilise un framework comme Jest/Vitest pour tester les services et les routes.
+  * Écris des tests qui créent des armées, proposent et acceptent des contrats, progressent des projets de cartographie, effectuent des offres d’échange, etc. Ces tests doivent vérifier la persistance en base et le rollback en cas d’erreur.
+  * Prévois un setup de base de données de test avec des migrations applicables.
+
+---
+
+### 5️⃣ Améliorer la modularité et la documentation
+
+* **Extraire les requêtes complexes** : crée des modules ou classes “repository” dédiés pour les requêtes SQL (p. ex. `CampaignRepository.ts` avec des méthodes `getActiveCampaignsByPlayer`). Tu clarifies ainsi les routes et tu pourras réutiliser facilement ces requêtes ailleurs.
+* **Mettre à jour la documentation** :
+
+  * Dans `README.md` ou un dossier `/docs`, décris la structure des tables et les champs importants (en particulier les nouvelles colonnes JSONB et géospatiales).
+  * Documente les nouveaux endpoints et le système d’authentification (JWT, rôles).
+  * Ajoute des exemples d’appels API et des instructions pour lancer le serveur, exécuter les migrations et seed.
+* **Structurer le code** : regroupe les services dans des sous-dossiers (`services/cartography`, `services/marshal`, `services/exchange`) et sépare les middlewares, validations et utilitaires.
+
+---
+
+En appliquant ces tâches, tu résoudras les problèmes encore présents dans la phase 1, tu renforceras la sécurité et la cohérence de l’API, et tu poseras des bases solides pour la suite du projet.

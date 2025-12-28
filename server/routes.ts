@@ -6,7 +6,7 @@ import { treatyService } from "./treatyService";
 import { exchangeService, UniqueItem } from "./exchangeService";
 import { cartographyService } from "./cartographyService";
 import { marketplaceService, initializeMarketplaceService } from "./marketplaceService";
-import { loginEndpoint, requireAuth, optionalAuth, AuthRequest } from "./middleware/auth";
+import { loginEndpoint, requireAuth, optionalAuth, requireRole, requireSelfOrAdmin, AuthRequest } from "./middleware/auth";
 import marshalRoutes from "./routes/marshal";
 import publicEventsRoutes from "./routes/publicEvents";
 import { 
@@ -73,9 +73,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Message endpoints
-  app.get("/api/messages/:playerId", async (req, res) => {
+  app.get("/api/messages/:playerId", requireAuth, requireSelfOrAdmin('playerId'), async (req: AuthRequest, res: Response) => {
     try {
-      const { playerId } = req.params;
+      const playerId = req.params.playerId;
       const messages = await messageService.getMessagesForPlayer(playerId);
       res.json(messages);
     } catch (error) {
@@ -116,9 +116,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/messages/:playerId/stats", async (req, res) => {
+  app.get("/api/messages/:playerId/stats", requireAuth, requireSelfOrAdmin('playerId'), async (req: AuthRequest, res: Response) => {
     try {
-      const { playerId } = req.params;
+      const playerId = req.params.playerId;
       const stats = await messageService.getStats(playerId);
       res.json(stats);
     } catch (error) {
@@ -127,9 +127,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Treaty endpoints
-  app.get("/api/treaties/player/:playerId", async (req, res) => {
+  app.get("/api/treaties/player/:playerId", requireAuth, requireSelfOrAdmin('playerId'), async (req: AuthRequest, res: Response) => {
     try {
-      const { playerId } = req.params;
+      const playerId = req.params.playerId;
       const treaties = await treatyService.getTreatiesForPlayer(playerId);
       res.json(treaties);
     } catch (error) {
@@ -199,9 +199,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/treaties/:playerId/stats", async (req, res) => {
+  app.get("/api/treaties/:playerId/stats", requireAuth, requireSelfOrAdmin('playerId'), async (req: AuthRequest, res: Response) => {
     try {
-      const { playerId } = req.params;
+      const playerId = req.params.playerId;
       const stats = await treatyService.getStats(playerId);
       res.json(stats);
     } catch (error) {
@@ -210,9 +210,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Exchange endpoints
-  app.get("/api/exchange/rooms/:playerId", async (req, res) => {
+  app.get("/api/exchange/rooms/:playerId", requireAuth, requireSelfOrAdmin('playerId'), async (req: AuthRequest, res: Response) => {
     try {
-      const { playerId } = req.params;
+      const playerId = req.params.playerId;
       const rooms = await exchangeService.getTradeRoomsForPlayer(playerId);
       res.json(rooms);
     } catch (error) {
@@ -220,9 +220,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/exchange/offers/:playerId", async (req, res) => {
+  app.get("/api/exchange/offers/:playerId", requireAuth, requireSelfOrAdmin('playerId'), async (req: AuthRequest, res: Response) => {
     try {
-      const { playerId } = req.params;
+      const playerId = req.params.playerId;
       const offers = await exchangeService.getActiveOffersForPlayer(playerId);
       res.json(offers);
     } catch (error) {
@@ -334,9 +334,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Cartography endpoints
-  app.get("/api/cartography/regions/:playerId", async (req, res) => {
+  app.get("/api/cartography/regions/:playerId", requireAuth, requireSelfOrAdmin('playerId'), async (req: AuthRequest, res: Response) => {
     try {
-      const { playerId } = req.params;
+      const playerId = req.params.playerId;
       const regions = await cartographyService.getDiscoveredRegions(playerId);
       res.json(regions);
     } catch (error) {
@@ -415,9 +415,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/cartography/maps/:playerId", async (req, res) => {
+  app.get("/api/cartography/maps/:playerId", requireAuth, requireSelfOrAdmin('playerId'), async (req: AuthRequest, res: Response) => {
     try {
-      const { playerId } = req.params;
+      const playerId = req.params.playerId;
       const maps = await cartographyService.getPlayerMaps(playerId);
       res.json(maps);
     } catch (error) {
@@ -434,9 +434,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/cartography/projects/:playerId", async (req, res) => {
+  app.get("/api/cartography/projects/:playerId", requireAuth, requireSelfOrAdmin('playerId'), async (req: AuthRequest, res: Response) => {
     try {
-      const { playerId } = req.params;
+      const playerId = req.params.playerId;
       const projects = await cartographyService.getActiveProjects(playerId);
       res.json(projects);
     } catch (error) {
@@ -464,9 +464,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/cartography/stats/:playerId", async (req, res) => {
+  app.get("/api/cartography/stats/:playerId", requireAuth, requireSelfOrAdmin('playerId'), async (req: AuthRequest, res: Response) => {
     try {
-      const { playerId } = req.params;
+      const playerId = req.params.playerId;
       const stats = await cartographyService.getCartographyStats(playerId);
       res.json(stats);
     } catch (error) {
@@ -532,9 +532,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Endpoints pour les objets uniques
-  app.get("/api/unique-items/:playerId", async (req, res) => {
+  app.get("/api/unique-items/:playerId", requireAuth, requireSelfOrAdmin('playerId'), async (req: AuthRequest, res: Response) => {
     try {
-      const { playerId } = req.params;
+      const playerId = req.params.playerId;
       const inventory = await exchangeService.getPlayerInventory(playerId);
       res.json(inventory);
     } catch (error) {
@@ -665,11 +665,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/marketplace/maps/sell", async (req, res) => {
+  app.post("/api/marketplace/maps/sell", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
-      const { itemId, sellerId, price } = req.body;
+      const sellerId = req.user!.id;
+      const { itemId, price } = req.body;
       
-      if (!itemId || !sellerId || !price) {
+      if (!itemId || !price) {
         return res.status(400).json({ error: "Missing required fields" });
       }
 
@@ -683,11 +684,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/marketplace/maps/buy", async (req, res) => {
+  app.post("/api/marketplace/maps/buy", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
-      const { offerId, buyerId } = req.body;
+      const buyerId = req.user!.id;
+      const { offerId } = req.body;
       
-      if (!offerId || !buyerId) {
+      if (!offerId) {
         return res.status(400).json({ error: "Missing required fields" });
       }
 
@@ -970,8 +972,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Résoudre les enchères (appelé en fin de tour)
-  app.post("/api/marketplace/resolve-auctions", async (req, res) => {
+  // Résoudre les enchères (appelé en fin de tour) - Admin/GM only
+  app.post("/api/marketplace/resolve-auctions", requireAuth, requireRole('admin', 'gm'), async (req: AuthRequest, res: Response) => {
     try {
       const validatedData = resolveAuctionsSchema.parse(req.body);
       const { currentTurn } = validatedData;

@@ -1,6 +1,7 @@
-import { Router } from 'express';
+import { Router, Response } from 'express';
 import { publicEventsService } from '../publicEventsService';
 import { EventFilter } from '../../shared/publicEventsSchema';
+import { requireAuth, requireRole, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
@@ -141,7 +142,7 @@ router.get('/statistics', async (req, res) => {
   }
 });
 
-router.post('/alliance', async (req, res) => {
+router.post('/alliance', requireAuth, requireRole('admin', 'gm'), async (req: AuthRequest, res: Response) => {
   try {
     const { faction1, faction2, allianceType, currentTurn, terms } = req.body;
     
@@ -160,7 +161,7 @@ router.post('/alliance', async (req, res) => {
   }
 });
 
-router.post('/campaign', async (req, res) => {
+router.post('/campaign', requireAuth, requireRole('admin', 'gm'), async (req: AuthRequest, res: Response) => {
   try {
     const { 
       isVictory, 
@@ -189,7 +190,7 @@ router.post('/campaign', async (req, res) => {
   }
 });
 
-router.post('/war-declaration', async (req, res) => {
+router.post('/war-declaration', requireAuth, requireRole('admin', 'gm'), async (req: AuthRequest, res: Response) => {
   try {
     const { aggressor, target, currentTurn, reason } = req.body;
     
@@ -207,7 +208,7 @@ router.post('/war-declaration', async (req, res) => {
   }
 });
 
-router.post('/peace-treaty', async (req, res) => {
+router.post('/peace-treaty', requireAuth, requireRole('admin', 'gm'), async (req: AuthRequest, res: Response) => {
   try {
     const { faction1, faction2, currentTurn, terms } = req.body;
     
@@ -225,7 +226,7 @@ router.post('/peace-treaty', async (req, res) => {
   }
 });
 
-router.post('/city-foundation', async (req, res) => {
+router.post('/city-foundation', requireAuth, requireRole('admin', 'gm'), async (req: AuthRequest, res: Response) => {
   try {
     const { cityName, founder, currentTurn, location } = req.body;
     
@@ -243,7 +244,7 @@ router.post('/city-foundation', async (req, res) => {
   }
 });
 
-router.post('/resource-discovery', async (req, res) => {
+router.post('/resource-discovery', requireAuth, requireRole('admin', 'gm'), async (req: AuthRequest, res: Response) => {
   try {
     const { resourceType, discoverer, currentTurn, location, quantity } = req.body;
     
@@ -262,7 +263,7 @@ router.post('/resource-discovery', async (req, res) => {
   }
 });
 
-router.post('/faction-creation', async (req, res) => {
+router.post('/faction-creation', requireAuth, requireRole('admin', 'gm'), async (req: AuthRequest, res: Response) => {
   try {
     const { factionName, founder, currentTurn, memberCount } = req.body;
     
@@ -280,7 +281,7 @@ router.post('/faction-creation', async (req, res) => {
   }
 });
 
-router.post('/init-demo', async (req, res) => {
+router.post('/init-demo', requireAuth, requireRole('admin', 'gm'), async (req: AuthRequest, res: Response) => {
   try {
     const { currentTurn = 1 } = req.body;
     await publicEventsService.initializeDemoEvents(currentTurn);
@@ -291,7 +292,7 @@ router.post('/init-demo', async (req, res) => {
   }
 });
 
-router.patch('/:eventId/visibility', async (req, res) => {
+router.patch('/:eventId/visibility', requireAuth, requireRole('admin', 'gm'), async (req: AuthRequest, res: Response) => {
   try {
     const { eventId } = req.params;
     const { isVisible } = req.body;
@@ -309,7 +310,7 @@ router.patch('/:eventId/visibility', async (req, res) => {
   }
 });
 
-router.delete('/:eventId', async (req, res) => {
+router.delete('/:eventId', requireAuth, requireRole('admin', 'gm'), async (req: AuthRequest, res: Response) => {
   try {
     const { eventId } = req.params;
     

@@ -103,13 +103,25 @@ Preferred communication style: Simple, everyday language.
   - `GET /api/public-events/nearby/:x/:y/:radius` - Find events within radius
 - **Performance**: Uses bounding box pre-filtering + distance calculation for O(log n) instead of O(n) queries
 
-## Authentication & Authorization (Implemented)
-All sensitive routes now require JWT authentication via `requireAuth` middleware:
-- **Marshal routes**: All routes protected, user ID from token, ownership verified
-- **Exchange routes**: Offers, rooms, accepts/rejects use authenticated user ID
-- **Cartography routes**: Map discovery, projects, transfers require authentication
-- **Marketplace routes**: Sales, purchases, bids use authenticated seller/buyer ID
-- **Treaty routes**: Creation, signing, breaking require authentication
+## Authentication & Authorization (Extended - December 2025)
+All sensitive routes now require JWT authentication via middleware stack:
+
+**Middlewares disponibles** (`server/middleware/auth.ts`):
+- `requireAuth`: Vérifie le token JWT et extrait l'identité utilisateur
+- `requireRole(...roles)`: Vérifie que l'utilisateur a un des rôles spécifiés
+- `requireSelfOrAdmin(paramName)`: Vérifie que l'utilisateur accède à ses propres données ou est admin/gm
+- `requireOwnership(getOwnerId)`: Vérifie la propriété d'une ressource
+
+**Routes protégées par type**:
+- **Messages**: GET /api/messages/:playerId - requireAuth + requireSelfOrAdmin
+- **Treaties**: GET /api/treaties/player/:playerId - requireAuth + requireSelfOrAdmin
+- **Exchange**: GET /api/exchange/rooms/:playerId, /offers/:playerId - requireAuth + requireSelfOrAdmin
+- **Cartography**: GET /api/cartography/regions/:playerId, /maps/:playerId, /projects/:playerId, /stats/:playerId - requireAuth + requireSelfOrAdmin
+- **Unique Items**: GET /api/unique-items/:playerId - requireAuth + requireSelfOrAdmin
+- **Marketplace Admin**: POST /api/marketplace/resolve-auctions - requireAuth + requireRole('admin', 'gm')
+- **Public Events Admin**: POST (alliance, campaign, war-declaration, peace-treaty, city-foundation, resource-discovery, faction-creation, init-demo) - requireAuth + requireRole('admin', 'gm')
+- **Public Events Admin**: PATCH /:eventId/visibility, DELETE /:eventId - requireAuth + requireRole('admin', 'gm')
+- **Marshal routes**: Toutes protégées avec requireAuth et vérification de propriété
 
 Authentication workflow:
 1. POST `/api/auth/login` with username/password returns JWT token
