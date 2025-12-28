@@ -246,8 +246,7 @@ router.put('/contracts/:contractId/decline', requireAuth, async (req: AuthReques
 
 router.get('/campaigns', async (req, res) => {
   try {
-    const campaigns = await marshalService.getAllCampaigns();
-    const activeCampaigns = campaigns.filter(c => c.status !== 'cancelled');
+    const activeCampaigns = await marshalService.getActiveCampaigns();
     res.json(activeCampaigns);
   } catch (error) {
     console.error('Erreur lors de la récupération des campagnes:', error);
@@ -258,12 +257,32 @@ router.get('/campaigns', async (req, res) => {
 router.get('/battles/:campaignId', async (req, res) => {
   try {
     const { campaignId } = req.params;
-    const allBattleEvents = await marshalService.getAllBattleEvents();
-    const battleEvents = allBattleEvents.filter(battle => battle.campaignId === campaignId);
-    
+    const battleEvents = await marshalService.getBattleEventsForCampaign(campaignId);
     res.json(battleEvents);
   } catch (error) {
     console.error('Erreur lors de la récupération des batailles:', error);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+router.get('/armies/nearby', async (req, res) => {
+  try {
+    const { x, y, radius, limit } = req.query;
+    
+    if (!x || !y || !radius) {
+      return res.status(400).json({ error: 'x, y, and radius are required' });
+    }
+    
+    const armies = await marshalService.findNearbyArmies(
+      parseFloat(x as string),
+      parseFloat(y as string),
+      parseFloat(radius as string),
+      limit ? parseInt(limit as string) : 20
+    );
+    
+    res.json(armies);
+  } catch (error) {
+    console.error('Erreur lors de la recherche d\'armées à proximité:', error);
     res.status(500).json({ message: 'Erreur serveur' });
   }
 });

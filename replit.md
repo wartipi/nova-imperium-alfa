@@ -102,9 +102,14 @@ Preferred communication style: Simple, everyday language.
   - Middleware documentation (requireAuth, requireRole, requireOwnership)
   - Index strategy and validation schemas
 - **New Endpoints**:
-  - `GET /api/cartography/regions/nearby/:x/:y/:radius` - Find regions within radius
+  - `GET /api/cartography/regions/nearby` - Find regions within radius (query params: x, y, radius, limit)
   - `GET /api/cartography/regions/area` - Find regions in rectangular area
-  - `GET /api/public-events/nearby/:x/:y/:radius` - Find events within radius
+  - `GET /api/public-events/nearby` - Find events within radius (query params: x, y, radius, limit)
+  - `GET /api/marshal/armies/nearby` - Find armies within radius (query params: x, y, radius, limit)
+- **Optimized Methods**:
+  - `MarshalService.getActiveCampaigns()`: SQL-filtered instead of in-memory filter
+  - `MarshalService.getBattleEventsForCampaign(campaignId)`: SQL-filtered instead of in-memory filter
+  - `MarshalService.findNearbyArmies(x, y, radius)`: Geospatial search with JSONB position field
 - **Performance**: Uses bounding box pre-filtering + distance calculation for O(log n) instead of O(n) queries
 
 ## Authentication & Authorization (Extended - December 2025)

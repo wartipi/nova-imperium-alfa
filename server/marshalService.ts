@@ -1,5 +1,6 @@
-import { eq, and, or, inArray } from "drizzle-orm";
+import { eq, and, or, inArray, ne, sql } from "drizzle-orm";
 import { jsonbContainsArray } from "./utils/jsonbQueries";
+import { createJsonbLocationDistanceCondition } from "./utils/geospatial";
 import { db } from "./db";
 import { 
   armies, 
@@ -554,6 +555,32 @@ export class MarshalService {
 
   async getAllBattleEvents(): Promise<BattleEvent[]> {
     return await db.select().from(battleEvents);
+  }
+
+  async getActiveCampaigns(): Promise<Campaign[]> {
+    return await db.select().from(campaigns)
+      .where(ne(campaigns.status, 'cancelled'));
+  }
+
+  async getBattleEventsForCampaign(campaignId: string): Promise<BattleEvent[]> {
+    return await db.select().from(battleEvents)
+      .where(eq(battleEvents.campaignId, campaignId));
+  }
+
+  async findNearbyArmies(x: number, y: number, radius: number, limit: number = 20): Promise<Army[]> {
+    const locationConditions = createJsonbLocationDistanceCondition(
+      armies.position,
+      x,
+      y,
+      radius
+    );
+
+    return await db.select().from(armies)
+      .where(and(
+        sql`${armies.position} IS NOT NULL`,
+        ...locationConditions
+      ))
+      .limit(limit);
   }
 }
 
