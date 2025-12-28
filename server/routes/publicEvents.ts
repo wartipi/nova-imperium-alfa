@@ -4,11 +4,7 @@ import { EventFilter } from '../../shared/publicEventsSchema';
 
 const router = Router();
 
-/**
- * GET /api/public-events
- * Récupère tous les événements publics avec filtres optionnels
- */
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { 
       types, 
@@ -26,11 +22,11 @@ router.get('/', (req, res) => {
 
     if (types) {
       const typeArray = Array.isArray(types) ? types : [types];
-      filter.types = typeArray as ('alliance_signed' | 'alliance_broken' | 'war_declared' | 'peace_treaty_signed' | 'campaign_victory' | 'campaign_defeat' | 'territory_conquered' | 'city_founded' | 'trade_agreement' | 'diplomatic_mission' | 'faction_created' | 'faction_disbanded' | 'leader_change' | 'resource_discovery' | 'natural_disaster' | 'festival_event' | 'economic_crisis' | 'plague_outbreak' | 'technological_advance' | 'religious_event')[];
+      filter.types = typeArray as any[];
     }
     if (priorities) {
       const priorityArray = Array.isArray(priorities) ? priorities : [priorities];
-      filter.priorities = priorityArray as ('critical' | 'high' | 'medium' | 'low')[];
+      filter.priorities = priorityArray as any[];
     }
     if (participants) {
       filter.participants = Array.isArray(participants) ? participants as string[] : [participants as string];
@@ -49,7 +45,7 @@ router.get('/', (req, res) => {
       };
     }
 
-    const events = publicEventsService.getEvents(
+    const events = await publicEventsService.getEvents(
       filter, 
       limit ? parseInt(limit as string) : undefined
     );
@@ -61,16 +57,12 @@ router.get('/', (req, res) => {
   }
 });
 
-/**
- * GET /api/public-events/recent/:turn
- * Récupère les événements récents basés sur le tour actuel
- */
-router.get('/recent/:turn', (req, res) => {
+router.get('/recent/:turn', async (req, res) => {
   try {
     const currentTurn = parseInt(req.params.turn);
     const { turnsBack = '5', limit = '20' } = req.query;
     
-    const events = publicEventsService.getRecentEvents(
+    const events = await publicEventsService.getRecentEvents(
       currentTurn, 
       parseInt(turnsBack as string),
       parseInt(limit as string)
@@ -83,16 +75,12 @@ router.get('/recent/:turn', (req, res) => {
   }
 });
 
-/**
- * GET /api/public-events/priority/:priority
- * Récupère les événements par priorité
- */
-router.get('/priority/:priority', (req, res) => {
+router.get('/priority/:priority', async (req, res) => {
   try {
     const { priority } = req.params;
     const { limit } = req.query;
     
-    const events = publicEventsService.getEventsByPriority(
+    const events = await publicEventsService.getEventsByPriority(
       priority as any,
       limit ? parseInt(limit as string) : undefined
     );
@@ -104,16 +92,12 @@ router.get('/priority/:priority', (req, res) => {
   }
 });
 
-/**
- * GET /api/public-events/participant/:participantId
- * Récupère les événements impliquant un participant spécifique
- */
-router.get('/participant/:participantId', (req, res) => {
+router.get('/participant/:participantId', async (req, res) => {
   try {
     const { participantId } = req.params;
     const { limit } = req.query;
     
-    const events = publicEventsService.getEventsForParticipant(
+    const events = await publicEventsService.getEventsForParticipant(
       participantId,
       limit ? parseInt(limit as string) : undefined
     );
@@ -125,13 +109,9 @@ router.get('/participant/:participantId', (req, res) => {
   }
 });
 
-/**
- * GET /api/public-events/statistics
- * Récupère les statistiques des événements
- */
-router.get('/statistics', (req, res) => {
+router.get('/statistics', async (req, res) => {
   try {
-    const stats = publicEventsService.getEventStatistics();
+    const stats = await publicEventsService.getEventStatistics();
     res.json(stats);
   } catch (error) {
     console.error('Erreur lors de la récupération des statistiques:', error);
@@ -139,15 +119,11 @@ router.get('/statistics', (req, res) => {
   }
 });
 
-/**
- * POST /api/public-events/alliance
- * Crée un événement d'alliance
- */
-router.post('/alliance', (req, res) => {
+router.post('/alliance', async (req, res) => {
   try {
     const { faction1, faction2, allianceType, currentTurn, terms } = req.body;
     
-    const event = publicEventsService.createAllianceEvent(
+    const event = await publicEventsService.createAllianceEvent(
       faction1,
       faction2,
       allianceType,
@@ -162,11 +138,7 @@ router.post('/alliance', (req, res) => {
   }
 });
 
-/**
- * POST /api/public-events/campaign
- * Crée un événement de campagne militaire
- */
-router.post('/campaign', (req, res) => {
+router.post('/campaign', async (req, res) => {
   try {
     const { 
       isVictory, 
@@ -178,7 +150,7 @@ router.post('/campaign', (req, res) => {
       casualties 
     } = req.body;
     
-    const event = publicEventsService.createCampaignEvent(
+    const event = await publicEventsService.createCampaignEvent(
       isVictory,
       campaignName,
       attacker,
@@ -195,15 +167,11 @@ router.post('/campaign', (req, res) => {
   }
 });
 
-/**
- * POST /api/public-events/war-declaration
- * Crée un événement de déclaration de guerre
- */
-router.post('/war-declaration', (req, res) => {
+router.post('/war-declaration', async (req, res) => {
   try {
     const { aggressor, target, currentTurn, reason } = req.body;
     
-    const event = publicEventsService.createWarDeclarationEvent(
+    const event = await publicEventsService.createWarDeclarationEvent(
       aggressor,
       target,
       currentTurn,
@@ -217,15 +185,11 @@ router.post('/war-declaration', (req, res) => {
   }
 });
 
-/**
- * POST /api/public-events/peace-treaty
- * Crée un événement de traité de paix
- */
-router.post('/peace-treaty', (req, res) => {
+router.post('/peace-treaty', async (req, res) => {
   try {
     const { faction1, faction2, currentTurn, terms } = req.body;
     
-    const event = publicEventsService.createPeaceTreatyEvent(
+    const event = await publicEventsService.createPeaceTreatyEvent(
       faction1,
       faction2,
       currentTurn,
@@ -239,15 +203,11 @@ router.post('/peace-treaty', (req, res) => {
   }
 });
 
-/**
- * POST /api/public-events/city-foundation
- * Crée un événement de fondation de ville
- */
-router.post('/city-foundation', (req, res) => {
+router.post('/city-foundation', async (req, res) => {
   try {
     const { cityName, founder, currentTurn, location } = req.body;
     
-    const event = publicEventsService.createCityFoundationEvent(
+    const event = await publicEventsService.createCityFoundationEvent(
       cityName,
       founder,
       currentTurn,
@@ -261,15 +221,11 @@ router.post('/city-foundation', (req, res) => {
   }
 });
 
-/**
- * POST /api/public-events/resource-discovery
- * Crée un événement de découverte de ressource
- */
-router.post('/resource-discovery', (req, res) => {
+router.post('/resource-discovery', async (req, res) => {
   try {
     const { resourceType, discoverer, currentTurn, location, quantity } = req.body;
     
-    const event = publicEventsService.createResourceDiscoveryEvent(
+    const event = await publicEventsService.createResourceDiscoveryEvent(
       resourceType,
       discoverer,
       currentTurn,
@@ -284,15 +240,11 @@ router.post('/resource-discovery', (req, res) => {
   }
 });
 
-/**
- * POST /api/public-events/faction-creation
- * Crée un événement de création de faction
- */
-router.post('/faction-creation', (req, res) => {
+router.post('/faction-creation', async (req, res) => {
   try {
     const { factionName, founder, currentTurn, memberCount } = req.body;
     
-    const event = publicEventsService.createFactionCreationEvent(
+    const event = await publicEventsService.createFactionCreationEvent(
       factionName,
       founder,
       currentTurn,
@@ -306,14 +258,10 @@ router.post('/faction-creation', (req, res) => {
   }
 });
 
-/**
- * POST /api/public-events/init-demo
- * Initialise les événements de démonstration
- */
-router.post('/init-demo', (req, res) => {
+router.post('/init-demo', async (req, res) => {
   try {
     const { currentTurn = 1 } = req.body;
-    publicEventsService.initializeDemoEvents(currentTurn);
+    await publicEventsService.initializeDemoEvents(currentTurn);
     res.json({ message: 'Événements de démonstration initialisés' });
   } catch (error) {
     console.error('Erreur lors de l\'initialisation des événements de démo:', error);
@@ -321,16 +269,12 @@ router.post('/init-demo', (req, res) => {
   }
 });
 
-/**
- * PATCH /api/public-events/:eventId/visibility
- * Met à jour la visibilité d'un événement
- */
-router.patch('/:eventId/visibility', (req, res) => {
+router.patch('/:eventId/visibility', async (req, res) => {
   try {
     const { eventId } = req.params;
     const { isVisible } = req.body;
     
-    const success = publicEventsService.setEventVisibility(eventId, isVisible);
+    const success = await publicEventsService.setEventVisibility(eventId, isVisible);
     
     if (success) {
       res.json({ message: 'Visibilité mise à jour' });
@@ -343,15 +287,11 @@ router.patch('/:eventId/visibility', (req, res) => {
   }
 });
 
-/**
- * DELETE /api/public-events/:eventId
- * Supprime un événement
- */
-router.delete('/:eventId', (req, res) => {
+router.delete('/:eventId', async (req, res) => {
   try {
     const { eventId } = req.params;
     
-    const success = publicEventsService.deleteEvent(eventId);
+    const success = await publicEventsService.deleteEvent(eventId);
     
     if (success) {
       res.json({ message: 'Événement supprimé' });

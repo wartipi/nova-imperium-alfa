@@ -1,17 +1,20 @@
-import { PublicEvent, PublicEventType, EventPriority, EventFilter, createPublicEvent } from '../shared/publicEventsSchema';
+import { eq, and, gte, lte, inArray, desc } from "drizzle-orm";
+import { db } from "./db";
+import { publicEvents } from "../shared/schema";
+import type { PublicEvent, InsertPublicEvent } from "../shared/schema";
+import { EventDisplayConfig, type PublicEventType, type EventPriority } from '../shared/publicEventsSchema';
 
-/**
- * Service pour gérer les événements publics du jeu
- * Ces événements sont visibles par tous les joueurs et constituent le "journal" du monde
- */
+interface EventFilter {
+  types?: string[];
+  priorities?: string[];
+  participants?: string[];
+  turnRange?: { from: number; to: number };
+  location?: { x: number; y: number; radius: number };
+}
+
 export class PublicEventsService {
-  private events: Map<string, PublicEvent> = new Map();
-  private eventIdCounter = 1;
-
-  /**
-   * Ajoute un nouvel événement public
-   */
-  addEvent(
+  
+  async addEvent(
     type: PublicEventType,
     title: string,
     description: string,
@@ -20,74 +23,73 @@ export class PublicEventsService {
     priority: EventPriority = 'medium',
     location?: { x: number; y: number; regionName?: string },
     metadata?: Record<string, any>
-  ): PublicEvent {
-    const eventBase = createPublicEvent(
+  ): Promise<PublicEvent> {
+    const config = EventDisplayConfig[type];
+    const id = `event_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+
+    const [event] = await db.insert(publicEvents).values({
+      id,
       type,
       title,
       description,
       participants,
-      currentTurn,
+      location: location || null,
       priority,
-      location,
-      metadata
-    );
+      turn: currentTurn,
+      timestamp: new Date(),
+      isVisible: true,
+      icon: config.icon,
+      consequences: null,
+      relatedEvents: null,
+      metadata: metadata || null
+    }).returning();
 
-    const event: PublicEvent = {
-      ...eventBase,
-      id: `event_${this.eventIdCounter++}`,
-      timestamp: new Date()
-    };
-
-    this.events.set(event.id, event);
     console.log(`📰 Nouvel événement public: ${event.title}`);
-
     return event;
   }
 
-  /**
-   * Récupère tous les événements avec filtres optionnels
-   */
-  getEvents(filter?: EventFilter, limit?: number): PublicEvent[] {
-    let filteredEvents = Array.from(this.events.values())
-      .filter(event => event.isVisible)
-      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+  async getEvents(filter?: EventFilter, limit?: number): Promise<PublicEvent[]> {
+    let query = db.select().from(publicEvents)
+      .where(eq(publicEvents.isVisible, true))
+      .orderBy(desc(publicEvents.timestamp));
+
+    let events = await query;
 
     if (filter) {
-      if (filter.types) {
-        filteredEvents = filteredEvents.filter(event => filter.types!.includes(event.type));
+      if (filter.types && filter.types.length > 0) {
+        events = events.filter(event => filter.types!.includes(event.type));
       }
-      if (filter.priorities) {
-        filteredEvents = filteredEvents.filter(event => filter.priorities!.includes(event.priority));
+      if (filter.priorities && filter.priorities.length > 0) {
+        events = events.filter(event => filter.priorities!.includes(event.priority));
       }
-      if (filter.participants) {
-        filteredEvents = filteredEvents.filter(event => 
-          event.participants.some(p => filter.participants!.includes(p))
-        );
+      if (filter.participants && filter.participants.length > 0) {
+        events = events.filter(event => {
+          const eventParticipants = event.participants as string[];
+          return eventParticipants.some(p => filter.participants!.includes(p));
+        });
       }
       if (filter.turnRange) {
-        filteredEvents = filteredEvents.filter(event => 
+        events = events.filter(event => 
           event.turn >= filter.turnRange!.from && event.turn <= filter.turnRange!.to
         );
       }
       if (filter.location) {
-        filteredEvents = filteredEvents.filter(event => {
+        events = events.filter(event => {
           if (!event.location) return false;
+          const loc = event.location as { x: number; y: number };
           const distance = Math.sqrt(
-            Math.pow(event.location.x - filter.location!.x, 2) +
-            Math.pow(event.location.y - filter.location!.y, 2)
+            Math.pow(loc.x - filter.location!.x, 2) +
+            Math.pow(loc.y - filter.location!.y, 2)
           );
           return distance <= filter.location!.radius;
         });
       }
     }
 
-    return limit ? filteredEvents.slice(0, limit) : filteredEvents;
+    return limit ? events.slice(0, limit) : events;
   }
 
-  /**
-   * Récupère les événements récents (derniers X tours)
-   */
-  getRecentEvents(currentTurn: number, turnsBack: number = 5, limit: number = 20): PublicEvent[] {
+  async getRecentEvents(currentTurn: number, turnsBack: number = 5, limit: number = 20): Promise<PublicEvent[]> {
     const filter: EventFilter = {
       turnRange: {
         from: Math.max(1, currentTurn - turnsBack),
@@ -97,53 +99,35 @@ export class PublicEventsService {
     return this.getEvents(filter, limit);
   }
 
-  /**
-   * Récupère les événements par priorité
-   */
-  getEventsByPriority(priority: EventPriority, limit?: number): PublicEvent[] {
+  async getEventsByPriority(priority: EventPriority, limit?: number): Promise<PublicEvent[]> {
     const filter: EventFilter = { priorities: [priority] };
     return this.getEvents(filter, limit);
   }
 
-  /**
-   * Récupère les événements impliquant un joueur/faction spécifique
-   */
-  getEventsForParticipant(participantId: string, limit?: number): PublicEvent[] {
+  async getEventsForParticipant(participantId: string, limit?: number): Promise<PublicEvent[]> {
     const filter: EventFilter = { participants: [participantId] };
     return this.getEvents(filter, limit);
   }
 
-  /**
-   * Met à jour la visibilité d'un événement
-   */
-  setEventVisibility(eventId: string, isVisible: boolean): boolean {
-    const event = this.events.get(eventId);
-    if (event) {
-      event.isVisible = isVisible;
-      return true;
-    }
-    return false;
+  async setEventVisibility(eventId: string, isVisible: boolean): Promise<boolean> {
+    const result = await db.update(publicEvents)
+      .set({ isVisible })
+      .where(eq(publicEvents.id, eventId));
+    return true;
   }
 
-  /**
-   * Supprime un événement
-   */
-  deleteEvent(eventId: string): boolean {
-    return this.events.delete(eventId);
+  async deleteEvent(eventId: string): Promise<boolean> {
+    await db.delete(publicEvents).where(eq(publicEvents.id, eventId));
+    return true;
   }
 
-  // === MÉTHODES UTILITAIRES POUR CRÉER DES ÉVÉNEMENTS SPÉCIFIQUES ===
-
-  /**
-   * Crée un événement d'alliance signée
-   */
-  createAllianceEvent(
+  async createAllianceEvent(
     faction1: string,
     faction2: string,
     allianceType: string,
     currentTurn: number,
     terms?: string[]
-  ): PublicEvent {
+  ): Promise<PublicEvent> {
     return this.addEvent(
       'alliance_signed',
       `Alliance ${allianceType} signée`,
@@ -160,10 +144,7 @@ export class PublicEventsService {
     );
   }
 
-  /**
-   * Crée un événement de campagne militaire
-   */
-  createCampaignEvent(
+  async createCampaignEvent(
     isVictory: boolean,
     campaignName: string,
     attacker: string,
@@ -171,7 +152,7 @@ export class PublicEventsService {
     currentTurn: number,
     location?: { x: number; y: number; regionName?: string },
     casualties?: { attacker: number; defender: number }
-  ): PublicEvent {
+  ): Promise<PublicEvent> {
     const winner = isVictory ? attacker : defender;
     const loser = isVictory ? defender : attacker;
     
@@ -192,17 +173,14 @@ export class PublicEventsService {
     );
   }
 
-  /**
-   * Crée un événement de conquête territoriale
-   */
-  createTerritoryConquestEvent(
+  async createTerritoryConquestEvent(
     territoryName: string,
     previousOwner: string,
     newOwner: string,
     currentTurn: number,
     location: { x: number; y: number; regionName?: string },
     method: 'military' | 'diplomatic' | 'economic' = 'military'
-  ): PublicEvent {
+  ): Promise<PublicEvent> {
     return this.addEvent(
       'territory_conquered',
       `${territoryName} conquis`,
@@ -216,20 +194,17 @@ export class PublicEventsService {
         previousOwner,
         newOwner,
         method,
-        resistance: 'moderate' // Par défaut
+        resistance: 'moderate'
       }
     );
   }
 
-  /**
-   * Crée un événement de déclaration de guerre
-   */
-  createWarDeclarationEvent(
+  async createWarDeclarationEvent(
     aggressor: string,
     target: string,
     currentTurn: number,
     reason?: string
-  ): PublicEvent {
+  ): Promise<PublicEvent> {
     return this.addEvent(
       'war_declared',
       `Déclaration de guerre`,
@@ -246,15 +221,12 @@ export class PublicEventsService {
     );
   }
 
-  /**
-   * Crée un événement de traité de paix
-   */
-  createPeaceTreatyEvent(
+  async createPeaceTreatyEvent(
     faction1: string,
     faction2: string,
     currentTurn: number,
     terms?: string[]
-  ): PublicEvent {
+  ): Promise<PublicEvent> {
     return this.addEvent(
       'peace_treaty_signed',
       `Traité de paix signé`,
@@ -270,15 +242,12 @@ export class PublicEventsService {
     );
   }
 
-  /**
-   * Crée un événement de fondation de ville
-   */
-  createCityFoundationEvent(
+  async createCityFoundationEvent(
     cityName: string,
     founder: string,
     currentTurn: number,
     location: { x: number; y: number; regionName?: string }
-  ): PublicEvent {
+  ): Promise<PublicEvent> {
     return this.addEvent(
       'city_founded',
       `Nouvelle ville fondée`,
@@ -295,15 +264,12 @@ export class PublicEventsService {
     );
   }
 
-  /**
-   * Crée un événement de création de faction
-   */
-  createFactionCreationEvent(
+  async createFactionCreationEvent(
     factionName: string,
     founder: string,
     currentTurn: number,
     memberCount?: number
-  ): PublicEvent {
+  ): Promise<PublicEvent> {
     return this.addEvent(
       'faction_created',
       `Nouvelle faction créée`,
@@ -320,16 +286,13 @@ export class PublicEventsService {
     );
   }
 
-  /**
-   * Crée un événement de découverte de ressource majeure
-   */
-  createResourceDiscoveryEvent(
+  async createResourceDiscoveryEvent(
     resourceType: string,
     discoverer: string,
     currentTurn: number,
     location: { x: number; y: number; regionName?: string },
     quantity?: number
-  ): PublicEvent {
+  ): Promise<PublicEvent> {
     return this.addEvent(
       'resource_discovery',
       `Découverte de ${resourceType}`,
@@ -346,12 +309,29 @@ export class PublicEventsService {
     );
   }
 
-  /**
-   * Initialise le service avec quelques événements d'exemple
-   */
-  initializeDemoEvents(currentTurn: number = 1): void {
-    // Alliance entre deux factions
-    this.createAllianceEvent(
+  async createNaturalDisasterEvent(
+    disasterType: string,
+    currentTurn: number,
+    location: { x: number; y: number; regionName?: string },
+    affectedFactions: string[]
+  ): Promise<PublicEvent> {
+    return this.addEvent(
+      'natural_disaster',
+      `${disasterType}`,
+      `Une ${disasterType.toLowerCase()} dévaste la région de ${location.regionName || 'inconnue'}.`,
+      affectedFactions,
+      currentTurn,
+      'high',
+      location,
+      {
+        disasterType,
+        affectedFactions
+      }
+    );
+  }
+
+  async initializeDemoEvents(currentTurn: number = 1): Promise<void> {
+    await this.createAllianceEvent(
       'Royaume de Vaeloria',
       'République de Theros',
       'Alliance Commerciale',
@@ -359,8 +339,7 @@ export class PublicEventsService {
       ['Libre échange de ressources', 'Protection mutuelle des routes commerciales']
     );
 
-    // Victoire militaire
-    this.createCampaignEvent(
+    await this.createCampaignEvent(
       true,
       'Siège de Drakmoor',
       'Ordre des Paladins',
@@ -370,16 +349,14 @@ export class PublicEventsService {
       { attacker: 45, defender: 120 }
     );
 
-    // Fondation de ville
-    this.createCityFoundationEvent(
+    await this.createCityFoundationEvent(
       'Nova Petra',
       'Guilde des Marchands',
       currentTurn,
       { x: 30, y: 20, regionName: 'Plaines Fertiles' }
     );
 
-    // Découverte de ressource
-    this.createResourceDiscoveryEvent(
+    await this.createResourceDiscoveryEvent(
       'Mithril',
       'Compagnie Minière du Nord',
       currentTurn - 3,
@@ -387,8 +364,7 @@ export class PublicEventsService {
       500
     );
 
-    // Création de faction
-    this.createFactionCreationEvent(
+    await this.createFactionCreationEvent(
       'Confrérie des Artisans',
       'Maître Forgeron Aldric',
       currentTurn - 4,
@@ -396,16 +372,13 @@ export class PublicEventsService {
     );
   }
 
-  /**
-   * Obtient les statistiques des événements
-   */
-  getEventStatistics(): {
+  async getEventStatistics(): Promise<{
     total: number;
     byType: Record<string, number>;
     byPriority: Record<string, number>;
     recentActivity: number;
-  } {
-    const events = Array.from(this.events.values()).filter(e => e.isVisible);
+  }> {
+    const events = await this.getEvents();
     const byType: Record<string, number> = {};
     const byPriority: Record<string, number> = {};
 
@@ -415,8 +388,8 @@ export class PublicEventsService {
     });
 
     const recentActivity = events.filter(e => {
-      const daysSinceEvent = (Date.now() - e.timestamp.getTime()) / (1000 * 60 * 60 * 24);
-      return daysSinceEvent <= 7; // Derniers 7 jours
+      const daysSinceEvent = (Date.now() - new Date(e.timestamp).getTime()) / (1000 * 60 * 60 * 24);
+      return daysSinceEvent <= 7;
     }).length;
 
     return {
@@ -428,5 +401,4 @@ export class PublicEventsService {
   }
 }
 
-// Instance singleton du service
 export const publicEventsService = new PublicEventsService();

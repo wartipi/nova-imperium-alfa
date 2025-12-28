@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 type PublicEventType = 
   | 'alliance_signed' | 'alliance_broken' | 'war_declared' | 'peace_treaty_signed'
@@ -16,75 +17,46 @@ interface WorldEvent {
   location?: { x: number; y: number; regionName?: string };
   priority: 'low' | 'medium' | 'high' | 'critical';
   turn: number;
-  timestamp: Date;
+  timestamp: string;
   icon: string;
+  isVisible: boolean;
+}
+
+async function fetchPublicEvents(): Promise<WorldEvent[]> {
+  const response = await fetch('/api/public-events');
+  if (!response.ok) {
+    throw new Error('Erreur lors de la récupération des événements');
+  }
+  return response.json();
+}
+
+async function initDemoEvents(): Promise<void> {
+  await fetch('/api/public-events/init-demo', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ currentTurn: 5 })
+  });
 }
 
 export function EventPanel() {
-  const [worldEvents] = useState<WorldEvent[]>([
-    {
-      id: "event_1",
-      type: "faction_created",
-      title: "Fondation de la Maison de Fer",
-      description: "Une nouvelle faction militaire a été établie dans les montagnes du Nord, dirigée par le Seigneur Korven",
-      participants: ["korven_house"],
-      location: { x: 15, y: 8, regionName: "Montagnes du Nord" },
-      priority: "medium",
-      turn: 127,
-      timestamp: new Date(Date.now() - 86400000),
-      icon: "🏰"
-    },
-    {
-      id: "event_2", 
-      type: "war_declared",
-      title: "Déclaration de guerre : Empire vs Royaume de l'Est",
-      description: "L'Empire des Terres Centrales a officiellement déclaré la guerre au Royaume de l'Est suite à des disputes territoriales",
-      participants: ["empire_central", "royaume_est"],
-      location: { x: 25, y: 15, regionName: "Frontière Orientale" },
-      priority: "high",
-      turn: 129,
-      timestamp: new Date(Date.now() - 43200000),
-      icon: "⚔️"
-    },
-    {
-      id: "event_3",
-      type: "natural_disaster", 
-      title: "Grande Sécheresse dans les Plaines du Sud",
-      description: "Une sécheresse majeure frappe les terres agricoles, affectant les récoltes et le commerce",
-      participants: [],
-      location: { x: 30, y: 25, regionName: "Plaines Fertiles" },
-      priority: "critical",
-      turn: 130,
-      timestamp: new Date(Date.now() - 21600000),
-      icon: "🌵"
-    },
-    {
-      id: "event_4",
-      type: "alliance_signed",
-      title: "Alliance Commerciale : Cités Marchandes",
-      description: "Les trois grandes cités marchandes signent un pacte commercial historique",
-      participants: ["cite_ambre", "cite_perle", "cite_soie"],
-      location: { x: 40, y: 20, regionName: "Ports de l'Ouest" },
-      priority: "medium",
-      turn: 131,
-      timestamp: new Date(Date.now() - 7200000),
-      icon: "🤝"
-    },
-    {
-      id: "event_5",
-      type: "resource_discovery",
-      title: "Découverte de Mithril Ancien",
-      description: "Des explorateurs ont découvert un gisement de mithril dans les ruines des Anciens",
-      participants: ["guilde_explorateurs"],
-      location: { x: 18, y: 12, regionName: "Ruines Anciennes" },
-      priority: "high",
-      turn: 132,
-      timestamp: new Date(Date.now() - 3600000),
-      icon: "💎"
-    }
-  ]);
-
   const [filterType, setFilterType] = useState<PublicEventType | 'all'>('all');
+  const [initialized, setInitialized] = useState(false);
+
+  const { data: worldEvents = [], isLoading, refetch } = useQuery<WorldEvent[]>({
+    queryKey: ['publicEvents'],
+    queryFn: fetchPublicEvents,
+    staleTime: 30000,
+    refetchInterval: 60000
+  });
+
+  useEffect(() => {
+    if (!initialized && worldEvents.length === 0 && !isLoading) {
+      initDemoEvents().then(() => {
+        setInitialized(true);
+        refetch();
+      });
+    }
+  }, [worldEvents, isLoading, initialized, refetch]);
 
   const getEventIcon = (type: PublicEventType, customIcon?: string) => {
     if (customIcon) return customIcon;
@@ -118,9 +90,10 @@ export function EventPanel() {
     ? worldEvents 
     : worldEvents.filter(event => event.type === filterType);
 
-  const formatTimeAgo = (timestamp: Date) => {
+  const formatTimeAgo = (timestamp: string) => {
+    const date = new Date(timestamp);
     const now = new Date();
-    const diff = now.getTime() - timestamp.getTime();
+    const diff = now.getTime() - date.getTime();
     const hours = Math.floor(diff / (1000 * 60 * 60));
     
     if (hours < 1) return "Il y a moins d'une heure";
@@ -132,13 +105,23 @@ export function EventPanel() {
     return `Il y a ${days} jours`;
   };
 
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="text-center">
+          <h4 className="font-bold text-base mb-3">Chronique du Monde</h4>
+          <div className="text-sm text-amber-600">Chargement des événements...</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="text-center">
         <h4 className="font-bold text-base mb-3">Chronique du Monde</h4>
       </div>
 
-      {/* Filtres */}
       <div className="bg-amber-50 border border-amber-700 rounded p-3">
         <div className="font-medium text-sm mb-2">Filtrer par type</div>
         <div className="grid grid-cols-2 gap-1 text-xs">
@@ -181,45 +164,49 @@ export function EventPanel() {
         </div>
       </div>
 
-      {/* Journal des événements */}
       <div className="bg-amber-50 border border-amber-700 rounded p-3">
         <div className="font-medium text-sm mb-2">Journal des Événements Majeurs</div>
         <div className="space-y-2 max-h-64 overflow-y-auto">
-          {filteredEvents.map(event => (
-            <div 
-              key={event.id} 
-              className={`p-3 rounded border-2 ${getPriorityColor(event.priority)}`}
-            >
-              <div className="flex items-start space-x-2">
-                <span className="text-lg">{getEventIcon(event.type, event.icon)}</span>
-                <div className="flex-1">
-                  <div className="font-medium text-sm">{event.title}</div>
-                  <div className="text-xs mt-1 opacity-75">{event.description}</div>
-                  
-                  <div className="flex justify-between items-center mt-2 text-xs opacity-60">
-                    <span>Tour {event.turn}</span>
-                    <span>{formatTimeAgo(event.timestamp)}</span>
+          {filteredEvents.length === 0 ? (
+            <div className="text-center text-sm text-amber-600 py-4">
+              Aucun événement à afficher
+            </div>
+          ) : (
+            filteredEvents.map(event => (
+              <div 
+                key={event.id} 
+                className={`p-3 rounded border-2 ${getPriorityColor(event.priority)}`}
+              >
+                <div className="flex items-start space-x-2">
+                  <span className="text-lg">{getEventIcon(event.type, event.icon)}</span>
+                  <div className="flex-1">
+                    <div className="font-medium text-sm">{event.title}</div>
+                    <div className="text-xs mt-1 opacity-75">{event.description}</div>
+                    
+                    <div className="flex justify-between items-center mt-2 text-xs opacity-60">
+                      <span>Tour {event.turn}</span>
+                      <span>{formatTimeAgo(event.timestamp)}</span>
+                    </div>
+                    
+                    {event.location && (
+                      <div className="text-xs mt-1 opacity-60">
+                        📍 {(event.location as any).regionName || `(${event.location.x}, ${event.location.y})`}
+                      </div>
+                    )}
+                    
+                    {(event.participants as string[]).length > 0 && (
+                      <div className="text-xs mt-1 opacity-60">
+                        👥 Impliqués: {(event.participants as string[]).join(", ")}
+                      </div>
+                    )}
                   </div>
-                  
-                  {event.location && (
-                    <div className="text-xs mt-1 opacity-60">
-                      📍 {event.location.regionName || `(${event.location.x}, ${event.location.y})`}
-                    </div>
-                  )}
-                  
-                  {event.participants.length > 0 && (
-                    <div className="text-xs mt-1 opacity-60">
-                      👥 Impliqués: {event.participants.join(", ")}
-                    </div>
-                  )}
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 
-      {/* Statistiques */}
       <div className="bg-amber-50 border border-amber-700 rounded p-3">
         <div className="font-medium text-sm mb-2">Statistiques</div>
         <div className="text-xs space-y-1">
@@ -231,10 +218,12 @@ export function EventPanel() {
             <span>Événements critiques:</span>
             <span className="text-red-600 font-bold">{worldEvents.filter(e => e.priority === 'critical').length}</span>
           </div>
-          <div className="flex justify-between">
-            <span>Dernière mise à jour:</span>
-            <span>Tour {Math.max(...worldEvents.map(e => e.turn))}</span>
-          </div>
+          {worldEvents.length > 0 && (
+            <div className="flex justify-between">
+              <span>Dernière mise à jour:</span>
+              <span>Tour {Math.max(...worldEvents.map(e => e.turn))}</span>
+            </div>
+          )}
         </div>
       </div>
     </div>

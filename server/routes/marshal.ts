@@ -9,18 +9,11 @@ import {
 
 const router = Router();
 
-// === ROUTES POUR LES ARMÉES ===
-
-/**
- * GET /api/marshal/armies
- * Obtenir toutes les armées du joueur
- */
-router.get('/armies', (req, res) => {
+router.get('/armies', async (req, res) => {
   try {
-    // TODO: Récupérer l'ID du joueur depuis la session
-    const playerId = 'player'; // Temporaire
+    const playerId = 'player';
     
-    const armies = marshalService.getPlayerArmies(playerId);
+    const armies = await marshalService.getPlayerArmies(playerId);
     res.json(armies);
   } catch (error) {
     console.error('Erreur lors de la récupération des armées:', error);
@@ -28,19 +21,12 @@ router.get('/armies', (req, res) => {
   }
 });
 
-/**
- * POST /api/marshal/armies
- * Créer une nouvelle armée
- */
-router.post('/armies', (req, res) => {
+router.post('/armies', async (req, res) => {
   try {
-    // TODO: Récupérer l'ID du joueur depuis la session
-    const playerId = 'player'; // Temporaire
+    const playerId = 'player';
     
-    // Valider les données de la requête
     const validatedData = createArmyRequestSchema.parse(req.body);
     
-    // Calculer la force totale et la composition
     const composition = {
       infantry: Math.floor(Math.random() * 100) + 50,
       cavalry: Math.floor(Math.random() * 50) + 20,
@@ -60,9 +46,9 @@ router.post('/armies', (req, res) => {
       position: validatedData.position || null
     };
 
-    const army = marshalService.createArmy(armyData);
+    const army = await marshalService.createArmy(armyData);
     res.status(201).json(army);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erreur lors de la création de l\'armée:', error);
     if (error.name === 'ZodError') {
       res.status(400).json({ message: 'Données invalides', errors: error.errors });
@@ -72,20 +58,14 @@ router.post('/armies', (req, res) => {
   }
 });
 
-/**
- * PUT /api/marshal/armies/:armyId/marshal
- * Assigner un maréchal à une armée
- */
-router.put('/armies/:armyId/marshal', (req, res) => {
+router.put('/armies/:armyId/marshal', async (req, res) => {
   try {
     const { armyId } = req.params;
-    // TODO: Récupérer l'ID du joueur depuis la session
-    const playerId = 'player'; // Temporaire
+    const playerId = 'player';
     
     const validatedData = assignMarshalRequestSchema.parse(req.body);
     
-    // Vérifier que l'armée appartient au joueur
-    const army = marshalService.getArmyById(armyId);
+    const army = await marshalService.getArmyById(armyId);
     if (!army) {
       return res.status(404).json({ message: 'Armée introuvable' });
     }
@@ -95,22 +75,21 @@ router.put('/armies/:armyId/marshal', (req, res) => {
     }
     
     let marshalId = validatedData.marshalId;
-    let marshalName = validatedData.marshalId; // Temporaire, à remplacer par le vrai nom
+    let marshalName = validatedData.marshalId;
     
-    // Si "self", le joueur se désigne lui-même
     if (validatedData.marshalId === 'self') {
       marshalId = playerId;
-      marshalName = 'Vous-même'; // Temporaire
+      marshalName = 'Vous-même';
     }
     
-    const success = marshalService.assignMarshal(armyId, marshalId, marshalName);
+    const success = await marshalService.assignMarshal(armyId, marshalId, marshalName);
     
     if (success) {
       res.json({ message: 'Maréchal assigné avec succès' });
     } else {
       res.status(500).json({ message: 'Erreur lors de l\'assignation' });
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erreur lors de l\'assignation du maréchal:', error);
     if (error.name === 'ZodError') {
       res.status(400).json({ message: 'Données invalides', errors: error.errors });
@@ -120,23 +99,17 @@ router.put('/armies/:armyId/marshal', (req, res) => {
   }
 });
 
-/**
- * DELETE /api/marshal/armies/:armyId/marshal
- * Retirer un maréchal d'une armée
- */
-router.delete('/armies/:armyId/marshal', (req, res) => {
+router.delete('/armies/:armyId/marshal', async (req, res) => {
   try {
     const { armyId } = req.params;
-    // TODO: Récupérer l'ID du joueur depuis la session
-    const playerId = 'player'; // Temporaire
+    const playerId = 'player';
     
-    // Vérifier que l'armée appartient au joueur
-    const army = marshalService.getArmyById(armyId);
+    const army = await marshalService.getArmyById(armyId);
     if (!army || army.ownerId !== playerId) {
       return res.status(403).json({ message: 'Accès refusé' });
     }
     
-    const success = marshalService.removeMarshal(armyId);
+    const success = await marshalService.removeMarshal(armyId);
     
     if (success) {
       res.json({ message: 'Maréchal retiré avec succès' });
@@ -149,18 +122,11 @@ router.delete('/armies/:armyId/marshal', (req, res) => {
   }
 });
 
-// === ROUTES POUR LES CONTRATS ===
-
-/**
- * GET /api/marshal/contracts
- * Obtenir tous les contrats du joueur
- */
-router.get('/contracts', (req, res) => {
+router.get('/contracts', async (req, res) => {
   try {
-    // TODO: Récupérer l'ID du joueur depuis la session
-    const playerId = 'player'; // Temporaire
+    const playerId = 'player';
     
-    const contracts = marshalService.getPlayerContracts(playerId);
+    const contracts = await marshalService.getPlayerContracts(playerId);
     res.json(contracts);
   } catch (error) {
     console.error('Erreur lors de la récupération des contrats:', error);
@@ -168,16 +134,11 @@ router.get('/contracts', (req, res) => {
   }
 });
 
-/**
- * GET /api/marshal/contracts/proposed
- * Obtenir les contrats proposés au joueur
- */
-router.get('/contracts/proposed', (req, res) => {
+router.get('/contracts/proposed', async (req, res) => {
   try {
-    // TODO: Récupérer l'ID du joueur depuis la session
-    const playerId = 'player'; // Temporaire
+    const playerId = 'player';
     
-    const proposedContracts = marshalService.getProposedContracts(playerId);
+    const proposedContracts = await marshalService.getProposedContracts(playerId);
     res.json(proposedContracts);
   } catch (error) {
     console.error('Erreur lors de la récupération des contrats proposés:', error);
@@ -185,17 +146,11 @@ router.get('/contracts/proposed', (req, res) => {
   }
 });
 
-/**
- * POST /api/marshal/contracts
- * Créer un nouveau contrat de maréchal
- */
-router.post('/contracts', (req, res) => {
+router.post('/contracts', async (req, res) => {
   try {
-    // TODO: Récupérer l'ID du joueur depuis la session
-    const playerId = 'player'; // Temporaire
-    const playerName = 'Joueur'; // Temporaire
+    const playerId = 'player';
+    const playerName = 'Joueur';
     
-    // Vérifier la compétence requise : Connaissance des traités niveau 1
     const hasRequiredCompetence = marshalService.checkCompetenceRequirement(
       playerId, 
       REQUIRED_COMPETENCES.CREATE_CONTRACT, 
@@ -208,11 +163,9 @@ router.post('/contracts', (req, res) => {
       });
     }
     
-    // Valider les données de la requête
     const validatedData = createContractRequestSchema.parse(req.body);
     
-    // Vérifier que l'armée appartient au joueur
-    const army = marshalService.getArmyById(validatedData.armyId);
+    const army = await marshalService.getArmyById(validatedData.armyId);
     if (!army || army.ownerId !== playerId) {
       return res.status(403).json({ 
         message: 'Vous ne pouvez créer un contrat que pour vos propres armées' 
@@ -223,16 +176,16 @@ router.post('/contracts', (req, res) => {
       employerId: playerId,
       employerName: playerName,
       marshalId: validatedData.marshalId,
-      marshalName: 'Joueur Cible', // TODO: Récupérer le vrai nom
+      marshalName: 'Joueur Cible',
       armyId: validatedData.armyId,
       armyName: army.name,
       terms: validatedData.terms,
       proposalMessage: validatedData.proposalMessage
     };
     
-    const contract = marshalService.createContract(contractData);
+    const contract = await marshalService.createContract(contractData);
     res.status(201).json(contract);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erreur lors de la création du contrat:', error);
     if (error.name === 'ZodError') {
       res.status(400).json({ message: 'Données invalides', errors: error.errors });
@@ -242,17 +195,11 @@ router.post('/contracts', (req, res) => {
   }
 });
 
-/**
- * PUT /api/marshal/contracts/:contractId/accept
- * Accepter un contrat de maréchal
- */
-router.put('/contracts/:contractId/accept', (req, res) => {
+router.put('/contracts/:contractId/accept', async (req, res) => {
   try {
     const { contractId } = req.params;
-    // TODO: Récupérer l'ID du joueur depuis la session
-    const playerId = 'player'; // Temporaire
+    const playerId = 'player';
     
-    // Vérifier la compétence requise : Commandement niveau 1
     const hasRequiredCompetence = marshalService.checkCompetenceRequirement(
       playerId, 
       REQUIRED_COMPETENCES.MARSHAL_ARMY, 
@@ -265,7 +212,7 @@ router.put('/contracts/:contractId/accept', (req, res) => {
       });
     }
     
-    const success = marshalService.acceptContract(contractId, playerId);
+    const success = await marshalService.acceptContract(contractId, playerId);
     
     if (success) {
       res.json({ message: 'Contrat accepté avec succès' });
@@ -278,17 +225,12 @@ router.put('/contracts/:contractId/accept', (req, res) => {
   }
 });
 
-/**
- * PUT /api/marshal/contracts/:contractId/decline
- * Refuser un contrat de maréchal
- */
-router.put('/contracts/:contractId/decline', (req, res) => {
+router.put('/contracts/:contractId/decline', async (req, res) => {
   try {
     const { contractId } = req.params;
-    // TODO: Récupérer l'ID du joueur depuis la session
-    const playerId = 'player'; // Temporaire
+    const playerId = 'player';
     
-    const success = marshalService.declineContract(contractId, playerId);
+    const success = await marshalService.declineContract(contractId, playerId);
     
     if (success) {
       res.json({ message: 'Contrat refusé' });
@@ -301,15 +243,9 @@ router.put('/contracts/:contractId/decline', (req, res) => {
   }
 });
 
-// === ROUTES POUR LES CAMPAGNES ===
-
-/**
- * GET /api/marshal/campaigns
- * Obtenir toutes les campagnes actives
- */
-router.get('/campaigns', (req, res) => {
+router.get('/campaigns', async (req, res) => {
   try {
-    const campaigns = marshalService.getAllCampaigns();
+    const campaigns = await marshalService.getAllCampaigns();
     const activeCampaigns = campaigns.filter(c => c.status !== 'cancelled');
     res.json(activeCampaigns);
   } catch (error) {
@@ -318,15 +254,11 @@ router.get('/campaigns', (req, res) => {
   }
 });
 
-/**
- * GET /api/marshal/battles/:campaignId
- * Obtenir les événements de bataille d'une campagne
- */
-router.get('/battles/:campaignId', (req, res) => {
+router.get('/battles/:campaignId', async (req, res) => {
   try {
     const { campaignId } = req.params;
-    const battleEvents = marshalService.getAllBattleEvents()
-      .filter(battle => battle.campaignId === campaignId);
+    const allBattleEvents = await marshalService.getAllBattleEvents();
+    const battleEvents = allBattleEvents.filter(battle => battle.campaignId === campaignId);
     
     res.json(battleEvents);
   } catch (error) {
@@ -335,16 +267,11 @@ router.get('/battles/:campaignId', (req, res) => {
   }
 });
 
-/**
- * GET /api/marshal/player-data
- * Obtenir toutes les données de maréchalat pour un joueur
- */
-router.get('/player-data', (req, res) => {
+router.get('/player-data', async (req, res) => {
   try {
-    // TODO: Récupérer l'ID du joueur depuis la session
-    const playerId = 'player'; // Temporaire
+    const playerId = 'player';
     
-    const playerData = marshalService.getPlayerData(playerId);
+    const playerData = await marshalService.getPlayerData(playerId);
     res.json(playerData);
   } catch (error) {
     console.error('Erreur lors de la récupération des données joueur:', error);

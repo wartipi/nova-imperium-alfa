@@ -315,7 +315,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/cartography/regions/:playerId", async (req, res) => {
     try {
       const { playerId } = req.params;
-      const regions = cartographyService.getDiscoveredRegions(playerId);
+      const regions = await cartographyService.getDiscoveredRegions(playerId);
       res.json(regions);
     } catch (error) {
       res.status(500).json({ error: "Failed to get regions" });
@@ -325,7 +325,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/cartography/discover", async (req, res) => {
     try {
       const { playerId, centerX, centerY, radius, name } = req.body;
-      const region = cartographyService.discoverRegion(playerId, centerX, centerY, radius, name);
+      const region = await cartographyService.discoverRegion(playerId, centerX, centerY, radius, name);
       
       if (region) {
         res.json(region);
@@ -337,20 +337,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/cartography/regions/:playerId", async (req, res) => {
-    try {
-      const { playerId } = req.params;
-      const regions = cartographyService.getDiscoveredRegions(playerId);
-      res.json(regions);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to get regions" });
-    }
-  });
-
   app.post("/api/cartography/project", async (req, res) => {
     try {
       const { playerId, regionId, tools, assistants } = req.body;
-      const project = cartographyService.startCartographyProject(playerId, regionId, tools, assistants);
+      const project = await cartographyService.startCartographyProject(playerId, regionId, tools, assistants);
       
       if (project) {
         res.json(project);
@@ -367,7 +357,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { projectId } = req.params;
       const { actionPoints } = req.body;
       
-      const success = cartographyService.progressProject(projectId, actionPoints);
+      const success = await cartographyService.progressProject(projectId, actionPoints);
       
       if (success) {
         res.json({ success: true, message: "Project progress updated" });
@@ -382,7 +372,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/cartography/maps/:playerId", async (req, res) => {
     try {
       const { playerId } = req.params;
-      const maps = cartographyService.getPlayerMaps(playerId);
+      const maps = await cartographyService.getPlayerMaps(playerId);
       res.json(maps);
     } catch (error) {
       res.status(500).json({ error: "Failed to get maps" });
@@ -391,7 +381,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/cartography/maps/tradable", async (req, res) => {
     try {
-      const maps = cartographyService.getTradableMaps();
+      const maps = await cartographyService.getTradableMaps();
       res.json(maps);
     } catch (error) {
       res.status(500).json({ error: "Failed to get tradable maps" });
@@ -401,7 +391,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/cartography/projects/:playerId", async (req, res) => {
     try {
       const { playerId } = req.params;
-      const projects = cartographyService.getActiveProjects(playerId);
+      const projects = await cartographyService.getActiveProjects(playerId);
       res.json(projects);
     } catch (error) {
       res.status(500).json({ error: "Failed to get projects" });
@@ -411,7 +401,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/cartography/transfer", async (req, res) => {
     try {
       const { mapId, fromPlayerId, toPlayerId } = req.body;
-      const success = cartographyService.transferMap(mapId, fromPlayerId, toPlayerId);
+      const success = await cartographyService.transferMap(mapId, fromPlayerId, toPlayerId);
       
       if (success) {
         res.json({ success: true, message: "Map transferred successfully" });
@@ -426,7 +416,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/cartography/stats/:playerId", async (req, res) => {
     try {
       const { playerId } = req.params;
-      const stats = cartographyService.getCartographyStats(playerId);
+      const stats = await cartographyService.getCartographyStats(playerId);
       res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Failed to get cartography stats" });
@@ -436,7 +426,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/cartography/map/:mapId", async (req, res) => {
     try {
       const { mapId } = req.params;
-      const map = cartographyService.getMapById(mapId);
+      const map = await cartographyService.getMapById(mapId);
       
       if (map) {
         res.json(map);

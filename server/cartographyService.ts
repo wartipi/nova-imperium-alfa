@@ -1,210 +1,184 @@
-// Service de cartographie pour Nova Imperium
-
-interface MapRegion {
-  id: string;
-  name: string;
-  centerX: number;
-  centerY: number;
-  radius: number;
-  tiles: { x: number; y: number; terrain: string; resources: string[] }[];
-  exploredBy: string; // ID du joueur qui a exploré
-  explorationLevel: number; // 0-100% - niveau de détail de l'exploration
-  createdAt: number;
-}
-
-interface MapDocument {
-  id: string;
-  name: string;
-  region: MapRegion;
-  cartographer: string; // ID du joueur qui a créé la carte
-  quality: 'rough' | 'detailed' | 'masterwork'; // Qualité de la carte
-  accuracy: number; // 0-100% - précision de la carte
-  hiddenSecrets: string[]; // Secrets cachés révélés par la carte
-  tradingValue: number; // Valeur commerciale de la carte
-  uniqueFeatures: string[]; // Caractéristiques uniques de la région
-  createdAt: number;
-  lastUpdated: number;
-  isUnique: boolean; // Si c'est la seule carte de cette région
-}
-
-interface CartographyProject {
-  id: string;
-  playerId: string;
-  regionId: string;
-  progress: number; // 0-100%
-  requiredActionPoints: number;
-  spentActionPoints: number;
-  startedAt: number;
-  estimatedCompletion: number;
-  tools: string[]; // Outils de cartographie utilisés
-  assistants: string[]; // Assistants/unités aidant à la cartographie
-}
+import { eq, and, lt } from "drizzle-orm";
+import { db } from "./db";
+import { 
+  mapRegions, 
+  mapDocuments, 
+  cartographyProjects 
+} from "../shared/schema";
+import type { 
+  MapRegion, 
+  MapDocument, 
+  CartographyProject,
+  InsertMapRegion,
+  InsertMapDocument,
+  InsertCartographyProject
+} from "../shared/schema";
 
 class CartographyService {
-  private regions: Map<string, MapRegion> = new Map();
-  private mapDocuments: Map<string, MapDocument> = new Map();
-  private projects: Map<string, CartographyProject> = new Map();
   private subscribers: Map<string, Array<(data: any) => void>> = new Map();
 
-  // Découvrir une nouvelle région à cartographier
-  discoverRegion(
+  async discoverRegion(
     playerId: string,
     centerX: number,
     centerY: number,
     radius: number,
     name: string
-  ): MapRegion | null {
-    // Vérifier si la région est déjà découverte
-    const existingRegion = this.findRegionAt(centerX, centerY, radius);
+  ): Promise<MapRegion | null> {
+    const existingRegion = await this.findRegionAt(centerX, centerY, radius);
     if (existingRegion) {
       return existingRegion;
     }
 
-    // Simuler la découverte des tuiles dans la région
     const tiles = this.exploreTiles(centerX, centerY, radius);
+    const id = `region_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    const region: MapRegion = {
-      id: `region_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    const [region] = await db.insert(mapRegions).values({
+      id,
       name,
       centerX,
       centerY,
       radius,
       tiles,
       exploredBy: playerId,
-      explorationLevel: 25, // Exploration initiale basique
-      createdAt: Date.now()
-    };
+      explorationLevel: 25,
+      createdAt: new Date()
+    }).returning();
 
-    this.regions.set(region.id, region);
-    
     this.notifySubscribers(playerId, {
       type: 'region_discovered',
-      region: region
+      region
     });
 
     return region;
   }
 
-  // Commencer un projet de cartographie
-  startCartographyProject(
+  async startCartographyProject(
     playerId: string,
     regionId: string,
     tools: string[] = [],
     assistants: string[] = []
-  ): CartographyProject | null {
-    const region = this.regions.get(regionId);
+  ): Promise<CartographyProject | null> {
+    const [region] = await db.select().from(mapRegions)
+      .where(eq(mapRegions.id, regionId));
+    
     if (!region) return null;
 
-    // Calculer les PA requis selon la taille et la complexité
     const baseActionPoints = region.radius * 10;
     const toolsBonus = tools.length * 2;
     const assistantsBonus = assistants.length * 5;
     const requiredActionPoints = Math.max(baseActionPoints - toolsBonus - assistantsBonus, 20);
 
-    const project: CartographyProject = {
-      id: `project_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    const id = `project_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    const [project] = await db.insert(cartographyProjects).values({
+      id,
       playerId,
       regionId,
       progress: 0,
       requiredActionPoints,
       spentActionPoints: 0,
-      startedAt: Date.now(),
-      estimatedCompletion: Date.now() + (requiredActionPoints * 60 * 1000), // 1 minute par PA
+      startedAt: new Date(),
+      estimatedCompletion: new Date(Date.now() + (requiredActionPoints * 60 * 1000)),
       tools,
       assistants
-    };
+    }).returning();
 
-    this.projects.set(project.id, project);
-    
     this.notifySubscribers(playerId, {
       type: 'project_started',
-      project: project
+      project
     });
 
     return project;
   }
 
-  // Progresser dans un projet de cartographie
-  progressProject(projectId: string, actionPointsSpent: number): boolean {
-    const project = this.projects.get(projectId);
+  async progressProject(projectId: string, actionPointsSpent: number): Promise<boolean> {
+    const [project] = await db.select().from(cartographyProjects)
+      .where(eq(cartographyProjects.id, projectId));
+    
     if (!project) return false;
 
-    project.spentActionPoints += actionPointsSpent;
-    project.progress = Math.min((project.spentActionPoints / project.requiredActionPoints) * 100, 100);
+    const newSpentActionPoints = project.spentActionPoints + actionPointsSpent;
+    const newProgress = Math.min((newSpentActionPoints / project.requiredActionPoints) * 100, 100);
 
-    if (project.progress >= 100) {
-      // Projet terminé, créer la carte
-      const mapDocument = this.createMapDocument(project);
+    await db.update(cartographyProjects)
+      .set({ 
+        spentActionPoints: newSpentActionPoints, 
+        progress: Math.floor(newProgress) 
+      })
+      .where(eq(cartographyProjects.id, projectId));
+
+    if (newProgress >= 100) {
+      const mapDocument = await this.createMapDocument(project);
       if (mapDocument) {
         this.notifySubscribers(project.playerId, {
           type: 'map_completed',
           map: mapDocument,
-          project: project
+          project
         });
       }
     } else {
       this.notifySubscribers(project.playerId, {
         type: 'project_progress',
-        project: project
+        project: { ...project, progress: newProgress, spentActionPoints: newSpentActionPoints }
       });
     }
 
     return true;
   }
 
-  // Créer un document de carte à partir d'un projet terminé
-  private createMapDocument(project: CartographyProject): MapDocument | null {
-    const region = this.regions.get(project.regionId);
+  private async createMapDocument(project: CartographyProject): Promise<MapDocument | null> {
+    const [region] = await db.select().from(mapRegions)
+      .where(eq(mapRegions.id, project.regionId));
+    
     if (!region) return null;
 
-    // Déterminer la qualité selon les outils et assistants
+    const tools = project.tools as string[];
+    const assistants = project.assistants as string[];
+
     let quality: 'rough' | 'detailed' | 'masterwork' = 'rough';
     let accuracy = 60;
 
-    if (project.tools.includes('precision_compass') && project.tools.includes('surveyor_tools')) {
+    if (tools.includes('precision_compass') && tools.includes('surveyor_tools')) {
       quality = 'detailed';
       accuracy = 80;
     }
 
-    if (project.assistants.length >= 2 && project.tools.includes('masterwork_instruments')) {
+    if (assistants.length >= 2 && tools.includes('masterwork_instruments')) {
       quality = 'masterwork';
       accuracy = 95;
     }
 
-    // Découvrir des secrets cachés selon la qualité
     const hiddenSecrets = this.discoverSecrets(region, quality);
-    
-    // Déterminer les caractéristiques uniques
     const uniqueFeatures = this.identifyUniqueFeatures(region, quality);
-
-    // Calculer la valeur commerciale
     const tradingValue = this.calculateTradingValue(region, quality, accuracy, hiddenSecrets.length);
 
-    // Vérifier si c'est une carte unique
-    const isUnique = !Array.from(this.mapDocuments.values()).some(map => 
-      map.region.id === region.id && map.quality === quality
-    );
+    const existingMaps = await db.select().from(mapDocuments)
+      .where(and(
+        eq(mapDocuments.regionId, region.id),
+        eq(mapDocuments.quality, quality)
+      ));
+    const isUnique = existingMaps.length === 0;
 
-    const mapDocument: MapDocument = {
-      id: `map_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    const id = `map_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    const [mapDocument] = await db.insert(mapDocuments).values({
+      id,
       name: `Carte de ${region.name}`,
-      region: region,
+      regionId: region.id,
       cartographer: project.playerId,
       quality,
       accuracy,
       hiddenSecrets,
       tradingValue,
       uniqueFeatures,
-      createdAt: Date.now(),
-      lastUpdated: Date.now(),
+      createdAt: new Date(),
+      lastUpdated: new Date(),
       isUnique
-    };
+    }).returning();
 
-    this.mapDocuments.set(mapDocument.id, mapDocument);
     return mapDocument;
   }
 
-  // Simuler l'exploration de tuiles dans une région
   private exploreTiles(centerX: number, centerY: number, radius: number): { x: number; y: number; terrain: string; resources: string[] }[] {
     const tiles = [];
     const terrainTypes = ['grassland', 'forest', 'hills', 'mountains', 'desert', 'swamp', 'coast'];
@@ -227,7 +201,6 @@ class CartographyService {
     return tiles;
   }
 
-  // Découvrir des secrets cachés selon la qualité de la carte
   private discoverSecrets(region: MapRegion, quality: 'rough' | 'detailed' | 'masterwork'): string[] {
     const secrets: string[] = [];
     const possibleSecrets = [
@@ -256,7 +229,6 @@ class CartographyService {
     return secrets;
   }
 
-  // Identifier les caractéristiques uniques d'une région
   private identifyUniqueFeatures(region: MapRegion, quality: 'rough' | 'detailed' | 'masterwork'): string[] {
     const features: string[] = [];
     const possibleFeatures = [
@@ -285,7 +257,6 @@ class CartographyService {
     return features;
   }
 
-  // Calculer la valeur commerciale d'une carte
   private calculateTradingValue(region: MapRegion, quality: 'rough' | 'detailed' | 'masterwork', accuracy: number, secretsCount: number): number {
     let baseValue = region.radius * 10;
     
@@ -296,9 +267,10 @@ class CartographyService {
     return Math.floor(baseValue * qualityMultiplier + accuracyBonus + secretsBonus);
   }
 
-  // Trouver une région à des coordonnées données
-  private findRegionAt(x: number, y: number, radius: number): MapRegion | null {
-    for (const region of Array.from(this.regions.values())) {
+  private async findRegionAt(x: number, y: number, radius: number): Promise<MapRegion | null> {
+    const allRegions = await db.select().from(mapRegions);
+    
+    for (const region of allRegions) {
       const distance = Math.sqrt((region.centerX - x) ** 2 + (region.centerY - y) ** 2);
       if (distance <= radius && Math.abs(region.radius - radius) <= 2) {
         return region;
@@ -307,54 +279,56 @@ class CartographyService {
     return null;
   }
 
-  // Obtenir toutes les régions découvertes par un joueur
-  getDiscoveredRegions(playerId: string): MapRegion[] {
-    return Array.from(this.regions.values()).filter(region => 
-      region.exploredBy === playerId
-    );
+  async getDiscoveredRegions(playerId: string): Promise<MapRegion[]> {
+    return await db.select().from(mapRegions)
+      .where(eq(mapRegions.exploredBy, playerId));
   }
 
-  // Obtenir toutes les cartes créées par un joueur
-  getPlayerMaps(playerId: string): MapDocument[] {
-    return Array.from(this.mapDocuments.values()).filter(map => 
-      map.cartographer === playerId
-    );
+  async getPlayerMaps(playerId: string): Promise<MapDocument[]> {
+    return await db.select().from(mapDocuments)
+      .where(eq(mapDocuments.cartographer, playerId));
   }
 
-  // Obtenir tous les projets actifs d'un joueur
-  getActiveProjects(playerId: string): CartographyProject[] {
-    return Array.from(this.projects.values()).filter(project => 
-      project.playerId === playerId && project.progress < 100
-    );
+  async getActiveProjects(playerId: string): Promise<CartographyProject[]> {
+    return await db.select().from(cartographyProjects)
+      .where(and(
+        eq(cartographyProjects.playerId, playerId),
+        lt(cartographyProjects.progress, 100)
+      ));
   }
 
-  // Obtenir toutes les cartes disponibles pour l'échange
-  getTradableMaps(): MapDocument[] {
-    return Array.from(this.mapDocuments.values()).filter(map => map.tradingValue > 0);
+  async getTradableMaps(): Promise<MapDocument[]> {
+    const allMaps = await db.select().from(mapDocuments);
+    return allMaps.filter(map => map.tradingValue > 0);
   }
 
-  // Obtenir une carte par ID
-  getMapById(mapId: string): MapDocument | null {
-    return this.mapDocuments.get(mapId) || null;
+  async getMapById(mapId: string): Promise<MapDocument | null> {
+    const [map] = await db.select().from(mapDocuments)
+      .where(eq(mapDocuments.id, mapId));
+    return map || null;
   }
 
-  // Transférer une carte à un autre joueur (pour l'échange)
-  transferMap(mapId: string, fromPlayerId: string, toPlayerId: string): boolean {
-    const map = this.mapDocuments.get(mapId);
+  async transferMap(mapId: string, fromPlayerId: string, toPlayerId: string): Promise<boolean> {
+    const map = await this.getMapById(mapId);
     if (!map || map.cartographer !== fromPlayerId) return false;
 
-    // Créer une copie de la carte pour le nouveau propriétaire
-    const transferredMap: MapDocument = {
-      ...map,
-      id: `map_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    const id = `map_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    const [transferredMap] = await db.insert(mapDocuments).values({
+      id,
+      name: map.name,
+      regionId: map.regionId,
       cartographer: toPlayerId,
-      lastUpdated: Date.now(),
-      isUnique: false // Plus unique après transfert
-    };
+      quality: map.quality,
+      accuracy: map.accuracy,
+      hiddenSecrets: map.hiddenSecrets,
+      tradingValue: map.tradingValue,
+      uniqueFeatures: map.uniqueFeatures,
+      createdAt: new Date(),
+      lastUpdated: new Date(),
+      isUnique: false
+    }).returning();
 
-    this.mapDocuments.set(transferredMap.id, transferredMap);
-
-    // Notifier les deux joueurs
     this.notifySubscribers(fromPlayerId, {
       type: 'map_transferred',
       map: transferredMap,
@@ -370,7 +344,6 @@ class CartographyService {
     return true;
   }
 
-  // S'abonner aux mises à jour
   subscribe(playerId: string, callback: (data: any) => void): () => void {
     if (!this.subscribers.has(playerId)) {
       this.subscribers.set(playerId, []);
@@ -378,13 +351,18 @@ class CartographyService {
 
     this.subscribers.get(playerId)!.push(callback);
 
-    // Envoyer l'état initial
-    callback({
-      type: 'initial_state',
-      regions: this.getDiscoveredRegions(playerId),
-      maps: this.getPlayerMaps(playerId),
-      projects: this.getActiveProjects(playerId)
-    });
+    (async () => {
+      const regions = await this.getDiscoveredRegions(playerId);
+      const maps = await this.getPlayerMaps(playerId);
+      const projects = await this.getActiveProjects(playerId);
+      
+      callback({
+        type: 'initial_state',
+        regions,
+        maps,
+        projects
+      });
+    })();
 
     return () => {
       const callbacks = this.subscribers.get(playerId);
@@ -397,7 +375,6 @@ class CartographyService {
     };
   }
 
-  // Notifier les abonnés
   private notifySubscribers(playerId: string, data: any): void {
     const callbacks = this.subscribers.get(playerId);
     if (callbacks) {
@@ -405,17 +382,16 @@ class CartographyService {
     }
   }
 
-  // Obtenir les statistiques de cartographie
-  getCartographyStats(playerId: string): {
+  async getCartographyStats(playerId: string): Promise<{
     regionsDiscovered: number;
     mapsCreated: number;
     activeProjects: number;
     totalTradingValue: number;
     uniqueMaps: number;
-  } {
-    const regions = this.getDiscoveredRegions(playerId);
-    const maps = this.getPlayerMaps(playerId);
-    const projects = this.getActiveProjects(playerId);
+  }> {
+    const regions = await this.getDiscoveredRegions(playerId);
+    const maps = await this.getPlayerMaps(playerId);
+    const projects = await this.getActiveProjects(playerId);
 
     return {
       regionsDiscovered: regions.length,
