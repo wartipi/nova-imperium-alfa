@@ -342,6 +342,21 @@ export class MarshalService {
     return true;
   }
 
+  /**
+   * Résout les conséquences d'une bataille terminée.
+   * 
+   * Cette méthode est appelée automatiquement lorsqu'une bataille se termine.
+   * Elle effectue les opérations suivantes dans une transaction atomique :
+   * 
+   * 1. Calcule les pertes pour chaque armée participante
+   * 2. Ajuste la force, le moral et l'expérience des armées
+   * 3. Gère le sort des maréchaux (tué, capturé, survécu)
+   * 4. Met à jour les contrats de mercenaires si nécessaire
+   * 5. Change le statut des armées en "returning"
+   * 
+   * @param battle - L'événement de bataille contenant les armées participantes
+   * @param result - Le résultat de la bataille (vainqueur, pertes, sort des maréchaux)
+   */
   private async resolveBattleConsequences(battle: BattleEvent, result: any): Promise<void> {
     const armyIds = battle.armyIds as string[];
     
