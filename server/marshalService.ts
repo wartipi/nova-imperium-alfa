@@ -260,25 +260,29 @@ export class MarshalService {
 
   async createBattleEvent(battleData: InsertBattleEvent): Promise<BattleEvent> {
     const id = `battle_${Date.now()}_${Math.random().toString(36).substring(2)}`;
-    
-    const [battle] = await db.insert(battleEvents).values({
-      id,
-      campaignId: battleData.campaignId,
-      armyIds: battleData.armyIds,
-      description: battleData.description,
-      status: 'scheduled',
-      phase: 'preparation',
-      result: null,
-      timestamp: new Date(),
-      realTimeUpdates: []
-    }).returning();
-
     const armyIds = battleData.armyIds as string[];
-    if (armyIds.length > 0) {
-      await db.update(armies)
-        .set({ status: 'in_battle', lastActivity: new Date() })
-        .where(inArray(armies.id, armyIds));
-    }
+    
+    const [battle] = await db.transaction(async (tx) => {
+      const [newBattle] = await tx.insert(battleEvents).values({
+        id,
+        campaignId: battleData.campaignId,
+        armyIds: battleData.armyIds,
+        description: battleData.description,
+        status: 'scheduled',
+        phase: 'preparation',
+        result: null,
+        timestamp: new Date(),
+        realTimeUpdates: []
+      }).returning();
+
+      if (armyIds.length > 0) {
+        await tx.update(armies)
+          .set({ status: 'in_battle', lastActivity: new Date() })
+          .where(inArray(armies.id, armyIds));
+      }
+
+      return [newBattle];
+    });
 
     console.log(`⚔️ Bataille programmée: ${battle.description}`);
     return battle;
@@ -464,8 +468,34 @@ export class MarshalService {
       { name: 'treaty_knowledge', level: 1 }
     ];
 
-    for (const skill of defaultSkills) {
-      await this.setPlayerCompetence(playerId, skill.name, skill.level);
+    await db.transaction(async (tx) => {
+      for (const skill of defaultSkills) {
+        await this.setPlayerCompetenceInTx(tx, playerId, skill.name, skill.level);
+      }
+    });
+  }
+
+  private async setPlayerCompetenceInTx(tx: any, playerId: string, skillName: string, level: number, experience: number = 0): Promise<void> {
+    const [existing] = await tx.select().from(playerSkills)
+      .where(and(
+        eq(playerSkills.playerId, playerId),
+        eq(playerSkills.skillName, skillName)
+      ));
+
+    if (existing) {
+      await tx.update(playerSkills)
+        .set({ level, experience, updatedAt: new Date() })
+        .where(eq(playerSkills.id, existing.id));
+    } else {
+      const id = `skill_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+      await tx.insert(playerSkills).values({
+        id,
+        playerId,
+        skillName,
+        level,
+        experience,
+        updatedAt: new Date()
+      });
     }
   }
 

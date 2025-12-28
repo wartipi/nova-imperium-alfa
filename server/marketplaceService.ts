@@ -290,48 +290,57 @@ class MarketplaceService {
         eq(marketplaceItems.status, 'active')
       ));
 
-    for (const item of auctions) {
-      if (!item.endTurn || currentTurn < item.endTurn) continue;
+    const auctionsToResolve = auctions.filter(item => item.endTurn && currentTurn >= item.endTurn);
+    
+    if (auctionsToResolve.length === 0) {
+      return results;
+    }
 
-      if (item.highestBidderId && item.currentBid && item.currentBid > (item.startingBid || 0)) {
-        await db.update(marketplaceItems)
-          .set({ 
-            status: 'sold',
-            buyerId: item.highestBidderId,
-            buyerName: item.highestBidderName,
-            soldAt: new Date()
-          })
-          .where(eq(marketplaceItems.id, item.id));
+    await db.transaction(async (tx) => {
+      for (const item of auctionsToResolve) {
+        if (item.highestBidderId && item.currentBid && item.currentBid > (item.startingBid || 0)) {
+          await tx.update(marketplaceItems)
+            .set({ 
+              status: 'sold',
+              buyerId: item.highestBidderId,
+              buyerName: item.highestBidderName,
+              soldAt: new Date()
+            })
+            .where(eq(marketplaceItems.id, item.id));
 
-        const soldItem = { ...item, status: 'sold' as const };
+          const soldItem = { ...item, status: 'sold' as const };
+          results.push({ item: soldItem, result: 'sold' });
+        } else {
+          const newEndTurn = currentTurn + 1;
+          await tx.update(marketplaceItems)
+            .set({ endTurn: newEndTurn })
+            .where(eq(marketplaceItems.id, item.id));
 
-        this.notifySubscribers(item.highestBidderId, {
+          results.push({ item: { ...item, endTurn: newEndTurn }, result: 'extended' });
+        }
+      }
+    });
+
+    for (const result of results) {
+      if (result.result === 'sold') {
+        this.notifySubscribers(result.item.highestBidderId!, {
           type: 'auction_won',
-          item: soldItem,
-          finalPrice: item.currentBid
+          item: result.item,
+          finalPrice: result.item.currentBid
         });
 
-        this.notifySubscribers(item.sellerId, {
+        this.notifySubscribers(result.item.sellerId, {
           type: 'auction_completed',
-          item: soldItem,
-          winner: item.highestBidderId,
-          finalPrice: item.currentBid
+          item: result.item,
+          winner: result.item.highestBidderId,
+          finalPrice: result.item.currentBid
         });
-
-        results.push({ item: soldItem, result: 'sold' });
-      } else {
-        const newEndTurn = currentTurn + 1;
-        await db.update(marketplaceItems)
-          .set({ endTurn: newEndTurn })
-          .where(eq(marketplaceItems.id, item.id));
-
-        this.notifySubscribers(item.sellerId, {
+      } else if (result.result === 'extended') {
+        this.notifySubscribers(result.item.sellerId, {
           type: 'auction_extended',
-          item: { ...item, endTurn: newEndTurn },
-          newEndTurn
+          item: result.item,
+          newEndTurn: result.item.endTurn
         });
-
-        results.push({ item: { ...item, endTurn: newEndTurn }, result: 'extended' });
       }
     }
 

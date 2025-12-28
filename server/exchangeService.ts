@@ -155,11 +155,13 @@ class ExchangeService {
     }
 
     try {
-      await this.executeExchange(offer);
-      
-      await db.update(exchangeOffers)
-        .set({ status: 'accepted' })
-        .where(eq(exchangeOffers.id, offerId));
+      await db.transaction(async (tx) => {
+        await this.executeExchangeInTx(tx, offer);
+        
+        await tx.update(exchangeOffers)
+          .set({ status: 'accepted' })
+          .where(eq(exchangeOffers.id, offerId));
+      });
 
       this.notifySubscribers(offer.fromPlayer, { type: 'offer_accepted', offer });
       this.notifySubscribers(offer.toPlayer, { type: 'offer_accepted', offer });
@@ -192,6 +194,12 @@ class ExchangeService {
   }
 
   private async executeExchange(offer: ExchangeOffer): Promise<void> {
+    await db.transaction(async (tx) => {
+      await this.executeExchangeInTx(tx, offer);
+    });
+  }
+
+  private async executeExchangeInTx(tx: any, offer: ExchangeOffer): Promise<void> {
     console.log(`Échange exécuté entre ${offer.fromPlayer} et ${offer.toPlayer}`);
     
     const resourcesOffered = offer.resourcesOffered as Record<string, number>;
@@ -199,25 +207,23 @@ class ExchangeService {
     const itemsOffered = offer.itemsOffered as string[];
     const itemsRequested = offer.itemsRequested as string[];
 
-    await db.transaction(async (tx) => {
-      for (const [resource, amount] of Object.entries(resourcesOffered)) {
-        await this.transferResourcesInTx(tx, offer.fromPlayer, offer.toPlayer, resource, amount);
-        console.log(`Transfert: ${amount} ${resource} de ${offer.fromPlayer} vers ${offer.toPlayer}`);
-      }
+    for (const [resource, amount] of Object.entries(resourcesOffered)) {
+      await this.transferResourcesInTx(tx, offer.fromPlayer, offer.toPlayer, resource, amount);
+      console.log(`Transfert: ${amount} ${resource} de ${offer.fromPlayer} vers ${offer.toPlayer}`);
+    }
 
-      for (const [resource, amount] of Object.entries(resourcesRequested)) {
-        await this.transferResourcesInTx(tx, offer.toPlayer, offer.fromPlayer, resource, amount);
-        console.log(`Transfert: ${amount} ${resource} de ${offer.toPlayer} vers ${offer.fromPlayer}`);
-      }
+    for (const [resource, amount] of Object.entries(resourcesRequested)) {
+      await this.transferResourcesInTx(tx, offer.toPlayer, offer.fromPlayer, resource, amount);
+      console.log(`Transfert: ${amount} ${resource} de ${offer.toPlayer} vers ${offer.fromPlayer}`);
+    }
 
-      for (const itemId of itemsOffered) {
-        await this.transferUniqueItemInTx(tx, itemId, offer.fromPlayer, offer.toPlayer);
-      }
+    for (const itemId of itemsOffered) {
+      await this.transferUniqueItemInTx(tx, itemId, offer.fromPlayer, offer.toPlayer);
+    }
 
-      for (const itemId of itemsRequested) {
-        await this.transferUniqueItemInTx(tx, itemId, offer.toPlayer, offer.fromPlayer);
-      }
-    });
+    for (const itemId of itemsRequested) {
+      await this.transferUniqueItemInTx(tx, itemId, offer.toPlayer, offer.fromPlayer);
+    }
   }
 
   private async transferResourcesInTx(tx: any, fromPlayer: string, toPlayer: string, resourceType: string, amount: number): Promise<void> {

@@ -50,7 +50,11 @@ Preferred communication style: Simple, everyday language.
 - **JWT Authentication**: Full JWT-based authentication with `requireAuth`, `optionalAuth`, and `requireOwnership` middleware. Token generation and verification with configurable secret via `JWT_SECRET` environment variable
 - **SQL Query Optimization**: All services now use efficient SQL queries with WHERE clauses, JSONB filtering (@> operator), and bounding box filtering instead of in-memory filtering
 - **Distance Calculations in SQL**: PublicEventsService and CartographyService now use SQL SQRT/POWER for distance calculations directly in queries
-- **Transaction Wrapping**: executeExchange, resolveBattleConsequences, progressProject, acceptContract, and joinCampaign are now wrapped in db.transaction() for atomic operations
+- **Transaction Wrapping**: All multi-write operations wrapped in db.transaction() for atomic operations:
+  - ExchangeService: `acceptOffer` (exchange + status update), `executeExchange`
+  - MarshalService: `acceptContract`, `joinCampaign`, `resolveBattleConsequences`, `createBattleEvent` (battle + armies), `initializePlayerSkills`
+  - CartographyService: `progressProject` (project update + map creation)
+  - MarketplaceService: `resolveAuctions` (all auction resolutions in single transaction)
 - **Database Indexes**: 
   - GIN indexes on JSONB columns: `trade_rooms.participants`, `campaigns.participating_armies`, `public_events.participants`, `treaties.parties`
   - B-tree indexes on frequently queried columns: `map_regions.center_x/y`, `armies.owner_id`, `marshal_contracts.army_id/status`, `exchange_offers.status/from_player/to_player`, `unique_items.owner_id`, `player_resources.player_id`, `cartography_projects.player_id`, `map_documents.cartographer`, `public_events.turn/type`, `battle_events.campaign_id`, `player_skills.player_id`
