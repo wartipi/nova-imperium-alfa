@@ -16,14 +16,16 @@ import {
   discoverRegionSchema,
   startCartographyProjectSchema,
   progressProjectSchema,
-  transferMapSchema,
   createMessageSchema,
   createTreatySchema,
   signTreatySchema,
   createUniqueItemSchema,
   marketplaceSellSchema,
+  marketplaceAuctionSchema,
   marketplaceBidSchema,
-  marketplaceBuySchema
+  marketplaceBuySchema,
+  cartographyTransferSchema,
+  resolveAuctionsSchema
 } from "../shared/exchangeValidation";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -444,17 +446,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/cartography/transfer", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
-      const { mapId, toPlayerId } = req.body;
+      const validatedData = cartographyTransferSchema.parse(req.body);
       const fromPlayerId = req.user!.id;
       
-      const success = await cartographyService.transferMap(mapId, fromPlayerId, toPlayerId);
+      const success = await cartographyService.transferMap(validatedData.mapId, fromPlayerId, validatedData.toPlayerId);
       
       if (success) {
         res.json({ success: true, message: "Map transferred successfully" });
       } else {
         res.status(400).json({ error: "Failed to transfer map" });
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
       res.status(500).json({ error: "Failed to transfer map" });
     }
   });
@@ -749,6 +754,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/marketplace/direct-sale", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
+      const validatedData = marketplaceSellSchema.parse(req.body);
+      const sellerId = req.user!.id;
       const { 
         sellerName, 
         itemType, 
@@ -756,15 +763,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         resourceType, 
         quantity, 
         uniqueItemId, 
-        uniqueItem, 
         description, 
         tags 
-      } = req.body;
-      const sellerId = req.user!.id;
-
-      if (!sellerName || !itemType || !price) {
-        return res.status(400).json({ error: "Missing required fields" });
-      }
+      } = validatedData;
+      let { uniqueItem } = validatedData;
 
       let enrichedUniqueItem = uniqueItem;
       
@@ -793,13 +795,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       res.json({ success: true, item });
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
       res.status(500).json({ error: "Failed to create direct sale" });
     }
   });
 
   app.post("/api/marketplace/auction", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
+      const validatedData = marketplaceAuctionSchema.parse(req.body);
+      const sellerId = req.user!.id;
       const { 
         sellerName, 
         itemType, 
@@ -812,12 +819,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description, 
         tags,
         minBidIncrement
-      } = req.body;
-      const sellerId = req.user!.id;
-
-      if (!sellerName || !itemType || !startingBid || currentTurn === undefined) {
-        return res.status(400).json({ error: "Missing required fields" });
-      }
+      } = validatedData;
 
       const item = await marketplaceService.createAuction(
         sellerId,
@@ -829,7 +831,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       res.json({ success: true, item });
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
       res.status(500).json({ error: "Failed to create auction" });
     }
   });
@@ -837,12 +842,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/marketplace/purchase/:itemId", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
       const { itemId } = req.params;
-      const { buyerName } = req.body;
+      const validatedData = marketplaceBuySchema.parse(req.body);
       const buyerId = req.user!.id;
-
-      if (!buyerName) {
-        return res.status(400).json({ error: "Buyer name required" });
-      }
+      const { buyerName } = validatedData;
 
       const result = await marketplaceService.purchaseDirectSale(itemId, buyerId, buyerName);
       
@@ -851,7 +853,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         res.status(400).json({ error: result.message });
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
       res.status(500).json({ error: "Failed to purchase item" });
     }
   });
@@ -859,12 +864,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/marketplace/purchase-integrated/:itemId", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
       const { itemId } = req.params;
-      const { playerName } = req.body;
+      const validatedData = marketplaceBuySchema.parse(req.body);
       const playerId = req.user!.id;
-      
-      if (!playerName) {
-        return res.status(400).json({ error: "playerName requis" });
-      }
+      const playerName = validatedData.buyerName;
 
       const item = await marketplaceService.getItem(itemId);
       if (!item) {
@@ -920,8 +922,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         res.status(400).json({ error: result.message });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erreur achat intégré:', error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
       res.status(500).json({ error: "Erreur lors de l'achat intégré" });
     }
   });
@@ -929,12 +934,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/marketplace/bid/:itemId", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
       const { itemId } = req.params;
-      const { playerName, bidAmount } = req.body;
+      const validatedData = marketplaceBidSchema.parse(req.body);
       const playerId = req.user!.id;
-
-      if (!playerName || !bidAmount) {
-        return res.status(400).json({ error: "Bid information required" });
-      }
+      const { playerName, bidAmount } = validatedData;
 
       const result = await marketplaceService.placeBid(itemId, playerId, playerName, bidAmount);
       
@@ -943,7 +945,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         res.status(400).json({ error: result.message });
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
       res.status(500).json({ error: "Failed to place bid" });
     }
   });
@@ -968,15 +973,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Résoudre les enchères (appelé en fin de tour)
   app.post("/api/marketplace/resolve-auctions", async (req, res) => {
     try {
-      const { currentTurn } = req.body;
-
-      if (currentTurn === undefined) {
-        return res.status(400).json({ error: "Current turn required" });
-      }
+      const validatedData = resolveAuctionsSchema.parse(req.body);
+      const { currentTurn } = validatedData;
 
       const results = await marketplaceService.resolveAuctions(currentTurn);
       res.json({ success: true, results });
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
       res.status(500).json({ error: "Failed to resolve auctions" });
     }
   });

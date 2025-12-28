@@ -152,7 +152,6 @@ export const createUniqueItemSchema = z.object({
 });
 
 export const marketplaceSellSchema = z.object({
-  sellerId: z.string().min(1, "Seller ID is required"),
   sellerName: z.string().min(1, "Seller name is required"),
   itemType: z.enum(['resource', 'unique_item']),
   price: z.number().min(1, "Price must be at least 1"),
@@ -164,15 +163,36 @@ export const marketplaceSellSchema = z.object({
   tags: z.array(z.string()).optional()
 });
 
+export const marketplaceAuctionSchema = z.object({
+  sellerName: z.string().min(1, "Seller name is required"),
+  itemType: z.enum(['resource', 'unique_item']),
+  startingBid: z.number().min(1, "Starting bid must be at least 1"),
+  currentTurn: z.number().int().min(0),
+  resourceType: z.string().optional(),
+  quantity: z.number().int().min(1).optional(),
+  uniqueItemId: z.string().optional(),
+  uniqueItem: z.any().optional(),
+  description: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  minBidIncrement: z.number().min(1).optional()
+});
+
 export const marketplaceBidSchema = z.object({
-  bidderId: z.string().min(1, "Bidder ID is required"),
-  bidderName: z.string().min(1, "Bidder name is required"),
-  amount: z.number().min(1, "Bid amount must be at least 1")
+  playerName: z.string().min(1, "Player name is required"),
+  bidAmount: z.number().min(1, "Bid amount must be at least 1")
 });
 
 export const marketplaceBuySchema = z.object({
-  buyerId: z.string().min(1, "Buyer ID is required"),
   buyerName: z.string().min(1, "Buyer name is required")
+});
+
+export const cartographyTransferSchema = z.object({
+  mapId: z.string().min(1, "Map ID is required"),
+  toPlayerId: z.string().min(1, "Recipient player ID is required")
+});
+
+export const resolveAuctionsSchema = z.object({
+  currentTurn: z.number().int().min(0, "Current turn is required")
 });
 
 export type CreateTradeRoomInput = z.infer<typeof createTradeRoomSchema>;
@@ -194,5 +214,8 @@ export type CreateBattleEventInput = z.infer<typeof createBattleEventSchema>;
 export type UpdateBattleInput = z.infer<typeof updateBattleSchema>;
 export type CreateUniqueItemInput = z.infer<typeof createUniqueItemSchema>;
 export type MarketplaceSellInput = z.infer<typeof marketplaceSellSchema>;
+export type MarketplaceAuctionInput = z.infer<typeof marketplaceAuctionSchema>;
 export type MarketplaceBidInput = z.infer<typeof marketplaceBidSchema>;
 export type MarketplaceBuyInput = z.infer<typeof marketplaceBuySchema>;
+export type CartographyTransferInput = z.infer<typeof cartographyTransferSchema>;
+export type ResolveAuctionsInput = z.infer<typeof resolveAuctionsSchema>;
