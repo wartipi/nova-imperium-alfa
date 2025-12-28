@@ -1,0 +1,190 @@
+Voici un plan de correction point par point pour mener à bien les ajustements restants dans la branche **NI‑architecturetest9.0‑agent3**. Chaque tâche est décrite avec des instructions techniques claires, et je précise si elle résulte d’un problème déjà signalé ou d’une observation plus récente.
+
+---
+
+## 1. Authentification et autorisations (déjà identifié)
+
+### Constat
+
+Les routes acceptent encore des identifiants en clair, sans authentification ni contrôle d’accès. Un module `auth.ts` existe (JWT, middlewares `requireAuth`, `requireRole`, etc.), mais il n’est pas appliqué partout.
+
+### Instructions
+
+1. **Installer la dépendance JWT** si nécessaire (`jsonwebtoken` côté serveur).
+2. **Ajouter un middleware global** :
+
+   ```ts
+   // server/middleware/auth.ts (déjà présent, à étendre)
+   export const requireAuth = async (req, res, next) => {
+     const token = req.headers.authorization?.split(' ')[1];
+     try {
+       const payload = jwt.verify(token, process.env.JWT_SECRET);
+       req.user = { id: payload.id, role: payload.role };
+       next();
+     } catch {
+       return res.status(401).json({ error: 'Not authenticated' });
+     }
+   };
+   ```
+3. **Appliquer le middleware** sur toutes les routes sensibles dans `server/routes.ts` :
+
+   ```ts
+   router.post('/armies/:id/contracts', requireAuth, requireOwnership('armies', 'id'), async (req, res) => { … });
+   router.post('/trade-rooms', requireAuth, async (req, res) => { … });
+   ```
+
+   Le middleware `requireOwnership` doit comparer `req.user.id` au propriétaire de la ressource (armée, contrat, etc.).
+4. **Générer et retourner un token** lors du login (ex. dans `loginEndpoint`) et mettre à jour le front-end pour inclure ce token dans chaque requête.
+
+## 2. Transactions généralisées (nouveau)
+
+### Constat
+
+Certaines opérations composées (progression de cartographie, acceptation d’offres, transferts de ressources, etc.) modifient plusieurs tables sans transaction, ce qui peut laisser la base dans un état partiellement mis à jour.
+
+### Instructions
+
+1. **Identifier les méthodes multi‑écritures** (ex. création de cartographie, progression de projet, acceptation d’offres).
+2. **Encapsuler chaque ensemble d’écritures** dans une transaction :
+
+   ```ts
+   await db.transaction(async (tx) => {
+     const project = await tx.update(cartographyProjects)
+       .set({ progress: newProgress })
+       .where(eq(cartographyProjects.id, projectId))
+       .returning();
+     if (project.progress >= 1) {
+       // création de la carte et autres opérations
+       await tx.insert(mapDocuments).values({...});
+       await tx.update(cartographyProjects).set({ status: 'completed' }).where(eq(cartographyProjects.id, projectId));
+     }
+     // autres mises à jour liées
+   });
+   ```
+3. **Gérer les exceptions** pour que la transaction soit annulée si une opération échoue.
+
+## 3. Recherche géospatiale dans CartographyService (déjà identifié)
+
+### Constat
+
+Même si `findRegionAt` filtre maintenant un rectangle avant de calculer la distance, la distance exacte est encore calculée en mémoire sur ce sous-ensemble.
+
+### Instructions
+
+1. **Étendre le schéma** : ajouter un champ `point` de type `point` (ou utiliser PostGIS si disponible) dans la table `map_regions`.
+2. **Créer un index géospatial** :
+
+   ```sql
+   CREATE INDEX map_regions_point_idx ON map_regions USING gist (point);
+   ```
+3. **Remplacer la requête** par une recherche géospatiale :
+
+   ```ts
+   const nearbyRegions = await db
+     .select()
+     .from(mapRegions)
+     .where(
+       sql`ST_DWithin(point, ST_MakePoint(${x}, ${y})::geography, ${radius})`
+     );
+   ```
+
+   Si PostGIS n’est pas disponible, réduire encore la taille du rectangle (`limit`) pour minimiser la boucle en mémoire.
+
+## 4. Filtrage SQL des salles de troc (déjà identifié)
+
+### Constat
+
+Certaines méthodes (ex. `getTradeRoomsForPlayer`) récupèrent toutes les salles et filtrent ensuite en mémoire.
+
+### Instructions
+
+1. **Représenter les participants** des salles dans une colonne JSONB `participants` ou créer une table de jointure `trade_room_participants(room_id, player_id)`.
+2. **Ajouter un index GIN** sur `participants` si c’est une colonne JSONB :
+
+   ```sql
+   CREATE INDEX trade_rooms_participants_idx ON trade_rooms USING gin (participants);
+   ```
+3. **Modifier la requête** pour filtrer directement en SQL :
+
+   ```ts
+   const rooms = await db
+     .select()
+     .from(tradeRooms)
+     .where(sql`${tradeRooms.participants} @> ${JSON.stringify([playerId])}::jsonb`);
+   ```
+
+   Avec une table de jointure, effectuer une jointure `INNER JOIN trade_room_participants trp ON trp.room_id = tradeRooms.id` et filtrer sur `trp.player_id = playerId`.
+
+## 5. Validation systématique et tests (déjà identifié)
+
+### Constat
+
+Les payloads des routes ne sont pas tous validés par Zod et il manque des tests d’intégration.
+
+### Instructions
+
+1. **Définir un schéma Zod** pour chaque type d’entrée :
+
+   ```ts
+   const createArmySchema = z.object({
+     name: z.string().min(3),
+     ownerId: z.string().uuid(),
+     // autres champs...
+   });
+   ```
+2. **Créer un middleware de validation** :
+
+   ```ts
+   const validate = (schema) => (req, res, next) => {
+     const result = schema.safeParse(req.body);
+     if (!result.success) {
+       return res.status(400).json({ error: result.error.flatten() });
+     }
+     req.body = result.data;
+     next();
+   };
+   ```
+3. **Appliquer ce middleware** à toutes les routes POST/PATCH.
+4. **Écrire des tests d’intégration** avec Jest/Vitest et un serveur de test :
+
+   * Vérifier qu’une armée est créée correctement.
+   * Vérifier qu’un contrat est refusé si la compétence est insuffisante.
+   * Vérifier que la progression d’un projet de cartographie et la création de carte s’effectuent avec un rollback en cas d’erreur.
+   * Vérifier qu’une offre d’échange transfère correctement ressources et objets.
+
+## 6. Indexation et performances (nouveau)
+
+### Constat
+
+Bien que des index aient été ajoutés, il faut vérifier qu’ils couvrent toutes les colonnes sur lesquelles on fait des filtres ou jointures.
+
+### Instructions
+
+1. **Analyser les requêtes lentes** (avec `EXPLAIN ANALYZE`) pour déterminer si d’autres index sont nécessaires (ex. `player_resources.player_id`, `marshal_contracts.army_id` et `status`).
+2. **Ajouter des index** pour les colonnes couramment filtrées :
+
+   ```sql
+   CREATE INDEX player_resources_player_id_idx ON player_resources(player_id);
+   CREATE INDEX marshal_contracts_army_status_idx ON marshal_contracts(army_id, status);
+   ```
+3. **Regénérer les index** via `server/db/indexes.ts` si ce fichier est conçu pour automatiser leur création.
+
+## 7. Modularité et documentation (nouveau)
+
+### Constat
+
+La logique métier (par ex. construction de requêtes) est parfois entremêlée avec le code des routes, et la documentation n’est pas entièrement à jour.
+
+### Instructions
+
+1. **Créer des services ou « repositories » dédiés** pour les accès DB complexes (par ex. `CampaignRepository.ts` avec `getCampaignsForPlayer(playerId)` qui encapsule la logique JSONB).
+2. **Mettre à jour le README** : décrire les nouvelles tables, les endpoints existants, les middlewares d’authentification, les index. Préciser comment lancer les migrations et les scripts de seed.
+3. **Ajouter des commentaires** au-dessus des fonctions principales pour expliquer les étapes métier (notamment dans `resolveBattleConsequences` et `createExchangeOffer`).
+
+---
+
+### 🔄 Synthèse
+
+* Les améliorations déjà apportées (filtrage SQL complet, transactions pour les batailles, persistance des échanges) ont résolu plusieurs problèmes signalés.
+* Il reste à généraliser l’authentification, à encapsuler les opérations multi‑écritures dans des transactions, à optimiser certaines recherches encore en mémoire et à systématiser la validation et les tests.
+* En suivant les instructions ci‑dessus, vous consoliderez la phase 1 et préparerez un socle backend robuste pour les étapes suivantes.
