@@ -1,4 +1,5 @@
-import { eq, and, or, lt, gt, sql } from "drizzle-orm";
+import { eq, and, or, lt, gt } from "drizzle-orm";
+import { jsonbContainsArray } from "./utils/jsonbQueries";
 import { db } from "./db";
 import { 
   tradeRooms, 
@@ -331,7 +332,7 @@ class ExchangeService {
     return await db.select().from(tradeRooms)
       .where(and(
         eq(tradeRooms.isActive, true),
-        sql`${tradeRooms.participants}::jsonb @> ${JSON.stringify([playerId])}::jsonb`
+        jsonbContainsArray(tradeRooms.participants, playerId)
       ));
   }
 

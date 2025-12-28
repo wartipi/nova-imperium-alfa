@@ -4,6 +4,7 @@ import { publicEvents } from "../shared/schema";
 import type { PublicEvent, InsertPublicEvent } from "../shared/schema";
 import { EventDisplayConfig, type PublicEventType, type EventPriority } from '../shared/publicEventsSchema';
 import { createJsonbLocationDistanceCondition } from "./utils/geospatial";
+import { jsonbContainsArray } from "./utils/jsonbQueries";
 
 interface EventFilter {
   types?: string[];
@@ -66,7 +67,7 @@ export class PublicEventsService {
       
       if (filter.participants && filter.participants.length > 0) {
         const participantConditions = filter.participants.map(p => 
-          sql`${publicEvents.participants}::jsonb @> ${JSON.stringify([p])}::jsonb`
+          jsonbContainsArray(publicEvents.participants, p)
         );
         conditions.push(or(...participantConditions)!);
       }

@@ -83,11 +83,20 @@ Preferred communication style: Simple, everyday language.
 - **MessageService**: Migrated from in-memory array to PostgreSQL with indexed queries on fromPlayer/toPlayer
 - **MarketplaceService**: Migrated from in-memory Map to PostgreSQL with full persistence for items, auctions, and bids
 
-## Geospatial Search Optimization (December 2025)
+## Modular SQL Utilities (December 2025)
+- **JSONB Utilities**: `server/utils/jsonbQueries.ts` provides reusable JSONB query functions
+  - `jsonbContainsArray(column, value)`: JSONB @> operator for array membership
+  - `jsonbContainsObject(column, obj)`: JSONB @> operator for object containment
+  - `jsonbExtractText/Number`: Extract values from JSONB columns
 - **Geospatial Utilities**: `server/utils/geospatial.ts` provides reusable SQL-based geospatial functions
   - `createBoundingBoxCondition`: Efficient bounding box filtering using B-tree indexes
   - `createDistanceCondition`: SQL SQRT/POWER distance calculations
   - `orderByDistanceSQL`: Distance-based ordering
+- **API Documentation**: `server/docs/API_DOCUMENTATION.md` - Complete backend documentation
+  - All database tables with columns and types
+  - All API endpoints with authentication requirements
+  - Middleware documentation (requireAuth, requireRole, requireOwnership)
+  - Index strategy and validation schemas
 - **New Endpoints**:
   - `GET /api/cartography/regions/nearby/:x/:y/:radius` - Find regions within radius
   - `GET /api/cartography/regions/area` - Find regions in rectangular area

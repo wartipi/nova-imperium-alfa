@@ -1,4 +1,5 @@
-import { eq, and, or, sql, inArray, gte, lt } from "drizzle-orm";
+import { eq, and, or, inArray, gte, lt } from "drizzle-orm";
+import { jsonbContainsArray } from "./utils/jsonbQueries";
 import { db } from "./db";
 import { treaties } from "../shared/schema";
 import type { Treaty } from "../shared/schema";
@@ -115,7 +116,7 @@ class TreatyService {
 
   async getTreatiesForPlayer(playerId: string): Promise<Treaty[]> {
     return await db.select().from(treaties)
-      .where(sql`${treaties.parties}::jsonb @> ${JSON.stringify([playerId])}::jsonb`);
+      .where(jsonbContainsArray(treaties.parties, playerId));
   }
 
   async getTreatyById(treatyId: string): Promise<Treaty | null> {
@@ -344,8 +345,8 @@ class TreatyService {
   async hasActiveTreaty(playerId1: string, playerId2: string, type?: TreatyType): Promise<boolean> {
     const conditions = [
       eq(treaties.status, 'active'),
-      sql`${treaties.parties}::jsonb @> ${JSON.stringify([playerId1])}::jsonb`,
-      sql`${treaties.parties}::jsonb @> ${JSON.stringify([playerId2])}::jsonb`
+      jsonbContainsArray(treaties.parties, playerId1),
+      jsonbContainsArray(treaties.parties, playerId2)
     ];
     
     if (type) {

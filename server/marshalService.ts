@@ -1,4 +1,5 @@
-import { eq, and, or, inArray, sql } from "drizzle-orm";
+import { eq, and, or, inArray } from "drizzle-orm";
+import { jsonbContainsArray } from "./utils/jsonbQueries";
 import { db } from "./db";
 import { 
   armies, 
@@ -491,7 +492,7 @@ export class MarshalService {
     let relevantCampaigns: Campaign[] = [];
     if (playerArmyIds.length > 0) {
       const armyConditions = playerArmyIds.map(id => 
-        sql`${campaigns.participatingArmies}::jsonb @> ${JSON.stringify([id])}::jsonb`
+        jsonbContainsArray(campaigns.participatingArmies, id)
       );
       
       relevantCampaigns = await db.select().from(campaigns)
