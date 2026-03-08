@@ -1,0 +1,574 @@
+Oui. Et cette fois, on va lui donner un **vrai mandat d’audit**, pas un vague “vérifie si tout est beau” qui finit en bénédiction automatique sur un chantier à moitié sec.
+
+Voici un **prompt détaillé** que tu peux donner à l’IA pour qu’elle fasse une **vérification complète, rigoureuse et utile** du travail terminé sur l’intégration de la persistance PostgreSQL, des segments de carte 30x50, et du bloc de 9 segments.
+
+---
+
+# Prompt d’audit détaillé pour agent IA Replit
+
+## Objectif : vérifier rigoureusement l’intégration PostgreSQL, la persistance des segments 30x50, et l’impact sur le projet existant
+
+Tu vas agir comme un **auditeur technique rigoureux** sur le projet **Nova Imperium**.
+Le travail d’intégration a déjà été fait.
+Je ne veux **pas** que tu continues à coder immédiatement.
+Je veux d’abord une **vérification complète** pour confirmer :
+
+1. que l’intégration est correcte
+2. qu’elle ne casse pas le prototype
+3. qu’elle respecte bien l’objectif fonctionnel
+4. qu’elle n’introduit pas de dette technique grave
+5. qu’on peut continuer sans devoir tout refaire
+
+---
+
+# Contexte fonctionnel à garder en tête
+
+Le jeu utilise désormais une structure de carte segmentée :
+
+* **1 segment = 30 lignes x 50 colonnes**
+* donc **1500 tuiles par segment**
+* pour le prototype, la zone active visée est un **bloc de 9 segments**
+* donc une grille **3 x 3**
+* soit un total de **13 500 tuiles**
+* le but du prototype n’est pas encore de gérer toute la carte du monde
+* le but est de pouvoir **charger, sauvegarder et relire correctement ces 9 segments**
+
+L’intégration devait utiliser **PostgreSQL** comme persistance principale.
+
+---
+
+# Ta mission
+
+Tu dois faire une **vérification complète, structurée, prudente et honnête** du travail déjà effectué.
+
+Tu ne dois pas faire semblant que tout va bien.
+Tu dois identifier clairement :
+
+* ce qui fonctionne
+* ce qui est incomplet
+* ce qui est fragile
+* ce qui est dangereux
+* ce qui est acceptable temporairement
+* ce qui devra être refactoré plus tard
+
+---
+
+# Règles de travail
+
+## Très important
+
+* Ne dis pas “c’est bon” sans preuve
+* Ne conclus pas trop vite
+* Ne masque pas les problèmes sous des formules vagues
+* Ne considère pas qu’une absence d’erreur de compilation signifie que tout est correct
+* Vérifie le comportement, pas seulement les types
+* Distingue les problèmes **préexistants** des problèmes **introduits par la nouvelle intégration**
+* Ne lance pas de gros refactors non demandés
+* Si tu détectes une faiblesse, documente-la clairement avant de proposer une correction
+
+---
+
+# Structure d’audit attendue
+
+Je veux que tu suives exactement ces étapes.
+
+---
+
+## Étape 1 — Inventaire des changements réellement présents
+
+Commence par identifier précisément **ce qui a été ajouté ou modifié** dans le projet pour cette intégration.
+
+Je veux que tu listes :
+
+* nouveaux fichiers créés
+* fichiers existants modifiés
+* fichiers de configuration ajoutés/modifiés
+* schémas de base de données créés
+* services ajoutés
+* routes API ajoutées
+* éventuels scripts de seed
+* éventuelles modifications côté client
+
+### Livrable attendu
+
+Un tableau clair :
+
+| Fichier      | Type de changement | Rôle        |
+| ------------ | ------------------ | ----------- |
+| `server/...` | créé/modifié       | description |
+| `shared/...` | créé/modifié       | description |
+| etc.         |                    |             |
+
+---
+
+## Étape 2 — Vérification de l’intégration PostgreSQL
+
+Tu dois vérifier si PostgreSQL est **réellement** intégré et utilisable.
+
+### À vérifier
+
+* la connexion à PostgreSQL existe bien
+* les variables d’environnement nécessaires sont identifiées
+* le projet sait démarrer avec cette connexion
+* il n’y a pas de seconde solution de persistance concurrente ajoutée inutilement
+* la solution choisie est cohérente avec l’existant
+* les fichiers de config sont propres
+* l’outil choisi pour la DB est bien celui déjà utilisé dans le projet si c’était le cas
+
+### Tu dois vérifier précisément
+
+* présence de `DATABASE_URL` ou équivalent
+* présence d’un client PostgreSQL / ORM / query builder
+* cohérence entre configuration, schémas, migrations et code runtime
+
+### Livrable attendu
+
+Un rapport clair :
+
+* **Statut** : OK / Partiel / Problématique
+* **Preuves** : fichiers et éléments trouvés
+* **Risques éventuels**
+* **Actions nécessaires si inachevé**
+
+---
+
+## Étape 3 — Vérification du modèle de données des segments de carte
+
+Tu dois vérifier que le modèle de données correspond bien à l’objectif demandé.
+
+### À vérifier
+
+* existence d’une table ou structure pour les **segments**
+* existence d’une table ou structure pour les **tuiles**
+* relation correcte entre segment et tuiles
+* dimensions cohérentes avec **50 x 30**
+* système de coordonnées segment + coordonnées locales + coordonnées monde si applicable
+* contraintes d’unicité suffisantes pour éviter les doublons
+* structure compatible avec une extension future
+
+### Vérification approfondie
+
+Pour chaque entité trouvée :
+
+* nom
+* champs
+* types
+* clé primaire
+* clés étrangères
+* contraintes d’unicité
+* cohérence logique
+
+### Points critiques à tester
+
+* un segment ne doit pas pouvoir être dupliqué sur les mêmes coordonnées
+* une tuile ne doit pas pouvoir être dupliquée dans le même segment sur les mêmes coordonnées locales
+* les coordonnées monde doivent être cohérentes si elles existent
+* le schéma doit être compatible avec des objets futurs (villes, armées, objets uniques)
+
+### Livrable attendu
+
+Un tableau du type :
+
+| Entité | Existe | Correcte | À améliorer |
+| ------ | ------ | -------- | ----------- |
+
+Puis une analyse narrative expliquant si le schéma est :
+
+* bon
+* acceptable temporairement
+* ou mal conçu
+
+---
+
+## Étape 4 — Vérification du service de segments de carte
+
+Tu dois auditer le service métier créé pour gérer les segments.
+
+### À vérifier
+
+* existence du service
+* lisibilité du code
+* séparation propre entre logique métier et routes
+* présence des fonctions nécessaires
+* robustesse des fonctions
+* comportement idempotent quand nécessaire
+* absence de logique fragile ou trop implicite
+
+### Fonctions attendues à vérifier
+
+Vérifie si le service contient bien, ou équivalent :
+
+* création de segment
+* création de tuiles pour un segment
+* récupération d’un segment
+* récupération des tuiles d’un segment
+* récupération d’un segment avec ses tuiles
+* récupération d’un bloc de 9 segments autour d’un centre
+
+### Pour chaque fonction
+
+Tu dois vérifier :
+
+* signature
+* ce qu’elle retourne
+* si elle gère les cas d’erreur
+* si elle évite les doublons
+* si elle respecte les coordonnées
+* si elle est testable
+* si elle dépend proprement de la couche DB
+
+### Livrable attendu
+
+Un tableau :
+
+| Fonction | Existe | Fonctionnelle | Risques | Commentaire |
+| -------- | ------ | ------------- | ------- | ----------- |
+
+---
+
+## Étape 5 — Vérification spécifique du bloc de 9 segments
+
+C’est le cœur du prototype.
+Tu dois le vérifier à fond.
+
+### Tu dois confirmer :
+
+qu’il est possible de charger correctement :
+
+* le segment central `(0,0)`
+* les 8 segments adjacents :
+
+  * `(-1,-1)`
+  * `(0,-1)`
+  * `(1,-1)`
+  * `(-1,0)`
+  * `(0,0)`
+  * `(1,0)`
+  * `(-1,1)`
+  * `(0,1)`
+  * `(1,1)`
+
+### Vérifications demandées
+
+* le bloc 3x3 est bien récupéré complet
+* aucun segment attendu ne manque
+* aucun segment en trop n’est ajouté
+* les coordonnées sont correctes
+* chaque segment a bien la bonne taille
+* chaque segment contient bien 1500 tuiles
+* le total obtenu est cohérent avec 13 500 tuiles
+* il n’y a pas de confusion entre coordonnées de segment et coordonnées de tuile
+
+### Test logique demandé
+
+Si une fonction `getNineSegmentBlock()` ou équivalent existe :
+
+* vérifie son implémentation réelle
+* vérifie son comportement sur le centre `(0,0)`
+* vérifie si elle dépend de suppositions fragiles
+* vérifie si elle gère proprement les cas où un segment manquerait
+
+### Livrable attendu
+
+Un rapport très concret :
+
+* résultat attendu
+* résultat réel
+* problèmes trouvés
+* niveau de confiance
+
+---
+
+## Étape 6 — Vérification du seed initial
+
+Tu dois vérifier si un **seed** a bien été créé pour initialiser les 9 segments du prototype.
+
+### À vérifier
+
+* le script existe
+* il est exécutable
+* il crée les 9 segments attendus
+* il crée bien les tuiles
+* il ne crée pas de doublons absurdes
+* il est relançable ou au moins raisonnablement sûr
+* il reste compatible avec le prototype
+
+### Contrôles attendus
+
+* nombre de segments créés
+* nombre de tuiles par segment
+* total global
+* cohérence des coordonnées
+* cohérence des terrains générés
+
+### Livrable attendu
+
+Un tableau :
+
+| Vérification | Attendu | Observé | Statut |
+| ------------ | ------- | ------- | ------ |
+
+---
+
+## Étape 7 — Vérification des routes API
+
+Tu dois auditer les endpoints ajoutés pour la carte.
+
+### À vérifier
+
+* les routes existent
+* elles sont regroupées proprement
+* elles n’ajoutent pas encore plus de chaos dans un fichier `routes.ts` déjà trop gros
+* elles utilisent le service métier au lieu de contenir la logique directement
+* elles retournent des données cohérentes
+* elles gèrent proprement les erreurs
+
+### Vérifie si des routes équivalentes existent pour :
+
+* récupérer un segment
+* récupérer les tuiles d’un segment
+* récupérer le bloc 3x3
+
+### Pour chaque route
+
+Vérifie :
+
+* méthode HTTP
+* paramètres
+* validation
+* structure de réponse
+* robustesse
+* gestion des cas invalides
+
+### Livrable attendu
+
+Un tableau :
+
+| Route | Existe | Correcte | Validation | Risque |
+| ----- | ------ | -------- | ---------- | ------ |
+
+---
+
+## Étape 8 — Vérification de l’intégration côté client
+
+Tu dois vérifier si le client a été branché, même partiellement, sur cette nouvelle persistance.
+
+### À vérifier
+
+* où le chargement de carte se fait côté client
+* si le nouveau backend peut être appelé
+* si le client reçoit un format compatible
+* si un adaptateur de format a été ajouté
+* si le système actuel de rendu peut consommer ces données
+* si la compatibilité avec l’existant est maintenue
+
+### Très important
+
+Tu dois distinguer :
+
+* **ce qui est déjà branché**
+* **ce qui est juste préparé**
+* **ce qui manque encore**
+
+### Livrable attendu
+
+Un mini rapport :
+
+* branché / partiellement branché / non branché
+* fichiers concernés
+* niveau de risque
+* prochaine étape logique
+
+---
+
+## Étape 9 — Vérification des impacts sur le code existant
+
+Tu dois analyser si la nouvelle intégration a pu endommager le projet existant.
+
+### À vérifier
+
+* erreurs TypeScript nouvelles ou aggravées
+* conflits avec les systèmes existants
+* dépendances cassées
+* imports cassés
+* comportements anciens rendus incohérents
+* couplages dangereux introduits
+
+### Distinction obligatoire
+
+Tu dois séparer clairement :
+
+* problèmes préexistants
+* problèmes introduits par la nouvelle intégration
+* zones potentiellement fragilisées mais encore fonctionnelles
+
+### Livrable attendu
+
+Un rapport séparé en trois sections :
+
+1. préexistant
+2. nouveau
+3. zone à surveiller
+
+---
+
+## Étape 10 — Vérification de la qualité architecturale
+
+Tu ne dois pas seulement vérifier “si ça marche”.
+Tu dois aussi vérifier “si c’est construit proprement”.
+
+### Audit demandé
+
+Évalue si l’intégration :
+
+* respecte une séparation raisonnable des responsabilités
+* évite les fichiers monolithiques
+* évite de mettre la logique dans les routes
+* prépare le terrain pour la suite
+* reste adaptée à un prototype 1000 joueurs
+* n’introduit pas une complexité inutile
+
+### Tu dois classer les éléments dans 4 catégories
+
+1. **Bon à garder**
+2. **À refactorer plus tard**
+3. **À surveiller**
+4. **À remplacer plus tard**
+
+### Livrable attendu
+
+Un tableau d’évaluation architecturale.
+
+---
+
+## Étape 11 — Vérification pratique par scénarios
+
+Je veux que tu vérifies le travail non seulement par lecture du code, mais aussi par scénarios.
+
+### Scénario A
+
+Le projet démarre avec PostgreSQL configuré.
+
+### Scénario B
+
+Le seed crée les 9 segments.
+
+### Scénario C
+
+Une requête demande le bloc centré sur `(0,0)`.
+
+### Scénario D
+
+Le serveur retourne correctement les 9 segments.
+
+### Scénario E
+
+Le client pourrait consommer ce bloc sans réécriture absurde.
+
+### Pour chaque scénario
+
+Tu dois indiquer :
+
+* attendu
+* observé
+* niveau de confiance
+* blocages
+
+---
+
+## Étape 12 — Rapport final obligatoire
+
+À la fin, je veux un rapport clair et honnête structuré ainsi :
+
+### 1. Résumé exécutif
+
+En 10 lignes maximum :
+
+* est-ce que l’intégration est réussie ?
+* est-ce qu’elle est exploitable ?
+* est-ce qu’elle est fragile ?
+* est-ce qu’on peut continuer ?
+
+### 2. Ce qui est validé
+
+Liste précise des choses confirmées comme fonctionnelles.
+
+### 3. Ce qui est incomplet
+
+Liste précise des choses non finies ou seulement préparées.
+
+### 4. Ce qui est risqué
+
+Liste précise des points fragiles ou mal conçus.
+
+### 5. Ce qui est préexistant
+
+Liste des problèmes anciens qui ne viennent pas de cette intégration.
+
+### 6. Recommandation de suite
+
+Choisis une seule des options suivantes, et justifie-la :
+
+* **Option A** : continuer le développement tel quel
+* **Option B** : corriger quelques points ciblés puis continuer
+* **Option C** : refactorer un sous-système avant d’aller plus loin
+* **Option D** : stopper et repenser la structure
+
+Je veux une vraie recommandation, pas une réponse floue.
+
+---
+
+# Important : ce que je ne veux pas
+
+* pas d’optimisme automatique
+* pas de “semble correct” sans preuve
+* pas de rapport ultra court
+* pas de correction silencieuse sans le dire
+* pas de nouveau développement hors audit
+* pas de grand nettoyage TypeScript général non demandé
+* pas de confusion entre prototype acceptable et architecture parfaite
+
+---
+
+# Si tu détectes un problème
+
+Si tu trouves un problème, tu dois préciser :
+
+1. **ce que c’est**
+2. **où c’est**
+3. **à quel point c’est grave**
+4. **si ça bloque maintenant ou plus tard**
+5. **si on peut vivre avec temporairement**
+
+---
+
+# Format attendu de la réponse
+
+Je veux un rapport structuré avec :
+
+* titres clairs
+* tableaux quand utile
+* constats précis
+* pas de jargon inutile
+* pas de phrases vagues
+
+---
+
+# Objectif réel de cet audit
+
+L’objectif n’est pas de rendre le projet “parfait”.
+L’objectif est de savoir si :
+
+* la base PostgreSQL est bien intégrée
+* les segments 30x50 sont correctement persistés
+* le bloc de 9 segments fonctionne
+* le prototype reste sain
+* on peut avancer sans devoir tout refaire
+
+---
+
+Si tu veux, juste après, je peux aussi te faire un **deuxième prompt complémentaire**, beaucoup plus agressif, du genre :
+
+**“Après l’audit, corrige seulement les points bloquants sans toucher au reste.”**
+
+Celui-là est très utile pour éviter que l’IA parte en rénovation de cathédrale alors qu’on lui demande juste de réparer une porte.
