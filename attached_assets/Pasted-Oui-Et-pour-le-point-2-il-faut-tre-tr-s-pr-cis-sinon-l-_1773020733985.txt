@@ -1,0 +1,416 @@
+Oui. Et pour le point 2, il faut être **très précis**, sinon l’agent va te faire un pseudo streaming de segments qui “marche” en démo mais qui replante dès que le joueur franchit une frontière. Charmant, mais inutile.
+
+Voici un **prompt détaillé** que tu peux donner à l’IA pour implémenter le **chargement dynamique des segments**.
+
+---
+
+# Prompt pour agent IA
+
+## Objectif : implémenter le chargement dynamique des segments de carte autour du joueur
+
+Tu travailles sur **Nova Imperium**, un jeu avec une carte persistante segmentée.
+
+Le système actuel fonctionne déjà ainsi :
+
+* 1 segment = **50 colonnes × 30 lignes**
+* le backend sait retourner un **bloc de 9 segments** autour d’un segment central
+* le client sait déjà charger un bloc via `loadBlockFromDB(centerSegX, centerSegY)`
+* le jeu démarre maintenant en chargeant le bloc centré sur `(0,0)`
+* le rendu fonctionne correctement avec une carte reconstruite côté client
+
+Le prochain objectif est de permettre un **chargement dynamique** de la carte lorsque le joueur change de segment.
+
+Je veux que tu implémentes cela **proprement, sans casser le système existant**, en gardant le comportement actuel stable.
+
+---
+
+# But fonctionnel
+
+Quand le joueur se déplace sur la carte :
+
+* tant qu’il reste dans le **même segment**, rien ne doit être rechargé
+* dès qu’il entre dans un **nouveau segment**, le client doit :
+
+  1. détecter le nouveau segment
+  2. demander au backend le nouveau bloc 3×3 centré sur ce segment
+  3. mettre à jour la carte affichée
+  4. conserver la cohérence visuelle et la position du joueur
+  5. éviter les rechargements inutiles ou en boucle
+
+---
+
+# Règles strictes
+
+Tu dois respecter ces contraintes :
+
+* ne pas refactorer tout le moteur
+* ne pas modifier inutilement le backend si les routes existantes suffisent
+* ne pas casser le chargement initial actuel
+* ne pas corriger les anciennes erreurs TypeScript hors périmètre
+* ne pas créer un système complexe de cache distribué ou de MMO enterprise absurde
+* rester compatible avec le prototype actuel
+* garder le fallback existant seulement si nécessaire
+* privilégier une logique simple, lisible et testable
+
+---
+
+# Étape 1 — Auditer le flux actuel de déplacement et de position
+
+Avant de coder, identifie clairement :
+
+1. où la position du joueur / avatar est stockée
+2. comment les coordonnées du joueur sont exprimées :
+
+   * coordonnées monde
+   * coordonnées hex
+   * coordonnées écran
+3. à quel moment la position change réellement
+4. comment déterminer dans quel segment se trouve le joueur
+5. quel composant ou store est le meilleur endroit pour déclencher un rechargement de bloc
+
+Je veux que tu expliques avant modification :
+
+* où tu branches la détection de changement de segment
+* pourquoi cet emplacement est le bon
+* pourquoi les autres emplacements seraient moins adaptés
+
+---
+
+# Étape 2 — Utiliser la convention de coordonnées existante
+
+Le projet a déjà une convention de coordonnées segmentées.
+Tu dois la réutiliser, pas la réinventer.
+
+Rappel :
+
+* `SEGMENT_WIDTH = 50`
+* `SEGMENT_HEIGHT = 30`
+
+Le segment courant du joueur doit être calculé à partir de sa position monde ou carte.
+
+Je veux que tu utilises une fonction claire, centralisée, réutilisable.
+
+### Résultat attendu
+
+Créer ou réutiliser une fonction du style :
+
+```ts
+getPlayerSegment(worldX, worldY) => { segmentX, segmentY }
+```
+
+ou utiliser la fonction existante si elle est déjà dans `shared/mapCoordinates.ts`.
+
+Tu ne dois pas dupliquer une formule magique dans 4 fichiers différents.
+
+---
+
+# Étape 3 — Détecter le changement de segment
+
+Tu dois mettre en place un mécanisme clair :
+
+* mémoriser le segment actuellement chargé
+* comparer avec le segment dans lequel le joueur entre
+* ne déclencher un rechargement que si le segment a réellement changé
+
+### Comportement attendu
+
+Si le joueur bouge :
+
+* de `(10,10)` à `(12,11)` dans le même segment → **pas de reload**
+* de `(49,10)` à `(50,10)` si cela change de segment → **reload**
+* de `(0,29)` à `(0,30)` si cela change de segment → **reload**
+
+### Important
+
+Le système ne doit pas recharger la carte à chaque pas ou chaque frame.
+Il doit recharger **uniquement lors d’un franchissement de frontière de segment**.
+
+---
+
+# Étape 4 — Ajouter un état explicite du bloc actuellement chargé
+
+Je veux que le store ou le système de carte garde une trace claire de :
+
+* `loadedCenterSegmentX`
+* `loadedCenterSegmentY`
+* éventuellement `isBlockLoading`
+
+Si cet état n’existe pas déjà, ajoute-le dans le store approprié.
+
+### Pourquoi
+
+Cela permet de :
+
+* savoir quel bloc est actuellement affiché
+* éviter les chargements en boucle
+* ignorer les demandes redondantes
+* déboguer plus facilement
+
+---
+
+# Étape 5 — Implémenter une fonction de rechargement conditionnel
+
+Créer une fonction dédiée, par exemple :
+
+```ts
+ensurePlayerSegmentLoaded(worldX, worldY)
+```
+
+ou un nom cohérent avec l’architecture existante.
+
+### Cette fonction doit :
+
+1. calculer le segment courant du joueur
+2. comparer avec le centre actuellement chargé
+3. si différent :
+
+   * charger le nouveau bloc 3×3 via `loadBlockFromDB(segmentX, segmentY)`
+   * mettre à jour l’état du bloc chargé
+4. sinon :
+
+   * ne rien faire
+
+### Important
+
+Cette fonction doit être le point de contrôle principal.
+Je ne veux pas de logique dupliquée dans plusieurs composants.
+
+---
+
+# Étape 6 — Brancher cette logique au bon moment
+
+Tu dois relier ce système à l’endroit où le joueur change réellement de position.
+
+Cela peut être :
+
+* un store de joueur
+* une méthode de déplacement
+* un callback après mouvement
+* un effet réactif qui surveille la position
+
+Mais tu dois choisir **un seul point d’entrée propre**.
+
+### Je veux éviter :
+
+* déclenchement dans le rendu
+* déclenchement dans `render()`
+* déclenchement dans la boucle graphique
+* déclenchement à chaque mousemove
+* logique dispersée entre UI et moteur
+
+### Objectif
+
+Quand le joueur termine un déplacement ou que sa position logique change, la vérification de segment doit s’exécuter proprement.
+
+---
+
+# Étape 7 — Préserver la position et l’expérience visuelle
+
+Quand un nouveau bloc est chargé, il faut éviter les effets visuels cassés.
+
+Tu dois vérifier et garantir :
+
+* que le joueur reste à la bonne position logique
+* que la caméra ne saute pas de manière absurde
+* que la carte ne se réinitialise pas dans un état incohérent
+* qu’aucun “flash” énorme ou reset brutal n’apparaît si possible
+
+### Si nécessaire
+
+Ajoute une logique minimale pour :
+
+* conserver la position caméra
+* ou recentrer proprement
+* ou recalculer les offsets
+
+Mais ne fais pas un refactor visuel massif.
+
+---
+
+# Étape 8 — Gérer les chargements concurrents
+
+Le joueur pourrait théoriquement enchaîner des mouvements rapides.
+
+Je veux que tu empêches :
+
+* plusieurs appels simultanés à `loadBlockFromDB`
+* des rechargements redondants
+* un état où une réponse réseau ancienne écrase une plus récente
+
+### Approche attendue
+
+Choisis une solution simple et robuste, par exemple :
+
+* ignorer une nouvelle demande si un chargement est déjà en cours
+* ou garder un `requestedSegmentKey`
+* ou utiliser un verrou léger
+
+### Important
+
+Pas de sur-ingénierie.
+Le but est juste d’éviter le chaos pendant les transitions.
+
+---
+
+# Étape 9 — Gérer le cas des coordonnées négatives
+
+La carte peut utiliser des segments avec coordonnées négatives :
+
+* `(-1,-1)`
+* `(0,-1)`
+* etc.
+
+Tu dois vérifier que la logique de calcul de segment fonctionne bien pour :
+
+* `worldX < 0`
+* `worldY < 0`
+
+Je veux explicitement que tu testes ce point.
+Les coordonnées négatives sont un endroit classique où les systèmes de carte se ridiculisent.
+
+---
+
+# Étape 10 — Ajouter des logs de debug utiles mais sobres
+
+Pendant l’implémentation, ajoute des logs clairs du style :
+
+* segment actuel du joueur
+* segment déjà chargé
+* nouveau chargement déclenché
+* chargement ignoré car segment identique
+* chargement ignoré car déjà en cours
+
+### Mais
+
+Les logs doivent être :
+
+* utiles
+* limités
+* faciles à supprimer ou réduire plus tard
+
+Pas de spam console à chaque frame.
+
+---
+
+# Étape 11 — Tests à exécuter
+
+Je veux que tu valides le comportement avec ces scénarios :
+
+### Scénario A
+
+Le jeu démarre sur `(0,0)` :
+
+* le bloc `(0,0)` est chargé
+* aucun rechargement inutile n’est déclenché
+
+### Scénario B
+
+Le joueur bouge à l’intérieur du même segment :
+
+* aucun nouveau chargement
+
+### Scénario C
+
+Le joueur franchit une frontière horizontale :
+
+* nouveau bloc chargé autour du nouveau segment
+
+### Scénario D
+
+Le joueur franchit une frontière verticale :
+
+* nouveau bloc chargé autour du nouveau segment
+
+### Scénario E
+
+Le joueur franchit une frontière en coordonnées négatives :
+
+* le calcul de segment reste correct
+
+### Scénario F
+
+Le joueur bouge rapidement :
+
+* pas de cascade de requêtes incohérentes
+
+---
+
+# Étape 12 — Livrables attendus
+
+À la fin, je veux :
+
+## 1. Liste des fichiers modifiés
+
+Avec une ligne expliquant pourquoi chacun a été touché.
+
+## 2. Explication du point de branchement choisi
+
+Pourquoi c’est là que la détection de changement de segment se fait.
+
+## 3. Résumé de la logique
+
+Expliquer :
+
+* comment le segment courant du joueur est calculé
+* comment on évite les rechargements inutiles
+* comment on protège les chargements concurrents
+
+## 4. Résultats des tests
+
+Pour chaque scénario A à F :
+
+* attendu
+* observé
+* statut
+
+## 5. Limites restantes
+
+Expliquer honnêtement :
+
+* ce qui reste simplifié
+* ce qui devra être amélioré plus tard
+* ce qui est acceptable pour le prototype
+
+---
+
+# Ce que je ne veux pas
+
+* pas de refonte du moteur
+* pas de gros refactor des stores si ce n’est pas nécessaire
+* pas de streaming complexe multi-couche
+* pas de cache sophistiqué prématuré
+* pas de modification inutile du backend
+* pas de “ça semble marcher” sans test concret
+* pas de déclenchement dans la boucle de rendu
+
+---
+
+# Objectif final
+
+À la fin de cette tâche, le jeu doit faire ceci :
+
+1. charger le bloc `(0,0)` au démarrage
+2. laisser le joueur se déplacer librement
+3. détecter quand il entre dans un nouveau segment
+4. charger automatiquement le nouveau bloc 3×3 correspondant
+5. éviter les chargements inutiles
+6. rester stable visuellement et logiquement
+
+---
+
+# Priorité absolue
+
+Je préfère une solution :
+
+* simple
+* fiable
+* claire
+* testée
+
+plutôt qu’une solution “impressionnante” mais fragile.
+
+Implémente le strict nécessaire pour que le chargement dynamique des segments fonctionne bien dans le prototype actuel.
+
+---
+
+Si tu veux, juste après, je peux aussi te faire **le prompt de l’étape suivante**, qui serait consacré à **décharger proprement les anciens segments et introduire un cache léger**. C’est probablement le prochain cran utile après ça.

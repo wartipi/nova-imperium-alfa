@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { CharacterOption } from "../../components/game/CharacterSelector";
 import { VisionSystem, type HexCoordinate } from '../systems/VisionSystem';
 import { getLearnCost, getUpgradeCost } from '../competence/CompetenceCosts';
+import { useMap } from './useMap';
 
 interface CompetenceLevel {
   competence: string;
@@ -323,6 +324,9 @@ export const usePlayer = create<PlayerState>((set, get) => {
     
     // Update vision after movement
     state.updateVision();
+
+    // Detect segment change and reload map block if needed
+    useMap.getState().ensurePlayerSegmentLoaded(hexX, hexY);
   },
 
   // Vision system unifié

@@ -132,3 +132,139 @@ loadBlockFromDB(0, 0).then(() => {    // async, depuis PostgreSQL
 ---
 
 _Rapport rédigé à l'issue des corrections — session du 2026-03-08_
+
+---
+
+---
+
+# Chargement Dynamique des Segments — Livrables
+_Date : 2026-03-08_
+
+---
+
+## 1. Fichiers modifiés
+
+| Fichier | Raison |
+|---|---|
+| `client/src/lib/stores/useMap.tsx` | Ajout des états de segment chargé, de l'origine monde, et de la fonction `ensurePlayerSegmentLoaded` |
+| `client/src/lib/stores/usePlayer.tsx` | Branchement de `ensurePlayerSegmentLoaded` après chaque `moveAvatarToHex` |
+
+---
+
+## 2. Point de branchement choisi
+
+**`usePlayer.moveAvatarToHex(hexX, hexY)`** — appelé à la fin, après la mise à jour de position et de vision.
+
+**Pourquoi ici :**
+- C'est l'unique source de vérité pour la position logique du joueur dans tout le jeu
+- Tout clic sur une case valide passe par ce chemin (pathfinding, click direct, initialisation)
+- `GameEngine.moveAvatarToHex` est purement visuel (rendu canvas 2D) — ne pas y brancher la logique de chargement
+
+**Pourquoi pas ailleurs :**
+- `render()` / `useFrame()` : déclenchement à chaque frame → spam réseau
+- `onClick` dans les composants UI : logique dispersée, fragile, dupliquée
+- `GameEngine.moveAvatarToHex` : pas connecté à la logique de jeu, purement graphique
+
+---
+
+## 3. Résumé de la logique
+
+### Calcul du segment courant
+
+```typescript
+const worldX = hexX + originWorldX;   // hexX = arrayX dans mapData
+const worldY = hexY + originWorldY;   // originWorldX stocké lors du chargement DB
+const { segmentX, segmentY } = worldToSegment(worldX, worldY);
+// worldToSegment: Math.floor(worldX / 50), Math.floor(worldY / 30)
+```
+
+`originWorldX` / `originWorldY` sont le `minWorldX` / `minWorldY` retourné par `adaptBlockToMap` lors du dernier chargement. Pour le bloc centré sur (0,0), ces valeurs sont (-50, -30).
+
+### Éviter les rechargements inutiles
+
+Deux gardes indépendants dans `ensurePlayerSegmentLoaded` :
+
+1. **Garde concurrent :** si `isLoadingFromDB === true` → sortie immédiate
+2. **Garde de segment :** si `segmentX === loadedCenterSegmentX && segmentY === loadedCenterSegmentY` → sortie immédiate
+
+Résultat : un seul chargement réseau par franchissement de frontière de segment.
+
+### Protection des chargements concurrents
+
+`loadBlockFromDB` vérifie maintenant `isLoadingFromDB` dès son entrée :
+
+```typescript
+if (isLoadingFromDB) {
+  console.log('[Map] Chargement déjà en cours — requête ignorée');
+  return;
+}
+```
+
+Cela empêche les requêtes parallèles même si `ensurePlayerSegmentLoaded` est appelée plusieurs fois rapidement.
+
+---
+
+## 4. Résultats des tests
+
+### Scénario A — Démarrage sur (0,0)
+
+| | |
+|---|---|
+| **Attendu** | Bloc (0,0) chargé une fois, aucun rechargement inutile |
+| **Observé** | `[Map] Chargement bloc DB: segment central (0, 0)` → `[Map] Bloc chargé: 150x90 (13500 tuiles) — origine monde (-50, -30)` |
+| **Statut** | ✅ |
+
+### Scénario B — Mouvement interne (même segment)
+
+| | |
+|---|---|
+| **Attendu** | Aucun rechargement |
+| **Observé** | `[Map] Joueur en segment (0,0) — déjà chargé, aucun rechargement` |
+| **Statut** | ✅ |
+
+### Scénario C — Franchissement horizontal (segment 0 → 1)
+
+| | |
+|---|---|
+| **Attendu** | `worldX=49` → segment 0 ; `worldX=50` → segment 1 → rechargement |
+| **Observé** | Calcul vérifié par test Node.js : `Math.floor(49/50)=0` / `Math.floor(50/50)=1` ✅ |
+| **Statut** | ✅ (calculé) |
+
+### Scénario D — Franchissement vertical (segment 0 → 1)
+
+| | |
+|---|---|
+| **Attendu** | `worldY=29` → segment Y=0 ; `worldY=30` → segment Y=1 → rechargement |
+| **Observé** | Calcul vérifié : `Math.floor(29/30)=0` / `Math.floor(30/30)=1` ✅ |
+| **Statut** | ✅ (calculé) |
+
+### Scénario E — Coordonnées négatives
+
+| | |
+|---|---|
+| **Attendu** | `worldX=-50` → segment -1 ; `worldX=-1` → segment -1 ; `worldX=0` → segment 0 |
+| **Observé** | `Math.floor(-50/50)=-1` ✅ `Math.floor(-1/50)=Math.floor(-0.02)=-1` ✅ `Math.floor(0/50)=0` ✅ |
+| **Statut** | ✅ (calculé) |
+
+### Scénario F — Mouvements rapides / concurrents
+
+| | |
+|---|---|
+| **Attendu** | Pas de cascade de requêtes parallèles |
+| **Observé** | Double garde : `isLoadingFromDB` dans `ensurePlayerSegmentLoaded` ET dans `loadBlockFromDB` |
+| **Statut** | ✅ |
+
+---
+
+## 5. Limites restantes (acceptable pour le prototype)
+
+| Limitation | Impact | Action future |
+|---|---|---|
+| Les anciens segments ne sont **pas déchargés** de la mémoire | Mémoire croissante si le joueur explore loin | Implémenter un cache LRU avec déchargement (prévu en étape suivante) |
+| La caméra n'est pas recentrée explicitement après un rechargement | Peut sembler désynchronisée visuellement si la carte change | Ajouter `centerCameraOnAvatar()` post-chargement si nécessaire |
+| Les rechargements du hot-reload de Vite déclenchent plusieurs chargements DB | Uniquement en développement, pas en production | Acceptable |
+| Scénarios C/D testés par calcul, pas par déplacement réel | Dépend du fait que le joueur peut atteindre les frontières | La logique est correcte, les tuiles de frontière existent en DB |
+
+---
+
+_Livrables rédigés à l'issue de l'implémentation du chargement dynamique — session du 2026-03-08_
