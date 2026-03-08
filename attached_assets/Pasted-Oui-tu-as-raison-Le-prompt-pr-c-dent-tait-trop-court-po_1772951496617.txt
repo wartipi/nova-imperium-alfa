@@ -1,0 +1,489 @@
+Oui, tu as raison. Le prompt précédent était trop court pour un agent IA qui doit toucher à la persistance sans massacrer le prototype. Ce genre d’outil adore combler les trous avec de la créativité mal placée, donc il faut lui donner un cadre très précis.
+
+Voici un **prompt détaillé** que tu peux donner à l’IA de Replit.
+
+---
+
+# Prompt pour agent IA Replit
+
+## Objectif : intégrer PostgreSQL pour la persistance de la carte segmentée 30x50, sans casser le prototype existant
+
+Tu travailles sur un projet de jeu web appelé **Nova Imperium**.
+Le projet est déjà existant, avec une architecture client / serveur en TypeScript.
+Je veux que tu **intègres une vraie persistance PostgreSQL** dans le projet actuel, de façon **progressive, propre et compatible avec l’existant**, sans casser le fonctionnement actuel.
+
+## Contexte fonctionnel
+
+Le jeu utilise une carte de monde découpée en **segments de carte**.
+
+### Définition importante
+
+* Un **segment de carte** = une zone de **30 lignes x 50 colonnes**
+* Chaque segment contient donc **1500 tuiles**
+* Pour le prototype, je veux travailler avec un **bloc de 9 segments** :
+
+  * 1 segment central
+  * 8 segments autour
+* Cela forme une grille de **3 x 3 segments**
+* Donc pour la phase de test, le monde jouable correspond à :
+
+  * **9 segments**
+  * chaque segment = 30x50
+  * total = **13 500 tuiles**
+
+Je veux que cette structure soit persistée en base de données.
+
+## But concret du prototype
+
+Je ne veux pas encore gérer toute la carte du monde complète.
+Je veux d’abord :
+
+1. créer le modèle de données pour les segments de carte et leurs tuiles
+2. stocker en PostgreSQL les **9 segments de test**
+3. pouvoir charger un segment central **et les 8 segments adjacents**
+4. garder le projet compatible avec une extension future à grande échelle
+5. ne pas casser le code existant ni le rendu actuel si possible
+
+## Contraintes importantes
+
+* Ne détruis pas l’architecture actuelle
+* Ne remplace pas tout brutalement
+* Fais une **intégration progressive**
+* Réutilise la structure existante si elle est déjà présente
+* Si PostgreSQL, Drizzle, Prisma ou une autre couche DB existe déjà dans le projet, **utilise-la au lieu d’en ajouter une deuxième**
+* Si une partie du code stocke encore les données en mémoire, crée une couche de transition propre
+* Le code doit rester lisible et modulaire
+* Je veux une base de données adaptée à un futur jeu persistant
+* La solution doit être pensée pour un prototype visant **jusqu’à 1000 joueurs max**, pas 20 000
+
+---
+
+# Ce que tu dois faire
+
+## 1. Auditer le projet actuel avant toute modification
+
+Avant de coder, analyse le code existant et identifie :
+
+* si PostgreSQL est déjà configuré
+* si un ORM ou query builder est déjà utilisé
+* si des schémas existent déjà dans `shared/`
+* comment la carte actuelle est générée ou stockée
+* quels fichiers gèrent :
+
+  * les tuiles
+  * la carte
+  * les déplacements
+  * la vision
+  * les données de monde
+* quelles parties utilisent encore des données en mémoire seulement
+
+Ensuite, explique brièvement :
+
+* ce que tu as trouvé
+* ce que tu vas réutiliser
+* ce que tu vas ajouter
+* ce que tu ne touches pas pour éviter de casser le prototype
+
+## 2. Concevoir un modèle de données PostgreSQL propre
+
+Je veux une structure de persistance adaptée à une carte segmentée.
+
+Crée au minimum les entités suivantes.
+
+### A. `map_segments`
+
+Cette table représente un segment de carte.
+
+Champs recommandés :
+
+* `id`
+* `world_id` ou équivalent si nécessaire
+* `segment_x`
+* `segment_y`
+* `width` = 50
+* `height` = 30
+* `name` optionnel
+* `is_active`
+* `created_at`
+* `updated_at`
+
+Contraintes importantes :
+
+* un segment est identifié de manière unique par ses coordonnées `segment_x` et `segment_y`
+* prévoir une contrainte d’unicité sur ces coordonnées
+
+### B. `map_tiles`
+
+Cette table représente une tuile individuelle à l’intérieur d’un segment.
+
+Champs recommandés :
+
+* `id`
+* `segment_id`
+* `local_x` de 0 à 49
+* `local_y` de 0 à 29
+* `world_x`
+* `world_y`
+* `terrain_type`
+* `resource_type` nullable
+* `elevation` nullable ou optionnel
+* `is_walkable`
+* `movement_cost`
+* `is_discovered` ou à discuter selon la logique actuelle
+* `metadata` JSON optionnel
+* `created_at`
+* `updated_at`
+
+Contraintes importantes :
+
+* une tuile doit être unique dans son segment par `(segment_id, local_x, local_y)`
+* une tuile peut aussi être unique globalement via `(world_x, world_y)` si c’est pertinent dans ton architecture
+* les coordonnées monde doivent être cohérentes avec les coordonnées segment + locales
+
+### C. Préparer l’architecture pour des objets futurs
+
+Même si on ne les implémente pas à fond maintenant, je veux que la structure reste compatible avec :
+
+* villes
+* armées
+* objets uniques
+* éléments cartographiques
+* ressources
+* échanges entre joueurs
+
+Ne code pas tout ça maintenant si ce n’est pas nécessaire, mais fais en sorte que le modèle de segments / tuiles ne bloque pas l’ajout futur de ces entités.
+
+---
+
+## 3. Définir clairement le calcul des coordonnées
+
+Je veux que tu choisisses une convention claire et que tu l’appliques partout.
+
+### Convention attendue
+
+* un segment = 50 colonnes × 30 lignes
+* les coordonnées de segment sont des entiers :
+
+  * segment central = par exemple `(0,0)`
+  * voisins : `(-1,-1)`, `(0,-1)`, `(1,-1)`, etc.
+* à l’intérieur d’un segment :
+
+  * `local_x` va de `0 à 49`
+  * `local_y` va de `0 à 29`
+
+Tu dois définir une formule claire pour obtenir :
+
+* `world_x`
+* `world_y`
+
+Exemple attendu :
+
+* `world_x = segment_x * 50 + local_x`
+* `world_y = segment_y * 30 + local_y`
+
+Si tu choisis une autre convention, explique-la clairement et applique-la partout de manière cohérente.
+
+---
+
+## 4. Ajouter les migrations et la configuration PostgreSQL
+
+Je veux que tu :
+
+* configures PostgreSQL dans le projet si ce n’est pas déjà fait
+* réutilises la config existante si elle est déjà présente
+* ajoutes les migrations nécessaires
+* documentes les variables d’environnement nécessaires
+* n’ajoutes pas une deuxième solution de DB si une première existe déjà
+
+Je veux voir :
+
+* les fichiers créés ou modifiés
+* la migration SQL ou l’équivalent via l’outil du projet
+* la config `.env` attendue
+* la manière de lancer les migrations
+
+---
+
+## 5. Créer un service d’accès aux segments de carte
+
+Je veux une couche de service claire, pas de requêtes SQL éparpillées partout comme des miettes.
+
+Crée un service dédié, par exemple :
+
+* `mapSegmentService`
+* ou `worldMapRepository`
+* ou un nom cohérent avec l’architecture existante
+
+Ce service doit au minimum permettre :
+
+### Fonctions minimales
+
+1. `createSegment(segmentX, segmentY, width, height)`
+2. `createTilesForSegment(segmentId, tileDefinitions)`
+3. `getSegment(segmentX, segmentY)`
+4. `getTilesForSegment(segmentX, segmentY)`
+5. `getSegmentWithTiles(segmentX, segmentY)`
+6. `getNineSegmentBlock(centerSegmentX, centerSegmentY)`
+
+### La fonction `getNineSegmentBlock`
+
+C’est très important.
+
+Elle doit retourner :
+
+* le segment central
+* les 8 segments adjacents
+* donc les segments aux coordonnées :
+
+  * `(x-1, y-1)`
+  * `(x, y-1)`
+  * `(x+1, y-1)`
+  * `(x-1, y)`
+  * `(x, y)`
+  * `(x+1, y)`
+  * `(x-1, y+1)`
+  * `(x, y+1)`
+  * `(x+1, y+1)`
+
+Je veux que cette fonction soit pensée comme la base du chargement de carte du prototype.
+
+---
+
+## 6. Ajouter un seed initial pour le prototype
+
+Je veux pouvoir initialiser rapidement le prototype avec les **9 segments de départ**.
+
+Crée un script de seed qui :
+
+* crée les 9 segments autour du centre `(0,0)`
+* donne à chaque segment une taille de `50 x 30`
+* génère les 1500 tuiles de chaque segment
+* remplit les tuiles avec des terrains plausibles
+* reste simple pour le prototype
+* peut être relancé sans tout casser
+
+Les segments à créer sont :
+
+* `(-1,-1)`
+* `(0,-1)`
+* `(1,-1)`
+* `(-1,0)`
+* `(0,0)`
+* `(1,0)`
+* `(-1,1)`
+* `(0,1)`
+* `(1,1)`
+
+### Important
+
+Le seed doit être :
+
+* idempotent si possible
+* ou au minimum ne pas créer de doublons si on le relance
+
+---
+
+## 7. Intégrer sans casser le système actuel
+
+Je veux une stratégie de transition douce.
+
+Si la carte actuelle est générée en mémoire :
+
+* ne la supprime pas brutalement
+* remplace-la progressivement ou ajoute un mode DB
+* garde le comportement actuel autant que possible
+
+Je veux que tu mettes en place :
+
+* soit une couche d’abstraction
+* soit un service qui peut charger depuis PostgreSQL
+* soit un mécanisme temporaire de fallback
+
+Le plus important :
+
+* le prototype doit continuer à fonctionner
+* l’intégration doit être testable rapidement
+* le code existant ne doit pas être cassé inutilement
+
+---
+
+## 8. Ajouter des endpoints API propres pour le prototype
+
+Si le projet fonctionne avec des routes API, ajoute au minimum des routes lisibles pour tester la persistance de carte.
+
+Exemples attendus :
+
+* `GET /api/map/segment/:segmentX/:segmentY`
+* `GET /api/map/segment/:segmentX/:segmentY/tiles`
+* `GET /api/map/block/:segmentX/:segmentY`
+
+Le endpoint du bloc doit retourner les 9 segments centrés sur les coordonnées demandées.
+
+Je veux que ces routes :
+
+* soient propres
+* soient regroupées dans un module dédié
+* ne surchargent pas un gros `routes.ts` monolithique si ce fichier est déjà trop gros
+* utilisent le service de carte au lieu de contenir la logique métier directement
+
+---
+
+## 9. Préparer le client à charger ce bloc de 9 segments
+
+Je ne veux pas forcément un refactor total du front maintenant, mais je veux que tu prépares la compatibilité.
+
+Tu dois :
+
+* identifier où le client charge actuellement la carte
+* proposer l’endroit le plus propre pour brancher le chargement depuis PostgreSQL via l’API
+* si possible, implémenter un premier chargement du bloc 3x3
+
+Le but est que le prototype puisse, idéalement :
+
+* demander le segment central `(0,0)`
+* recevoir les 9 segments
+* les convertir au format utilisé par le rendu actuel
+
+Si tu dois créer un mapper ou un adaptateur de format, fais-le proprement.
+
+---
+
+## 10. Gérer les tests et la validation
+
+Je veux que tu vérifies au minimum les points suivants :
+
+### Validation technique
+
+* PostgreSQL se connecte correctement
+* les migrations passent
+* les 9 segments sont créés
+* chaque segment contient bien 1500 tuiles
+* le total des 9 segments est de 13 500 tuiles
+* les routes retournent les bonnes données
+* aucun doublon de segment n’est créé
+* aucune erreur évidente ne casse le projet existant
+
+### Validation fonctionnelle
+
+* le segment central peut être chargé
+* les 8 voisins sont chargés aussi
+* les coordonnées monde sont cohérentes
+* la structure est prête pour un monde plus grand plus tard
+
+---
+
+# Livrables attendus
+
+Je veux que tu me fournisses :
+
+## A. Une explication initiale
+
+Avant de modifier le code, explique :
+
+* ce que tu as trouvé dans le projet
+* quelle stratégie d’intégration tu choisis
+* pourquoi
+
+## B. Les changements de code
+
+Implémente :
+
+* schémas DB
+* migrations
+* config PostgreSQL
+* service de segments
+* seed des 9 segments
+* endpoints API
+* adaptation minimale client si possible
+
+## C. Un résumé clair des fichiers modifiés
+
+Présente les fichiers :
+
+* créés
+* modifiés
+* pourquoi chacun a été touché
+
+## D. Les commandes à exécuter
+
+Donne-moi les commandes exactes pour :
+
+* installer les dépendances
+* configurer `.env`
+* lancer les migrations
+* lancer le seed
+* démarrer le projet
+* tester les endpoints
+
+## E. Un rapport de fin
+
+Explique clairement :
+
+* ce qui est terminé
+* ce qui reste temporaire
+* ce qui est prêt pour la prochaine étape
+
+---
+
+# Contraintes de qualité
+
+Je veux que tu respectes ces règles :
+
+* ne pas casser le comportement actuel si ce n’est pas nécessaire
+* ne pas sur-ingénieriser
+* ne pas créer une architecture MMO absurde pour un prototype 1000 joueurs
+* garder le code lisible
+* commenter seulement si utile
+* privilégier la modularité
+* éviter les “god files”
+* éviter de mettre la logique métier directement dans les routes
+* préparer le projet pour des objets uniques, des échanges et de la cartographie future
+
+---
+
+# Critères de réussite
+
+Le travail est réussi si :
+
+1. PostgreSQL est intégré proprement au projet existant
+2. les segments 30x50 sont persistés
+3. les 9 segments du prototype peuvent être créés et relus
+4. le serveur peut retourner le bloc 3x3 autour d’un segment central
+5. le code reste compatible avec l’évolution future
+6. le prototype n’est pas cassé
+
+---
+
+# Ce que je ne veux pas
+
+* pas de refonte totale inutile
+* pas de suppression brutale des systèmes existants
+* pas de logique métier directement dans les routes
+* pas de structure floue sans coordonnées claires
+* pas de solution temporaire non expliquée
+* pas de magie implicite
+
+---
+
+# Bonus utile si possible
+
+Si tu peux le faire proprement, ajoute aussi :
+
+* un diagramme textuel simple de la structure des segments
+* un exemple JSON de réponse API pour un bloc 3x3
+* une fonction utilitaire qui convertit `(segment_x, segment_y, local_x, local_y)` en `(world_x, world_y)`
+* une petite documentation développeur dans un fichier markdown
+
+---
+
+Si tu dois faire des choix techniques, privilégie :
+
+* **simplicité**
+* **compatibilité avec l’existant**
+* **persistance fiable**
+* **clarté des données**
+* **préparation au futur**
+
+---
+
+Si tu veux, juste après, je peux aussi te faire une **version 2 encore plus opérationnelle**, mais cette fois sous forme de prompt orienté **“fais les changements directement dans Replit sans me demander 12 clarifications”**. Ce serait plus agressif, plus directif, et souvent plus efficace avec les agents IA.
