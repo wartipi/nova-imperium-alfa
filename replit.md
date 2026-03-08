@@ -48,4 +48,64 @@ Preferred communication style: Simple, everyday language.
 
 - **Express**: Backend framework for API endpoints and server-side logic.
 - **Jest** and **React Testing Library**: For comprehensive unit testing.
+
+# Carte Monde Segmentée — Persistance PostgreSQL
+
+## Structure de la carte
+
+- Un **segment** = 50 colonnes × 30 lignes = 1500 tuiles
+- Le prototype utilise un **bloc de 9 segments** (grille 3×3 centrée sur (0,0))
+- Total prototype : 9 segments × 1500 tuiles = **13 500 tuiles**
+- Étendue monde : X de -50 à 99 (150 cols) · Y de -30 à 59 (90 lignes)
+
+## Convention de coordonnées
+
+- `world_x = segment_x × 50 + local_x`
+- `world_y = segment_y × 30 + local_y`
+- Fichier de référence : `shared/mapCoordinates.ts`
+
+## Tables PostgreSQL ajoutées
+
+| Table | Description |
+|---|---|
+| `map_segments` | Segments de carte avec contrainte unique sur (segment_x, segment_y) |
+| `map_tiles` | Tuiles avec contraintes uniques sur (segment_id, local_x, local_y) et (world_x, world_y) |
+
+## Fichiers clés
+
+| Fichier | Rôle |
+|---|---|
+| `shared/mapCoordinates.ts` | Constantes et fonctions de conversion de coordonnées |
+| `shared/schema.ts` | Tables `mapSegments` et `mapTiles` Drizzle ORM |
+| `server/mapSegmentService.ts` | Service d'accès aux segments (CRUD + getNineSegmentBlock) |
+| `server/routes/map.ts` | Routes API carte (`/api/map/segment`, `/api/map/block`, `/api/map/stats`) |
+| `server/seeds/mapSeed.ts` | Seed idempotent des 9 segments de départ |
+| `client/src/lib/api/mapApi.ts` | Fonctions fetch côté client |
+| `client/src/lib/game/mapAdapter.ts` | Convertisseur DB tiles → HexTile[][] |
+
+## Endpoints API disponibles
+
+- `GET /api/map/stats` — nombre de segments et tuiles en base
+- `GET /api/map/segment/:x/:y` — un segment par coordonnées
+- `GET /api/map/segment/:x/:y/tiles` — 1500 tuiles d'un segment
+- `GET /api/map/segment/:x/:y/full` — segment + tuiles en un appel
+- `GET /api/map/block/:x/:y` — bloc 3×3 (9 segments + tuiles)
+
+## Chargement depuis le client
+
+```typescript
+const { loadBlockFromDB } = useMap();
+await loadBlockFromDB(0, 0); // charge le bloc centré sur (0,0)
 ```
+Le store `useMap` garde `generateMap()` (génération procédurale) comme fallback automatique.
+
+## Commandes utiles
+
+```bash
+npx tsx server/seeds/mapSeed.ts   # Seed des 9 segments (idempotent)
+npm run db:push                   # Synchroniser le schéma Drizzle
+```
+
+## Terrain types supportés (15)
+
+`plains`, `wasteland`, `forest`, `mountains`, `fertile_land`, `hills`, `shallow_water`, `deep_water`, `swamp`, `desert`, `sacred_plains`, `caves`, `ancient_ruins`, `volcano`, `enchanted_meadow`
