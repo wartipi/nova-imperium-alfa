@@ -720,3 +720,32 @@ export const usePlayer = create<PlayerState>((set, get) => {
   }
   };
 });
+
+// Risque 2 — Recalibration de la position joueur quand l'origine monde change
+// avatarHexPosition est en coordonnées tableau (arrayX/arrayY).
+// Quand un nouveau bloc est chargé, originWorldX/Y change → on recalcule
+// arrayX = worldX - newOriginX, en utilisant l'ancienne origine pour retrouver worldX.
+useMap.subscribe(
+  (state) => ({ ox: state.originWorldX, oy: state.originWorldY }),
+  ({ ox: newOx, oy: newOy }, { ox: prevOx, oy: prevOy }) => {
+    if (newOx === prevOx && newOy === prevOy) return;
+
+    const player = usePlayer.getState();
+    const oldHexX = player.avatarHexPosition.x;
+    const oldHexY = player.avatarHexPosition.y;
+
+    // Reconstruire les coordonnées monde avec l'ancienne origine
+    const worldX = oldHexX + prevOx;
+    const worldY = oldHexY + prevOy;
+
+    // Convertir dans le nouveau repère tableau
+    const newHexX = worldX - newOx;
+    const newHexY = worldY - newOy;
+
+    usePlayer.setState({ avatarHexPosition: { x: newHexX, y: newHexY } });
+    console.log(
+      `[Player] Recalibration origine (${prevOx},${prevOy})→(${newOx},${newOy})` +
+      ` | worldPos=(${worldX},${worldY}) | hex: (${oldHexX},${oldHexY})→(${newHexX},${newHexY})`
+    );
+  }
+);

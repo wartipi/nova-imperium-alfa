@@ -18,6 +18,10 @@ interface MapState {
   originWorldX: number;
   originWorldY: number;
 
+  // Risque 1 — segment en attente si un chargement est déjà en cours
+  pendingSegmentX: number | null;
+  pendingSegmentY: number | null;
+
   // Actions
   generateMap: (width: number, height: number) => void;
   loadBlockFromDB: (centerSegX?: number, centerSegY?: number) => Promise<void>;
@@ -39,6 +43,9 @@ export const useMap = create<MapState>()(
     originWorldX: 0,
     originWorldY: 0,
 
+    pendingSegmentX: null,
+    pendingSegmentY: null,
+
     generateMap: (width: number, height: number) => {
       console.log(`Generating map: ${width}x${height}`);
       const mapData = MapGenerator.generateMap(width, height);
@@ -50,17 +57,19 @@ export const useMap = create<MapState>()(
         originWorldY: 0,
         loadedCenterSegmentX: null,
         loadedCenterSegmentY: null,
+        pendingSegmentX: null,
+        pendingSegmentY: null,
       });
     },
 
     loadBlockFromDB: async (centerSegX = 0, centerSegY = 0) => {
-      const { isLoadingFromDB } = get();
-      if (isLoadingFromDB) {
-        console.log(`[Map] Chargement déjà en cours — requête (${centerSegX},${centerSegY}) ignorée`);
+      if (get().isLoadingFromDB) {
+        console.log(`[Map] Chargement déjà en cours — requête (${centerSegX},${centerSegY}) mise en attente`);
+        set({ pendingSegmentX: centerSegX, pendingSegmentY: centerSegY });
         return;
       }
 
-      set({ isLoadingFromDB: true });
+      set({ isLoadingFromDB: true, pendingSegmentX: null, pendingSegmentY: null });
       try {
         console.log(`[Map] Chargement bloc DB: segment central (${centerSegX}, ${centerSegY})`);
         const block = await fetchMapBlock(centerSegX, centerSegY);
@@ -90,6 +99,18 @@ export const useMap = create<MapState>()(
       } finally {
         set({ isLoadingFromDB: false });
       }
+
+      // Risque 1 — après chargement, traiter le segment en attente s'il est différent du chargé
+      const { pendingSegmentX, pendingSegmentY, loadedCenterSegmentX, loadedCenterSegmentY } = get();
+      if (
+        pendingSegmentX !== null &&
+        pendingSegmentY !== null &&
+        (pendingSegmentX !== loadedCenterSegmentX || pendingSegmentY !== loadedCenterSegmentY)
+      ) {
+        console.log(`[Map] Traitement du segment en attente: (${pendingSegmentX},${pendingSegmentY})`);
+        set({ pendingSegmentX: null, pendingSegmentY: null });
+        get().loadBlockFromDB(pendingSegmentX, pendingSegmentY);
+      }
     },
 
     ensurePlayerSegmentLoaded: (hexX: number, hexY: number) => {
@@ -99,25 +120,31 @@ export const useMap = create<MapState>()(
         loadedCenterSegmentX,
         loadedCenterSegmentY,
         isLoadingFromDB,
-        loadBlockFromDB,
+        pendingSegmentX,
+        pendingSegmentY,
       } = get();
-
-      if (isLoadingFromDB) {
-        console.log(`[Map] Chargement en cours — détection segment ignorée pour (${hexX}, ${hexY})`);
-        return;
-      }
 
       const worldX = hexX + originWorldX;
       const worldY = hexY + originWorldY;
       const { segmentX, segmentY } = worldToSegment(worldX, worldY);
 
+      // Déjà chargé ou en cours de chargement vers ce même segment
       if (segmentX === loadedCenterSegmentX && segmentY === loadedCenterSegmentY) {
         console.log(`[Map] Joueur en segment (${segmentX},${segmentY}) — déjà chargé, aucun rechargement`);
         return;
       }
 
+      if (isLoadingFromDB) {
+        // Risque 1 — mémoriser le segment cible même si un chargement est en cours
+        if (pendingSegmentX !== segmentX || pendingSegmentY !== segmentY) {
+          console.log(`[Map] Chargement en cours — segment (${segmentX},${segmentY}) mis en attente`);
+          set({ pendingSegmentX: segmentX, pendingSegmentY: segmentY });
+        }
+        return;
+      }
+
       console.log(`[Map] Nouveau segment détecté: (${segmentX},${segmentY}) — chargement bloc 3×3`);
-      loadBlockFromDB(segmentX, segmentY);
+      get().loadBlockFromDB(segmentX, segmentY);
     },
 
     setSelectedHex: (hex: HexTile | null) => {
