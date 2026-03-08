@@ -639,7 +639,8 @@ export class GameEngine {
       caves: '#2F2F2F',            // Gris très foncé
       ancient_ruins: '#8B7355',    // Brun-gris
       volcano: '#B22222',          // Rouge foncé
-      enchanted_meadow: '#50C878'  // Vert émeraude
+      enchanted_meadow: '#50C878', // Vert émeraude
+      plains: '#C8E6A0'            // Vert pâle
     };
     
     return colors[terrain as keyof typeof colors] || '#808080';
