@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, real } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, real, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -125,6 +125,41 @@ export const cartographyProjects = pgTable("cartography_projects", {
   assistants: jsonb("assistants").notNull().default('[]') // Array d'assistants
 });
 
+// Tables pour la carte monde segmentée
+export const mapSegments = pgTable("map_segments", {
+  id: serial("id").primaryKey(),
+  segmentX: integer("segment_x").notNull(),
+  segmentY: integer("segment_y").notNull(),
+  width: integer("width").notNull().default(50),
+  height: integer("height").notNull().default(30),
+  name: text("name"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow()
+}, (table) => ({
+  uniqueCoords: unique("map_segments_coords_unique").on(table.segmentX, table.segmentY)
+}));
+
+export const mapTiles = pgTable("map_tiles", {
+  id: serial("id").primaryKey(),
+  segmentId: integer("segment_id").notNull(),
+  localX: integer("local_x").notNull(),
+  localY: integer("local_y").notNull(),
+  worldX: integer("world_x").notNull(),
+  worldY: integer("world_y").notNull(),
+  terrainType: text("terrain_type").notNull().default("plains"),
+  resourceType: text("resource_type"),
+  elevation: real("elevation"),
+  isWalkable: boolean("is_walkable").notNull().default(true),
+  movementCost: integer("movement_cost").notNull().default(1),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow()
+}, (table) => ({
+  uniqueLocalCoords: unique("map_tiles_local_coords_unique").on(table.segmentId, table.localX, table.localY),
+  uniqueWorldCoords: unique("map_tiles_world_coords_unique").on(table.worldX, table.worldY)
+}));
+
 // Schémas d'insertion pour validation
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
@@ -209,6 +244,29 @@ export const insertCartographyProjectSchema = createInsertSchema(cartographyProj
   assistants: true
 });
 
+export const insertMapSegmentSchema = createInsertSchema(mapSegments).pick({
+  segmentX: true,
+  segmentY: true,
+  width: true,
+  height: true,
+  name: true,
+  isActive: true
+});
+
+export const insertMapTileSchema = createInsertSchema(mapTiles).pick({
+  segmentId: true,
+  localX: true,
+  localY: true,
+  worldX: true,
+  worldY: true,
+  terrainType: true,
+  resourceType: true,
+  elevation: true,
+  isWalkable: true,
+  movementCost: true,
+  metadata: true
+});
+
 // Types TypeScript
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -228,3 +286,7 @@ export type MapDocument = typeof mapDocuments.$inferSelect;
 export type InsertMapDocument = z.infer<typeof insertMapDocumentSchema>;
 export type CartographyProject = typeof cartographyProjects.$inferSelect;
 export type InsertCartographyProject = z.infer<typeof insertCartographyProjectSchema>;
+export type MapSegment = typeof mapSegments.$inferSelect;
+export type InsertMapSegment = z.infer<typeof insertMapSegmentSchema>;
+export type MapTile = typeof mapTiles.$inferSelect;
+export type InsertMapTile = z.infer<typeof insertMapTileSchema>;
