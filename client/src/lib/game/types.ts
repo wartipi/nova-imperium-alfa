@@ -13,6 +13,7 @@ export type TerrainType =
   | 'ancient_ruins'    // 12 - Ruines anciennes
   | 'volcano'          // 13 - Volcan
   | 'enchanted_meadow' // 14 - Prairie enchantée
+  | 'plains'           // 15 - Plaine standard
 
 export type UnitType = 
   | 'warrior' 
