@@ -1,4 +1,4 @@
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, sql } from "drizzle-orm";
 import { db } from "./db";
 import { mapSegments, mapTiles, type MapSegment, type MapTile, type InsertMapSegment, type InsertMapTile } from "../shared/schema";
 import { getAdjacentSegmentCoords, localToWorld, SEGMENT_WIDTH, SEGMENT_HEIGHT } from "../shared/mapCoordinates";
@@ -123,11 +123,11 @@ export async function getNineSegmentBlock(
 }
 
 export async function getSegmentCount(): Promise<number> {
-  const result = await db.select({ id: mapSegments.id }).from(mapSegments);
-  return result.length;
+  const result = await db.select({ count: sql<number>`count(*)` }).from(mapSegments);
+  return Number(result[0].count);
 }
 
 export async function getTileCount(): Promise<number> {
-  const result = await db.select({ id: mapTiles.id }).from(mapTiles);
-  return result.length;
+  const result = await db.select({ count: sql<number>`count(*)` }).from(mapTiles);
+  return Number(result[0].count);
 }
