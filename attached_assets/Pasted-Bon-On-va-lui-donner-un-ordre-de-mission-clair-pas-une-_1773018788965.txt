@@ -1,0 +1,244 @@
+Bon. On va lui donner un **ordre de mission clair**, pas une dissertation confuse qui l’incite à “améliorer tout le projet”. Les IA ont une fâcheuse tendance à vouloir rénover la cathédrale quand on leur demande juste de réparer une porte. On va éviter ça.
+
+Copie-colle **ce prompt tel quel** dans ton agent.
+
+---
+
+# Prompt pour l’agent IA — Phase d’activation de la carte persistante
+
+Tu vas effectuer **une série de corrections ciblées et contrôlées** dans le projet *Nova Imperium*.
+Le système de carte segmentée et la persistance PostgreSQL fonctionnent déjà.
+
+Ta mission n’est **pas** de refactorer le projet.
+Tu dois **uniquement corriger les points identifiés dans l’audit et activer le chargement de la carte depuis la base de données**.
+
+Important :
+
+* Ne modifie rien d’autre que les éléments listés.
+* Ne corrige pas les erreurs TypeScript existantes hors périmètre.
+* Ne change pas l’architecture actuelle.
+* Ne refactorise pas les composants UI.
+
+---
+
+# Étape 1 — Corriger le rendu du terrain `plains`
+
+Problème identifié :
+
+Le type de terrain `plains` existe dans :
+
+* `TerrainType`
+* `MapGenerator.ts`
+* la base de données
+
+Mais **GameEngine.ts ne contient pas la couleur associée**.
+
+Résultat :
+si la carte est chargée depuis la DB, environ **24.5 % des tuiles apparaissent grises**.
+
+### Action
+
+Dans **GameEngine.ts** :
+
+1. Localiser la table de couleurs utilisée par `getTerrainColor`.
+2. Ajouter l’entrée suivante :
+
+```
+plains: '#C8E6A0'
+```
+
+3. Vérifier que le type `TerrainType` accepte bien `plains`.
+4. Vérifier que `plains` est correctement interprété dans toutes les fonctions visuelles.
+
+### Résultat attendu
+
+Les tuiles `plains` doivent apparaître **vert pâle** et non gris.
+
+---
+
+# Étape 2 — Corriger les fonctions de comptage inefficaces
+
+Problème identifié :
+
+Les fonctions :
+
+* `getSegmentCount()`
+* `getTileCount()`
+
+chargent tous les IDs en mémoire puis utilisent `.length`.
+
+C’est inefficace et inutile.
+
+### Action
+
+Dans **mapSegmentService.ts** :
+
+Remplacer les requêtes existantes par un **COUNT SQL réel**.
+
+Exemple attendu (conceptuellement) :
+
+```
+SELECT COUNT(*) FROM map_segments
+SELECT COUNT(*) FROM map_tiles
+```
+
+Avec Drizzle ORM, utiliser la fonction adaptée pour retourner directement le nombre.
+
+### Résultat attendu
+
+Les fonctions doivent :
+
+* retourner un nombre
+* ne pas charger toute la table en mémoire
+* rester compatibles avec le reste du service.
+
+---
+
+# Étape 3 — Activer le chargement de la carte depuis la base
+
+Actuellement :
+
+* `loadBlockFromDB()` existe
+* `mapApi.ts` existe
+* `mapAdapter.ts` existe
+* mais **le jeu démarre encore avec la génération procédurale**.
+
+Tu dois **brancher la base de données comme source principale de la carte**.
+
+### Action
+
+1. Identifier l’endroit où la carte est initialisée au démarrage du jeu.
+2. Appeler :
+
+```
+loadBlockFromDB(0, 0)
+```
+
+pour charger le bloc central.
+
+3. Conserver temporairement le fallback existant vers la génération procédurale si l’API échoue.
+
+### Flux attendu
+
+Initialisation du jeu :
+
+```
+start game
+→ loadBlockFromDB(0,0)
+→ fetch /api/map/block/0/0
+→ adapter DB tiles → HexTile[][]
+→ injecter dans le moteur
+```
+
+### Résultat attendu
+
+Le jeu doit afficher la carte **chargée depuis la base de données**.
+
+---
+
+# Étape 4 — Vérification fonctionnelle après activation
+
+Après activation, effectuer ces vérifications :
+
+### Vérification serveur
+
+Tester :
+
+```
+GET /api/map/stats
+GET /api/map/segment/0/0
+GET /api/map/segment/0/0/tiles
+GET /api/map/block/0/0
+```
+
+Résultats attendus :
+
+```
+segments: 9
+tiles: 13500
+```
+
+---
+
+### Vérification client
+
+Le jeu doit :
+
+* afficher **9 segments**
+* afficher **13 500 tuiles**
+* afficher les terrains avec leurs couleurs correctes
+* afficher `plains` en vert pâle
+* ne pas afficher de tuiles grises anormales
+* ne pas produire d'erreurs runtime
+
+---
+
+# Étape 5 — Vérification des coordonnées
+
+Confirmer que :
+
+* segment central = `(0,0)`
+* segments voisins = `(-1,-1)` à `(1,1)`
+* dimensions d’un segment = **50×30**
+* total des tuiles = **13 500**
+
+---
+
+# Étape 6 — Rapport de validation
+
+À la fin du travail, produire un rapport court contenant :
+
+### 1. Changements effectués
+
+Liste des fichiers modifiés.
+
+### 2. Résultat serveur
+
+Retour des routes API.
+
+### 3. Résultat client
+
+Capture logique du chargement de la carte.
+
+### 4. Problèmes rencontrés
+
+S’il y en a.
+
+---
+
+# Règles strictes
+
+Tu ne dois **pas** :
+
+* refactorer l’architecture
+* corriger les erreurs TypeScript existantes hors périmètre
+* modifier les routes API existantes
+* modifier le schéma DB
+* modifier la logique du service de segments
+* ajouter de nouvelles dépendances
+
+---
+
+# Objectif réel
+
+À la fin de cette tâche :
+
+Le jeu doit **afficher une carte persistante provenant de PostgreSQL**.
+
+C’est la validation complète du pipeline :
+
+```
+DB → API → Adapter → Client → Rendu
+```
+
+---
+
+Quand l’agent aura fini, reviens ici avec son nouveau rapport.
+
+Je regarderai surtout **trois choses critiques** :
+
+1. si le moteur lit bien la carte DB
+2. si les coordonnées sont cohérentes
+3. si le rendu correspond exactement au bloc 3×3 attendu
+
+Et là on saura si ton monde persistant est **réellement en train de fonctionner** ou si on est encore dans une belle illusion bien organisée.
