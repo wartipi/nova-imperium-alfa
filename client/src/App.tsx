@@ -19,7 +19,7 @@ const queryClient = new QueryClient();
 function GameApp() {
   const { isAuthenticated, login } = useAuth();
   const { initializeGame, gamePhase } = useGameState();
-  const { generateMap, mapData } = useMap();
+  const { loadBlockFromDB } = useMap();
   const { initializeNovaImperiums } = useNovaImperium();
   const { setBackgroundMusic } = useAudio();
   
@@ -34,12 +34,11 @@ function GameApp() {
     setBackgroundMusic(audio);
 
     // Initialize game
-    generateMap(50, 30); // Generate 50x30 hex map
     initializeNovaImperiums();
     initializeGame();
-    
-    // Initialize avatar on land and validate all systems
-    setTimeout(() => {
+
+    // Load map from DB (falls back to procedural generation automatically)
+    loadBlockFromDB(0, 0).then(() => {
       const { findLandHex, moveAvatarToHex } = usePlayer.getState();
       const { mapData } = useMap.getState();
       
@@ -52,7 +51,7 @@ function GameApp() {
           GameSystemValidator.logSystemValidation();
         });
       }
-    }, 100);
+    });
   }, []);
 
   if (gamePhase === "loading") {
