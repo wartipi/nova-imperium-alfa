@@ -13,6 +13,7 @@ import { usePlayer } from "./lib/stores/usePlayer";
 import { useGameLogging } from "./lib/hooks/useGameLogging";
 import { GameEngineProvider } from "./lib/contexts/GameEngineContext";
 import { fetchPlayerPosition } from "./lib/api/playerApi";
+import { fetchPlayerState } from "./lib/api/playerStateApi";
 import "@fontsource/inter";
 import "./index.css";
 
@@ -38,34 +39,59 @@ function GameApp() {
     initializeGame();
   }, []);
 
-  // Chargement carte + positionnement joueur dès que l'auth est établie
+  // Chargement carte + état joueur dès que l'auth est établie
   useEffect(() => {
     if (!isAuthenticated) return;
 
     async function initializePlayerWorld() {
       try {
-        // Étape 1 — Récupérer la position persistée (crée (3,3) si absente)
+        // Étape 1 — Position persistée (crée (3,3) si absente)
         const position = await fetchPlayerPosition();
         console.log(
-          `[Startup] Position persistée: world=(${position.worldX},${position.worldY})` +
+          `[Startup] Position: world=(${position.worldX},${position.worldY})` +
           ` segment=(${position.segmentX},${position.segmentY})`
         );
 
-        // Étape 2 — Charger le bloc 3×3 centré sur le segment du joueur
+        // Étape 2 — État joueur persisté (crée les valeurs par défaut si absent)
+        const playerStateData = await fetchPlayerState();
+        console.log(
+          `[Startup] État joueur: level=${playerStateData.level}` +
+          ` xp=${playerStateData.experience} ap=${playerStateData.actionPoints}` +
+          ` compétences=${playerStateData.competences.length}`
+        );
+
+        // Étape 3 — Charger le bloc 3×3 centré sur le segment du joueur
         await loadBlockFromDB(position.segmentX, position.segmentY);
 
-        // Étape 3 — Convertir world → repère local après stabilisation de l'origine
+        // Étape 4 — Convertir world → repère local après stabilisation de l'origine
         const { originWorldX, originWorldY } = useMap.getState();
         const hexX = position.worldX - originWorldX;
         const hexY = position.worldY - originWorldY;
 
         console.log(
-          `[Startup] Placement joueur: hex=(${hexX},${hexY})` +
+          `[Startup] Placement: hex=(${hexX},${hexY})` +
           ` depuis world=(${position.worldX},${position.worldY})` +
           ` origine=(${originWorldX},${originWorldY})`
         );
 
-        // Étape 4 — Placer l'avatar exactement à la bonne position
+        // Étape 5 — Appliquer l'état persisté au store
+        // experienceToNextLevel est recalculé depuis level (valeur dérivée)
+        const { calculateExperienceForLevel } = usePlayer.getState();
+        const experienceToNextLevel = calculateExperienceForLevel(playerStateData.level + 1);
+
+        usePlayer.setState({
+          level: playerStateData.level,
+          experience: playerStateData.experience,
+          totalExperience: playerStateData.totalExperience,
+          experienceToNextLevel,
+          actionPoints: playerStateData.actionPoints,
+          maxActionPoints: playerStateData.maxActionPoints,
+          competencePoints: playerStateData.competencePoints,
+          competences: playerStateData.competences,
+        });
+        console.log(`[Startup] Store joueur initialisé depuis DB`);
+
+        // Étape 6 — Placer l'avatar exactement à la bonne position
         const { moveAvatarToHex } = usePlayer.getState();
         moveAvatarToHex(hexX, hexY);
 
@@ -75,9 +101,9 @@ function GameApp() {
         });
 
       } catch (err) {
-        console.error("[Startup] Erreur position joueur — fallback findLandHex:", err);
+        console.error("[Startup] Erreur — fallback findLandHex:", err);
 
-        // Fallback : bloc (0,0) + case libre aléatoire
+        // Fallback : bloc (0,0) + case libre, état par défaut
         await loadBlockFromDB(0, 0);
         const { findLandHex, moveAvatarToHex } = usePlayer.getState();
         const { mapData } = useMap.getState();
