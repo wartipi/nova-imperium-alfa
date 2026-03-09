@@ -1,0 +1,422 @@
+Bon. On va lui donner un **prompt propre, structuré et impossible à mal comprendre**. Si l’agent part encore en freestyle après ça, ce ne sera plus un problème d’instructions.
+
+Voici le prompt complet à lui envoyer.
+
+---
+
+# PROMPT POUR L’AGENT IA — NOVA IMPERIUM
+
+## CONTEXTE
+
+Projet : **Nova Imperium**
+
+Architecture actuelle validée :
+
+* Carte monde segmentée
+* Segments : **50 × 30 tuiles**
+* Bloc chargé : **3 × 3 segments**
+* Carte totale actuelle : **9 segments = 150 × 90 = 13 500 tuiles**
+* Chargement dynamique de segments fonctionnel
+* Cache de segments actif
+* Overlay de chargement actif
+* Position joueur persistée en base (`player_positions`)
+* Flux de démarrage déjà migré vers la position persistée
+
+Branche à analyser et modifier :
+
+**NI-v10.1**
+
+Ne travaille **que sur cette branche**.
+
+---
+
+# RÈGLE ABSOLUE DE RIGUEUR (TRÈS IMPORTANT)
+
+Avant toute modification :
+
+1. Vérifie que tu travailles bien sur la branche **NI-v10.1**.
+2. Vérifie que les fichiers que tu mentionnes **existent réellement**.
+3. Si un fichier n'existe pas, **ne l'invente pas**.
+4. Si tu n'as pas pu vérifier un point dans le code, **dis explicitement que ce n’est pas vérifié**.
+5. Base tes conclusions uniquement sur **la lecture réelle du code**.
+
+Je veux une **analyse fondée sur le code existant**, pas une reconstruction plausible.
+
+---
+
+# OBJECTIF DE CETTE TÂCHE
+
+Actuellement seule **la position joueur est persistée**.
+
+Nous devons maintenant rendre **l’état du joueur persistant** afin que la progression survive :
+
+* aux rechargements
+* aux reconnexions
+* aux redémarrages serveur
+
+---
+
+# ÉTAPE 1 — AUDIT AVANT TOUT CODAGE
+
+Avant toute modification :
+
+Analyse dans le code client :
+
+Rechercher où sont stockées ces données joueur :
+
+* actionPoints
+* maxActionPoints
+* experience
+* totalExperience
+* level
+* competencePoints
+* competences
+* éventuellement :
+
+  * exploredHexes
+
+Identifier précisément :
+
+* le store Zustand concerné
+* les types utilisés
+* les fonctions de modification de ces valeurs
+
+Présenter un **résumé clair avant implémentation**.
+
+---
+
+# ÉTAPE 2 — SCHÉMA BASE DE DONNÉES
+
+Créer une nouvelle table :
+
+**player_state**
+
+Structure :
+
+```
+player_state
+
+player_id TEXT PRIMARY KEY
+
+level INTEGER NOT NULL
+experience INTEGER NOT NULL
+total_experience INTEGER NOT NULL
+
+action_points INTEGER NOT NULL
+max_action_points INTEGER NOT NULL
+
+competence_points INTEGER NOT NULL
+
+competences JSONB NOT NULL
+
+updated_at TIMESTAMP NOT NULL DEFAULT now()
+```
+
+Contraintes :
+
+* `player_id` correspond à `req.user.id`
+* aucune duplication
+
+Ajouter la table dans :
+
+```
+shared/schema.ts
+```
+
+Créer aussi :
+
+```
+export type PlayerState
+export type InsertPlayerState
+```
+
+---
+
+# ÉTAPE 3 — SERVICE BACKEND
+
+Créer :
+
+```
+server/playerStateService.ts
+```
+
+Fonctions :
+
+### getPlayerState(playerId)
+
+Retourne l’état actuel.
+
+---
+
+### ensurePlayerState(playerId)
+
+Si aucun état :
+
+créer un état par défaut :
+
+```
+level = 1
+experience = 0
+total_experience = 0
+
+action_points = 10
+max_action_points = 10
+
+competence_points = 0
+competences = []
+```
+
+---
+
+### savePlayerState(playerId, state)
+
+Upsert complet.
+
+Utiliser :
+
+```
+onConflictDoUpdate
+```
+
+---
+
+# ÉTAPE 4 — ROUTES API
+
+Créer :
+
+```
+server/routes/playerState.ts
+```
+
+Routes :
+
+### GET
+
+```
+GET /api/player/state
+```
+
+Retourne :
+
+```
+player state complet
+```
+
+---
+
+### POST
+
+```
+POST /api/player/state
+```
+
+Body :
+
+```
+level
+experience
+totalExperience
+actionPoints
+maxActionPoints
+competencePoints
+competences
+```
+
+Validation :
+
+* vérifier types
+* vérifier nombres
+
+---
+
+# ÉTAPE 5 — API CLIENT
+
+Créer :
+
+```
+client/src/lib/api/playerStateApi.ts
+```
+
+Fonctions :
+
+### fetchPlayerState()
+
+appel :
+
+```
+GET /api/player/state
+```
+
+---
+
+### savePlayerState()
+
+appel :
+
+```
+POST /api/player/state
+```
+
+---
+
+# ÉTAPE 6 — CHARGEMENT AU DÉMARRAGE
+
+Flux de démarrage actuel :
+
+```
+login
+↓
+fetchPlayerPosition
+↓
+loadBlockFromDB(segment)
+↓
+moveAvatarToHex
+```
+
+Ajouter :
+
+```
+fetchPlayerState
+```
+
+Flux final :
+
+```
+login
+↓
+fetchPlayerPosition
+↓
+fetchPlayerState
+↓
+loadBlockFromDB
+↓
+moveAvatarToHex
+↓
+initialiser le store joueur
+```
+
+---
+
+# ÉTAPE 7 — SAUVEGARDE AUTOMATIQUE
+
+Sauvegarder l’état joueur lorsque :
+
+* actionPoints change
+* level change
+* experience change
+* competencePoints change
+* competences change
+
+Mais **ne pas spammer la DB**.
+
+Implémenter :
+
+```
+debounce 3 secondes
+```
+
+ou
+
+```
+save seulement si changement réel
+```
+
+---
+
+# ÉTAPE 8 — TESTS À FAIRE
+
+Tests obligatoires :
+
+### Test A — Première connexion
+
+Aucun state existant.
+
+Résultat attendu :
+
+```
+création automatique
+```
+
+---
+
+### Test B — Reconnexion
+
+State existant.
+
+Résultat :
+
+```
+chargement exact
+```
+
+---
+
+### Test C — Modification XP
+
+XP change.
+
+Résultat :
+
+```
+sauvegarde DB
+```
+
+---
+
+### Test D — Changement compétence
+
+Competence ajoutée.
+
+Résultat :
+
+```
+persisté
+```
+
+---
+
+### Test E — Reload page
+
+Après reload :
+
+```
+state identique
+```
+
+---
+
+# RÉSULTAT ATTENDU
+
+Après implémentation :
+
+Le joueur conserve :
+
+* son niveau
+* son XP
+* ses compétences
+* ses points d’action
+
+Même après :
+
+* refresh
+* reconnexion
+* redémarrage serveur
+
+---
+
+# RÈGLE FINALE
+
+Avant toute modification :
+
+1. Audit complet
+2. Confirmation des fichiers existants
+3. Explication du plan
+4. Puis implémentation
+
+Ne saute **jamais l’étape d’audit**.
+
+---
+
+Si tout est implémenté correctement, **Nova Imperium aura enfin un joueur réellement persistant**.
+
+Et là, ton prototype commence à ressembler à un vrai monde persistant. Ce qui est quand même l’idée du projet, si je ne me trompe pas.
