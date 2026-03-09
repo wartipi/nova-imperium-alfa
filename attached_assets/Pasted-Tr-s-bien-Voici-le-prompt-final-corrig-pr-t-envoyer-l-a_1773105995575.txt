@@ -1,0 +1,500 @@
+Très bien. Voici **le prompt final corrigé**, prêt à envoyer à l’agent IA.
+Je garde le même niveau de précision que vos prompts précédents, mais en corrigeant les deux points importants :
+
+* **politique de sauvegarde**
+* **position initiale déterministe**
+
+---
+
+# Prompt pour agent IA
+
+## Implémentation de la persistance de position joueur dans le monde
+
+Tu travailles sur **Nova Imperium**.
+
+Le système actuel possède déjà :
+
+* carte persistante PostgreSQL
+* carte segmentée **50 × 30**
+* chargement dynamique **bloc 3×3**
+* cache de segments côté client
+* overlay de chargement
+* recalibration `originWorldX / originWorldY`
+* système d’authentification simple (`auth.ts`)
+
+Actuellement :
+
+* la carte est persistante
+* mais **la position du joueur ne l’est pas**
+
+À chaque démarrage :
+
+* le jeu charge `(0,0)`
+* trouve une case libre
+* place le joueur
+
+Ce comportement doit être remplacé par **une vraie persistance joueur**.
+
+---
+
+# Objectif global
+
+À la fin de cette tâche :
+
+1. la position du joueur est sauvegardée en base
+2. le jeu recharge cette position au démarrage
+3. le bon bloc de carte est chargé automatiquement
+4. le joueur apparaît **exactement au bon endroit**
+5. les déplacements mettent à jour la position persistée
+
+---
+
+# Règles strictes
+
+Tu dois respecter ces contraintes :
+
+* ne pas refactorer tout le projet
+* ne pas casser le système de carte existant
+* ne pas casser le cache de segments
+* ne pas casser la recalibration existante
+* ne pas modifier l’authentification actuelle
+* ne pas corriger les erreurs TypeScript hors périmètre
+* rester minimal et compatible prototype
+
+---
+
+# PRIORITÉ 1 — Modèle de données
+
+## Étape 1.1 — Audit rapide
+
+Avant modification, confirme :
+
+* l’authentification expose `req.user.id`
+* côté client `currentUser` correspond à cet identifiant
+* aucune persistance position n’existe actuellement
+
+Explique brièvement ce que tu réutilises.
+
+---
+
+## Étape 1.2 — Ajouter une table dédiée
+
+Créer une table :
+
+```
+player_positions
+```
+
+Colonnes :
+
+```
+player_id TEXT PRIMARY KEY
+world_x INTEGER NOT NULL
+world_y INTEGER NOT NULL
+segment_x INTEGER NOT NULL
+segment_y INTEGER NOT NULL
+updated_at TIMESTAMP NOT NULL
+```
+
+Contraintes :
+
+* `player_id` = identifiant utilisateur
+* une seule position par joueur
+* pas de dépendance sur `users` autre que la clé
+
+### Pourquoi
+
+On garde la table `users` intacte et extensible.
+
+---
+
+# PRIORITÉ 2 — Service backend
+
+Créer :
+
+```
+server/playerPositionService.ts
+```
+
+Fonctions attendues :
+
+```
+getPlayerPosition(playerId)
+savePlayerPosition(playerId, worldX, worldY)
+ensurePlayerPosition(playerId)
+```
+
+---
+
+## getPlayerPosition
+
+Retourne :
+
+```
+{
+ worldX,
+ worldY,
+ segmentX,
+ segmentY
+}
+```
+
+ou `null`.
+
+---
+
+## savePlayerPosition
+
+Entrée :
+
+```
+playerId
+worldX
+worldY
+```
+
+Calculer :
+
+```
+segmentX = floor(worldX / 50)
+segmentY = floor(worldY / 30)
+```
+
+Sauvegarder :
+
+```
+worldX
+worldY
+segmentX
+segmentY
+updatedAt
+```
+
+---
+
+## ensurePlayerPosition
+
+Si aucune position n’existe :
+
+créer **une position déterministe** :
+
+```
+worldX = 3
+worldY = 3
+segmentX = 0
+segmentY = 0
+```
+
+Pourquoi :
+
+* cohérent avec le prototype
+* reproductible
+* évite un spawn aléatoire
+
+Retourner ensuite la position.
+
+---
+
+# PRIORITÉ 3 — Routes API
+
+Créer :
+
+```
+server/routes/player.ts
+```
+
+Routes :
+
+### GET `/api/player/position`
+
+* requireAuth
+* utiliser `req.user.id`
+* appeler `ensurePlayerPosition`
+* retourner la position
+
+---
+
+### POST `/api/player/position`
+
+Body :
+
+```
+{
+ worldX,
+ worldY
+}
+```
+
+Actions :
+
+* validation numérique
+* appel `savePlayerPosition`
+* retourner succès
+
+---
+
+# PRIORITÉ 4 — API client
+
+Créer :
+
+```
+client/src/lib/api/playerApi.ts
+```
+
+Fonctions :
+
+```
+fetchPlayerPosition()
+savePlayerPosition(worldX, worldY)
+```
+
+Utiliser les routes créées.
+
+---
+
+# PRIORITÉ 5 — Nouveau flux de démarrage
+
+Modifier le démarrage du jeu.
+
+Flux actuel :
+
+```
+loadBlockFromDB(0,0)
+findLandHex
+moveAvatarToHex
+```
+
+Ce flux doit être remplacé.
+
+---
+
+## Nouveau flux
+
+1. récupérer position persistée :
+
+```
+fetchPlayerPosition()
+```
+
+2. obtenir :
+
+```
+worldX
+worldY
+```
+
+3. calculer :
+
+```
+segmentX
+segmentY
+```
+
+4. charger bloc :
+
+```
+loadBlockFromDB(segmentX, segmentY)
+```
+
+5. attendre fin chargement
+
+6. convertir en coordonnées locales :
+
+```
+hexX = worldX - originWorldX
+hexY = worldY - originWorldY
+```
+
+7. placer joueur :
+
+```
+moveAvatarToHex(hexX, hexY)
+```
+
+---
+
+## Important
+
+Ne pas casser :
+
+```
+originWorldX
+originWorldY
+```
+
+La conversion doit rester :
+
+```
+arrayX = worldX - originWorldX
+arrayY = worldY - originWorldY
+```
+
+---
+
+# PRIORITÉ 6 — Sauvegarde pendant le jeu
+
+La position joueur doit être sauvegardée **quand un déplacement logique est terminé**.
+
+---
+
+## Politique de sauvegarde
+
+Sauvegarde principale :
+
+```
+fin de déplacement joueur
+```
+
+Sauvegarde secondaire :
+
+```
+changement de segment
+```
+
+Mais :
+
+```
+ensurePlayerSegmentLoaded
+NE DOIT PAS être l’unique point de sauvegarde
+```
+
+---
+
+## Conversion correcte
+
+Avant sauvegarde :
+
+```
+worldX = hexX + originWorldX
+worldY = hexY + originWorldY
+```
+
+Sauvegarder **ces coordonnées monde**.
+
+Jamais :
+
+```
+avatarHexPosition
+```
+
+directement.
+
+---
+
+# PRIORITÉ 7 — Protection pendant chargement
+
+Pendant un chargement de bloc :
+
+```
+isLoadingFromDB === true
+```
+
+Éviter les sauvegardes incohérentes.
+
+Solutions possibles :
+
+* ignorer sauvegarde pendant chargement
+* sauvegarder juste après stabilisation
+
+Explique la stratégie choisie.
+
+---
+
+# Tests obligatoires
+
+## Test A — Première connexion
+
+Attendu :
+
+* position créée `(3,3)`
+* bloc `(0,0)` chargé
+* joueur placé correctement
+
+---
+
+## Test B — Redémarrage
+
+Étapes :
+
+1. déplacer joueur
+2. sauvegarder position
+3. redémarrer jeu
+
+Attendu :
+
+* même position
+* même segment chargé
+
+---
+
+## Test C — Position hors (0,0)
+
+Attendu :
+
+* segment correct calculé
+* bloc correct chargé
+
+---
+
+## Test D — Coordonnées négatives
+
+Attendu :
+
+* segment correct
+* conversion correcte
+
+---
+
+## Test E — Changement de segment
+
+Attendu :
+
+* sauvegarde cohérente
+* pas de position corrompue
+
+---
+
+# Livrables attendus
+
+À la fin, fournir :
+
+### 1. Fichiers modifiés
+
+### 2. Schéma DB
+
+### 3. Flux démarrage
+
+### 4. Flux sauvegarde
+
+### 5. Résultats des tests
+
+### 6. Limites restantes
+
+---
+
+# Objectif final
+
+À la fin :
+
+* le monde est persistant
+* le joueur est persistant
+* le jeu redémarre au bon endroit
+* le chargement dynamique reste fonctionnel
+
+---
+
+# Rappel important
+
+Je préfère :
+
+* solution simple
+* logique claire
+* tests validés
+
+plutôt qu’une architecture trop complexe pour un prototype.
+
+Implémente **le strict nécessaire pour rendre la position joueur persistante et fiable**.
+
+---
+
+Si tu veux, après ça je pourrai aussi te dire **quelle sera la prochaine vraie étape structurante du moteur**, parce que là vous approchez du moment où *Nova Imperium* va commencer à ressembler à un vrai monde persistant plutôt qu’un prototype technique.
