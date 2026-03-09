@@ -290,3 +290,17 @@ export type MapSegment = typeof mapSegments.$inferSelect;
 export type InsertMapSegment = z.infer<typeof insertMapSegmentSchema>;
 export type MapTile = typeof mapTiles.$inferSelect;
 export type InsertMapTile = z.infer<typeof insertMapTileSchema>;
+
+// Table de persistance de la position joueur dans le monde
+export const playerPositions = pgTable("player_positions", {
+  playerId: text("player_id").primaryKey(),
+  worldX: integer("world_x").notNull(),
+  worldY: integer("world_y").notNull(),
+  segmentX: integer("segment_x").notNull(),
+  segmentY: integer("segment_y").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertPlayerPositionSchema = createInsertSchema(playerPositions);
+export type PlayerPosition = typeof playerPositions.$inferSelect;
+export type InsertPlayerPosition = z.infer<typeof insertPlayerPositionSchema>;
