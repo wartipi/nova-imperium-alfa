@@ -4,6 +4,7 @@ import { VisionSystem, type HexCoordinate } from '../systems/VisionSystem';
 import { getLearnCost, getUpgradeCost } from '../competence/CompetenceCosts';
 import { useMap } from './useMap';
 import { savePlayerPosition } from '../api/playerApi';
+import { savePlayerState } from '../api/playerStateApi';
 
 interface CompetenceLevel {
   competence: string;
@@ -764,3 +765,66 @@ useMap.subscribe(
     );
   }
 );
+
+// ---------------------------------------------------------------------------
+// Sauvegarde automatique centralisée — politique unique
+// Un seul point de sauvegarde, déclenché par tout changement de progression.
+// Le debounce 3s absorbe les cascades (level-up → XP reset → compétence, etc.)
+// ---------------------------------------------------------------------------
+
+let _saveTimer: ReturnType<typeof setTimeout> | null = null;
+
+function schedulePlayerStateSave() {
+  if (_saveTimer) clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(() => {
+    _saveTimer = null;
+    try {
+      const auth = localStorage.getItem("nova_imperium_auth");
+      if (!auth) return;
+      const { level, experience, totalExperience, actionPoints, maxActionPoints, competencePoints, competences } =
+        usePlayer.getState();
+      savePlayerState({ level, experience, totalExperience, actionPoints, maxActionPoints, competencePoints, competences })
+        .then(() => {
+          console.log(`[PlayerState] Auto-save: level=${level} xp=${experience} ap=${actionPoints}`);
+        })
+        .catch(err => console.warn("[PlayerState] Échec auto-save:", err));
+    } catch (err) {
+      console.warn("[PlayerState] Erreur schedulePlayerStateSave:", err);
+    }
+  }, 3000);
+}
+
+let _prevProgressionState = {
+  level: 0,
+  experience: -1,
+  totalExperience: -1,
+  actionPoints: -1,
+  maxActionPoints: -1,
+  competencePoints: -1,
+  competences: null as unknown,
+};
+
+usePlayer.subscribe((state) => {
+  const changed =
+    state.level !== _prevProgressionState.level ||
+    state.experience !== _prevProgressionState.experience ||
+    state.totalExperience !== _prevProgressionState.totalExperience ||
+    state.actionPoints !== _prevProgressionState.actionPoints ||
+    state.maxActionPoints !== _prevProgressionState.maxActionPoints ||
+    state.competencePoints !== _prevProgressionState.competencePoints ||
+    state.competences !== _prevProgressionState.competences;
+
+  if (!changed) return;
+
+  _prevProgressionState = {
+    level: state.level,
+    experience: state.experience,
+    totalExperience: state.totalExperience,
+    actionPoints: state.actionPoints,
+    maxActionPoints: state.maxActionPoints,
+    competencePoints: state.competencePoints,
+    competences: state.competences,
+  };
+
+  schedulePlayerStateSave();
+});
