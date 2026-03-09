@@ -24,12 +24,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const savedAuth = localStorage.getItem('nova_imperium_auth');
     if (savedAuth) {
       try {
-        const { user, timestamp } = JSON.parse(savedAuth);
-        // Session valide pendant 24 heures
-        if (Date.now() - timestamp < 24 * 60 * 60 * 1000) {
+        const { user, token, timestamp } = JSON.parse(savedAuth);
+        // Session valide pendant 24 heures et doit contenir un token
+        if (token && Date.now() - timestamp < 24 * 60 * 60 * 1000) {
           setIsAuthenticated(true);
           setCurrentUser(user);
         } else {
+          // Session trop ancienne ou sans token — reconnexion requise
           localStorage.removeItem('nova_imperium_auth');
         }
       } catch (error) {
