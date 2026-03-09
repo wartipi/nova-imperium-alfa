@@ -10,6 +10,7 @@ import { loginEndpoint } from "./middleware/auth";
 import marshalRoutes from "./routes/marshal";
 import publicEventsRoutes from "./routes/publicEvents";
 import mapRoutes from "./routes/map";
+import playerRoutes from "./routes/player";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialiser le marketplace service avec exchangeService
@@ -924,6 +925,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/marshal', marshalRoutes);
   app.use('/api/public-events', publicEventsRoutes);
   app.use('/api/map', mapRoutes);
+  app.use('/api/player', playerRoutes);
 
   const httpServer = createServer(app);
   return httpServer;
