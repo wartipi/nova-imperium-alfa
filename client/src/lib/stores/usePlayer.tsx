@@ -3,6 +3,7 @@ import { CharacterOption } from "../../components/game/CharacterSelector";
 import { VisionSystem, type HexCoordinate } from '../systems/VisionSystem';
 import { getLearnCost, getUpgradeCost } from '../competence/CompetenceCosts';
 import { useMap } from './useMap';
+import { savePlayerPosition } from '../api/playerApi';
 
 interface CompetenceLevel {
   competence: string;
@@ -327,6 +328,20 @@ export const usePlayer = create<PlayerState>((set, get) => {
 
     // Detect segment change and reload map block if needed
     useMap.getState().ensurePlayerSegmentLoaded(hexX, hexY);
+
+    // Sauvegarde principale — coordonnées monde reconstituées
+    // Protégée : ignorée pendant un chargement de bloc (origine instable)
+    const { isLoadingFromDB, originWorldX, originWorldY } = useMap.getState();
+    if (!isLoadingFromDB) {
+      const worldX = hexX + originWorldX;
+      const worldY = hexY + originWorldY;
+      savePlayerPosition(worldX, worldY).catch((err) => {
+        console.warn(`[PlayerSave] Erreur sauvegarde déplacement: ${err}`);
+      });
+      console.log(`[PlayerSave] Déplacement → world=(${worldX},${worldY})`);
+    } else {
+      console.log(`[PlayerSave] Chargement en cours — sauvegarde différée au changement de segment`);
+    }
   },
 
   // Vision system unifié

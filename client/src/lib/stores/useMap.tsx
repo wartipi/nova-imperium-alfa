@@ -6,6 +6,7 @@ import type { DbSegment, DbTile } from "../api/mapApi";
 import { fetchMapBlock } from "../api/mapApi";
 import { adaptBlockToMap, buildMapFromSegments } from "../game/mapAdapter";
 import { worldToSegment, getAdjacentSegmentCoords } from "../../../../shared/mapCoordinates";
+import { savePlayerPosition } from "../api/playerApi";
 
 type CachedSegment = { segment: DbSegment; tiles: DbTile[] };
 
@@ -208,6 +209,14 @@ export const useMap = create<MapState>()(
       }
 
       console.log(`[Map] Nouveau segment détecté: (${segmentX},${segmentY}) — chargement bloc 3×3`);
+
+      // Sauvegarde secondaire — position monde avant transition de segment
+      // L'origine est encore stable ici (chargement pas encore déclenché)
+      savePlayerPosition(worldX, worldY).catch((err) => {
+        console.warn(`[PlayerSave] Erreur sauvegarde changement segment: ${err}`);
+      });
+      console.log(`[PlayerSave] Changement segment → world=(${worldX},${worldY})`);
+
       get().loadBlockFromDB(segmentX, segmentY);
     },
 

@@ -106,6 +106,54 @@ npx tsx server/seeds/mapSeed.ts   # Seed des 9 segments (idempotent)
 npm run db:push                   # Synchroniser le schéma Drizzle
 ```
 
+---
+
+# Persistance de la Position Joueur
+
+## Fonctionnement
+
+- La position du joueur est sauvegardée en PostgreSQL dans la table `player_positions`
+- Au démarrage, le jeu charge la position persistée et charge automatiquement le bon bloc de carte
+- Si aucune position n'existe, la position par défaut `worldX=3, worldY=3` est créée (segment 0,0)
+
+## Table PostgreSQL
+
+| Colonne | Type | Description |
+|---|---|---|
+| `player_id` | TEXT PK | Identifiant utilisateur |
+| `world_x` | INTEGER | Coordonnée monde X |
+| `world_y` | INTEGER | Coordonnée monde Y |
+| `segment_x` | INTEGER | Segment courant X |
+| `segment_y` | INTEGER | Segment courant Y |
+| `updated_at` | TIMESTAMP | Dernière mise à jour |
+
+## Convention de coordonnées
+
+- Position persistée = coordonnées **monde** (`worldX`, `worldY`)
+- Jamais les coordonnées locales (`hexX`, `hexY`) qui dépendent de l'origine du bloc affiché
+- Conversion : `hexX = worldX - originWorldX`
+
+## Fichiers clés
+
+| Fichier | Rôle |
+|---|---|
+| `server/playerPositionService.ts` | Service CRUD position joueur |
+| `server/routes/player.ts` | Routes API `GET/POST /api/player/position` |
+| `client/src/lib/api/playerApi.ts` | Client API position joueur |
+
+## Politique de sauvegarde
+
+- **Principale** : à chaque `moveAvatarToHex()`, si `isLoadingFromDB === false`
+- **Secondaire** : au changement de segment détecté dans `ensurePlayerSegmentLoaded`, avant le chargement du nouveau bloc
+- **Protégée** : aucune sauvegarde pendant un chargement de bloc (origine instable)
+
+## Flux de démarrage
+
+1. `fetchPlayerPosition()` — récupère ou crée la position
+2. `loadBlockFromDB(segmentX, segmentY)` — charge le bon bloc
+3. `hexX = worldX - originWorldX` — conversion monde → local
+4. `moveAvatarToHex(hexX, hexY)` — placement exact
+
 ## Terrain types supportés (15)
 
 `plains`, `wasteland`, `forest`, `mountains`, `fertile_land`, `hills`, `shallow_water`, `deep_water`, `swamp`, `desert`, `sacred_plains`, `caves`, `ancient_ruins`, `volcano`, `enchanted_meadow`
