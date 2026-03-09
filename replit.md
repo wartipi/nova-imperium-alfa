@@ -157,3 +157,54 @@ npm run db:push                   # Synchroniser le schéma Drizzle
 ## Terrain types supportés (15)
 
 `plains`, `wasteland`, `forest`, `mountains`, `fertile_land`, `hills`, `shallow_water`, `deep_water`, `swamp`, `desert`, `sacred_plains`, `caves`, `ancient_ruins`, `volcano`, `enchanted_meadow`
+
+---
+
+# Persistance de l'État Joueur (Progression)
+
+## Fonctionnement
+
+- Level, XP, PA, compétences sauvegardés en PostgreSQL dans `player_state`
+- Chargés au démarrage et appliqués au store Zustand (`usePlayer`)
+- `experienceToNextLevel` est une valeur dérivée — jamais persistée
+- `exploredHexes` exclu (sprint suivant)
+
+## Table PostgreSQL
+
+| Colonne | Type | Défaut |
+|---|---|---|
+| `player_id` | TEXT PK | — |
+| `level` | INTEGER | `1` |
+| `experience` | INTEGER | `0` |
+| `total_experience` | INTEGER | `0` |
+| `action_points` | INTEGER | `25` |
+| `max_action_points` | INTEGER | `100` |
+| `competence_points` | INTEGER | `3` |
+| `competences` | JSONB | `[]` |
+| `updated_at` | TIMESTAMP | `now()` |
+
+## Fichiers clés
+
+| Fichier | Rôle |
+|---|---|
+| `shared/schema.ts` | Table `playerState` Drizzle ORM |
+| `server/playerStateService.ts` | Service CRUD (get, save, ensurePlayerState) |
+| `server/routes/playerState.ts` | Routes `GET/POST /api/player/state` |
+| `client/src/lib/api/playerStateApi.ts` | Client API (fetchPlayerState, savePlayerState) |
+
+## Flux de démarrage (App.tsx)
+
+1. `fetchPlayerPosition()` — position persistée
+2. `fetchPlayerState()` — état joueur persisté (ou création par défaut)
+3. `loadBlockFromDB(segmentX, segmentY)` — bloc de carte
+4. `usePlayer.setState(...)` — application au store, `experienceToNextLevel` recalculé
+5. `moveAvatarToHex(hexX, hexY)` — placement avatar
+
+## Politique de sauvegarde automatique
+
+**Centralisée dans `usePlayer.tsx`** — un seul point, aucun appel dispersé :
+
+- `schedulePlayerStateSave()` — fonction interne unique avec timer debounce 3s
+- `usePlayer.subscribe(listener)` — déclenché par tout changement dans `level`, `experience`, `totalExperience`, `actionPoints`, `maxActionPoints`, `competencePoints`, `competences`
+- Garde contre les sauvegardes non authentifiées (`localStorage.getItem("nova_imperium_auth")`)
+- Le debounce absorbe les cascades (level-up → XP reset → compétence en chaîne)
