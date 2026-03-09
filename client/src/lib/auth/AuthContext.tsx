@@ -9,8 +9,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// Utilisateurs autorisés (dans une vraie application, ceci serait dans une base de données)
-const AUTHORIZED_USERS = {
+const AUTHORIZED_USERS: Record<string, string> = {
   'admin': 'nova2025',
   'joueur1': 'imperium123',
   'maitre': 'pandem456'
@@ -48,8 +47,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setCurrentUser(trimmedUsername);
       
       // Sauvegarder la session
+      const token = btoa(`${trimmedUsername}:${trimmedPassword}`);
       localStorage.setItem('nova_imperium_auth', JSON.stringify({
         user: trimmedUsername,
+        token,
         timestamp: Date.now()
       }));
       
