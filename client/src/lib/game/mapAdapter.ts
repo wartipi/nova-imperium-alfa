@@ -1,5 +1,5 @@
 import type { HexTile, TerrainType, ResourceType } from "./types";
-import type { DbTile, SegmentBlock } from "../api/mapApi";
+import type { DbSegment, DbTile, SegmentBlock } from "../api/mapApi";
 
 const TERRAIN_YIELDS: Record<string, { food: number; action_points: number; gold: number }> = {
   wasteland:       { food: 0, action_points: 0, gold: 0 },
@@ -60,6 +60,19 @@ export interface AdaptedBlock {
   height: number;
   originWorldX: number;
   originWorldY: number;
+}
+
+export function buildMapFromSegments(
+  segments: Array<{ segment: DbSegment; tiles: DbTile[] }>
+): AdaptedBlock {
+  const fakeBlock: SegmentBlock = {
+    centerX: 0,
+    centerY: 0,
+    segmentCount: segments.length,
+    totalTiles: segments.reduce((sum, s) => sum + s.tiles.length, 0),
+    segments,
+  };
+  return adaptBlockToMap(fakeBlock);
 }
 
 export function adaptBlockToMap(block: SegmentBlock): AdaptedBlock {

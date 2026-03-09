@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GameCanvas } from "./components/game/GameCanvas";
 import { MedievalHUD } from "./components/game/MedievalHUD";
+import { MapLoadingOverlay } from "./components/game/MapLoadingOverlay";
 import { LoginModal } from "./components/auth/LoginModal";
 import { AuthProvider, useAuth } from "./lib/auth/AuthContext";
 import { useGameState } from "./lib/stores/useGameState";
@@ -73,6 +74,7 @@ function GameApp() {
           <div className="w-full h-full relative overflow-hidden bg-gray-900">
             <GameCanvas />
             <MedievalHUD />
+            <MapLoadingOverlay />
           </div>
         </GameEngineProvider>
       )}

@@ -1,0 +1,461 @@
+Oui. Et cette fois on va lui donner un cadre **très strict**, parce que “ajouter un overlay + décharger les vieux segments” est exactement le genre de tâche où une IA peut bricoler un truc qui semble marcher, tout en cassant la moitié du flux dans les coins. Formidable, mais non.
+
+Voici un **prompt détaillé** prêt à copier-coller.
+
+---
+
+# Prompt pour agent IA
+
+## Objectif : ajouter un overlay de chargement bloquant + un cache léger avec déchargement contrôlé des anciens segments
+
+Tu travailles sur **Nova Imperium**.
+Le système actuel de carte persistante fonctionne déjà :
+
+* la carte est découpée en segments de **50 × 30**
+* le backend retourne un bloc **3 × 3** autour d’un segment central
+* le client charge dynamiquement les segments quand le joueur change de segment
+* un système de `pendingSegmentX/Y` existe déjà
+* une recalibration de `originWorldX/Y` existe déjà pour garder la position du joueur cohérente
+
+Je veux maintenant que tu implémentes **2 améliorations précises**, sans casser le système existant :
+
+1. **un overlay de chargement bloquant pendant le chargement d’un nouveau bloc**
+2. **un cache léger avec déchargement contrôlé des anciens segments**
+
+---
+
+# Règles strictes
+
+Tu dois respecter exactement ces contraintes :
+
+* ne pas refactorer tout le projet
+* ne pas modifier inutilement le backend si les routes existantes suffisent
+* ne pas toucher aux anciennes erreurs TypeScript hors périmètre
+* ne pas casser le chargement initial actuel
+* ne pas casser la logique de recalibration déjà en place
+* ne pas ajouter une architecture complexe de streaming MMO
+* ne pas ajouter Redis, workers, websockets ou autre folie de grande entreprise fatiguée
+* rester simple, robuste, lisible et testable
+
+---
+
+# Partie A — Overlay de chargement bloquant
+
+## Objectif
+
+Quand un nouveau bloc de segments est en cours de chargement :
+
+* afficher un **overlay visible**
+* empêcher les interactions joueur
+* masquer proprement la transition
+* retirer l’overlay dès que le bloc est prêt
+
+---
+
+## Étape A1 — Auditer l’état existant
+
+Avant de coder, identifie :
+
+* où `isLoadingFromDB` est stocké
+* quels composants UI peuvent lire cet état
+* quel composant racine est le meilleur endroit pour afficher un overlay global
+* comment empêcher les interactions sans casser la structure actuelle
+
+Je veux que tu expliques avant modification :
+
+* où tu branches l’overlay
+* pourquoi cet emplacement est le bon
+* comment tu bloques les interactions de manière simple
+
+---
+
+## Étape A2 — Ajouter un composant d’overlay simple
+
+Crée un composant UI dédié, ou intègre-le proprement dans un composant global déjà approprié.
+
+### Contraintes
+
+* affichage centré
+* fond semi-transparent
+* texte clair du style :
+
+  * `Chargement de la zone...`
+* petit spinner optionnel
+* style sobre
+* pas d’animation excessive
+
+### Important
+
+Je **ne veux pas** de fausse barre de progression avec pourcentage inventé.
+Aucune progression chiffrée si aucune vraie mesure n’existe.
+
+---
+
+## Étape A3 — Rendre l’overlay réellement bloquant
+
+L’overlay ne doit pas être purement décoratif.
+
+Quand il est affiché :
+
+* les clics sur la carte doivent être bloqués
+* les interactions gameplay doivent être bloquées
+* les mouvements ne doivent pas pouvoir déclencher un nouveau chaos local
+* l’utilisateur ne doit pas interagir avec les éléments de jeu derrière
+
+### Approche attendue
+
+Utilise une solution UI simple :
+
+* couche au-dessus de tout
+* `pointer-events` bloquants
+* état central `isLoadingFromDB`
+
+### Important
+
+Ne casse pas :
+
+* la structure React
+* le rendu canvas
+* les modales déjà présentes
+
+---
+
+## Étape A4 — Vérifier le comportement initial
+
+L’overlay doit aussi fonctionner correctement :
+
+* au premier chargement de la carte
+* lors d’un rechargement dynamique quand le joueur change de segment
+
+Je veux que tu vérifies :
+
+* qu’il apparaît quand il faut
+* qu’il disparaît à la fin
+* qu’il ne reste pas bloqué à l’écran en cas de succès
+* qu’il ne clignote pas de manière absurde
+
+---
+
+# Partie B — Cache léger + déchargement contrôlé
+
+## Objectif
+
+Actuellement, le système recharge un bloc 3×3 et remplace la carte courante.
+Je veux maintenant préparer une version **plus propre et plus légère**, avec un cache simple de segments chargés.
+
+Le but n’est pas de faire un système distribué sophistiqué.
+Le but est :
+
+* conserver localement les segments utiles
+* éviter les rechargements inutiles
+* décharger proprement les segments trop éloignés
+* garder le système simple
+
+---
+
+## Étape B1 — Auditer la structure actuelle du store carte
+
+Avant modification, analyse :
+
+* comment les données du bloc sont actuellement stockées
+* si le store conserve une seule `mapData` reconstruite
+* si les segments individuels sont conservés ou non
+* ce qu’il faut ajouter pour permettre un cache minimal
+
+Je veux que tu expliques :
+
+* pourquoi la structure actuelle suffit ou non
+* quelle extension minimale tu proposes
+* pourquoi elle reste adaptée à un prototype
+
+---
+
+## Étape B2 — Ajouter une structure de cache légère
+
+Ajoute dans le store carte une structure simple pour mémoriser les segments chargés.
+
+### Forme attendue
+
+Quelque chose du style :
+
+```ts
+cachedSegments: Record<string, { segment, tiles }>
+```
+
+ou une `Map<string, ...>` si cohérent avec le projet.
+
+### Clé attendue
+
+Une clé claire du style :
+
+```ts
+`${segmentX},${segmentY}`
+```
+
+### Important
+
+Le cache doit rester :
+
+* petit
+* lisible
+* facile à déboguer
+
+Pas de cache exotique.
+
+---
+
+## Étape B3 — Charger un bloc sans perdre tous les segments immédiatement
+
+Quand un nouveau bloc 3×3 est demandé :
+
+* intégrer les segments reçus dans le cache
+* ne pas tout jeter brutalement avant de savoir quoi garder
+* reconstruire `mapData` à partir des segments encore utiles
+
+### Objectif
+
+Le store doit pouvoir :
+
+* recevoir un nouveau bloc
+* fusionner ce bloc dans le cache
+* recalculer la zone active visible
+
+---
+
+## Étape B4 — Définir une politique de déchargement simple
+
+Je veux une règle claire et minimale.
+
+### Politique recommandée
+
+Conserver uniquement :
+
+* le bloc 3×3 actuellement centré sur le segment du joueur
+
+et décharger :
+
+* les segments hors de ce bloc
+
+### Variante acceptable
+
+Conserver un peu plus large temporairement, par exemple :
+
+* un rayon de 2 segments autour du centre
+
+mais seulement si tu justifies clairement l’intérêt.
+
+### Important
+
+Je préfère pour l’instant :
+
+* une politique **simple**
+* facile à tester
+* facile à raisonner
+
+Donc par défaut :
+**garde uniquement les segments nécessaires au bloc actif**.
+
+---
+
+## Étape B5 — Reconstruire `mapData` proprement depuis le cache conservé
+
+Une fois le cache nettoyé :
+
+* reconstruire `mapData`
+* recalculer `originWorldX/Y`
+* recalculer `mapWidth/mapHeight`
+* garder la cohérence avec la recalibration du joueur déjà existante
+
+### Très important
+
+Tu ne dois pas casser :
+
+* la logique `adaptBlockToMap`
+* la logique `originWorldX/Y`
+* la logique de recalibration de `avatarHexPosition`
+
+Si nécessaire, tu peux :
+
+* réutiliser `adaptBlockToMap`
+* ou créer une variante propre qui accepte des segments déjà en cache
+
+Mais je ne veux pas de duplication confuse.
+
+---
+
+## Étape B6 — Éviter les rechargements inutiles
+
+Je veux que le cache soit utile, pas décoratif.
+
+Quand le joueur change de segment :
+
+* si le nouveau bloc requis est déjà entièrement disponible en cache
+
+  * ne pas refaire un fetch réseau inutile
+* sinon
+
+  * charger ce qui manque
+
+### Important
+
+Tu peux simplifier :
+si l’architecture actuelle rend difficile le chargement “partiel”, tu peux dans un premier temps :
+
+* continuer à charger le bloc complet
+* mais utiliser le cache pour préparer l’évolution future
+
+Dans ce cas, dis-le clairement.
+
+Je préfère :
+
+* une solution honnête et stable
+  à
+* une optimisation mensongère et fragile
+
+---
+
+## Étape B7 — Garder le système compatible avec le chargement initial
+
+Le chargement au démarrage doit continuer à fonctionner :
+
+```ts
+loadBlockFromDB(0,0)
+```
+
+Le nouveau cache ne doit pas casser :
+
+* l’initialisation
+* le fallback actuel
+* la logique de positionnement initial de l’avatar
+
+---
+
+# Partie C — Vérifications critiques
+
+Je veux que tu vérifies explicitement ces points :
+
+---
+
+## Scénario 1 — Chargement initial
+
+* le jeu démarre
+* l’overlay apparaît pendant le chargement
+* le bloc `(0,0)` se charge
+* l’overlay disparaît
+* le joueur peut ensuite interagir
+
+---
+
+## Scénario 2 — Changement de segment
+
+* le joueur franchit une frontière
+* l’overlay apparaît
+* le nouveau bloc est chargé
+* l’overlay disparaît
+* le joueur reste correctement positionné
+
+---
+
+## Scénario 3 — Mouvement rapide
+
+* le joueur traverse plusieurs segments rapidement
+* le système charge le segment final correct
+* l’overlay n’entre pas dans un état incohérent
+* pas de boucle infinie
+
+---
+
+## Scénario 4 — Déchargement
+
+* après chargement d’un nouveau bloc
+* les segments hors politique de conservation sont supprimés du cache
+* `mapData` reste cohérente
+* aucun trou ou décalage visuel
+
+---
+
+## Scénario 5 — Fallback
+
+* si la DB échoue
+* le fallback reste fonctionnel
+* l’overlay se retire correctement
+* le système ne reste pas bloqué
+
+---
+
+# Partie D — Livrables attendus
+
+À la fin, je veux :
+
+## 1. Liste des fichiers modifiés
+
+Avec rôle de chaque modification.
+
+## 2. Explication de l’overlay
+
+* où il est affiché
+* comment il bloque les interactions
+* pourquoi cette solution est adaptée
+
+## 3. Explication du cache
+
+* structure choisie
+* politique de conservation
+* politique de déchargement
+* impact sur `mapData`
+
+## 4. Résultats des tests
+
+Pour les scénarios 1 à 5 :
+
+* attendu
+* observé
+* statut
+
+## 5. Limites restantes
+
+Tu dois dire clairement :
+
+* si le cache évite déjà les refetchs ou non
+* ce qui reste simplifié
+* ce qui pourra être optimisé plus tard
+
+---
+
+# Ce que je ne veux pas
+
+* pas de refactor global du moteur
+* pas de refonte complète des stores
+* pas de cache complexe ou distribué
+* pas de barre de progression mensongère
+* pas de logique cachée dans le rendu canvas
+* pas de patch silencieux sans l’expliquer
+* pas de réponse “ça semble marcher” sans scénarios testés
+
+---
+
+# Objectif final
+
+À la fin de cette tâche :
+
+1. un overlay de chargement apparaît pendant les transitions de segments
+2. cet overlay bloque réellement les interactions
+3. le système garde un cache simple de segments
+4. les segments trop éloignés sont déchargés proprement
+5. la carte reste cohérente visuellement et logiquement
+6. le joueur reste correctement positionné
+
+---
+
+# Priorité absolue
+
+Je préfère une solution :
+
+* simple
+* robuste
+* lisible
+* bien testée
+
+plutôt qu’un faux système intelligent qui introduit des bugs subtils.
+
+Implémente le strict nécessaire pour que ces deux améliorations fonctionnent correctement dans le prototype actuel.

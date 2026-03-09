@@ -2,9 +2,12 @@ import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import { MapGenerator } from "../game/MapGenerator";
 import type { HexTile } from "../game/types";
+import type { DbSegment, DbTile } from "../api/mapApi";
 import { fetchMapBlock } from "../api/mapApi";
-import { adaptBlockToMap } from "../game/mapAdapter";
-import { worldToSegment } from "../../../../shared/mapCoordinates";
+import { adaptBlockToMap, buildMapFromSegments } from "../game/mapAdapter";
+import { worldToSegment, getAdjacentSegmentCoords } from "../../../../shared/mapCoordinates";
+
+type CachedSegment = { segment: DbSegment; tiles: DbTile[] };
 
 interface MapState {
   mapData: HexTile[][] | null;
@@ -18,9 +21,10 @@ interface MapState {
   originWorldX: number;
   originWorldY: number;
 
-  // Risque 1 — segment en attente si un chargement est déjà en cours
   pendingSegmentX: number | null;
   pendingSegmentY: number | null;
+
+  cachedSegments: Record<string, CachedSegment>;
 
   // Actions
   generateMap: (width: number, height: number) => void;
@@ -28,6 +32,18 @@ interface MapState {
   ensurePlayerSegmentLoaded: (hexX: number, hexY: number) => void;
   setSelectedHex: (hex: HexTile | null) => void;
   getHexAt: (x: number, y: number) => HexTile | null;
+}
+
+function segmentKey(segX: number, segY: number): string {
+  return `${segX},${segY}`;
+}
+
+function getActiveKeys(centerSegX: number, centerSegY: number): Set<string> {
+  return new Set(
+    getAdjacentSegmentCoords(centerSegX, centerSegY).map((s) =>
+      segmentKey(s.segmentX, s.segmentY)
+    )
+  );
 }
 
 export const useMap = create<MapState>()(
@@ -46,6 +62,8 @@ export const useMap = create<MapState>()(
     pendingSegmentX: null,
     pendingSegmentY: null,
 
+    cachedSegments: {},
+
     generateMap: (width: number, height: number) => {
       console.log(`Generating map: ${width}x${height}`);
       const mapData = MapGenerator.generateMap(width, height);
@@ -59,21 +77,63 @@ export const useMap = create<MapState>()(
         loadedCenterSegmentY: null,
         pendingSegmentX: null,
         pendingSegmentY: null,
+        cachedSegments: {},
       });
     },
 
     loadBlockFromDB: async (centerSegX = 0, centerSegY = 0) => {
       if (get().isLoadingFromDB) {
-        console.log(`[Map] Chargement déjà en cours — requête (${centerSegX},${centerSegY}) mise en attente`);
+        console.log(`[Map] Chargement déjà en cours — (${centerSegX},${centerSegY}) mis en attente`);
         set({ pendingSegmentX: centerSegX, pendingSegmentY: centerSegY });
         return;
       }
 
       set({ isLoadingFromDB: true, pendingSegmentX: null, pendingSegmentY: null });
+
       try {
-        console.log(`[Map] Chargement bloc DB: segment central (${centerSegX}, ${centerSegY})`);
-        const block = await fetchMapBlock(centerSegX, centerSegY);
-        const { mapData, width, height, originWorldX, originWorldY } = adaptBlockToMap(block);
+        const activeKeys = getActiveKeys(centerSegX, centerSegY);
+        const { cachedSegments } = get();
+
+        // Vérifier si tous les segments du bloc sont déjà en cache
+        const allCached = Array.from(activeKeys).every((k) => k in cachedSegments);
+
+        let newCachedSegments: Record<string, CachedSegment>;
+
+        if (allCached) {
+          console.log(`[Map] Bloc (${centerSegX},${centerSegY}) entièrement en cache — aucun fetch réseau`);
+          newCachedSegments = { ...cachedSegments };
+        } else {
+          console.log(`[Map] Chargement bloc DB: segment central (${centerSegX}, ${centerSegY})`);
+          const block = await fetchMapBlock(centerSegX, centerSegY);
+
+          // Fusionner les nouveaux segments dans le cache
+          newCachedSegments = { ...cachedSegments };
+          for (const entry of block.segments) {
+            const key = segmentKey(entry.segment.segmentX, entry.segment.segmentY);
+            newCachedSegments[key] = entry;
+          }
+        }
+
+        // Éviction — conserver uniquement les 9 segments du bloc actif
+        const evicted: string[] = [];
+        for (const key of Object.keys(newCachedSegments)) {
+          if (!activeKeys.has(key)) {
+            delete newCachedSegments[key];
+            evicted.push(key);
+          }
+        }
+        if (evicted.length > 0) {
+          console.log(`[Map] Cache: ${evicted.length} segment(s) déchargé(s): ${evicted.join(", ")}`);
+        }
+
+        // Reconstruire mapData depuis les segments en cache
+        const activeSegments = Array.from(activeKeys)
+          .filter((k) => k in newCachedSegments)
+          .map((k) => newCachedSegments[k]);
+
+        const { mapData, width, height, originWorldX, originWorldY } =
+          buildMapFromSegments(activeSegments);
+
         set({
           mapData,
           mapWidth: width,
@@ -82,8 +142,13 @@ export const useMap = create<MapState>()(
           originWorldY,
           loadedCenterSegmentX: centerSegX,
           loadedCenterSegmentY: centerSegY,
+          cachedSegments: newCachedSegments,
         });
-        console.log(`[Map] Bloc chargé: ${width}x${height} (${block.totalTiles} tuiles) — origine monde (${originWorldX}, ${originWorldY})`);
+
+        console.log(
+          `[Map] Bloc prêt: ${width}x${height} — ${activeSegments.length} segments en cache` +
+          ` — origine (${originWorldX}, ${originWorldY})`
+        );
       } catch (err) {
         console.error("[Map] Échec chargement DB, fallback procédural:", err);
         const mapData = MapGenerator.generateMap(150, 90);
@@ -95,12 +160,13 @@ export const useMap = create<MapState>()(
           originWorldY: 0,
           loadedCenterSegmentX: null,
           loadedCenterSegmentY: null,
+          cachedSegments: {},
         });
       } finally {
         set({ isLoadingFromDB: false });
       }
 
-      // Risque 1 — après chargement, traiter le segment en attente s'il est différent du chargé
+      // Traiter le segment en attente s'il est différent du chargé
       const { pendingSegmentX, pendingSegmentY, loadedCenterSegmentX, loadedCenterSegmentY } = get();
       if (
         pendingSegmentX !== null &&
@@ -128,14 +194,12 @@ export const useMap = create<MapState>()(
       const worldY = hexY + originWorldY;
       const { segmentX, segmentY } = worldToSegment(worldX, worldY);
 
-      // Déjà chargé ou en cours de chargement vers ce même segment
       if (segmentX === loadedCenterSegmentX && segmentY === loadedCenterSegmentY) {
         console.log(`[Map] Joueur en segment (${segmentX},${segmentY}) — déjà chargé, aucun rechargement`);
         return;
       }
 
       if (isLoadingFromDB) {
-        // Risque 1 — mémoriser le segment cible même si un chargement est en cours
         if (pendingSegmentX !== segmentX || pendingSegmentY !== segmentY) {
           console.log(`[Map] Chargement en cours — segment (${segmentX},${segmentY}) mis en attente`);
           set({ pendingSegmentX: segmentX, pendingSegmentY: segmentY });
