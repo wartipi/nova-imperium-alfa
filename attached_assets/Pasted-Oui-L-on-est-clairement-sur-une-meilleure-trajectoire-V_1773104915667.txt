@@ -1,0 +1,631 @@
+Oui. Là, on est clairement sur une meilleure trajectoire. Vous avez arrêté de demander des “améliorations vagues” et vous lui donnez maintenant des missions **bornées, testables, structurées**. Curieusement, les IA travaillent mieux quand on les empêche d’improviser l’urbanisme de Rome.
+
+Voici un **prompt détaillé** pour couvrir les **3 priorités** :
+
+1. **persistance de la position du joueur**
+2. **chargement du bon bloc à partir de cette position persistée**
+3. **validation complète du flux redémarrage / recharge / repositionnement**
+
+---
+
+# Prompt pour agent IA
+
+## Objectif : rendre la position du joueur persistante et utiliser cette position pour charger automatiquement le bon bloc de carte au démarrage
+
+Tu travailles sur **Nova Imperium**.
+
+Le système actuel fonctionne déjà ainsi :
+
+* la carte est persistante en PostgreSQL
+* la carte est segmentée en blocs de **50 × 30**
+* le backend peut charger un bloc **3 × 3** autour d’un segment central
+* le client charge dynamiquement les segments quand le joueur change de segment
+* un cache léger de segments existe déjà
+* un overlay de chargement existe déjà
+* la recalibration `originWorldX / originWorldY` existe déjà
+* le joueur peut être déplacé sur la carte
+* mais **la position du joueur n’est pas encore correctement persistée comme état du monde**
+
+Je veux maintenant que tu implémentes **la persistance réelle du joueur dans le monde**.
+
+L’objectif est que :
+
+1. la position du joueur soit sauvegardée en base
+2. au redémarrage du jeu, on recharge **le bon bloc de carte autour du joueur**
+3. le joueur réapparaisse **exactement au bon endroit**
+4. le système reste simple, robuste, testable et compatible avec le prototype actuel
+
+---
+
+# Règles strictes
+
+Tu dois respecter exactement ces contraintes :
+
+* ne pas refactorer tout le projet
+* ne pas casser le système de carte déjà en place
+* ne pas casser le chargement dynamique actuel
+* ne pas casser le cache ni la recalibration actuelle
+* ne pas corriger les vieilles erreurs TypeScript hors périmètre
+* ne pas inventer un système multijoueur complet si le projet n’en est pas là
+* ne pas ajouter une architecture serveur trop complexe
+* ne pas sur-ingénieriser la persistance joueur
+* rester simple, lisible, cohérent avec l’existant
+
+---
+
+# Priorité 1 — Persistance de la position du joueur
+
+## Objectif
+
+Créer une vraie persistance de la position du joueur, côté base de données et côté backend.
+
+---
+
+## Étape 1.1 — Auditer l’existant avant de coder
+
+Avant toute modification, analyse :
+
+* comment le joueur est représenté actuellement
+* où sa position est stockée côté client
+* s’il existe déjà une table ou un schéma pour les utilisateurs / avatars / personnages
+* s’il existe déjà une notion exploitable d’identité joueur côté backend
+* comment le login ou la session est actuellement géré
+* si l’avatar principal / joueur actuel peut être identifié proprement pour un prototype
+
+Je veux que tu expliques clairement :
+
+* ce que tu réutilises
+* ce que tu ajoutes
+* ce que tu ne touches pas
+* quel identifiant tu utilises pour relier une position persistée à un joueur/avatar
+
+### Important
+
+Si le système actuel ne permet pas encore une vraie persistance multi-utilisateur propre, tu peux commencer avec une version **prototype solide**, par exemple :
+
+* persistance de l’avatar principal courant
+* ou persistance liée à l’utilisateur connecté actuel si l’auth est déjà exploitable
+
+Mais tu dois l’expliquer honnêtement.
+
+---
+
+## Étape 1.2 — Ajouter le modèle de données minimal nécessaire
+
+Je veux une solution propre et minimale.
+
+### Option recommandée
+
+Si une table joueur / avatar existe déjà :
+
+* ajouter les colonnes nécessaires à cette entité
+
+### Option acceptable
+
+Si aucune structure propre n’existe encore :
+
+* créer une table dédiée du style `player_positions` ou `player_world_state`
+
+### Les données minimales à persister
+
+Je veux au minimum :
+
+* identifiant du joueur / avatar
+* `worldX`
+* `worldY`
+* `segmentX`
+* `segmentY`
+* `updatedAt`
+
+### Optionnel utile
+
+* `lastLoadedCenterSegmentX`
+* `lastLoadedCenterSegmentY`
+
+Mais seulement si ça apporte une vraie utilité.
+
+### Important
+
+Le schéma doit rester :
+
+* clair
+* simple
+* extensible plus tard
+
+Je ne veux pas une structure trop grosse.
+
+---
+
+## Étape 1.3 — Définir la convention de vérité
+
+Tu dois choisir et appliquer une règle claire :
+
+### La position persistée officielle du joueur doit être :
+
+* une position **monde stable**
+* pas une position locale du tableau affiché
+* pas une position relative au bloc courant
+
+Donc la vérité à persister est :
+
+```ts
+worldX
+worldY
+```
+
+et non :
+
+* `hexX` local au tableau
+* ou `arrayX / arrayY` dépendants de `originWorldX`
+
+### Pourquoi
+
+Le repère de la carte affichée change avec le chargement des blocs.
+La position sauvegardée du joueur doit survivre à ces changements.
+
+---
+
+## Étape 1.4 — Ajouter un service backend dédié
+
+Créer ou étendre un service backend propre pour :
+
+1. lire la position persistée du joueur
+2. créer une position par défaut si aucune n’existe encore
+3. mettre à jour la position du joueur
+
+Je veux une vraie séparation propre :
+
+* pas de logique SQL directement dans les routes
+* pas de logique métier dispersée
+
+### Fonctions attendues
+
+Quelque chose du style :
+
+* `getPlayerWorldPosition(playerId)`
+* `savePlayerWorldPosition(playerId, worldX, worldY)`
+* `ensurePlayerWorldPosition(playerId)`
+
+### Important
+
+Si aucune position n’existe encore :
+
+* créer une position initiale cohérente
+* idéalement proche du bloc `(0,0)` pour le prototype
+* ou réutiliser le point de départ actuel si c’est plus cohérent
+
+---
+
+## Étape 1.5 — Ajouter des routes API propres
+
+Créer des endpoints lisibles pour :
+
+* récupérer la position monde du joueur
+* sauvegarder la position monde du joueur
+
+### Exemples attendus
+
+* `GET /api/player/position`
+* `POST /api/player/position`
+
+ou une variante cohérente avec l’architecture actuelle.
+
+### La route GET doit :
+
+* retourner la position persistée
+* ou créer / retourner une position par défaut si absente
+
+### La route POST doit :
+
+* valider les coordonnées reçues
+* enregistrer la position
+* retourner un statut clair
+
+### Important
+
+Les routes doivent :
+
+* être regroupées proprement
+* utiliser le service métier
+* gérer les erreurs proprement
+* rester simples
+
+---
+
+# Priorité 2 — Charger le bon bloc de carte à partir de la position persistée
+
+## Objectif
+
+Au démarrage, le jeu ne doit plus charger automatiquement `(0,0)` par défaut.
+
+Il doit :
+
+1. récupérer la position monde persistée du joueur
+2. calculer son segment courant
+3. charger le bloc 3×3 centré sur ce segment
+4. positionner le joueur correctement dans ce nouveau repère
+
+---
+
+## Étape 2.1 — Ajouter les fonctions client nécessaires
+
+Créer ou étendre l’API côté client pour :
+
+* récupérer la position persistée
+* sauvegarder la position persistée
+
+Je veux une couche API claire, du style :
+
+* `fetchPlayerPosition()`
+* `savePlayerPosition(worldX, worldY)`
+
+ou noms équivalents.
+
+---
+
+## Étape 2.2 — Calculer le segment à partir de la position persistée
+
+Réutilise les utilitaires existants si disponibles, notamment la convention de `worldToSegment`.
+
+À partir de :
+
+```ts
+worldX, worldY
+```
+
+tu dois obtenir :
+
+```ts
+segmentX, segmentY
+```
+
+puis charger :
+
+```ts
+loadBlockFromDB(segmentX, segmentY)
+```
+
+### Important
+
+Je ne veux pas de formule recopiée à la main dans plusieurs fichiers.
+Réutilise la logique partagée existante.
+
+---
+
+## Étape 2.3 — Modifier proprement le flux de démarrage
+
+Actuellement, le jeu charge la carte puis place l’avatar avec une logique fondée sur `findLandHex`.
+
+Je veux maintenant un flux plus réaliste :
+
+### Nouveau flux attendu
+
+1. initialiser le jeu
+2. récupérer la position persistée du joueur
+3. calculer son segment
+4. charger le bloc 3×3 correspondant
+5. convertir la position monde en position locale du tableau courant
+6. placer l’avatar à cet endroit exact
+7. si aucune position persistée n’existe :
+
+   * créer/obtenir une position par défaut
+   * charger le bloc correspondant
+   * placer le joueur correctement
+
+### Important
+
+Ne casse pas le fallback actuel sans raison.
+Mais le démarrage “par défaut au centre aléatoire” ne doit plus être le flux principal.
+
+---
+
+## Étape 2.4 — Convertir correctement monde → repère local affiché
+
+C’est une étape critique.
+
+Le joueur est persisté en :
+
+```ts
+worldX, worldY
+```
+
+mais l’affichage utilise :
+
+```ts
+arrayX = worldX - originWorldX
+arrayY = worldY - originWorldY
+```
+
+Tu dois t’assurer que cette conversion est faite proprement au moment du placement initial.
+
+### Résultat attendu
+
+Le joueur doit apparaître :
+
+* au bon endroit logique
+* dans le bon bloc
+* sans décalage
+* sans spawn au centre du tableau par erreur
+
+---
+
+## Étape 2.5 — Ne pas casser la recalibration existante
+
+Le système actuel recalibre le joueur quand `originWorldX/Y` change.
+
+Tu dois t’assurer que :
+
+* la nouvelle logique de démarrage n’entre pas en conflit avec cette recalibration
+* le placement initial ne provoque pas un double déplacement incorrect
+* la position finale reste stable
+
+Si nécessaire :
+
+* ajuste le moment du placement
+* ou protège le flux initial proprement
+
+Mais sans refactor massif.
+
+---
+
+# Priorité 3 — Sauvegarder la position du joueur pendant le jeu + valider le cycle complet
+
+## Objectif
+
+Une fois le joueur placé correctement au démarrage, il faut aussi sauvegarder sa position quand il se déplace.
+
+---
+
+## Étape 3.1 — Définir la politique de sauvegarde
+
+Je veux une politique simple et robuste pour le prototype.
+
+### Recommandation
+
+Sauvegarder la position :
+
+* à la fin d’un déplacement logique validé
+* ou au minimum lors d’un changement de segment
+
+### Important
+
+Je ne veux pas :
+
+* un POST réseau à chaque frame
+* une sauvegarde continue inutile
+* un spam de requêtes
+
+### Si tu dois choisir
+
+Je préfère une première version qui sauvegarde :
+
+* **au changement de segment**
+  et idéalement aussi
+* **à la fin d’un déplacement utilisateur significatif**
+
+Explique le choix retenu.
+
+---
+
+## Étape 3.2 — Sauvegarder la position monde, pas la position locale
+
+Quand le joueur bouge, tu dois reconstruire :
+
+```ts
+worldX = hexX + originWorldX
+worldY = hexY + originWorldY
+```
+
+et sauvegarder **ces coordonnées monde**.
+
+### Important
+
+Ne sauvegarde pas directement :
+
+* `avatarHexPosition.x`
+* `avatarHexPosition.y`
+
+sans les convertir.
+
+---
+
+## Étape 3.3 — Éviter les sauvegardes incohérentes pendant chargement
+
+Quand un bloc est en train de se recharger :
+
+* la position locale peut être en transition
+* l’origine monde peut changer
+
+Je veux que tu t’assures que :
+
+* la sauvegarde ne capte pas un état incohérent
+* la position monde sauvegardée reste juste
+
+Si nécessaire :
+
+* sauvegarder après stabilisation
+* ou ignorer la sauvegarde pendant le chargement et la faire juste après
+
+Mais je veux une logique explicite.
+
+---
+
+## Étape 3.4 — Ajouter des logs utiles mais sobres
+
+Je veux des logs temporaires utiles pendant cette phase, du style :
+
+* position persistée chargée
+* segment calculé
+* bloc chargé
+* joueur placé à telle coordonnée locale
+* position sauvegardée en monde
+* fallback si aucune position n’existait
+
+Pas de spam ridicule à chaque frame.
+
+---
+
+# Partie validation — Tests obligatoires
+
+Je veux que tu valides le système avec des scénarios concrets.
+
+---
+
+## Scénario A — Premier démarrage sans position existante
+
+Attendu :
+
+* la position du joueur est créée proprement
+* un bloc cohérent est chargé
+* le joueur est placé correctement
+* aucune erreur de flux
+
+---
+
+## Scénario B — Redémarrage après sauvegarde
+
+Étapes :
+
+1. déplacer le joueur
+2. sauvegarder sa position
+3. redémarrer le client / le jeu
+4. recharger la position depuis la DB
+
+Attendu :
+
+* le joueur revient au bon endroit
+* le bon bloc est chargé automatiquement
+* pas de repositionnement incorrect au centre
+
+---
+
+## Scénario C — Position dans un autre segment
+
+Étapes :
+
+* sauvegarder une position appartenant à un segment différent de `(0,0)`
+
+Attendu :
+
+* le démarrage charge le bon bloc autour de ce segment
+* le joueur apparaît dedans correctement
+
+---
+
+## Scénario D — Coordonnées négatives
+
+Étapes :
+
+* sauvegarder une position monde négative
+
+Attendu :
+
+* segment calculé correctement
+* bloc correct chargé
+* joueur correctement positionné
+
+---
+
+## Scénario E — Sauvegarde pendant déplacement / changement de segment
+
+Attendu :
+
+* la position persistée finale reste cohérente
+* pas de position corrompue
+* pas de conflit avec le chargement dynamique
+
+---
+
+# Livrables attendus
+
+À la fin, je veux :
+
+## 1. Liste des fichiers modifiés
+
+Avec le rôle de chacun.
+
+## 2. Schéma de persistance retenu
+
+* table / colonnes
+* identifiant utilisé
+* pourquoi cette solution a été choisie
+
+## 3. Explication du flux de démarrage
+
+* comment la position est lue
+* comment le segment est calculé
+* comment le bloc est chargé
+* comment le joueur est placé
+
+## 4. Explication du flux de sauvegarde
+
+* quand la position est enregistrée
+* quelles coordonnées sont réellement sauvées
+* comment les conflits sont évités
+
+## 5. Résultats des tests
+
+Pour les scénarios A à E :
+
+* attendu
+* observé
+* statut
+
+## 6. Limites restantes
+
+Je veux que tu dises clairement :
+
+* si la persistance actuelle est prototype-only ou prête à évoluer
+* ce qui reste simplifié
+* ce qui devra être amélioré plus tard
+
+---
+
+# Ce que je ne veux pas
+
+* pas de refactor global du système joueur
+* pas de reconstruction complète de l’auth
+* pas de système multijoueur complet
+* pas de WebSocket
+* pas de synchronisation temps réel ambitieuse
+* pas de duplication de logique de coordonnées
+* pas de position persistée en repère local du tableau
+* pas de “ça semble bon” sans tests concrets
+
+---
+
+# Objectif final
+
+À la fin de cette tâche :
+
+1. le joueur a une position persistée en base
+2. le démarrage recharge cette position
+3. le bon bloc de carte est chargé automatiquement
+4. le joueur apparaît exactement au bon endroit
+5. les déplacements mettent à jour la position persistée proprement
+6. le monde et le joueur sont enfin tous les deux réellement persistants
+
+---
+
+# Priorité absolue
+
+Je préfère une solution :
+
+* simple
+* cohérente
+* stable
+* testée
+
+plutôt qu’une architecture trop ambitieuse qui casse le prototype.
+
+Implémente le strict nécessaire pour rendre la position du joueur réellement persistante dans le monde segmenté actuel.
+
+---
+
+Si tu veux, juste après, je peux aussi te préparer **le prompt de l’étape suivante**, qui serait probablement soit :
+
+* **persistance des objets / structures du monde**
+  ou
+* **persistance des armées / entités mobiles**
+
+Et là, on commencera à sortir du simple “joueur sur carte” pour entrer dans le vrai cœur de *Nova Imperium*.
