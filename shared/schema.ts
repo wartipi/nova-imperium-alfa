@@ -304,3 +304,20 @@ export const playerPositions = pgTable("player_positions", {
 export const insertPlayerPositionSchema = createInsertSchema(playerPositions);
 export type PlayerPosition = typeof playerPositions.$inferSelect;
 export type InsertPlayerPosition = z.infer<typeof insertPlayerPositionSchema>;
+
+// Table de persistance de l'état joueur (progression, compétences, PA)
+export const playerState = pgTable("player_state", {
+  playerId: text("player_id").primaryKey(),
+  level: integer("level").notNull().default(1),
+  experience: integer("experience").notNull().default(0),
+  totalExperience: integer("total_experience").notNull().default(0),
+  actionPoints: integer("action_points").notNull().default(25),
+  maxActionPoints: integer("max_action_points").notNull().default(100),
+  competencePoints: integer("competence_points").notNull().default(3),
+  competences: jsonb("competences").notNull().default([]),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertPlayerStateSchema = createInsertSchema(playerState);
+export type PlayerStateRecord = typeof playerState.$inferSelect;
+export type InsertPlayerState = z.infer<typeof insertPlayerStateSchema>;
