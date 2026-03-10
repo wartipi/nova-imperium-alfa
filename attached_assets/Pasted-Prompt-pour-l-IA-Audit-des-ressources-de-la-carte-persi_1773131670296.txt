@@ -1,0 +1,153 @@
+Prompt pour l’IA — Audit des ressources de la carte persistante
+Contexte
+
+Le projet Nova Imperium utilise maintenant une carte persistante stockée en PostgreSQL dans la table map_tiles.
+
+Chaque tuile possède notamment :
+
+world_x
+
+world_y
+
+terrain_type
+
+resource_type
+
+La carte actuelle contient 13 500 tuiles (9 segments) générées via server/seeds/mapSeed.ts.
+
+Une hypothèse est apparue :
+
+Les ressources n’auraient jamais été générées dans la carte persistante.
+
+Avant toute modification du code ou de la base, nous voulons confirmer ce diagnostic avec des preuves précises dans le code et la base.
+
+Objectif de cet audit
+
+Confirmer ou infirmer les points suivants :
+
+1️⃣ Le seed mapSeed.ts génère-t-il des ressources ?
+
+2️⃣ Combien de tuiles possèdent une ressource dans la base actuelle ?
+
+3️⃣ Comment les ressources étaient générées dans la version procédurale client ?
+
+4️⃣ L’adaptateur DB → client lit-il correctement les ressources ?
+
+5️⃣ Quelle serait la correction minimale si le problème est confirmé ?
+
+Étapes d’audit demandées
+Étape 1 — Analyse du seed
+
+Examiner :
+
+server/seeds/mapSeed.ts
+
+Identifier :
+
+où les tuiles sont créées
+
+la valeur assignée à resourceType
+
+Nous voulons le code exact utilisé lors de l’insertion.
+
+Répondre clairement :
+
+resourceType: ?
+Étape 2 — Vérification en base
+
+Exécuter une requête SQL :
+
+SELECT COUNT(*) 
+FROM map_tiles 
+WHERE resource_type IS NOT NULL;
+
+Puis :
+
+SELECT COUNT(*) FROM map_tiles;
+
+Comparer les deux valeurs.
+
+Le résultat attendu du rapport :
+
+Total tuiles: X
+Tuiles avec ressource: Y
+Pourcentage: Z%
+Étape 3 — Génération procédurale client
+
+Examiner :
+
+client/src/lib/game/MapGenerator.ts
+
+Identifier :
+
+la fonction qui génère les ressources
+
+la probabilité utilisée
+
+la logique terrain → ressource
+
+Expliquer :
+
+comment les ressources étaient générées côté client
+
+si la génération était déterministe ou basée sur Math.random().
+
+Étape 4 — Adaptateur DB → client
+
+Examiner :
+
+client/src/lib/game/mapAdapter.ts
+
+Vérifier que :
+
+tile.resourceType
+
+est bien mappé vers :
+
+HexTile.resource
+
+Confirmer que l’adaptateur n’écrase pas la valeur.
+
+Étape 5 — Conclusion technique
+
+Après les vérifications, répondre clairement :
+
+1️⃣ Le problème est-il confirmé ?
+2️⃣ Les ressources sont-elles absentes de la carte persistante ?
+3️⃣ La génération procédurale utilisait-elle un système différent ?
+
+Étape 6 — Proposition de correction (sans implémenter)
+
+Si le problème est confirmé, proposer :
+
+la correction minimale dans mapSeed.ts
+
+une stratégie pour mettre à jour les 13 500 tuiles existantes
+
+sans supprimer ni recréer la carte actuelle
+
+⚠️ Important :
+Ne rien modifier dans le code pour l’instant.
+Seulement analyser et proposer la solution.
+
+Rappel important
+
+Lors de l’audit :
+
+analyser le code réellement présent dans la branche actuelle
+
+citer les fichiers exacts
+
+ne pas supposer le comportement sans preuve
+
+Résultat attendu
+
+Un rapport clair contenant :
+
+preuves dans le code
+
+résultats SQL
+
+explication de la différence entre génération client et seed DB
+
+plan de correction minimal
