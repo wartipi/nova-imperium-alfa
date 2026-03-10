@@ -104,9 +104,9 @@ const ISLAND_CENTERS: Array<{ cx: number; cy: number; radius: number; strength: 
   { cx: 5,   cy: 30,  radius: 10, strength: 0.75 },
 ];
 
-const ARCHIPELAGO_BASE_SCORE   = -0.5;  // score de départ (océan)
+const ARCHIPELAGO_BASE_SCORE   = -0.3;  // score de départ (océan) — archipel validé
 const ARCHIPELAGO_NOISE_AMP    = 0.25;  // amplitude du bruit côtier (±0.125)
-const SHALLOW_WATER_THRESHOLD  = -0.25; // au-dessous → deep_water
+const SHALLOW_WATER_THRESHOLD  = -0.1;  // au-dessous → deep_water (côtes resserrées)
 
 // Calcule le score terre/eau d'une tuile (> 0 = terre, ≤ 0 = eau)
 function computeLandScore(worldX: number, worldY: number): number {
