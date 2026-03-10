@@ -89,14 +89,58 @@ function pickResource(
   return candidates[Math.floor(rChoice * candidates.length)];
 }
 
+// ─── Centres d'îles de l'archipel (déterministes, codés en dur) ─────────────
+// Carte monde : X de -50 à +99, Y de -30 à +59, centre géométrique (25, 15)
+const ISLAND_CENTERS: Array<{ cx: number; cy: number; radius: number; strength: number }> = [
+  // Grande île centrale
+  { cx: 25,  cy: 15,  radius: 30, strength: 1.5  },
+  // Îles moyennes
+  { cx: -20, cy: -5,  radius: 20, strength: 1.1  },
+  { cx: 75,  cy: 35,  radius: 22, strength: 1.1  },
+  // Petites îles
+  { cx: 85,  cy: -5,  radius: 14, strength: 0.9  },
+  { cx: -10, cy: 45,  radius: 12, strength: 0.85 },
+  { cx: 50,  cy: -10, radius: 11, strength: 0.8  },
+  { cx: 5,   cy: 30,  radius: 10, strength: 0.75 },
+];
+
+const ARCHIPELAGO_BASE_SCORE   = -0.5;  // score de départ (océan)
+const ARCHIPELAGO_NOISE_AMP    = 0.25;  // amplitude du bruit côtier (±0.125)
+const SHALLOW_WATER_THRESHOLD  = -0.25; // au-dessous → deep_water
+
+// Calcule le score terre/eau d'une tuile (> 0 = terre, ≤ 0 = eau)
+function computeLandScore(worldX: number, worldY: number): number {
+  let score = ARCHIPELAGO_BASE_SCORE;
+
+  for (const center of ISLAND_CENTERS) {
+    const dx   = worldX - center.cx;
+    const dy   = worldY - center.cy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist < center.radius) {
+      score += center.strength * (1 - dist / center.radius);
+    }
+  }
+
+  // Bruit déterministe pour des côtes organiques (seeds distincts de pickTerrain)
+  const noise = seededRandom(hash(worldX, worldY, 42, 17)) * ARCHIPELAGO_NOISE_AMP
+              - ARCHIPELAGO_NOISE_AMP / 2;
+  score += noise;
+
+  return score;
+}
+
 function pickTerrain(worldX: number, worldY: number, segX: number, segY: number): TerrainType {
+  const landScore = computeLandScore(worldX, worldY);
+
+  // ─── Décision eau ────────────────────────────────────────────────────────
+  if (landScore <= 0) {
+    return landScore > SHALLOW_WATER_THRESHOLD ? "shallow_water" : "deep_water";
+  }
+
+  // ─── Décision terre → type de terrain ────────────────────────────────────
+  // Seuils identiques à l'algorithme original (aucun rebalancement des biomes)
   const r1 = seededRandom(hash(worldX, worldY, segX, segY));
-  const r2 = seededRandom(hash(worldY, worldX, segX + 1, segY + 1));
-
-  const distFromCenter = Math.sqrt(worldX * worldX + worldY * worldY);
-
-  if (distFromCenter > 90) return r1 < 0.7 ? "deep_water" : "shallow_water";
-  if (distFromCenter > 70) return r1 < 0.5 ? "shallow_water" : "deep_water";
 
   if (r1 < 0.04) return "ancient_ruins";
   if (r1 < 0.08) return "sacred_plains";
@@ -108,7 +152,6 @@ function pickTerrain(worldX: number, worldY: number, segX: number, segY: number)
   if (r1 < 0.50) return "desert";
   if (r1 < 0.55) return "wasteland";
   if (r1 < 0.62) return "fertile_land";
-  if (r2 < 0.15) return "shallow_water";
 
   return "plains";
 }
