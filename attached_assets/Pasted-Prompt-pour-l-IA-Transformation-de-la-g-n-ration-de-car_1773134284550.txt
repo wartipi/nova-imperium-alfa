@@ -1,0 +1,261 @@
+Prompt pour l’IA — Transformation de la génération de carte en archipel
+Contexte
+
+Le projet Nova Imperium utilise une carte persistante en PostgreSQL.
+
+Structure actuelle :
+
+map_segments
+map_tiles
+
+Carte actuelle :
+
+9 segments
+50 x 30 tuiles par segment
+150 x 90 tuiles au total
+13 500 tuiles
+
+Le seed actuel se trouve dans :
+
+server/seeds/mapSeed.ts
+
+Il génère actuellement une masse de terrain relativement uniforme.
+
+Nous voulons maintenant transformer la génération du terrain en archipel d’îles afin d’améliorer :
+
+exploration
+
+navigation
+
+commerce maritime
+
+stratégies territoriales
+
+Règles de travail (très importantes)
+
+Avant toute modification :
+
+1️⃣ analyser le code existant
+2️⃣ expliquer comment fonctionne la génération actuelle
+3️⃣ proposer une modification
+4️⃣ attendre validation
+
+Tu ne modifies rien avant validation.
+
+Autres contraintes :
+
+conserver la structure actuelle de la carte
+
+ne pas modifier les tables DB
+
+ne pas modifier les routes API
+
+ne pas modifier mapAdapter.ts
+
+ne pas modifier le système de segments
+
+ne pas utiliser Math.random()
+
+utiliser uniquement des fonctions déterministes
+
+Objectif de la nouvelle génération
+
+La carte doit devenir un archipel.
+
+Distribution cible :
+
+60–70% eau
+30–40% terre
+
+Structure géographique souhaitée :
+
+1 grande île centrale
+
+2 ou 3 îles moyennes
+
+plusieurs petites îles
+
+océans navigables entre elles
+
+Les îles doivent être groupées, pas du bruit pixelisé.
+
+Méthode recommandée (à utiliser)
+
+Utiliser une génération en 3 étapes :
+
+Étape 1 — Centres d’îles
+
+Définir plusieurs centres d’îles déterministes :
+
+Exemple :
+
+centre principal
+2–3 centres secondaires
+3–5 petits centres
+
+Chaque centre possède :
+
+cx
+cy
+radius
+strength
+
+Ces centres doivent être générés déterministiquement via :
+
+seededRandom(hash(...))
+Étape 2 — Calcul du score de terre
+
+Pour chaque tuile (worldX, worldY) :
+
+1️⃣ commencer avec un score océan :
+
+landScore = -0.6
+
+2️⃣ ajouter l’influence de chaque centre d’île :
+
+distance = sqrt((x-cx)^2 + (y-cy)^2)
+
+influence = strength * (1 - distance/radius)
+
+si distance > radius → influence = 0
+
+3️⃣ ajouter un bruit léger :
+
+noise = seededRandom(hash(x,y)) * 0.2
+
+Score final :
+
+landScore = base + influences + noise
+
+Décision :
+
+if landScore > 0 → terre
+else → eau
+Étape 3 — Type de terrain terrestre
+
+Si la tuile est terre :
+
+utiliser la logique existante de pickTerrain() pour choisir :
+
+plains
+forest
+hills
+mountains
+swamp
+desert
+etc
+
+L’eau peut être :
+
+shallow_water près des côtes
+deep_water loin des terres
+Étape 1 — Audit du seed actuel
+
+Analyser :
+
+server/seeds/mapSeed.ts
+
+Expliquer :
+
+comment pickTerrain() fonctionne actuellement
+
+comment les segments sont générés
+
+comment les coordonnées monde sont utilisées
+
+Présenter le code concerné.
+
+Puis s’arrêter.
+
+Étape 2 — Proposition d’algorithme archipel
+
+Proposer une modification de la génération :
+
+nombre de centres d’îles
+
+rayons
+
+forces
+
+formule d’influence
+
+logique eau / terre
+
+Présenter le pseudo-code complet.
+
+Puis s’arrêter.
+
+Étape 3 — Implémentation dans le seed
+
+Modifier uniquement :
+
+pickTerrain()
+ou la logique qui décide eau vs terre
+
+Ajouter une fonction par exemple :
+
+computeLandScore(worldX, worldY)
+
+qui implémente la logique archipel.
+
+Le reste du seed doit rester intact :
+
+pickResource()
+movementCost
+walkable
+segments
+
+Puis s’arrêter.
+
+Étape 4 — Test de génération
+
+Exécuter le seed dans un environnement de test.
+
+Produire un rapport :
+
+Total tuiles
+% eau
+% terre
+distribution des terrains
+
+Vérifier que :
+
+aucune île n’est trop petite
+
+aucune zone n’est totalement bloquée
+
+la carte reste navigable
+
+Puis s’arrêter.
+
+Étape 5 — Plan de migration
+
+Proposer comment appliquer cette génération :
+
+Option A :
+
+générer uniquement les futurs segments
+
+Option B :
+
+re-générer toute la carte
+
+Donner les avantages et risques.
+
+Résultat attendu
+
+Une génération :
+
+déterministe
+
+stable
+
+adaptée à un jeu d’exploration
+
+produisant un archipel naturel
+
+Rappel important
+
+Tu progresses étape par étape.
+
+Tu ne modifies rien avant validation.
