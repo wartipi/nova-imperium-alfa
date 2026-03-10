@@ -1,0 +1,71 @@
+**Audit demandé — Migration d’une action spéciale existante vers le moteur d’actions persistantes**
+
+Contexte du projet :
+
+Le projet Nova Imperium possède maintenant un moteur d’actions persistantes serveur-autoritaire basé sur la table `player_actions`.
+
+Le système actuellement fonctionnel :
+
+* actions persistées en PostgreSQL
+* statuts `in_progress`, `completed`, `cancelled`
+* une seule action active par joueur
+* reprise automatique après reload
+* finalisation lazy côté serveur
+* action `move` entièrement fonctionnelle
+
+Le déplacement est maintenant **serveur-autoritaire** et constitue la première implémentation de ce moteur.
+
+---
+
+Objectif de cette étape :
+
+Nous ne voulons **pas créer une nouvelle mécanique artificielle**.
+
+Nous voulons **identifier une action spéciale déjà existante dans le jeu** (par exemple liée aux compétences) et l’adapter pour qu’elle utilise le moteur d’actions persistantes.
+
+L’objectif est donc de **migrer une mécanique existante vers l’architecture serveur-autoritaire avec durée réelle**, plutôt que d’en inventer une nouvelle.
+
+---
+
+Travail demandé :
+
+Effectuer un **audit technique des actions spéciales existantes** dans le code du projet.
+
+Nous cherchons notamment des actions liées à :
+
+* exploration
+* compétences
+* interactions de terrain
+* systèmes de progression
+* mécanique de reconnaissance ou d’étude
+* toute action déclenchée depuis l’arbre de compétences
+
+---
+
+Pour chaque action trouvée, fournir les informations suivantes :
+
+1. **Nom de l’action**
+2. **Fichier(s) où elle est implémentée**
+3. **Comment elle est déclenchée actuellement**
+
+   * client
+   * serveur
+   * UI
+   * compétence
+4. **Si l’action est instantanée ou possède déjà une durée**
+5. **Quels effets elle produit actuellement**
+
+   * XP
+   * ressources
+   * vision
+   * modification de carte
+   * progression joueur
+6. **Si l’action consomme des `actionPoints`**
+7. **Si elle dépend fortement de l’arbre de compétences**
+8. **Complexité estimée pour migrer cette action vers `player_actions`**
+
+---
+
+Ensuite, proposer **un classement des 3 actions les plus adaptées pour être migrées en premier vers le moteur d’actions persistantes**.
+
+Pour chacune :
