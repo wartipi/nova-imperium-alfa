@@ -1,0 +1,283 @@
+Mise en contexte pour l’IA — Prochaine étape du projet
+Situation actuelle du projet
+
+Le projet Nova Imperium possède maintenant un système de déplacement entièrement fonctionnel et serveur-autoritaire.
+
+Les éléments suivants sont déjà en place :
+
+Carte persistante
+
+Carte segmentée stockée dans PostgreSQL (map_segments, map_tiles)
+
+Chargement dynamique des segments côté client
+
+Pathfinding hexagonal fonctionnel
+
+Position joueur persistante
+
+Table player_positions
+
+Position sauvegardée et restaurée au démarrage
+
+État joueur persisté
+
+Niveau
+
+expérience
+
+action points
+
+compétences
+
+Système d’actions persistantes
+
+Table player_actions
+
+Statuts : in_progress, completed, cancelled
+
+Une seule action active par joueur
+
+Reprise automatique après reload
+
+Finalisation lazy côté serveur
+
+Action actuellement implémentée
+
+Pour l'instant une seule action existe :
+
+move
+
+Le déplacement :
+
+est calculé côté serveur
+
+utilise A* avec les coûts terrain
+
+calcule une durée réelle (1 cost = 6h)
+
+persiste l’action
+
+met à jour la position à la fin
+
+Ce système est maintenant stable et validé par tests end-to-end.
+
+Objectif de la prochaine étape
+
+Maintenant que le moteur d’actions existe, la prochaine étape consiste à étendre ce système à d'autres activités du joueur.
+
+La prochaine action à implémenter sera :
+
+explore
+But de l’action explore
+
+L’action explore représente une activité du joueur sur la tuile actuelle.
+
+Elle permet :
+
+d’explorer une zone
+
+de découvrir des ressources
+
+de révéler du territoire
+
+de déclencher des événements futurs
+
+Mais dans ce sprint on implémente la version minimale fonctionnelle.
+
+Comportement de base de l’exploration
+
+L’action explore fonctionne comme ceci :
+
+Le joueur est positionné sur une tuile.
+
+Il déclenche une action explore sur cette tuile.
+
+Une action persistante est créée dans player_actions.
+
+L’action dure un certain temps réel.
+
+Lorsque l’action se termine, un résultat est produit.
+
+Pour cette première version, l’exploration :
+
+ne produit pas encore d’événements complexes
+
+sert surtout à tester le moteur d’actions avec autre chose que le déplacement
+
+Durée de l’exploration
+
+La durée dépend du terrain.
+
+Exemple simple :
+
+Terrain	Durée exploration
+plains	6h
+forest	12h
+hills	12h
+desert	18h
+swamp	24h
+mountains	24h
+
+Ces valeurs sont simples et pourront être ajustées plus tard.
+
+Résultat de l’exploration
+
+Pour cette première version :
+
+L’action terminée ajoute simplement :
+
+experience + découverte
+
+Exemple simple :
+
+plains → +10 XP
+
+forest → +15 XP
+
+mountains → +25 XP
+
+Optionnellement :
+
+on peut aussi marquer la tuile comme explorée pour ce joueur.
+
+Données à stocker
+
+L’action explore doit utiliser la même table player_actions.
+
+Les champs utiles seront :
+
+type = explore
+
+start_world_x
+
+start_world_y
+
+start_time
+
+expected_end_time
+
+status
+
+Le payload peut contenir :
+
+{
+  worldX,
+  worldY,
+  terrainType
+}
+Contraintes importantes
+
+Pour ce sprint :
+
+1. Une seule action active
+
+Un joueur ne peut pas :
+
+explorer
+
+et se déplacer
+
+en même temps.
+
+2. L’exploration doit être serveur-autoritaire
+
+Le serveur doit :
+
+vérifier la position actuelle
+
+lire la tuile en base
+
+calculer la durée
+
+créer l’action
+
+Le client ne fait que demander.
+
+3. Réutiliser l’infrastructure existante
+
+Le système actuel :
+
+table player_actions
+
+playerActionService
+
+endpoints
+
+reprise au démarrage
+
+doit être réutilisé, pas réécrit.
+
+Modifications attendues
+
+Les changements devraient être limités :
+
+Backend
+
+ajout du type explore
+
+logique de calcul de durée
+
+logique de complétion
+
+API
+
+nouvelle route :
+
+POST /api/player/actions/explore
+Client
+
+bouton Explorer cette zone
+
+appel API
+
+affichage de l’action active
+
+Ce qu’on veut éviter
+
+Pour ce sprint :
+
+❌ pas de génération d’événements aléatoires
+❌ pas de génération d’objets complexes
+❌ pas de nouveaux systèmes économiques
+
+On veut simplement :
+
+prouver que le moteur d’actions supporte plusieurs types d’activités.
+
+Résultat attendu
+
+Après implémentation :
+
+Un joueur pourra :
+
+se déplacer
+
+lancer une exploration
+
+fermer le navigateur
+
+revenir plus tard
+
+voir l’action terminée
+
+recevoir son XP
+
+Prochaine étape
+
+La prochaine tâche sera :
+
+Audit technique avant implémentation
+
+L’IA devra analyser :
+
+où brancher l’action explore
+
+quels fichiers modifier
+
+comment réutiliser playerActionService
+
+comment récupérer la tuile actuelle
+
+comment calculer la durée
+
+Ensuite nous construirons le prompt d’implémentation détaillé, comme pour le système de déplacement.
