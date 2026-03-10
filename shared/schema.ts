@@ -321,3 +321,34 @@ export const playerState = pgTable("player_state", {
 export const insertPlayerStateSchema = createInsertSchema(playerState);
 export type PlayerStateRecord = typeof playerState.$inferSelect;
 export type InsertPlayerState = z.infer<typeof insertPlayerStateSchema>;
+
+// Étape d'un chemin de déplacement
+export interface PathStep {
+  worldX: number;
+  worldY: number;
+  terrain: string;
+  cost: number;
+}
+
+// Table des actions persistantes joueur
+// Sprint 1 : uniquement type='move', statuts in_progress/completed/cancelled
+export const playerActions = pgTable("player_actions", {
+  id: serial("id").primaryKey(),
+  playerId: text("player_id").notNull(),
+  type: text("type").notNull().default("move"),
+  status: text("status").notNull().default("in_progress"),
+  startWorldX: integer("start_world_x").notNull(),
+  startWorldY: integer("start_world_y").notNull(),
+  endWorldX: integer("end_world_x").notNull(),
+  endWorldY: integer("end_world_y").notNull(),
+  path: jsonb("path").notNull().default([]),
+  totalCost: integer("total_cost").notNull(),
+  startTime: timestamp("start_time").notNull(),
+  expectedEndTime: timestamp("expected_end_time").notNull(),
+  completedAt: timestamp("completed_at"),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertPlayerActionSchema = createInsertSchema(playerActions);
+export type PlayerAction = typeof playerActions.$inferSelect;
+export type InsertPlayerAction = z.infer<typeof insertPlayerActionSchema>;
