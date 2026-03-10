@@ -1,0 +1,189 @@
+Prompt pour l’IA — Correction des ressources persistantes de la carte
+Contexte
+
+Le projet Nova Imperium utilise une carte persistante en PostgreSQL via :
+
+map_segments
+
+map_tiles
+
+La carte actuelle contient 13 500 tuiles.
+
+Un audit a confirmé :
+
+server/seeds/mapSeed.ts insère chaque tuile avec :
+
+resourceType: null
+
+la base actuelle contient :
+
+0 tuile avec resource_type non null
+
+client/src/lib/game/MapGenerator.ts générait auparavant les ressources côté client avec Math.random()
+
+client/src/lib/game/mapAdapter.ts lit correctement tile.resourceType depuis la DB
+
+Conclusion :
+Les ressources n’ont jamais été générées dans la carte persistante.
+
+Objectif
+
+Implémenter une correction propre pour que :
+
+le seed génère désormais des ressources déterministes
+
+les 13 500 tuiles existantes soient mises à jour
+
+la carte persistante contienne enfin des ressources stables
+
+le client les affiche automatiquement sans autre refonte
+
+Règles de travail
+
+travailler sur la branche actuelle
+
+ne pas modifier l’architecture générale
+
+ne pas recréer ni supprimer la carte existante
+
+ne pas modifier mapAdapter.ts sauf si un vrai bug est trouvé
+
+ne pas utiliser Math.random()
+
+utiliser une génération déterministe basée sur seededRandom(hash(...))
+
+s’arrêter après chaque point et attendre validation
+
+Point 1 — Modifier le seed
+
+Modifier :
+
+server/seeds/mapSeed.ts
+
+Ajouter une fonction déterministe :
+
+pickResource(worldX, worldY, segX, segY, terrain)
+
+Contraintes :
+
+environ 25% des tuiles obtiennent une ressource
+
+la ressource dépend du terrain
+
+la sélection est stable d’un seed à l’autre
+
+Réutiliser autant que possible la logique terrain → ressources déjà visible dans :
+
+client/src/lib/game/MapGenerator.ts
+
+Le résultat attendu dans generateTilesForSegment() :
+
+resourceType: pickResource(worldX, worldY, segX, segY, terrain)
+Pour ce point, je veux :
+
+le fichier modifié
+
+la fonction ajoutée
+
+confirmation que le seed compile
+
+puis tu t’arrêtes
+
+Point 2 — Créer un script de mise à jour des ressources existantes
+
+Créer un script dédié, par exemple :
+
+server/seeds/updateResources.ts
+
+Ce script doit :
+
+lire toutes les tuiles existantes depuis la DB
+
+recalculer resourceType avec la même fonction déterministe
+
+faire un UPDATE de map_tiles.resource_type
+
+ne pas toucher aux autres champs
+
+ne pas recréer les segments ni les tuiles
+
+Le script doit être idempotent :
+
+si on le relance, il doit réappliquer les mêmes valeurs sans casser quoi que ce soit
+
+Pour ce point, je veux :
+
+le script complet
+
+le nombre de tuiles mises à jour
+
+la compilation OK
+
+puis tu t’arrêtes
+
+Point 3 — Vérification DB
+
+Après exécution du script, vérifier avec des requêtes ou via l’ORM :
+
+nombre total de tuiles
+
+nombre de tuiles avec ressource
+
+pourcentage
+
+quelques exemples de correspondance terrain → ressource
+
+Le rapport attendu doit contenir :
+
+Total tuiles : X
+Tuiles avec ressource : Y
+Pourcentage : Z%
+
+Et un petit tableau du genre :
+
+Terrain	Exemple de ressource observée
+forest	deer / fur / herbs
+mountains	copper / iron / stone
+fertile_land	wheat / cattle
+swamp	herbs / oil
+Pour ce point, je veux :
+
+la sortie chiffrée
+
+quelques exemples concrets
+
+puis tu t’arrêtes
+
+Point 4 — Vérification côté client
+
+Vérifier que le client charge bien les ressources depuis la DB sans changement supplémentaire majeur.
+
+Confirmer :
+
+que mapAdapter.ts lit bien tile.resourceType
+
+que la carte chargée depuis PostgreSQL contient maintenant des ressources visibles
+
+qu’il n’y a pas de régression TypeScript introduite
+
+Pour ce point, je veux :
+
+confirmation de la lecture correcte
+
+confirmation visuelle/logique que les ressources sont présentes
+
+puis tu t’arrêtes
+
+Résultat attendu
+
+À la fin de cette tâche :
+
+la carte persistante contient enfin des ressources
+
+ces ressources sont déterministes
+
+elles sont cohérentes avec le terrain
+
+elles restent stables à chaque chargement
+
+le client les affiche automatiquement

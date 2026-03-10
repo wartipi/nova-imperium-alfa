@@ -48,6 +48,47 @@ function hash(a: number, b: number, c: number, d: number): number {
   return a * 100003 + b * 9973 + c * 997 + d * 101;
 }
 
+// ─── Table terrain → ressources possibles ────────────────────────────────────
+// Calquée sur MapGenerator.getSuitableResources() côté client
+const TERRAIN_RESOURCES: Partial<Record<TerrainType | string, string[]>> = {
+  forest:          ["deer", "fur", "herbs"],
+  mountains:       ["copper", "iron", "gold", "coal", "stone"],
+  fertile_land:    ["wheat", "cattle", "herbs"],
+  hills:           ["stone", "copper", "iron"],
+  swamp:           ["herbs", "oil"],
+  desert:          ["oil", "gold"],
+  sacred_plains:   ["sacred_stones", "herbs"],
+  caves:           ["iron", "copper", "crystals"],
+  ancient_ruins:   ["ancient_artifacts", "gold"],
+  wasteland:       ["stone", "oil"],
+  shallow_water:   ["fish"],
+  deep_water:      ["fish"],
+  enchanted_meadow:["crystals", "herbs", "sacred_stones"],
+};
+
+const RESOURCE_DENSITY = 0.25; // 25% des tuiles ont une ressource
+
+// ─── Génération déterministe de ressource ────────────────────────────────────
+// Utilise des seeds différents de pickTerrain pour éviter la corrélation
+function pickResource(
+  worldX: number,
+  worldY: number,
+  segX: number,
+  segY: number,
+  terrain: TerrainType | string
+): string | null {
+  // Seed A : décide si la tuile a une ressource
+  const rPresence = seededRandom(hash(worldX + 7,  worldY + 13, segX + 3, segY + 5));
+  if (rPresence > RESOURCE_DENSITY) return null;
+
+  const candidates = TERRAIN_RESOURCES[terrain];
+  if (!candidates || candidates.length === 0) return null;
+
+  // Seed B : choisit laquelle parmi les candidates
+  const rChoice = seededRandom(hash(worldX + 11, worldY + 17, segX + 7, segY + 9));
+  return candidates[Math.floor(rChoice * candidates.length)];
+}
+
 function pickTerrain(worldX: number, worldY: number, segX: number, segY: number): TerrainType {
   const r1 = seededRandom(hash(worldX, worldY, segX, segY));
   const r2 = seededRandom(hash(worldY, worldX, segX + 1, segY + 1));
@@ -91,7 +132,7 @@ function generateTilesForSegment(
         worldX,
         worldY,
         terrainType: terrain,
-        resourceType: null,
+        resourceType: pickResource(worldX, worldY, segX, segY, terrain),
         elevation,
         isWalkable: TERRAIN_WALKABLE[terrain],
         movementCost: TERRAIN_MOVEMENT_COST[terrain],
