@@ -11,7 +11,8 @@ import { getTerrainMovementCost } from "../../lib/game/TerrainCosts";
 import { CameraControls } from "./CameraControls";
 import { CityManagementPanel } from "./CityManagementPanel";
 import { UnifiedTerritorySystem } from "../../lib/systems/UnifiedTerritorySystem";
-import { MovementSystem } from "../../lib/movement/MovementSystem";
+import { requestMove } from "../../lib/api/playerActionsApi";
+import { usePlayerActions } from "../../lib/stores/usePlayerActions";
 
 // Improved imports - custom hooks and constants
 import { useGameEngineAccess } from "../../lib/hooks/useGameEngineAccess";
@@ -174,46 +175,45 @@ export function GameCanvas() {
   }, []);
 
   const handleMovementConfirm = async () => {
-    if (pendingMovement && mapData) {
-      // Vérifier si un déplacement est déjà en cours
-      if (MovementSystem.isMoving()) {
-        alert('Un déplacement est déjà en cours !');
-        return;
-      }
+    if (!pendingMovement || !mapData) return;
 
-      const targetTile = mapData[pendingMovement.y] && mapData[pendingMovement.y][pendingMovement.x];
-      
-      if (targetTile) {
-        // IMPROVED: Use terrain helper for consistency
-        if (!TerrainHelpers.isWalkable(targetTile.terrain)) {
-          alert('Impossible de se déplacer sur l\'eau sans navire !');
-          setPendingMovement(null);
-          return;
-        }
+    // Bloquer si une action serveur est déjà en cours
+    if (usePlayerActions.getState().isActionActive()) {
+      alert('Un déplacement est déjà en cours. Attendez qu\'il se termine.');
+      setPendingMovement(null);
+      return;
+    }
 
-        try {
-          // Utiliser le nouveau système de pathfinding
-          const result = await MovementSystem.planAndExecuteMovement({
-            targetX: pendingMovement.x,
-            targetY: pendingMovement.y,
-            mapData: mapData
-          });
+    // Vérification terrain locale (UX uniquement — le serveur valide aussi)
+    const targetTile = mapData[pendingMovement.y]?.[pendingMovement.x];
+    if (targetTile && !TerrainHelpers.isWalkable(targetTile.terrain)) {
+      alert('Impossible de se déplacer sur l\'eau sans navire !');
+      setPendingMovement(null);
+      return;
+    }
 
-          if (result.success) {
-            console.log('✅ Movement completed:', {
-              path: result.path,
-              totalCost: result.totalCost,
-              message: result.message
-            });
-          } else {
-            alert(result.message);
-          }
-        } catch (error) {
-          console.error('❌ Movement error:', error);
-          alert('Erreur lors du déplacement');
-        }
+    // Conversion coordonnées locales → monde
+    const { originWorldX, originWorldY } = useMap.getState();
+    const destinationWorldX = pendingMovement.x + originWorldX;
+    const destinationWorldY = pendingMovement.y + originWorldY;
 
-        setPendingMovement(null);
+    setPendingMovement(null);
+
+    try {
+      const response = await requestMove(destinationWorldX, destinationWorldY);
+      usePlayerActions.getState().setActiveAction(response.action);
+      console.log(
+        `[GameCanvas] Déplacement soumis → monde (${destinationWorldX},${destinationWorldY})` +
+        ` | coût=${response.action.totalCost}AP` +
+        ` | fin=${new Date(response.action.expectedEndTime).toLocaleString()}`
+      );
+    } catch (err: unknown) {
+      const error = err as Error & { code?: string };
+      if (error.code === 'ACTION_ALREADY_ACTIVE') {
+        alert('Un déplacement est déjà en cours sur le serveur.');
+      } else {
+        console.error('[GameCanvas] Erreur soumission move:', err);
+        alert(error.message ?? 'Erreur lors de la soumission du déplacement');
       }
     }
   };
