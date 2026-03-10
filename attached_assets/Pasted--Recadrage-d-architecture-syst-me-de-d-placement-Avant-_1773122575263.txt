@@ -1,0 +1,79 @@
+**Recadrage d’architecture — système de déplacement**
+
+Avant de commencer l’implémentation, je veux ajuster une décision d’architecture pour garantir la fiabilité du système.
+
+Après analyse, le déplacement doit être **calculé entièrement côté serveur**.
+Le client ne doit **pas envoyer le chemin complet**, seulement **la destination**.
+
+Le serveur doit être l’unique autorité pour :
+
+* le calcul du chemin
+* le calcul du coût des tuiles
+* la durée du déplacement
+* la validation du trajet
+* la création de l’action persistante
+
+Le client conserve uniquement un rôle d’interface :
+
+* prévisualisation locale du chemin (UX uniquement)
+* envoi de la destination au serveur lors de la confirmation
+* affichage de l’action active et du temps restant
+
+La logique officielle de déplacement doit donc suivre ce flux :
+
+1. Le joueur clique sur une tuile destination.
+
+2. Le client affiche une prévisualisation locale (non autoritaire).
+
+3. Lors de la confirmation, le client envoie **uniquement la destination** :
+
+   `POST /api/player/actions/move`
+
+   avec :
+
+   * `destinationWorldX`
+   * `destinationWorldY`
+
+4. Le serveur :
+
+   * récupère la position actuelle du joueur
+   * calcule le chemin avec le pathfinding serveur
+   * lit les tuiles traversées
+   * calcule le coût total
+   * calcule la durée (1 movementCost = 6 heures)
+   * crée une action persistante `move`
+   * retourne l’action créée avec `expectedEndTime`
+
+5. Le client affiche ensuite l’action active et son temps restant.
+
+Contraintes importantes pour ce sprint :
+
+* un joueur ne peut avoir **qu’une seule action active**
+* seule l’action `move` existe pour le moment
+* le serveur doit stocker dans `player_actions` :
+
+  * position de départ
+  * position d’arrivée
+  * chemin calculé
+  * coût total
+  * `startTime`
+  * `expectedEndTime`
+  * `status`
+
+La finalisation du déplacement doit être gérée côté serveur :
+
+Si `expectedEndTime <= now` lors de la lecture de l’action active :
+
+* l’action passe à `completed`
+* la position du joueur est mise à jour
+* l’action n’est plus active.
+
+Avant de commencer le code, je veux un **audit technique mis à jour** avec ces nouvelles contraintes :
+
+* où implémenter le pathfinding serveur
+* quels fichiers seront créés/modifiés
+* comment réutiliser la logique actuelle de coûts terrain
+* quels endpoints exacts seront ajoutés
+* comment récupérer les tuiles nécessaires depuis `map_tiles`
+
+Une fois cet audit validé, nous passerons à l’implémentation étape par étape.
