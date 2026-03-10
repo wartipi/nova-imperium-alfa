@@ -14,6 +14,8 @@ import { useGameLogging } from "./lib/hooks/useGameLogging";
 import { GameEngineProvider } from "./lib/contexts/GameEngineContext";
 import { fetchPlayerPosition } from "./lib/api/playerApi";
 import { fetchPlayerState } from "./lib/api/playerStateApi";
+import { fetchCurrentAction } from "./lib/api/playerActionsApi";
+import { usePlayerActions } from "./lib/stores/usePlayerActions";
 import "@fontsource/inter";
 import "./index.css";
 
@@ -60,21 +62,52 @@ function GameApp() {
           ` compétences=${playerStateData.competences.length}`
         );
 
-        // Étape 3 — Charger le bloc 3×3 centré sur le segment du joueur
-        await loadBlockFromDB(position.segmentX, position.segmentY);
+        // Étape 3 — Action active (source de vérité serveur)
+        // Si une action move était en cours : la reprendre dans le store.
+        // Si elle vient d'expirer : le serveur la finalise (position déjà mise à jour en DB).
+        const { action: currentAction } = await fetchCurrentAction();
+        let effectiveWorldX = position.worldX;
+        let effectiveWorldY = position.worldY;
 
-        // Étape 4 — Convertir world → repère local après stabilisation de l'origine
+        if (currentAction) {
+          if (currentAction.status === "in_progress") {
+            // Action toujours en cours — le joueur est au point de départ
+            usePlayerActions.getState().setActiveAction(currentAction);
+            console.log(
+              `[Startup] Action active reprise: id=${currentAction.id}` +
+              ` → (${currentAction.endWorldX},${currentAction.endWorldY})` +
+              ` msRestant=${Math.round(currentAction.msRemaining / 60000)}min`
+            );
+          } else if (currentAction.status === "completed") {
+            // Action expirée pendant l'absence — position finale = destination de l'action
+            effectiveWorldX = currentAction.endWorldX;
+            effectiveWorldY = currentAction.endWorldY;
+            console.log(
+              `[Startup] Action complétée pendant l'absence — position finale:` +
+              ` monde (${effectiveWorldX},${effectiveWorldY})`
+            );
+          }
+        } else {
+          console.log(`[Startup] Aucune action active`);
+        }
+
+        // Étape 4 — Charger le bloc 3×3 centré sur la position effective
+        const effectiveSegmentX = Math.floor(effectiveWorldX / 50);
+        const effectiveSegmentY = Math.floor(effectiveWorldY / 30);
+        await loadBlockFromDB(effectiveSegmentX, effectiveSegmentY);
+
+        // Étape 5 — Convertir world → repère local après stabilisation de l'origine
         const { originWorldX, originWorldY } = useMap.getState();
-        const hexX = position.worldX - originWorldX;
-        const hexY = position.worldY - originWorldY;
+        const hexX = effectiveWorldX - originWorldX;
+        const hexY = effectiveWorldY - originWorldY;
 
         console.log(
           `[Startup] Placement: hex=(${hexX},${hexY})` +
-          ` depuis world=(${position.worldX},${position.worldY})` +
+          ` depuis world=(${effectiveWorldX},${effectiveWorldY})` +
           ` origine=(${originWorldX},${originWorldY})`
         );
 
-        // Étape 5 — Appliquer l'état persisté au store
+        // Étape 6 — Appliquer l'état persisté au store
         // experienceToNextLevel est recalculé depuis level (valeur dérivée)
         const { calculateExperienceForLevel } = usePlayer.getState();
         const experienceToNextLevel = calculateExperienceForLevel(playerStateData.level + 1);
@@ -91,7 +124,7 @@ function GameApp() {
         });
         console.log(`[Startup] Store joueur initialisé depuis DB`);
 
-        // Étape 6 — Placer l'avatar exactement à la bonne position
+        // Étape 7 — Placer l'avatar exactement à la bonne position
         const { moveAvatarToHex } = usePlayer.getState();
         moveAvatarToHex(hexX, hexY);
 
