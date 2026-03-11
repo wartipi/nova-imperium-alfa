@@ -1,0 +1,106 @@
+Nouveau bloc de travail : diagnostic correctif sur le timer d’action en cours et le bypass MJ.
+
+Contexte
+
+Deux problèmes ont été observés en test réel sur la plateforme :
+
+1. Le timer affiché dans la section "Action en cours" ne semble pas refléter le temps réel correctement.
+   - soit il ne se met pas à jour assez souvent
+   - soit il affiche une valeur figée ou incorrecte
+
+2. Le bypass MJ du timer ne fonctionne pas réellement.
+   - en test réel avec le compte MJ, l’action ne devient pas instantanée
+   - un vrai timer semble encore s’appliquer
+
+Important :
+les rapports précédents ne suffisent plus.
+Je veux maintenant un diagnostic basé sur le comportement réel du code exécuté, pas seulement sur la lecture statique.
+
+Règles de travail
+
+Avant toute modification :
+
+1. reproduire les deux problèmes
+2. identifier la cause exacte dans le code exécuté
+3. expliquer précisément pourquoi le comportement réel contredit le comportement attendu
+4. proposer la correction minimale
+5. attendre validation
+
+Tu ne modifies rien avant validation.
+
+Autres contraintes :
+- ne pas élargir la portée
+- ne pas refondre le système
+- ne pas proposer de solution approximative
+- je veux des preuves runtime ou des vérifications explicites quand c’est possible
+
+Étape 1 — Diagnostic du timer UI de la section "Action en cours"
+
+Examiner le composant ActiveActionWidget.tsx et les données qu’il reçoit.
+
+Je veux savoir précisément :
+- comment le temps restant affiché est calculé
+- à quelle fréquence il est recalculé
+- si l’affichage dépend d’une valeur figée issue du backend
+- si le widget met seulement un setTimeout pour la complétion sans mettre à jour l’affichage intermédiaire
+- pourquoi le timer affiché ne semble pas temps réel en pratique
+
+Répondre sous cette forme :
+- Source de la valeur affichée : ...
+- Fréquence réelle de mise à jour de l’affichage : ...
+- Cause exacte du problème : ...
+- Correction minimale recommandée : ...
+
+Puis t’arrêter.
+
+Étape 2 — Diagnostic du bypass MJ non fonctionnel
+
+Je veux une vérification réelle de toute la chaîne au moment d’une requête de mouvement faite avec le compte MJ.
+
+Vérifier explicitement :
+- quel utilisateur est authentifié
+- quelle valeur contient req.user.role dans la route de mouvement
+- quel ActorContext est transmis à createMoveAction()
+- quelle valeur prend shouldIgnoreActionTimers(context)
+- quelle valeur prend durationMs
+- quelles valeurs réelles sont enregistrées pour startTime et expectedEndTime
+
+Je veux des faits démontrés, pas des suppositions.
+
+Répondre sous cette forme :
+- Utilisateur testé : ...
+- req.user.role observé : ...
+- ActorContext transmis : ...
+- shouldIgnoreActionTimers(...) retourne : ...
+- durationMs réel : ...
+- expectedEndTime - startTime : ...
+- Cause exacte du non-bypass : ...
+- Correction minimale recommandée : ...
+
+Puis t’arrêter.
+
+Étape 3 — Proposition de correction
+
+Seulement après les deux diagnostics :
+
+proposer la correction minimale pour :
+- rendre le timer affiché réellement vivant côté UI
+- rendre le bypass MJ réellement fonctionnel côté serveur
+
+Je veux une proposition précise :
+- fichiers à modifier
+- logique exacte à corriger
+- pourquoi cette correction est suffisante
+- quels comportements resteront inchangés
+
+Puis t’arrêter pour validation.
+
+Exigence de rigueur
+
+- pas de formulation vague
+- pas de “devrait”
+- pas de “probablement” sans preuve
+- distingue toujours :
+  - fait observé
+  - cause prouvée
+  - correction proposée
