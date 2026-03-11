@@ -1,0 +1,74 @@
+Nouveau bloc de travail : Bloc 3 de migration du vieux mode MJ client vers des comportements visuels admin propres.
+
+Contexte
+
+Les blocs précédents ont déjà été validés :
+
+Bloc 1 :
+- suppression de isGameMaster et toggleGameMaster
+- migration vers une logique basée sur role === 'admin'
+- GameEngine utilise maintenant isAdminMode injecté proprement via GameCanvas.tsx
+- le rôle vient de la vraie authentification serveur
+
+Bloc 2 :
+- suppression du bouton "+100 XP (Test)"
+- suppression du bouton "toutes compétences max"
+- suppression de giveAllMaxCompetences
+- conservation d’un bypass admin propre dans CompetenceTree
+
+Objectif du Bloc 3
+
+Traiter uniquement les comportements visuels admin, sans toucher encore aux vieux hacks gameplay restants.
+
+Ce bloc doit couvrir :
+
+- révélation complète de la carte
+- visibilité des ressources non découvertes
+- affichage des informations de tuile debug / admin
+
+Le principe est :
+
+- ces comportements peuvent rester côté client
+- mais ils doivent dépendre proprement de role === 'admin'
+- ils ne doivent dépendre ni d’un vieux toggle local, ni d’un username spécial
+- ils ne doivent pas réintroduire de hook React à l’intérieur de GameEngine
+
+Règles de travail
+
+Avant toute modification :
+
+1. rappeler précisément les fichiers concernés dans ce bloc uniquement
+2. rappeler la logique actuelle à remplacer
+3. rappeler la logique admin propre qui doit rester après migration
+4. attendre validation
+
+Tu ne modifies rien avant validation.
+
+Contraintes :
+
+- ne pas toucher au backend dans ce bloc
+- ne pas réintroduire isGameMaster
+- ne pas utiliser de usernames comme source de vérité
+- ne pas utiliser de hook React dans GameEngine
+- conserver l’architecture actuelle :
+  React lit role → injecte dans GameEngine → GameEngine utilise isAdminMode
+- rester strictement sur les comportements visuels
+- ne pas toucher encore aux hacks gameplay restants (AvatarActionMenu, factions, traités, constructions, etc.)
+
+---
+
+Étape 1 — Rappel du plan d’implémentation du Bloc 3
+
+Je veux une réponse structurée sous cette forme :
+
+Fichiers modifiés dans le bloc 3 :
+Comportements visuels concernés :
+Logique actuelle à remplacer :
+Logique finale attendue :
+Impact attendu pour admin :
+Impact attendu pour player :
+Éléments explicitement hors périmètre de ce bloc :
+
+Puis t’arrêter.
+
+Ne pas implémenter avant validation.
