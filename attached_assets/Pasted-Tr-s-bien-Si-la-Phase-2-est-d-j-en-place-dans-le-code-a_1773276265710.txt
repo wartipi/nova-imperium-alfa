@@ -1,0 +1,57 @@
+Très bien.
+
+Si la Phase 2 est déjà en place dans le code actuel, je ne veux aucune réimplémentation.
+Je veux maintenant une vérification finale explicite de la Phase 2.
+
+Je veux des tests ou vérifications démontrées pour les cas suivants :
+
+1. Chargement initial
+- vérifier que GET /api/factions retourne bien la liste des factions
+- vérifier que la Guilde de Pandem est bien présente
+- vérifier que GET /api/factions/me retourne bien la faction du joueur connecté ou null
+- vérifier que le chargement initial dans App.tsx n’échoue pas si aucune faction n’est trouvée
+
+2. Création de faction
+- créer une nouvelle faction avec un compte authentifié
+- vérifier qu’elle est bien persistée
+- vérifier que le fondateur est bien inséré dans factionMembers avec le rôle leader
+- vérifier qu’un refresh de page conserve la faction
+
+3. Unicité d’appartenance
+- vérifier qu’un joueur déjà membre d’une faction ne peut pas en créer une autre
+- vérifier qu’un joueur déjà membre d’une faction ne peut pas rejoindre une autre
+- je veux les réponses exactes ou erreurs exactes renvoyées
+
+4. Unicité du nom
+- vérifier qu’on ne peut pas créer deux factions avec le même nom
+- vérifier aussi le cas insensible à la casse
+- exemple : "Pandem Test" puis "pandem test"
+
+5. Rejoindre / quitter
+- vérifier qu’un autre joueur peut rejoindre une faction existante
+- vérifier qu’il peut ensuite la quitter
+- vérifier que l’état est bien reflété après rechargement
+
+6. Guilde de Pandem
+- vérifier que le seed est idempotent
+- prouver qu’un redémarrage serveur ne crée pas de doublon
+
+7. Cohérence client
+- vérifier que playerFaction reste cohérent malgré le fait qu’il soit string | null côté client
+- vérifier explicitement que getFactionById fonctionne correctement avec les données reçues du serveur
+
+Mini rapport final attendu :
+- lecture factions : oui/non
+- création persistée : oui/non
+- appartenance unique : oui/non
+- nom unique case-insensitive : oui/non
+- join/leave fonctionnels : oui/non
+- seed Guilde de Pandem idempotent : oui/non
+- cohérence client playerFaction/getFactionById : oui/non
+
+Exigence :
+- résultats démontrés
+- pas de formulation vague
+- distingue les faits testés, les garanties actuelles et les limites restantes
+
+Puis tu t’arrêtes.
