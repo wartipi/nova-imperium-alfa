@@ -88,8 +88,7 @@ export function MedievalHUD() {
     getCurrentAvatar,
     updateAvatarName,
     canCreateNewAvatar,
-    setMaxActionPointsForTesting,
-    giveAllMaxCompetences
+    setMaxActionPointsForTesting
   } = usePlayer();
   const { honor, reputation, getReputationLevel } = useReputation();
   const { playerFaction, getFactionById } = useFactions();
@@ -437,18 +436,6 @@ export function MedievalHUD() {
               <div className="flex items-center justify-between">
                 <div className="text-purple-600">{competences.length} apprises ({competencePoints} pts)</div>
                 <div className="flex space-x-1">
-                  {isAdmin && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        giveAllMaxCompetences();
-                      }}
-                      className="text-xs bg-red-500 hover:bg-red-600 text-white px-1 py-0.5 rounded"
-                      title="MJ: Toutes compétences max"
-                    >
-                      ⚡
-                    </button>
-                  )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -459,19 +446,6 @@ export function MedievalHUD() {
                     🎯
                   </button>
                 </div>
-              </div>
-              
-              {/* Bouton de test pour gagner de l'expérience */}
-              <div className="mt-2">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    gainExperience(100, 'Action test');
-                  }}
-                  className="text-xs bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded w-full"
-                >
-                  +100 XP (Test)
-                </button>
               </div>
               
               {/* Inventaire d'objets uniques */}

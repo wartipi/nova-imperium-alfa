@@ -229,14 +229,9 @@ export function CompetenceTree() {
       <div className="mb-4 text-center">
         <div className="bg-amber-100 border border-amber-300 rounded px-3 py-1 inline-block">
           <span className="text-amber-900 font-semibold">
-            Points disponibles: {isAdmin ? '∞ (Mode MJ)' : availablePoints}
+            Points disponibles: {availablePoints}
           </span>
         </div>
-        {isAdmin && (
-          <div className="mt-2 text-sm text-green-600 font-medium">
-            🎯 Mode Maître de Jeu: Toutes les compétences peuvent être apprises gratuitement
-          </div>
-        )}
       </div>
 
       <div className="space-y-6">
