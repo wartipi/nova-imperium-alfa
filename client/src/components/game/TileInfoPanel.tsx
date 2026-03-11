@@ -97,14 +97,13 @@ function ResourceInfoSection({ selectedHex }: { selectedHex: HexTile }) {
   const isAdmin = role === 'admin';
   
   const explorationLevel = getCompetenceLevel('exploration');
-  const isMasterMode = isAdmin || false;
   const hexResourceDiscovered = isResourceDiscovered(selectedHex.x, selectedHex.y);
   
-  // En mode MJ : toujours afficher les ressources
-  // En mode joueur : afficher si exploration niveau 1+ ET zone explorée
-  const shouldShowResource = isMasterMode || (explorationLevel >= 1 && hexResourceDiscovered);
+  // Admin : toujours afficher les ressources
+  // Joueur : afficher si exploration niveau 1+ ET zone explorée
+  const shouldShowResource = isAdmin || (explorationLevel >= 1 && hexResourceDiscovered);
   
-  console.log(`🔍 Debug ressources: MJ=${isMasterMode}, resource=${selectedHex.resource}, exploration=${explorationLevel}, discovered=${hexResourceDiscovered}, shouldShow=${shouldShowResource}`);
+  console.log(`🔍 Debug ressources: admin=${isAdmin}, resource=${selectedHex.resource}, exploration=${explorationLevel}, discovered=${hexResourceDiscovered}, shouldShow=${shouldShowResource}`);
   
   return (
     <div className="bg-amber-50 border border-amber-700 rounded p-2 mb-3">
@@ -117,9 +116,9 @@ function ResourceInfoSection({ selectedHex }: { selectedHex: HexTile }) {
           }`}>
             {explorationLevel >= 1 ? `Niveau ${explorationLevel}` : 'Aucun'}
           </span>
-          {isMasterMode && (
+          {isAdmin && (
             <span className="ml-2 px-2 py-1 rounded text-xs bg-purple-100 text-purple-800">
-              Mode MJ
+              Admin
             </span>
           )}
         </div>
@@ -132,9 +131,9 @@ function ResourceInfoSection({ selectedHex }: { selectedHex: HexTile }) {
                   {getResourceInfo(selectedHex.resource).symbol}
                 </span>
                 <span className="font-medium">{getResourceInfo(selectedHex.resource).name}</span>
-                {isMasterMode && (
+                {isAdmin && (
                   <span className="text-xs text-purple-600">
-                    ({hexResourceDiscovered ? 'découverte' : 'visible en mode MJ'})
+                    ({hexResourceDiscovered ? 'découverte' : 'visible (admin)'})
                   </span>
                 )}
               </div>
@@ -148,7 +147,7 @@ function ResourceInfoSection({ selectedHex }: { selectedHex: HexTile }) {
             )
           ) : (
             <div className="text-amber-600 text-sm italic">
-              {shouldShowResource || isMasterMode 
+              {shouldShowResource 
                 ? 'Aucune ressource sur cette case'
                 : (explorationLevel >= 1 
                     ? 'Zone non explorée - utilisez "Explorer la Zone"'
@@ -158,14 +157,14 @@ function ResourceInfoSection({ selectedHex }: { selectedHex: HexTile }) {
           )}
         </div>
         
-        {/* Debug en mode MJ */}
-        {isMasterMode && (
+        {/* Debug admin */}
+        {isAdmin && (
           <div className="mt-2 text-xs text-purple-700 bg-purple-50 p-1 rounded">
-            Debug MJ: resource="{selectedHex.resource || 'null'}", discovered={hexResourceDiscovered ? 'oui' : 'non'}
+            Debug Admin: resource="{selectedHex.resource || 'null'}", discovered={hexResourceDiscovered ? 'oui' : 'non'}
           </div>
         )}
         
-        {!isMasterMode && (
+        {!isAdmin && (
           <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
             💡 <strong>Astuce:</strong> 
             {explorationLevel === 0 
@@ -682,10 +681,10 @@ export function TileInfoPanel() {
         </div>
       )}
 
-      {/* Mode MJ - Informations techniques complètes */}
+      {/* Informations techniques (Admin) */}
       {isAdmin && (
         <div className="bg-purple-50 border border-purple-700 rounded p-2 mb-3">
-          <div className="text-purple-900 font-semibold mb-2">🔧 Informations techniques (MJ)</div>
+          <div className="text-purple-900 font-semibold mb-2">🔧 Informations techniques (Admin)</div>
           <div className="text-xs text-purple-800 space-y-2">
             
             {/* Coordonnées et identifiants */}
