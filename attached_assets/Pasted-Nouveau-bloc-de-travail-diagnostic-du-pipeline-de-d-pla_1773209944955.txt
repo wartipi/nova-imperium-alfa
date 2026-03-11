@@ -1,0 +1,184 @@
+Nouveau bloc de travail : diagnostic du pipeline de déplacement et préparation de la migration du mode admin.
+
+Contexte du projet
+
+Nova Imperium utilise un moteur d’actions persistantes côté serveur.
+
+Le déplacement du joueur fonctionne via la route :
+
+POST /api/player/actions/move
+
+Cette route doit :
+1. recevoir la destination
+2. calculer un path via findPath()
+3. créer une action persistante via createMoveAction()
+4. stocker cette action en base
+5. la rendre visible via GET /api/player/actions/current
+
+Une section "Action en cours" dans l’interface affiche ensuite l’action active.
+
+Des modifications récentes ont été appliquées :
+
+- suppression du rôle "gm"
+- simplification du système de rôles : admin / player
+- bypass timer pour admin
+- correctif du timer UI dans ActiveActionWidget
+- ajout d’une structure future pour bypass des coûts en points d’action
+
+Problème observé en test réel
+
+Lorsqu’un déplacement est tenté :
+
+- aucune nouvelle action n’apparaît
+- la section "Action en cours" reste vide
+- le déplacement ne semble pas être exécuté
+- aucune action persistante n’est créée
+
+Donc le problème est probablement dans le pipeline de déplacement lui-même, et pas seulement dans l’affichage.
+
+Objectif de cet audit
+
+Identifier précisément où le pipeline de déplacement s’arrête :
+
+- côté client
+- côté API
+- côté serveur
+- ou dans la création d’action persistante
+
+Règles de travail
+
+Avant toute modification :
+
+1. reproduire le problème
+2. analyser le pipeline complet de déplacement
+3. identifier l’endroit exact où l’exécution s’arrête
+4. expliquer la cause exacte
+5. proposer la correction minimale
+
+Tu ne modifies rien avant validation.
+
+Exigence de rigueur :
+
+- pas de supposition
+- pas de formulation vague
+- uniquement des faits démontrés
+- citer les fichiers et fonctions exacts
+
+---
+
+Étape 1 — Diagnostic côté client
+
+Analyser le déclenchement d’un déplacement dans l’interface.
+
+Identifier précisément :
+
+- quelle fonction déclenche le déplacement
+- dans quel fichier elle se trouve
+- si requestMove(...) est bien appelé
+- avec quelles coordonnées
+- si la requête HTTP est envoyée
+- si la promesse réussit ou échoue
+- si une erreur est capturée côté client
+- si setActiveAction(...) est atteint ou non
+
+Répondre sous cette forme :
+
+Fonction client déclencheur :
+Fichier :
+requestMove(...) appelé : oui/non
+Coordonnées envoyées :
+Réponse API reçue :
+Erreur éventuelle :
+setActiveAction(...) atteint : oui/non
+Conclusion côté client :
+
+Puis t’arrêter.
+
+---
+
+Étape 2 — Diagnostic côté serveur
+
+Analyser le traitement de la route :
+
+POST /api/player/actions/move
+
+Vérifier :
+
+- si la requête est bien reçue
+- quel utilisateur est authentifié
+- quelles coordonnées sont reçues
+- si findPath() est appelé
+- si createMoveAction() est appelé
+- si la route renvoie une erreur
+- si une action est insérée en base
+
+Répondre sous cette forme :
+
+Requête POST reçue : oui/non
+Utilisateur observé :
+Coordonnées reçues :
+findPath() appelé : oui/non
+createMoveAction() appelé : oui/non
+Réponse serveur :
+Action insérée en base : oui/non
+Conclusion côté serveur :
+
+Puis t’arrêter.
+
+---
+
+Étape 3 — Conclusion du diagnostic
+
+Je veux une conclusion claire :
+
+- le blocage est-il côté client ou côté serveur
+- quelle est la cause exacte du fait qu’aucune action n’est créée
+- quel est le correctif minimal
+
+Répondre sous cette forme :
+
+Cause identifiée :
+Fichier concerné :
+Correctif minimal proposé :
+
+Puis t’arrêter.
+
+Ne pas implémenter la correction avant validation.
+
+---
+
+Mise en contexte pour l’étape suivante (ne pas traiter maintenant)
+
+Après correction du pipeline de déplacement, le prochain bloc de travail sera :
+
+Migration du vieux "mode maître de jeux" client vers un vrai système de privilèges admin serveur.
+
+Actuellement, le mode MJ côté client contrôle encore plusieurs comportements :
+
+- révélation complète de la carte
+- visibilité immédiate des ressources
+- bouton XP gratuit dans le menu
+- divers bypass locaux
+
+Ces comportements sont hérités d’un ancien mode debug client.
+
+L’objectif du prochain bloc sera de :
+
+1. migrer ces capacités vers des privilèges admin serveur
+2. supprimer les hacks client non alignés avec la source de vérité serveur
+3. remplacer le bouton XP gratuit par un bypass admin sur l’achat de compétences
+4. centraliser les capacités admin via des helpers serveur du type :
+
+shouldIgnoreActionTimers(context)
+shouldIgnoreActionPointCosts(context)
+shouldIgnoreCompetencePointCosts(context)
+shouldRevealEntireMap(context)
+shouldRevealAllResources(context)
+
+Tous basés sur :
+
+context.role === 'admin'
+
+Important :
+ne pas commencer ce bloc maintenant.
+Il est fourni uniquement pour donner du contexte sur la direction du projet.
