@@ -1,0 +1,344 @@
+Très bien. On reprend le **prompt complet et structuré**, mais on ajoute maintenant la règle importante :
+le **spawn doit être centralisé et facilement modifiable**, sans coordonnée hardcodée dans la logique métier.
+
+Donc :
+
+* même méthode stricte
+* mêmes étapes
+* mais architecture légèrement meilleure dès le départ.
+
+Voici la **version améliorée et finale du prompt Bloc 1**.
+
+---
+
+# Prompt pour l’IA — Stabilisation du spawn joueur (prototype)
+
+## Contexte
+
+Le projet **Nova Imperium** utilise une **carte persistante stockée en PostgreSQL**.
+
+Les tuiles du monde sont stockées dans la table :
+
+```text
+map_tiles
+```
+
+Chaque tuile contient notamment :
+
+```
+world_x
+world_y
+terrain_type
+is_walkable
+```
+
+La position des joueurs est stockée dans :
+
+```text
+player_positions
+```
+
+avec :
+
+```
+player_id
+world_x
+world_y
+segment_x
+segment_y
+```
+
+Cette position est utilisée pour :
+
+* charger la position du joueur au démarrage
+* calculer les déplacements
+* exécuter les actions de gameplay
+
+Suite à la migration récente vers une génération de terrain **archipel**, certaines positions sauvegardées peuvent se retrouver sur des tuiles d’eau.
+
+---
+
+# Objectif de cette tâche
+
+Stabiliser **temporairement** le système de spawn pour le prototype.
+
+Pour cette phase de développement :
+
+* le spawn peut être **un point fixe**
+* la logique doit rester **extrêmement simple**
+* toute validation doit être **côté serveur**
+
+Nous voulons éviter toute position joueur sur :
+
+```
+deep_water
+shallow_water
+```
+
+---
+
+# Architecture souhaitée
+
+Le point de spawn prototype doit être **centralisé et facilement modifiable**.
+
+La coordonnée ne doit **pas être hardcodée directement dans la logique métier**.
+
+Elle doit être définie dans **une constante serveur unique**, par exemple :
+
+```ts
+SPAWN_POINTS = {
+  prototypeDefault: { worldX: 25, worldY: 15 }
+}
+```
+
+Puis utilisée via une fonction d’accès unique, par exemple :
+
+```
+getActiveSpawnPoint()
+```
+
+De cette façon, le spawn pourra être changé plus tard vers :
+
+* l’île de Sancta
+* la Nouvelle Colonie
+* un spawn dépendant de la faction
+
+sans modifier la logique du système.
+
+---
+
+# Règles de travail (très importantes)
+
+Avant toute modification :
+
+1️⃣ analyser le code existant
+2️⃣ expliquer le pipeline de position joueur
+3️⃣ proposer la correction
+4️⃣ attendre validation
+
+Tu **ne modifies rien avant validation**.
+
+Autres contraintes :
+
+* ne pas modifier les tables DB
+* ne pas modifier les routes API
+* ne pas modifier la structure de la carte
+* ne pas ajouter de système complexe de recherche de spawn
+* garder une logique simple et lisible
+
+---
+
+# Étapes demandées
+
+---
+
+# Étape 1 — Audit du pipeline de position joueur
+
+Examiner les fichiers responsables de :
+
+* création d’un joueur
+* premier chargement d’un joueur
+* récupération de position
+* correction de position
+
+Identifier :
+
+* où `player_positions` est créé
+* où la position est lue
+* où la position est validée
+* où la position peut être corrigée
+
+Nous voulons les **fichiers exacts** et **fonctions exactes**.
+
+Répondre sous cette forme :
+
+```
+Création de position : ...
+Lecture de position : ...
+Validation actuelle : ...
+Correction actuelle : ...
+```
+
+Puis s’arrêter.
+
+---
+
+# Étape 2 — Analyse de la validation actuelle
+
+Examiner la logique actuelle de validation de position.
+
+Vérifier :
+
+* si `terrain_type` est utilisé
+* si `is_walkable` est utilisé
+* si la validation lit bien `map_tiles`
+* si plusieurs chemins de validation existent
+
+Répondre clairement :
+
+```
+Une position est actuellement considérée valide si : ...
+```
+
+Puis expliquer si les cas suivants sont possibles :
+
+```
+spawn sur deep_water
+spawn sur shallow_water
+spawn sur tuile non-walkable
+```
+
+Puis s’arrêter.
+
+---
+
+# Étape 3 — Proposition de correction minimale
+
+Proposer une correction **simple et centralisée**.
+
+La règle prototype doit être :
+
+Une position est valide seulement si :
+
+```
+is_walkable = true
+ET
+terrain_type ≠ deep_water
+ET
+terrain_type ≠ shallow_water
+```
+
+Sinon :
+
+```
+relocalisation vers le spawn prototype
+```
+
+La correction doit être implémentée dans **une fonction serveur unique**.
+
+Exemple :
+
+```
+ensureValidPlayerPosition()
+```
+
+La position de spawn doit être récupérée via :
+
+```
+getActiveSpawnPoint()
+```
+
+et non pas via une coordonnée hardcodée.
+
+Expliquer :
+
+* quelles fonctions existantes seront modifiées
+* si une nouvelle fonction doit être créée
+* quels fichiers seront modifiés
+* comment la relocalisation sera déclenchée
+
+Puis s’arrêter pour validation.
+
+---
+
+# Étape 4 — Implémentation
+
+Après validation seulement :
+
+implémenter la correction proposée.
+
+Contraintes :
+
+* modifier uniquement les fichiers nécessaires
+* ne pas modifier la logique client
+* garder une logique simple et lisible
+
+À la fin, fournir :
+
+```
+fichiers modifiés
+fonctions modifiées
+comportement final
+```
+
+Puis s’arrêter.
+
+---
+
+# Étape 5 — Vérification finale
+
+Vérifier explicitement les cas suivants :
+
+### Cas 1 — nouveau joueur
+
+Résultat attendu :
+
+```
+spawn → spawn prototype
+```
+
+---
+
+### Cas 2 — joueur sur deep_water
+
+Résultat attendu :
+
+```
+relocalisation → spawn prototype
+```
+
+---
+
+### Cas 3 — joueur sur shallow_water
+
+Résultat attendu :
+
+```
+relocalisation → spawn prototype
+```
+
+---
+
+### Cas 4 — joueur sur terrain terrestre valide
+
+Résultat attendu :
+
+```
+position conservée
+```
+
+Produire un mini rapport final :
+
+```
+spawn fixe actif : oui/non
+validation serveur unique : oui/non
+spawn sur eau impossible : oui/non
+```
+
+Puis s’arrêter.
+
+---
+
+# Rappel important
+
+Le but **n’est pas** de créer le système final de spawn.
+
+Le but est uniquement de :
+
+```
+stabiliser le prototype
+```
+
+pour pouvoir travailler ensuite sur :
+
+* le système de compétences
+* le mode maître de jeu
+* les actions persistantes
+* l’interface d’action en cours
+
+---
+
+Quand il te renverra **l’étape 1**, montre-moi sa réponse.
+
+On va la vérifier **exactement comme on l’a fait pour la génération de carte** :
+calmement, étape par étape, sans laisser l’IA improviser.
