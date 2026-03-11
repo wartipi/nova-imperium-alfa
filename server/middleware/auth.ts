@@ -13,7 +13,7 @@ export interface AuthRequest extends Request {
 const AUTHORIZED_USERS = {
   'admin': { id: 'admin', password: 'nova2025', role: 'admin' },
   'joueur1': { id: 'joueur1', password: 'imperium123', role: 'player' },
-  'maitre': { id: 'maitre', password: 'pandem456', role: 'gm' }
+  'maitre': { id: 'maitre', password: 'pandem456', role: 'admin' }
 };
 
 // Middleware pour vérifier l'authentification
@@ -64,7 +64,8 @@ export function optionalAuth(req: AuthRequest, res: Response, next: NextFunction
       if (user && user.password === password) {
         req.user = {
           id: user.id,
-          username: username.toLowerCase()
+          username: username.toLowerCase(),
+          role: user.role
         };
       }
     } catch (error) {

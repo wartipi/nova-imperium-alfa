@@ -8,9 +8,15 @@ import type { ActorContext } from "./types/actorContext";
 const HOURS_PER_AP = 6;
 const MS_PER_HOUR = 3600 * 1000;
 
-// ─── Helpers de comportement MJ ───────────────────────────────────────────────
+// ─── Helpers de comportement admin ────────────────────────────────────────────
 function shouldIgnoreActionTimers(context: ActorContext): boolean {
-  return context.role === 'gm';
+  return context.role === 'admin';
+}
+
+// Non branché : les PA ne sont pas déduits côté serveur pour les actions de déplacement.
+// À utiliser quand une déduction server-authoritative sera implémentée.
+export function shouldIgnoreActionPointCosts(context: ActorContext): boolean {
+  return context.role === 'admin';
 }
 
 // ─── Lecture de l'action active (in_progress) ────────────────────────────────

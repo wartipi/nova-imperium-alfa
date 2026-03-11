@@ -16,6 +16,13 @@ function formatDuration(ms: number): string {
 export function ActiveActionWidget() {
   const { activeAction, setActiveAction } = usePlayerActions();
   const [cancelling, setCancelling] = useState(false);
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    if (!activeAction || activeAction.status !== "in_progress") return;
+    const tick = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(tick);
+  }, [activeAction]);
 
   useEffect(() => {
     if (!activeAction || activeAction.status !== "in_progress") return;
@@ -60,7 +67,7 @@ export function ActiveActionWidget() {
     );
   }
 
-  const msLeft = Math.max(0, new Date(activeAction.expectedEndTime).getTime() - Date.now());
+  const msLeft = Math.max(0, new Date(activeAction.expectedEndTime).getTime() - now);
   const dest = `(${activeAction.endWorldX}, ${activeAction.endWorldY})`;
 
   return (
