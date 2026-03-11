@@ -1,0 +1,328 @@
+Mise en situation — Phase 1 : Stabilisation admin et cartographie des dépendances avant multijoueur
+
+Nova Imperium a déjà franchi plusieurs étapes importantes :
+
+le vieux mode MJ client a été démantelé
+
+l’authentification utilise maintenant le vrai rôle serveur
+
+un mode admin ON/OFF existe côté client
+
+le moteur visuel et une partie du serveur commencent à respecter ce mode
+
+le déplacement persistant serveur fonctionne
+
+le déplacement instantané admin peut être activé ou désactivé selon le contexte
+
+Mais le projet reste dans une phase hybride.
+
+Aujourd’hui, certains systèmes sont déjà partiellement propres, alors que d’autres restent encore :
+
+très client-side
+
+partiellement bypassés
+
+ou pas encore reliés au nouveau modèle adminModeEnabled
+
+Avant de continuer à brancher des validations serveur ou à préparer le multijoueur, il faut faire une phase de stabilisation.
+
+Cette phase a un but très concret :
+
+1. Cartographier précisément tous les bypass restants
+
+On veut savoir :
+
+ce qui dépend déjà de adminModeEnabled
+
+ce qui dépend encore seulement de role === 'admin'
+
+ce qui n’est pas encore intégré au nouveau modèle
+
+2. Identifier les systèmes encore trop client-side
+
+On veut savoir :
+
+quels systèmes sont encore pilotés presque entièrement par le client
+
+lesquels seront problématiques dès qu’on testera à plusieurs
+
+3. Définir les priorités avant multijoueur
+
+Le but n’est pas encore de tout réécrire.
+Le but est de savoir :
+
+quelles mécaniques doivent passer serveur en premier
+
+lesquelles peuvent rester temporairement côté client
+
+lesquelles risquent de casser ou de devenir incohérentes dès qu’on joue à plusieurs
+
+4. Préparer la suite
+
+Cette phase doit servir de base aux prochaines étapes :
+
+propagation serveur plus large de adminModeEnabled
+
+validation serveur des compétences
+
+validation serveur des PA
+
+migration des actions spéciales restantes
+
+connectivité multijoueur / présence des autres joueurs
+
+Donc cette Phase 1 n’est pas “une simple vérification”.
+
+C’est un audit structurant de stabilité et de priorisation.
+
+Prompt pour l’IA — Phase 1 : Stabilisation admin et cartographie avant multijoueur
+Nouveau bloc de travail : Phase 1 — stabilisation du mode admin et cartographie des systèmes avant préparation multijoueur.
+
+Contexte
+
+Nova Imperium a déjà franchi plusieurs étapes importantes :
+
+- le vieux mode MJ client a été supprimé comme source de vérité
+- l’authentification utilise maintenant le vrai rôle serveur
+- AuthContext expose role, adminModeEnabled et isAdmin
+- un mode admin ON/OFF existe côté client
+- le moteur visuel respecte ce mode via une injection propre
+- le déplacement persistant serveur fonctionne
+- le serveur respecte maintenant adminModeEnabled pour le bypass de timer de déplacement
+
+Mais le projet reste dans une phase hybride.
+
+Certains systèmes sont déjà correctement réalignés sur l’architecture actuelle.
+D’autres restent encore :
+
+- purement client-side
+- partiellement bypassés
+- non intégrés à adminModeEnabled
+- non prêts pour un test multijoueur crédible
+
+Objectif de la Phase 1
+
+Je veux un audit structuré qui serve de fondation pour les prochaines étapes.
+
+Cette phase doit permettre de :
+
+1. cartographier tous les bypass/admin behaviors restants
+2. identifier lesquels sont déjà branchés sur adminModeEnabled
+3. identifier lesquels dépendent encore seulement de role === 'admin'
+4. identifier quels systèmes sont encore trop client-side pour être fiables en multijoueur
+5. définir un ordre de priorité technique avant les prochains blocs serveur et multijoueur
+
+Important :
+cette phase est un audit et une cartographie.
+Tu ne modifies rien avant validation.
+
+Règles de travail
+
+Avant toute modification :
+
+1. analyser le code réellement présent dans la branche actuelle
+2. lister les systèmes concernés
+3. classifier chaque système selon son état réel
+4. distinguer :
+   - ce qui est déjà propre
+   - ce qui est encore hybride
+   - ce qui est encore purement client-side
+   - ce qui posera problème en multijoueur
+5. proposer une priorisation claire
+6. attendre validation
+
+Tu ne modifies rien avant validation.
+
+Contraintes
+
+- ne pas faire d’implémentation dans cette phase
+- ne pas proposer de refonte totale floue
+- ne pas mélanger audit et correctif
+- ne pas supposer le comportement sans preuve
+- citer les fichiers, services, stores et routes exacts
+- séparer clairement :
+  - client
+  - serveur
+  - hybride
+  - risque multijoueur
+
+Exigence de rigueur
+
+- pas de formulation vague
+- pas de “probablement” sans preuve
+- je veux des faits démontrés par le code
+- si un système n’est pas clair, il faut le dire explicitement
+
+---
+
+Étape 1 — Cartographie des comportements admin restants
+
+Je veux une cartographie précise des comportements encore liés à l’admin dans le projet.
+
+Identifier pour chaque comportement :
+
+- s’il dépend de role === 'admin'
+- s’il dépend de isAdmin / adminModeEnabled
+- s’il est côté client ou côté serveur
+- s’il s’agit d’un affichage, d’un bypass gameplay, ou d’une validation réelle
+
+Couvrir au minimum :
+
+- déplacement
+- compétences
+- points d’action
+- cartographie / exploration
+- construction
+- factions
+- traités
+- territoires
+- visibilité carte / ressources
+- panneaux debug / infos techniques
+
+Répondre sous cette forme :
+
+Système :
+Fichiers concernés :
+Condition actuelle :
+Couche concernée : client / serveur / hybride
+Nature : affichage / bypass gameplay / validation réelle
+État actuel : propre / hybride / à migrer
+Risque multijoueur : faible / moyen / élevé
+Commentaire :
+
+Puis continuer pour chaque système, puis t’arrêter.
+
+---
+
+Étape 2 — Cartographie des systèmes encore trop client-side
+
+Je veux maintenant savoir quels systèmes majeurs reposent encore trop sur le client.
+
+Pour chacun, préciser :
+
+- où la logique métier vit réellement
+- si le serveur valide quelque chose ou non
+- si le serveur ne fait que persister l’état reçu
+- si un client malveillant ou simplement divergent pourrait casser la cohérence
+
+Je veux particulièrement un audit explicite sur :
+
+- compétences
+- points d’action
+- construction
+- factions
+- traités
+- revendication / fondation / territoires
+- toute autre action importante détectée comme encore locale
+
+Répondre sous cette forme :
+
+Système :
+Logique métier actuelle :
+Validation serveur actuelle : oui/non
+Persistance serveur actuelle : oui/non
+Source de vérité réelle :
+Problème principal :
+Risque en multijoueur :
+Priorité de migration : basse / moyenne / haute
+
+Puis t’arrêter.
+
+---
+
+Étape 3 — État de préparation au multijoueur
+
+Je veux un état de préparation concret avant de commencer les audits de connectivité multijoueur.
+
+Répondre à ces questions :
+
+1. Qu’est-ce qui permet déjà à plusieurs joueurs d’exister dans le même monde ?
+2. Qu’est-ce qui resterait incohérent si deux joueurs testaient en parallèle maintenant ?
+3. Qu’est-ce qui est déjà assez solide pour supporter un premier test à deux joueurs ?
+4. Qu’est-ce qui doit être migré avant qu’un test multi soit utile ?
+
+Répondre sous cette forme :
+
+Déjà compatible multijoueur :
+Incohérences probables actuelles :
+Systèmes assez solides pour un premier test à deux :
+Systèmes à migrer avant un vrai test multijoueur :
+Conclusion sur l’état de préparation :
+
+Puis t’arrêter.
+
+---
+
+Étape 4 — Priorisation technique recommandée
+
+À partir des étapes précédentes, je veux une priorisation claire des prochains chantiers.
+
+Je veux une réponse organisée en 3 niveaux :
+
+A. À traiter immédiatement
+B. À traiter bientôt
+C. À traiter plus tard
+
+Et pour chaque élément :
+- pourquoi
+- quel bénéfice
+- quel risque si on attend
+
+Répondre sous cette forme :
+
+A. À traiter immédiatement :
+- ...
+  - pourquoi :
+  - bénéfice :
+  - risque si on attend :
+
+B. À traiter bientôt :
+- ...
+  - pourquoi :
+  - bénéfice :
+  - risque si on attend :
+
+C. À traiter plus tard :
+- ...
+  - pourquoi :
+  - bénéfice :
+  - risque si on attend :
+
+Puis t’arrêter.
+
+---
+
+Étape 5 — Proposition de feuille de route post-Phase 1
+
+Sans implémenter encore, proposer une feuille de route réaliste pour la suite.
+
+Je veux une proposition en blocs courts et concrets, par exemple :
+
+- bloc serveur compétences
+- bloc serveur PA
+- bloc actions spéciales persistantes
+- bloc audit connectivité multijoueur
+- bloc présence des autres joueurs
+- bloc tests à deux joueurs
+
+Répondre sous cette forme :
+
+Bloc suivant 1 :
+Objectif :
+Pourquoi maintenant :
+
+Bloc suivant 2 :
+Objectif :
+Pourquoi ensuite :
+
+Bloc suivant 3 :
+Objectif :
+Pourquoi ensuite :
+
+Bloc suivant 4 :
+Objectif :
+Pourquoi ensuite :
+
+Puis t’arrêter.
+
+Ne rien implémenter avant validation.
