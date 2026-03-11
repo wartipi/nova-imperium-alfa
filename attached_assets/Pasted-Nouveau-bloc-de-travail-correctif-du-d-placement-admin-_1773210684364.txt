@@ -1,0 +1,227 @@
+Nouveau bloc de travail : correctif du déplacement admin instantané avec resynchronisation serveur.
+
+Contexte du projet
+
+Nova Imperium utilise un moteur d’actions persistantes côté serveur.
+
+Le déplacement du joueur passe par :
+
+POST /api/player/actions/move
+
+Le pipeline normal est :
+
+1. le client demande un déplacement
+2. le serveur calcule un chemin
+3. le serveur crée une action persistante
+4. le serveur la stocke en base
+5. le client affiche l’action en cours
+6. quand l’action se complète, la position du joueur est mise à jour côté serveur
+
+Des modifications récentes ont déjà été faites :
+
+- le rôle "gm" a été supprimé du backend
+- le backend fonctionne maintenant avec seulement :
+  - admin
+  - player
+- les comptes admin ont un bypass timer côté serveur
+- pour un compte admin, un déplacement peut donc être instantané (durationMs = 0)
+- le widget "Action en cours" existe déjà dans le panneau droit sous la jauge PA
+
+Problème observé en test réel
+
+Lorsqu’un déplacement est tenté avec un compte admin :
+
+- la requête de déplacement est bien envoyée
+- le serveur crée bien l’action
+- l’action est bien complétée immédiatement
+- la position est bien mise à jour en base
+- mais l’avatar à l’écran ne se déplace pas correctement
+
+Le diagnostic précédent a déjà établi la cause :
+
+- côté client, après une action instantanée admin, la position visuelle locale n’est pas resynchronisée
+- le backend fait bien son travail
+- le problème visible est donc côté client
+
+Décision technique validée
+
+Nous prenons la stratégie A :
+
+Après une action instantanée admin, le client doit :
+1. recharger la position réelle depuis le serveur
+2. mettre à jour le rendu de l’avatar à partir de cette position serveur
+
+Important :
+nous ne voulons pas simplement appeler moveAvatarToHex() directement avec une supposition locale.
+
+Nous voulons que la resynchronisation passe par la source de vérité serveur.
+
+Objectif de cette tâche
+
+Corriger le comportement du déplacement admin instantané pour que :
+
+- le serveur reste la source de vérité
+- après un move instantané admin, la position soit relue depuis le serveur
+- l’avatar soit visuellement resynchronisé correctement
+- le flux normal des joueurs non-admin reste inchangé
+
+Règles de travail
+
+Avant toute modification :
+
+1. expliquer précisément quel point du code sera corrigé
+2. expliquer comment la position sera relue depuis le serveur
+3. expliquer comment le rendu local sera resynchronisé
+4. attendre validation
+
+Tu ne modifies rien avant validation.
+
+Autres contraintes :
+
+- ne pas refondre le pipeline de déplacement
+- ne pas modifier le backend si ce n’est pas nécessaire pour ce correctif
+- ne pas casser le comportement normal des joueurs
+- ne pas remplacer la source de vérité serveur par un déplacement purement local
+- rester sur le plus petit correctif cohérent
+
+---
+
+Étape 1 — Proposition de correction minimale
+
+À partir du diagnostic déjà établi, proposer le correctif minimal.
+
+Je veux une réponse explicite sur les points suivants :
+
+1. dans quel fichier la correction doit être appliquée
+2. à quel endroit exact du flux elle doit intervenir
+3. comment la position joueur sera relue depuis le serveur
+4. comment cette position serveur sera réinjectée dans le rendu local
+5. pourquoi cette solution est meilleure qu’un simple moveAvatarToHex() direct avec la destination locale
+6. quels comportements resteront inchangés pour les joueurs normaux
+
+Répondre sous cette forme :
+
+Cause déjà identifiée :
+Fichier à modifier :
+Point exact d’injection :
+Méthode de resynchronisation serveur :
+Effet attendu pour admin :
+Effet attendu pour player :
+Correctif minimal proposé :
+
+Puis t’arrêter.
+
+Ne pas implémenter avant validation.
+
+---
+
+Étape 2 — Implémentation
+
+Après validation seulement :
+
+implémenter le correctif minimal proposé.
+
+Contraintes :
+- modifier uniquement les fichiers nécessaires
+- garder le reste inchangé
+- ne pas toucher au backend si le correctif est purement client
+- ne pas casser le flux des actions normales
+
+À la fin, fournir un résumé clair :
+
+Fichiers modifiés :
+Fonctions modifiées :
+Logique exacte corrigée :
+Comportement final attendu :
+
+Puis t’arrêter avant la vérification finale.
+
+---
+
+Étape 3 — Vérification finale
+
+Après implémentation :
+
+vérifier explicitement les cas suivants.
+
+Cas 1 — joueur admin
+- lancer un déplacement instantané
+- confirmer que l’action est créée puis complétée côté serveur
+- confirmer que la position est relue depuis le serveur
+- confirmer que l’avatar est bien mis à jour visuellement après cette resynchronisation
+
+Cas 2 — joueur normal
+- confirmer que le comportement normal du déplacement reste inchangé
+- confirmer qu’aucune resynchronisation admin spéciale n’interfère avec le flux standard
+
+Cas 3 — action en cours
+- confirmer que la section "Action en cours" reste cohérente avec l’état réel après déplacement admin instantané
+
+Mini rapport final attendu :
+
+Resynchronisation position admin via serveur : oui/non
+Déplacement admin visible correctement : oui/non
+Joueur normal inchangé : oui/non
+UI cohérente avec le backend : oui/non
+
+Exigence de rigueur :
+- je veux des résultats démontrés
+- pas de formulation vague
+- distingue les faits testés, les garanties actuelles, et les limites restantes
+
+Puis t’arrêter.
+
+---
+
+Mise en contexte pour l’étape suivante (ne pas traiter maintenant)
+
+Après ce correctif, le prochain bloc de travail sera :
+
+Ajout d’un vrai mode admin ON/OFF propre pour les tests.
+
+Important :
+ce futur mode admin ON/OFF ne devra pas recréer l’ancien mode MJ client comme simple illusion locale.
+
+Direction souhaitée pour cette future étape :
+
+- le rôle serveur reste :
+  - admin
+  - player
+
+- mais un compte admin pourra activer ou désactiver un mode admin d’exécution pour les tests
+
+Exemple de structure future :
+
+ActorContext = {
+  role: 'admin' | 'player',
+  adminModeEnabled: true | false
+}
+
+Les helpers futurs devront être basés à la fois sur :
+- le rôle
+- et le flag adminModeEnabled
+
+Exemples :
+
+shouldIgnoreActionTimers(context)
+shouldIgnoreActionPointCosts(context)
+shouldIgnoreCompetencePointCosts(context)
+shouldRevealEntireMap(context)
+shouldRevealAllResources(context)
+
+Le but futur sera de permettre à un compte admin :
+- de tester le jeu en mode normal
+- puis d’activer les bypass
+- puis de les désactiver
+- sans changer de compte
+
+Autres éléments à migrer plus tard dans ce futur bloc :
+
+- révélation complète de la carte
+- révélation des ressources
+- remplacement du bouton XP gratuit
+- bypass de points de compétence
+- suppression des anciens hacks client non alignés avec le serveur
+
+Ne pas commencer cette étape maintenant.
+Elle est fournie uniquement comme contexte sur la direction du projet.
