@@ -4,6 +4,7 @@ import type { AuthRequest } from "../middleware/auth";
 import {
   ensurePlayerPosition,
   savePlayerPosition,
+  isValidPlayerPosition,
 } from "../playerPositionService";
 
 const router = Router();
@@ -30,6 +31,14 @@ router.post("/position", requireAuth, async (req: AuthRequest, res) => {
 
     if (!Number.isInteger(worldX) || !Number.isInteger(worldY)) {
       return res.status(400).json({ error: "worldX et worldY doivent être des entiers" });
+    }
+
+    const valid = await isValidPlayerPosition(worldX, worldY);
+    if (!valid) {
+      return res.status(400).json({
+        error: "INVALID_POSITION",
+        message: "La position cible est invalide : tuile absente, non-walkable, ou eau (deep_water / shallow_water).",
+      });
     }
 
     const position = await savePlayerPosition(playerId, worldX, worldY);
