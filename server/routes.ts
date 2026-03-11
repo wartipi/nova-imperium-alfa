@@ -13,10 +13,18 @@ import mapRoutes from "./routes/map";
 import playerRoutes from "./routes/player";
 import playerStateRoutes from "./routes/playerState";
 import playerActionsRoutes from "./routes/playerActions";
+import factionRoutes from "./routes/factions";
+import { seedFactions } from "./seeds/factionSeed";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialiser le marketplace service avec exchangeService
   initializeMarketplaceService(exchangeService);
+
+  // Seed idempotent des factions système (Guilde de Pandem)
+  await seedFactions();
+
+  // Routes factions
+  app.use("/api/factions", factionRoutes);
   // Game save/load endpoints
   app.get("/api/game/save", async (req, res) => {
     try {

@@ -16,6 +16,7 @@ import { fetchPlayerPosition } from "./lib/api/playerApi";
 import { fetchPlayerState } from "./lib/api/playerStateApi";
 import { fetchCurrentAction } from "./lib/api/playerActionsApi";
 import { usePlayerActions } from "./lib/stores/usePlayerActions";
+import { useFactions } from "./lib/stores/useFactions";
 import "@fontsource/inter";
 import "./index.css";
 
@@ -27,6 +28,7 @@ function GameApp() {
   const { loadBlockFromDB } = useMap();
   const { initializeNovaImperiums } = useNovaImperium();
   const { setBackgroundMusic } = useAudio();
+  const { loadFactions, loadPlayerFaction } = useFactions();
 
   useGameLogging();
 
@@ -62,7 +64,13 @@ function GameApp() {
           ` compétences=${playerStateData.competences.length}`
         );
 
-        // Étape 3 — Action active (source de vérité serveur)
+        // Étape 3 — Factions (chargement serveur)
+        // loadPlayerFaction() ne lève pas d'erreur si l'auth est absente (guard interne)
+        await loadFactions();
+        await loadPlayerFaction();
+        console.log(`[Startup] Factions chargées: ${useFactions.getState().factions.length}`);
+
+        // Étape 4 — Action active (source de vérité serveur)
         // Si une action move était en cours : la reprendre dans le store.
         // Si elle vient d'expirer : le serveur la finalise (position déjà mise à jour en DB).
         const { action: currentAction } = await fetchCurrentAction();
@@ -91,7 +99,7 @@ function GameApp() {
           console.log(`[Startup] Aucune action active`);
         }
 
-        // Étape 4 — Charger le bloc 3×3 centré sur la position effective
+        // Étape 5 — Charger le bloc 3×3 centré sur la position effective
         const effectiveSegmentX = Math.floor(effectiveWorldX / 50);
         const effectiveSegmentY = Math.floor(effectiveWorldY / 30);
         await loadBlockFromDB(effectiveSegmentX, effectiveSegmentY);

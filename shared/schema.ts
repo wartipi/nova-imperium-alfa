@@ -322,6 +322,50 @@ export const insertPlayerStateSchema = createInsertSchema(playerState);
 export type PlayerStateRecord = typeof playerState.$inferSelect;
 export type InsertPlayerState = z.infer<typeof insertPlayerStateSchema>;
 
+// Tables pour le système de factions persisté
+export const factions = pgTable("factions", {
+  id:          serial("id").primaryKey(),
+  name:        text("name").notNull().unique(),
+  description: text("description").notNull(),
+  charter:     text("charter").notNull(),
+  emblem:      text("emblem").notNull(),
+  structure:   text("structure").notNull(),
+  type:        text("type").notNull(),
+  recruitment: text("recruitment").notNull().default("open"),
+  founderId:   text("founder_id").notNull(),
+  founderName: text("founder_name").notNull(),
+  color:       text("color").notNull().default("#888888"),
+  banner:      text("banner").notNull().default("⚑"),
+  motto:       text("motto").notNull().default(""),
+  isActive:    boolean("is_active").notNull().default(true),
+  createdAt:   timestamp("created_at").notNull().defaultNow(),
+});
+
+export const factionMembers = pgTable("faction_members", {
+  id:         serial("id").primaryKey(),
+  factionId:  integer("faction_id").notNull().references(() => factions.id),
+  playerId:   text("player_id").notNull().unique(),
+  playerName: text("player_name").notNull(),
+  memberRole: text("member_role").notNull().default("member"),
+  joinedAt:   timestamp("joined_at").notNull().defaultNow(),
+});
+
+export const insertFactionSchema = createInsertSchema(factions).pick({
+  name: true, description: true, charter: true, emblem: true,
+  structure: true, type: true, recruitment: true,
+  founderId: true, founderName: true,
+  color: true, banner: true, motto: true,
+});
+
+export const insertFactionMemberSchema = createInsertSchema(factionMembers).pick({
+  factionId: true, playerId: true, playerName: true, memberRole: true,
+});
+
+export type FactionRecord = typeof factions.$inferSelect;
+export type InsertFaction = z.infer<typeof insertFactionSchema>;
+export type FactionMemberRecord = typeof factionMembers.$inferSelect;
+export type InsertFactionMember = z.infer<typeof insertFactionMemberSchema>;
+
 // Étape d'un chemin de déplacement
 export interface PathStep {
   worldX: number;
