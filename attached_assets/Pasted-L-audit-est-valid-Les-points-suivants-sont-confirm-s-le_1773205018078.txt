@@ -1,0 +1,43 @@
+L’audit est validé.
+
+Les points suivants sont confirmés :
+- le rôle 'gm' existe bien dans server/middleware/auth.ts
+- ce rôle n’est actuellement pas transmis dans req.user, donc il est inutilisable côté routes serveur
+- les bypass MJ existants sont principalement côté client et ne constituent pas une autorité serveur
+- le calcul de durée d’action est bien centralisé dans createMoveAction() dans server/playerActionService.ts
+- le bon point d’injection pour ce bloc est bien le calcul de durationMs, afin de conserver le pipeline normal des actions persistantes
+
+Je veux maintenant une proposition d’implémentation minimale, mais rigoureuse.
+
+Contraintes importantes :
+
+1. la source de vérité serveur pour le mode MJ doit être uniquement le rôle issu du middleware d’authentification
+   - pas de détection par username
+   - pas de logique parallèle
+   - pas de duplication du mode MJ existant
+
+2. ce bloc concerne uniquement les actions persistantes côté serveur
+   - ne pas essayer de corriger maintenant tous les bypass MJ déjà présents côté client
+   - ne pas élargir la portée du correctif
+
+3. le moteur d’actions doit rester inchangé dans sa structure
+   - l’action doit être créée normalement
+   - elle doit être persistée normalement
+   - le statut doit rester cohérent
+   - seule la durée doit devenir 0 pour un MJ
+
+Je veux une proposition précise qui réponde à ces questions :
+- quelles interfaces/types doivent être modifiés dans auth.ts
+- quelle information exacte sera transmise depuis la route vers createMoveAction()
+- quelle signature de fonction sera modifiée
+- comment le rôle MJ sera converti en règle de durée = 0
+- pourquoi cette solution est le plus petit changement possible
+- quelles garanties exactes cela donnera, et quelles limites resteront hors de portée de ce bloc
+
+Exigence de rigueur :
+- pas de formulation vague
+- distingue les faits démontrés, les garanties apportées par la modification, et les limites explicitement non traitées
+
+Important :
+ne passe pas encore à l’implémentation.
+Tu proposes la modification minimale, puis tu t’arrêtes pour validation.
