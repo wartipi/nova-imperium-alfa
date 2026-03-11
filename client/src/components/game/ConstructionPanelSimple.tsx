@@ -149,7 +149,7 @@ export function ConstructionPanel() {
     if (canAffordBuilding(buildingId) || isAdmin) {
       if (isAdmin) {
         buildInCity(cityId, buildingId, {}, building.constructionTime, true);
-        console.log(`[MODE MJ] Construction instantanée de ${buildingId} (ressources infinies, pas d'attente)`);
+        console.log(`[Admin] Construction instantanée de ${buildingId} (ressources infinies, pas d'attente)`);
       } else {
         const success = spendActionPoints(actionCost);
         if (success) {
@@ -177,7 +177,7 @@ export function ConstructionPanel() {
         <h4 className="font-bold text-base mb-3">Projets de Construction</h4>
         {isAdmin && (
           <div className="bg-purple-100 border border-purple-400 rounded p-2 mb-3">
-            <div className="text-purple-800 text-sm font-semibold">🎯 Mode Maître de Jeu</div>
+            <div className="text-purple-800 text-sm font-semibold">🎯 Mode Admin</div>
             <div className="text-purple-700 text-xs">
               Accès illimité : toutes constructions disponibles, ressources infinies, construction instantanée
             </div>
@@ -281,7 +281,7 @@ export function ConstructionPanel() {
                           {formatResourceCost(building.cost)}
                         </div>
                         <div className="text-xs text-blue-600">
-                          ⚡ {isAdmin ? '∞ PA (Mode MJ)' : `${building.actionPointCost} PA`} | 🕐 {building.constructionTime} tours
+                          ⚡ {isAdmin ? '∞ PA' : `${building.actionPointCost} PA`} | 🕐 {building.constructionTime} tours
                         </div>
                         <div className="text-xs text-green-600">
                           📍 {building.requiredTerrain.map(terrain => getTerrainName(terrain)).join(' ou ')}

@@ -199,7 +199,7 @@ export function TreatiesPanel() {
         if (!isAdmin) {
           spendActionPoints(treatyCost);
         } else {
-          console.log(`[MODE MJ] Traité créé sans coût en PA`);
+          console.log(`[Admin] Traité créé sans coût en PA`);
         }
         setActiveTab('overview');
         setTreatyTitle('');
@@ -264,11 +264,11 @@ export function TreatiesPanel() {
       <div className="text-center">
         <h4 className="font-bold text-base mb-3">Traités & Accords</h4>
         <div className="text-xs text-gray-600">
-          Points d'Action: {isAdmin ? '∞ (Mode MJ)' : `${actionPoints} ⚡`}
+          Points d'Action: {isAdmin ? '∞' : `${actionPoints} ⚡`}
         </div>
         {isAdmin && (
           <div className="text-xs text-green-600 font-medium">
-            🎯 Mode Maître de Jeu: Création de traités sans coût
+            🎯 Mode Admin : Création de traités sans coût
           </div>
         )}
       </div>

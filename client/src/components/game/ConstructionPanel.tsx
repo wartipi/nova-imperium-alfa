@@ -676,7 +676,7 @@ export function ConstructionPanel() {
       // En mode MJ, construction instantanée sans coûts
       if (isAdmin) {
         buildInCity(cityId, buildingId, {}, building.constructionTime, true);
-        console.log(`[MODE MJ] Construction instantanée de ${buildingId} (ressources infinies, pas d'attente)`);
+        console.log(`[Admin] Construction instantanée de ${buildingId} (ressources infinies, pas d'attente)`);
       } else {
         const success = spendActionPoints(actionCost);
         if (success) {
@@ -710,7 +710,7 @@ export function ConstructionPanel() {
         <h4 className="font-bold text-base mb-3">Projets de Construction</h4>
         {isAdmin && (
           <div className="bg-purple-100 border border-purple-400 rounded p-2 mb-3">
-            <div className="text-purple-800 text-sm font-semibold">🎯 Mode Maître de Jeu</div>
+            <div className="text-purple-800 text-sm font-semibold">🎯 Mode Admin</div>
             <div className="text-purple-700 text-xs">
               Accès illimité : toutes constructions disponibles, ressources infinies, construction instantanée
             </div>
@@ -834,7 +834,7 @@ export function ConstructionPanel() {
                             {formatResourceCost(building.cost)}
                           </div>
                           <div className="text-xs text-blue-600">
-                            ⚡ {isAdmin ? '∞ PA (Mode MJ)' : `${building.actionPointCost} PA`} | 🕐 {isAdmin ? 'Instantané' : `${building.constructionTime} tour${building.constructionTime > 1 ? 's' : ''}`}
+                            ⚡ {isAdmin ? '∞ PA' : `${building.actionPointCost} PA`} | 🕐 {isAdmin ? 'Instantané' : `${building.constructionTime} tour${building.constructionTime > 1 ? 's' : ''}`}
                           </div>
                           <div className="text-xs text-green-600">
                             📍 {building.requiredTerrain.map(terrain => getTerrainName(terrain)).join(' ou ')}
@@ -880,7 +880,7 @@ export function ConstructionPanel() {
         </div>
       ) : currentNovaImperium.cities.map(city => (
         <div key={city.id} className="bg-amber-50 border border-amber-700 rounded p-3">
-          <div className="font-medium text-sm mb-2">{city.name} (Mode MJ)</div>
+          <div className="font-medium text-sm mb-2">{city.name}</div>
           <div className="space-y-3">
             {['Basique', 'Production', 'Commerce', 'Défense', 'Spirituel', 'Magie', 'Éducation', 'Navigation', 'Stockage', 'Prestige'].map(category => {
               const categoryBuildings = buildings.filter(b => b.category === category);
@@ -905,7 +905,7 @@ export function ConstructionPanel() {
                             {formatResourceCost(building.cost)}
                           </div>
                           <div className="text-xs text-blue-600">
-                            ⚡ ∞ PA (Mode MJ) | 🕐 Instantané
+                            ⚡ ∞ PA | 🕐 Instantané
                           </div>
                           <div className="text-xs text-green-600">
                             📍 {building.requiredTerrain.map(terrain => getTerrainName(terrain)).join(' ou ')}

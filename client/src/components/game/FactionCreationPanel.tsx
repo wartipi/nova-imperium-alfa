@@ -67,7 +67,7 @@ export function FactionCreationPanel() {
       const success = isAdmin || spendActionPoints(creationCost);
       if (success) {
         if (isAdmin) {
-          console.log(`[MODE MJ] Faction créée sans coût en PA`);
+          console.log(`[Admin] Faction créée sans coût en PA`);
         }
         await createFaction({
           ...factionData,
@@ -122,7 +122,7 @@ export function FactionCreationPanel() {
       <div className="text-center">
         <h4 className="font-bold text-base mb-3">Création de Faction</h4>
         <div className="text-xs text-gray-600">
-          Coût de création: {isAdmin ? '∞ (Mode MJ)' : `${creationCost} ⚡`} Points d'Action
+          Coût de création: {isAdmin ? '∞' : `${creationCost} ⚡`} Points d'Action
         </div>
       </div>
 
@@ -131,7 +131,7 @@ export function FactionCreationPanel() {
         <div className="text-sm font-medium mb-2">Prérequis</div>
         {isAdmin ? (
           <div className="text-xs text-green-600 bg-green-50 border border-green-200 rounded p-2">
-            🎯 Mode Maître de Jeu: Tous les prérequis sont automatiquement satisfaits
+            🎯 Mode Admin : Tous les prérequis sont automatiquement satisfaits
           </div>
         ) : (
           <div className="space-y-1">

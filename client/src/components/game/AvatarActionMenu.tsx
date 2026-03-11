@@ -27,7 +27,7 @@ const getGameData = () => {
 export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarActionMenuProps) {
   const { actionPoints, spendActionPoints, addActionPoints, hasCompetenceLevel, competences, gainExperience, exploreCurrentLocation, discoverResourcesInVision, playerName } = usePlayer();
   const { reputation } = useReputation();
-  const { role } = useAuth();
+  const { role, currentUser } = useAuth();
   const isAdmin = role === 'admin';
   const { playerFaction } = useFactions();
   const { setSelectedHex } = useMap();
@@ -148,20 +148,20 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       
       // En mode MJ, la fondation réussit toujours
       if (isAdmin) {
-        const colonyName = prompt("Nom de la colonie (Mode MJ):") || "Colonie MJ";
+        const colonyName = prompt("Nom de la colonie :") || "Colonie";
         const success = foundColony(
           avatarPosition.x,
           avatarPosition.y,
           colonyName,
-          'gm_player',
-          'Maître de Jeu',
-          'gm_faction',
-          'Administration MJ'
+          currentUser || 'player',
+          playerName,
+          playerFaction?.id || 'admin',
+          playerFaction?.name || 'Administration'
         );
         
         if (success) {
-          console.log(`[MODE MJ] Colonie "${colonyName}" fondée sans coût en PA en (${avatarPosition.x},${avatarPosition.y})`);
-          alert(`[MODE MJ] Colonie "${colonyName}" fondée avec succès !`);
+          console.log(`[Admin] Colonie "${colonyName}" fondée sans coût en PA en (${avatarPosition.x},${avatarPosition.y})`);
+          alert(`[Admin] Colonie "${colonyName}" fondée avec succès !`);
           
           // Rafraîchir l'affichage
           setSelectedHex(null);
@@ -259,9 +259,9 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
         const visionSize = currentVision.size;
         
         // Forcer l'exploration avec ressources infinies en mode MJ
-        console.log(`[MODE MJ] Exploration forcée sans coût en PA`);
+        console.log(`[Admin] Exploration forcée sans coût en PA`);
         discoverResourcesInVision();
-        alert(`[MODE MJ] Zone explorée avec succès ! Les ressources dans votre champ de vision (${visionSize} hexagones) ont été révélées.`);
+        alert(`[Admin] Zone explorée avec succès ! Les ressources dans votre champ de vision (${visionSize} hexagones) ont été révélées.`);
         onClose();
         return;
       }
@@ -286,7 +286,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       // En mode MJ, on ne dépense pas de PA
       if (isAdmin || spendActionPoints(action.cost)) {
         if (isAdmin) {
-          console.log(`[MODE MJ] Action cartographie effectuée sans coût en PA`);
+          console.log(`[Admin] Action cartographie effectuée sans coût en PA`);
         }
         try {
           // Récupérer le champ de vision actuel du joueur (qui s'adapte au niveau d'exploration)
@@ -432,7 +432,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     // En mode MJ, on n'utilise pas de PA pour les autres actions
     if (isAdmin || spendActionPoints(action.cost)) {
       if (isAdmin) {
-        console.log(`[MODE MJ] Action ${action.name} exécutée sans coût en PA`);
+        console.log(`[Admin] Action ${action.name} exécutée sans coût en PA`);
       } else {
         console.log(`Action exécutée: ${action.name}`);
       }
@@ -494,11 +494,11 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
           </div>
           
           <div className="text-sm text-amber-700 mb-4">
-            Points d'Action: {isAdmin ? '∞ (Mode MJ)' : actionPoints}
+            Points d'Action: {isAdmin ? '∞' : actionPoints}
           </div>
           {isAdmin && (
             <div className="text-xs text-green-600 font-medium mb-4">
-              🎯 Mode Maître de Jeu: Toutes les actions sont accessibles gratuitement
+              🎯 Mode Admin : Toutes les actions sont accessibles
             </div>
           )}
           

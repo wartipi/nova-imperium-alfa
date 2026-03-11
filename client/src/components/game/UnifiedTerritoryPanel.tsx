@@ -80,14 +80,14 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
         avatarPos.y,
         'player',
         playerName,
-        playerFaction?.id || 'gm_faction',
-        playerFaction?.name || 'Administration MJ'
+        playerFaction?.id || 'admin',
+        playerFaction?.name || 'Administration'
       );
 
       if (success) {
         if (isAdmin) {
           showAlert({
-            title: "Territoire Revendiqué (Mode MJ)",
+            title: "Territoire Revendiqué",
             message: `Territoire revendiqué en (${avatarPos.x}, ${avatarPos.y})`,
             type: "success"
           });
@@ -150,9 +150,7 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
 
   // Fonction pour fonder une colonie directement depuis la liste des territoires
   const handleFoundColonyFromTerritory = (territory: Territory) => {
-    const { isAdmin } = useGameState.getState();
-    
-    // Validation des règles (sauf pour MJ)
+    // Validation des règles (sauf pour admin)
     if (!isAdmin) {
       const validation = UnifiedTerritorySystem.canFoundColony(territory.x, territory.y, territory.playerId);
       if (!validation.canFound) {
@@ -174,7 +172,6 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
   const handleFoundColony = () => {
     if (!selectedTerritory || !colonyName.trim()) return;
 
-    const { isAdmin } = useGameState.getState();
     const colonyId = `colony_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
     // 1. Créer la colonie dans UnifiedTerritorySystem avec ID technique mais nom utilisateur
@@ -199,7 +196,7 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
         selectedTerritory.playerId,
         selectedTerritory.playerName,
         selectedTerritory.factionId,
-        selectedTerritory.factionName || 'Administration MJ'
+        selectedTerritory.factionName || 'Administration'
       );
 
       if (colonySuccess) {
@@ -241,7 +238,7 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
       {/* En-tête */}
       <div className="mb-6">
         <h3 className="medieval-subtitle mb-4">
-          {isAdmin ? 'Gestion de Territoire (Mode MJ)' : 'Mes Territoires'}
+          {isAdmin ? 'Gestion de Territoire (Admin)' : 'Mes Territoires'}
         </h3>
       </div>
 
