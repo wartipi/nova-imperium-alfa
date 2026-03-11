@@ -103,7 +103,18 @@ router.post("/actions/move", requireAuth, async (req: AuthRequest, res) => {
     }
 
     // Création de l'action persistante
-    const actorContext: ActorContext = { role: req.user!.role };
+    const role = req.user!.role;
+    const rawHeader = req.headers['x-admin-mode'];
+    const headerValue = Array.isArray(rawHeader) ? rawHeader[0] : rawHeader;
+    let adminModeEnabled: boolean;
+    if (role !== 'admin') {
+      adminModeEnabled = false;
+    } else if (headerValue === undefined) {
+      adminModeEnabled = true;
+    } else {
+      adminModeEnabled = headerValue === 'true';
+    }
+    const actorContext: ActorContext = { role, adminModeEnabled };
     const action = await createMoveAction(
       playerId,
       startX, startY,

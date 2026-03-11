@@ -49,12 +49,14 @@ function authHeaders(): HeadersInit {
 
 export async function requestMove(
   destinationWorldX: number,
-  destinationWorldY: number
+  destinationWorldY: number,
+  adminModeEnabled: boolean = false
 ): Promise<MoveActionResponse> {
   const res = await fetch("/api/player/actions/move", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "X-Admin-Mode": String(adminModeEnabled),
       ...authHeaders(),
     },
     body: JSON.stringify({ destinationWorldX, destinationWorldY }),

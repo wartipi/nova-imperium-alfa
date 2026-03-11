@@ -10,7 +10,7 @@ const MS_PER_HOUR = 3600 * 1000;
 
 // ─── Helpers de comportement admin ────────────────────────────────────────────
 function shouldIgnoreActionTimers(context: ActorContext): boolean {
-  return context.role === 'admin';
+  return context.role === 'admin' && context.adminModeEnabled === true;
 }
 
 // Non branché : les PA ne sont pas déduits côté serveur pour les actions de déplacement.
@@ -83,7 +83,7 @@ export async function createMoveAction(
     })
     .returning();
 
-  const gmTag = shouldIgnoreActionTimers(context) ? ' [MODE MJ — durée=0]' : '';
+  const gmTag = shouldIgnoreActionTimers(context) ? ' [Admin — durée=0]' : '';
   console.log(
     `[PlayerAction] Créée id=${action.id} player=${playerId}` +
     ` (${startWorldX},${startWorldY}) → (${endWorldX},${endWorldY})` +

@@ -28,7 +28,7 @@ export function GameCanvas() {
   const { gameEngineRef } = useGameEngine();
   const { mapData, selectedHex, setSelectedHex } = useMap();
   const { gamePhase } = useGameState();
-  const { isAdmin } = useAuth();
+  const { isAdmin, adminModeEnabled } = useAuth();
   const { novaImperiums, selectedUnit, moveUnit } = useNovaImperium();
   const { avatarPosition, avatarRotation, isMoving, selectedCharacter, moveAvatarToHex, isHexVisible, isHexInCurrentVision, pendingMovement, setPendingMovement } = usePlayer();
   
@@ -203,7 +203,7 @@ export function GameCanvas() {
     setPendingMovement(null);
 
     try {
-      const response = await requestMove(destinationWorldX, destinationWorldY);
+      const response = await requestMove(destinationWorldX, destinationWorldY, adminModeEnabled);
       if (response.action.msRemaining === 0) {
         // Action déjà expirée à la création (cas MJ ou durée=0) : récupérer l'état réel
         const { action: confirmed } = await fetchCurrentAction();
