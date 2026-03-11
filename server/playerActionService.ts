@@ -3,9 +3,15 @@ import { db } from "./db";
 import { playerActions, playerPositions } from "../shared/schema";
 import type { PlayerAction, PathStep } from "../shared/schema";
 import { savePlayerPosition } from "./playerPositionService";
+import type { ActorContext } from "./types/actorContext";
 
 const HOURS_PER_AP = 6;
 const MS_PER_HOUR = 3600 * 1000;
+
+// ─── Helpers de comportement MJ ───────────────────────────────────────────────
+function shouldIgnoreActionTimers(context: ActorContext): boolean {
+  return context.role === 'gm';
+}
 
 // ─── Lecture de l'action active (in_progress) ────────────────────────────────
 export async function getActiveAction(playerId: string): Promise<PlayerAction | null> {
@@ -38,7 +44,8 @@ export async function createMoveAction(
   endWorldX: number,
   endWorldY: number,
   path: PathStep[],
-  totalCost: number
+  totalCost: number,
+  context: ActorContext = { role: 'player' }
 ): Promise<PlayerAction> {
   // Refus si une action est déjà en cours
   const existing = await getActiveAction(playerId);
@@ -47,7 +54,9 @@ export async function createMoveAction(
   }
 
   const now = new Date();
-  const durationMs = totalCost * HOURS_PER_AP * MS_PER_HOUR;
+  const durationMs = shouldIgnoreActionTimers(context)
+    ? 0
+    : totalCost * HOURS_PER_AP * MS_PER_HOUR;
   const expectedEndTime = new Date(now.getTime() + durationMs);
 
   const [action] = await db
@@ -68,11 +77,12 @@ export async function createMoveAction(
     })
     .returning();
 
+  const gmTag = shouldIgnoreActionTimers(context) ? ' [MODE MJ — durée=0]' : '';
   console.log(
     `[PlayerAction] Créée id=${action.id} player=${playerId}` +
     ` (${startWorldX},${startWorldY}) → (${endWorldX},${endWorldY})` +
-    ` coût=${totalCost} AP durée=${totalCost * HOURS_PER_AP}h` +
-    ` fin=${expectedEndTime.toISOString()}`
+    ` coût=${totalCost} AP durée=${durationMs / MS_PER_HOUR}h` +
+    ` fin=${expectedEndTime.toISOString()}${gmTag}`
   );
 
   return action;

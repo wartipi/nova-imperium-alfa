@@ -5,6 +5,7 @@ export interface AuthRequest extends Request {
   user?: {
     id: string;
     username: string;
+    role: string;
   };
 }
 
@@ -38,7 +39,8 @@ export function requireAuth(req: AuthRequest, res: Response, next: NextFunction)
 
     req.user = {
       id: user.id,
-      username: username.toLowerCase()
+      username: username.toLowerCase(),
+      role: user.role
     };
 
     next();

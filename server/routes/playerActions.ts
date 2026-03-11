@@ -7,6 +7,7 @@ import { mapTiles } from "../../shared/schema";
 import { getPlayerPosition } from "../playerPositionService";
 import { createMoveAction, getActiveAction, cancelActiveAction, msRemaining } from "../playerActionService";
 import { findPath } from "../pathfinding/HexPathfindingServer";
+import type { ActorContext } from "../types/actorContext";
 
 const router = Router();
 
@@ -102,12 +103,14 @@ router.post("/actions/move", requireAuth, async (req: AuthRequest, res) => {
     }
 
     // Création de l'action persistante
+    const actorContext: ActorContext = { role: req.user!.role };
     const action = await createMoveAction(
       playerId,
       startX, startY,
       destX, destY,
       result.path,
-      result.totalCost
+      result.totalCost,
+      actorContext
     );
 
     return res.status(201).json({
