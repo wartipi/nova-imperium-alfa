@@ -14,8 +14,7 @@ interface CityManagementPanelProps {
 
 export function CityManagementPanel({ cityId, onClose }: CityManagementPanelProps) {
   const { currentNovaImperium } = useNovaImperium();
-  const { role } = useAuth();
-  const isAdmin = role === 'admin';
+  const { isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'construction' | 'recruitment'>('overview');
   const [showRenameModal, setShowRenameModal] = useState(false);
   const { AlertComponent } = useCustomAlert();
@@ -155,7 +154,7 @@ export function CityManagementPanel({ cityId, onClose }: CityManagementPanelProp
 
               {isAdmin && (
                 <div className="bg-purple-100 border border-purple-400 rounded p-4">
-                  <h3 className="font-bold mb-2 text-purple-800">🎯 Mode Maître de Jeu Actif</h3>
+                  <h3 className="font-bold mb-2 text-purple-800">🎯 Mode Administrateur Actif</h3>
                   <div className="text-purple-700 text-sm space-y-1">
                     <div>• Construction et recrutement instantanés</div>
                     <div>• Coûts et restrictions ignorés</div>

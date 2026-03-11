@@ -17,8 +17,7 @@ export function FactionPanel({ onClose }: FactionPanelProps) {
   const { playerName } = usePlayer();
   const { honor, getReputationLevel, canCreateFaction: canCreateFactionRep } = useReputation();
   const { currentNovaImperium } = useNovaImperium();
-  const { role } = useAuth();
-  const isAdmin = role === 'admin';
+  const { isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'factions' | 'create' | 'alliances' | 'quests'>('overview');
   
   const currentFaction = playerFaction ? getFactionById(playerFaction) : null;

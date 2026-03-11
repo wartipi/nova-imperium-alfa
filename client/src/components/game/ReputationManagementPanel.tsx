@@ -10,8 +10,7 @@ interface ReputationManagementPanelProps {
 
 export function ReputationManagementPanel({ onClose }: ReputationManagementPanelProps) {
   const { honor, reputation, getReputationLevel, addHonor, removeHonor, setHonor, gnParticipation, seasonPass, addGnParticipation, setSeasonPass } = useReputation();
-  const { role } = useAuth();
-  const isAdmin = role === 'admin';
+  const { isAdmin } = useAuth();
   
   const [customAmount, setCustomAmount] = useState<string>('');
   const [setAmount, setSetAmount] = useState<string>('');

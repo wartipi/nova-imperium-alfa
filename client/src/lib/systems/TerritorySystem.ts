@@ -51,7 +51,6 @@ export class TerritorySystem {
   static canClaimTerritory(playerId: string, playerInfluenceLevel: number, playerFactionId: string | null, isAdmin: boolean = false): boolean {
     // En mode MJ, pas de prérequis
     if (isAdmin) {
-      console.log('✅ [MODE MJ] Revendication autorisée (aucun prérequis)');
       return true;
     }
 
@@ -186,7 +185,6 @@ export class TerritorySystem {
   static canAccessConstructionMenu(playerId: string, isAdmin: boolean = false): boolean {
     // En mode MJ, accès direct
     if (isAdmin) {
-      console.log('✅ [MODE MJ] Accès construction autorisé');
       return true;
     }
 
