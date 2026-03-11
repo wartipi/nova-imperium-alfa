@@ -1,0 +1,230 @@
+Nouveau bloc de travail : Phase 3 — persistance serveur des territoires et colonies.
+
+Contexte
+
+Nova Imperium possède maintenant plusieurs fondations serveur solides :
+
+- carte persistée en PostgreSQL
+- positions joueurs persistées
+- déplacements persistés côté serveur
+- état joueur persisté
+- factions persistées côté serveur
+- appartenance des joueurs aux factions persistée côté serveur
+
+Mais les territoires et les colonies restent encore un système trop local.
+
+Constat actuel
+
+Le système politique géographique repose encore largement sur le client.
+
+Cela signifie que :
+- les territoires revendiqués ne sont pas encore une vérité serveur partagée
+- les colonies fondées ne sont pas encore une vérité serveur partagée
+- deux joueurs peuvent encore avoir des visions différentes de la carte politique
+- la base nécessaire au vrai multijoueur stratégique n’est pas encore en place
+
+Objectif de la phase
+
+Transformer les territoires revendiqués et les colonies en système serveur persistant partagé.
+
+À la fin de cette phase, on veut pouvoir dire :
+
+- les territoires revendiqués sont stockés en base
+- les colonies sont stockées en base
+- les routes de lecture et de mutation passent par le serveur
+- la faction du joueur est utilisée comme base politique réelle
+- le client ne garde plus une vérité parallèle locale sur l’état politique de la carte
+
+Important :
+cette phase est d’abord un audit et une proposition d’architecture.
+Tu ne modifies rien avant validation.
+
+Règles de travail
+
+Avant toute modification :
+
+1. auditer le système actuel de territoires / colonies côté client
+2. identifier précisément ce qui existe déjà côté serveur ou non
+3. proposer un schéma minimal mais propre de persistance serveur
+4. proposer les routes API minimales nécessaires
+5. proposer comment migrer TerritorySystem.ts et les composants qui l’utilisent
+6. attendre validation
+
+Tu ne modifies rien avant validation.
+
+Contraintes
+
+- ne pas toucher encore à la présence des autres joueurs
+- ne pas ouvrir un chantier WebSocket / temps réel
+- ne pas refondre la diplomatie
+- ne pas refondre complètement les bâtiments
+- rester sur le cœur du système :
+  - revendication de territoire
+  - fondation de colonie
+  - lecture de l’état partagé
+- privilégier une architecture simple, lisible, compatible avec la suite
+- citer les fichiers, stores, services, routes et tables exacts
+- ne pas supposer l’existence d’une persistance serveur si elle n’existe pas réellement
+
+Exigence de rigueur
+
+- pas de formulation vague
+- pas de supposition sans preuve
+- distinguer clairement :
+  - état actuel
+  - cible minimale
+  - points de migration client
+  - limites restant hors périmètre
+
+---
+
+Étape 1 — Audit du système actuel de territoires et colonies
+
+Je veux un audit précis du système actuel.
+
+Identifier :
+
+- où vivent aujourd’hui les territoires revendiqués
+- où vivent aujourd’hui les colonies
+- où la revendication de territoire est gérée
+- où la fondation de colonie est gérée
+- quels composants lisent ces données
+- si une route serveur existe déjà
+- si une table DB existe déjà
+- si l’état est purement local en mémoire
+
+Répondre sous cette forme :
+
+Fichiers client concernés :
+Source de vérité actuelle :
+Revendication de territoire gérée dans :
+Fondation de colonie gérée dans :
+Composants consommateurs :
+Routes serveur existantes :
+Tables DB existantes :
+Conclusion sur l’état actuel :
+
+Puis t’arrêter.
+
+---
+
+Étape 2 — Proposition de modèle de données serveur
+
+Je veux une proposition minimale mais propre du modèle serveur.
+
+Je veux au minimum une proposition pour :
+
+- table territories
+- table colonies
+
+Pour chaque table, préciser :
+- colonnes
+- type logique
+- rôle de chaque champ
+- relations principales
+
+Important :
+la table territories doit être compatible avec le fait qu’un territoire est lié à une faction.
+La table colonies doit être compatible avec le fait qu’une colonie est liée à une faction et à une position sur la carte.
+
+Répondre sous cette forme :
+
+Table 1 : territories
+- colonnes :
+- rôle :
+- contraintes importantes :
+
+Table 2 : colonies
+- colonnes :
+- rôle :
+- contraintes importantes :
+
+Pourquoi ce modèle est suffisant pour la phase 3 :
+
+Puis t’arrêter.
+
+---
+
+Étape 3 — Proposition de routes API minimales
+
+Je veux les routes minimales nécessaires pour rendre le système utilisable côté client.
+
+Je veux une proposition claire pour :
+- lecture des territoires
+- lecture des colonies
+- revendication d’un territoire
+- fondation d’une colonie
+
+Pour chaque route :
+- méthode
+- chemin
+- auth requise ou non
+- payload minimal
+- réponse attendue
+
+Je veux aussi que tu précises :
+- quelles règles métier minimales doivent être vérifiées côté serveur
+- lesquelles doivent être explicitement laissées pour plus tard
+
+Répondre sous cette forme :
+
+Route 1 :
+- méthode :
+- chemin :
+- auth :
+- payload :
+- réponse :
+- règles métier minimales :
+- hors périmètre pour cette phase :
+
+Puis continuer pour les autres routes, puis t’arrêter.
+
+---
+
+Étape 4 — Migration client proposée
+
+Je veux savoir comment migrer proprement le système actuel vers une source serveur.
+
+Identifier :
+- ce que TerritorySystem.ts fait aujourd’hui
+- ce qu’il devra faire après migration
+- quels composants devront lire les données serveur
+- si TerritorySystem doit devenir une simple façade API ou être supprimé
+- si un chargement initial suffit ou s’il faut autre chose
+
+Je veux une réponse explicite sur ce point :
+- pour cette phase, est-ce qu’un simple fetch au chargement + refetch après mutation est suffisant, ou faut-il déjà prévoir autre chose ?
+
+Répondre sous cette forme :
+
+Rôle actuel de TerritorySystem.ts :
+Rôle futur proposé :
+Composants clients impactés :
+Stratégie de chargement recommandée :
+Pourquoi cette stratégie suffit pour la phase 3 :
+
+Puis t’arrêter.
+
+---
+
+Étape 5 — Risques et limites hors périmètre
+
+Je veux une liste claire de ce que cette phase ne réglera pas encore.
+
+Répondre sous cette forme :
+
+Ce que la phase 3 réglera :
+- ...
+
+Ce que la phase 3 ne réglera pas encore :
+- ...
+
+Risques si on veut aller trop loin dans cette phase :
+- ...
+
+Plus petit chemin cohérent :
+- ...
+
+Puis t’arrêter.
+
+Ne rien implémenter avant validation.
