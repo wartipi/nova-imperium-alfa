@@ -1,0 +1,239 @@
+Nouveau bloc de travail : Phase 2 — persistance serveur des factions.
+
+Contexte
+
+Nova Imperium a déjà une base technique suffisamment propre pour attaquer le premier vrai système métier partagé du jeu.
+
+Les éléments suivants existent déjà :
+
+- authentification serveur réelle
+- rôles serveur (admin / player)
+- carte persistée en PostgreSQL
+- positions joueurs persistées
+- actions de déplacement persistées côté serveur
+- état joueur persisté
+- mode admin ON/OFF propre
+- migration de l’ancien mode MJ client déjà terminée
+
+Mais les factions restent encore un système trop local.
+
+Constat actuel
+
+Le système de factions vit encore essentiellement côté client.
+
+Cela signifie que :
+- la création de faction n’est pas encore un vrai fait partagé du monde serveur
+- l’appartenance à une faction n’est pas encore une vérité serveur persistée
+- les autres systèmes futurs (territoires, traités, diplomatie) n’ont pas encore une base politique partagée fiable
+
+Objectif de la phase
+
+Transformer les factions en système serveur persistant partagé.
+
+À la fin de cette phase, on veut pouvoir dire :
+
+- les factions sont stockées en PostgreSQL
+- l’appartenance d’un joueur à une faction est stockée côté serveur
+- la création de faction passe par une route authentifiée
+- la lecture des factions passe par des routes serveur
+- le client ne garde plus une source de vérité parallèle locale
+
+Important :
+cette phase est d’abord un audit et une proposition d’architecture.
+Tu ne modifies rien avant validation.
+
+Règles de travail
+
+Avant toute modification :
+
+1. auditer le système actuel de factions côté client
+2. identifier précisément ce qui existe déjà côté serveur ou non
+3. proposer un schéma minimal mais propre de persistance serveur
+4. proposer les routes API minimales nécessaires
+5. proposer comment migrer useFactions.tsx vers une source serveur
+6. attendre validation
+
+Tu ne modifies rien avant validation.
+
+Contraintes
+
+- ne pas toucher encore aux territoires / colonies dans cette phase
+- ne pas toucher encore à la présence multijoueur
+- ne pas faire de refonte totale de toute la diplomatie
+- rester sur le cœur du système factions
+- privilégier une architecture simple, lisible, compatible avec la suite
+- citer les fichiers, stores, routes, tables exacts
+- ne pas supposer l’existence d’une persistance serveur si elle n’existe pas réellement
+
+Exigence de rigueur
+
+- pas de formulation vague
+- pas de supposition sans preuve
+- distinguer clairement :
+  - état actuel
+  - cible minimale
+  - points de migration client
+  - limites restant hors périmètre
+
+---
+
+Étape 1 — Audit du système actuel de factions
+
+Je veux un audit précis du système actuel.
+
+Identifier :
+
+- où vivent les factions aujourd’hui
+- où la création de faction est gérée
+- où l’adhésion / sortie / gestion est gérée
+- si une route serveur existe déjà
+- si une table DB existe déjà
+- si l’état est purement local en mémoire
+
+Répondre sous cette forme :
+
+Fichiers client concernés :
+Store / source de vérité actuelle :
+Création de faction gérée dans :
+Adhésion / sortie gérées dans :
+Routes serveur existantes :
+Tables DB existantes :
+Conclusion sur l’état actuel :
+
+Puis t’arrêter.
+
+---
+
+Étape 2 — Proposition de modèle de données serveur
+
+Je veux une proposition minimale mais propre du modèle serveur pour les factions.
+
+Je veux au minimum une proposition pour :
+
+- table factions
+- table faction_members
+
+Pour chaque table, préciser :
+- colonnes
+- type logique
+- rôle de chaque champ
+- relations principales
+
+Répondre sous cette forme :
+
+Table 1 : factions
+- colonnes :
+- rôle :
+- contraintes importantes :
+
+Table 2 : faction_members
+- colonnes :
+- rôle :
+- contraintes importantes :
+
+Pourquoi ce modèle est suffisant pour la phase 2 :
+
+Puis t’arrêter.
+
+---
+
+Étape 3 — Proposition de routes API minimales
+
+Je veux les routes minimales nécessaires pour rendre le système utilisable côté client.
+
+Je veux une proposition claire pour :
+- lecture des factions
+- création d’une faction
+- rejoindre une faction
+- quitter une faction
+- éventuellement lecture de la faction du joueur si nécessaire
+
+Pour chaque route :
+- méthode
+- chemin
+- auth requise ou non
+- payload minimal
+- réponse attendue
+
+Répondre sous cette forme :
+
+Route 1 :
+- méthode :
+- chemin :
+- auth :
+- payload :
+- réponse :
+
+Puis continuer pour les autres routes, puis t’arrêter.
+
+---
+
+Étape 4 — Migration client proposée
+
+Je veux savoir comment migrer proprement le système actuel vers une source serveur.
+
+Identifier :
+- ce que useFactions.tsx fait aujourd’hui
+- ce qu’il devra faire après migration
+- quels composants dépendront de la nouvelle source serveur
+- si un chargement initial suffira ou s’il faut un rafraîchissement plus fréquent
+
+Je veux une réponse explicite sur ce point :
+- pour cette phase, est-ce qu’un simple fetch au chargement + refresh après mutation est suffisant, ou faut-il déjà prévoir autre chose ?
+
+Répondre sous cette forme :
+
+Rôle actuel de useFactions.tsx :
+Rôle futur de useFactions.tsx :
+Composants clients impactés :
+Stratégie de chargement recommandée :
+Pourquoi cette stratégie suffit pour la phase 2 :
+
+Puis t’arrêter.
+
+---
+
+Étape 5 — Risques et limites hors périmètre
+
+Je veux une liste claire de ce que cette phase ne réglera pas encore.
+
+Répondre sous cette forme :
+
+Ce que la phase 2 réglera :
+- ...
+
+Ce que la phase 2 ne réglera pas encore :
+- ...
+
+Risques si on veut aller trop loin dans cette phase :
+- ...
+
+Plus petit chemin cohérent :
+- ...
+
+Puis t’arrêter.
+
+Ne rien implémenter avant validation.
+Ma recommandation pour l’ordre après ça
+
+Je te le redis clairement pour éviter de perdre du temps ensuite :
+
+après la Phase 2, ne saute pas à la Phase 5
+
+Fais plutôt :
+
+Phase 3 — territoires / colonies serveur
+
+puis seulement :
+
+Phase 5 — présence des autres joueurs
+
+Pourquoi :
+
+factions + territoires = monde politique partagé
+
+présence des joueurs après = monde visible partagé
+
+Sinon tu vas afficher des joueurs dans un monde encore politiquement local, ce qui est un peu comme installer des fenêtres avant les murs.
+
+Quand il te répond avec l’audit de la Phase 2, colle-moi ça et on le verrouille proprement avant de le laisser toucher à la DB ou aux routes.
