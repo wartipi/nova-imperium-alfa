@@ -1,0 +1,198 @@
+Suite de l’audit précédent : préparation de l’implémentation de la migration du vieux mode MJ client.
+
+Le diagnostic est validé.
+
+Le vieux mode MJ est actuellement :
+
+- un toggle Zustand local (isGameMaster)
+- non connecté au rôle serveur
+- accessible via des conditions hardcodées sur les usernames
+- utilisé dans plusieurs composants pour bypass gameplay et affichage
+
+La direction validée est :
+
+- supprimer ce toggle comme source de vérité
+- utiliser le rôle serveur authentifié (role === 'admin')
+- migrer progressivement les comportements MJ vers des privilèges admin cohérents
+
+Important : correction architecturale supplémentaire
+
+Lors de l’audit précédent, une proposition suggérait de lire directement le rôle via useAuth() dans GameEngine.ts.
+
+Ce n’est pas acceptable.
+
+GameEngine.ts est un moteur non-React et ne doit pas dépendre de hooks React.
+
+La bonne architecture est :
+
+React lit le rôle utilisateur → React injecte l’information admin dans le moteur → le moteur utilise cette information.
+
+Donc :
+
+GameEngine ne doit pas appeler useAuth().
+GameEngine doit recevoir un flag injecté (par exemple isAdmin).
+
+Exemple conceptuel attendu :
+
+Dans un composant React :
+
+const { role } = useAuth();
+gameEngine.setAdminMode(role === 'admin');
+
+Et dans GameEngine :
+
+this.isAdminMode = false;
+
+setAdminMode(value) {
+  this.isAdminMode = value;
+}
+
+Puis utiliser :
+
+if (this.isAdminMode) { ... }
+
+au lieu de isGameMaster.
+
+Objectif de cette étape
+
+Proposer un plan d’implémentation révisé pour migrer le vieux mode MJ vers un système admin propre.
+
+Tu ne modifies rien encore.
+
+Règles :
+
+- ne pas utiliser les usernames comme source de vérité
+- utiliser uniquement le rôle serveur
+- ne pas injecter de hook React dans GameEngine
+- respecter l’architecture React → moteur
+- rester sur une migration progressive et minimale
+
+---
+
+Étape 1 — Suppression du toggle MJ comme source de vérité
+
+Identifier précisément :
+
+- où supprimer isGameMaster
+- où supprimer toggleGameMaster()
+- quels composants doivent être modifiés
+
+Le remplacement doit utiliser :
+
+role === 'admin'
+
+ou une valeur dérivée du rôle dans les composants React.
+
+Répondre sous cette forme :
+
+Fichier contenant le toggle :
+Composants affectés :
+Remplacement proposé :
+Impact attendu :
+
+Puis t’arrêter.
+
+---
+
+Étape 2 — Migration de GameEngine vers injection admin
+
+Identifier toutes les occurrences de isGameMaster dans GameEngine.ts.
+
+Proposer une migration vers un modèle injecté :
+
+GameEngine ne lit plus un store
+GameEngine reçoit un flag admin depuis React
+
+Exemple attendu :
+
+setAdminMode()
+
+Je veux :
+
+Occurrences actuelles :
+Solution proposée :
+Où injecter admin dans le moteur :
+Composants React concernés :
+
+Puis t’arrêter.
+
+---
+
+Étape 3 — Suppression des hacks XP et compétences
+
+Identifier précisément :
+
+- bouton "+100 XP (Test)"
+- bouton "toutes compétences max"
+
+Ils doivent être supprimés.
+
+À la place :
+
+proposer un bypass admin plus propre dans CompetenceTree.tsx.
+
+Répondre sous cette forme :
+
+Boutons à supprimer :
+Fichiers concernés :
+Remplacement admin proposé :
+Limite restante côté serveur :
+
+Puis t’arrêter.
+
+---
+
+Étape 4 — Migration des comportements visuels
+
+Les comportements suivants doivent rester côté client mais dépendre du rôle admin :
+
+- révélation carte
+- révélation ressources
+- informations de tuile debug
+
+Identifier les fichiers concernés et proposer comment utiliser le rôle admin sans passer par le vieux toggle.
+
+Répondre sous cette forme :
+
+Fichiers concernés :
+Logique actuelle :
+Remplacement admin proposé :
+Impact sur GameEngine :
+
+Puis t’arrêter.
+
+---
+
+Étape 5 — Nettoyage des hacks restants
+
+Identifier :
+
+- gm_player
+- gm_faction
+- bypass constructions
+- bypass actions avatar
+
+Classer :
+
+A. à migrer vers admin propre
+B. à supprimer
+C. à laisser temporairement
+
+Répondre sous cette forme :
+
+A :
+B :
+C :
+
+Puis t’arrêter.
+
+---
+
+Exigence de rigueur :
+
+- citer les fichiers exacts
+- ne pas utiliser les usernames
+- ne pas introduire de hook React dans GameEngine
+- distinguer clairement les migrations visuelles et gameplay
+
+Ne rien implémenter avant validation.
