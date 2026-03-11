@@ -14,8 +14,7 @@ export function ConstructionPanel() {
   const { currentNovaImperium, buildInCity, addCity } = useNovaImperium();
   const { actionPoints, spendActionPoints } = usePlayer();
   const { playerFaction, getFactionById } = useFactions();
-  const { role } = useAuth();
-  const isAdmin = role === 'admin';
+  const { isAdmin } = useAuth();
   const { selectedHex } = useMap();
   const [hoveredBuilding, setHoveredBuilding] = useState<string | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });

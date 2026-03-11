@@ -124,8 +124,7 @@ export const GameCanvasOptimized = React.memo(() => {
   const { gameEngineRef } = useGameEngine();
   const { mapData, selectedHex, setSelectedHex } = useMap();
   const { gamePhase } = useGameState();
-  const { role } = useAuth();
-  const isAdmin = role === 'admin';
+  const { isAdmin } = useAuth();
   const { avatarPosition, moveAvatarToHex } = usePlayer();
   
   const [mouseDownPos, setMouseDownPos] = useState<MousePosition | null>(null);

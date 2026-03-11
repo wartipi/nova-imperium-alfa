@@ -54,8 +54,7 @@ type MenuSection =
 
 export function MedievalHUD() {
   const { gamePhase, currentTurn, endTurn } = useGameState();
-  const { currentUser, logout, role } = useAuth();
-  const isAdmin = role === 'admin';
+  const { currentUser, logout, role, adminModeEnabled, toggleAdminMode } = useAuth();
   const { novaImperiums, currentNovaImperium } = useNovaImperium();
   const { selectedHex } = useMap();
   const { isMuted, toggleMute } = useAudio();
@@ -472,13 +471,16 @@ export function MedievalHUD() {
                     <div className="mt-2 space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-amber-700">Mode Admin</span>
-                        <span className={`text-xs px-2 py-1 rounded ${isAdmin ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-700'}`}>
-                          {isAdmin ? 'Actif' : 'Inactif'}
-                        </span>
+                        <button
+                          onClick={toggleAdminMode}
+                          className={`text-xs px-2 py-1 rounded ${adminModeEnabled ? 'bg-green-500 text-white' : 'bg-gray-400 text-white'}`}
+                        >
+                          {adminModeEnabled ? 'ON' : 'OFF'}
+                        </button>
                       </div>
                       
                       <div className="text-xs text-amber-600">
-                        {isAdmin ? '👁️ Vision complète de la carte' : '🔒 Vision limitée normale'}
+                        {adminModeEnabled ? '👁️ Vision complète de la carte' : '🔒 Vision limitée normale'}
                       </div>
                       
                       {currentUser === 'admin' && (

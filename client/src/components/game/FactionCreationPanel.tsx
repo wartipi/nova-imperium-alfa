@@ -21,8 +21,7 @@ export function FactionCreationPanel() {
   const { actionPoints, spendActionPoints, playerName } = usePlayer();
   const { honor, gnParticipation, seasonPass, canCreateFaction } = useReputation();
   const { createFaction } = useFactions();
-  const { role } = useAuth();
-  const isAdmin = role === 'admin';
+  const { isAdmin } = useAuth();
   
   const [showForm, setShowForm] = useState(false);
   const [factionData, setFactionData] = useState<FactionCreationData>({

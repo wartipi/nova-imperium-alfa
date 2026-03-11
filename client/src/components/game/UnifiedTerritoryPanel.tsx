@@ -19,8 +19,7 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
     spendActionPoints, 
     playerName = 'Joueur' 
   } = usePlayer();
-  const { role } = useAuth();
-  const isAdmin = role === 'admin';
+  const { isAdmin } = useAuth();
   const { playerFaction } = useFactions();
   const { setSelectedHex } = useMap();
   const { showAlert, AlertComponent } = useCustomAlert();

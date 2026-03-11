@@ -6,6 +6,9 @@ interface AuthContextType {
   logout: () => void;
   currentUser: string | null;
   role: 'admin' | 'player';
+  adminModeEnabled: boolean;
+  toggleAdminMode: () => void;
+  isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -14,6 +17,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [role, setRole] = useState<'admin' | 'player'>('player');
+  const [adminModeEnabled, setAdminModeEnabled] = useState(false);
 
   useEffect(() => {
     const savedAuth = localStorage.getItem('nova_imperium_auth');
@@ -28,6 +32,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsAuthenticated(true);
         setCurrentUser(user);
         setRole(savedRole);
+        // Hydratation explicite : adminModeEnabled = true si et seulement si role === 'admin'
+        setAdminModeEnabled(savedRole === 'admin');
       } catch {
         localStorage.removeItem('nova_imperium_auth');
       }
@@ -52,6 +58,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsAuthenticated(true);
       setCurrentUser(user.username);
       setRole(user.role);
+      // Login explicite : adminModeEnabled = true si et seulement si role === 'admin'
+      setAdminModeEnabled(user.role === 'admin');
 
       localStorage.setItem('nova_imperium_auth', JSON.stringify({
         user: user.username,
@@ -70,8 +78,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsAuthenticated(false);
     setCurrentUser(null);
     setRole('player');
+    setAdminModeEnabled(false);
     localStorage.removeItem('nova_imperium_auth');
   };
+
+  const toggleAdminMode = () => {
+    if (role !== 'admin') return;
+    setAdminModeEnabled(prev => !prev);
+  };
+
+  const isAdmin = role === 'admin' && adminModeEnabled;
 
   return (
     <AuthContext.Provider value={{
@@ -79,7 +95,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       logout,
       currentUser,
-      role
+      role,
+      adminModeEnabled,
+      toggleAdminMode,
+      isAdmin
     }}>
       {children}
     </AuthContext.Provider>

@@ -28,7 +28,7 @@ export function GameCanvas() {
   const { gameEngineRef } = useGameEngine();
   const { mapData, selectedHex, setSelectedHex } = useMap();
   const { gamePhase } = useGameState();
-  const { role } = useAuth();
+  const { isAdmin } = useAuth();
   const { novaImperiums, selectedUnit, moveUnit } = useNovaImperium();
   const { avatarPosition, avatarRotation, isMoving, selectedCharacter, moveAvatarToHex, isHexVisible, isHexInCurrentVision, pendingMovement, setPendingMovement } = usePlayer();
   
@@ -64,12 +64,12 @@ export function GameCanvas() {
     }
   }, [mapData]);
 
-  // Inject admin mode into GameEngine when role changes
+  // Inject admin mode into GameEngine when isAdmin changes
   useEffect(() => {
     if (!gameEngineRef.current) return;
-    gameEngineRef.current.setAdminMode(role === 'admin');
+    gameEngineRef.current.setAdminMode(isAdmin);
     renderEngine();
-  }, [role, gameEngineRef, renderEngine]);
+  }, [isAdmin, gameEngineRef, renderEngine]);
 
   // IMPROVED: Memoized mouse down handler
   const handleMouseDown = useCallback((event: React.MouseEvent) => {
@@ -121,7 +121,7 @@ export function GameCanvas() {
 
         // Vérifier si la case est explorée avant de permettre la sélection
         const { isHexExplored } = usePlayer.getState();
-        const isAccessible = isHexExplored(hex.x, hex.y) || (role === 'admin');
+        const isAccessible = isHexExplored(hex.x, hex.y) || isAdmin;
         
         // Ne permettre la sélection que si la case est accessible
         if (isAccessible) {

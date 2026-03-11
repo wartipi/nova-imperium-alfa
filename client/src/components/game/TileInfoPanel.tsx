@@ -93,8 +93,7 @@ function ColonyInfoSection({ selectedHex }: { selectedHex: HexTile }) {
 // Composant séparé pour éviter les problèmes de hooks
 function ResourceInfoSection({ selectedHex }: { selectedHex: HexTile }) {
   const { getCompetenceLevel, isResourceDiscovered } = usePlayer();
-  const { role } = useAuth();
-  const isAdmin = role === 'admin';
+  const { isAdmin } = useAuth();
   
   const explorationLevel = getCompetenceLevel('exploration');
   const hexResourceDiscovered = isResourceDiscovered(selectedHex.x, selectedHex.y);

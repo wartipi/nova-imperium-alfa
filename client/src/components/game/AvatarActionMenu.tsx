@@ -27,8 +27,7 @@ const getGameData = () => {
 export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarActionMenuProps) {
   const { actionPoints, spendActionPoints, addActionPoints, hasCompetenceLevel, competences, gainExperience, exploreCurrentLocation, discoverResourcesInVision, playerName } = usePlayer();
   const { reputation } = useReputation();
-  const { role, currentUser } = useAuth();
-  const isAdmin = role === 'admin';
+  const { isAdmin, currentUser } = useAuth();
   const { playerFaction } = useFactions();
   const { setSelectedHex } = useMap();
   const { foundColony } = useNovaImperium();

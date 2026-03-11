@@ -160,8 +160,7 @@ const categoryTitles = {
 
 export function CompetenceTree() {
   const { competences, competencePoints, learnCompetence, upgradeCompetence, getCompetenceLevel } = usePlayer();
-  const { role } = useAuth();
-  const isAdmin = role === 'admin';
+  const { isAdmin } = useAuth();
   const [selectedCompetence, setSelectedCompetence] = useState<Competence | null>(null);
 
   const availablePoints = competencePoints || 3; // Starting points

@@ -67,8 +67,7 @@ interface TreatyTypeInfo {
 export function TreatiesPanel() {
   const { currentNovaImperium, novaImperiums } = useNovaImperium();
   const { actionPoints, spendActionPoints, getCompetenceLevel } = usePlayer();
-  const { role } = useAuth();
-  const isAdmin = role === 'admin';
+  const { isAdmin } = useAuth();
   const queryClient = useQueryClient();
   const [treaties, setTreaties] = useState<Treaty[]>([]);
   const [treatyTypes, setTreatyTypes] = useState<TreatyTypeInfo[]>([]);
