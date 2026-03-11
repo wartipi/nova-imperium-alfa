@@ -1,0 +1,181 @@
+Nouveau bloc de travail : audit pour ajout d’un vrai mode admin ON/OFF propre.
+
+Contexte
+
+Le vieux mode MJ client a été migré en grande partie vers une logique basée sur :
+
+role === 'admin'
+
+Les blocs précédents ont déjà été validés :
+
+- suppression de isGameMaster et toggleGameMaster
+- migration de la logique client vers role === 'admin'
+- injection propre de l’état admin dans GameEngine via setAdminMode()
+- suppression des hacks XP/compétences max
+- nettoyage des comportements visuels admin
+- nettoyage des vieux hacks gameplay admin résiduels
+
+La situation actuelle est donc :
+
+- le rôle serveur distingue admin et player
+- plusieurs bypass utiles pour les tests dépendent maintenant directement de role === 'admin'
+
+Problème actuel
+
+Un compte admin bénéficie automatiquement de tous les bypass liés au test.
+
+Cela a un inconvénient :
+- il est impossible de tester facilement, avec le même compte admin, le comportement normal du jeu sans bypass
+- il faut actuellement soit changer de compte, soit subir en permanence les privilèges admin
+
+Objectif
+
+Ajouter un vrai mode admin ON/OFF propre.
+
+Important :
+- le rôle serveur reste admin / player
+- on n’ajoute pas un nouveau rôle
+- on ajoute un flag d’exécution admin permettant d’activer ou désactiver les bypass de test
+- ce flag ne doit pas recréer l’ancien mode MJ fantôme
+- ce flag doit être intégré proprement à l’architecture existante
+
+Direction souhaitée
+
+À terme, les helpers du type :
+
+shouldIgnoreActionTimers(context)
+shouldIgnoreActionPointCosts(context)
+shouldIgnoreCompetencePointCosts(context)
+shouldRevealEntireMap(context)
+shouldRevealAllResources(context)
+
+ne doivent plus dépendre seulement de :
+
+role === 'admin'
+
+mais de quelque chose comme :
+
+role === 'admin' && adminModeEnabled === true
+
+Même idée côté client visuel :
+- un admin peut choisir d’afficher ou non les privilèges de test
+
+Règles de travail
+
+Avant toute modification :
+
+1. analyser l’architecture actuelle
+2. identifier où un flag adminModeEnabled pourrait vivre proprement
+3. identifier comment il devrait être propagé côté client et côté serveur
+4. identifier les comportements qui devraient dépendre de ce flag
+5. proposer une intégration minimale et cohérente
+6. attendre validation
+
+Tu ne modifies rien avant validation.
+
+Contraintes :
+
+- ne pas recréer un simple toggle local fantôme sans lien avec l’architecture
+- ne pas introduire de hook React dans GameEngine
+- ne pas changer le rôle serveur
+- ne pas ajouter de nouveau rôle
+- rester cohérent avec l’architecture actuelle :
+  auth propre, GameEngine injecté, ActorContext déjà utilisé côté actions persistantes
+- distinguer clairement ce qui devra être client-only, serveur-only, ou mixte
+
+Exigence de rigueur :
+
+- pas de formulation vague
+- pas de supposition
+- citer les fichiers et points d’injection exacts
+- distinguer :
+  - l’état actuel
+  - la cible
+  - le plus petit chemin cohérent
+
+---
+
+Étape 1 — Audit de l’état actuel
+
+Je veux savoir précisément :
+
+- quels comportements dépendent aujourd’hui uniquement de role === 'admin'
+- lesquels sont côté client
+- lesquels sont côté serveur
+- où ces décisions sont prises
+
+Répondre sous cette forme :
+
+Comportements client actuellement liés à admin :
+Comportements serveur actuellement liés à admin :
+Fichiers principaux concernés :
+Conclusion sur l’état actuel :
+
+Puis t’arrêter.
+
+---
+
+Étape 2 — Proposition d’architecture pour adminModeEnabled
+
+Je veux une proposition propre pour savoir :
+
+- où adminModeEnabled doit vivre
+- comment il doit être exposé aux composants React
+- comment il doit être injecté dans GameEngine
+- comment il doit être transmis au contexte serveur des actions (ActorContext ou équivalent)
+- s’il doit être persisté ou non
+- s’il doit être stocké localement ou non
+
+Important :
+je veux une réponse explicite sur ce point :
+- faut-il que adminModeEnabled survive à un refresh de page, ou soit réinitialisé à chaque session ?
+
+Répondre sous cette forme :
+
+Emplacement recommandé pour adminModeEnabled :
+Exposition côté React :
+Injection côté moteur :
+Propagation côté serveur :
+Persistance recommandée : oui/non, avec justification
+Plus petit chemin cohérent :
+
+Puis t’arrêter.
+
+---
+
+Étape 3 — Liste des comportements à brancher sur adminModeEnabled
+
+Je veux une classification claire de ce qui devra dépendre de ce flag.
+
+Répondre sous cette forme :
+
+A. À brancher sur adminModeEnabled immédiatement :
+- ...
+
+B. À laisser encore simplement sur role === 'admin' pour l’instant :
+- ...
+
+C. À traiter plus tard quand le backend sera plus autoritaire :
+- ...
+
+Puis justifier brièvement chaque groupe.
+
+Puis t’arrêter.
+
+---
+
+Étape 4 — Proposition de plan de mise en œuvre minimal
+
+Proposer un plan progressif, sans implémenter.
+
+Je veux une réponse structurée ainsi :
+
+Bloc admin ON/OFF — étape 1 :
+Bloc admin ON/OFF — étape 2 :
+Bloc admin ON/OFF — étape 3 :
+Risques principaux :
+Chemin minimal recommandé :
+
+Puis t’arrêter.
+
+Ne rien implémenter avant validation.
