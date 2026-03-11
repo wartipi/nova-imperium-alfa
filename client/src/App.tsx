@@ -17,6 +17,8 @@ import { fetchPlayerState } from "./lib/api/playerStateApi";
 import { fetchCurrentAction } from "./lib/api/playerActionsApi";
 import { usePlayerActions } from "./lib/stores/usePlayerActions";
 import { useFactions } from "./lib/stores/useFactions";
+import { fetchAllTerritories, fetchAllColonies } from "./lib/api/territoriesApi";
+import { UnifiedTerritorySystem } from "./lib/systems/UnifiedTerritorySystem";
 import "@fontsource/inter";
 import "./index.css";
 
@@ -104,8 +106,21 @@ function GameApp() {
         const effectiveSegmentY = Math.floor(effectiveWorldY / 30);
         await loadBlockFromDB(effectiveSegmentX, effectiveSegmentY);
 
-        // Étape 5 — Convertir world → repère local après stabilisation de l'origine
+        // Étape 6 — Territoires et colonies (état politique carte, source serveur)
+        // Doit être après loadBlockFromDB pour que l'origine monde soit connue.
         const { originWorldX, originWorldY } = useMap.getState();
+        try {
+          const [serverTerritories, serverColonies] = await Promise.all([
+            fetchAllTerritories(),
+            fetchAllColonies(),
+          ]);
+          UnifiedTerritorySystem.loadFromServer(serverTerritories, serverColonies, originWorldX, originWorldY);
+          console.log(`[Startup] Territoires: ${serverTerritories.length} | Colonies: ${serverColonies.length}`);
+        } catch (territoryErr) {
+          console.warn("[Startup] Chargement territoires échoué (non bloquant):", territoryErr);
+        }
+
+        // Étape 7 — Convertir world → repère local après stabilisation de l'origine
         const hexX = effectiveWorldX - originWorldX;
         const hexY = effectiveWorldY - originWorldY;
 

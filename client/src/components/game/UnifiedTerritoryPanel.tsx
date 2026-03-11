@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { UnifiedTerritorySystem, Territory } from '../../lib/systems/UnifiedTerritorySystem';
 import { usePlayer } from '../../lib/stores/usePlayer';
 import { useAuth } from '../../lib/auth/AuthContext';
@@ -6,115 +6,115 @@ import { useNovaImperium } from '../../lib/stores/useNovaImperium';
 import { useFactions } from '../../lib/stores/useFactions';
 import { useMap } from '../../lib/stores/useMap';
 import { useCustomAlert } from '../ui/CustomAlert';
-import { CityFoundingModal } from './CityFoundingModal';
+import { fetchAllTerritories, fetchAllColonies, apiClaimTerritory, apiFoundColony } from '../../lib/api/territoriesApi';
 
 interface UnifiedTerritoryPanelProps {
   onClose: () => void;
 }
 
 export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
-  const { 
-    getAvatarPosition, 
-    actionPoints, 
-    spendActionPoints, 
-    playerName = 'Joueur' 
+  const {
+    getAvatarPosition,
+    actionPoints,
+    spendActionPoints,
+    playerName = 'Joueur'
   } = usePlayer();
-  const { isAdmin, role } = useAuth();
+  const { isAdmin } = useAuth();
   const { playerFaction } = useFactions();
-  const { setSelectedHex } = useMap();
   const { showAlert, AlertComponent } = useCustomAlert();
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [territories, setTerritories] = useState<Territory[]>([]);
   const [showColonyModal, setShowColonyModal] = useState(false);
-
   const [selectedTerritory, setSelectedTerritory] = useState<Territory | null>(null);
   const [colonyName, setColonyName] = useState('');
 
-  // Charger les territoires
-  const loadTerritories = () => {
-    if (role === 'admin') {
-      setTerritories(UnifiedTerritorySystem.getAllTerritories());
-    } else {
-      setTerritories(UnifiedTerritorySystem.getPlayerTerritories('player'));
-    }
-  };
+  // Recharger la façade locale depuis le serveur puis rafraîchir l'affichage
+  const reloadFromServer = useCallback(async () => {
+    const { originWorldX, originWorldY } = useMap.getState();
+    const [serverTerritories, serverColonies] = await Promise.all([
+      fetchAllTerritories(),
+      fetchAllColonies(),
+    ]);
+    UnifiedTerritorySystem.loadFromServer(serverTerritories, serverColonies, originWorldX, originWorldY);
+    const refreshed = isAdmin
+      ? UnifiedTerritorySystem.getAllTerritories()
+      : UnifiedTerritorySystem.getPlayerTerritories('player');
+    setTerritories(refreshed);
+  }, [isAdmin]);
+
+  // Charger les territoires depuis la façade locale
+  const loadTerritories = useCallback(() => {
+    const list = isAdmin
+      ? UnifiedTerritorySystem.getAllTerritories()
+      : UnifiedTerritorySystem.getPlayerTerritories('player');
+    setTerritories(list);
+  }, [isAdmin]);
 
   useEffect(() => {
     loadTerritories();
-  }, [role]);
+  }, [loadTerritories]);
 
   // Revendiquer le territoire à la position de l'avatar
-  const handleClaimTerritory = () => {
+  const handleClaimTerritory = async () => {
     if (!isAdmin && !playerFaction) {
-      alert('Vous devez faire partie d\'une faction pour revendiquer un territoire.');
+      showAlert({
+        title: "Faction requise",
+        message: "Vous devez faire partie d'une faction pour revendiquer un territoire.",
+        type: "error"
+      });
       return;
+    }
+
+    const claimCost = 10;
+    if (!isAdmin && actionPoints < claimCost) {
+      showAlert({
+        title: "Points d'Action insuffisants",
+        message: `${claimCost} PA requis pour revendiquer un territoire.`,
+        type: "error"
+      });
+      return;
+    }
+
+    if (!isAdmin) {
+      const success = spendActionPoints(claimCost);
+      if (!success) {
+        showAlert({ title: "Erreur", message: "Impossible de dépenser les Points d'Action.", type: "error" });
+        return;
+      }
     }
 
     setIsLoading(true);
     try {
-      // Obtenir la position de l'avatar
       const avatarPos = getAvatarPosition();
-      console.log('🎯 Position avatar pour revendication:', avatarPos);
+      const { originWorldX, originWorldY } = useMap.getState();
+      const worldX = avatarPos.x + originWorldX;
+      const worldY = avatarPos.y + originWorldY;
 
-      // Vérifier les Points d'Action (sauf en mode MJ)
-      const claimCost = 10;
-      if (!isAdmin && actionPoints < claimCost) {
-        alert(`Pas assez de Points d'Action (${claimCost} PA requis)`);
-        return;
-      }
+      console.log(`[Claim] hex=(${avatarPos.x},${avatarPos.y}) → world=(${worldX},${worldY})`);
 
-      // Dépenser les PA (sauf en mode MJ)
-      if (!isAdmin) {
-        const success = spendActionPoints(claimCost);
-        if (!success) {
-          alert('Impossible de dépenser les Points d\'Action');
-          return;
-        }
-      }
+      await apiClaimTerritory(worldX, worldY);
 
-      // Revendiquer le territoire
-      const success = UnifiedTerritorySystem.claimTerritory(
-        avatarPos.x,
-        avatarPos.y,
-        'player',
-        playerName,
-        playerFaction?.id || 'admin',
-        playerFaction?.name || 'Administration'
-      );
-
-      if (success) {
-        if (isAdmin) {
-          showAlert({
-            title: "Territoire Revendiqué",
-            message: `Territoire revendiqué en (${avatarPos.x}, ${avatarPos.y})`,
-            type: "success"
-          });
-        } else {
-          showAlert({
-            title: "Territoire Revendiqué",
-            message: `Territoire revendiqué en (${avatarPos.x}, ${avatarPos.y}) pour ${playerFaction?.name}!`,
-            type: "success"
-          });
-        }
-        loadTerritories();
-      } else {
-        // Rembourser les PA en cas d'échec
-        if (!isAdmin) {
-          const { addActionPoints } = usePlayer.getState();
-          addActionPoints(claimCost);
-        }
-        showAlert({
-          title: "Revendication Échouée",
-          message: "Ce territoire est déjà revendiqué par un autre joueur.",
-          type: "error"
-        });
-      }
-    } catch (error) {
-      console.error('Erreur lors de la revendication:', error);
       showAlert({
-        title: "Erreur",
-        message: "Erreur lors de la revendication du territoire",
+        title: "Territoire Revendiqué",
+        message: `Territoire revendiqué en (${avatarPos.x}, ${avatarPos.y})${playerFaction ? ` pour ${playerFaction.name}` : ''} !`,
+        type: "success"
+      });
+
+      await reloadFromServer();
+
+      const gameEngine = (window as any).gameEngine;
+      if (gameEngine) gameEngine.render();
+
+    } catch (err: any) {
+      // Rembourser les PA en cas d'échec serveur
+      if (!isAdmin) {
+        const { addActionPoints } = usePlayer.getState();
+        addActionPoints(claimCost);
+      }
+      showAlert({
+        title: "Revendication Échouée",
+        message: err.message || "Erreur lors de la revendication du territoire.",
         type: "error"
       });
     } finally {
@@ -124,120 +124,86 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
 
   // Naviguer vers un territoire
   const navigateToTerritory = (territory: Territory) => {
+    const { setSelectedHex } = useMap.getState();
     setSelectedHex({ x: territory.x, y: territory.y });
-    
-    // Centrer la caméra avec la bonne méthode
-    if ((window as any).gameEngine) {
-      (window as any).gameEngine.centerCameraOnPosition(territory.x, territory.y);
-    }
+    const gameEngine = (window as any).gameEngine;
+    if (gameEngine) gameEngine.centerCameraOnPosition(territory.x, territory.y);
   };
 
   // Vérifier si l'avatar du joueur est présent sur ce territoire
   const isAvatarOnTerritory = (territory: Territory): boolean => {
     const avatarPos = getAvatarPosition();
-    console.log('🧭 Vérification position avatar:', {
-      avatarHex: avatarPos,
-      territoryHex: { x: territory.x, y: territory.y },
-      isOnTerritory: avatarPos.x === territory.x && avatarPos.y === territory.y
-    });
     return avatarPos.x === territory.x && avatarPos.y === territory.y;
   };
 
-
-
-
-
-  // Fonction pour fonder une colonie directement depuis la liste des territoires
+  // Ouvrir le modal de fondation depuis la liste des territoires
   const handleFoundColonyFromTerritory = (territory: Territory) => {
-    // Validation des règles (sauf pour admin)
-    if (!isAdmin) {
-      const validation = UnifiedTerritorySystem.canFoundColony(territory.x, territory.y, territory.playerId);
-      if (!validation.canFound) {
-        showAlert({
-          title: "Fondation Impossible",
-          message: validation.reason,
-          type: "error"
-        });
-        return;
-      }
-    }
-
-    // Utiliser l'ancien modal simple pour l'instant
     setSelectedTerritory(territory);
     setShowColonyModal(true);
   };
 
-  // Fonder une colonie (ancienne méthode pour le modal)
-  const handleFoundColony = () => {
+  // Fonder une colonie via le serveur
+  const handleFoundColony = async () => {
     if (!selectedTerritory || !colonyName.trim()) return;
 
-    const colonyId = `colony_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    setIsLoading(true);
+    try {
+      const { originWorldX, originWorldY } = useMap.getState();
+      const worldX = selectedTerritory.worldX;
+      const worldY = selectedTerritory.worldY;
+      const trimmedName = colonyName.trim();
 
-    // 1. Créer la colonie dans UnifiedTerritorySystem avec ID technique mais nom utilisateur
-    const territorySuccess = UnifiedTerritorySystem.foundColony(
-      selectedTerritory.x,
-      selectedTerritory.y,
-      colonyId,
-      colonyName.trim(), // Nom choisi par l'utilisateur
-      selectedTerritory.playerId,
-      selectedTerritory.playerName,
-      selectedTerritory.factionId,
-      selectedTerritory.factionName
-    );
+      console.log(`[Colony] Fondation "${trimmedName}" → world=(${worldX},${worldY})`);
 
-    if (territorySuccess) {
-      // 2. Créer la ville dans le système useNovaImperium avec displayName
-      const { foundColony } = useNovaImperium.getState();
-      const colonySuccess = foundColony(
+      const colony = await apiFoundColony(worldX, worldY, trimmedName);
+
+      // Recharger la façade locale depuis le serveur
+      await reloadFromServer();
+
+      // Reflet local dans useNovaImperium (pour CityManagementPanel)
+      const { foundColony: novaFoundColony } = useNovaImperium.getState();
+      novaFoundColony(
         selectedTerritory.x,
         selectedTerritory.y,
-        colonyName.trim(), // Passer directement le nom utilisateur
+        trimmedName,
         selectedTerritory.playerId,
         selectedTerritory.playerName,
-        selectedTerritory.factionId,
+        selectedTerritory.factionId || '',
         selectedTerritory.factionName || 'Administration'
       );
 
-      if (colonySuccess) {
-        showAlert({
-          title: "Colonie Fondée",
-          message: `Colonie "${colonyName.trim()}" fondée avec succès!`,
-          type: "success"
-        });
-        setColonyName('');
-        setShowColonyModal(false);
-        setSelectedTerritory(null);
-        loadTerritories();
-        
-        // Rafraîchir l'affichage de la carte
-        setTimeout(() => {
-          const gameEngine = (window as any).gameEngine;
-          if (gameEngine) {
-            gameEngine.render();
-          }
-        }, 100);
-      } else {
-        showAlert({
-          title: "Erreur",
-          message: "Erreur lors de la création de la ville sur la carte.",
-          type: "error"
-        });
-      }
-    } else {
+      showAlert({
+        title: "Colonie Fondée",
+        message: `Colonie "${trimmedName}" fondée avec succès${colony.isCapital ? ' — Capitale de votre faction !' : ' !'}`,
+        type: "success"
+      });
+
+      setColonyName('');
+      setShowColonyModal(false);
+      setSelectedTerritory(null);
+
+      const gameEngine = (window as any).gameEngine;
+      if (gameEngine) gameEngine.render();
+
+    } catch (err: any) {
       showAlert({
         title: "Fondation Impossible",
-        message: "Impossible de fonder la colonie sur ce territoire.",
+        message: err.message || "Erreur lors de la fondation de la colonie.",
         type: "error"
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <div className="medieval-text h-full overflow-y-auto">
+      {AlertComponent}
+
       {/* En-tête */}
       <div className="mb-6">
         <h3 className="medieval-subtitle mb-4">
-          {role === 'admin' ? 'Gestion de Territoire (Admin)' : 'Mes Territoires'}
+          {isAdmin ? 'Gestion de Territoire (Admin)' : 'Mes Territoires'}
         </h3>
       </div>
 
@@ -263,12 +229,12 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
       {/* Liste des territoires */}
       <div className="parchment-section p-4">
         <h4 className="medieval-subtitle mb-4">
-          📋 {role === 'admin' ? 'Tous les Territoires' : 'Mes Territoires'} ({territories.length})
+          📋 {isAdmin ? 'Tous les Territoires' : 'Mes Territoires'} ({territories.length})
         </h4>
-        
+
         {territories.length === 0 ? (
           <div className="medieval-text text-center py-6">
-            {role === 'admin' ? 'Aucun territoire revendiqué sur la carte' : 'Vous n\'avez encore revendiqué aucun territoire'}
+            {isAdmin ? 'Aucun territoire revendiqué sur la carte' : 'Vous n\'avez encore revendiqué aucun territoire'}
           </div>
         ) : (
           <div className="space-y-3 max-h-48 overflow-y-auto">
@@ -283,7 +249,7 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
                     <div className="medieval-subtitle text-sm">
                       🏰 ({territory.x}, {territory.y})
                     </div>
-                    {role === 'admin' && (
+                    {isAdmin && (
                       <div className="medieval-text text-sm">
                         {territory.playerName} - {territory.factionName}
                       </div>
@@ -297,8 +263,8 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
                       </div>
                     )}
                   </div>
-                  
-                  {/* Bouton Fonder une Colonie - seulement si l'avatar est présent sur ce territoire */}
+
+                  {/* Bouton Fonder une Colonie — seulement si l'avatar est présent et pas encore de colonie */}
                   {!territory.colonyId && (
                     <div className="flex flex-col gap-2">
                       {isAvatarOnTerritory(territory) ? (
@@ -318,7 +284,6 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
                       )}
                     </div>
                   )}
-
                 </div>
               </div>
             ))}
@@ -329,12 +294,10 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
       {/* Statistiques */}
       <div className="mt-4 text-center">
         <div className="text-amber-700 text-sm">
-          📊 Total: {territories.length} territoire{territories.length > 1 ? 's' : ''} | 
+          📊 Total: {territories.length} territoire{territories.length > 1 ? 's' : ''} |{' '}
           🏘️ Colonies: {territories.filter(t => t.colonyId).length}
         </div>
       </div>
-
-
 
       {/* Modal de fondation de colonie */}
       {showColonyModal && selectedTerritory && (
@@ -365,10 +328,10 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
               </button>
               <button
                 onClick={handleFoundColony}
-                disabled={!colonyName.trim()}
+                disabled={!colonyName.trim() || isLoading}
                 className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white py-2 px-4 rounded"
               >
-                🏘️ Fonder la Colonie
+                {isLoading ? '...' : '🏘️ Fonder la Colonie'}
               </button>
             </div>
           </div>

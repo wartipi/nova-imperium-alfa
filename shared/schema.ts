@@ -396,3 +396,36 @@ export const playerActions = pgTable("player_actions", {
 export const insertPlayerActionSchema = createInsertSchema(playerActions);
 export type PlayerAction = typeof playerActions.$inferSelect;
 export type InsertPlayerAction = z.infer<typeof insertPlayerActionSchema>;
+
+// ─── Tables Phase 3 : territoires revendiqués et colonies ─────────────────────
+
+export const territories = pgTable("territories", {
+  id:          serial("id").primaryKey(),
+  worldX:      integer("world_x").notNull(),
+  worldY:      integer("world_y").notNull(),
+  playerId:    text("player_id").notNull(),
+  playerName:  text("player_name").notNull(),
+  factionId:   integer("faction_id").notNull().references(() => factions.id),
+  factionName: text("faction_name").notNull(),
+  claimedAt:   timestamp("claimed_at").notNull().defaultNow(),
+}, (table) => ({
+  uniquePos: unique("territories_world_pos_unique").on(table.worldX, table.worldY),
+}));
+
+export const colonies = pgTable("colonies", {
+  id:          serial("id").primaryKey(),
+  name:        text("name").notNull(),
+  worldX:      integer("world_x").notNull(),
+  worldY:      integer("world_y").notNull(),
+  founderId:   text("founder_id").notNull(),
+  founderName: text("founder_name").notNull(),
+  factionId:   integer("faction_id").notNull().references(() => factions.id),
+  factionName: text("faction_name").notNull(),
+  foundedAt:   timestamp("founded_at").notNull().defaultNow(),
+  isCapital:   boolean("is_capital").notNull().default(false),
+}, (table) => ({
+  uniquePos: unique("colonies_world_pos_unique").on(table.worldX, table.worldY),
+}));
+
+export type TerritoryRecord = typeof territories.$inferSelect;
+export type ColonyRecord    = typeof colonies.$inferSelect;

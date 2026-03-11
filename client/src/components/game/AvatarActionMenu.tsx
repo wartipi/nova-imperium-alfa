@@ -5,7 +5,6 @@ import { useAuth } from "../../lib/auth/AuthContext";
 import { useFactions } from "../../lib/stores/useFactions";
 import { useMap } from "../../lib/stores/useMap";
 // import { useMapState } from "../../lib/stores/useMapState"; // Pas utilisé ici
-import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { Card } from "../ui/card";
 
 interface AvatarActionMenuProps {
@@ -25,13 +24,11 @@ const getGameData = () => {
 };
 
 export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarActionMenuProps) {
-  const { actionPoints, spendActionPoints, addActionPoints, hasCompetenceLevel, competences, gainExperience, exploreCurrentLocation, discoverResourcesInVision, playerName } = usePlayer();
+  const { actionPoints, spendActionPoints, hasCompetenceLevel, competences, discoverResourcesInVision, playerName } = usePlayer();
   const { reputation } = useReputation();
-  const { isAdmin, currentUser } = useAuth();
+  const { isAdmin } = useAuth();
   const { playerFaction } = useFactions();
   const { setSelectedHex } = useMap();
-  const { foundColony } = useNovaImperium();
-
   // Actions de base supprimées - déplacement par clic direct sur la carte
 
   // Action d'exploration nécessitant la compétence exploration niveau 1
@@ -143,110 +140,9 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
 
 
     if (action.id === 'found_colony') {
-      const { avatarPosition } = getGameData();
-      
-      // En mode MJ, la fondation réussit toujours
-      if (isAdmin) {
-        const colonyName = prompt("Nom de la colonie :") || "Colonie";
-        const success = foundColony(
-          avatarPosition.x,
-          avatarPosition.y,
-          colonyName,
-          currentUser || 'player',
-          playerName,
-          playerFaction?.id || 'admin',
-          playerFaction?.name || 'Administration'
-        );
-        
-        if (success) {
-          console.log(`[Admin] Colonie "${colonyName}" fondée sans coût en PA en (${avatarPosition.x},${avatarPosition.y})`);
-          alert(`[Admin] Colonie "${colonyName}" fondée avec succès !`);
-          
-          // Rafraîchir l'affichage
-          setSelectedHex(null);
-          setTimeout(() => {
-            const gameEngine = (window as any).gameEngine;
-            const tileData = gameEngine?.getTileAt(avatarPosition.x, avatarPosition.y);
-            if (tileData) {
-              setSelectedHex(tileData);
-            }
-          }, 100);
-        } else {
-          alert('Impossible de fonder une colonie ici.');
-        }
-        onClose();
-        return;
-      }
-      
-      // Pour les joueurs normaux, vérifier les prérequis
-      if (!playerFaction) {
-        alert('Vous devez faire partie d\'une faction pour fonder une colonie.');
-        onClose();
-        return;
-      }
-      
-      // Vérifier que le territoire est revendiqué par la faction du joueur
-      import('../../lib/systems/TerritorySystem').then(({ TerritorySystem }) => {
-        const territoryInfo = TerritorySystem.getTerritoryInfo(avatarPosition.x, avatarPosition.y);
-        if (!territoryInfo) {
-          alert('Vous devez d\'abord revendiquer ce territoire pour y fonder une colonie.');
-          onClose();
-          return;
-        }
-        
-        if (territoryInfo.factionId !== playerFaction.id) {
-          alert('Ce territoire appartient à une autre faction.');
-          onClose();
-          return;
-        }
-        
-        // Vérifier qu'il n'y a pas déjà une colonie
-        const { novaImperiums } = useNovaImperium.getState();
-        const existingCity = novaImperiums.flatMap(ni => ni.cities).find(city => city.x === avatarPosition.x && city.y === avatarPosition.y);
-        if (existingCity) {
-          alert('Il y a déjà une colonie à cet emplacement.');
-          onClose();
-          return;
-        }
-        
-        // Dépenser les points d'action
-        const success = spendActionPoints(action.cost);
-        if (success) {
-          const colonyName = prompt("Nom de la nouvelle colonie:") || "Nouvelle Colonie";
-          const colonySuccess = foundColony(
-            avatarPosition.x,
-            avatarPosition.y,
-            colonyName,
-            'player',
-            playerName || 'Joueur',
-            playerFaction.id,
-            playerFaction.name
-          );
-          
-          if (colonySuccess) {
-            gainExperience(15); // Récompense XP pour fonder une colonie
-            console.log(`✅ Colonie "${colonyName}" fondée en (${avatarPosition.x},${avatarPosition.y}) par la faction ${playerFaction.name}`);
-            alert(`Colonie "${colonyName}" fondée avec succès pour votre faction "${playerFaction.name}" !`);
-            
-            // Rafraîchir l'affichage
-            setSelectedHex(null);
-            setTimeout(() => {
-              const gameEngine = (window as any).gameEngine;
-              const tileData = gameEngine?.getTileAt(avatarPosition.x, avatarPosition.y);
-              if (tileData) {
-                setSelectedHex(tileData);
-              }
-            }, 100);
-          } else {
-            alert('Impossible de fonder une colonie ici.');
-            // Rembourser les PA en cas d'échec
-            addActionPoints(action.cost);
-          }
-        } else {
-          alert(`Impossible de fonder la colonie : ${action.cost} Points d'Action requis.`);
-        }
-      });
-      
+      // La fondation de colonie est gérée via le menu GESTION DE TERRITOIRE (UnifiedTerritoryPanel).
+      // Ce chemin n'est plus accessible depuis l'AvatarActionMenu.
+      console.log('[AvatarActionMenu] found_colony : utiliser le menu Gestion de Territoire.');
       onClose();
       return;
     }

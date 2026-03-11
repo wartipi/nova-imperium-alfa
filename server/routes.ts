@@ -14,6 +14,7 @@ import playerRoutes from "./routes/player";
 import playerStateRoutes from "./routes/playerState";
 import playerActionsRoutes from "./routes/playerActions";
 import factionRoutes from "./routes/factions";
+import territoryRoutes from "./routes/territories";
 import { seedFactions } from "./seeds/factionSeed";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -25,6 +26,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Routes factions
   app.use("/api/factions", factionRoutes);
+  // Routes territoires et colonies (Phase 3)
+  app.use("/api/territories", territoryRoutes);
   // Game save/load endpoints
   app.get("/api/game/save", async (req, res) => {
     try {
