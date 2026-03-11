@@ -1,0 +1,175 @@
+Prompt pour l’IA — Audit de propagation serveur de adminModeEnabled
+Nouveau bloc de travail : audit de propagation serveur de adminModeEnabled.
+
+Contexte
+
+Le projet Nova Imperium a maintenant une base admin propre côté client :
+
+- le vieux mode MJ client a été supprimé
+- le rôle vient du serveur via l’authentification
+- AuthContext expose maintenant :
+  - role
+  - adminModeEnabled
+  - isAdmin = role === 'admin' && adminModeEnabled
+- côté client, les bypass visuels et gameplay peuvent maintenant être activés ou désactivés avec un vrai toggle admin ON/OFF
+
+État actuel du problème
+
+Le backend, lui, ne connaît pas encore adminModeEnabled.
+
+Aujourd’hui, les helpers serveur continuent de dépendre uniquement de :
+
+role === 'admin'
+
+Conséquence :
+- un compte admin garde encore certains bypass serveur même si adminModeEnabled est OFF côté client
+- par exemple les déplacements instantanés restent actifs côté serveur
+
+Objectif de ce bloc
+
+Identifier comment propager proprement adminModeEnabled côté serveur, sans recréer un système flou.
+
+Nous voulons préparer une architecture où les helpers serveur du type :
+
+shouldIgnoreActionTimers(context)
+shouldIgnoreActionPointCosts(context)
+
+pourront dépendre de :
+
+context.role === 'admin' && context.adminModeEnabled === true
+
+Important :
+ce bloc est un audit et un plan de propagation.
+Tu ne modifies rien avant validation.
+
+Règles de travail
+
+Avant toute modification :
+
+1. analyser l’architecture actuelle de ActorContext et des routes concernées
+2. identifier où adminModeEnabled devrait être transmis depuis le client
+3. identifier comment il devrait être injecté dans ActorContext
+4. identifier quels comportements serveur doivent dépendre de ce flag
+5. proposer le plus petit chemin cohérent
+6. attendre validation
+
+Tu ne modifies rien avant validation.
+
+Contraintes :
+
+- ne pas changer le rôle serveur
+- ne pas ajouter de nouveau rôle
+- ne pas introduire de logique par username
+- rester cohérent avec l’architecture actuelle :
+  - AuthContext côté client
+  - ActorContext côté serveur
+  - playerActions.ts
+  - playerActionService.ts
+- ne pas prétendre sécuriser complètement le backend si ce bloc ne couvre pas encore tous les endpoints
+- distinguer clairement ce qui sera vraiment corrigé dans ce bloc et ce qui restera pour plus tard
+
+Exigence de rigueur :
+
+- pas de formulation vague
+- pas de supposition
+- citer les fichiers et points d’injection exacts
+- distinguer :
+  - état actuel
+  - cible
+  - plus petit chemin cohérent
+  - limites restantes
+
+---
+
+Étape 1 — Audit de l’état actuel côté serveur
+
+Je veux savoir précisément :
+
+- quelle est la structure actuelle de ActorContext
+- où ActorContext est construit
+- quelles routes/actions l’utilisent déjà
+- quels helpers serveur dépendent actuellement de role === 'admin'
+- quels comportements serveur restent donc actifs même si adminModeEnabled est OFF côté client
+
+Répondre sous cette forme :
+
+Structure actuelle de ActorContext :
+Routes / services qui l’utilisent :
+Helpers serveur actuellement liés à role === 'admin' :
+Comportements serveur encore actifs même si adminModeEnabled est OFF :
+Conclusion sur l’état actuel :
+
+Puis t’arrêter.
+
+---
+
+Étape 2 — Proposition de propagation de adminModeEnabled
+
+Je veux savoir précisément :
+
+- comment adminModeEnabled devrait être envoyé par le client
+- dans quel format
+- sur quelles requêtes
+- où il devrait être lu côté serveur
+- comment ActorContext devrait être étendu
+- quels fichiers seraient touchés
+
+Important :
+je veux une réponse explicite sur ce point :
+
+- faut-il transmettre adminModeEnabled dans le body, dans un header, ou autrement ?
+- quelle option est la plus propre dans l’architecture actuelle, et pourquoi ?
+
+Répondre sous cette forme :
+
+Méthode recommandée de transmission :
+Fichiers client concernés :
+Fichiers serveur concernés :
+Nouvelle structure proposée pour ActorContext :
+Point exact d’injection :
+Pourquoi cette méthode est la plus propre :
+
+Puis t’arrêter.
+
+---
+
+Étape 3 — Classification des comportements à brancher sur adminModeEnabled
+
+Je veux une classification claire :
+
+A. À brancher immédiatement sur adminModeEnabled dans ce bloc
+B. À laisser encore sur role === 'admin' pour l’instant
+C. À traiter plus tard dans un bloc serveur plus large
+
+Répondre sous cette forme :
+
+A. À brancher immédiatement :
+- ...
+
+B. À laisser sur role === 'admin' pour l’instant :
+- ...
+
+C. À traiter plus tard :
+- ...
+
+Puis justifier brièvement chaque groupe.
+
+Puis t’arrêter.
+
+---
+
+Étape 4 — Proposition de plan minimal d’implémentation
+
+Je veux un plan progressif, sans implémenter encore.
+
+Répondre sous cette forme :
+
+Étape d’implémentation 1 :
+Étape d’implémentation 2 :
+Étape d’implémentation 3 :
+Risques principaux :
+Plus petit chemin cohérent :
+
+Puis t’arrêter.
+
+Ne rien implémenter avant validation.
