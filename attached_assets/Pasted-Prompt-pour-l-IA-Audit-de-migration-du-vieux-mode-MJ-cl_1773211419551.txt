@@ -1,0 +1,244 @@
+Prompt pour l’IA — Audit de migration du vieux mode MJ client vers un vrai système admin serveur
+Nouveau bloc de travail : audit de migration du vieux "mode maître de jeux" client vers un vrai système admin serveur.
+
+Contexte du projet
+
+Nova Imperium utilise maintenant une architecture de plus en plus serveur-autoritaires pour les mécaniques importantes.
+
+Des blocs récents ont déjà été stabilisés :
+
+- le spawn prototype est sécurisé
+- le moteur d’actions persistantes fonctionne côté serveur
+- le rôle "gm" a été supprimé du backend
+- le backend fonctionne maintenant avec seulement :
+  - admin
+  - player
+- les bypass serveur de test commencent à être centralisés côté admin
+- le déplacement admin instantané fonctionne avec resynchronisation depuis la position réelle du serveur
+- la section "Action en cours" dans le HUD est maintenant cohérente avec le backend
+
+Problème actuel
+
+Il existe encore un ancien "mode maître de jeux" côté client, hérité d’un ancien mode debug local.
+
+Ce mode client semble encore contrôler plusieurs comportements sans passer proprement par le serveur, notamment :
+
+- révélation complète de la carte
+- visibilité immédiate des ressources
+- anciens bypass locaux
+- bouton "XP gratuit"
+- potentiellement d’autres shortcuts client non alignés avec la source de vérité serveur
+
+Ce système est maintenant incohérent avec la direction actuelle du projet.
+
+Objectif de cet audit
+
+Identifier précisément :
+
+1. où le vieux mode MJ client est encore stocké
+2. quels composants ou systèmes l’utilisent encore
+3. quels comportements exacts il modifie
+4. ce qui doit être migré vers des privilèges admin serveur
+5. ce qui doit être supprimé du client
+6. comment remplacer proprement le bouton XP gratuit par un bypass admin sur les compétences
+
+Important :
+on ne veut pas bricoler ce vieux mode client.
+On veut préparer sa migration vers un vrai système admin cohérent.
+
+Direction visée
+
+À terme, le système doit fonctionner avec :
+
+- un rôle serveur : admin ou player
+- puis plus tard un vrai mode admin ON/OFF propre si nécessaire
+- des helpers serveur explicites du type :
+
+shouldIgnoreActionTimers(context)
+shouldIgnoreActionPointCosts(context)
+shouldIgnoreCompetencePointCosts(context)
+shouldRevealEntireMap(context)
+shouldRevealAllResources(context)
+
+Tous basés à terme sur :
+- context.role === 'admin'
+- et plus tard éventuellement un flag adminModeEnabled
+
+Mais ce bloc est uniquement un audit.
+Tu ne modifies rien avant validation.
+
+Règles de travail
+
+Avant toute modification :
+
+1. analyser le code existant
+2. identifier tout ce que le vieux mode MJ client contrôle encore
+3. distinguer :
+   - ce qui est purement visuel
+   - ce qui influence réellement le gameplay
+   - ce qui devrait migrer côté serveur
+   - ce qui devrait simplement être supprimé
+4. proposer un plan de migration minimal et cohérent
+5. attendre validation
+
+Tu ne modifies rien avant validation.
+
+Exigence de rigueur
+
+- pas de formulation vague
+- pas de supposition
+- citer les fichiers et fonctions exacts
+- distinguer clairement :
+  - faits observés
+  - comportements actuels
+  - direction recommandée
+  - limites de l’audit
+
+---
+
+Étape 1 — Audit du vieux mode MJ côté client
+
+Je veux savoir précisément :
+
+- où le toggle ou flag du vieux mode MJ est stocké
+- dans quel store, composant ou état local il vit
+- quels composants lisent ce flag
+- quels comportements concrets il modifie encore réellement
+
+Examiner en priorité :
+- stores client
+- HUD
+- carte / fog of war / vision
+- compétences
+- menus debug
+- composants déjà mentionnés auparavant comme :
+  - UserProfilePanel.tsx
+  - ConstructionPanel.tsx
+  - AvatarActionMenu.tsx
+  - TreatiesPanel.tsx
+  - CompetenceTree.tsx
+  - tout autre fichier réellement pertinent trouvé dans la branche actuelle
+
+Répondre sous cette forme :
+
+Le flag/toggle MJ client est stocké dans :
+Les composants qui l’utilisent encore sont :
+Les comportements concrets encore contrôlés par ce flag sont :
+Ce flag influence-t-il le serveur : oui/non
+Conclusion sur le vieux mode MJ client :
+
+Puis t’arrêter.
+
+---
+
+Étape 2 — Audit de la révélation carte et ressources
+
+Je veux savoir précisément comment le vieux mode MJ rend actuellement visibles :
+
+- l’ensemble de la carte
+- les ressources non découvertes
+
+Vérifier :
+
+- si cela contourne un système de fog of war
+- si cela contourne un système de connaissance du joueur
+- si cela se fait uniquement par affichage client
+- si le serveur n’est jamais consulté pour cela
+- quels fichiers portent réellement cette logique
+
+Répondre sous cette forme :
+
+Révélation complète de la carte gérée dans :
+Révélation des ressources gérée dans :
+Logique actuelle : visuelle uniquement / gameplay / mixte
+Dépendance au serveur : oui/non
+Cause exacte de cette visibilité totale :
+Direction recommandée pour migration :
+
+Puis t’arrêter.
+
+---
+
+Étape 3 — Audit du bouton XP gratuit et du système de compétences
+
+Je veux savoir précisément :
+
+- où le bouton "XP gratuit" existe
+- ce qu’il modifie réellement
+- s’il ajoute de l’XP, des points de compétence, ou autre chose
+- si cet effet est purement client ou persistant
+- comment l’achat de compétences fonctionne actuellement
+- où le coût en points de compétence est appliqué réellement
+- si ce coût est déjà contrôlé côté serveur ou non
+
+Objectif :
+préparer son remplacement par un bypass admin propre sur les compétences, plutôt qu’un hack "XP gratuit".
+
+Répondre sous cette forme :
+
+Bouton XP gratuit localisé dans :
+Effet exact du bouton :
+Effet persistant ou purement client :
+Achat de compétence géré dans :
+Coût en points de compétence appliqué dans :
+Contrôle serveur actuel : oui/non
+Peut-on remplacer ce bouton par un bypass admin propre : oui/non, avec justification
+
+Puis t’arrêter.
+
+---
+
+Étape 4 — Classification des comportements à migrer
+
+À partir des étapes précédentes, classer les comportements existants en 3 catégories :
+
+A. À migrer vers des privilèges admin serveur
+B. À garder côté client comme simple affichage
+C. À supprimer complètement
+
+Je veux une réponse structurée comme ceci :
+
+A. À migrer vers admin serveur :
+- ...
+- ...
+
+B. À garder côté client :
+- ...
+- ...
+
+C. À supprimer :
+- ...
+- ...
+
+Puis donner une justification courte pour chaque élément.
+
+Puis t’arrêter.
+
+---
+
+Étape 5 — Proposition de plan de migration minimal
+
+Proposer un plan de migration progressif, sans implémenter.
+
+Le plan doit viser :
+
+1. suppression du vieux toggle MJ comme source de vérité
+2. migration des privilèges importants vers admin
+3. nettoyage du bouton XP gratuit
+4. préparation d’un bypass admin sur les compétences
+5. migration future de la visibilité carte / ressources vers un modèle propre
+
+Je veux une proposition en étapes courtes et réalistes.
+
+Répondre sous cette forme :
+
+Étape de migration 1 :
+Étape de migration 2 :
+Étape de migration 3 :
+Étape de migration 4 :
+Risques principaux :
+Plus petit chemin cohérent :
+
+Puis t’arrêter.
+
+Ne rien implémenter avant validation.
