@@ -34,6 +34,7 @@ import { useAuth } from "../../lib/auth/AuthContext";
 import { LevelUpNotification, useLevelUpNotification } from "./LevelUpNotification";
 import { MarshalPanel } from "../marshal/MarshalPanel";
 import { PublicEventsPanel } from "./PublicEventsPanel";
+import { ActiveActionWidget } from "./ActiveActionWidget";
 
 type MenuSection = 
   | 'treasury' 
@@ -398,6 +399,7 @@ export function MedievalHUD() {
                 )}
               </div>
               <div className="text-blue-600">{actionPoints}/{maxActionPoints}</div>
+              <ActiveActionWidget />
               <div className="text-xs text-amber-700 mt-1">RÉPUTATION</div>
               <div className="flex items-center justify-between">
                 <div 

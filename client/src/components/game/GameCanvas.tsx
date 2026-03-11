@@ -11,7 +11,7 @@ import { getTerrainMovementCost } from "../../lib/game/TerrainCosts";
 import { CameraControls } from "./CameraControls";
 import { CityManagementPanel } from "./CityManagementPanel";
 import { UnifiedTerritorySystem } from "../../lib/systems/UnifiedTerritorySystem";
-import { requestMove } from "../../lib/api/playerActionsApi";
+import { requestMove, fetchCurrentAction } from "../../lib/api/playerActionsApi";
 import { usePlayerActions } from "../../lib/stores/usePlayerActions";
 
 // Improved imports - custom hooks and constants
@@ -201,7 +201,15 @@ export function GameCanvas() {
 
     try {
       const response = await requestMove(destinationWorldX, destinationWorldY);
-      usePlayerActions.getState().setActiveAction(response.action);
+      if (response.action.msRemaining === 0) {
+        // Action déjà expirée à la création (cas MJ ou durée=0) : récupérer l'état réel
+        const { action: confirmed } = await fetchCurrentAction();
+        usePlayerActions.getState().setActiveAction(
+          confirmed?.status === "in_progress" ? confirmed : null
+        );
+      } else {
+        usePlayerActions.getState().setActiveAction(response.action);
+      }
       console.log(
         `[GameCanvas] Déplacement soumis → monde (${destinationWorldX},${destinationWorldY})` +
         ` | coût=${response.action.totalCost}AP` +
