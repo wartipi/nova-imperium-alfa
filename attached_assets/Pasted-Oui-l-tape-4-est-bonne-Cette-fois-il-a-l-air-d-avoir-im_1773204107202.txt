@@ -1,0 +1,173 @@
+Oui, **l’étape 4 est bonne**.
+
+Cette fois, il a l’air d’avoir implémenté **exactement ce qu’il a promis**, sans partir planter des drapeaux dans d’autres fichiers pour “améliorer” le monde. C’est suffisamment rare pour être noté.
+
+## Ce que je valide
+
+### 1. Le périmètre est resté propre
+
+Il a bien limité la modif à **2 fichiers** :
+
+* `server/playerPositionService.ts`
+* `server/routes/player.ts`
+
+C’était exactement le périmètre annoncé à l’étape 3. Donc pas de dérive visible.
+
+### 2. Le spawn est bien centralisé
+
+L’ajout de :
+
+* `SPAWN_POINTS`
+* `getActiveSpawnPoint()`
+
+est conforme à l’objectif.
+Le point de spawn est maintenant :
+
+* modifiable
+* centralisé
+* non dispersé dans la logique métier
+
+C’est ce qu’on voulait.
+
+### 3. La validation de position est bien explicite
+
+Il a bien ajouté `isValidPlayerPosition(wx, wy)` avec les bonnes conditions bloquantes.
+
+Donc maintenant, pour le prototype :
+
+* pas de `deep_water`
+* pas de `shallow_water`
+* pas de tuile non marchable
+* pas de tuile absente
+
+C’est propre.
+
+### 4. `ensurePlayerPosition()` semble corrigée au bon endroit
+
+C’est le cœur du correctif, et il l’a branché là où il fallait :
+
+* nouveau joueur → spawn fixe
+* position invalide existante → relocalisation
+* position valide → conservée
+
+C’est exactement la bonne logique pour ce bloc.
+
+### 5. La route `POST /api/player/position` est enfin fermée
+
+Très important.
+
+Avant, cette route permettait d’écrire n’importe quelle coordonnée entière.
+Maintenant :
+
+* position invalide → `HTTP 400 INVALID_POSITION`
+* position valide → sauvegarde
+
+Donc le plus gros trou évident du système est bien colmaté.
+
+### 6. Les tests rapportés sont cohérents
+
+Les tests qu’il mentionne sont pertinents :
+
+* `shallow_water` → relocalisation
+* `deep_water` via POST → rejet HTTP 400
+* compilation TypeScript OK
+
+C’est le bon minimum avant l’étape 5.
+
+---
+
+## Ce que je ne valide pas encore complètement
+
+Ce n’est pas un refus, juste la rigueur normale.
+
+### 1. Il faut encore valider les cas complets de l’étape 5
+
+Pour l’instant, il a testé :
+
+* un cas `shallow_water`
+* un cas `deep_water` en POST
+
+Très bien.
+
+Mais il manque encore le rapport final complet sur les 4 cas qu’on avait demandés :
+
+* nouveau joueur
+* joueur sur `deep_water`
+* joueur sur `shallow_water`
+* joueur sur terrain terrestre valide
+
+Je veux surtout voir noir sur blanc :
+
+* qu’un joueur déjà sur terre reste bien inchangé
+* que le spawn fixe est bien actif
+* que le système répond bien à tous les scénarios demandés
+
+### 2. Ma réserve précédente reste en mémoire
+
+Toujours la même :
+`isValidPlayerPosition()` est acceptable maintenant, mais plus tard il faudra peut-être distinguer :
+
+* validité générale de position
+* validité de spawn
+* validité navale
+
+Pas un sujet pour aujourd’hui. On ne touche à rien tant que ce bloc n’est pas entièrement validé.
+
+---
+
+## Verdict net
+
+**Étape 4 validée.**
+
+L’implémentation est conforme à la proposition validée à l’étape 3.
+
+Tu peux le laisser passer à l’étape 5.
+
+---
+
+## Réponse à lui envoyer
+
+Tu peux lui répondre ceci :
+
+```txt
+L’étape 4 est validée.
+
+L’implémentation semble conforme à la proposition validée :
+- le périmètre des fichiers modifiés est correct
+- le spawn prototype est bien centralisé
+- la validation serveur de position est bien ajoutée
+- ensurePlayerPosition() semble corrigée au bon endroit
+- la route POST /api/player/position est maintenant protégée
+
+Tu peux passer à l’étape 5 — vérification finale.
+
+Je veux maintenant la validation explicite des 4 cas suivants :
+
+1. nouveau joueur
+   - résultat attendu : spawn au point de spawn prototype
+
+2. joueur existant sur deep_water
+   - résultat attendu : relocalisation vers le point de spawn prototype
+
+3. joueur existant sur shallow_water
+   - résultat attendu : relocalisation vers le point de spawn prototype
+
+4. joueur existant sur terrain terrestre valide
+   - résultat attendu : position conservée sans modification
+
+Je veux aussi le mini rapport final exact :
+
+- spawn fixe actif : oui/non
+- validation serveur unique : oui/non
+- spawn sur eau impossible : oui/non
+
+Exigence de rigueur :
+- je veux des résultats démontrés par test ou vérification explicite
+- pas de formulation vague
+- si une garantie ne couvre pas tous les chemins, tu dois le préciser clairement
+- distingue bien les faits vérifiés, les garanties actuelles et les limites restantes
+
+Puis tu t’arrêtes.
+```
+
+Envoie-moi sa réponse d’étape 5, et après ça on verrouille le bloc spawn puis on attaque le vrai chantier utile : le mode MJ qui massacre les timers, ce qui pour une fois est une excellente idée.
