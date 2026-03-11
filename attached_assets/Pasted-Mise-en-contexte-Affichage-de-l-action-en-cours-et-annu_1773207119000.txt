@@ -1,0 +1,310 @@
+Mise en contexte — Affichage de l’action en cours et annulation
+Contexte du projet
+
+Nova Imperium utilise un moteur d’actions persistantes côté serveur.
+
+Les actions sont stockées en base et récupérées via des routes dédiées, notamment :
+
+GET /api/player/actions/current
+DELETE /api/player/actions/current
+
+Le moteur est maintenant suffisamment stable pour les tests :
+
+le spawn prototype est sécurisé
+
+le mode MJ serveur peut forcer un timer à 0
+
+les actions persistantes suivent un pipeline cohérent :
+
+création
+
+stockage
+
+récupération
+
+complétion
+
+annulation éventuelle
+
+Objectif du nouveau bloc
+
+Nous voulons maintenant rendre ce système visible et testable dans l’interface.
+
+Le joueur doit pouvoir voir clairement :
+
+s’il a une action en cours
+
+quel type d’action est active
+
+quand elle a commencé
+
+quand elle doit se terminer
+
+combien de temps il reste
+
+et pouvoir l’annuler
+
+Cela permettra de faciliter :
+
+le test quotidien de la plateforme
+
+le débogage
+
+la compréhension de l’état courant du joueur
+
+Principe architectural important
+
+L’interface ne doit pas inventer son propre état.
+
+Elle doit refléter la source de vérité serveur.
+
+Donc :
+
+l’action affichée doit venir du backend
+
+l’annulation doit passer par la route serveur prévue
+
+l’UI doit se mettre à jour après annulation ou complétion
+
+Nous voulons éviter :
+
+un état local fictif
+
+un bouton qui masque l’action sans l’annuler réellement
+
+une logique parallèle côté client
+
+Emplacement UI souhaité
+
+La section Action en cours doit être intégrée dans le menu de droite existant.
+
+Plus précisément :
+
+la fenêtre doit apparaître dans le panneau droit
+
+juste sous la jauge des points d’action
+
+L’objectif est de garder toutes les informations liées aux actions et aux points d’action au même endroit dans l’interface.
+
+Important :
+
+ne pas créer une nouvelle fenêtre flottante
+
+ne pas déplacer la jauge existante
+
+ne pas modifier la structure globale du HUD
+
+La nouvelle section doit simplement s’insérer sous la jauge des points d’action dans le menu droit.
+
+Prompt pour l’IA — Audit de l’action en cours et de l’annulation
+Contexte
+
+Le projet Nova Imperium possède maintenant un moteur d’actions persistantes côté serveur.
+
+Des routes existent déjà pour consulter et annuler l’action actuelle du joueur :
+
+GET /api/player/actions/current
+DELETE /api/player/actions/current
+
+Nous voulons maintenant ajouter dans l’interface une section Action en cours permettant :
+
+d’afficher l’action active
+
+d’afficher ses informations utiles
+
+de permettre son annulation
+
+Cette section doit être intégrée dans le menu de droite, juste sous la jauge des points d’action.
+
+Objectif
+
+Identifier le chemin minimal et propre pour afficher l’action en cours côté client et brancher un bouton d’annulation sur le backend existant.
+
+Règles de travail
+
+Avant toute modification :
+
+1️⃣ analyser le code existant
+2️⃣ expliquer comment l’action en cours est actuellement récupérée ou non
+3️⃣ expliquer comment l’annulation est actuellement gérée ou non
+4️⃣ proposer une intégration UI minimale
+5️⃣ attendre validation
+
+Tu ne modifies rien avant validation.
+
+Autres contraintes :
+
+ne pas créer un système d’état parallèle côté client
+
+utiliser les routes serveur existantes si elles sont déjà correctes
+
+garder l’UI simple et lisible
+
+ne pas refondre l’architecture frontend
+
+ne pas modifier la structure DB
+
+Étape 1 — Audit du backend des actions courantes
+
+Examiner les fichiers responsables de :
+
+récupération de l’action en cours
+
+annulation de l’action en cours
+
+structure de la réponse renvoyée au client
+
+Examiner notamment :
+
+server/routes/playerActions.ts
+server/playerActionService.ts
+
+Identifier :
+
+quelle fonction récupère l’action active
+
+quelle fonction annule l’action active
+
+quelles données sont retournées au client
+
+si le backend fournit déjà tout ce qu’il faut pour l’UI
+
+Répondre sous cette forme :
+
+Récupération de l’action en cours : ...
+Annulation de l’action en cours : ...
+Données actuellement renvoyées : ...
+
+Puis s’arrêter.
+
+Étape 2 — Audit du frontend actuel
+
+Examiner le frontend pour vérifier :
+
+si l’action en cours est déjà chargée quelque part
+
+si un état client existe déjà pour cela
+
+si un composant UI existe déjà partiellement
+
+où le panneau droit est construit
+
+Examiner notamment les composants liés :
+
+au HUD
+
+au menu droit
+
+à la jauge de points d’action
+
+Identifier :
+
+le fichier qui contient la jauge des points d’action
+le composant qui rend le panneau droit
+où la section "Action en cours" peut être insérée sous cette jauge
+
+Répondre sous cette forme :
+
+Chargement actuel de l’action : ...
+État client existant : ...
+Composant contenant la jauge PA : ...
+Meilleur emplacement pour la section Action en cours : ...
+
+Puis s’arrêter.
+
+Étape 3 — Proposition d’intégration minimale
+
+Proposer une intégration UI simple et propre.
+
+La section Action en cours doit afficher au minimum :
+
+actionType
+
+status
+
+startTime
+
+expectedEndTime
+
+temps restant ou indication équivalente
+
+bouton Annuler
+
+La proposition doit préciser :
+
+quel composant ou fichier frontend sera modifié
+
+comment l’action sera chargée depuis le backend
+
+comment le bouton utilisera DELETE /api/player/actions/current
+
+comment l’UI sera rafraîchie après annulation
+
+comment la section sera insérée sous la jauge des points d’action
+
+Je veux aussi une réponse explicite sur ce point :
+
+faut-il un polling léger
+
+un rafraîchissement manuel
+
+ou un refresh après actions utilisateur seulement
+
+Puis s’arrêter pour validation.
+
+Étape 4 — Implémentation
+
+Après validation :
+
+implémenter la section Action en cours et le bouton d’annulation.
+
+Contraintes :
+
+garder une UI simple
+
+ne pas disperser la logique dans trop de composants
+
+utiliser les routes backend existantes
+
+insérer la section dans le menu droit sous la jauge PA
+
+À la fin, fournir :
+
+fichiers modifiés
+composants modifiés
+comportement final
+
+Puis s’arrêter.
+
+Étape 5 — Vérification finale
+
+Vérifier explicitement les cas suivants :
+
+Cas 1 — aucune action en cours
+
+Résultat attendu :
+
+la section affiche qu’aucune action n’est active
+Cas 2 — action en cours normale
+
+Résultat attendu :
+
+la section affiche correctement les informations de l’action
+Cas 3 — annulation
+
+Résultat attendu :
+
+le bouton annule l’action côté serveur
+et l’interface se met à jour correctement
+Cas 4 — action MJ instantanée
+
+Résultat attendu :
+
+l’action n’apparaît plus comme active après sa complétion immédiate
+ou reflète correctement son état selon le comportement réel du backend
+
+Mini rapport final :
+
+affichage action en cours : oui/non
+annulation branchée au serveur : oui/non
+état UI cohérent avec le backend : oui/non
