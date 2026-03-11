@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNovaImperium } from '../../lib/stores/useNovaImperium';
-import { useGameState } from '../../lib/stores/useGameState';
+import { useAuth } from '../../lib/auth/AuthContext';
 import { UnifiedTerritorySystem } from '../../lib/systems/UnifiedTerritorySystem';
 import { ConstructionPanelZustand } from './ConstructionPanelZustand';
 import { RecruitmentPanelZustand } from './RecruitmentPanelZustand';
@@ -14,7 +14,8 @@ interface CityManagementPanelProps {
 
 export function CityManagementPanel({ cityId, onClose }: CityManagementPanelProps) {
   const { currentNovaImperium } = useNovaImperium();
-  const { isGameMaster } = useGameState();
+  const { role } = useAuth();
+  const isAdmin = role === 'admin';
   const [activeTab, setActiveTab] = useState<'overview' | 'construction' | 'recruitment'>('overview');
   const [showRenameModal, setShowRenameModal] = useState(false);
   const { AlertComponent } = useCustomAlert();
@@ -152,7 +153,7 @@ export function CityManagementPanel({ cityId, onClose }: CityManagementPanelProp
                 </div>
               </div>
 
-              {isGameMaster && (
+              {isAdmin && (
                 <div className="bg-purple-100 border border-purple-400 rounded p-4">
                   <h3 className="font-bold mb-2 text-purple-800">🎯 Mode Maître de Jeu Actif</h3>
                   <div className="text-purple-700 text-sm space-y-1">

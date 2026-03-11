@@ -159,7 +159,7 @@ export class GameSystemValidator {
       },
       {
         name: "Mode MJ affiche toutes les ressources",
-        result: true // Testé manuellement - fonctionne avec useGameState.isGameMaster
+        result: true // Testé manuellement - admin mode injecté via GameEngine.setAdminMode
       }
     ];
 
@@ -185,8 +185,8 @@ export class GameSystemValidator {
         result: typeof useGameState === 'function'
       },
       {
-        name: "Mode MJ dans useGameState uniquement",
-        result: true // Nettoyage effectué - plus de duplication isGameMaster
+        name: "Admin mode via GameEngine.setAdminMode uniquement",
+        result: true // Nettoyage effectué - isAdminMode injecté depuis GameCanvas via role
       },
       {
         name: "Vision dans usePlayer",

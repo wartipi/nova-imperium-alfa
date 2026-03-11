@@ -48,9 +48,9 @@ export class TerritorySystem {
   private static colonies: Colony[] = [];
 
   // Requirements pour revendiquer un territoire
-  static canClaimTerritory(playerId: string, playerInfluenceLevel: number, playerFactionId: string | null, isGameMaster: boolean = false): boolean {
+  static canClaimTerritory(playerId: string, playerInfluenceLevel: number, playerFactionId: string | null, isAdmin: boolean = false): boolean {
     // En mode MJ, pas de prérequis
-    if (isGameMaster) {
+    if (isAdmin) {
       console.log('✅ [MODE MJ] Revendication autorisée (aucun prérequis)');
       return true;
     }
@@ -183,9 +183,9 @@ export class TerritorySystem {
   }
 
   // Vérifier si un joueur peut accéder au menu de construction
-  static canAccessConstructionMenu(playerId: string, isGameMaster: boolean = false): boolean {
+  static canAccessConstructionMenu(playerId: string, isAdmin: boolean = false): boolean {
     // En mode MJ, accès direct
-    if (isGameMaster) {
+    if (isAdmin) {
       console.log('✅ [MODE MJ] Accès construction autorisé');
       return true;
     }

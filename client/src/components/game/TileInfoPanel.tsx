@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { useMap } from "../../lib/stores/useMap";
 import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { usePlayer } from "../../lib/stores/usePlayer";
-import { useGameState } from "../../lib/stores/useGameState";
+import { useAuth } from "../../lib/auth/AuthContext";
 import { HexTile, City, Unit } from "../../lib/game/types";
 import { ResourceRevealSystem } from "../../lib/systems/ResourceRevealSystem";
 import { UnifiedTerritorySystem } from "../../lib/systems/UnifiedTerritorySystem";
@@ -93,10 +93,11 @@ function ColonyInfoSection({ selectedHex }: { selectedHex: HexTile }) {
 // Composant séparé pour éviter les problèmes de hooks
 function ResourceInfoSection({ selectedHex }: { selectedHex: HexTile }) {
   const { getCompetenceLevel, isResourceDiscovered } = usePlayer();
-  const { isGameMaster } = useGameState();
+  const { role } = useAuth();
+  const isAdmin = role === 'admin';
   
   const explorationLevel = getCompetenceLevel('exploration');
-  const isMasterMode = isGameMaster || false;
+  const isMasterMode = isAdmin || false;
   const hexResourceDiscovered = isResourceDiscovered(selectedHex.x, selectedHex.y);
   
   // En mode MJ : toujours afficher les ressources
@@ -385,7 +386,7 @@ export function TileInfoPanel() {
   const { selectedHex, setSelectedHex } = useMap();
   const { novaImperiums } = useNovaImperium();
   const { isHexExplored } = usePlayer();
-  const { isGameMaster } = useGameState();
+  // isAdmin already defined above
   const [forceRefresh, setForceRefresh] = React.useState(0);
   
   // Force un rafraîchissement toutes les 3 secondes pour détecter les changements de territoire
@@ -400,7 +401,7 @@ export function TileInfoPanel() {
   if (!selectedHex) return null;
 
   // Vérifier si la case est explorée ou si on est en mode MJ
-  const isHexAccessible = isHexExplored(selectedHex.x, selectedHex.y) || isGameMaster;
+  const isHexAccessible = isHexExplored(selectedHex.x, selectedHex.y) || isAdmin;
   
   // Si la case n'est pas accessible, ne rien afficher du tout
   if (!isHexAccessible) {
@@ -519,7 +520,7 @@ export function TileInfoPanel() {
       <div className="flex justify-between items-center mb-3">
         <div className="text-amber-900 font-bold text-lg">
           INFORMATIONS DE LA CASE
-          {isGameMaster && (
+          {isAdmin && (
             <span className="ml-2 text-xs bg-purple-500 text-white px-2 py-1 rounded">MJ</span>
           )}
         </div>
@@ -682,7 +683,7 @@ export function TileInfoPanel() {
       )}
 
       {/* Mode MJ - Informations techniques complètes */}
-      {isGameMaster && (
+      {isAdmin && (
         <div className="bg-purple-50 border border-purple-700 rounded p-2 mb-3">
           <div className="text-purple-900 font-semibold mb-2">🔧 Informations techniques (MJ)</div>
           <div className="text-xs text-purple-800 space-y-2">

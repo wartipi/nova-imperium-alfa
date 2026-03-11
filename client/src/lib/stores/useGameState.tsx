@@ -8,7 +8,6 @@ interface GameState {
   currentTurn: number;
   gameSpeed: number;
   isPaused: boolean;
-  isGameMaster: boolean;
   
   // Actions
   initializeGame: () => void;
@@ -19,7 +18,6 @@ interface GameState {
   saveGame: () => void;
   loadGame: () => void;
   setGameSpeed: (speed: number) => void;
-  toggleGameMaster: () => void;
 }
 
 export const useGameState = create<GameState>()(
@@ -28,7 +26,6 @@ export const useGameState = create<GameState>()(
     currentTurn: 1,
     gameSpeed: 1,
     isPaused: false,
-    isGameMaster: false,
     
     initializeGame: () => {
       set({ gamePhase: "loading" });
@@ -81,24 +78,6 @@ export const useGameState = create<GameState>()(
     
     setGameSpeed: (speed: number) => {
       set({ gameSpeed: speed });
-    },
-    
-    toggleGameMaster: () => {
-      const state = get();
-      const newGameMasterState = !state.isGameMaster;
-      set({ isGameMaster: newGameMasterState });
-      
-      // Automatiquement donner toutes les compétences en mode MJ
-      if (newGameMasterState) {
-        setTimeout(() => {
-          const playerStore = (window as any).usePlayer?.getState();
-          if (playerStore?.giveAllMaxCompetences) {
-            playerStore.giveAllMaxCompetences();
-          }
-        }, 100);
-      }
-      
-      console.log('Basculer mode MJ:', newGameMasterState);
     }
   }))
 );

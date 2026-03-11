@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 import { usePlayer } from '../stores/usePlayer';
-import { useGameState } from '../stores/useGameState';
 import { TerrainHelpers } from '../constants/TerrainTypes';
 import { MovementSystem } from '../movement/MovementSystem';
 import { useDoubleClick } from './useDoubleClick';
@@ -11,7 +10,6 @@ import { useDoubleClick } from './useDoubleClick';
  */
 export const useAvatarMovement = () => {
   const { pendingMovement, setPendingMovement, avatarPosition } = usePlayer();
-  const { isGameMaster } = useGameState();
 
   const handleSingleClick = useCallback((position: { x: number; y: number }) => {
     console.log('Premier clic enregistré sur:', position.x, position.y, '- Double-cliquez pour vous déplacer');

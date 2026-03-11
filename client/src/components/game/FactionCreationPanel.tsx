@@ -4,7 +4,7 @@ import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { usePlayer } from "../../lib/stores/usePlayer";
 import { useReputation } from "../../lib/stores/useReputation";
 import { useFactions } from "../../lib/stores/useFactions";
-import { useGameState } from "../../lib/stores/useGameState";
+import { useAuth } from "../../lib/auth/AuthContext";
 
 interface FactionCreationData {
   name: string;
@@ -21,7 +21,8 @@ export function FactionCreationPanel() {
   const { actionPoints, spendActionPoints, playerName } = usePlayer();
   const { honor, gnParticipation, seasonPass, canCreateFaction } = useReputation();
   const { createFaction } = useFactions();
-  const { isGameMaster } = useGameState();
+  const { role } = useAuth();
+  const isAdmin = role === 'admin';
   
   const [showForm, setShowForm] = useState(false);
   const [factionData, setFactionData] = useState<FactionCreationData>({
@@ -37,7 +38,7 @@ export function FactionCreationPanel() {
   if (!currentNovaImperium) return null;
 
   const creationCost = 50; // Coût en PA pour créer une faction
-  const canCreate = isGameMaster || (canCreateFaction() && actionPoints >= creationCost);
+  const canCreate = isAdmin || (canCreateFaction() && actionPoints >= creationCost);
 
   const factionTypes = {
     military: { name: 'Militaire', icon: '⚔️', description: 'Spécialisée dans le combat et la défense' },
@@ -63,9 +64,9 @@ export function FactionCreationPanel() {
     setIsLoading(true);
 
     try {
-      const success = isGameMaster || spendActionPoints(creationCost);
+      const success = isAdmin || spendActionPoints(creationCost);
       if (success) {
-        if (isGameMaster) {
+        if (isAdmin) {
           console.log(`[MODE MJ] Faction créée sans coût en PA`);
         }
         await createFaction({
@@ -121,14 +122,14 @@ export function FactionCreationPanel() {
       <div className="text-center">
         <h4 className="font-bold text-base mb-3">Création de Faction</h4>
         <div className="text-xs text-gray-600">
-          Coût de création: {isGameMaster ? '∞ (Mode MJ)' : `${creationCost} ⚡`} Points d'Action
+          Coût de création: {isAdmin ? '∞ (Mode MJ)' : `${creationCost} ⚡`} Points d'Action
         </div>
       </div>
 
       {/* Prérequis */}
       <div className="bg-blue-50 border border-blue-300 rounded p-3">
         <div className="text-sm font-medium mb-2">Prérequis</div>
-        {isGameMaster ? (
+        {isAdmin ? (
           <div className="text-xs text-green-600 bg-green-50 border border-green-200 rounded p-2">
             🎯 Mode Maître de Jeu: Tous les prérequis sont automatiquement satisfaits
           </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { usePlayer } from '../../lib/stores/usePlayer';
-import { useGameState } from '../../lib/stores/useGameState';
+import { useAuth } from '../../lib/auth/AuthContext';
 import { getLearnCost, getUpgradeCost, getCompetenceDescription } from '../../lib/competence/CompetenceCosts';
 
 interface Competence {
@@ -160,7 +160,8 @@ const categoryTitles = {
 
 export function CompetenceTree() {
   const { competences, competencePoints, learnCompetence, upgradeCompetence, getCompetenceLevel } = usePlayer();
-  const { isGameMaster } = useGameState();
+  const { role } = useAuth();
+  const isAdmin = role === 'admin';
   const [selectedCompetence, setSelectedCompetence] = useState<Competence | null>(null);
 
   const availablePoints = competencePoints || 3; // Starting points
@@ -174,7 +175,7 @@ export function CompetenceTree() {
 
   const canLearnCompetence = (competence: Competence) => {
     // En mode MJ, on peut toujours apprendre
-    if (isGameMaster) return true;
+    if (isAdmin) return true;
     
     const currentLevel = getCompetenceLevel(competence.id);
     if (currentLevel > 0) return false; // Already learned
@@ -193,7 +194,7 @@ export function CompetenceTree() {
 
   const canUpgradeCompetence = (competence: Competence) => {
     // En mode MJ, on peut toujours améliorer (si pas au max)
-    if (isGameMaster) {
+    if (isAdmin) {
       const currentLevel = getCompetenceLevel(competence.id);
       return currentLevel > 0 && currentLevel < 4;
     }
@@ -228,10 +229,10 @@ export function CompetenceTree() {
       <div className="mb-4 text-center">
         <div className="bg-amber-100 border border-amber-300 rounded px-3 py-1 inline-block">
           <span className="text-amber-900 font-semibold">
-            Points disponibles: {isGameMaster ? '∞ (Mode MJ)' : availablePoints}
+            Points disponibles: {isAdmin ? '∞ (Mode MJ)' : availablePoints}
           </span>
         </div>
-        {isGameMaster && (
+        {isAdmin && (
           <div className="mt-2 text-sm text-green-600 font-medium">
             🎯 Mode Maître de Jeu: Toutes les compétences peuvent être apprises gratuitement
           </div>

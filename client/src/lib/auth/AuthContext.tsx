@@ -5,6 +5,7 @@ interface AuthContextType {
   login: (username: string, password: string) => boolean;
   logout: () => void;
   currentUser: string | null;
+  role: 'admin' | 'player';
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -14,6 +15,13 @@ const AUTHORIZED_USERS: Record<string, string> = {
   'joueur1': 'imperium123',
   'maitre': 'pandem456'
 };
+
+const ADMIN_USERS = ['admin', 'maitre'];
+
+function deriveRole(username: string | null): 'admin' | 'player' {
+  if (username && ADMIN_USERS.includes(username)) return 'admin';
+  return 'player';
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -72,7 +80,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAuthenticated, 
       login, 
       logout, 
-      currentUser 
+      currentUser,
+      role: deriveRole(currentUser)
     }}>
       {children}
     </AuthContext.Provider>

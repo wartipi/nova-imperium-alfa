@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useReputation } from '../../lib/stores/useReputation';
-import { useGameState } from '../../lib/stores/useGameState';
+import { useAuth } from '../../lib/auth/AuthContext';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 
@@ -10,7 +10,8 @@ interface ReputationManagementPanelProps {
 
 export function ReputationManagementPanel({ onClose }: ReputationManagementPanelProps) {
   const { honor, reputation, getReputationLevel, addHonor, removeHonor, setHonor, gnParticipation, seasonPass, addGnParticipation, setSeasonPass } = useReputation();
-  const { isGameMaster } = useGameState();
+  const { role } = useAuth();
+  const isAdmin = role === 'admin';
   
   const [customAmount, setCustomAmount] = useState<string>('');
   const [setAmount, setSetAmount] = useState<string>('');

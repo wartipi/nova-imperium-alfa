@@ -1,13 +1,11 @@
 import type { HexTile, Unit, City } from "./types";
 import { ResourceRevealSystem } from "../systems/ResourceRevealSystem";
 import { usePlayer } from "../stores/usePlayer";
-import { useGameState } from "../stores/useGameState";
 import { useNovaImperium } from "../stores/useNovaImperium";
 import { UnifiedTerritorySystem } from "../systems/UnifiedTerritorySystem";
 
 // Types pour l'injection des stores - REFACTORISATION ARCHITECTURE
 type GameStateAccessor = () => {
-  isGameMaster: boolean;
   [key: string]: any;
 };
 
@@ -39,6 +37,7 @@ export class GameEngine {
   private selectedCharacter: any = null;
   private pendingMovement: { x: number; y: number } | null = null;
   public hasInitialCentered: boolean = false;
+  private isAdminMode: boolean = false;
   
   // REFACTORISATION : Injection explicite des stores au lieu de window
   private getGameState: GameStateAccessor;
@@ -46,6 +45,10 @@ export class GameEngine {
   setVisionCallbacks(isHexVisible: (x: number, y: number) => boolean, isHexInCurrentVision: (x: number, y: number) => boolean) {
     this.isHexVisible = isHexVisible;
     this.isHexInCurrentVision = isHexInCurrentVision;
+  }
+
+  setAdminMode(value: boolean): void {
+    this.isAdminMode = value;
   }
 
   setPendingMovement(destination: { x: number; y: number } | null) {
@@ -364,10 +367,9 @@ export class GameEngine {
         const screenX = x * (this.hexSize * 1.5);
         const screenY = y * hexHeight + (x % 2) * (hexHeight / 2);
         
-        // Check if hex is visible (use vision system, but ignore if Game Master mode)
-        const { isGameMaster } = useGameState.getState();
-        const isVisible = isGameMaster || (this.isHexVisible ? this.isHexVisible(x, y) : true);
-        const isInCurrentVision = isGameMaster || (this.isHexInCurrentVision ? this.isHexInCurrentVision(x, y) : true);
+        // Check if hex is visible (use vision system, but ignore if admin mode)
+        const isVisible = this.isAdminMode || (this.isHexVisible ? this.isHexVisible(x, y) : true);
+        const isInCurrentVision = this.isAdminMode || (this.isHexInCurrentVision ? this.isHexInCurrentVision(x, y) : true);
         
         // Check if this hex is the pending movement destination
         const isPendingDestination = this.pendingMovement && this.pendingMovement.x === x && this.pendingMovement.y === y;
@@ -474,21 +476,20 @@ export class GameEngine {
         const gameState = this.getGameState();
         const playerState = this.getPlayerState();
         
-        const isGameMaster = gameState.isGameMaster || false;
         const explorationLevel = playerState.getCompetenceLevel?.('exploration') || 0;
         const hexExplored = playerState.isHexExplored?.(hex.x, hex.y) || false;
         
         if (Math.random() < 0.001) {
-          console.log(`🔍 Tentative rendu ressource: ${hex.resource} sur (${hex.x},${hex.y}), MJ:${isGameMaster}, exploration:${explorationLevel}, exploré:${hexExplored}`);
+          console.log(`🔍 Tentative rendu ressource: ${hex.resource} sur (${hex.x},${hex.y}), admin:${this.isAdminMode}, exploration:${explorationLevel}, exploré:${hexExplored}`);
         }
         
         // Accès à la nouvelle méthode isResourceDiscovered
         const hexResourceDiscovered = playerState.isResourceDiscovered?.(hex.x, hex.y) || false;
         
-        // Ressources visibles si : mode MJ OU (exploration niveau 1+ ET ressources découvertes)
-        const isVisible = isGameMaster || (explorationLevel >= 1 && hexResourceDiscovered);
+        // Ressources visibles si : mode admin OU (exploration niveau 1+ ET ressources découvertes)
+        const isVisible = this.isAdminMode || (explorationLevel >= 1 && hexResourceDiscovered);
         
-        if (isVisible || isGameMaster) {
+        if (isVisible || this.isAdminMode) {
           // Rendu simple et efficace des ressources
           const resourceMap = {
             wheat: { symbol: '🌾', color: '#FFD700' },
@@ -515,17 +516,17 @@ export class GameEngine {
           const resourceInfo = resourceMap[hex.resource as keyof typeof resourceMap] || null;
           if (resourceInfo) {
             this.ctx.fillStyle = resourceInfo.color;
-            this.ctx.globalAlpha = isGameMaster ? 0.8 : 0.6;
+            this.ctx.globalAlpha = this.isAdminMode ? 0.8 : 0.6;
             this.ctx.fillRect(x - 8, y - 8, 16, 16);
             this.ctx.globalAlpha = 1.0;
             
-            this.ctx.font = isGameMaster ? 'bold 14px Arial' : '14px Arial';
+            this.ctx.font = this.isAdminMode ? 'bold 14px Arial' : '14px Arial';
             this.ctx.textAlign = 'center';
             this.ctx.fillStyle = '#000';
             this.ctx.fillText(resourceInfo.symbol, x, y + 4);
             
             if (Math.random() < 0.001) {
-              console.log(`✅ Ressource rendue: ${resourceInfo.symbol} (${hex.resource}) mode MJ: ${isGameMaster}`);
+              console.log(`✅ Ressource rendue: ${resourceInfo.symbol} (${hex.resource}) admin: ${this.isAdminMode}`);
             }
           } else {
 
@@ -566,29 +567,27 @@ export class GameEngine {
       if (hex.resource) {
         const { getCompetenceLevel, isHexExplored } = (window as any).usePlayer?.getState() || 
           { getCompetenceLevel: () => 0, isHexExplored: () => false };
-        const { isGameMaster } = (window as any).useGameState?.getState() || { isGameMaster: false };
-        
         const explorationLevel = getCompetenceLevel('exploration') || 0;
         const hexExplored = isHexExplored(hex.x, hex.y) || false;
         
         // Accès à la nouvelle méthode isResourceDiscovered pour la section fog of war
         const hexResourceDiscovered = (window as any).usePlayer?.getState()?.isResourceDiscovered?.(hex.x, hex.y) || false;
         
-        // Ressources visibles si : mode MJ OU (exploration niveau 1+ ET ressources découvertes)
-        const isVisible = isGameMaster || (explorationLevel >= 1 && hexResourceDiscovered);
+        // Ressources visibles si : mode admin OU (exploration niveau 1+ ET ressources découvertes)
+        const isVisible = this.isAdminMode || (explorationLevel >= 1 && hexResourceDiscovered);
         
         if (isVisible) {
-          const effectiveLevel = Math.max(explorationLevel, isGameMaster ? 1 : 0);
+          const effectiveLevel = Math.max(explorationLevel, this.isAdminMode ? 1 : 0);
           const resourceSymbol = ResourceRevealSystem.getHexResourceSymbol(hex, effectiveLevel);
           const resourceColor = ResourceRevealSystem.getHexResourceColor(hex, effectiveLevel);
           
           if (resourceSymbol && resourceColor) {
             this.ctx.fillStyle = resourceColor;
-            this.ctx.globalAlpha = isGameMaster ? 0.6 : 0.3;
+            this.ctx.globalAlpha = this.isAdminMode ? 0.6 : 0.3;
             this.ctx.fillRect(x - 8, y - 8, 16, 16);
             
-            this.ctx.globalAlpha = isGameMaster ? 0.9 : 0.6;
-            this.ctx.font = isGameMaster ? 'bold 14px Arial' : '14px Arial';
+            this.ctx.globalAlpha = this.isAdminMode ? 0.9 : 0.6;
+            this.ctx.font = this.isAdminMode ? 'bold 14px Arial' : '14px Arial';
             this.ctx.textAlign = 'center';
             this.ctx.fillStyle = '#000';
             this.ctx.fillText(resourceSymbol, x, y + 4);

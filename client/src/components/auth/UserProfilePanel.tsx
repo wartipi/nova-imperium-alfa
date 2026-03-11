@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../lib/auth/AuthContext';
-import { useGameState } from '../../lib/stores/useGameState';
 import { Button } from '../ui/button';
 
 export function UserProfilePanel() {
-  const { currentUser, logout } = useAuth();
-  const { isGameMaster, toggleGameMaster } = useGameState();
+  const { currentUser, logout, role } = useAuth();
+  const isAdmin = role === 'admin';
   const [showAdminPanel, setShowAdminPanel] = useState(false);
 
   const getUserRole = () => {
@@ -61,21 +60,14 @@ export function UserProfilePanel() {
           {showAdminPanel && (
             <div className="mt-2 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-amber-700">Mode GM</span>
-                <button
-                  onClick={toggleGameMaster}
-                  className={`text-xs px-2 py-1 rounded ${
-                    isGameMaster 
-                      ? 'bg-green-500 text-white' 
-                      : 'bg-gray-300 text-gray-700'
-                  }`}
-                >
-                  {isGameMaster ? 'Activé' : 'Désactivé'}
-                </button>
+                <span className="text-xs text-amber-700">Mode Admin</span>
+                <span className={`text-xs px-2 py-1 rounded ${isAdmin ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-700'}`}>
+                  {isAdmin ? 'Actif' : 'Inactif'}
+                </span>
               </div>
               
               <div className="text-xs text-amber-600">
-                {isGameMaster ? '👁️ Vision complète de la carte' : '🔒 Vision limitée normale'}
+                {isAdmin ? '👁️ Vision complète de la carte' : '🔒 Vision limitée normale'}
               </div>
               
               {currentUser === 'admin' && (

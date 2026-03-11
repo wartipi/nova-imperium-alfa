@@ -21,8 +21,7 @@ describe('useGameState', () => {
     // Réinitialiser le store avant chaque test
     useGameState.setState({
       gamePhase: 'loading',
-      currentTurn: 1,
-      isGameMaster: false
+      currentTurn: 1
     });
   });
 
@@ -79,26 +78,6 @@ describe('useGameState', () => {
     });
   });
 
-  describe('toggleGameMaster', () => {
-    it('devrait basculer le mode Maître de Jeu', () => {
-      const { result } = renderHook(() => useGameState());
-      
-      expect(result.current.isGameMaster).toBe(false);
-      
-      act(() => {
-        result.current.toggleGameMaster();
-      });
-
-      expect(result.current.isGameMaster).toBe(true);
-      
-      act(() => {
-        result.current.toggleGameMaster();
-      });
-
-      expect(result.current.isGameMaster).toBe(false);
-    });
-  });
-
   describe('setGamePhase', () => {
     it('devrait mettre à jour la phase du jeu', () => {
       const { result } = renderHook(() => useGameState());
@@ -123,10 +102,8 @@ describe('useGameState', () => {
       
       expect(result.current.gamePhase).toBe('loading');
       expect(result.current.currentTurn).toBe(1);
-      expect(result.current.isGameMaster).toBe(false);
       expect(typeof result.current.initializeGame).toBe('function');
       expect(typeof result.current.endTurn).toBe('function');
-      expect(typeof result.current.toggleGameMaster).toBe('function');
     });
   });
 
@@ -136,13 +113,11 @@ describe('useGameState', () => {
       
       act(() => {
         result.current.initializeGame();
-        result.current.toggleGameMaster();
         result.current.endTurn();
         result.current.endTurn();
       });
 
       expect(result.current.gamePhase).toBe('jeu');
-      expect(result.current.isGameMaster).toBe(true);
       expect(result.current.currentTurn).toBe(3);
     });
   });

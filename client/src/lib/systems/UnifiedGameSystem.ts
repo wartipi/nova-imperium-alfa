@@ -5,7 +5,6 @@
  */
 
 import { usePlayer } from '../stores/usePlayer';
-import { useGameState } from '../stores/useGameState';
 import { ResourceRevealSystem } from './ResourceRevealSystem';
 import { VisionSystem } from './VisionSystem';
 import { getTerrainMovementCost } from '../game/TerrainCosts';
@@ -78,17 +77,10 @@ export class UnifiedGameSystem {
 
     // Récupération des états des stores
     const playerState = (window as any).usePlayer?.getState();
-    const gameState = (window as any).useGameState?.getState();
     
-    if (!playerState || !gameState) return false;
+    if (!playerState) return false;
 
     const { getCompetenceLevel, isHexExplored } = playerState;
-    const { isGameMaster } = gameState;
-
-    // Mode MJ : toutes les ressources visibles
-    if (isGameMaster && this.config.gameMasterSettings.showAllResources) {
-      return true;
-    }
 
     // Mode joueur : exige exploration niveau 1+ ET zone explorée
     const explorationLevel = getCompetenceLevel('exploration') || 0;

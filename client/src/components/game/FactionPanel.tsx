@@ -3,7 +3,7 @@ import { useFactions } from "../../lib/stores/useFactions";
 import { usePlayer } from "../../lib/stores/usePlayer";
 import { useReputation } from "../../lib/stores/useReputation";
 import { useNovaImperium } from "../../lib/stores/useNovaImperium";
-import { useGameState } from "../../lib/stores/useGameState";
+import { useAuth } from "../../lib/auth/AuthContext";
 import { FactionCreationPanel } from "./FactionCreationPanel";
 import { AlliancesPanel } from "./AlliancesPanel";
 import { Button } from "../ui/button";
@@ -17,11 +17,12 @@ export function FactionPanel({ onClose }: FactionPanelProps) {
   const { playerName } = usePlayer();
   const { honor, getReputationLevel, canCreateFaction: canCreateFactionRep } = useReputation();
   const { currentNovaImperium } = useNovaImperium();
-  const { isGameMaster } = useGameState();
+  const { role } = useAuth();
+  const isAdmin = role === 'admin';
   const [activeTab, setActiveTab] = useState<'overview' | 'factions' | 'create' | 'alliances' | 'quests'>('overview');
   
   const currentFaction = playerFaction ? getFactionById(playerFaction) : null;
-  const canCreate = isGameMaster || canCreateFaction('player', honor);
+  const canCreate = isAdmin || canCreateFaction('player', honor);
   const availableQuests = getAvailableQuests(playerFaction, honor);
   const reputationLevel = getReputationLevel();
 
@@ -88,7 +89,7 @@ export function FactionPanel({ onClose }: FactionPanelProps) {
           size="sm"
           variant={activeTab === 'create' ? 'default' : 'outline'}
           onClick={() => setActiveTab('create')}
-          disabled={!isGameMaster && !canCreateFactionRep()}
+          disabled={!isAdmin && !canCreateFactionRep()}
         >
           ✨ Créer
         </Button>

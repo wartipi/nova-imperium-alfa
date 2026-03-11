@@ -1,7 +1,7 @@
 import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { usePlayer } from "../../lib/stores/usePlayer";
 import { useFactions } from "../../lib/stores/useFactions";
-import { useGameState } from "../../lib/stores/useGameState";
+import { useAuth } from "../../lib/auth/AuthContext";
 import { Button } from "../ui/button";
 import { getBuildingCost, canAffordAction } from "../../lib/game/ActionPointsCosts";
 import { getBuildingAPGeneration, getBuildingMaxAPIncrease } from "../../lib/game/ActionPointsGeneration";
@@ -14,7 +14,8 @@ export function ConstructionPanel() {
   const { currentNovaImperium, buildInCity, addCity } = useNovaImperium();
   const { actionPoints, spendActionPoints } = usePlayer();
   const { playerFaction, getFactionById } = useFactions();
-  const { isGameMaster } = useGameState();
+  const { role } = useAuth();
+  const isAdmin = role === 'admin';
   const { selectedHex } = useMap();
   const [hoveredBuilding, setHoveredBuilding] = useState<string | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
@@ -554,7 +555,7 @@ export function ConstructionPanel() {
   // Vérifier si la colonie peut construire un bâtiment (contrôle du terrain requis)
   const canBuildBuilding = (building: any): { canBuild: boolean; missingTerrain?: string[] } => {
     // En mode MJ, tous les terrains sont disponibles
-    if (isGameMaster) {
+    if (isAdmin) {
       return { canBuild: true };
     }
     
@@ -650,7 +651,7 @@ export function ConstructionPanel() {
     if (!building || !currentNovaImperium) return false;
     
     // En mode MJ, on peut toujours construire
-    if (isGameMaster) return true;
+    if (isAdmin) return true;
     
     const actionCost = getBuildingCost(buildingId);
     const resources = currentNovaImperium.resources;
@@ -673,7 +674,7 @@ export function ConstructionPanel() {
     
     if (canAffordBuilding(buildingId)) {
       // En mode MJ, construction instantanée sans coûts
-      if (isGameMaster) {
+      if (isAdmin) {
         buildInCity(cityId, buildingId, {}, building.constructionTime, true);
         console.log(`[MODE MJ] Construction instantanée de ${buildingId} (ressources infinies, pas d'attente)`);
       } else {
@@ -707,7 +708,7 @@ export function ConstructionPanel() {
     <div className="space-y-4">
       <div className="text-center">
         <h4 className="font-bold text-base mb-3">Projets de Construction</h4>
-        {isGameMaster && (
+        {isAdmin && (
           <div className="bg-purple-100 border border-purple-400 rounded p-2 mb-3">
             <div className="text-purple-800 text-sm font-semibold">🎯 Mode Maître de Jeu</div>
             <div className="text-purple-700 text-xs">
@@ -745,7 +746,7 @@ export function ConstructionPanel() {
       )}
 
       {/* Message d'état si pas de colonies (seulement pour joueurs normaux) */}
-      {!isGameMaster && !hasColonies && (
+      {!isAdmin && !hasColonies && (
         <div className="bg-yellow-50 border border-yellow-400 rounded p-3 mb-4">
           <div className="text-yellow-800 text-sm font-semibold">⚠️ Aucune colonie fondée</div>
           <div className="text-yellow-700 text-xs mb-2">
@@ -805,7 +806,7 @@ export function ConstructionPanel() {
             </div>
           ) : (
             <div className="text-xs text-amber-700 mb-3">
-              {hasColonies || isGameMaster ? 'Aucune construction en cours' : 'Fondez d\'abord une colonie'}
+              {hasColonies || isAdmin ? 'Aucune construction en cours' : 'Fondez d\'abord une colonie'}
             </div>
           )}
 
@@ -833,7 +834,7 @@ export function ConstructionPanel() {
                             {formatResourceCost(building.cost)}
                           </div>
                           <div className="text-xs text-blue-600">
-                            ⚡ {isGameMaster ? '∞ PA (Mode MJ)' : `${building.actionPointCost} PA`} | 🕐 {isGameMaster ? 'Instantané' : `${building.constructionTime} tour${building.constructionTime > 1 ? 's' : ''}`}
+                            ⚡ {isAdmin ? '∞ PA (Mode MJ)' : `${building.actionPointCost} PA`} | 🕐 {isAdmin ? 'Instantané' : `${building.constructionTime} tour${building.constructionTime > 1 ? 's' : ''}`}
                           </div>
                           <div className="text-xs text-green-600">
                             📍 {building.requiredTerrain.map(terrain => getTerrainName(terrain)).join(' ou ')}
@@ -870,7 +871,7 @@ export function ConstructionPanel() {
           </div>
         </div>
         );
-      }) : !isGameMaster ? (
+      }) : !isAdmin ? (
         <div className="bg-amber-50 border border-amber-700 rounded p-3 opacity-50">
           <div className="font-medium text-sm mb-2">Construction (nécessite une colonie)</div>
           <div className="text-amber-700 text-xs">

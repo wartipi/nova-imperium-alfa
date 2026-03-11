@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useCallback, useState, useMemo } from "react";
 import { useMap } from "../../../lib/stores/useMap";
 import { useGameState } from "../../../lib/stores/useGameState";
+import { useAuth } from "../../../lib/auth/AuthContext";
 import { usePlayer } from "../../../lib/stores/usePlayer";
 import { GameEngine } from "../../../lib/game/GameEngine";
 import { useGameEngine } from "../../../lib/contexts/GameEngineContext";
@@ -122,7 +123,9 @@ export const GameCanvasOptimized = React.memo(() => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { gameEngineRef } = useGameEngine();
   const { mapData, selectedHex, setSelectedHex } = useMap();
-  const { gamePhase, isGameMaster } = useGameState();
+  const { gamePhase } = useGameState();
+  const { role } = useAuth();
+  const isAdmin = role === 'admin';
   const { avatarPosition, moveAvatarToHex } = usePlayer();
   
   const [mouseDownPos, setMouseDownPos] = useState<MousePosition | null>(null);
@@ -145,7 +148,7 @@ export const GameCanvasOptimized = React.memo(() => {
   // Re-rendu optimisé lors des changements d'état
   useEffect(() => {
     optimizedRender();
-  }, [isGameMaster, selectedHex, avatarPosition, optimizedRender]);
+  }, [isAdmin, selectedHex, avatarPosition, optimizedRender]);
 
   // Gestion optimisée des événements souris
   const handleMouseDown = useCallback((event: React.MouseEvent) => {

@@ -53,8 +53,9 @@ type MenuSection =
   | 'marshals';
 
 export function MedievalHUD() {
-  const { gamePhase, currentTurn, endTurn, isGameMaster, toggleGameMaster } = useGameState();
-  const { currentUser, logout } = useAuth();
+  const { gamePhase, currentTurn, endTurn } = useGameState();
+  const { currentUser, logout, role } = useAuth();
+  const isAdmin = role === 'admin';
   const { novaImperiums, currentNovaImperium } = useNovaImperium();
   const { selectedHex } = useMap();
   const { isMuted, toggleMute } = useAudio();
@@ -436,7 +437,7 @@ export function MedievalHUD() {
               <div className="flex items-center justify-between">
                 <div className="text-purple-600">{competences.length} apprises ({competencePoints} pts)</div>
                 <div className="flex space-x-1">
-                  {isGameMaster && (
+                  {isAdmin && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -496,24 +497,14 @@ export function MedievalHUD() {
                   {showAdminPanel && (
                     <div className="mt-2 space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-amber-700">Mode GM</span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleGameMaster();
-                          }}
-                          className={`text-xs px-2 py-1 rounded ${
-                            isGameMaster 
-                              ? 'bg-green-500 text-white' 
-                              : 'bg-gray-300 text-gray-700'
-                          }`}
-                        >
-                          {isGameMaster ? 'Activé' : 'Désactivé'}
-                        </button>
+                        <span className="text-xs text-amber-700">Mode Admin</span>
+                        <span className={`text-xs px-2 py-1 rounded ${isAdmin ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-700'}`}>
+                          {isAdmin ? 'Actif' : 'Inactif'}
+                        </span>
                       </div>
                       
                       <div className="text-xs text-amber-600">
-                        {isGameMaster ? '👁️ Vision complète de la carte' : '🔒 Vision limitée normale'}
+                        {isAdmin ? '👁️ Vision complète de la carte' : '🔒 Vision limitée normale'}
                       </div>
                       
                       {currentUser === 'admin' && (
@@ -612,18 +603,6 @@ export function MedievalHUD() {
             className="bg-amber-100 border border-amber-700 text-amber-800 hover:bg-amber-200 px-3 py-1 rounded text-sm font-bold"
           >
             {isMuted ? "🔇" : "🔊"}
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleGameMaster();
-            }}
-            className={`px-3 py-1 rounded text-sm font-bold border ${isGameMaster 
-              ? 'bg-red-100 border-red-700 text-red-800 hover:bg-red-200' 
-              : 'bg-amber-100 border-amber-700 text-amber-800 hover:bg-amber-200'
-            }`}
-          >
-            {isGameMaster ? "👁️ MJ" : "👤 PJ"}
           </button>
         </div>
       </div>

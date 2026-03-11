@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { usePlayer } from "../../lib/stores/usePlayer";
 import { useReputation } from "../../lib/stores/useReputation";
-import { useGameState } from "../../lib/stores/useGameState";
+import { useAuth } from "../../lib/auth/AuthContext";
 import { useFactions } from "../../lib/stores/useFactions";
 import { useMap } from "../../lib/stores/useMap";
 // import { useMapState } from "../../lib/stores/useMapState"; // Pas utilisé ici
@@ -27,7 +27,8 @@ const getGameData = () => {
 export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarActionMenuProps) {
   const { actionPoints, spendActionPoints, addActionPoints, hasCompetenceLevel, competences, gainExperience, exploreCurrentLocation, discoverResourcesInVision, playerName } = usePlayer();
   const { reputation } = useReputation();
-  const { isGameMaster } = useGameState();
+  const { role } = useAuth();
+  const isAdmin = role === 'admin';
   const { playerFaction } = useFactions();
   const { setSelectedHex } = useMap();
   const { foundColony } = useNovaImperium();
@@ -108,7 +109,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
 
   const isActionAvailable = (action: any) => {
     // En mode MJ, toutes les actions sont disponibles
-    if (isGameMaster) return true;
+    if (isAdmin) return true;
     
     // Vérifier les points d'action
     if (actionPoints < action.cost) return false;
@@ -146,7 +147,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       const { avatarPosition } = getGameData();
       
       // En mode MJ, la fondation réussit toujours
-      if (isGameMaster) {
+      if (isAdmin) {
         const colonyName = prompt("Nom de la colonie (Mode MJ):") || "Colonie MJ";
         const success = foundColony(
           avatarPosition.x,
@@ -253,7 +254,7 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
 
     if (action.id === 'explore_zone') {
       // En mode MJ, l'exploration réussit toujours
-      if (isGameMaster) {
+      if (isAdmin) {
         const { currentVision } = usePlayer.getState();
         const visionSize = currentVision.size;
         
@@ -283,8 +284,8 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     
     if (action.id === 'create_map') {
       // En mode MJ, on ne dépense pas de PA
-      if (isGameMaster || spendActionPoints(action.cost)) {
-        if (isGameMaster) {
+      if (isAdmin || spendActionPoints(action.cost)) {
+        if (isAdmin) {
           console.log(`[MODE MJ] Action cartographie effectuée sans coût en PA`);
         }
         try {
@@ -429,8 +430,8 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     }
     
     // En mode MJ, on n'utilise pas de PA pour les autres actions
-    if (isGameMaster || spendActionPoints(action.cost)) {
-      if (isGameMaster) {
+    if (isAdmin || spendActionPoints(action.cost)) {
+      if (isAdmin) {
         console.log(`[MODE MJ] Action ${action.name} exécutée sans coût en PA`);
       } else {
         console.log(`Action exécutée: ${action.name}`);
@@ -493,9 +494,9 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
           </div>
           
           <div className="text-sm text-amber-700 mb-4">
-            Points d'Action: {isGameMaster ? '∞ (Mode MJ)' : actionPoints}
+            Points d'Action: {isAdmin ? '∞ (Mode MJ)' : actionPoints}
           </div>
-          {isGameMaster && (
+          {isAdmin && (
             <div className="text-xs text-green-600 font-medium mb-4">
               🎯 Mode Maître de Jeu: Toutes les actions sont accessibles gratuitement
             </div>

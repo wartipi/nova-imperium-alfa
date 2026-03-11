@@ -16,7 +16,7 @@ interface NovaImperiumState {
   selectCity: (cityId: string) => void;
   moveUnit: (unitId: string, x: number, y: number) => void;
   attackWithUnit: (unitId: string, targetX: number, targetY: number) => void;
-  buildInCity: (cityId: string, buildingType: string, resourceCost?: Record<string, number>, constructionTime?: number, isGameMaster?: boolean) => void;
+  buildInCity: (cityId: string, buildingType: string, resourceCost?: Record<string, number>, constructionTime?: number, isAdmin?: boolean) => void;
   trainUnit: (cityId: string, unitType: string, cost?: Record<string, number>, recruitmentTime?: number) => void;
   addCity: (city: City) => void;
   foundColony: (x: number, y: number, colonyName: string, playerId: string, playerName: string, factionId: string, factionName: string) => boolean;
@@ -157,7 +157,7 @@ export const useNovaImperium = create<NovaImperiumState>()(
       console.log(`Unit ${unitId} attacking position (${targetX}, ${targetY})`);
     },
     
-    buildInCity: (cityId: string, buildingType: string, resourceCost?: Record<string, number>, constructionTime?: number, isGameMaster?: boolean) => {
+    buildInCity: (cityId: string, buildingType: string, resourceCost?: Record<string, number>, constructionTime?: number, isAdmin?: boolean) => {
       const buildingCosts = {
         granary: 60, library: 90, barracks: 80, market: 100,
         port: 80, road: 40, shipyard: 120,
@@ -174,7 +174,7 @@ export const useNovaImperium = create<NovaImperiumState>()(
         const updatedNIs = state.novaImperiums.map(ni => 
           ni.id === state.currentNovaImperiumId ? {
             ...ni,
-            resources: resourceCost && !isGameMaster ? {
+            resources: resourceCost && !isAdmin ? {
               ...ni.resources,
               ...Object.fromEntries(
                 Object.entries(resourceCost).map(([resource, amount]) => [
@@ -187,7 +187,7 @@ export const useNovaImperium = create<NovaImperiumState>()(
               city.id === cityId ? {
                 ...city,
                 // En mode MJ, construction instantanée
-                ...(isGameMaster ? {
+                ...(isAdmin ? {
                   buildings: [...(city.buildings || []), buildingType],
                   currentProduction: null,
                   productionProgress: 0
@@ -206,7 +206,7 @@ export const useNovaImperium = create<NovaImperiumState>()(
         
         const updatedCurrentNI = updatedNIs.find(ni => ni.id === state.currentNovaImperiumId) || null;
         
-        if (isGameMaster) {
+        if (isAdmin) {
           console.log(`[MODE MJ] Construction instantanée de ${buildingType} dans ${cityId}`);
         }
         

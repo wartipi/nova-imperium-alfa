@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback, useState, useMemo } from "react";
 import { useMap } from "../../lib/stores/useMap";
 import { useGameState } from "../../lib/stores/useGameState";
+import { useAuth } from "../../lib/auth/AuthContext";
 import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { usePlayer } from "../../lib/stores/usePlayer";
 import { GameEngine } from "../../lib/game/GameEngine";
@@ -26,7 +27,8 @@ export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { gameEngineRef } = useGameEngine();
   const { mapData, selectedHex, setSelectedHex } = useMap();
-  const { gamePhase, isGameMaster } = useGameState();
+  const { gamePhase } = useGameState();
+  const { role } = useAuth();
   const { novaImperiums, selectedUnit, moveUnit } = useNovaImperium();
   const { avatarPosition, avatarRotation, isMoving, selectedCharacter, moveAvatarToHex, isHexVisible, isHexInCurrentVision, pendingMovement, setPendingMovement } = usePlayer();
   
@@ -62,11 +64,12 @@ export function GameCanvas() {
     }
   }, [mapData]);
 
-  // Re-render when Game Master mode changes - IMPROVED: Using renderEngine hook
+  // Inject admin mode into GameEngine when role changes
   useEffect(() => {
-    console.log('Mode MJ changé, re-render de la carte:', isGameMaster);
-    renderEngine(); // Uses the improved hook instead of direct window access
-  }, [isGameMaster, renderEngine]);
+    if (!gameEngineRef.current) return;
+    gameEngineRef.current.setAdminMode(role === 'admin');
+    renderEngine();
+  }, [role, gameEngineRef, renderEngine]);
 
   // IMPROVED: Memoized mouse down handler
   const handleMouseDown = useCallback((event: React.MouseEvent) => {
@@ -118,8 +121,7 @@ export function GameCanvas() {
 
         // Vérifier si la case est explorée avant de permettre la sélection
         const { isHexExplored } = usePlayer.getState();
-        const { isGameMaster } = useGameState.getState();
-        const isAccessible = isHexExplored(hex.x, hex.y) || isGameMaster;
+        const isAccessible = isHexExplored(hex.x, hex.y) || (role === 'admin');
         
         // Ne permettre la sélection que si la case est accessible
         if (isAccessible) {
