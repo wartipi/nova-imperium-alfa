@@ -1,0 +1,119 @@
+Mise en contexte — Mode Maître de Jeu (MJ) et timers d’actions
+Contexte du projet
+
+Nova Imperium est une plateforme stratégique persistante utilisant un backend serveur autoritaire.
+
+Les actions de gameplay sont gérées via un moteur d’actions persistantes, stockées en base dans une table similaire à :
+
+player_actions
+
+Chaque action contient notamment :
+
+start_time
+expected_end_time
+status
+path
+total_cost
+
+Le système fonctionne en temps réel.
+
+Exemple :
+
+1 Action Point = 6 heures de déplacement
+
+Lorsqu’une action est créée :
+
+le serveur calcule la durée
+
+l’action est enregistrée
+
+le client voit l’action en cours
+
+le serveur finalise l’action lorsque expected_end_time est atteint
+
+Ce système permet d’avoir un monde persistant où les actions prennent du temps.
+
+Situation actuelle
+
+Un mode Maître de Jeu (MJ) existe déjà dans le projet.
+
+Ce mode est utilisé pour :
+
+l’administration
+
+le contrôle du monde
+
+le test de la plateforme
+
+Cependant, pour le moment, ce mode MJ ne modifie pas le comportement des timers d’actions.
+
+Objectif du nouveau comportement MJ
+
+Nous voulons permettre au Maître de Jeu de tester la plateforme sans attendre les timers réels.
+
+Pour cela :
+
+toutes les actions lancées par un MJ doivent être instantanées
+
+mais sans contourner le moteur d’actions existant
+
+Autrement dit :
+
+le MJ utilise le même pipeline que les joueurs, mais avec durée = 0.
+
+Principe architectural important
+
+Le mode MJ ne doit pas créer un système parallèle.
+
+Il doit simplement modifier le calcul de durée des actions.
+
+Le pipeline doit rester :
+
+création d’action
+→ écriture en base
+→ statut actif
+→ complétion
+
+La seule différence est :
+
+expected_end_time = start_time
+
+ou une durée de 0.
+
+Ainsi :
+
+la persistance reste intacte
+
+les logs d’actions restent complets
+
+les tests du moteur restent réalistes
+
+Ce que nous voulons éviter
+
+Nous ne voulons pas :
+
+un bypass complet du système d’actions
+
+une exécution spéciale uniquement pour MJ
+
+une logique client différente
+
+un système parallèle
+
+Le mode MJ doit utiliser exactement le même moteur, avec seulement une modification du calcul du temps.
+
+Objectif de la tâche
+
+Identifier :
+
+où le mode MJ est actuellement défini
+
+comment il est détecté côté serveur
+
+où les durées d’actions sont calculées
+
+où injecter proprement la règle :
+
+si joueur MJ → durée = 0
+
+avant toute implémentation.
