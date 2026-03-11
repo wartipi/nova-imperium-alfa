@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '../ui/button';
 
 interface LoginModalProps {
-  onLogin: (username: string, password: string) => boolean;
+  onLogin: (username: string, password: string) => Promise<boolean>;
   isVisible: boolean;
 }
 
@@ -18,7 +18,7 @@ export function LoginModal({ onLogin, isVisible }: LoginModalProps) {
     setError('');
 
     try {
-      const success = onLogin(username, password);
+      const success = await onLogin(username, password);
       if (!success) {
         setError('Nom d\'utilisateur ou mot de passe incorrect');
       }

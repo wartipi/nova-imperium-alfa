@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  login: (username: string, password: string) => boolean;
+  login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
   currentUser: string | null;
   role: 'admin' | 'player';
@@ -10,78 +10,76 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const AUTHORIZED_USERS: Record<string, string> = {
-  'admin': 'nova2025',
-  'joueur1': 'imperium123',
-  'maitre': 'pandem456'
-};
-
-const ADMIN_USERS = ['admin', 'maitre'];
-
-function deriveRole(username: string | null): 'admin' | 'player' {
-  if (username && ADMIN_USERS.includes(username)) return 'admin';
-  return 'player';
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [role, setRole] = useState<'admin' | 'player'>('player');
 
-  // Vérifier si l'utilisateur est déjà connecté au chargement
   useEffect(() => {
     const savedAuth = localStorage.getItem('nova_imperium_auth');
     if (savedAuth) {
       try {
-        const { user, token, timestamp } = JSON.parse(savedAuth);
-        // Session valide pendant 24 heures et doit contenir un token
-        if (token && Date.now() - timestamp < 24 * 60 * 60 * 1000) {
-          setIsAuthenticated(true);
-          setCurrentUser(user);
-        } else {
-          // Session trop ancienne ou sans token — reconnexion requise
+        const { user, role: savedRole, token, timestamp } = JSON.parse(savedAuth);
+        // Session invalide si : trop ancienne, sans token, ou sans role (session pré-migration)
+        if (!token || !savedRole || Date.now() - timestamp >= 24 * 60 * 60 * 1000) {
           localStorage.removeItem('nova_imperium_auth');
+          return;
         }
-      } catch (error) {
+        setIsAuthenticated(true);
+        setCurrentUser(user);
+        setRole(savedRole);
+      } catch {
         localStorage.removeItem('nova_imperium_auth');
       }
     }
   }, []);
 
-  const login = (username: string, password: string): boolean => {
-    const trimmedUsername = username.trim().toLowerCase();
-    const trimmedPassword = password.trim();
+  const login = async (username: string, password: string): Promise<boolean> => {
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username.trim().toLowerCase(), password: password.trim() })
+      });
 
-    if (AUTHORIZED_USERS[trimmedUsername] === trimmedPassword) {
+      if (!res.ok) return false;
+
+      const data = await res.json();
+      if (!data.success || !data.user?.role) return false;
+
+      const { user, token } = data;
+
       setIsAuthenticated(true);
-      setCurrentUser(trimmedUsername);
-      
-      // Sauvegarder la session
-      const token = btoa(`${trimmedUsername}:${trimmedPassword}`);
+      setCurrentUser(user.username);
+      setRole(user.role);
+
       localStorage.setItem('nova_imperium_auth', JSON.stringify({
-        user: trimmedUsername,
+        user: user.username,
+        role: user.role,
         token,
         timestamp: Date.now()
       }));
-      
+
       return true;
+    } catch {
+      return false;
     }
-    
-    return false;
   };
 
   const logout = () => {
     setIsAuthenticated(false);
     setCurrentUser(null);
+    setRole('player');
     localStorage.removeItem('nova_imperium_auth');
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      isAuthenticated, 
-      login, 
-      logout, 
+    <AuthContext.Provider value={{
+      isAuthenticated,
+      login,
+      logout,
       currentUser,
-      role: deriveRole(currentUser)
+      role
     }}>
       {children}
     </AuthContext.Provider>
