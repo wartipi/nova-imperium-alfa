@@ -12,6 +12,7 @@ import { CameraControls } from "./CameraControls";
 import { CityManagementPanel } from "./CityManagementPanel";
 import { UnifiedTerritorySystem } from "../../lib/systems/UnifiedTerritorySystem";
 import { requestMove, fetchCurrentAction } from "../../lib/api/playerActionsApi";
+import { fetchPlayerPosition } from "../../lib/api/playerApi";
 import { usePlayerActions } from "../../lib/stores/usePlayerActions";
 
 // Improved imports - custom hooks and constants
@@ -207,6 +208,10 @@ export function GameCanvas() {
         usePlayerActions.getState().setActiveAction(
           confirmed?.status === "in_progress" ? confirmed : null
         );
+        // Resynchronisation position via source de vérité serveur
+        const serverPos = await fetchPlayerPosition();
+        const { originWorldX, originWorldY } = useMap.getState();
+        moveAvatarToHex(serverPos.worldX - originWorldX, serverPos.worldY - originWorldY);
       } else {
         usePlayerActions.getState().setActiveAction(response.action);
       }
