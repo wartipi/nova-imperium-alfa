@@ -1,0 +1,62 @@
+Oui. Et tu as raison de durcir ça maintenant.
+
+Parce que son “sûr en pratique aujourd’hui” est exactement le genre de formule molle qui finit par coûter du temps plus tard. On ne veut pas des impressions. On veut des **certitudes**, ou alors une **incertitude clairement nommée avec preuve manquante**.
+
+Donc je te refais la réponse à lui envoyer, en version plus rigoureuse.
+
+```txt
+L’étape 2 est validée.
+
+Le diagnostic est maintenant suffisamment clair :
+- la validité actuelle d’une position repose uniquement sur worldX/worldY entiers
+- deep_water, shallow_water et non-walkable sont tous acceptables dans l’état actuel
+- il existe 3 chemins d’écriture vers player_positions :
+  1. ensurePlayerPosition()
+  2. POST /api/player/position
+  3. completeAction()
+
+Je veux maintenant une proposition de correction minimale, mais cohérente.
+
+À l’étape 3, je veux que tu proposes une architecture simple avec les éléments suivants :
+
+1. un point de spawn prototype centralisé et modifiable
+   - par exemple un objet SPAWN_POINTS
+   - et une fonction getActiveSpawnPoint()
+
+2. une règle explicite de validité de position prototype
+   - une position est valide seulement si :
+     - la tuile existe
+     - is_walkable = true
+     - terrain_type n’est ni deep_water ni shallow_water
+
+3. une stratégie claire pour savoir où cette validation doit être appliquée :
+   - au chargement via ensurePlayerPosition()
+   - et/ou à l’écriture via savePlayerPosition()
+   - et/ou via une fonction centrale réutilisée par les différents chemins
+
+Je veux une proposition précise qui réponde explicitement à ces questions :
+- quelles fonctions existantes seront modifiées
+- quelles nouvelles fonctions seront créées
+- quels fichiers seront modifiés
+- comment seront traités les 3 chemins d’écriture identifiés
+- quel est le plus petit changement possible pour rendre le prototype cohérent
+
+Exigence de rigueur :
+- je ne veux pas de formulations vagues comme “sûr en pratique”, “probablement”, “devrait suffire” ou “semble correct”
+- si un chemin est sûr, tu dois expliquer exactement pourquoi, à partir du code actuel
+- si un chemin n’est pas garanti, tu dois le dire explicitement
+- si une hypothèse est nécessaire, elle doit être identifiée comme hypothèse et non présentée comme un fait
+- je veux des certitudes appuyées par le code réel, ou une explication claire de ce qui ne peut pas être garanti
+
+Important :
+ne passe pas encore à l’implémentation.
+Tu proposes l’architecture minimale, puis tu t’arrêtes pour validation.
+```
+
+Cette version est meilleure parce qu’elle force l’IA à faire une différence entre :
+
+* **fait démontré**
+* **hypothèse**
+* **zone non garantie**
+
+Ce qui, dans un projet persistant, est un luxe assez proche de l’hygiène mentale. Colle-moi sa réponse d’étape 3 quand tu l’as.
