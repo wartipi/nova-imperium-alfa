@@ -93,7 +93,7 @@ function ColonyInfoSection({ selectedHex }: { selectedHex: HexTile }) {
 // Composant séparé pour éviter les problèmes de hooks
 function ResourceInfoSection({ selectedHex }: { selectedHex: HexTile }) {
   const { getCompetenceLevel, isResourceDiscovered } = usePlayer();
-  const { isAdmin } = useAuth();
+  const { isAdmin, role } = useAuth();
   
   const explorationLevel = getCompetenceLevel('exploration');
   const hexResourceDiscovered = isResourceDiscovered(selectedHex.x, selectedHex.y);
@@ -157,7 +157,7 @@ function ResourceInfoSection({ selectedHex }: { selectedHex: HexTile }) {
         </div>
         
         {/* Debug admin */}
-        {isAdmin && (
+        {role === 'admin' && (
           <div className="mt-2 text-xs text-purple-700 bg-purple-50 p-1 rounded">
             Debug Admin: resource="{selectedHex.resource || 'null'}", discovered={hexResourceDiscovered ? 'oui' : 'non'}
           </div>
@@ -384,7 +384,7 @@ export function TileInfoPanel() {
   const { selectedHex, setSelectedHex } = useMap();
   const { novaImperiums } = useNovaImperium();
   const { isHexExplored } = usePlayer();
-  // isAdmin already defined above
+  const { isAdmin, role } = useAuth();
   const [forceRefresh, setForceRefresh] = React.useState(0);
   
   // Force un rafraîchissement toutes les 3 secondes pour détecter les changements de territoire
@@ -518,8 +518,8 @@ export function TileInfoPanel() {
       <div className="flex justify-between items-center mb-3">
         <div className="text-amber-900 font-bold text-lg">
           INFORMATIONS DE LA CASE
-          {isAdmin && (
-            <span className="ml-2 text-xs bg-purple-500 text-white px-2 py-1 rounded">MJ</span>
+          {role === 'admin' && (
+            <span className="ml-2 text-xs bg-purple-500 text-white px-2 py-1 rounded">Admin</span>
           )}
         </div>
         <button
@@ -681,7 +681,7 @@ export function TileInfoPanel() {
       )}
 
       {/* Informations techniques (Admin) */}
-      {isAdmin && (
+      {role === 'admin' && (
         <div className="bg-purple-50 border border-purple-700 rounded p-2 mb-3">
           <div className="text-purple-900 font-semibold mb-2">🔧 Informations techniques (Admin)</div>
           <div className="text-xs text-purple-800 space-y-2">

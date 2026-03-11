@@ -19,7 +19,7 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
     spendActionPoints, 
     playerName = 'Joueur' 
   } = usePlayer();
-  const { isAdmin } = useAuth();
+  const { isAdmin, role } = useAuth();
   const { playerFaction } = useFactions();
   const { setSelectedHex } = useMap();
   const { showAlert, AlertComponent } = useCustomAlert();
@@ -33,7 +33,7 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
 
   // Charger les territoires
   const loadTerritories = () => {
-    if (isAdmin) {
+    if (role === 'admin') {
       setTerritories(UnifiedTerritorySystem.getAllTerritories());
     } else {
       setTerritories(UnifiedTerritorySystem.getPlayerTerritories('player'));
@@ -42,7 +42,7 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
 
   useEffect(() => {
     loadTerritories();
-  }, [isAdmin]);
+  }, [role]);
 
   // Revendiquer le territoire à la position de l'avatar
   const handleClaimTerritory = () => {
@@ -237,7 +237,7 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
       {/* En-tête */}
       <div className="mb-6">
         <h3 className="medieval-subtitle mb-4">
-          {isAdmin ? 'Gestion de Territoire (Admin)' : 'Mes Territoires'}
+          {role === 'admin' ? 'Gestion de Territoire (Admin)' : 'Mes Territoires'}
         </h3>
       </div>
 
@@ -263,12 +263,12 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
       {/* Liste des territoires */}
       <div className="parchment-section p-4">
         <h4 className="medieval-subtitle mb-4">
-          📋 {isAdmin ? 'Tous les Territoires' : 'Mes Territoires'} ({territories.length})
+          📋 {role === 'admin' ? 'Tous les Territoires' : 'Mes Territoires'} ({territories.length})
         </h4>
         
         {territories.length === 0 ? (
           <div className="medieval-text text-center py-6">
-            {isAdmin ? 'Aucun territoire revendiqué sur la carte' : 'Vous n\'avez encore revendiqué aucun territoire'}
+            {role === 'admin' ? 'Aucun territoire revendiqué sur la carte' : 'Vous n\'avez encore revendiqué aucun territoire'}
           </div>
         ) : (
           <div className="space-y-3 max-h-48 overflow-y-auto">
@@ -283,7 +283,7 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
                     <div className="medieval-subtitle text-sm">
                       🏰 ({territory.x}, {territory.y})
                     </div>
-                    {isAdmin && (
+                    {role === 'admin' && (
                       <div className="medieval-text text-sm">
                         {territory.playerName} - {territory.factionName}
                       </div>

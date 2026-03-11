@@ -116,7 +116,7 @@ export function MedievalHUD() {
   };
 
   const canAccessAdmin = () => {
-    return currentUser === 'admin' || currentUser === 'maitre';
+    return role === 'admin';
   };
 
   React.useEffect(() => {
