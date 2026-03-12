@@ -1,0 +1,70 @@
+Le résumé d’implémentation Phase 6 est globalement bon, mais je ne valide pas encore définitivement la phase.
+
+Je veux maintenant une vérification finale explicite et démontrée.
+
+Je veux une vérification des points suivants :
+
+1. Table cities
+- vérifier que la table existe bien en DB
+- vérifier que la contrainte UNIQUE(colony_id) est bien en place
+- vérifier que ON DELETE CASCADE fonctionne ou au minimum est bien défini dans le schéma / la table
+
+2. Routes API
+- vérifier que GET /api/cities/me fonctionne avec Bearer token
+- vérifier le code HTTP exact sans auth
+- vérifier qu’un joueur avec faction voit bien uniquement les villes de sa faction
+- vérifier qu’un joueur sans faction reçoit bien le comportement attendu
+- vérifier que GET /api/cities/colony/:colonyId retourne :
+  - 200 si la ville appartient à la faction du joueur
+  - 403 sinon
+  - 404 si la colonie n’existe pas ou n’a pas de ville
+
+3. Transaction colonie + ville
+- prouver qu’une fondation de colonie crée aussi une ville
+- vérifier qu’après fondation il existe bien :
+  - une ligne dans colonies
+  - une ligne liée dans cities
+- confirmer explicitement que la création est atomique dans le code
+- si possible, montrer que la ville liée a bien colony_id = id de la colonie créée
+
+4. Hydratation client
+- vérifier que hydrateCitiesFromServer() remplit bien useNovaImperium.cities
+- vérifier que les coordonnées monde sont correctement converties en coordonnées locales x/y
+- vérifier qu’après reload les villes reviennent bien dans currentNovaImperium.cities
+
+5. Régression fonctionnelle
+- vérifier que CityManagementPanel redevient fonctionnel après reload
+- vérifier que les 14 consommateurs continuent à lire currentNovaImperium.cities sans erreur
+- au minimum vérifier les plus critiques :
+  - CityManagementPanel
+  - GameEngine
+  - TileInfoPanel
+  - MiniMap ou GameUI s’ils lisent cities
+
+6. Double écriture locale
+- confirmer que foundColony() côté client ne recrée plus de ville localement
+- confirmer que la seule création réelle vient du POST serveur + réhydratation
+
+7. Persistance réelle
+- fonder une colonie
+- recharger la page
+- vérifier que la ville est toujours là
+- redémarrer le serveur si possible
+- vérifier que la ville est toujours là
+
+Mini rapport final attendu :
+- table cities correcte : oui/non
+- routes protégées : oui/non
+- filtrage faction correct : oui/non
+- transaction colonie + ville effective : oui/non
+- hydratation cities correcte : oui/non
+- CityManagementPanel restauré après reload : oui/non
+- double écriture supprimée : oui/non
+- persistance après reload / restart : oui/non
+
+Exigence :
+- résultats démontrés
+- pas de formulation vague
+- distinguer faits testés, comportement observé et limites restantes
+
+Puis tu t’arrêtes.
