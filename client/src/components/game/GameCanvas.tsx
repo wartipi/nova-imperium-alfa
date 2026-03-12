@@ -62,6 +62,10 @@ export function GameCanvas() {
       gameEngineRef.current.setVisionCallbacks(isHexVisible, isHexInCurrentVision);
       
       gameEngineRef.current.render();
+
+      // Phase 6 : hydratation des villes depuis le serveur.
+      // Appelée ici car l'origine (originWorldX/Y) est disponible après le chargement de la carte.
+      useNovaImperium.getState().hydrateCitiesFromServer();
     }
   }, [mapData]);
 

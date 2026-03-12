@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import type { NovaImperium, Unit, City, DiplomaticRelation, Resources } from "../game/types";
 import { AI } from "../game/AI";
+import { fetchMyCities } from "../api/citiesApi";
+import { useMap } from "./useMap";
 
 interface NovaImperiumState {
   novaImperiums: NovaImperium[];
@@ -20,6 +22,7 @@ interface NovaImperiumState {
   trainUnit: (cityId: string, unitType: string, cost?: Record<string, number>, recruitmentTime?: number) => void;
   addCity: (city: City) => void;
   foundColony: (x: number, y: number, colonyName: string, playerId: string, playerName: string, factionId: string, factionName: string) => boolean;
+  hydrateCitiesFromServer: () => Promise<void>;
   renameCityDisplayName: (cityId: string, newDisplayName: string) => boolean;
   researchTechnology: (techId: string) => void;
   sendDiplomaticProposal: (targetNIId: string, type: string) => void;
@@ -334,59 +337,56 @@ export const useNovaImperium = create<NovaImperiumState>()(
       });
     },
 
-    foundColony: (x: number, y: number, colonyName: string, playerId: string, playerName: string, factionId: string, factionName: string) => {
-      const state = get();
-      
-      // Vérifier qu'il n'y a pas déjà une colonie à cette position
-      const existingCity = state.novaImperiums.flatMap(ni => ni.cities).find(city => city.x === x && city.y === y);
-      if (existingCity) {
-        console.log(`❌ Fondation échouée: colonie existante à (${x},${y})`);
-        return false;
-      }
-      
-      // Créer la nouvelle colonie
-      const newColony = {
-        id: `colony_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        name: `colony_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // ID technique
-        displayName: colonyName, // Nom choisi par le joueur
-        x,
-        y,
-        population: 1,
-        populationCap: 5,
-        foodPerTurn: 2,
-        productionPerTurn: 1,
-        sciencePerTurn: 0,
-        culturePerTurn: 0,
-        buildings: ["settlement"], // Commencer avec un simple campement
-        currentProduction: null,
-        productionProgress: 0,
-        workingHexes: [],
-        playerName,
-        factionName
-      };
-      
-      set((state) => {
-        const newNovaImperiums = state.novaImperiums.map(ni => {
-          if (ni.id === "player") {
-            return {
-              ...ni,
-              cities: [...ni.cities, newColony]
-            };
-          }
-          return ni;
-        });
-        
-        const updatedCurrentNI = newNovaImperiums.find(ni => ni.id === state.currentNovaImperiumId) || null;
-        
-        console.log(`✅ Colonie "${colonyName}" fondée à (${x},${y}) par ${playerName} de la faction ${factionName}`);
-        
-        return { 
-          novaImperiums: newNovaImperiums,
-          currentNovaImperium: updatedCurrentNI
-        };
-      });
-      
+    // Phase 6 : foundColony ne crée plus de ville locale.
+    // La ville est créée atomiquement côté serveur (transaction colonie + ville).
+    // Après le POST serveur, appeler hydrateCitiesFromServer() pour resynchroniser.
+    foundColony: (_x: number, _y: number, _colonyName: string, _playerId: string, _playerName: string, _factionId: string, _factionName: string) => {
+      console.log("[foundColony] Remplacé par hydrateCitiesFromServer() — la ville est créée via le serveur.");
       return true;
+    },
+
+    // Phase 6 : source de vérité des villes = serveur.
+    // Charge les villes depuis GET /api/cities/me et hydrate useNovaImperium.cities.
+    // Coordonnées monde (worldX/worldY) → coordonnées locales dérivées (x/y) via l'origine de la carte.
+    hydrateCitiesFromServer: async () => {
+      try {
+        const dtos = await fetchMyCities();
+        // L'origine est nécessaire pour dériver les coords locales depuis les coords monde persistées.
+        const { originWorldX, originWorldY } = useMap.getState();
+
+        const hydratedCities: City[] = dtos.map((dto) => ({
+          id:               String(dto.colonyId), // string pour compatibilité avec les 14 consommateurs
+          name:             dto.name,
+          displayName:      dto.displayName ?? undefined,
+          x:                dto.worldX - originWorldX, // coord locale dérivée — non persistée
+          y:                dto.worldY - originWorldY, // coord locale dérivée — non persistée
+          population:       dto.population,
+          populationCap:    5,          // défaut Phase 6 — non persisté
+          foodPerTurn:      2,          // défaut Phase 6 — non persisté
+          productionPerTurn: 1,         // défaut Phase 6 — non persisté
+          sciencePerTurn:   0,          // défaut Phase 6 — non persisté
+          culturePerTurn:   0,          // défaut Phase 6 — non persisté
+          buildings:        [],         // non persisté Phase 6
+          currentProduction: null,      // non persisté Phase 6
+          productionProgress: 0,        // non persisté Phase 6
+          workingHexes:     [],         // non persisté Phase 6
+          playerName:       dto.founderName,
+          factionName:      dto.factionName,
+        }));
+
+        set((state) => {
+          const updated = state.novaImperiums.map((ni) => {
+            if (ni.id !== state.currentNovaImperiumId) return ni;
+            return { ...ni, cities: hydratedCities };
+          });
+          const updatedCurrentNI = updated.find((ni) => ni.id === state.currentNovaImperiumId) || null;
+          console.log(`[hydrateCitiesFromServer] ${hydratedCities.length} ville(s) chargée(s) depuis le serveur.`);
+          return { novaImperiums: updated, currentNovaImperium: updatedCurrentNI };
+        });
+      } catch (err) {
+        // Échec silencieux — la carte reste jouable sans villes hydratées
+        console.warn("[hydrateCitiesFromServer] Erreur chargement villes:", err);
+      }
     },
 
     renameCityDisplayName: (cityId: string, newDisplayName: string) => {

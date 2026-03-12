@@ -1,6 +1,6 @@
 import { eq, and, sql } from "drizzle-orm";
 import { db } from "./db";
-import { territories, colonies, factionMembers, factions, mapTiles } from "../shared/schema";
+import { territories, colonies, cities, factionMembers, factions, mapTiles } from "../shared/schema";
 import { hexDistance } from "./hexUtils";
 
 export interface TerritoryDTO {
@@ -203,11 +203,25 @@ export async function foundColony(
 
   const isCapital = Number(colonyCount[0].count) === 0;
 
-  // 7. Insertion
-  const inserted = await db
-    .insert(colonies)
-    .values({ name: trimmedName, worldX, worldY, founderId: playerId, founderName: playerName, factionId, factionName, isCapital })
-    .returning();
+  // 7 + 8. Transaction atomique : colonie + ville liée
+  // Invariant : pas de colonie sans ville, pas de ville sans colonie.
+  return await db.transaction(async (tx) => {
+    const [insertedColony] = await tx
+      .insert(colonies)
+      .values({ name: trimmedName, worldX, worldY, founderId: playerId, founderName: playerName, factionId, factionName, isCapital })
+      .returning();
 
-  return { colony: mapColony(inserted[0]) };
+    // Création atomique de la ville liée à la colonie
+    await tx
+      .insert(cities)
+      .values({
+        colonyId:    insertedColony.id,
+        name:        trimmedName,
+        displayName: null,   // non modifiable via API en Phase 6
+        population:  1,
+      });
+
+    console.log(`[foundColony] Transaction OK: colonie #${insertedColony.id} + ville créées (${worldX},${worldY})`);
+    return { colony: mapColony(insertedColony) };
+  });
 }

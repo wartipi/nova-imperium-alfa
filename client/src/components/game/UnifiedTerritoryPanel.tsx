@@ -160,17 +160,10 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
       // Recharger la façade locale depuis le serveur
       await reloadFromServer();
 
-      // Reflet local dans useNovaImperium (pour CityManagementPanel)
-      const { foundColony: novaFoundColony } = useNovaImperium.getState();
-      novaFoundColony(
-        selectedTerritory.x,
-        selectedTerritory.y,
-        trimmedName,
-        selectedTerritory.playerId,
-        selectedTerritory.playerName,
-        selectedTerritory.factionId || '',
-        selectedTerritory.factionName || 'Administration'
-      );
+      // Phase 6 : hydratation des villes depuis le serveur (source de vérité).
+      // Remplace l'ancienne création locale dans useNovaImperium.foundColony().
+      const { hydrateCitiesFromServer } = useNovaImperium.getState();
+      await hydrateCitiesFromServer();
 
       showAlert({
         title: "Colonie Fondée",

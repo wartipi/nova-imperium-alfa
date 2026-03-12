@@ -430,6 +430,21 @@ export const colonies = pgTable("colonies", {
 export type TerritoryRecord = typeof territories.$inferSelect;
 export type ColonyRecord    = typeof colonies.$inferSelect;
 
+// ─── Tables Phase 6 : villes persistées ───────────────────────────────────────
+// Invariant : une colonie possède exactement une ville (UNIQUE colony_id).
+// display_name : persisté et lu — non modifiable via API en Phase 6.
+// La ville est créée atomiquement lors de la fondation de la colonie.
+export const cities = pgTable("cities", {
+  id:          serial("id").primaryKey(),
+  colonyId:    integer("colony_id").notNull().unique().references(() => colonies.id, { onDelete: "cascade" }),
+  name:        text("name").notNull(),
+  displayName: text("display_name"),
+  population:  integer("population").notNull().default(1),
+  createdAt:   timestamp("created_at").notNull().defaultNow(),
+});
+
+export type CityRecord = typeof cities.$inferSelect;
+
 // ─── Tables Phase 4 : traités diplomatiques entre factions ────────────────────
 
 export const treaties = pgTable("treaties", {
