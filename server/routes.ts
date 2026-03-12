@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { messageService } from "./messageService";
-import { treatyService } from "./treatyService";
+import treatyRoutes from "./routes/treaties";
 import { exchangeService, UniqueItem } from "./exchangeService";
 import { cartographyService } from "./cartographyService";
 import { marketplaceService, initializeMarketplaceService } from "./marketplaceService";
@@ -28,6 +28,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/factions", factionRoutes);
   // Routes territoires et colonies (Phase 3)
   app.use("/api/territories", territoryRoutes);
+  app.use("/api/treaties", treatyRoutes);
   // Game save/load endpoints
   app.get("/api/game/save", async (req, res) => {
     try {
@@ -124,91 +125,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Failed to get message stats" });
-    }
-  });
-
-  // Treaty endpoints
-  app.get("/api/treaties/player/:playerId", async (req, res) => {
-    try {
-      const { playerId } = req.params;
-      const treaties = treatyService.getTreatiesForPlayer(playerId);
-      res.json(treaties);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to get treaties" });
-    }
-  });
-
-  app.get("/api/treaties/types", async (req, res) => {
-    try {
-      const treatyTypes = treatyService.getTreatyTypes();
-      res.json(treatyTypes);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to get treaty types" });
-    }
-  });
-
-  app.post("/api/treaties", async (req, res) => {
-    try {
-      const { title, type, parties, terms, createdBy, properties } = req.body;
-      
-      if (!title || !type || !parties || !terms || !createdBy) {
-        return res.status(400).json({ error: "Missing required fields" });
-      }
-      
-      const treaty = treatyService.createTreaty({
-        title,
-        type,
-        parties,
-        terms,
-        createdBy,
-        properties: properties || {}
-      });
-      
-      res.json(treaty);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to create treaty" });
-    }
-  });
-
-  app.patch("/api/treaties/:treatyId/sign", async (req, res) => {
-    try {
-      const { treatyId } = req.params;
-      const { playerId } = req.body;
-      
-      if (!playerId) {
-        return res.status(400).json({ error: "Player ID required" });
-      }
-      
-      const success = treatyService.signTreaty(treatyId, playerId);
-      res.json({ success });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to sign treaty" });
-    }
-  });
-
-  app.patch("/api/treaties/:treatyId/break", async (req, res) => {
-    try {
-      const { treatyId } = req.params;
-      const { playerId } = req.body;
-      
-      if (!playerId) {
-        return res.status(400).json({ error: "Player ID required" });
-      }
-      
-      const success = treatyService.breakTreaty(treatyId, playerId);
-      res.json({ success });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to break treaty" });
-    }
-  });
-
-  app.get("/api/treaties/:playerId/stats", async (req, res) => {
-    try {
-      const { playerId } = req.params;
-      const stats = treatyService.getStats(playerId);
-      res.json(stats);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to get treaty stats" });
     }
   });
 

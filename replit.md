@@ -207,4 +207,61 @@ npm run db:push                   # Synchroniser le schéma Drizzle
 - `schedulePlayerStateSave()` — fonction interne unique avec timer debounce 3s
 - `usePlayer.subscribe(listener)` — déclenché par tout changement dans `level`, `experience`, `totalExperience`, `actionPoints`, `maxActionPoints`, `competencePoints`, `competences`
 - Garde contre les sauvegardes non authentifiées (`localStorage.getItem("nova_imperium_auth")`)
-- Le debounce absorbe les cascades (level-up → XP reset → compétence en chaîne)
+
+---
+
+# Système de Traités (Phase 4 — Persisté)
+
+## Architecture
+
+- **3 tables DB** : `treaties` (traité principal), `treaty_factions` (parties contractantes), `treaty_signatures` (signatures per faction)
+- **Auth Bearer** obligatoire sur toutes les mutations (create, sign, break)
+- **Activation automatique** : `status` passe à `active` quand `COUNT(signatures) >= COUNT(treaty_factions)`
+- **Types actifs** : définis dans `server/treatyTypes.ts` — source unique de vérité
+
+## Tables DB
+
+| Table | Colonnes clés |
+|---|---|
+| `treaties` | `id` TEXT PK, `title`, `type`, `terms`, `status`, `created_by`, `created_by_faction_id`, `properties` jsonb |
+| `treaty_factions` | `treaty_id`, `faction_id` — unique par paire |
+| `treaty_signatures` | `treaty_id`, `faction_id`, `signed_by`, `signed_at` — unique par paire |
+
+## Types de Traités
+
+| Type | Coût | Description |
+|---|---|---|
+| `alliance_militaire` | 25 PA | Défense mutuelle, renseignements, opérations conjointes |
+| `accord_commercial` | 15 PA | Routes commerciales, réduction des tarifs |
+| `pacte_non_agression` | 10 PA | Zones neutres, cessez-le-feu |
+| `defense_mutuelle` | 20 PA | Soutien défensif, territoires partagés |
+
+## Routes
+
+| Méthode | URL | Auth | Rôle |
+|---|---|---|---|
+| GET | `/api/treaties/types` | public | 4 types disponibles |
+| GET | `/api/treaties` | Bearer + admin | Liste tous les traités (admin only) |
+| GET | `/api/treaties/me` | Bearer | Traités de la faction du joueur |
+| POST | `/api/treaties` | Bearer | Créer un traité (avec `targetFactionIds[]`) |
+| POST | `/api/treaties/:id/sign` | Bearer | Signer (faction déduite du token) |
+| POST | `/api/treaties/:id/break` | Bearer | Rompre un traité actif |
+
+## Fichiers clés
+
+| Fichier | Rôle |
+|---|---|
+| `shared/schema.ts` | Tables Drizzle ORM |
+| `server/treatyTypes.ts` | `ACTIVE_TREATY_TYPES` + type `TreatyType` |
+| `server/treatyService.ts` | CRUD Drizzle — `createTreaty`, `signTreaty`, `breakTreaty`, etc. |
+| `server/routes/treaties.ts` | Router Express — 6 routes |
+| `client/src/lib/api/treatiesApi.ts` | Helpers fetch côté client |
+| `client/src/components/game/TreatiesPanel.tsx` | UI — 4 onglets |
+
+## Membres de factions (auth)
+
+| Utilisateur | Faction | Rôle faction |
+|---|---|---|
+| `joueur1` | Ordre du Fer (id=2) | leader |
+| `maitre` | Guilde de Pandem (id=1) | leader |
+| `admin` | aucune | admin MJ sans faction |

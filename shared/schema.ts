@@ -429,3 +429,40 @@ export const colonies = pgTable("colonies", {
 
 export type TerritoryRecord = typeof territories.$inferSelect;
 export type ColonyRecord    = typeof colonies.$inferSelect;
+
+// ─── Tables Phase 4 : traités diplomatiques entre factions ────────────────────
+
+export const treaties = pgTable("treaties", {
+  id:                 text("id").primaryKey(),
+  title:              text("title").notNull(),
+  type:               text("type").notNull(),
+  terms:              text("terms").notNull(),
+  status:             text("status").notNull().default("proposed"),
+  createdBy:          text("created_by").notNull(),
+  createdByFactionId: integer("created_by_faction_id").notNull().references(() => factions.id),
+  properties:         jsonb("properties").notNull().default({}),
+  createdAt:          timestamp("created_at").notNull().defaultNow(),
+  expiresAt:          timestamp("expires_at"),
+});
+
+export const treatyFactions = pgTable("treaty_factions", {
+  id:        serial("id").primaryKey(),
+  treatyId:  text("treaty_id").notNull().references(() => treaties.id, { onDelete: "cascade" }),
+  factionId: integer("faction_id").notNull().references(() => factions.id),
+}, (table) => ({
+  uniq: unique("treaty_factions_uniq").on(table.treatyId, table.factionId),
+}));
+
+export const treatySignatures = pgTable("treaty_signatures", {
+  id:        serial("id").primaryKey(),
+  treatyId:  text("treaty_id").notNull().references(() => treaties.id, { onDelete: "cascade" }),
+  factionId: integer("faction_id").notNull().references(() => factions.id),
+  signedBy:  text("signed_by").notNull(),
+  signedAt:  timestamp("signed_at").notNull().defaultNow(),
+}, (table) => ({
+  uniq: unique("treaty_signatures_uniq").on(table.treatyId, table.factionId),
+}));
+
+export type TreatyRecord          = typeof treaties.$inferSelect;
+export type TreatyFactionRecord   = typeof treatyFactions.$inferSelect;
+export type TreatySignatureRecord = typeof treatySignatures.$inferSelect;
