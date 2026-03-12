@@ -1,0 +1,58 @@
+Le résumé d’implémentation Phase 5 est globalement bon, mais je ne valide pas encore définitivement la phase.
+
+Je veux maintenant une vérification finale explicite et démontrée.
+
+Je veux une vérification des points suivants :
+
+1. Route API
+- vérifier que GET /api/players/positions fonctionne avec Bearer token
+- vérifier le code HTTP exact sans auth (401 ou 403), démontré par test réel
+- vérifier que le joueur appelant n’apparaît pas dans sa propre réponse
+- vérifier que les joueurs inactifs depuis plus de 10 minutes sont bien exclus
+
+2. Service de présence
+- vérifier que la réponse contient bien exactement :
+  - userId
+  - username
+  - worldX
+  - worldY
+- confirmer explicitement que username = player_id dans cette phase
+
+3. Polling client
+- vérifier que le polling ne démarre pas si la session n’est pas authentifiée
+- vérifier qu’il démarre bien une fois authentifié
+- vérifier qu’il ne crée pas plusieurs intervalles inutiles
+
+4. Rendu moteur
+- vérifier que updateOtherPlayers() alimente bien le moteur
+- vérifier que renderOtherPlayers() est bien appelé dans render()
+- vérifier que les autres joueurs sont affichés avant l’avatar courant
+
+5. Cas fonctionnels réels
+- connecter deux comptes différents
+- vérifier que chacun voit l’autre sur la carte
+- déplacer un des deux joueurs
+- vérifier que l’autre voit la nouvelle position après au plus 5 secondes
+- vérifier qu’un joueur seul ne voit personne
+- vérifier qu’aucun joueur ne se voit lui-même
+
+6. Robustesse
+- vérifier qu’un tableau vide ne provoque aucune erreur
+- vérifier qu’un joueur hors vue / hors bloc ne provoque aucun crash
+- vérifier qu’une erreur réseau sur un poll n’interrompt pas les polls suivants
+
+Mini rapport final attendu :
+- route sécurisée : oui/non
+- auto-exclusion correcte : oui/non
+- filtre activité 10 min : oui/non
+- polling authentifié correct : oui/non
+- rendu autres joueurs correct : oui/non
+- mise à jour après déplacement : oui/non
+- robustesse cas dégradés : oui/non
+
+Exigence :
+- résultats démontrés
+- pas de formulation vague
+- distinguer faits testés, comportement observé et limites restantes
+
+Puis tu t’arrêtes.
