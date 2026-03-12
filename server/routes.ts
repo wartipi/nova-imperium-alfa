@@ -13,6 +13,7 @@ import mapRoutes from "./routes/map";
 import playerRoutes from "./routes/player";
 import playerStateRoutes from "./routes/playerState";
 import playerActionsRoutes from "./routes/playerActions";
+import playersRoutes from "./routes/players";
 import factionRoutes from "./routes/factions";
 import territoryRoutes from "./routes/territories";
 import { seedFactions } from "./seeds/factionSeed";
@@ -857,6 +858,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/player', playerRoutes);
   app.use('/api/player', playerStateRoutes);
   app.use('/api/player', playerActionsRoutes);
+  app.use('/api/players', playersRoutes);
 
   const httpServer = createServer(app);
   return httpServer;

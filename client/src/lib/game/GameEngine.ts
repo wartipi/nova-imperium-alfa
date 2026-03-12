@@ -38,6 +38,7 @@ export class GameEngine {
   private pendingMovement: { x: number; y: number } | null = null;
   public hasInitialCentered: boolean = false;
   private isAdminMode: boolean = false;
+  private otherPlayers: Array<{ userId: string; username: string; hexX: number; hexY: number }> = [];
   
   // REFACTORISATION : Injection explicite des stores au lieu de window
   private getGameState: GameStateAccessor;
@@ -347,7 +348,10 @@ export class GameEngine {
     
     // Render civilizations
     this.renderCivilizations();
-    
+
+    // Render other players (Phase 5 — présence multijoueur)
+    this.renderOtherPlayers();
+
     // Render avatar
     this.renderAvatar();
     
@@ -879,6 +883,46 @@ export class GameEngine {
     ctx.fillRect(9, 15, 2, 1); // Right foot
     
     return canvas;
+  }
+
+  // Phase 5 — mise à jour des autres joueurs depuis le store client
+  updateOtherPlayers(
+    players: Array<{ userId: string; username: string; hexX: number; hexY: number }>
+  ) {
+    this.otherPlayers = players;
+  }
+
+  // Phase 5 — rendu des autres joueurs sur la carte
+  private renderOtherPlayers() {
+    if (this.otherPlayers.length === 0) return;
+    const hexHeight = this.hexSize * Math.sqrt(3);
+
+    for (const player of this.otherPlayers) {
+      // Conversion hex local → screen — même formule que renderAvatar()
+      const screenX = player.hexX * (this.hexSize * 1.5);
+      const screenY = player.hexY * hexHeight + (player.hexX % 2) * (hexHeight / 2);
+
+      // Couleur stable dérivée du userId (pas aléatoire, pas de Math.random())
+      const hue = [...player.userId].reduce((acc, c) => acc + c.charCodeAt(0), 0) % 360;
+
+      // Cercle de présence
+      this.ctx.beginPath();
+      this.ctx.arc(screenX, screenY, 10, 0, Math.PI * 2);
+      this.ctx.fillStyle = `hsl(${hue}, 70%, 55%)`;
+      this.ctx.fill();
+      this.ctx.strokeStyle = '#FFFFFF';
+      this.ctx.lineWidth = 2;
+      this.ctx.stroke();
+
+      // Label username — fond sombre pour lisibilité sur tout fond
+      const label = player.username ?? player.userId;
+      this.ctx.font = 'bold 10px monospace';
+      const textW = this.ctx.measureText(label).width;
+      this.ctx.fillStyle = 'rgba(0,0,0,0.65)';
+      this.ctx.fillRect(screenX - textW / 2 - 2, screenY - 22, textW + 4, 13);
+      this.ctx.fillStyle = '#FFFFFF';
+      this.ctx.fillText(label, screenX - textW / 2, screenY - 11);
+    }
   }
 
   // Method to move avatar to hex position

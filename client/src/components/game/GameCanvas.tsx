@@ -15,6 +15,7 @@ import { UnifiedTerritorySystem } from "../../lib/systems/UnifiedTerritorySystem
 import { requestMove, fetchCurrentAction } from "../../lib/api/playerActionsApi";
 import { fetchPlayerPosition } from "../../lib/api/playerApi";
 import { usePlayerActions } from "../../lib/stores/usePlayerActions";
+import { usePlayerPresence } from "../../lib/stores/usePlayerPresence";
 
 // Improved imports - custom hooks and constants
 import { useGameEngineAccess } from "../../lib/hooks/useGameEngineAccess";
@@ -28,7 +29,7 @@ export function GameCanvas() {
   const { gameEngineRef } = useGameEngine();
   const { mapData, selectedHex, setSelectedHex } = useMap();
   const { gamePhase } = useGameState();
-  const { isAdmin, adminModeEnabled } = useAuth();
+  const { isAdmin, adminModeEnabled, isAuthenticated } = useAuth();
   const { novaImperiums, selectedUnit, moveUnit } = useNovaImperium();
   const { avatarPosition, avatarRotation, isMoving, selectedCharacter, moveAvatarToHex, isHexVisible, isHexInCurrentVision, pendingMovement, setPendingMovement } = usePlayer();
   
@@ -171,6 +172,32 @@ export function GameCanvas() {
       // Plus de centrage automatique - caméra libre
     }
   }, [novaImperiums, selectedHex, avatarPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision, pendingMovement]);
+
+  // Phase 5 — polling présence multijoueur
+  // Dépendance unique : isAuthenticated — l'intervalle n'est pas recréé à chaque rendu
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const poll = async () => {
+      const { loadPlayers } = usePlayerPresence.getState();
+      await loadPlayers();
+      const { players } = usePlayerPresence.getState();
+      if (!gameEngineRef.current) return;
+      const { originWorldX, originWorldY } = useMap.getState();
+      const converted = players.map((p) => ({
+        userId: p.userId,
+        username: p.username,
+        hexX: p.worldX - originWorldX,
+        hexY: p.worldY - originWorldY,
+      }));
+      gameEngineRef.current.updateOtherPlayers(converted);
+      gameEngineRef.current.render();
+    };
+
+    poll();
+    const interval = setInterval(poll, 5000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated]);
 
   // IMPROVED: Memoized terrain check using centralized helper
   const isTerrainWalkable = useCallback((terrain: string): boolean => {
