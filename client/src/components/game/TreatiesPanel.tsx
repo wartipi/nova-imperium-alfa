@@ -393,6 +393,48 @@ export function TreatiesPanel() {
 
       {activeTab === "active" && (
         <div className="space-y-3 max-h-80 overflow-y-auto">
+          {treaties.filter((t) => t.status === "proposed").length > 0 && (
+            <div className="text-xs font-semibold text-orange-600 uppercase tracking-wide px-1">
+              En attente de signature
+            </div>
+          )}
+          {treaties.filter((t) => t.status === "proposed").map((treaty) => (
+            <div key={treaty.id} className="bg-yellow-50 border border-yellow-300 rounded p-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center space-x-2">
+                  <span className="text-lg">{treatyTypes.find((t) => t.type === treaty.type)?.icon}</span>
+                  <div>
+                    <div className="text-sm font-medium">{treaty.title}</div>
+                    <div className={`text-xs ${getTypeColor(treaty.type as TreatyType)}`}>
+                      {treatyTypes.find((t) => t.type === treaty.type)?.name}
+                    </div>
+                  </div>
+                </div>
+                <div className={`text-xs font-medium ${getStatusColor(treaty.status)}`}>
+                  {getStatusText(treaty.status)}
+                </div>
+              </div>
+              <div className="text-xs text-gray-600 mb-1">
+                Parties : {treaty.parties.map((p) => p.name).join(", ")}
+              </div>
+              <div className="text-xs text-gray-700 mb-1">{treaty.terms}</div>
+              <div className="text-xs text-gray-500 mb-1">Créé le {formatDate(treaty.createdAt)}</div>
+              <div className="text-xs text-gray-600 mb-2">
+                Signatures : {treaty.signatures.length}/{treaty.parties.length}
+              </div>
+              {hasFaction && !hasSigned(treaty) && (
+                <Button onClick={() => signTreaty(treaty.id)} size="sm" variant="outline" className="mt-1">
+                  Signer
+                </Button>
+              )}
+            </div>
+          ))}
+
+          {treaties.filter((t) => t.status === "active").length > 0 && (
+            <div className="text-xs font-semibold text-green-700 uppercase tracking-wide px-1 mt-2">
+              Traités actifs
+            </div>
+          )}
           {treaties.filter((t) => t.status === "active").map((treaty) => (
             <div key={treaty.id} className="bg-green-50 border border-green-300 rounded p-3">
               <div className="flex items-center justify-between mb-2">
@@ -438,46 +480,14 @@ export function TreatiesPanel() {
               )}
             </div>
           ))}
-          {treaties.filter((t) => t.status === "active").length === 0 && (
-            <div className="text-center text-gray-500 py-8">Aucun traité actif</div>
+          {treaties.filter((t) => t.status === "active" || t.status === "proposed").length === 0 && (
+            <div className="text-center text-gray-500 py-8">Aucun traité actif ou en attente</div>
           )}
         </div>
       )}
 
       {activeTab === "history" && (
         <div className="space-y-3 max-h-80 overflow-y-auto">
-          {treaties.filter((t) => t.status === "proposed").map((treaty) => (
-            <div key={treaty.id} className="bg-yellow-50 border border-yellow-300 rounded p-3">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center space-x-2">
-                  <span className="text-lg">{treatyTypes.find((t) => t.type === treaty.type)?.icon}</span>
-                  <div>
-                    <div className="text-sm font-medium">{treaty.title}</div>
-                    <div className="text-xs text-gray-600">
-                      {treatyTypes.find((t) => t.type === treaty.type)?.name}
-                    </div>
-                  </div>
-                </div>
-                <div className={`text-xs font-medium ${getStatusColor(treaty.status)}`}>
-                  {getStatusText(treaty.status)}
-                </div>
-              </div>
-              <div className="text-xs text-gray-600 mb-1">
-                Parties : {treaty.parties.map((p) => p.name).join(", ")}
-              </div>
-              <div className="text-xs text-gray-700 mb-1">{treaty.terms}</div>
-              <div className="text-xs text-gray-500 mb-2">Créé le {formatDate(treaty.createdAt)}</div>
-              <div className="text-xs text-gray-600 mb-2">
-                Signatures : {treaty.signatures.length}/{treaty.parties.length}
-              </div>
-              {hasFaction && !hasSigned(treaty) && (
-                <Button onClick={() => signTreaty(treaty.id)} size="sm" variant="outline" className="mt-1">
-                  Signer
-                </Button>
-              )}
-            </div>
-          ))}
-
           {treaties.filter((t) => ["broken", "expired"].includes(t.status)).map((treaty) => (
             <div key={treaty.id} className="bg-gray-50 border border-gray-300 rounded p-3 opacity-75">
               <div className="flex items-center justify-between mb-2">
@@ -501,8 +511,8 @@ export function TreatiesPanel() {
             </div>
           ))}
 
-          {treaties.filter((t) => t.status === "proposed" || ["broken", "expired"].includes(t.status)).length === 0 && (
-            <div className="text-center text-gray-500 py-8">Aucun traité en attente ou archivé</div>
+          {treaties.filter((t) => ["broken", "expired"].includes(t.status)).length === 0 && (
+            <div className="text-center text-gray-500 py-8">Aucun traité rompu ou expiré</div>
           )}
         </div>
       )}

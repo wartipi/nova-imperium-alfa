@@ -1,0 +1,65 @@
+Le bilan d’implémentation est globalement bon, mais je ne valide pas encore définitivement la Phase 4.
+
+Avant validation finale, je veux une vérification explicite et structurée.
+
+Je veux une vérification démontrée des points suivants :
+
+1. Lecture des types
+- vérifier que GET /api/treaties/types retourne exactement 4 types actifs
+- vérifier que acces_militaire et echange_ressources n’apparaissent plus
+
+2. Lecture des traités de ma faction
+- vérifier que GET /api/treaties/me fonctionne avec Bearer token
+- vérifier qu’il retourne uniquement les traités de la faction du joueur courant
+- vérifier qu’il retourne 401 sans auth
+
+3. Lecture admin
+- vérifier que GET /api/treaties retourne bien tous les traités pour un admin
+- vérifier qu’un joueur non admin reçoit 403
+- confirmer explicitement que le contrôle admin repose sur req.user.role et non sur un username
+
+4. Cycle complet d’un traité
+- créer un traité
+- vérifier que la faction créatrice est automatiquement partie du traité et automatiquement signataire
+- vérifier le statut initial proposed
+- faire signer la faction restante
+- vérifier le passage à active
+- rompre le traité
+- vérifier le passage à broken
+
+5. Unicité / protection des signatures
+- vérifier qu’une même faction ne peut pas signer deux fois
+- vérifier qu’une faction non impliquée ne peut pas signer
+- vérifier qu’un traité non proposed ne peut pas être signé
+
+6. Corrections UI
+- vérifier que le bouton "Créer" n’est plus bloqué pour admin par les PA
+- vérifier que l’onglet "Historique" affiche bien broken et expired, pas proposed
+- vérifier que le panel consomme bien la liste des types depuis l’API, sans liste locale divergente
+
+7. Rôle de properties
+- vérifier que properties est bien stocké et renvoyé
+- confirmer qu’aucun effet mécanique n’est appliqué à ce stade
+
+8. Données de test
+- clarifier explicitement si le fait que maitre soit maintenant dans la Guilde de Pandem est :
+  - intentionnel et canonique
+  - ou un artefact de test à nettoyer
+- si c’est un artefact de test, le nettoyer avant validation finale
+
+Mini rapport final attendu :
+- types actifs cohérents : oui/non
+- lecture me sécurisée : oui/non
+- lecture admin sécurisée : oui/non
+- cycle proposed → active → broken : oui/non
+- signatures protégées : oui/non
+- UI corrigée : oui/non
+- properties persisté sans effets : oui/non
+- données de test propres : oui/non
+
+Exigence :
+- résultats démontrés
+- pas de formulation vague
+- distinguer faits testés, garanties actuelles, limites restantes
+
+Puis tu t’arrêtes.
