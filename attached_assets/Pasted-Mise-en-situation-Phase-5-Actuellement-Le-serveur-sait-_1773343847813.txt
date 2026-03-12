@@ -1,0 +1,291 @@
+Mise en situation — Phase 5
+
+Actuellement :
+
+Le serveur sait déjà gérer :
+
+l’authentification
+
+la position des joueurs (player_positions)
+
+les déplacements avec timer (player_actions)
+
+la carte persistée
+
+les territoires et colonies
+
+les factions et les traités
+
+Mais chaque client voit seulement son propre avatar.
+
+Donc si deux joueurs sont connectés :
+
+joueur1 se déplace
+
+maitre se déplace
+
+chacun voit sa propre position, mais aucun ne voit l’autre.
+
+Le monde est partagé, mais les joueurs sont invisibles.
+
+Objectif de la Phase 5 :
+
+afficher les avatars des autres joueurs présents sur la carte.
+
+Pas besoin encore de :
+
+chat global
+
+synchronisation temps réel parfaite
+
+combat
+
+interaction avatar-avatar
+
+Juste :
+
+savoir qui est sur la carte et où.
+
+Principe technique (minimal)
+
+On ne va pas utiliser WebSocket tout de suite. Trop lourd pour une première itération.
+
+On utilise :
+
+polling léger côté client.
+
+Principe :
+
+toutes les X secondes :
+
+GET /api/players/positions
+
+Le serveur renvoie :
+
+[
+  {
+    userId: "joueur1",
+    username: "joueur1",
+    worldX: 10,
+    worldY: -4
+  },
+  {
+    userId: "maitre",
+    username: "maitre",
+    worldX: 12,
+    worldY: -3
+  }
+]
+
+Le client :
+
+ignore son propre userId
+
+stocke les autres dans un store
+
+les dessine sur la carte
+
+Architecture minimale
+Table utilisée
+
+Aucune nouvelle table.
+
+On réutilise :
+
+player_positions
+
+qui existe déjà.
+
+Routes API minimales
+Lire les positions des joueurs
+GET /api/players/positions
+
+Auth : requise
+
+Retour :
+
+[
+  {
+    userId: string
+    username: string
+    worldX: number
+    worldY: number
+  }
+]
+
+Règles :
+
+exclure les joueurs inactifs depuis > X minutes (ex: 10 min)
+
+exclure le joueur appelant
+
+Service serveur
+
+Nouveau fichier :
+
+server/playerPresenceService.ts
+
+Fonction principale :
+
+getActivePlayerPositions()
+
+Requête :
+
+SELECT user_id, username, world_x, world_y
+FROM player_positions
+WHERE last_seen > now() - interval '10 minutes'
+Routes
+
+Nouveau fichier :
+
+server/routes/players.ts
+
+Route :
+
+GET /api/players/positions
+
+Auth obligatoire.
+
+Client
+
+Nouveau fichier :
+
+client/src/lib/api/playersApi.ts
+
+Fonction :
+
+fetchPlayerPositions()
+Store client
+
+Ajouter dans :
+
+usePlayerPresence.ts
+
+Etat :
+
+players: OtherPlayer[]
+
+Type :
+
+interface OtherPlayer {
+  userId: string
+  username: string
+  worldX: number
+  worldY: number
+}
+
+Actions :
+
+loadPlayers()
+Polling
+
+Dans App.tsx ou GameCanvas.tsx :
+
+toutes les 5 secondes :
+
+loadPlayers()
+Rendu sur la carte
+
+Dans :
+
+GameEngine.ts
+
+Pour chaque joueur :
+
+convertir worldX/worldY → coordonnées hex
+
+dessiner un avatar simple
+
+exemple :
+
+petit cercle
+
+couleur faction
+
+label username
+
+Ce que la Phase 5 doit prouver
+
+Deux joueurs connectés doivent pouvoir :
+
+se voir sur la carte
+
+se voir se déplacer
+
+vérifier que les positions sont cohérentes
+
+Ce que la Phase 5 ne fera pas
+
+Pas de :
+
+WebSocket
+
+chat
+
+interaction
+
+combat
+
+synchronisation temps réel parfaite
+
+Polling toutes les 5 s suffit.
+
+Prompt à envoyer à l’agent
+
+Voici le prompt exact à lui envoyer.
+
+Rédaction
+
+Je veux ouvrir la Phase 5 : présence multijoueur sur la carte.
+
+Objectif : permettre aux joueurs de voir les autres avatars présents sur la carte.
+
+Avant toute implémentation, je veux un audit rapide de l’existant.
+
+Réponds en analysant :
+
+Où sont stockées les positions actuelles des joueurs (table, service, routes).
+
+Si player_positions contient déjà toutes les données nécessaires (userId, username, worldX, worldY, last_seen).
+
+Si une route existe déjà pour lire les positions des joueurs.
+
+Quels fichiers client gèrent actuellement la position du joueur (GameCanvas, GameEngine, stores).
+
+Où il est le plus logique d’injecter le rendu des autres avatars.
+
+Puis propose un plan minimal :
+
+Route API nécessaire pour lire les positions actives des joueurs.
+
+Service serveur à créer ou modifier.
+
+Store client pour stocker les autres joueurs.
+
+Polling client recommandé (intervalle, endroit dans le code).
+
+Modification minimale de GameEngine pour dessiner les autres avatars.
+
+Contraintes :
+
+pas de WebSocket dans cette phase
+
+pas de nouvelles tables si player_positions suffit
+
+pas de logique combat ou interaction
+
+rester strictement sur l’affichage de présence
+
+Structure la réponse :
+
+Audit du système actuel
+
+Données nécessaires
+
+Routes API minimales
+
+Architecture client
+
+Plus petit chemin cohérent pour implémenter la Phase 5
+
+Ne modifie aucun fichier pour l’instant.
