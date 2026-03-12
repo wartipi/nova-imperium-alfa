@@ -1,0 +1,47 @@
+L’audit Phase 6 est globalement validé dans sa direction.
+
+Les points suivants sont approuvés :
+- le diagnostic du bug structurel actuel
+- le fait que cities n’existe pas encore en base
+- la dépendance actuelle à useNovaImperium.cities
+- le principe de conserver la forme du type City côté client pour éviter de casser les 14 fichiers consommateurs
+- la création automatique d’une ville lors de la fondation d’une colonie
+
+Je demande cependant plusieurs ajustements avant toute implémentation :
+
+1. je ne veux pas de lecture publique globale des villes
+   - pas de GET /api/cities public pour cette phase
+   - je veux une lecture protégée, par exemple GET /api/cities/me
+   - si une route par colonie existe, elle doit aussi être auth-protégée avec contrôle d’accès
+
+2. je ne veux pas de POST /api/cities dans la phase minimale
+   - la ville doit être créée automatiquement lors de la fondation d’une colonie
+   - pas de deuxième chemin de création pour l’instant
+
+3. je ne veux pas d’un PATCH large qui touche déjà buildings / production
+   - Phase 6 doit rester centrée sur la persistance des villes
+   - au mieux, un PATCH limité au renommage si vraiment nécessaire
+   - sinon aucun PATCH pour cette phase
+
+4. je veux que la transaction serveur soit explicitement au centre du plan
+   - fondation de colonie + création de ville liée doivent être atomiques
+   - pas de colonie sans ville, pas de ville sans colonie
+
+5. je veux que la distinction soit explicite entre :
+   - coordonnées monde persistées côté serveur
+   - coordonnées locales dérivées côté client
+
+Je veux maintenant une proposition révisée, sans implémenter encore.
+
+Réponds sous cette forme :
+
+1. Schéma minimal révisé pour cities
+2. Routes API minimales révisées
+3. Règle serveur exacte lors de la fondation de colonie
+4. Stratégie d’hydratation de useNovaImperium.cities
+5. Contrôle d’accès aux villes
+6. Ce que la Phase 6 réglera
+7. Ce que la Phase 6 ne réglera pas encore
+8. Plus petit chemin cohérent révisé
+
+Ne modifie rien encore.
