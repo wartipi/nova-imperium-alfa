@@ -445,6 +445,34 @@ export const cities = pgTable("cities", {
 
 export type CityRecord = typeof cities.$inferSelect;
 
+// ─── Tables Phase 7 : bâtiments et production persistés ───────────────────────
+// city_buildings : état final des constructions terminées.
+// UNIQUE(city_id, building) garantit l'idempotence des insertions (ON CONFLICT DO NOTHING).
+export const cityBuildings = pgTable("city_buildings", {
+  id:       serial("id").primaryKey(),
+  cityId:   integer("city_id").notNull().references(() => cities.id, { onDelete: "cascade" }),
+  building: text("building").notNull(),
+  builtAt:  timestamp("built_at").notNull().defaultNow(),
+}, (table) => ({
+  uniq: unique("city_buildings_city_id_building_key").on(table.cityId, table.building),
+}));
+
+// city_production : file de production courante (0 ou 1 ligne par ville).
+// UNIQUE(city_id) garantit qu'une ville n'a qu'une seule production active.
+// productionProgress mis à jour à chaque tick (via PUT /api/cities/:cityId/production).
+export const cityProduction = pgTable("city_production", {
+  id:                 serial("id").primaryKey(),
+  cityId:             integer("city_id").notNull().unique().references(() => cities.id, { onDelete: "cascade" }),
+  productionType:     text("production_type").notNull(),
+  productionName:     text("production_name").notNull(),
+  productionCost:     integer("production_cost").notNull(),
+  productionProgress: integer("production_progress").notNull().default(0),
+  startedAt:          timestamp("started_at").notNull().defaultNow(),
+});
+
+export type CityBuildingRecord  = typeof cityBuildings.$inferSelect;
+export type CityProductionRecord = typeof cityProduction.$inferSelect;
+
 // ─── Tables Phase 4 : traités diplomatiques entre factions ────────────────────
 
 export const treaties = pgTable("treaties", {

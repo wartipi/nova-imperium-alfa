@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import type { NovaImperium, Unit, City, DiplomaticRelation, Resources } from "../game/types";
 import { AI } from "../game/AI";
-import { fetchMyCities } from "../api/citiesApi";
+import { fetchMyCities, apiAddBuilding, apiSetProduction, apiClearProduction } from "../api/citiesApi";
 import { useMap } from "./useMap";
 
 interface NovaImperiumState {
@@ -218,6 +218,32 @@ export const useNovaImperium = create<NovaImperiumState>()(
           currentNovaImperium: updatedCurrentNI
         };
       });
+
+      // Phase 7 : persistance serveur après écriture locale.
+      // En cas d'échec, resynchronisation explicite depuis le serveur.
+      if (isAdmin) {
+        // Construction instantanée MJ → persister le bâtiment directement
+        apiAddBuilding(cityId, buildingType).catch(() => {
+          console.warn(`[buildInCity] Échec serveur (POST building) — resynchronisation`);
+          get().hydrateCitiesFromServer();
+        });
+      } else {
+        // Lancement de production → persister la file
+        const city = get().novaImperiums
+          .find(ni => ni.id === get().currentNovaImperiumId)
+          ?.cities.find(c => c.id === cityId);
+        if (city?.currentProduction) {
+          apiSetProduction(cityId, {
+            type:     city.currentProduction.type,
+            name:     city.currentProduction.name,
+            cost:     city.currentProduction.cost,
+            progress: city.productionProgress,
+          }).catch(() => {
+            console.warn(`[buildInCity] Échec serveur (PUT production) — resynchronisation`);
+            get().hydrateCitiesFromServer();
+          });
+        }
+      }
     },
     
     trainUnit: (cityId: string, unitType: string, cost?: Record<string, number>, recruitmentTime?: number) => {
@@ -266,6 +292,17 @@ export const useNovaImperium = create<NovaImperiumState>()(
           currentNovaImperium: updatedCurrentNI
         };
       });
+
+      // Phase 7 : persister le lancement de production unité côté serveur.
+      apiSetProduction(cityId, {
+        type:     'unit',
+        name:     unitType,
+        cost:     recruitmentTime || 1,
+        progress: 0,
+      }).catch(() => {
+        console.warn(`[trainUnit] Échec serveur (PUT production) — resynchronisation`);
+        get().hydrateCitiesFromServer();
+      });
     },
     
     addCity: (city: City) => {
@@ -297,6 +334,15 @@ export const useNovaImperium = create<NovaImperiumState>()(
     },
     
     processTurn: () => {
+      // Phase 7 : collecter les changements de production avant le set()
+      // pour déclencher les appels serveur après la mise à jour locale.
+      type ProductionUpdate =
+        | { kind: 'completed_building'; cityId: string; building: string }
+        | { kind: 'completed_unit';     cityId: string }
+        | { kind: 'progressed';         cityId: string; type: string; name: string; cost: number; progress: number };
+
+      const productionUpdates: ProductionUpdate[] = [];
+
       set(state => {
         const updatedNIs = state.novaImperiums.map(ni => {
           const updatedNI = {
@@ -315,8 +361,26 @@ export const useNovaImperium = create<NovaImperiumState>()(
               
               if (city.productionProgress >= city.currentProduction.cost) {
                 console.log(`${city.name} completed ${city.currentProduction.name}`);
+                // Phase 7 : enregistrer la complétion (uniquement pour les villes du joueur)
+                if (ni.id === state.currentNovaImperiumId) {
+                  if (city.currentProduction.type === 'building') {
+                    productionUpdates.push({ kind: 'completed_building', cityId: city.id, building: city.currentProduction.name });
+                  } else {
+                    productionUpdates.push({ kind: 'completed_unit', cityId: city.id });
+                  }
+                }
                 city.currentProduction = null;
                 city.productionProgress = 0;
+              } else if (ni.id === state.currentNovaImperiumId) {
+                // Phase 7 : enregistrer la progression (non finale)
+                productionUpdates.push({
+                  kind:     'progressed',
+                  cityId:   city.id,
+                  type:     city.currentProduction.type,
+                  name:     city.currentProduction.name,
+                  cost:     city.currentProduction.cost,
+                  progress: city.productionProgress,
+                });
               }
             }
           });
@@ -335,6 +399,35 @@ export const useNovaImperium = create<NovaImperiumState>()(
           currentNovaImperium: updatedCurrentNI
         };
       });
+
+      // Phase 7 : persistance serveur des changements de production après set().
+      // Chaque appel a son propre catch → hydrateCitiesFromServer() pour éviter toute divergence silencieuse.
+      for (const update of productionUpdates) {
+        if (update.kind === 'completed_building') {
+          Promise.all([
+            apiAddBuilding(update.cityId, update.building),
+            apiClearProduction(update.cityId),
+          ]).catch(() => {
+            console.warn(`[processTurn] Échec serveur (complétion bâtiment) — resynchronisation`);
+            get().hydrateCitiesFromServer();
+          });
+        } else if (update.kind === 'completed_unit') {
+          apiClearProduction(update.cityId).catch(() => {
+            console.warn(`[processTurn] Échec serveur (complétion unité) — resynchronisation`);
+            get().hydrateCitiesFromServer();
+          });
+        } else {
+          apiSetProduction(update.cityId, {
+            type:     update.type,
+            name:     update.name,
+            cost:     update.cost,
+            progress: update.progress,
+          }).catch(() => {
+            console.warn(`[processTurn] Échec serveur (progression) — resynchronisation`);
+            get().hydrateCitiesFromServer();
+          });
+        }
+      }
     },
 
     // Phase 6 : foundColony ne crée plus de ville locale.
@@ -355,21 +448,25 @@ export const useNovaImperium = create<NovaImperiumState>()(
         const { originWorldX, originWorldY } = useMap.getState();
 
         const hydratedCities: City[] = dtos.map((dto) => ({
-          id:               String(dto.colonyId), // string pour compatibilité avec les 14 consommateurs
+          id:               String(dto.id),      // cities.id — CORRECTION Phase 7 (était dto.colonyId)
+          colonyId:         String(dto.colonyId), // colonies.id — champ distinct Phase 7
           name:             dto.name,
           displayName:      dto.displayName ?? undefined,
           x:                dto.worldX - originWorldX, // coord locale dérivée — non persistée
           y:                dto.worldY - originWorldY, // coord locale dérivée — non persistée
           population:       dto.population,
-          populationCap:    5,          // défaut Phase 6 — non persisté
-          foodPerTurn:      2,          // défaut Phase 6 — non persisté
-          productionPerTurn: 1,         // défaut Phase 6 — non persisté
-          sciencePerTurn:   0,          // défaut Phase 6 — non persisté
-          culturePerTurn:   0,          // défaut Phase 6 — non persisté
-          buildings:        [],         // non persisté Phase 6
-          currentProduction: null,      // non persisté Phase 6
-          productionProgress: 0,        // non persisté Phase 6
-          workingHexes:     [],         // non persisté Phase 6
+          populationCap:    5,          // non persisté
+          foodPerTurn:      2,          // non persisté
+          productionPerTurn: 1,         // non persisté
+          sciencePerTurn:   0,          // non persisté
+          culturePerTurn:   0,          // non persisté
+          // Phase 7 : bâtiments et production hydratés depuis le serveur
+          buildings:         dto.buildings as any,
+          currentProduction: dto.currentProduction
+            ? { type: dto.currentProduction.type as 'building' | 'unit', name: dto.currentProduction.name, cost: dto.currentProduction.cost }
+            : null,
+          productionProgress: dto.currentProduction?.progress ?? 0,
+          workingHexes:     [], // non persisté — placeholder Phase 7
           playerName:       dto.founderName,
           factionName:      dto.factionName,
         }));

@@ -130,6 +130,7 @@ export interface City {
   productionPerTurn: number;
   sciencePerTurn: number;
   culturePerTurn: number;
+  colonyId?: string;    // colonies.id côté DB (distinct de id depuis Phase 7)
   buildings: BuildingType[];
   currentProduction: {
     type: 'building' | 'unit';
@@ -137,7 +138,7 @@ export interface City {
     cost: number;
   } | null;
   productionProgress: number;
-  workingHexes: { x: number; y: number }[];
+  workingHexes: { x: number; y: number }[];  // non persisté — placeholder Phase 7
   playerName?: string; // Propriétaire de la ville
   factionName?: string; // Faction propriétaire
 }
