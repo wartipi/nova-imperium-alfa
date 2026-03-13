@@ -1,0 +1,87 @@
+Je veux une vérification explicite des points suivants :
+
+1. Tables DB
+- vérifier que city_buildings existe bien
+- vérifier que city_production existe bien
+- vérifier les contraintes :
+  - UNIQUE(city_id, building) sur city_buildings
+  - UNIQUE(city_id) sur city_production
+  - FK vers cities avec ON DELETE CASCADE
+
+2. Lecture enrichie des villes
+- vérifier que GET /api/cities/me retourne maintenant :
+  - buildings
+  - currentProduction
+- vérifier le format exact renvoyé
+- vérifier qu’une ville sans bâtiment retourne buildings = []
+- vérifier qu’une ville sans production retourne currentProduction = null
+
+3. Routes mutation
+- vérifier que POST /api/cities/:cityId/buildings fonctionne avec auth
+- vérifier qu’il est protégé sans auth
+- vérifier que l’insertion est idempotente (double appel → pas de doublon)
+- vérifier que PUT /api/cities/:cityId/production crée ou met à jour correctement la production
+- vérifier que DELETE /api/cities/:cityId/production supprime correctement la production active
+- vérifier les codes HTTP réels sur succès et échec
+
+4. Correction city.id / colonyId
+- confirmer explicitement que city.id côté client correspond maintenant à cities.id
+- confirmer explicitement que colonyId est distinct
+- vérifier qu’il n’existe plus d’autre usage problématique de city.id comme si c’était un colonyId
+- re-vérifier CityManagementPanel sur ce point
+
+5. Persistance de la progression
+- démarrer une production
+- vérifier que currentProduction est bien persisté en DB
+- faire avancer productionProgress
+- vérifier que la nouvelle valeur est bien persistée
+- recharger / relire via GET /api/cities/me
+- confirmer que la progression revient correctement
+
+6. Complétion d’un bâtiment
+- simuler ou provoquer la complétion d’une production de bâtiment
+- vérifier qu’après complétion :
+  - le bâtiment apparaît dans city_buildings
+  - la ligne city_production est supprimée
+  - GET /api/cities/me reflète bien l’état final
+
+7. Resynchronisation en cas d’échec
+- confirmer par le code et si possible par test réel que :
+  - en cas d’échec API sur addBuilding / setProduction / clearProduction
+  - hydrateCitiesFromServer() est bien appelé
+- vérifier qu’il n’y a pas de divergence silencieuse durable
+
+8. Régression consommateurs
+- vérifier au minimum que les consommateurs critiques restent cohérents :
+  - CityManagementPanel
+  - ConstructionPanel
+  - ConstructionPanelSimple
+  - CityPanel
+  - GameEngine
+- pas besoin de tester chaque pixel, mais confirmer qu’ils lisent toujours les mêmes champs du type City
+
+9. Persistance réelle
+- créer ou modifier un état de bâtiment / production
+- recharger la page
+- vérifier que l’état revient
+- redémarrer le serveur si possible
+- vérifier que l’état revient encore
+
+Mini rapport final attendu :
+- tables correctes : oui/non
+- lecture enrichie correcte : oui/non
+- routes mutation correctes : oui/non
+- idempotence bâtiments : oui/non
+- city.id / colonyId corrigé proprement : oui/non
+- progression persistée : oui/non
+- complétion persistée : oui/non
+- resynchronisation en cas d’échec : oui/non
+- consommateurs non régressés : oui/non
+- persistance après reload / restart : oui/non
+
+Exigence :
+- résultats démontrés
+- pas de formulation vague
+- distinguer faits testés, comportement observé et limites restantes
+
+Puis tu t’arrêtes.
