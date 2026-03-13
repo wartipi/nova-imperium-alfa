@@ -1,0 +1,49 @@
+L’audit Phase 7 est globalement validé dans sa direction.
+
+Les points suivants sont approuvés :
+- le diagnostic sur buildings / currentProduction / productionProgress
+- le schéma minimal city_buildings + city_production
+- l’idée d’étendre GET /api/cities/me au lieu de multiplier les routes de lecture
+- le fait de ne pas modifier les 9 composants consommateurs si la forme du type City est conservée
+- le maintien de workingHexes hors périmètre
+
+Je demande cependant plusieurs ajustements avant toute implémentation :
+
+1. je ne valide pas une stratégie “fire-and-forget + console.log suffit”
+   - l’optimisme client est acceptable pour la réactivité
+   - mais en cas d’échec serveur, je veux une resynchronisation explicite
+   - au minimum via hydrateCitiesFromServer() ou un mécanisme équivalent
+   - je ne veux pas de divergence silencieuse durable entre client et serveur
+
+2. je veux une clarification explicite sur l’identité de la ville côté client
+   - si city.id est actuellement hydraté depuis colonyId, il faut le corriger
+   - pour la Phase 7, city.id côté client doit correspondre à cities.id serveur
+   - colonyId reste un champ distinct
+   - sinon les routes /api/cities/:cityId/... seront ambiguës ou fausses
+
+3. je veux que la persistance de production couvre aussi la progression
+   - pas seulement le démarrage et la fin
+   - si processTurn() modifie productionProgress, la table city_production doit rester cohérente
+   - la route PUT /api/cities/:cityId/production doit pouvoir persister progress
+
+4. je veux que workingHexes soit explicitement déclaré hors périmètre
+   - conservé côté client
+   - non persisté
+   - réinitialisé par défaut
+
+Je veux maintenant une proposition révisée, sans implémenter encore.
+
+Réponds sous cette forme :
+
+1. Schéma final révisé pour city_buildings
+2. Schéma final révisé pour city_production
+3. Format révisé du CityDTO
+4. Règle d’identité city.id / colonyId côté client
+5. Routes API minimales révisées
+6. Stratégie de persistance de production (démarrage / progression / complétion)
+7. Stratégie de resynchronisation en cas d’échec
+8. Ce que la Phase 7 réglera
+9. Ce que la Phase 7 ne réglera pas encore
+10. Plus petit chemin cohérent révisé
+
+Ne modifie rien encore.
