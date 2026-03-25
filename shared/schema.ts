@@ -435,12 +435,15 @@ export type ColonyRecord    = typeof colonies.$inferSelect;
 // display_name : persisté et lu — non modifiable via API en Phase 6.
 // La ville est créée atomiquement lors de la fondation de la colonie.
 export const cities = pgTable("cities", {
-  id:          serial("id").primaryKey(),
-  colonyId:    integer("colony_id").notNull().unique().references(() => colonies.id, { onDelete: "cascade" }),
-  name:        text("name").notNull(),
-  displayName: text("display_name"),
-  population:  integer("population").notNull().default(1),
-  createdAt:   timestamp("created_at").notNull().defaultNow(),
+  id:               serial("id").primaryKey(),
+  colonyId:         integer("colony_id").notNull().unique().references(() => colonies.id, { onDelete: "cascade" }),
+  name:             text("name").notNull(),
+  displayName:      text("display_name"),
+  population:       integer("population").notNull().default(1),
+  createdAt:        timestamp("created_at").notNull().defaultNow(),
+  // Phase 8 : valeurs économiques calculées côté serveur (base + bonus bâtiments)
+  foodPerTurn:      integer("food_per_turn").notNull().default(2),
+  productionPerTurn: integer("production_per_turn").notNull().default(1),
 });
 
 export type CityRecord = typeof cities.$inferSelect;

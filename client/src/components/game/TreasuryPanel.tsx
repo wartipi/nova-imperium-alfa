@@ -44,16 +44,15 @@ export function TreasuryPanel() {
     };
 
     currentNovaImperium.cities.forEach(city => {
+      // Phase 8 : foodPerTurn et productionPerTurn incluent déjà les bonus bâtiments (calculés serveur).
       totalIncome.food += city.foodPerTurn || 0;
       totalIncome.action_points += city.productionPerTurn || 0;
       totalIncome.gold += Math.floor(city.population * 0.5); // Base gold from population
       
-      // Building bonuses
+      // Bonus bâtiments pour gold uniquement (hors périmètre Phase 8 — non recalculé serveur).
       city.buildings.forEach(building => {
         const buildingInfo = buildingData[building as BuildingType];
         if (buildingInfo?.yields) {
-          totalIncome.food += buildingInfo.yields.food || 0;
-          totalIncome.action_points += buildingInfo.yields.production || 0;
           totalIncome.gold += buildingInfo.yields.gold || 0;
         }
       });

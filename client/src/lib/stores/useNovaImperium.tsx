@@ -456,10 +456,10 @@ export const useNovaImperium = create<NovaImperiumState>()(
           y:                dto.worldY - originWorldY, // coord locale dérivée — non persistée
           population:       dto.population,
           populationCap:    5,          // non persisté
-          foodPerTurn:      2,          // non persisté
-          productionPerTurn: 1,         // non persisté
-          sciencePerTurn:   0,          // non persisté
-          culturePerTurn:   0,          // non persisté
+          foodPerTurn:       dto.foodPerTurn,       // Phase 8 : calculé serveur
+          productionPerTurn: dto.productionPerTurn,  // Phase 8 : calculé serveur
+          sciencePerTurn:   0,
+          culturePerTurn:   0,
           // Phase 7 : bâtiments et production hydratés depuis le serveur
           buildings:         dto.buildings as any,
           currentProduction: dto.currentProduction

@@ -23,6 +23,51 @@ export interface CityDTO {
   createdAt:        string;
   buildings:         string[];           // Phase 7 : bâtiments terminés
   currentProduction: CityProductionDTO | null; // Phase 7 : production courante
+  // Phase 8 : valeurs économiques calculées serveur (base + bonus bâtiments)
+  foodPerTurn:       number;
+  productionPerTurn: number;
+}
+
+// ─── BUILDING_YIELDS ──────────────────────────────────────────────────────────
+// Catalogue canonique des bonus économiques Phase 8 (food + production uniquement).
+// Source de vérité unique — remplace les catalogues locaux des composants client.
+const BUILDING_YIELDS: Record<string, { food?: number; production?: number }> = {
+  palace:     {},
+  granary:    { food: 2 },
+  library:    {},
+  barracks:   { production: 1 },
+  market:     {},
+  temple:     {},
+  courthouse: {},
+  university: {},
+};
+
+// ─── recalculateCityEconomy ───────────────────────────────────────────────────
+// Recalcule et persiste food_per_turn + production_per_turn d'une ville.
+// Déclenché après addBuilding() et createCityForColony().
+// Formule : base (2,1) + somme des yields des bâtiments terminés.
+async function recalculateCityEconomy(cityId: number): Promise<void> {
+  const buildingRows = await db
+    .select({ building: cityBuildings.building })
+    .from(cityBuildings)
+    .where(eq(cityBuildings.cityId, cityId));
+
+  const base = { food: 2, production: 1 };
+
+  const totals = buildingRows.reduce(
+    (acc, { building }) => {
+      const y = BUILDING_YIELDS[building] ?? {};
+      acc.food       += y.food       ?? 0;
+      acc.production += y.production ?? 0;
+      return acc;
+    },
+    { ...base },
+  );
+
+  await db
+    .update(cities)
+    .set({ foodPerTurn: totals.food, productionPerTurn: totals.production })
+    .where(eq(cities.id, cityId));
 }
 
 function mapCity(
@@ -32,17 +77,17 @@ function mapCity(
   production: typeof cityProduction.$inferSelect | null,
 ): CityDTO {
   return {
-    id:          city.id,
-    colonyId:    city.colonyId,
-    name:        city.name,
-    displayName: city.displayName,
-    population:  city.population,
-    worldX:      colony.worldX,
-    worldY:      colony.worldY,
-    factionId:   colony.factionId,
-    factionName: colony.factionName,
-    founderName: colony.founderName,
-    createdAt:   city.createdAt.toISOString(),
+    id:                city.id,
+    colonyId:          city.colonyId,
+    name:              city.name,
+    displayName:       city.displayName,
+    population:        city.population,
+    worldX:            colony.worldX,
+    worldY:            colony.worldY,
+    factionId:         colony.factionId,
+    factionName:       colony.factionName,
+    founderName:       colony.founderName,
+    createdAt:         city.createdAt.toISOString(),
     buildings,
     currentProduction: production
       ? {
@@ -52,6 +97,9 @@ function mapCity(
           progress: production.productionProgress,
         }
       : null,
+    // Phase 8 : valeurs économiques depuis la DB (calculées par recalculateCityEconomy)
+    foodPerTurn:       city.foodPerTurn,
+    productionPerTurn: city.productionPerTurn,
   };
 }
 
@@ -181,11 +229,14 @@ export async function getCityByColony(
 
 // ─── addBuilding ──────────────────────────────────────────────────────────────
 // Insère un bâtiment dans city_buildings (idempotent via ON CONFLICT DO NOTHING).
+// Phase 8 : déclenche un recalcul économique après l'insertion.
 export async function addBuilding(cityId: number, building: string): Promise<void> {
   await db
     .insert(cityBuildings)
     .values({ cityId, building })
     .onConflictDoNothing();
+  // Recalcul systématique — idempotent même si le bâtiment existait déjà.
+  await recalculateCityEconomy(cityId);
 }
 
 // ─── setProduction ────────────────────────────────────────────────────────────

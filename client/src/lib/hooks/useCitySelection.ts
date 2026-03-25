@@ -34,8 +34,8 @@ export const useCitySelection = () => {
           buildings: [],
           currentProduction: null,
           productionProgress: 0,
-          foodPerTurn: 2,
-          productionPerTurn: 1,
+          foodPerTurn: 0,       // Phase 8 : valeur temporaire avant hydrateCitiesFromServer()
+          productionPerTurn: 0, // Phase 8 : valeur temporaire avant hydrateCitiesFromServer()
           sciencePerTurn: 1,
           culturePerTurn: 1,
           workingHexes: []

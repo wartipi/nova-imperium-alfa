@@ -27,6 +27,9 @@ export interface CityDTO {
   createdAt:        string;
   buildings:         string[];
   currentProduction: CityProductionDTO | null;
+  // Phase 8 : économie calculée serveur (base + bonus bâtiments)
+  foodPerTurn:       number;
+  productionPerTurn: number;
 }
 
 // ─── Lecture ──────────────────────────────────────────────────────────────────
