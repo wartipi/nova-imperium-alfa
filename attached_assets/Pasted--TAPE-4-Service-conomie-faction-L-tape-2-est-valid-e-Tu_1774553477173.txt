@@ -1,0 +1,76 @@
+ÉTAPE 4 — Service économie faction
+
+L’Étape 2 est validée.
+Tu peux maintenant implémenter uniquement le service économie faction.
+
+FICHIERS À MODIFIER UNIQUEMENT
+1. `server/economyService.ts` (nouveau fichier)
+
+OBJECTIF
+Créer le service serveur minimal de la phase 9, sans routes, sans client, sans refactor.
+
+RESPONSABILITÉS ATTENDUES
+
+1. `aggregateFactionIncome(factionId: number)`
+- agréger depuis la DB :
+  - somme de `cities.foodPerTurn`
+  - somme de `cities.goldPerTurn`
+- via le lien villes → colonies → faction
+- ne pas passer par `CityDTO`
+- ne pas passer par le client
+- retourner une structure simple du type :
+  - `foodPerTurn`
+  - `goldPerTurn`
+
+2. `getFactionEconomy(factionId: number)`
+- lire la ligne `factionEconomy`
+- si absente, créer/initialiser une ligne minimale
+- retourner l’état stocké :
+  - `gold`
+  - `food`
+  - `lastProcessedTurn`
+  - `updatedAt`
+
+3. `applyFactionEconomyTick(factionId: number, currentTurn: number)`
+- lire ou initialiser `factionEconomy`
+- vérifier la garde d’idempotence avec `lastProcessedTurn`
+- si le tour a déjà été traité, ne pas réappliquer
+- sinon :
+  - récupérer les revenus agrégés via `aggregateFactionIncome`
+  - mettre à jour `gold` et `food`
+  - mettre à jour `lastProcessedTurn`
+  - mettre à jour `updatedAt`
+- en v1 :
+  - aucun coût
+  - aucune dépense
+  - aucun entretien
+  - juste application des revenus
+
+RÈGLES ABSOLUES
+- ne crée pas encore les routes
+- ne touche pas `server/routes.ts`
+- ne touche pas `TreasuryPanel`
+- ne touche pas `useNovaImperium`
+- ne modifie pas `CityDTO`
+- ne fais pas de refactor
+- ne rajoute pas de nouvelles ressources
+- ne commence pas l’étape client
+
+IMPORTANT
+- le service doit fonctionner même si `factionEconomy` est vide au départ
+- l’initialisation doit être sûre et simple
+- garde le code lisible et déterministe
+- pas de logique spéculative
+
+SORTIE ATTENDUE
+Je veux exactement :
+
+1. FICHIER MODIFIÉ
+2. FONCTIONS AJOUTÉES
+3. LOGIQUE D’AGRÉGATION EXACTE
+4. LOGIQUE D’IDEMPOTENCE EXACTE
+5. CE QUI N’A PAS ÉTÉ TOUCHÉ VOLONTAIREMENT
+6. RISQUES OU INCERTITUDES ÉVENTUELS
+
+Arrête-toi après cette Étape 4.
+Ne déborde pas sur les routes ni le client.
