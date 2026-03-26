@@ -1,0 +1,254 @@
+NOVA IMPERIUM — CORRECTION UI/UX : TRÉSORERIE = PANNEAU CENTRAL DES POSSESSIONS
+
+Branche :
+NI-10.3
+
+Contexte :
+Jeu persistant Node/TS + React/TS + PostgreSQL
+Architecture serveur autoritaire
+Méthode : audit court → patch UI minimal propre → vérification
+Aucun refactor massif
+
+RECTIFICATION DE DESIGN — À RESPECTER STRICTEMENT
+
+Le panneau TRÉSORERIE doit être le panneau central qui présente toutes les possessions économiques et logistiques du joueur.
+
+Je ne veux plus que ces informations soient dispersées entre plusieurs panneaux.
+
+Le panneau Trésorerie doit afficher au même endroit :
+
+1. la banque du joueur
+2. l’inventaire du joueur
+3. les inventaires des villes
+4. les récoltes en attente des villes
+5. la production par tour
+6. les actions de collecte disponibles si applicable
+
+IMPORTANT :
+- HarvestPanel séparé ne doit plus être la destination principale
+- le joueur ne doit pas devoir ouvrir plusieurs panneaux pour comprendre ce qu’il possède
+- TreasuryPanel doit devenir le tableau de bord économique principal
+- on garde un patch minimal, sans refonte complète du système économique
+
+RECTIFICATION MÉTIER — À RESPECTER STRICTEMENT
+
+1. Il n’existe pas encore de “ressources déjà disponibles dans le système” au sens d’un stock global magique.
+2. Toute dépense de matériaux doit passer par un vrai acheminement.
+3. Quand un joueur veut lancer une action ou construction qui coûte des matériaux :
+   - les matériaux nécessaires doivent avoir été transportés avant
+   - cet acheminement doit être une vraie action en jeu avec un temps de transit
+4. Le panneau de construction devra plus tard intégrer une phase d’acheminement des matériaux avant construction.
+5. L’inventaire du joueur n’est PAS un coffre économique global :
+   - il sert principalement à transporter des matériaux et objets
+6. L’inventaire de base du joueur est de 5 emplacements
+7. Certains matériaux ou objets occupent plus d’un emplacement
+8. Il faut donc présenter l’inventaire du joueur comme un inventaire de transport, pas comme une réserve abstraite illimitée
+
+IMPORTANT :
+Ce prompt reste centré sur la réorganisation du panneau Trésorerie.
+On ne demande PAS ici d’implémenter tout le système d’acheminement.
+Mais l’affichage doit déjà respecter ce modèle et ne pas laisser croire qu’un joueur dépense depuis un stock magique global.
+
+OBJECTIF
+
+Réorganiser l’interface pour que TreasuryPanel regroupe toutes les informations économiques utiles déjà existantes, sans casser le backend ni refaire les services.
+
+PÉRIMÈTRE
+
+On parle ici surtout d’organisation d’interface et de branchement des bonnes sources de données.
+Ne pas refaire la logique serveur sauf si un petit ajustement est strictement nécessaire pour alimenter TreasuryPanel proprement.
+
+FICHIERS À AUDITER EN PRIORITÉ
+
+- client/src/components/game/TreasuryPanel.tsx
+- client/src/components/game/HarvestPanel.tsx
+- client/src/components/game/MedievalHUD.tsx
+- client/src/components/game/PlayerInventory.tsx
+- client/src/lib/api/economyApi.ts
+- toute API déjà utilisée pour :
+  - banque joueur
+  - villes
+  - pending harvest
+  - inventory ville
+  - inventaire joueur
+
+RÈGLE UI/UX À VERROUILLER
+
+Le panneau TRÉSORERIE doit être l’unique panneau principal de consultation pour :
+- les possessions du joueur
+- les possessions des villes
+- les ressources en banque
+- la production par tour
+- la récolte en attente
+
+L’onglet Harvest séparé ne doit plus être nécessaire pour consulter ces données.
+
+STRUCTURE ATTENDUE DU PANNEAU TRÉSORERIE
+
+Le TreasuryPanel doit être réorganisé en sections claires, lisibles, stables.
+
+SECTION A — Vue globale
+Afficher :
+- banque du joueur
+- production totale par tour
+- résumé global simple
+
+SECTION B — Inventaire du joueur
+Afficher :
+- l’inventaire du joueur comme inventaire de transport
+- sa capacité maximale de base : 5 emplacements
+- l’occupation actuelle des emplacements
+- si certains objets/matériaux prennent plusieurs emplacements, l’afficher clairement
+- si PlayerInventory est déjà un composant réutilisable, l’intégrer ici plutôt que dupliquer sa logique
+
+IMPORTANT :
+Ne pas présenter cet inventaire comme un stock économique global.
+C’est un inventaire de portage / transit.
+
+SECTION C — Banque du joueur
+Afficher :
+- gold
+- food
+- autres éléments si réellement supportés
+- dernier tick utile si pertinent
+
+SECTION D — Villes
+Pour chaque ville :
+- nom de la ville
+- présence ou non d’une banque
+- production par tour
+- pending harvest
+- inventaire de ville
+- bouton de collecte si applicable
+- liste complète des bâtiments construits
+
+IMPORTANT :
+La liste des bâtiments construits d’une ville doit être consultable clairement.
+Je veux que lorsqu’on passe la souris sur la ville ou sur une zone prévue pour cela dans l’onglet, la liste complète des bâtiments construits s’affiche.
+
+Pas seulement un résumé tronqué.
+Pas seulement “X bâtiments”.
+Je veux le détail complet visible au survol.
+
+SECTION E — Messages d’état
+Afficher clairement :
+- ville avec banque → versement auto
+- ville sans banque → récolte en attente / collecte possible
+- action déjà en cours si applicable
+
+CONSIGNES IMPORTANTES
+
+1. Ne pas laisser HarvestPanel comme panneau principal
+Deux options acceptables :
+- soit fusionner son contenu dans TreasuryPanel
+- soit en extraire la logique utile et supprimer son usage depuis le menu principal
+
+2. Retirer l’entrée de menu “RÉCOLTE DES VILLES”
+Dans MedievalHUD, je ne veux plus d’onglet séparé dédié à cette vue si TreasuryPanel contient déjà ces informations.
+
+3. Réduire la dispersion
+Si l’inventaire joueur est actuellement affiché ailleurs dans le HUD uniquement pour des raisons historiques, recadrer pour que TreasuryPanel soit la vue économique de référence.
+
+4. Réutiliser au lieu de dupliquer
+Si HarvestPanel ou PlayerInventory contiennent déjà une logique utile, la réutiliser proprement dans TreasuryPanel.
+Pas de duplication massive de code.
+
+5. Pas de refactor backend inutile
+Le backend existe déjà en grande partie.
+Ne toucher au serveur que si un petit endpoint ou un petit DTO doit être ajusté pour alimenter TreasuryPanel proprement.
+
+6. Respecter le modèle logistique
+L’affichage doit déjà être cohérent avec le fait que :
+- les matériaux devront être acheminés par une action en jeu
+- le joueur transporte physiquement les matériaux
+- les constructions auront plus tard une phase d’acheminement dans le panneau de construction
+
+Même si cette mécanique complète n’est pas implémentée ici, le panneau Trésorerie ne doit pas raconter autre chose.
+
+PRIORITÉS
+
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+Je préfère :
+- une intégration propre
+- quelques sections lisibles
+- zéro sophistication inutile
+
+plutôt qu’une grosse refonte visuelle.
+
+RÉSULTAT ATTENDU
+
+Après patch :
+
+- ouvrir “TRÉSORERIE” doit suffire pour voir :
+  - banque joueur
+  - inventaire joueur
+  - villes
+  - pending harvest
+  - inventaire des villes
+  - production par tour
+  - bâtiments construits par ville (détail complet au survol)
+
+- le menu principal ne doit plus avoir besoin d’un onglet Harvest distinct
+- la logique d’affichage doit être cohérente avec le rôle réel de ce panneau
+- l’inventaire joueur doit être présenté comme inventaire de transport avec contrainte d’emplacements
+
+PLAN DE TRAVAIL ATTENDU
+
+ÉTAPE 1 — AUDIT UI COURT
+- localiser ce qui est affiché dans TreasuryPanel
+- localiser ce qui est affiché dans HarvestPanel
+- localiser où PlayerInventory est rendu
+- localiser comment les bâtiments de ville sont affichés actuellement
+- proposer le plus petit regroupement cohérent
+
+ÉTAPE 2 — RÉORGANISATION TREASURYPANEL
+- intégrer la banque joueur
+- intégrer pending harvest + inventory ville
+- intégrer production par tour
+- intégrer inventaire joueur ou son composant réutilisé
+- intégrer l’affichage détaillé des bâtiments de ville au survol
+
+ÉTAPE 3 — MÉDIÉVAL HUD
+- retirer l’entrée menu Harvest
+- brancher Trésorerie comme panneau central unique
+- supprimer les usages redondants évidents si nécessaire
+
+ÉTAPE 4 — AJUSTEMENTS MINIMAUX
+- si nécessaire, ajouter uniquement les petits champs/DTO/props manquants pour :
+  - affichage capacité inventaire joueur
+  - occupation des slots
+  - détail complet des bâtiments
+
+ÉTAPE 5 — VÉRIFICATION
+Vérifier que :
+- TreasuryPanel charge correctement les données
+- Harvest n’est plus nécessaire comme panneau principal
+- le menu est cohérent
+- l’inventaire joueur est présenté comme inventaire de transport
+- la liste complète des bâtiments d’une ville est visible au survol
+- rien n’est cassé côté auth / routes / actions
+- TypeScript compile
+
+FORMAT DE RETOUR ATTENDU
+
+Je veux un rapport final structuré en 6 parties :
+
+1. Audit ultra-court de la dispersion actuelle
+2. Choix de réorganisation retenu
+3. Fichiers modifiés
+4. Résumé exact du patch
+5. Flux UI avant / après
+6. Résultat de validation
+
+INTERDIT
+
+- refonte visuelle complète
+- nouveau système économique complet
+- implémentation complète du système d’acheminement
+- refactor massif backend
+- duplication inutile de composants
+- ajout de complexité non nécessaire
+
+But :
+faire de TreasuryPanel le vrai panneau central des possessions et de la production du joueur, en respectant déjà le futur modèle logistique de transport des matériaux.

@@ -10,7 +10,6 @@ import { Card } from "../ui/card";
 import { MiniMap } from "./MiniMap";
 import { TreasuryPanel } from "./TreasuryPanel";
 import { postEconomyTick, postProductionTick } from "../../lib/api/economyApi";
-import { HarvestPanel } from "./HarvestPanel";
 import { useDualResourceSync } from "../../hooks/useDualResourceSync";
 
 import { ActivityReportPanel } from "./ActivityReportPanel";
@@ -39,7 +38,6 @@ import { ActiveActionWidget } from "./ActiveActionWidget";
 
 type MenuSection = 
   | 'treasury' 
-  | 'harvest'
   | 'activities' 
   | 'courier' 
   | 'treaties'
@@ -175,7 +173,6 @@ export function MedievalHUD() {
 
   const menuItems = [
     { id: 'treasury' as MenuSection, label: 'TRÉSORERIE', icon: '💰' },
-    { id: 'harvest' as MenuSection, label: 'RÉCOLTE DES VILLES', icon: '🌾' },
     { id: 'marketplace' as MenuSection, label: 'MARCHÉ PUBLIQUE', icon: '⚖️' },
     { id: 'territory' as MenuSection, label: 'GESTION DE TERRITOIRE', icon: '🗺️' },
     { id: 'marshals' as MenuSection, label: 'GESTION DES ARMÉES', icon: '⚔️' },
@@ -664,8 +661,13 @@ export function MedievalHUD() {
             </div>
             
             <div className="text-amber-800">
-              {activeSection === 'treasury' && <TreasuryPanel />}
-              {activeSection === 'harvest' && <HarvestPanel currentUser={currentUser ?? 'player'} role={role} adminModeEnabled={adminModeEnabled} />}
+              {activeSection === 'treasury' && (
+                <TreasuryPanel
+                  currentUser={currentUser ?? 'player'}
+                  role={role}
+                  adminModeEnabled={adminModeEnabled}
+                />
+              )}
               {activeSection === 'marketplace' && (
                 <PublicMarketplace 
                   playerId={currentUser || 'player'} 
