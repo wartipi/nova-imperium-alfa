@@ -584,17 +584,21 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
       </Section>
 
       {/* ════════════════════════════════════════════════════════════════════
-          SECTION 4 — Réserves de faction (contexte global)
+          SECTION 4 — Réserves de faction (données legacy — non alimentées automatiquement)
+          La production des villes alimente désormais player_bank ou city_pending_harvest.
+          Cette section est conservée pour compatibilité future (gouvernements de faction).
       ════════════════════════════════════════════════════════════════════ */}
       {economy && (
-        <Section title="📊 Réserves de Faction">
-          <div className="grid grid-cols-2 gap-2 mb-1">
+        <Section title="📊 Réserves de Faction (inactif)">
+          <p className="text-xs text-amber-500 italic mb-2">
+            Non alimenté par la production des villes — réservé au futur système de gouvernement.
+          </p>
+          <div className="grid grid-cols-2 gap-2 mb-1 opacity-50">
             <StatBox icon="💰" label="Or faction"    value={economy.gold} />
             <StatBox icon="🌾" label="Nour. faction" value={economy.food} />
             <StatBox icon="📈" label="+Or/tour"      value={`+${economy.goldPerTurn}`} />
             <StatBox icon="📈" label="+Nour./tour"   value={`+${economy.foodPerTurn}`} />
           </div>
-          <p className="text-xs text-amber-400 text-right">Tour traité : {economy.lastProcessedTurn}</p>
         </Section>
       )}
 

@@ -1,0 +1,189 @@
+NOVA IMPERIUM — PHASE SUIVANTE : SUPPRESSION DU DOUBLE TICK ÉCONOMIQUE
+
+Branche :
+NI-10.3
+
+Contexte :
+Jeu persistant Node/TS + React/TS + PostgreSQL
+Architecture serveur autoritaire
+Méthode : audit court → correctif structurel ciblé → vérification
+Aucun refactor massif
+
+CONTEXTE VALIDÉ
+
+La logistique locale est maintenant en place :
+
+- player_bank
+- city_pending_harvest
+- city_inventory
+- player_transport
+- transferts banque → ville
+- transferts banque → joueur
+- construction validée par city_inventory
+- plus de dépendance client aux ressources globales pour les matériaux de construction
+
+Mais il reste encore un double flux économique actif :
+
+1. ancien flux global :
+- faction_economy
+- POST /api/economy/tick
+- aggregateFactionIncome / applyFactionEconomyTick
+
+2. nouveau flux local :
+- POST /api/economy/production-tick
+- villes avec banque → player_bank
+- villes sans banque → city_pending_harvest
+
+Tant que les deux tournent en parallèle, le système garde deux sources de vérité concurrentes.
+
+OBJECTIF DE LA PHASE
+
+Faire de la logistique locale la seule source de vérité active pour la production des villes.
+
+Je veux que :
+
+- la production des villes n’alimente plus automatiquement faction_economy
+- le tick de tour ne déclenche plus un double traitement contradictoire
+- faction_economy cesse d’être la destination automatique de la production urbaine
+- le système reste compatible avec une future phase “gouvernements / économie de faction”
+
+IMPORTANT :
+Je ne demande pas de supprimer brutalement tout le code faction_economy si d’autres parties l’utilisent encore.
+Je demande de retirer son rôle de destination active de la production des villes.
+
+RÈGLE DE DESIGN À VERROUILLER
+
+Pour cette phase du projet :
+
+- ville avec banque → production vers player_bank
+- ville sans banque → production vers city_pending_harvest
+- city_inventory = stock local exploitable
+- player_bank = réserve distante
+- faction_economy n’est plus alimentée automatiquement par les villes
+
+L’économie de faction viendra plus tard, au moment des types de gouvernement.
+Elle ne doit pas rester implicitement active maintenant comme si elle était déjà le modèle final.
+
+FICHIERS À AUDITER EN PRIORITÉ
+
+- client/src/components/game/MedievalHUD.tsx
+- client/src/lib/api/economyApi.ts
+- server/routes/economy.ts
+- server/economyService.ts
+- client/src/components/game/TreasuryPanel.tsx
+- tout autre endroit où postEconomyTick ou applyFactionEconomyTick est encore déclenché ou supposé central
+
+POINT 1 — AUDIT DU DOUBLE FLUX
+
+Je veux un audit ultra-court de :
+- où postEconomyTick est encore appelé
+- où postProductionTick est encore appelé
+- ce que faction_economy alimente encore réellement dans l’UI ou le gameplay
+- quelles parties doivent rester intactes temporairement pour compatibilité
+
+POINT 2 — RETIRER LE TICK GLOBAL DE LA FIN DE TOUR
+
+Si la fin de tour appelle encore :
+- postEconomyTick(currentTurn)
+- puis postProductionTick(currentTurn)
+
+Je veux supprimer ce double traitement.
+
+Attendu :
+- la fin de tour ne doit plus déclencher le vieux tick global des villes
+- elle doit conserver uniquement le tick local cohérent avec le modèle actuel
+- si un minimum de compatibilité est requis, documente précisément ce qui reste et pourquoi
+
+POINT 3 — NEUTRALISER faction_economy COMME DESTINATION DES VILLES
+
+Dans economyService.ts :
+- identifier où la production des villes est encore agrégée vers faction_economy
+- retirer ce rôle automatique
+- ne pas casser brutalement les lectures legacy si elles existent encore
+
+Options acceptables :
+A. faction_economy reste lisible mais n’est plus alimentée par les villes
+B. faction_economy est explicitement marquée legacy dans l’UI
+C. certaines routes restent temporairement présentes mais non utilisées par le flux principal
+
+IMPORTANT :
+Je ne veux plus que la production urbaine normale alimente faction_economy.
+
+POINT 4 — COHÉRENCE UI
+
+Dans TreasuryPanel :
+- si la section “Réserves de faction” dépend encore de l’ancien modèle, la recadrer clairement
+- elle peut rester provisoirement comme section secondaire / contexte legacy
+- mais elle ne doit plus être présentée comme cœur actif de l’économie actuelle si ce n’est plus vrai
+
+Solution minimale acceptable :
+- soit la garder en bas comme contexte secondaire
+- soit la masquer temporairement si elle devient trompeuse
+- soit afficher un texte court indiquant qu’elle n’est pas la source active de la logistique locale actuelle
+
+IMPORTANT :
+Pas de mensonge UI.
+Si faction_economy n’est plus alimentée automatiquement, le panneau ne doit pas suggérer l’inverse.
+
+POINT 5 — COMPATIBILITÉ FUTURE
+
+Je veux que ce patch prépare proprement la future phase “gouvernements”.
+
+Donc :
+- ne pas détruire inutilement faction_economy si elle peut servir plus tard
+- mais la sortir du flux actif actuel
+- garder le code simple, lisible, stable
+
+PLAN DE TRAVAIL ATTENDU
+
+ÉTAPE 1 — AUDIT
+- localiser le double tick
+- localiser les dépendances réelles à faction_economy
+
+ÉTAPE 2 — FIN DE TOUR
+- retirer le déclenchement du tick global ancien
+- garder le tick local canonique
+
+ÉTAPE 3 — SERVICE ÉCONOMIQUE
+- neutraliser la production urbaine automatique vers faction_economy
+- conserver le minimum legacy si nécessaire
+
+ÉTAPE 4 — UI
+- recadrer TreasuryPanel pour ne pas raconter un modèle faux
+
+ÉTAPE 5 — VÉRIFICATION
+Vérifier au minimum :
+- plus de double tick en fin de tour
+- une ville avec banque crédite bien player_bank
+- une ville sans banque crédite bien city_pending_harvest
+- faction_economy n’est plus alimentée automatiquement par la production des villes
+- TypeScript compile
+- aucune régression évidente sur les flux de récolte / transport / construction
+
+FORMAT DE RETOUR ATTENDU
+
+Je veux un rapport final structuré en 7 parties :
+
+1. Audit ultra-court du double flux actuel
+2. Choix minimal retenu
+3. Fichiers modifiés
+4. Résumé exact du patch
+5. Flux avant / après
+6. Points volontairement non traités
+7. Résultat de validation
+
+INTERDIT
+
+- refactor massif
+- suppression brutale de systèmes encore utilisés
+- nouveau système politique
+- nouveau système économique complet
+- complexité inutile
+
+PRIORITÉ ABSOLUE
+
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+But :
+faire de la logistique locale la seule source de vérité active,
+et sortir faction_economy du pipeline automatique de production des villes.

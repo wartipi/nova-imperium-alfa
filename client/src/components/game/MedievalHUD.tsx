@@ -9,7 +9,7 @@ import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { MiniMap } from "./MiniMap";
 import { TreasuryPanel } from "./TreasuryPanel";
-import { postEconomyTick, postProductionTick } from "../../lib/api/economyApi";
+import { postProductionTick } from "../../lib/api/economyApi";
 import { useDualResourceSync } from "../../hooks/useDualResourceSync";
 
 import { ActivityReportPanel } from "./ActivityReportPanel";
@@ -109,18 +109,17 @@ export function MedievalHUD() {
     setIsEndingTurn(true);
     try {
       if (playerFaction) {
-        // 1a. Tick économique faction (gold global)
-        await postEconomyTick(currentTurn);
-        // 1b. Tick de production par-ville (banque / pending_harvest)
+        // Tick de production par-ville (player_bank / city_pending_harvest)
+        // Modèle canonique — faction_economy n'est plus alimentée automatiquement.
         try {
           const prodResult = await postProductionTick(currentTurn);
           console.log("[handleEndTurn] Production tick:", prodResult);
         } catch (prodErr) {
           console.warn("[handleEndTurn] Production tick échoué (non bloquant):", prodErr);
         }
-        // 2. Traitement local de la production (bâtiments, unités)
+        // Traitement local de la production (bâtiments, unités)
         processTurn();
-        // 3. Incrément du tour
+        // Incrément du tour
         endTurn();
       } else {
         // Pas de faction — pas de tick économique, on avance quand même
@@ -128,7 +127,7 @@ export function MedievalHUD() {
         endTurn();
       }
     } catch (err) {
-      console.warn("[handleEndTurn] Tick économique échoué — tour non avancé :", err);
+      console.warn("[handleEndTurn] Erreur fin de tour — tour non avancé :", err);
     } finally {
       setIsEndingTurn(false);
     }
