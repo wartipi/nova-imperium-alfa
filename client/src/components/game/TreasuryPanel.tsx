@@ -435,7 +435,7 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
           </div>
         )}
         <p className="text-xs text-amber-400 italic mt-1">
-          Ressources : 10 unités = 1 emplacement. Max 50 unités totales.
+          Capacité transport : 50 unités totales (or + nourriture).
         </p>
         {currentUser && currentUser !== 'player' && (
           <p className="text-xs text-amber-400 mt-1">Joueur : {currentUser}</p>

@@ -1,0 +1,131 @@
+NOVA IMPERIUM — MICRO-CORRECTION UI FINALE : COHÉRENCE TRANSPORT / CONSTRUCTION
+
+Branche :
+NI-10.3
+
+Contexte :
+Jeu persistant Node/TS + React/TS + PostgreSQL
+Architecture serveur autoritaire
+Méthode : micro-patch ciblé → vérification
+Aucun refactor massif
+
+ÉTAT ACTUEL
+
+Le cœur du correctif est bon :
+- checkCityAccess retourne bien worldX/worldY
+- transfer-bank-to-city utilise bien les vraies coordonnées
+- ConstructionPanel ne dépend plus du stock global client pour les matériaux
+- handleBuild passe bien {} à buildInCity pour éviter la double déduction locale
+
+Il reste seulement 2 incohérences UI à corriger pour verrouiller proprement la phase.
+
+POINT 1 — TEXTE FAUX DANS TREASURYPANEL
+
+Dans TreasuryPanel, un texte dit encore :
+
+“Ressources : 10 unités = 1 emplacement. Max 50 unités totales.”
+
+Ce texte est faux par rapport au backend actuel.
+
+Le backend applique simplement :
+- capacité max = 50 unités totales transportées
+- usedUnits = gold + food
+- freeUnits = reste disponible
+
+Il n’existe pas de règle serveur “10 unités = 1 emplacement”.
+
+À faire :
+- supprimer ce texte faux
+- le remplacer par un texte strictement cohérent avec le backend réel
+
+Exemple acceptable :
+- “Capacité transport : 50 unités totales (or + nourriture).”
+ou
+- “Le transport de ressources est limité à 50 unités totales.”
+
+IMPORTANT :
+L’UI doit raconter exactement la règle backend réelle, rien de plus.
+
+POINT 2 — LIBELLÉ TROMPEUR DANS CONSTRUCTIONPANEL
+
+Dans ConstructionPanel, le bouton de construction affiche encore :
+- “Ressources insuffisantes”
+
+Mais canAffordBuilding() ne vérifie plus les matériaux.
+Il ne vérifie maintenant que :
+- les PA
+- éventuellement l’état local simple (déjà construit / déjà en cours)
+
+Donc ce libellé devient trompeur.
+
+À faire :
+- remplacer ce libellé par quelque chose de juste
+
+Exemples acceptables :
+- “PA insuffisants”
+- “Impossible”
+- “Conditions non remplies”
+
+Le meilleur choix probable ici est :
+- “PA insuffisants”
+si le bouton est uniquement bloqué par canAffordBuilding() sur les PA
+
+IMPORTANT :
+Le message “transférez depuis la banque” doit rester géré uniquement après refus serveur INSUFFICIENT_CITY_INVENTORY, comme c’est déjà le cas.
+Ne pas réintroduire de logique locale trompeuse sur les matériaux.
+
+OBJECTIF DU PATCH
+
+Faire en sorte que :
+- TreasuryPanel raconte exactement la règle réelle de transport
+- ConstructionPanel n’affiche plus un message faux sur les matériaux
+- la phase puisse être verrouillée proprement sans ambiguïté
+
+FICHIERS À MODIFIER
+
+- client/src/components/game/TreasuryPanel.tsx
+- client/src/components/game/ConstructionPanel.tsx
+
+PLAN MINIMAL
+
+ÉTAPE 1
+Corriger le texte de capacité transport dans TreasuryPanel.
+
+ÉTAPE 2
+Corriger le libellé du bouton dans ConstructionPanel pour qu’il reflète la vraie condition locale.
+
+ÉTAPE 3
+Vérifier qu’aucun autre texte immédiat dans ces deux composants ne contredit le backend réel.
+
+VÉRIFICATION ATTENDUE
+
+Je veux confirmer :
+- plus aucune mention de “10 unités = 1 emplacement” dans TreasuryPanel
+- plus aucun bouton “Ressources insuffisantes” si la vérification locale ne porte plus sur les matériaux
+- TypeScript compile sur les fichiers modifiés
+- aucun comportement métier modifié, uniquement cohérence UI
+
+FORMAT DE RETOUR ATTENDU
+
+Je veux un rapport final structuré en 5 parties :
+
+1. Rappel ultra-court des 2 incohérences UI
+2. Fichiers modifiés
+3. Résumé exact du micro-patch
+4. Avant / après
+5. Résultat de validation
+
+INTERDIT
+
+- refactor massif
+- changement backend
+- nouvelle logique métier
+- modification des règles de capacité
+- complexité inutile
+
+PRIORITÉ ABSOLUE
+
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+But :
+fermer proprement la phase avec une UI qui ne contredit plus le backend réel.

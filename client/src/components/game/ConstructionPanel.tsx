@@ -696,7 +696,7 @@ export function ConstructionPanel() {
     setBuildMessages(prev => ({ ...prev, [cityId]: null }));
 
     if (!canAffordBuilding(buildingId)) {
-      console.log(`Ressources insuffisantes (PA ou ressources) pour construire ${buildingId}`);
+      console.log(`PA insuffisants pour construire ${buildingId}`);
       return;
     }
 
@@ -939,7 +939,7 @@ export function ConstructionPanel() {
                         className="text-xs bg-amber-600 hover:bg-amber-700 disabled:opacity-50"
                       >
                         {city.buildings.includes(building.id as any) ? 'Construit' : 
-                         !canAffordBuilding(building.id) ? 'Ressources insuffisantes' : 'Construire'}
+                         !canAffordBuilding(building.id) ? 'PA insuffisants' : 'Construire'}
                       </Button>
                     </div>
                   ))}
