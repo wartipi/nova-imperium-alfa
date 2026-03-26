@@ -41,6 +41,7 @@ const BUILDING_YIELDS: Record<string, { food?: number; production?: number; gold
   temple:     {},
   courthouse: { gold: 1 },
   university: {},
+  bank:       {},  // Présence détectée pour router la production vers player_bank
 };
 
 // ─── recalculateCityEconomy ───────────────────────────────────────────────────

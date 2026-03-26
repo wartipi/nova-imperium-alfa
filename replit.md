@@ -265,3 +265,47 @@ npm run db:push                   # Synchroniser le schéma Drizzle
 | `joueur1` | Ordre du Fer (id=2) | leader |
 | `maitre` | Guilde de Pandem (id=1) | leader |
 | `admin` | aucune | admin MJ sans faction |
+---
+
+## Phase "Banque Joueur / Récolte Physique" (Phase 9.3)
+
+### Nouvelles tables DB
+
+| Table | Rôle |
+|---|---|
+| `player_bank` | Or/nourriture accumulé(e) via villes avec banque |
+| `city_pending_harvest` | Or/nourriture en attente de collecte physique (villes sans banque) |
+| `city_inventory` | Stock finalisé après action `collect_harvest` |
+
+### Logique économique
+
+- `applyProductionTickPerCity(playerId, factionId, currentTurn)` :
+  - Ville avec bâtiment `bank` → crédit direct dans `player_bank`
+  - Ville sans banque → accumulation dans `city_pending_harvest`
+  - Garde d'idempotence via `player_bank.lastProductionTurn`
+- `completeAction` (type `collect_harvest`) → transfère `city_pending_harvest → city_inventory` via `completeHarvestTransfer`
+- `createCollectHarvestAction` : durée = max(5, 5+ceil((gold+food)/10)) min — 0 min en mode admin
+
+### Nouvelles routes
+
+| Méthode | Route | Rôle |
+|---|---|---|
+| GET | `/api/economy/player-bank/me` | Banque personnelle du joueur |
+| POST | `/api/economy/production-tick` | Tick production par-ville (body: `{currentTurn}`) |
+| GET | `/api/cities/:cityId/harvest` | Pending + inventory + hasBank |
+| POST | `/api/cities/:cityId/collect-harvest` | Lancer action de collecte physique |
+
+### Nouveau composant UI
+
+- `HarvestPanel.tsx` : panneau "🌾 RÉCOLTE DES VILLES" dans le menu HUD
+  - Affiche la banque personnelle du joueur
+  - Liste chaque ville avec pending/inventory
+  - Bouton "Collecter" pour les villes sans banque
+  - Mode admin : collecte instantanée
+
+### Ordre fin de tour (`handleEndTurn`)
+
+1. `postEconomyTick(currentTurn)` — faction gold global
+2. `postProductionTick(currentTurn)` — production par-ville (bank / pending)
+3. `processTurn()` — production locale
+4. `endTurn()` — incrément du tour

@@ -9,7 +9,8 @@ import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { MiniMap } from "./MiniMap";
 import { TreasuryPanel } from "./TreasuryPanel";
-import { postEconomyTick } from "../../lib/api/economyApi";
+import { postEconomyTick, postProductionTick } from "../../lib/api/economyApi";
+import { HarvestPanel } from "./HarvestPanel";
 import { useDualResourceSync } from "../../hooks/useDualResourceSync";
 
 import { ActivityReportPanel } from "./ActivityReportPanel";
@@ -38,6 +39,7 @@ import { ActiveActionWidget } from "./ActiveActionWidget";
 
 type MenuSection = 
   | 'treasury' 
+  | 'harvest'
   | 'activities' 
   | 'courier' 
   | 'treaties'
@@ -110,8 +112,15 @@ export function MedievalHUD() {
     setIsEndingTurn(true);
     try {
       if (playerFaction) {
-        // 1. Tick économique serveur AVANT la production locale
+        // 1a. Tick économique faction (gold global)
         await postEconomyTick(currentTurn);
+        // 1b. Tick de production par-ville (banque / pending_harvest)
+        try {
+          const prodResult = await postProductionTick(currentTurn);
+          console.log("[handleEndTurn] Production tick:", prodResult);
+        } catch (prodErr) {
+          console.warn("[handleEndTurn] Production tick échoué (non bloquant):", prodErr);
+        }
         // 2. Traitement local de la production (bâtiments, unités)
         processTurn();
         // 3. Incrément du tour
@@ -123,7 +132,6 @@ export function MedievalHUD() {
       }
     } catch (err) {
       console.warn("[handleEndTurn] Tick économique échoué — tour non avancé :", err);
-      // Resynchronisation partielle pour limiter la divergence de processTurn non appelé
     } finally {
       setIsEndingTurn(false);
     }
@@ -167,6 +175,7 @@ export function MedievalHUD() {
 
   const menuItems = [
     { id: 'treasury' as MenuSection, label: 'TRÉSORERIE', icon: '💰' },
+    { id: 'harvest' as MenuSection, label: 'RÉCOLTE DES VILLES', icon: '🌾' },
     { id: 'marketplace' as MenuSection, label: 'MARCHÉ PUBLIQUE', icon: '⚖️' },
     { id: 'territory' as MenuSection, label: 'GESTION DE TERRITOIRE', icon: '🗺️' },
     { id: 'marshals' as MenuSection, label: 'GESTION DES ARMÉES', icon: '⚔️' },
@@ -656,6 +665,7 @@ export function MedievalHUD() {
             
             <div className="text-amber-800">
               {activeSection === 'treasury' && <TreasuryPanel />}
+              {activeSection === 'harvest' && <HarvestPanel currentUser={currentUser ?? 'player'} role={role} adminModeEnabled={adminModeEnabled} />}
               {activeSection === 'marketplace' && (
                 <PublicMarketplace 
                   playerId={currentUser || 'player'} 

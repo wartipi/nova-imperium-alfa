@@ -1,6 +1,6 @@
 import { eq, sql, and, gte } from "drizzle-orm";
 import { db } from "./db";
-import { cities, colonies, factionEconomy } from "../shared/schema";
+import { cities, colonies, factionEconomy, cityBuildings, playerBank, cityPendingHarvest } from "../shared/schema";
 
 // ─── Types publics ─────────────────────────────────────────────────────────────
 
@@ -224,4 +224,148 @@ export async function applyFactionEconomyTick(
       updatedAt:         now.toISOString(),
     },
   };
+}
+
+// ─── PlayerBankDTO ────────────────────────────────────────────────────────────
+
+export interface PlayerBankDTO {
+  gold:               number;
+  food:               number;
+  lastProductionTurn: number;
+  updatedAt:          string;
+}
+
+export interface CityHarvestDTO {
+  cityId:   number;
+  name:     string;
+  hasBank:  boolean;
+  pending:  { gold: number; food: number };
+  inventory: { gold: number; food: number };
+}
+
+export interface ProductionTickResult {
+  applied: boolean;
+  cities:  Array<{ cityId: number; name: string; gold: number; food: number; destination: 'bank' | 'pending' }>;
+}
+
+// ─── getOrInitPlayerBank ──────────────────────────────────────────────────────
+// Lit ou initialise la banque du joueur. Retourne toujours un état valide.
+export async function getOrInitPlayerBank(playerId: string): Promise<PlayerBankDTO> {
+  const rows = await db.select().from(playerBank).where(eq(playerBank.playerId, playerId)).limit(1);
+  if (rows.length > 0) {
+    const r = rows[0];
+    return { gold: r.gold, food: r.food, lastProductionTurn: r.lastProductionTurn, updatedAt: r.updatedAt.toISOString() };
+  }
+  const [ins] = await db
+    .insert(playerBank)
+    .values({ playerId, gold: 0, food: 0, lastProductionTurn: 0 })
+    .onConflictDoNothing()
+    .returning();
+  if (!ins) {
+    const [r] = await db.select().from(playerBank).where(eq(playerBank.playerId, playerId)).limit(1);
+    return { gold: r.gold, food: r.food, lastProductionTurn: r.lastProductionTurn, updatedAt: r.updatedAt.toISOString() };
+  }
+  return { gold: ins.gold, food: ins.food, lastProductionTurn: ins.lastProductionTurn, updatedAt: ins.updatedAt.toISOString() };
+}
+
+// ─── applyProductionTickPerCity ───────────────────────────────────────────────
+// Tick de production résolu ville par ville :
+//   - ville avec banque → player_bank
+//   - ville sans banque → city_pending_harvest
+// Garde d'idempotence : lastProductionTurn stocké dans player_bank.
+// Ne touche PAS à faction_economy.
+export async function applyProductionTickPerCity(
+  playerId:    string,
+  factionId:   number,
+  currentTurn: number,
+): Promise<ProductionTickResult> {
+  // Initialise + lit l'état de la banque.
+  const bank = await getOrInitPlayerBank(playerId);
+
+  // Garde d'idempotence.
+  if (bank.lastProductionTurn >= currentTurn) {
+    console.log(`[productionTick] player=${playerId} tour=${currentTurn} déjà traité — ignoré`);
+    return { applied: false, cities: [] };
+  }
+
+  // Toutes les villes de la faction, avec leurs bâtiments et valeurs économiques.
+  const cityRows = await db
+    .select({
+      cityId:       cities.id,
+      name:         cities.name,
+      goldPerTurn:  cities.goldPerTurn,
+      foodPerTurn:  cities.foodPerTurn,
+    })
+    .from(cities)
+    .innerJoin(colonies, eq(cities.colonyId, colonies.id))
+    .where(eq(colonies.factionId, factionId));
+
+  // Détection de banque par ville.
+  const cityIds = cityRows.map(c => c.cityId);
+  const buildingRows = cityIds.length > 0
+    ? await db
+        .select({ cityId: cityBuildings.cityId, building: cityBuildings.building })
+        .from(cityBuildings)
+        .where(sql`${cityBuildings.cityId} = ANY(ARRAY[${sql.join(cityIds.map(id => sql`${id}`), sql`, `)}]::int[])`)
+    : [];
+
+  const cityHasBank = new Map<number, boolean>();
+  for (const r of buildingRows) {
+    if (r.building === 'bank') cityHasBank.set(r.cityId, true);
+  }
+
+  const results: ProductionTickResult['cities'] = [];
+  let bankGoldDelta = 0;
+  let bankFoodDelta = 0;
+  const now = new Date();
+
+  for (const city of cityRows) {
+    const g = Number(city.goldPerTurn ?? 0);
+    const f = Number(city.foodPerTurn ?? 0);
+    if (g === 0 && f === 0) continue;
+
+    const hasBank = cityHasBank.get(city.cityId) === true;
+
+    if (hasBank) {
+      bankGoldDelta += g;
+      bankFoodDelta += f;
+      results.push({ cityId: city.cityId, name: city.name, gold: g, food: f, destination: 'bank' });
+    } else {
+      // Accumulation dans pending_harvest (UPSERT).
+      await db
+        .insert(cityPendingHarvest)
+        .values({ cityId: city.cityId, gold: g, food: f, updatedAt: now })
+        .onConflictDoUpdate({
+          target: cityPendingHarvest.cityId,
+          set: {
+            gold:      sql`${cityPendingHarvest.gold} + ${g}`,
+            food:      sql`${cityPendingHarvest.food} + ${f}`,
+            updatedAt: now,
+          },
+        });
+      results.push({ cityId: city.cityId, name: city.name, gold: g, food: f, destination: 'pending' });
+    }
+  }
+
+  // Crédit banque joueur groupé + mise à jour garde de tour.
+  await db
+    .insert(playerBank)
+    .values({ playerId, gold: bankGoldDelta, food: bankFoodDelta, lastProductionTurn: currentTurn, updatedAt: now })
+    .onConflictDoUpdate({
+      target: playerBank.playerId,
+      set: {
+        gold:               sql`${playerBank.gold} + ${bankGoldDelta}`,
+        food:               sql`${playerBank.food} + ${bankFoodDelta}`,
+        lastProductionTurn: currentTurn,
+        updatedAt:          now,
+      },
+    });
+
+  console.log(
+    `[productionTick] player=${playerId} faction=${factionId} tour=${currentTurn}` +
+    ` villes=${cityRows.length} bank+${bankGoldDelta}g+${bankFoodDelta}f` +
+    ` pending=${results.filter(r => r.destination === 'pending').length} villes`
+  );
+
+  return { applied: true, cities: results };
 }

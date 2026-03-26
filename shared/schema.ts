@@ -528,3 +528,41 @@ export const factionEconomy = pgTable("faction_economy", {
 });
 
 export type FactionEconomyRecord = typeof factionEconomy.$inferSelect;
+
+// ─── player_bank ──────────────────────────────────────────────────────────────
+// Réserve personnelle du joueur.
+// Alimentée par les villes ayant une banque à chaque tick de production.
+// lastProductionTurn : garde d'idempotence du tick de production par-ville.
+export const playerBank = pgTable("player_bank", {
+  playerId:           text("player_id").primaryKey(),
+  gold:               integer("gold").notNull().default(0),
+  food:               integer("food").notNull().default(0),
+  lastProductionTurn: integer("last_production_turn").notNull().default(0),
+  updatedAt:          timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type PlayerBankRecord = typeof playerBank.$inferSelect;
+
+// ─── city_pending_harvest ─────────────────────────────────────────────────────
+// Production en attente pour les villes sans banque.
+// Accumulée à chaque tick. Transférée vers city_inventory à la collecte.
+export const cityPendingHarvest = pgTable("city_pending_harvest", {
+  cityId:    integer("city_id").primaryKey().references(() => cities.id),
+  gold:      integer("gold").notNull().default(0),
+  food:      integer("food").notNull().default(0),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type CityPendingHarvestRecord = typeof cityPendingHarvest.$inferSelect;
+
+// ─── city_inventory ───────────────────────────────────────────────────────────
+// Stocks physiques d'une ville après collecte.
+// Alimenté par l'action collect_harvest (pending_harvest → city_inventory).
+export const cityInventory = pgTable("city_inventory", {
+  cityId:    integer("city_id").primaryKey().references(() => cities.id),
+  gold:      integer("gold").notNull().default(0),
+  food:      integer("food").notNull().default(0),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type CityInventoryRecord = typeof cityInventory.$inferSelect;

@@ -1,0 +1,295 @@
+NOVA IMPERIUM — PHASE : BANQUE JOUEUR + RÉCOLTE PHYSIQUE DE VILLE
+
+Branche :
+NI-10.3
+
+Contexte :
+Jeu persistant Node/TS + React/TS + PostgreSQL
+Architecture serveur autoritaire
+Méthode : audit rapide → patch minimal propre → vérification
+Aucun refactor massif
+
+RECTIFICATION DE DESIGN — À RESPECTER STRICTEMENT
+
+L’économie de faction n’est PAS la cible de cette phase.
+On ne doit pas brancher cette nouvelle mécanique sur faction_economy comme destination finale.
+
+Pour cette phase, la logique correcte est :
+
+1. Si une ville possède une BANQUE :
+   - sa production du tour est versée automatiquement dans la BANQUE DU JOUEUR
+
+2. Si une ville ne possède PAS de banque :
+   - sa production du tour ne va ni dans la banque du joueur, ni dans faction_economy
+   - elle devient une RÉCOLTE EN ATTENTE liée à cette ville / position sur la carte
+
+3. Quand le joueur effectue une collecte physique :
+   - toute la récolte en attente de cette ville est transférée en une seule fois dans l’INVENTAIRE DE LA VILLE
+
+RÈGLES FONCTIONNELLES À VERROUILLER
+
+- Banque présente :
+  production du tour → banque du joueur
+
+- Banque absente :
+  production du tour → stock “en attente de récolte” de la ville
+
+- Après action de collecte :
+  stock “en attente de récolte” → inventaire de la ville
+
+IMPORTANT :
+- ne pas envoyer cette production dans faction_economy
+- ne pas fusionner banque du joueur et inventaire de ville
+- ne pas créer une action par ressource
+- une seule action de collecte doit consolider toute la récolte en attente d’une ville
+
+OBJECTIF DE LA PHASE
+
+Mettre en place la couche économique locale minimale suivante :
+
+A. Banque du joueur (réserve personnelle)
+B. Récolte en attente sur la carte pour les villes sans banque
+C. Inventaire de ville après collecte
+D. Tick de production résolu ville par ville selon présence de la banque
+E. Action serveur unique de collecte physique
+
+PÉRIMÈTRE V1
+
+Rester minimal et cohérent avec l’état actuel du projet.
+
+Utiliser uniquement les ressources déjà réellement supportées par l’économie actuelle si nécessaire.
+Si aujourd’hui la production serveur repose surtout sur goldPerTurn et foodPerTurn, rester sur gold + food pour cette phase.
+Ne pas inventer tout un système multi-ressources si le code actuel ne le supporte pas encore.
+
+FICHIERS À AUDITER EN PRIORITÉ
+
+- server/economyService.ts
+- server/cityService.ts
+- server/routes.ts
+- server/routes/cities.ts
+- server/routes/playerActions.ts
+- server/routes/playerState.ts
+- shared/schema.ts
+- client/src/components/game/TreasuryPanel.tsx
+- client/src/components/game/UnifiedTerritoryPanel.tsx
+- client/src/components/game/MedievalHUD.tsx
+- tous les fichiers déjà liés au tick de tour et à la production des villes
+
+INVARIANTS D’ARCHITECTURE
+
+1. Le serveur est la seule source de vérité
+2. La production est résolue par ville, pas par agrégat opaque
+3. La banque du joueur est séparée de l’inventaire de la ville
+4. La récolte en attente est séparée de l’inventaire de la ville
+5. La collecte physique est une action persistante unique
+6. Pas de branchement nouveau vers faction_economy pour cette mécanique
+7. Le code doit rester simple, lisible, stable
+
+PROPOSITION DE MODÈLE MINIMAL (À RÉUTILISER SI COHÉRENT)
+
+Si rien d’équivalent n’existe déjà, ajouter le minimum de persistance nécessaire :
+
+1. player_bank
+- playerId unique
+- gold
+- food
+- updatedAt
+
+2. city_inventory
+- cityId unique
+- gold
+- food
+- updatedAt
+
+3. city_pending_harvest
+- cityId unique
+- gold
+- food
+- updatedAt
+
+IMPORTANT :
+Si une structure existante peut être réutilisée proprement, fais-le.
+Sinon ajoute ces tables minimales.
+Ne fais pas de sur-ingénierie.
+
+DÉTECTION DE LA BANQUE
+
+La présence d’une banque doit être déterminée à partir du vrai système de bâtiments de ville existant.
+Ne pas inventer un booléen parallèle si le bâtiment “bank” existe déjà dans city_buildings ou dans les constantes bâtiment.
+Réutiliser le nom canonique existant si déjà présent dans le projet.
+
+RÉSOLUTION DU TICK
+
+Modifier la logique de résolution de production pour qu’elle se fasse ville par ville.
+
+Pour chaque ville :
+
+SI banque présente :
+- créditer automatiquement la banque du joueur avec la production du tour
+
+SI banque absente :
+- ajouter la production du tour au stock pending_harvest de la ville
+
+IMPORTANT :
+- ne pas envoyer ces ressources vers faction_economy
+- conserver un comportement déterministe
+- éviter les doubles crédits
+- garder une logique idempotente si un garde de tour existe déjà
+
+ACTION DE COLLECTE PHYSIQUE
+
+Créer une action serveur unique de collecte pour une ville sans banque.
+
+Nom recommandé :
+collect_city_harvest
+ou
+collect_city_resources
+
+Comportement attendu :
+- cible une ville précise
+- lit toute la récolte en attente de cette ville
+- refuse l’action si pending_harvest = 0
+- refuse si une collecte pour cette ville/joueur est déjà en cours
+- calcule un temps total agrégé
+- crée une seule action persistante
+- à la complétion :
+  - retire la totalité du pending_harvest
+  - ajoute les ressources à l’inventaire de la ville
+  - marque l’action complétée
+
+IMPORTANT :
+pas une action par ressource
+pas une action par lot
+une seule action consolidée par ville
+
+TEMPS DE COLLECTE — V1
+
+Si aucune formule n’existe déjà, utiliser une formule simple et déterministe :
+
+totalUnits = pendingGold + pendingFood
+durationMinutes = 5 + ceil(totalUnits / 10)
+
+Minimum 5 minutes
+Même formule partout
+Facile à ajuster plus tard
+
+Si le système d’actions existant permet de brancher proprement cette action, le réutiliser.
+Sinon, ajouter le plus petit mécanisme persistant cohérent possible sans casser le système actuel.
+
+UI / API MINIMALES ATTENDUES
+
+Ajouter le strict minimum pour lire et utiliser le système :
+
+1. lecture banque joueur
+- endpoint du type GET /api/economy/player-bank/me
+ou équivalent minimal
+
+2. lecture stockage ville
+- inventaire de ville
+- pending harvest
+- au minimum depuis le panneau ville ou une route dédiée
+
+3. lancer une collecte
+- endpoint POST sur la ville cible
+- crée l’action serveur de collecte
+
+4. affichage minimal
+Je veux voir au moins :
+- banque du joueur
+- inventaire d’une ville
+- pending harvest d’une ville
+- bouton de collecte si applicable
+
+Pas besoin d’une UI parfaite.
+Je veux une UI minimale mais exploitable.
+
+COMPATIBILITÉ
+
+- ne pas casser la fin de tour actuelle
+- ne pas casser les villes existantes
+- ne pas casser les bâtiments existants
+- ne pas casser le système d’actions existant
+- si faction_economy existe déjà pour d’autres raisons, ne pas la supprimer brutalement
+- mais ne plus l’utiliser comme destination de cette nouvelle logique locale
+
+SI UNE PARTIE DU CODE ACTUEL AGRÈGE ENCORE LES REVENUS DE VILLE DIRECTEMENT VERS faction_economy
+
+Alors :
+- neutraliser ce comportement pour cette mécanique
+- ou le contourner proprement
+- ou le remplacer par la résolution ville par ville
+mais sans refactor massif
+
+PLAN DE TRAVAIL ATTENDU
+
+ÉTAPE 1 — AUDIT COURT
+- localiser où la production de ville est calculée
+- localiser où elle est actuellement envoyée
+- localiser le vrai système bâtiment
+- localiser le meilleur point de branchement pour banque / pending / inventory
+
+ÉTAPE 2 — PERSISTANCE MINIMALE
+- ajouter le minimum de tables/colonnes nécessaires
+- valeurs par défaut propres
+- migration claire
+
+ÉTAPE 3 — LOGIQUE SERVEUR
+- résolution production par ville
+- banque joueur si banque présente
+- pending_harvest si banque absente
+- action de collecte unique
+- transfert pending → city_inventory à la complétion
+
+ÉTAPE 4 — API
+- endpoints minimaux de lecture
+- endpoint de lancement collecte
+
+ÉTAPE 5 — UI MINIMALE
+- affichage banque joueur
+- affichage inventaire ville
+- affichage pending harvest
+- bouton collecte
+
+ÉTAPE 6 — VÉRIFICATION
+Vérifier au minimum :
+- ville avec banque : production va bien à la banque joueur
+- ville sans banque : production va bien dans pending harvest
+- lancer collecte : une seule action est créée
+- fin collecte : pending devient 0, city inventory augmente
+- pas de crédit vers faction_economy pour cette mécanique
+- pas de double application au passage de tour
+- TypeScript compile
+
+FORMAT DE RETOUR ATTENDU
+
+Je veux un rapport final structuré en 7 parties :
+
+1. Audit ultra-court du flux existant
+2. Choix du modèle de persistance retenu
+3. Fichiers modifiés
+4. Résumé exact du patch
+5. Flux avant / après
+6. Points volontairement non traités
+7. Résultat de validation
+
+INTERDIT
+
+- refactor massif
+- système bancaire complet avec prêts/intérêts
+- système de transport complet entre villes
+- gouvernement
+- taxation
+- redistribution de faction
+- nouvelle architecture lourde
+- complexité inutile
+
+PRIORITÉ ABSOLUE
+
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+Implémente le plus petit système propre possible pour :
+- banque du joueur
+- pending harvest de ville
+- inventaire de ville
+- collecte physique par action unique
+sans brancher cette phase sur l’économie de faction.
