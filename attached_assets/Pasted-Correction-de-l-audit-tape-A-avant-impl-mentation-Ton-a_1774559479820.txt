@@ -1,0 +1,63 @@
+Correction de l’audit Étape A avant implémentation
+
+Ton audit a trouvé le bon point de branchement général (`MedievalHUD.tsx`), mais il manque deux corrections importantes avant l’Étape B.
+
+POINT 1 — Trésorerie active
+Tu raisonnes comme si l’UI active utilisait `TreasuryPanel`.
+Ce n’est pas suffisant.
+
+Dans `MedievalHUD.tsx`, la section Trésorerie rend encore `TreasuryPanelZustand` via `useZustandTreasury = true`.
+Or `TreasuryPanelZustand` contient encore :
+- `calculateIncome()`
+- `calculateExpenses()`
+- revenus hardcodés
+- calcul local d’or via `population * 0.5`
+
+Donc avant ou pendant le branchement du tick, il faut corriger cela.
+Le plus petit correctif est :
+- modifier uniquement `MedievalHUD.tsx`
+- basculer l’affichage actif sur `TreasuryPanel`
+- ne plus rendre `TreasuryPanelZustand` dans le flux principal
+
+POINT 2 — Gestion d’erreur du tick
+Tu proposes un `console.warn` non bloquant si `postEconomyTick(currentTurn)` échoue.
+Ce point doit être corrigé.
+
+Si le tick échoue mais que `endTurn()` s’exécute quand même :
+- le tour client avance
+- mais le tick économique serveur du tour courant peut être perdu
+
+Je veux donc la règle suivante :
+- si le joueur a une faction :
+  - `postEconomyTick(currentTurn)` doit réussir avant `endTurn()`
+- si le tick échoue :
+  - ne pas appeler `endTurn()`
+  - lancer `hydrateCitiesFromServer()` pour limiter les divergences après `processTurn()`
+- si le joueur n’a pas de faction :
+  - skip du tick
+  - `endTurn()` autorisé
+
+MISSION
+Refais l’Étape A avec ce cadrage corrigé.
+
+Je veux une réponse courte avec exactement :
+
+1. point de branchement final retenu
+2. fichier(s) à modifier
+3. ordre d’appel final retenu
+4. comment tu gères :
+   - joueur sans faction
+   - échec du tick
+   - double clic
+   - refresh de la trésorerie affichée
+5. ce qui doit être retiré du flux principal
+   - en particulier `TreasuryPanelZustand`
+
+IMPORTANT
+- vise le plus petit correctif réel
+- privilégie `MedievalHUD.tsx` seul si possible
+- pas de refactor global
+- pas d’architecture nouvelle
+- pas de code encore, seulement le plan corrigé
+
+Arrête-toi après ce rapport.
