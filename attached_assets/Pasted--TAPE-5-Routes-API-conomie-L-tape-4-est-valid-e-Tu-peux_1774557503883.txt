@@ -1,0 +1,86 @@
+ÉTAPE 5 — Routes API économie
+
+L’Étape 4 est validée.
+
+Tu peux maintenant implémenter uniquement les routes API économie.
+
+FICHIERS À MODIFIER UNIQUEMENT
+1. `server/routes/economy.ts` (nouveau fichier)
+2. `server/routes.ts`
+
+OBJECTIF
+Exposer l’économie de faction via une API minimale, sans toucher encore au client.
+
+ROUTES À CRÉER
+
+1. `GET /api/economy/me`
+But :
+- retourner l’état économique de la faction du joueur authentifié
+
+Comportement attendu :
+- vérifier l’utilisateur authentifié
+- récupérer sa faction via le même principe que les autres routes de faction
+- si le joueur n’appartient à aucune faction :
+  - retourner 403 cohérent avec le reste du projet
+- sinon :
+  - lire `factionEconomy`
+  - lire les revenus agrégés via `aggregateFactionIncome`
+  - retourner une réponse JSON claire contenant au minimum :
+    - `gold`
+    - `food`
+    - `lastProcessedTurn`
+    - `updatedAt`
+    - `goldPerTurn`
+    - `foodPerTurn`
+
+2. `POST /api/economy/tick`
+But :
+- appliquer le tick économique pour la faction du joueur
+
+Body attendu :
+- `{ currentTurn: number }`
+
+Comportement attendu :
+- vérifier l’utilisateur authentifié
+- vérifier que `currentTurn` est un entier valide
+- récupérer la faction du joueur
+- appeler `applyFactionEconomyTick(factionId, currentTurn)`
+- retourner une réponse JSON claire contenant au minimum :
+  - `applied`
+  - `economy`
+
+MONTAGE
+Dans `server/routes.ts` :
+- monter `app.use("/api/economy", economyRoutes)`
+
+RÈGLES ABSOLUES
+- ne touche pas au client
+- ne touche pas `TreasuryPanel`
+- ne touche pas `useNovaImperium`
+- ne modifie pas `economyService.ts` sauf si un bug bloquant de compilation l’impose
+- garde le style des routes existantes
+- auth cohérente avec le reste du projet
+- pas de nouvelle logique métier hors lecture + tick
+- pas de dépenses
+- pas d’entretien
+- pas de refactor
+
+POINTS À SURVEILLER
+- cohérence des statuts HTTP
+- cohérence des messages d’erreur
+- shape JSON lisible et stable
+- pas de duplication inutile de logique
+- utiliser le service existant, pas recalculer dans la route
+
+SORTIE ATTENDUE
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+2. ROUTES AJOUTÉES
+3. SHAPE EXACTE DES RÉPONSES JSON
+4. LOGIQUE D’AUTH ET D’ACCÈS
+5. CE QUI N’A PAS ÉTÉ TOUCHÉ VOLONTAIREMENT
+6. RISQUES OU INCERTITUDES ÉVENTUELS
+
+Arrête-toi après cette Étape 5.
+Ne déborde pas sur le client.

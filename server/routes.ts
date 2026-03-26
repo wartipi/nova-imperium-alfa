@@ -17,6 +17,7 @@ import playersRoutes from "./routes/players";
 import citiesRoutes from "./routes/cities";
 import factionRoutes from "./routes/factions";
 import territoryRoutes from "./routes/territories";
+import economyRoutes from "./routes/economy";
 import { seedFactions } from "./seeds/factionSeed";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -861,6 +862,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/player', playerActionsRoutes);
   app.use('/api/players', playersRoutes);
   app.use('/api/cities', citiesRoutes);
+  app.use('/api/economy', economyRoutes);
 
   const httpServer = createServer(app);
   return httpServer;
