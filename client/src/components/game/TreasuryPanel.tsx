@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { fetchMyEconomy, type EconomyDTO } from "../../lib/api/economyApi";
 
@@ -8,15 +8,15 @@ export function TreasuryPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadEconomy = useCallback(() => {
     setLoading(true);
     setError(null);
     fetchMyEconomy()
-      .then(data => { if (!cancelled) { setEconomy(data); setLoading(false); } })
-      .catch(() => { if (!cancelled) { setError("Impossible de charger l'économie"); setLoading(false); } });
-    return () => { cancelled = true; };
+      .then(data => { setEconomy(data); setLoading(false); })
+      .catch(() => { setError("Impossible de charger l'économie"); setLoading(false); });
   }, []);
+
+  useEffect(() => { loadEconomy(); }, [loadEconomy]);
 
   if (!currentNovaImperium) {
     return (
@@ -45,8 +45,15 @@ export function TreasuryPanel() {
 
   return (
     <div className="space-y-4">
-      <div className="text-center">
-        <h4 className="font-bold text-base mb-3 text-amber-900">Trésorerie</h4>
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="font-bold text-base text-amber-900">Trésorerie</h4>
+        <button
+          onClick={loadEconomy}
+          disabled={loading}
+          className="text-xs px-2 py-1 bg-amber-700 text-amber-50 rounded hover:bg-amber-600 disabled:opacity-50"
+        >
+          {loading ? "..." : "↻"}
+        </button>
       </div>
 
       {/* Réserves de faction (source : serveur) */}
