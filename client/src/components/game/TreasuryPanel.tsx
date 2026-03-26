@@ -1,7 +1,7 @@
 import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { BuildingType } from "../../lib/game/types";
 
-const buildingData: Record<BuildingType, { cost: number; maintenance: number; yields: { food?: number; production?: number; science?: number; culture?: number; gold?: number } }> = {
+const buildingData: Partial<Record<BuildingType, { cost: number; maintenance: number; yields: { food?: number; production?: number; science?: number; culture?: number; gold?: number } }>> = {
   palace: { cost: 0, maintenance: 0, yields: { culture: 1, gold: 1 } },
   granary: { cost: 60, maintenance: 1, yields: { food: 2 } },
   library: { cost: 90, maintenance: 1, yields: { science: 2 } },

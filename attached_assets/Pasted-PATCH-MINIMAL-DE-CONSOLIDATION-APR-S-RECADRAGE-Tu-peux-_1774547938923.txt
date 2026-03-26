@@ -1,0 +1,112 @@
+PATCH MINIMAL DE CONSOLIDATION — APRÈS RECADRAGE
+
+Tu peux maintenant implémenter un petit patch de consolidation, strictement limité, sans dériver vers un refactor.
+
+CONTEXTE VALIDÉ
+- L’ancienne UI basée sur `useCivilizations` n’est pas sur le chemin principal actuel.
+- `App.tsx` monte l’UI active via `GameCanvas`, `MedievalHUD`, `MapLoadingOverlay`, `LoginModal`.
+- `GameUI.tsx`, `CityPanel.tsx`, `DiplomacyPanel.tsx`, `UnitPanel.tsx`, `TechTree.tsx` sont des reliquats orphelins.
+- La divergence `BuildingType` est réelle et doit être corrigée.
+- `resources.food` accumulé localement dans `useNovaImperium` n’est pas à traiter fonctionnellement dans ce patch.
+- Aucune phase 9 à commencer ici.
+
+OBJECTIF
+Faire un patch minimal de consolidation avec le plus petit impact possible.
+
+TÂCHES À FAIRE
+
+1. TRAITER L’ANCIENNE UI ORPHELINE
+Tu dois supprimer ou archiver proprement les fichiers orphelins dépendants de `useCivilizations`.
+
+Fichiers concernés :
+- `client/src/components/game/GameUI.tsx`
+- `client/src/components/game/CityPanel.tsx`
+- `client/src/components/game/DiplomacyPanel.tsx`
+- `client/src/components/game/UnitPanel.tsx`
+- `client/src/components/game/TechTree.tsx`
+
+Règle :
+- si ces fichiers ne sont réellement importés nulle part dans le chemin principal, supprime-les
+- ne crée PAS de shim `useCivilizations`
+- ne recrée PAS un ancien store
+- ne remplace PAS cette UI par autre chose
+- ne touche PAS à `MedievalHUD` sauf si un import mort doit être nettoyé
+
+2. CORRIGER `BuildingType`
+Tu dois aligner le type frontend avec les bâtiments réellement utilisés par le flux actuel.
+
+Vérifie les bâtiments réellement utilisés dans :
+- logique active côté client
+- hydratation des villes
+- persistance bâtiments / économie locale côté serveur
+
+Correction attendue :
+- ajouter au type `BuildingType` les valeurs réellement utilisées et persistées dans le flux actuel, notamment :
+  - `granary`
+  - `barracks`
+  - `palace`
+  - `courthouse`
+  - `university`
+- conserver les autres valeurs existantes si elles ne créent pas de problème structurel immédiat
+- ne fais PAS de refonte complète du catalogue de bâtiments
+- le but est l’alignement minimal du type, pas une normalisation globale
+
+3. RETIRER LE `as any` SI POSSIBLE
+Dans l’hydratation des villes côté client :
+- si la correction de `BuildingType` suffit, retire le cast `as any` sur `dto.buildings`
+- ne fais cela QUE si le typage redevient propre sans bricolage
+
+4. `resources.food`
+Ne change PAS la logique métier sur ce point.
+Tu peux seulement :
+- laisser le code tel quel
+- ou ajouter un commentaire court si tu juges qu’une clarification locale est utile
+
+Tu ne dois PAS :
+- persister cette ressource
+- créer une économie globale
+- modifier le périmètre de la phase 8
+- préparer la phase 9
+
+CONTRAINTES ABSOLUES
+- aucun refactor massif
+- aucune nouvelle fonctionnalité
+- aucun changement d’architecture
+- aucun nouveau store
+- aucune abstraction inutile
+- aucun WebSocket
+- aucune logique économique globale
+- aucun travail spéculatif
+
+FICHIERS À LIRE / MODIFIER EN PRIORITÉ
+- `client/src/lib/game/types.ts`
+- `client/src/lib/stores/useNovaImperium.tsx`
+- les 5 fichiers orphelins listés plus haut
+- éventuellement tout fichier qui les importe encore, si nécessaire pour confirmer leur statut
+
+SORTIE ATTENDUE APRÈS PATCH
+Je veux une réponse structurée avec exactement ces sections :
+
+1. FICHIERS MODIFIÉS
+Liste exacte des fichiers supprimés / modifiés.
+
+2. MODIFICATIONS EFFECTUÉES
+Pour chaque fichier, explique brièvement ce qui a été fait.
+
+3. POURQUOI LE PATCH EST MINIMAL
+Explique pourquoi tu n’as pas dépassé le périmètre.
+
+4. CE QUI N’A PAS ÉTÉ TOUCHÉ VOLONTAIREMENT
+Mentionne explicitement :
+- pas de phase 9
+- pas de traitement fonctionnel de `resources.food`
+- pas de shim `useCivilizations`
+- pas de refactor large
+
+5. RISQUES RESTANTS
+Liste uniquement les risques encore présents après ce patch, s’il y en a.
+
+IMPORTANT
+Si tu découvres qu’un des 5 fichiers supposés orphelins est en fait encore utilisé dans le chemin principal, tu t’arrêtes immédiatement et tu le signales avant toute suppression.
+
+Sinon, applique le patch minimal et arrête-toi après le rapport.

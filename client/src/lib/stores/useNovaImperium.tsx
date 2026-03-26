@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
-import type { NovaImperium, Unit, City, DiplomaticRelation, Resources } from "../game/types";
+import type { NovaImperium, Unit, City, DiplomaticRelation, Resources, BuildingType } from "../game/types";
 import { AI } from "../game/AI";
 import { fetchMyCities, apiAddBuilding, apiSetProduction, apiClearProduction } from "../api/citiesApi";
 import { useMap } from "./useMap";
@@ -354,6 +354,7 @@ export const useNovaImperium = create<NovaImperiumState>()(
           };
           
           updatedNI.cities.forEach(city => {
+            // Accumulé localement par tour — non persisté serveur (hors périmètre Phase 8, à clarifier avant Phase 9)
             updatedNI.resources.food += city.foodPerTurn;
             
             if (city.currentProduction) {
@@ -461,7 +462,7 @@ export const useNovaImperium = create<NovaImperiumState>()(
           sciencePerTurn:   0,
           culturePerTurn:   0,
           // Phase 7 : bâtiments et production hydratés depuis le serveur
-          buildings:         dto.buildings as any,
+          buildings:         dto.buildings as BuildingType[],
           currentProduction: dto.currentProduction
             ? { type: dto.currentProduction.type as 'building' | 'unit', name: dto.currentProduction.name, cost: dto.currentProduction.cost }
             : null,

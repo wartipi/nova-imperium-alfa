@@ -25,6 +25,12 @@ export type UnitType =
   | 'catapult';
 
 export type BuildingType = 
+  // Bâtiments Phase 7/8 — utilisés dans le flux persisté (BUILDING_YIELDS serveur, city_buildings)
+  | 'granary'
+  | 'barracks'
+  | 'palace'
+  | 'courthouse'
+  | 'university'
   // Transport/Commercial (Blue)
   | 'port' 
   | 'market' 
