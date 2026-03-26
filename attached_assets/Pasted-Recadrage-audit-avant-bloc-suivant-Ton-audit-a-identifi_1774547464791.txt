@@ -1,0 +1,89 @@
+Recadrage audit — avant bloc suivant
+
+Ton audit a identifié plusieurs points utiles, mais certaines conclusions doivent être corrigées ou resserrées avant qu’on continue.
+
+Points que je valide :
+1. Le problème `useCivilizations` est réel :
+   - plusieurs composants l’importent (`GameUI`, `CityPanel`, `DiplomacyPanel`, `UnitPanel`, `TechTree`)
+   - le fichier `client/src/lib/stores/useCivilizations.ts` est absent
+2. La divergence `BuildingType` est réelle :
+   - le type frontend ne couvre pas correctement les bâtiments réellement utilisés (`granary`, `barracks`, etc.)
+   - il y a donc une incohérence entre types frontend et logique réelle serveur/client
+3. `resources.food` est encore accumulé localement dans `useNovaImperium` sans persistance serveur, donc ce point doit être clarifié avant phase 9
+
+En revanche, voici ce qui doit être corrigé dans ta formulation :
+1. Tu ne peux pas conclure “crash garanti” tant que tu n’as pas démontré que `GameUI` fait encore partie du chemin principal réellement monté
+2. Tu ne peux pas affirmer “serveur stable”, “aucune erreur runtime”, “212 erreurs TypeScript”, “40 composants actifs concernés” sans fournir la preuve exacte
+3. Tu dois distinguer :
+   - problème réel dans le code
+   - problème réellement actif dans le flux principal
+   - dette technique dormante / reliquat d’ancienne UI
+
+Mission maintenant :
+Je veux un mini-bloc de clarification ciblé, sans partir sur un nouveau gros audit.
+
+Objectif :
+1. Vérifier si l’ancienne UI basée sur `useCivilizations` est encore réellement utilisée dans le chemin principal de l’application
+2. Reclasser ce problème correctement :
+   - blocant runtime actuel
+   - dette technique active
+   - dette technique dormante
+3. Formuler une solution minimale propre AVANT le bloc suivant
+
+Tu dois lire en priorité :
+- `client/src/App.tsx`
+- tout point d’entrée réellement monté
+- `client/src/components/game/GameUI.tsx`
+- `client/src/components/game/CityPanel.tsx`
+- `client/src/components/game/DiplomacyPanel.tsx`
+- `client/src/components/game/UnitPanel.tsx`
+- `client/src/components/game/TechTree.tsx`
+- `client/src/lib/stores/useNovaImperium.tsx`
+- `client/src/lib/game/types.ts`
+
+Je veux une réponse en 4 sections strictes :
+
+SECTION 1 — Correction de ton audit précédent
+Tu reformules proprement ce qui est :
+- confirmé
+- non prouvé
+- à retirer ou atténuer
+
+SECTION 2 — Statut réel du problème `useCivilizations`
+Tu dois répondre clairement :
+- est-ce monté dans le flux principal actuel ?
+- est-ce un reliquat d’ancienne UI ?
+- est-ce un vrai blocant immédiat ou non ?
+
+SECTION 3 — Solution minimale recommandée
+Tu dois proposer une seule solution recommandée, la plus simple et la plus cohérente.
+Tu peux éventuellement mentionner 1 alternative, mais tu dois trancher.
+
+Important :
+la solution doit rester minimale et compatible avec le plan actuel.
+Tu ne dois PAS proposer :
+- refactor massif
+- réécriture globale des stores
+- changement d’architecture
+- phase 9 anticipée
+- nouvelle abstraction inutile
+
+Exemples de solutions acceptables selon ton constat :
+- isoler clairement l’ancienne UI si elle n’est plus montée
+- retirer les imports / composants morts du chemin critique
+- ou créer un shim minimal temporaire seulement si c’est réellement nécessaire et justifié
+
+SECTION 4 — Autres corrections mineures à préparer
+Tu dois aussi confirmer si les deux points suivants doivent être traités dans le même petit patch de consolidation ou plus tard :
+- divergence `BuildingType`
+- `resources.food` local non persisté
+
+Règles absolues :
+- ne code rien pour l’instant
+- pas de patch
+- pas de suppositions
+- pas de phrase du type “crash garanti” sans preuve
+- reste court, précis, technique
+- termine par une recommandation tranchée de priorité
+
+Arrête-toi après cette réponse.
