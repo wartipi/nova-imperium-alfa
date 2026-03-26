@@ -150,11 +150,11 @@ export function ConstructionPanel() {
       description: 'Préparation de remèdes naturels', 
       icon: '🌿', 
       category: 'Production',
-      requiredTerrain: ['forest', 'enchanted_meadow'],
+      requiredTerrain: ['forest', 'enchanted_meadow', 'fertile_land', 'swamp', 'sacred_plains'],
       actionPointCost: 15
     },
 
-    // === MONTAGNE (mountains) ===
+    // === MONTAGNE / COLLINE (mountains, hills) ===
     { 
       id: 'mine', 
       name: 'Mine', 
@@ -163,7 +163,7 @@ export function ConstructionPanel() {
       description: 'Extraction de minerai', 
       icon: '⛏️', 
       category: 'Production',
-      requiredTerrain: ['mountains'],
+      requiredTerrain: ['mountains', 'hills'],
       actionPointCost: 30
     },
     { 
@@ -605,25 +605,12 @@ export function ConstructionPanel() {
     return icons[resource] || '❓';
   };
 
-  // Vérifier si la colonie peut construire un bâtiment (contrôle du terrain requis)
-  const canBuildBuilding = (building: any): { canBuild: boolean; missingTerrain?: string[] } => {
-    // En mode MJ, tous les terrains sont disponibles
-    if (isAdmin) {
-      return { canBuild: true };
-    }
-    
-    // Pour l'instant, on va simuler qu'on a une colonie qui contrôle quelques types de terrain
-    // Terrain contrôlé basé sur les territoires de la colonie
-    const controlledTerrain = ['fertile_land', 'hills', 'forest']; // Simulation temporaire
-    
-    const missingTerrain = building.requiredTerrain.filter((terrain: string) => 
-      !controlledTerrain.includes(terrain)
-    );
-    
-    return {
-      canBuild: missingTerrain.length === 0,
-      missingTerrain: missingTerrain.length > 0 ? missingTerrain : undefined
-    };
+  // La disponibilité réelle est validée côté serveur (terrain + ressources de cases).
+  // Ce helper est conservé uniquement pour l'admin bypass — côté joueur,
+  // aucun verdict local n'est émis (évite les faux positifs/négatifs).
+  const canBuildBuilding = (building: any): { canBuild: boolean } => {
+    if (isAdmin) return { canBuild: true };
+    return { canBuild: true }; // neutre — le serveur tranche
   };
 
   // Obtenir le nom français du terrain
@@ -1139,23 +1126,9 @@ export function ConstructionPanel() {
               <div className="text-sm text-orange-400">
                 {buildings.find(b => b.id === hoveredBuilding)?.requiredTerrain.map(terrain => getTerrainName(terrain)).join(' ou ')}
               </div>
-              {(() => {
-                const buildingData = buildings.find(b => b.id === hoveredBuilding);
-                if (!buildingData) return null;
-                const { canBuild, missingTerrain } = canBuildBuilding(buildingData);
-                if (!canBuild && missingTerrain) {
-                  return (
-                    <div className="text-sm text-red-400 mt-1">
-                      ❌ Terrain manquant: {missingTerrain.map(terrain => getTerrainName(terrain)).join(', ')}
-                    </div>
-                  );
-                }
-                return (
-                  <div className="text-sm text-green-400 mt-1">
-                    ✅ Terrain disponible
-                  </div>
-                );
-              })()}
+              <div className="text-xs text-gray-400 mt-1">
+                Disponibilité vérifiée par le serveur à la construction.
+              </div>
             </div>
           </div>
         </div>

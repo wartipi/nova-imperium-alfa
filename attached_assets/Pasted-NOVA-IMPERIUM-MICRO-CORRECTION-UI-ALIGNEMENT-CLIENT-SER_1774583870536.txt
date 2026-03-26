@@ -1,0 +1,113 @@
+NOVA IMPERIUM — MICRO-CORRECTION UI
+ALIGNEMENT CLIENT/SERVEUR DES PRÉREQUIS DE BÂTIMENTS D’EXPLOITATION
+
+Branche :
+NI-10.3
+
+Contexte :
+Le correctif serveur de validation terrain + ressource réelle est en place.
+Le problème restant est maintenant côté client dans ConstructionPanel.
+
+PROBLÈME RESTANT
+
+Le serveur autorise désormais certains bâtiments sur plus de terrains que le client ne l’affiche.
+
+Écarts confirmés :
+
+1. herbalist_house
+Serveur :
+- forest
+- enchanted_meadow
+- fertile_land
+- swamp
+- sacred_plains
+
+Client :
+- forest
+- enchanted_meadow
+
+2. mine
+Serveur :
+- mountains
+- hills
+
+Client :
+- mountains
+
+3. canBuildBuilding() utilise encore un helper simulé :
+const controlledTerrain = ['fertile_land', 'hills', 'forest']
+Ce n’est plus acceptable comme signal UI.
+
+OBJECTIF
+
+Je veux un micro-correctif purement client pour :
+- aligner requiredTerrain de ConstructionPanel avec le serveur
+- retirer ou neutraliser le faux helper local simulé si nécessaire
+- éviter que le client masque des bâtiments pourtant valides côté serveur
+- éviter les tooltips mensongers
+
+FICHIER À MODIFIER
+
+- client/src/components/game/ConstructionPanel.tsx
+
+TRAVAIL DEMANDÉ
+
+ÉTAPE 1 — AUDIT COURT
+Confirmer les divergences :
+- herbalist_house
+- mine
+- helper local simulé
+
+ÉTAPE 2 — ALIGNEMENT requiredTerrain
+Mettre à jour dans ConstructionPanel :
+- herbalist_house → ['forest', 'enchanted_meadow', 'fertile_land', 'swamp', 'sacred_plains']
+- mine → ['mountains', 'hills']
+
+Vérifier s’il existe d’autres divergences entre ce fichier et BUILDING_TERRAIN_PREREQS côté serveur.
+S’il y en a, les aligner aussi.
+
+ÉTAPE 3 — SUPPRESSION DU FAUX HELPER
+Le helper local canBuildBuilding() ne doit plus utiliser une liste simulée fixe.
+
+Option minimale acceptable :
+- soit le retirer de l’affichage tooltip
+- soit le transformer en simple affichage passif sans faux verdict
+- soit l’adapter à des données réelles déjà disponibles si elles existent proprement
+
+IMPORTANT :
+Je préfère supprimer un faux signal plutôt que garder une validation client mensongère.
+
+ÉTAPE 4 — VÉRIFICATION
+Je veux vérifier au minimum :
+- herbalist_house n’est plus masquée à tort
+- mine n’est plus masquée à tort sur hills
+- plus aucun helper terrain simulé trompeur
+- TypeScript compile
+- aucune logique serveur modifiée
+
+FORMAT DE RETOUR ATTENDU
+
+Je veux un rapport final en 5 parties :
+
+1. Audit ultra-court de l’écart restant
+2. Choix minimal retenu
+3. Fichier modifié
+4. Résumé exact du patch
+5. Résultat de validation
+
+INTERDIT
+
+- refactor massif
+- changement serveur
+- nouvelle logique complexe
+- fausse validation client
+- complexité inutile
+
+PRIORITÉ ABSOLUE
+
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+BUT FINAL
+
+Faire en sorte que le client n’affiche plus un faux modèle de disponibilité des bâtiments
+et qu’il soit enfin cohérent avec la validation canonique côté serveur.
