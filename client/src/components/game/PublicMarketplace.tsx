@@ -90,7 +90,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
   const [viewingMapItem, setViewingMapItem] = useState<MarketplaceItem | null>(null);
   
   // Accès direct aux stores pour l'intégration ressources
-  const { resources, addResource, spendResources, hasResources } = useResources();
+  const { resources, addResource } = useResources();
   const gameLogging = useGameLogging();
 
 
@@ -181,10 +181,18 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
     return true;
   });
 
-  // Acheter un item en vente directe avec intégration ressources COMPLÈTE
+  // Helper auth — même pattern que economyApi.ts
+  const getAuthHeaders = (): Record<string, string> => {
+    const saved = localStorage.getItem("nova_imperium_auth");
+    if (!saved) return {};
+    const { token } = JSON.parse(saved);
+    if (!token) return {};
+    return { Authorization: `Bearer ${token}` };
+  };
+
+  // Acheter un item en vente directe — le serveur est seul juge de la dépense d'or
   const handlePurchase = async (itemId: string) => {
     try {
-      // Trouver l'item d'abord pour vérifier le coût
       const item = marketItems.find(i => i.id === itemId);
       if (!item) {
         alert('❌ Objet non trouvé');
@@ -192,48 +200,29 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
       }
 
       const cost = item.fixedPrice || 0;
-      
-      // Vérifier si on a assez d'or AVANT d'appeler l'API
-      if (!hasResources({ gold: cost })) {
-        const currentGold = resources.gold || 0;
-        alert(`❌ Or insuffisant !\nCoût: ${cost} or\nDisponible: ${currentGold} or`);
-        return;
-      }
 
-      // Appel API backend pour validation serveur
+      // Appel API — le serveur vérifie et débite l'or de faction réel
       const response = await fetch(`/api/marketplace/purchase-integrated/${itemId}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          playerId: playerId,
-          playerName: `Joueur_${playerId}`
-        })
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({})
       });
 
       const result = await response.json();
-      
+
       if (result.success) {
-        // INTÉGRATION RÉELLE : Appliquer les changements au jeu immédiatement
-        const goldDeducted = spendResources({ gold: cost });
-        
-        if (goldDeducted) {
-          // Ajouter la ressource/objet à l'inventaire
-          if (item.itemType === 'resource' && item.resourceType && item.quantity) {
-            addResource(item.resourceType as any, item.quantity);
-            gameLogging.logMarketplaceAction('buy', `${item.quantity}x ${item.resourceType}`, cost);
-            alert(`✅ Achat réussi !\n💰 ${cost} or déduit\n📦 +${item.quantity} ${item.resourceType} ajouté !`);
-          } else {
-            // Pour les objets uniques, on pourrait ajouter à un inventaire d'objets
-            gameLogging.logMarketplaceAction('buy', item.uniqueItem?.name || 'Objet unique', cost);
-            alert(`✅ Achat réussi !\n💰 ${cost} or déduit\n🎯 ${item.uniqueItem?.name || 'Objet'} ajouté !`);
-          }
-          
-          loadMarketplaceItems(); // Recharger la liste
+        // Effet gameplay immédiat côté client (ressources locales uniquement, pas l'or)
+        if (item.itemType === 'resource' && item.resourceType && item.quantity) {
+          addResource(item.resourceType as any, item.quantity);
+          gameLogging.logMarketplaceAction('buy', `${item.quantity}x ${item.resourceType}`, cost);
+          alert(`✅ Achat réussi !\n💰 ${cost} or débité\n📦 +${item.quantity} ${item.resourceType} ajouté !`);
         } else {
-          alert('❌ Erreur lors de la déduction de l\'or');
+          gameLogging.logMarketplaceAction('buy', item.uniqueItem?.name || 'Objet unique', cost);
+          alert(`✅ Achat réussi !\n💰 ${cost} or débité\n🎯 ${item.uniqueItem?.name || 'Objet'} ajouté !`);
         }
+        loadMarketplaceItems();
       } else {
-        alert(`❌ Erreur: ${result.message || result.error}`);
+        alert(`❌ ${result.error || result.message || 'Achat refusé'}`);
       }
     } catch (error) {
       console.error('Erreur achat:', error);

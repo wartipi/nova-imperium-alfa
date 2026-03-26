@@ -6,7 +6,12 @@ import treatyRoutes from "./routes/treaties";
 import { exchangeService, UniqueItem } from "./exchangeService";
 import { cartographyService } from "./cartographyService";
 import { marketplaceService, initializeMarketplaceService } from "./marketplaceService";
-import { loginEndpoint } from "./middleware/auth";
+import { loginEndpoint, requireAuth } from "./middleware/auth";
+import type { AuthRequest } from "./middleware/auth";
+import { db } from "./db";
+import { eq, sql as sqlExpr } from "drizzle-orm";
+import { factionMembers, factionEconomy } from "../shared/schema";
+import { debitFactionGoldIfEnough } from "./economyService";
 import marshalRoutes from "./routes/marshal";
 import publicEventsRoutes from "./routes/publicEvents";
 import mapRoutes from "./routes/map";
@@ -720,73 +725,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Achat intégré avec validation et déduction des ressources
-  app.post("/api/marketplace/purchase-integrated/:itemId", async (req, res) => {
+  // Achat intégré avec validation et déduction réelle d'or de faction
+  app.post("/api/marketplace/purchase-integrated/:itemId", requireAuth, async (req: AuthRequest, res) => {
     try {
       const { itemId } = req.params;
-      const { playerId, playerName } = req.body;
-      
-      if (!playerId || !playerName) {
-        return res.status(400).json({ error: "playerId et playerName requis" });
-      }
+      const buyerId   = req.user!.id;
+      const buyerName = req.user!.username;
 
+      // Résolution de la faction de l'acheteur
+      const memberRows = await db
+        .select({ factionId: factionMembers.factionId })
+        .from(factionMembers)
+        .where(eq(factionMembers.playerId, buyerId))
+        .limit(1);
+
+      if (memberRows.length === 0) {
+        return res.status(403).json({ error: "Vous devez appartenir à une faction pour acheter sur le marketplace" });
+      }
+      const factionId = memberRows[0].factionId;
+
+      // Vérification de l'item
       const item = marketplaceService.getItem(itemId);
       if (!item) {
         return res.status(404).json({ error: "Objet non trouvé" });
       }
-
       if (item.saleType !== 'direct_sale' || item.status !== 'active') {
         return res.status(400).json({ error: "Cet objet n'est pas disponible à l'achat direct" });
       }
 
       const cost = item.fixedPrice || 0;
-      
-      // Simulation de vérification d'or (sera remplacé par l'intégration réelle)
-      const playerGold = 1000; // TODO: Récupérer de l'état du joueur
-      const hasEnoughGold = playerGold >= cost;
-      
-      if (!hasEnoughGold) {
-        return res.status(400).json({ 
-          error: `Or insuffisant. Coût: ${cost} or, Disponible: ${playerGold} or` 
-        });
+
+      // Débit réel — atomique avec garde concurrente
+      const debit = await debitFactionGoldIfEnough(factionId, cost);
+      if (!debit.success) {
+        return res.status(400).json({ error: debit.reason });
       }
 
-      // Procéder à l'achat
-      const result = marketplaceService.purchaseDirectSale(itemId, playerId, playerName);
-      
-      if (result.success) {
-        // INTÉGRATION AVEC INVENTORY: Transférer l'objet unique si applicable
-        if (item.itemType === 'unique_item' && item.uniqueItem) {
-          // Créer l'objet dans l'inventaire du joueur acheteur
-          const newItem = exchangeService.createUniqueItem(
-            item.uniqueItem.name,
-            item.uniqueItem.type,
-            item.uniqueItem.rarity,
-            item.uniqueItem.description,
-            playerId,
-            item.uniqueItem.effects || [],
-            [], // requirements
-            item.uniqueItem.value,
-            {} // metadata
-          );
-          
-          if (!newItem) {
-            return res.status(500).json({ 
-              error: "Erreur lors du transfert de l'objet vers votre inventaire" 
-            });
-          }
-        }
-        
-        res.json({
-          success: true,
-          message: `Achat réussi ! ${cost} or sera déduit et l'objet ajouté à votre inventaire.`,
-          item: result.item,
-          goldSpent: cost,
-          playerGoldAfter: playerGold - cost // Simulation
-        });
-      } else {
-        res.status(400).json({ error: result.message });
+      // Finalisation de l'achat marketplace
+      const result = marketplaceService.purchaseDirectSale(itemId, buyerId, buyerName);
+
+      if (!result.success) {
+        // Remboursement minimal : l'item n'était plus disponible entre le débit et l'achat.
+        await db
+          .update(factionEconomy)
+          .set({ gold: sqlExpr`${factionEconomy.gold} + ${cost}`, updatedAt: new Date() })
+          .where(eq(factionEconomy.factionId, factionId));
+        return res.status(400).json({ error: result.message });
       }
+
+      // Transfert d'objet unique — avec conservation des metadata
+      if (item.itemType === 'unique_item' && item.uniqueItem) {
+        const newItem = exchangeService.createUniqueItem(
+          item.uniqueItem.name,
+          item.uniqueItem.type,
+          item.uniqueItem.rarity,
+          item.uniqueItem.description,
+          buyerId,
+          item.uniqueItem.effects || [],
+          [],
+          item.uniqueItem.value,
+          item.uniqueItem.metadata || {}
+        );
+        if (!newItem) {
+          return res.status(500).json({ error: "Erreur lors du transfert de l'objet vers votre inventaire" });
+        }
+      }
+
+      res.json({
+        success:    true,
+        message:    `Achat réussi ! ${cost} or débité.`,
+        item:       result.item,
+        goldSpent:  cost,
+        goldAfter:  debit.goldAfter,
+      });
     } catch (error) {
       console.error('Erreur achat intégré:', error);
       res.status(500).json({ error: "Erreur lors de l'achat intégré" });

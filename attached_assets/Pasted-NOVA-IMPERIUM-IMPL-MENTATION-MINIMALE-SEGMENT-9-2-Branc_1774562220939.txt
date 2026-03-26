@@ -1,0 +1,166 @@
+NOVA IMPERIUM — IMPLÉMENTATION MINIMALE SEGMENT 9.2
+
+Branche :
+NI-10.3
+
+Objectif précis :
+Brancher le premier vrai flux de dépense sur l’économie de faction via le marketplace, sans refactor massif.
+
+Cible exacte :
+Quand un joueur achète un item en vente directe via le marketplace :
+1. le serveur lit l’or réel de sa faction,
+2. refuse l’achat si la faction n’a pas assez d’or,
+3. débite réellement faction_economy.gold une seule fois si l’achat réussit,
+4. conserve les metadata de l’objet unique acheté,
+5. supprime la déduction locale d’or côté client.
+
+IMPORTANT :
+On ne refond pas le marketplace.
+On ne change pas l’architecture.
+On ne traite pas tout le système d’échange.
+On fait le plus petit patch propre et déterministe possible.
+
+FICHIERS À INSPECTER EN PRIORITÉ
+- server/economyService.ts
+- server/routes.ts
+- server/middleware/auth.ts
+- shared/schema.ts
+- client/src/components/game/PublicMarketplace.tsx
+- client/src/components/game/MedievalHUD.tsx
+- client/src/lib/api/economyApi.ts
+
+PROBLÈMES DÉJÀ IDENTIFIÉS
+- POST /api/marketplace/purchase-integrated/:itemId utilise encore un playerGold simulé = 1000.
+- La route n’est pas branchée sur requireAuth.
+- Le buyer est encore piloté par le body au lieu de l’identité authentifiée.
+- Le client vérifie encore l’or localement puis fait spendResources({ gold: cost }) après succès.
+- Lors du transfert d’un objet unique acheté, metadata est remplacé par {}.
+- PublicMarketplace est monté avec playerId="player" en dur depuis MedievalHUD.
+
+CONTRAINTES
+- Pas de refactor massif.
+- Pas de nouveau système global.
+- Pas de duplication inutile.
+- Le serveur doit rester source de vérité pour la dépense d’or.
+- Conserver le endpoint existant : /api/marketplace/purchase-integrated/:itemId
+- Ne pas casser les ventes, enchères, inventaire ou tick économique existants.
+- Préserver le comportement actuel autant que possible hors périmètre 9.2.
+
+PLAN DE TRAVAIL
+
+ÉTAPE 1 — AUDIT LOCAL RAPIDE
+Avant de coder, relis le flux exact d’achat :
+client marketplace -> endpoint purchase-integrated -> economyService -> inventory unique item.
+Ensuite implémente directement le plus petit patch cohérent.
+
+ÉTAPE 2 — AJOUTER UNE FONCTION DE DÉBIT RÉEL CÔTÉ SERVEUR
+Dans server/economyService.ts, ajouter une fonction dédiée, simple et atomique, du style :
+
+debitFactionGoldIfEnough(factionId: number, amount: number)
+
+Comportement attendu :
+- amount doit être > 0
+- lire/initialiser faction_economy si besoin
+- si gold < amount => retourner success: false avec état courant
+- sinon débiter réellement gold en base et retourner success: true avec goldBefore/goldAfter ou état final
+- implémentation propre, lisible, déterministe
+- pas de logique client
+- pas de magie cachée
+
+Utiliser le minimum de SQL/Drizzle nécessaire.
+Si possible, faire l’update avec garde gold >= amount pour éviter une double dépense concurrente.
+Rester simple.
+
+ÉTAPE 3 — BRANCHER L’ACHAT MARKETPLACE SUR L’AUTH ET L’ÉCONOMIE RÉELLE
+Dans server/routes.ts, modifier uniquement la route :
+
+POST /api/marketplace/purchase-integrated/:itemId
+
+Attendu :
+- ajouter requireAuth à cette route
+- ne plus utiliser playerId ni playerName comme source de vérité
+- utiliser req.user.id / req.user.username
+- résoudre la faction du joueur authentifié
+- si aucune faction : 403
+- lire l’item marketplace
+- vérifier qu’il est toujours actif et en direct_sale
+- calculer cost depuis fixedPrice
+- appeler debitFactionGoldIfEnough(...)
+- si fonds insuffisants : 400 clair avec coût et disponible
+- si débit OK : continuer l’achat
+- si purchaseDirectSale échoue après débit, faire un remboursement minimal propre avant de répondre en erreur
+- réponse JSON finale propre avec success, goldSpent, goldAfter, message
+
+IMPORTANT :
+Ne pas conserver la simulation playerGold = 1000.
+Ne pas laisser une double déduction.
+Ne pas dépendre du playerId envoyé par le client pour le débit d’or.
+
+ÉTAPE 4 — CONSERVER LES METADATA DES OBJETS UNIQUES ACHETÉS
+Dans la même route, lors du transfert/création de l’objet unique pour l’acheteur :
+- conserver item.uniqueItem.metadata
+- ne plus mettre metadata: {}
+
+But :
+une carte achetée doit garder ses mapData.
+
+IMPORTANT :
+Ne pas élargir le périmètre au vrai transfert propriétaire vendeur/acheteur si cela exige une refonte.
+Pour 9.2, conserver le modèle actuel autant que possible, mais corriger la perte de metadata.
+
+ÉTAPE 5 — CORRIGER LE CLIENT POUR SUPPRIMER LA DÉPENSE LOCALE D’OR
+Dans client/src/components/game/PublicMarketplace.tsx :
+
+Pour handlePurchase :
+- supprimer la vérification bloquante locale hasResources({ gold: cost }) pour l’or marketplace
+- supprimer spendResources({ gold: cost }) après succès
+- ne plus afficher un solde local comme vérité
+- appeler le backend avec les headers d’authentification
+- laisser le serveur décider seul si l’achat est autorisé ou refusé
+- conserver, si pertinent, l’ajout local des ressources achetées côté client seulement pour l’effet gameplay immédiat, mais surtout ne pas re-déduire l’or localement
+- afficher le message serveur en cas d’échec ou de succès
+
+Tu peux copier le helper getAuthHeaders déjà utilisé dans economyApi si c’est le plus petit changement.
+Pas besoin de refactor vers un util commun si ce n’est pas strictement nécessaire.
+
+ÉTAPE 6 — SUPPRIMER LE playerId HARD-CODÉ CÔTÉ HUD
+Dans client/src/components/game/MedievalHUD.tsx :
+- ne plus passer playerId="player" au PublicMarketplace
+- passer l’utilisateur authentifié réel déjà disponible dans le composant
+- conserver le changement minimal
+
+Objectif :
+que le marketplace charge l’inventaire et les actions du bon joueur, cohérent avec l’auth réelle.
+
+ÉTAPE 7 — VÉRIFICATION
+Après patch :
+- vérifier que TypeScript compile
+- vérifier qu’aucune route économie existante n’est cassée
+- vérifier qu’un achat direct :
+  - échoue si or faction insuffisant
+  - réussit si or suffisant
+  - débite faction_economy.gold une seule fois
+  - conserve metadata sur les objets uniques achetés
+- vérifier qu’il n’y a plus de spendResources({ gold: ... }) sur l’achat marketplace
+- vérifier que PublicMarketplace n’utilise plus playerId="player" depuis MedievalHUD
+
+FORMAT DE RETOUR ATTENDU
+Je veux un retour structuré en 5 parties :
+
+1. Fichiers modifiés
+2. Résumé exact du patch
+3. Flux avant / après
+4. Points volontairement non traités pour rester dans le périmètre 9.2
+5. Résultat de validation (compile + scénario fonds insuffisants + scénario achat réussi)
+
+INTERDIT
+- refactor global du marketplace
+- nouveau store global
+- nouvelle architecture auth
+- changement massif des services d’échange
+- changement des règles économiques hors achat marketplace
+- ajout de complexité non nécessaire
+
+PRIORITÉ ABSOLUE
+Simplicité > lisibilité > stabilité > compatibilité.
+Implémente le plus petit correctif propre possible.

@@ -658,7 +658,7 @@ export function MedievalHUD() {
               {activeSection === 'treasury' && <TreasuryPanel />}
               {activeSection === 'marketplace' && (
                 <PublicMarketplace 
-                  playerId="player" 
+                  playerId={currentUser || 'player'} 
                   onClose={() => setActiveSection(null)} 
                 />
               )}

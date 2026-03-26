@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and, gte } from "drizzle-orm";
 import { db } from "./db";
 import { cities, colonies, factionEconomy } from "../shared/schema";
 
@@ -14,6 +14,65 @@ export interface FactionEconomyDTO {
   food:               number;
   lastProcessedTurn:  number;
   updatedAt:          string;
+}
+
+// ─── DebitResult ─────────────────────────────────────────────────────────────
+
+export interface DebitResult {
+  success:   boolean;
+  goldBefore: number;
+  goldAfter:  number;
+  reason?:   string;
+}
+
+// ─── debitFactionGoldIfEnough ─────────────────────────────────────────────────
+// Débite `amount` or du stock faction_economy.
+// Atomique : UPDATE avec garde WHERE gold >= amount.
+// Retourne success:false si or insuffisant ou amount invalide.
+export async function debitFactionGoldIfEnough(
+  factionId: number,
+  amount:    number,
+): Promise<DebitResult> {
+  if (amount <= 0) {
+    return { success: false, goldBefore: 0, goldAfter: 0, reason: "Montant invalide" };
+  }
+
+  // Initialise la ligne si absente, lit l'état courant.
+  const current = await getFactionEconomy(factionId);
+
+  if (current.gold < amount) {
+    return {
+      success:   false,
+      goldBefore: current.gold,
+      goldAfter:  current.gold,
+      reason: `Or insuffisant. Coût: ${amount}, Disponible: ${current.gold}`,
+    };
+  }
+
+  // UPDATE conditionnel — la garde WHERE gold >= amount empêche une double dépense concurrente.
+  const updated = await db
+    .update(factionEconomy)
+    .set({ gold: sql`${factionEconomy.gold} - ${amount}`, updatedAt: new Date() })
+    .where(and(eq(factionEconomy.factionId, factionId), gte(factionEconomy.gold, amount)))
+    .returning({ gold: factionEconomy.gold });
+
+  if (updated.length === 0) {
+    // Race condition : une autre transaction a consommé l'or entre la lecture et l'écriture.
+    return {
+      success:   false,
+      goldBefore: current.gold,
+      goldAfter:  current.gold,
+      reason: "Or insuffisant (condition concurrente)",
+    };
+  }
+
+  const goldAfter = updated[0].gold;
+  console.log(
+    `[debitGold] faction=${factionId} -${amount} or` +
+    ` (${current.gold} → ${goldAfter})`
+  );
+
+  return { success: true, goldBefore: current.gold, goldAfter };
 }
 
 // ─── aggregateFactionIncome ───────────────────────────────────────────────────
