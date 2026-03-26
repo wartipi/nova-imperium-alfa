@@ -1,0 +1,148 @@
+NOVA IMPERIUM — PHASE SUIVANTE
+CANONISER LES MULTI-RESSOURCES DE CASE CÔTÉ SERVEUR
+
+Branche :
+NI-10.3
+
+Contexte technique :
+Jeu persistant Node/TS + React/TS + PostgreSQL
+Architecture serveur autoritaire
+Méthode obligatoire :
+Audit court → correction minimale ciblée → vérification
+Aucun refactor massif
+
+CONTEXTE VALIDÉ
+
+Le système a déjà fortement progressé :
+
+- seed carte multi-ressources via metadata.resources
+- resourceType conservé comme ressource primaire backward-compat
+- validation serveur terrain + ressource réelle déjà en place
+- UI client recadrée pour ne plus mentir sur les prérequis
+- pipeline logistique Tier 1 actif
+- bâtiments d’exploitation de base actifs
+
+PROBLÈME STRUCTUREL RESTANT
+
+Le serveur ne lit pas encore le vrai modèle multi-ressources.
+
+Aujourd’hui :
+- mapSeed génère bien metadata.resources = string[]
+- resourceType n’est que la ressource primaire
+- MAIS getCityControlledResources() lit encore uniquement mapTiles.resourceType
+- donc la validation serveur ne voit qu’une seule ressource par case
+- les ressources secondaires d’une case sont invisibles au gameplay serveur
+
+C’est incompatible avec la règle de design validée :
+- une case peut contenir plusieurs ressources
+- les cavernes peuvent contenir plusieurs minerais + huile
+
+OBJECTIF DE LA PHASE
+
+Je veux rendre metadata.resources canonique côté serveur.
+
+Je veux que :
+- la validation des bâtiments d’exploitation lise les vraies ressources des cases
+- le serveur voie toutes les ressources d’une case, pas seulement la primaire
+- resourceType puisse rester comme fallback legacy si nécessaire
+- le système reste simple, stable et compatible
+
+IMPORTANT :
+Je ne veux pas de refactor massif.
+Je ne veux pas réécrire tout le système de carte.
+Je veux un correctif ciblé qui rend enfin le multi-ressource réel côté serveur.
+
+FICHIERS À AUDITER EN PRIORITÉ
+
+- server/buildingEffects.ts
+- server/seeds/mapSeed.ts
+- shared/schema.ts
+- éventuellement tout helper serveur qui lit map_tiles.resourceType
+- éventuellement client si un affichage complémentaire devient nécessaire
+
+POINT 1 — AUDIT COURT
+Je veux confirmer précisément :
+1. comment mapSeed remplit metadata.resources aujourd’hui
+2. comment resourceType est utilisé comme ressource primaire
+3. où getCityControlledResources() ignore encore metadata.resources
+4. quels bâtiments d’exploitation sont impactés par cette lecture partielle
+5. si d’autres endroits serveur lisent encore resourceType comme s’il était la vérité complète
+
+POINT 2 — CHOIX TECHNIQUE MINIMAL
+Je veux la solution la plus simple et stable.
+
+Objectif :
+- lire metadata.resources si présent
+- fallback sur resourceType si metadata.resources absent
+- retourner l’ensemble réel des ressources contrôlées par la ville
+
+IMPORTANT :
+Pas d’abstraction complexe.
+Pas de refonte générale.
+Pas de système quantitatif avancé.
+
+POINT 3 — getCityControlledResources
+Je veux que cette fonction devienne réellement canonique.
+
+Comportement attendu :
+- scan des tuiles contrôlées autour de la colonie
+- lecture de metadata.resources si disponible
+- ajout de toutes les ressources de l’array dans le Set final
+- fallback sur resourceType si metadata.resources absent ou vide
+- aucune duplication
+- résultat = Set<string> complet des ressources réellement présentes dans le territoire
+
+POINT 4 — VALIDATION DES BÂTIMENTS
+Une fois getCityControlledResources corrigé,
+je veux que la validation des bâtiments d’exploitation fonctionne sur les vraies ressources de case.
+
+Exemples :
+- hunting_post voit deer ou fur même si ce n’est pas la ressource primaire d’une case
+- advanced_mine voit iron/copper/coal même en secondaire
+- oil_camp voit oil même si oil n’est pas la ressource primaire
+- herbalist_house voit herbs si présent dans metadata.resources
+
+POINT 5 — COMPATIBILITÉ
+Je veux conserver :
+- resourceType comme fallback legacy
+- la compatibilité avec les tuiles anciennes si certaines n’ont pas encore metadata.resources
+- aucun changement des routes client si ce n’est pas nécessaire
+
+POINT 6 — VÉRIFICATION
+Je veux vérifier au minimum :
+- getCityControlledResources lit bien metadata.resources
+- fallback resourceType toujours fonctionnel
+- un bâtiment peut être validé grâce à une ressource secondaire d’une case
+- oil_camp fonctionne avec du vrai oil secondaire si présent
+- aucune régression sur les validations déjà en place
+- TypeScript compile
+- pas de changement inutile hors périmètre
+
+FORMAT DE RETOUR ATTENDU
+
+Je veux un rapport final structuré exactement en 6 parties :
+
+1. Audit ultra-court du problème actuel
+2. Choix minimal retenu
+3. Fichiers modifiés
+4. Résumé exact du patch
+5. Avant / après
+6. Résultat de validation
+
+INTERDIT
+
+- refactor massif
+- nouvelle architecture de carte
+- système quantitatif complexe
+- réécriture du seed complet
+- complexité inutile
+
+PRIORITÉ ABSOLUE
+
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+BUT FINAL
+
+Faire en sorte que le serveur ne voie plus seulement la ressource primaire d’une case,
+mais l’ensemble réel des ressources présentes sur le territoire,
+afin que le prototype Tier 1 soit enfin cohérent avec le vrai modèle multi-ressources.

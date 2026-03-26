@@ -9,9 +9,9 @@
 // Seuls les matériaux Tier 1 logistiques sont présents ici.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { db } from "./db";
+import { db, pool } from "./db";
 import { cities, mapTiles } from "../shared/schema";
-import { eq, sql, and, gte, lte, isNotNull } from "drizzle-orm";
+import { eq, sql, and, gte, lte } from "drizzle-orm";
 
 export type T1Material = 'food' | 'wood' | 'stone' | 'iron' | 'copper' | 'coal' | 'oil' | 'herbs' | 'fur';
 
@@ -104,27 +104,42 @@ export async function getCityControlledTerrains(
 }
 
 // ─── getCityControlledResources ───────────────────────────────────────────────
-// Retourne les resource_type distincts (non nuls) dans un rayon AABB autour
-// de la colonie. Lit la colonne resource_type de map_tiles (colonne directe,
-// pas metadata — metadata est NULL en production actuelle).
+// Retourne l'ensemble COMPLET des ressources présentes dans le territoire :
+//   1. Lit metadata->'resources' (jsonb array) quand disponible — multi-ressource réel
+//   2. Fallback sur resource_type pour les tuiles sans metadata
+// Requête SQL raw pour l'expansion jsonb_array_elements_text.
 export async function getCityControlledResources(
   colonyWorldX: number,
   colonyWorldY: number,
   radius: number = 5,
 ): Promise<Set<string>> {
-  const rows = await db
-    .selectDistinct({ resourceType: mapTiles.resourceType })
-    .from(mapTiles)
-    .where(
-      and(
-        gte(mapTiles.worldX, colonyWorldX - radius),
-        lte(mapTiles.worldX, colonyWorldX + radius),
-        gte(mapTiles.worldY, colonyWorldY - radius),
-        lte(mapTiles.worldY, colonyWorldY + radius),
-        isNotNull(mapTiles.resourceType),
-      )
-    );
-  return new Set(rows.map(r => r.resourceType as string));
+  const xMin = colonyWorldX - radius;
+  const xMax = colonyWorldX + radius;
+  const yMin = colonyWorldY - radius;
+  const yMax = colonyWorldY + radius;
+
+  const result = await pool.query<{ resource: string }>(`
+    SELECT DISTINCT resource FROM (
+      -- Tuiles avec metadata.resources : on lit tous les éléments de l'array jsonb
+      SELECT jsonb_array_elements_text(metadata->'resources') AS resource
+      FROM map_tiles
+      WHERE world_x BETWEEN $1 AND $2
+        AND world_y BETWEEN $3 AND $4
+        AND metadata IS NOT NULL
+        AND metadata ? 'resources'
+      UNION
+      -- Fallback : tuiles sans metadata → resource_type primaire
+      SELECT resource_type AS resource
+      FROM map_tiles
+      WHERE world_x BETWEEN $1 AND $2
+        AND world_y BETWEEN $3 AND $4
+        AND resource_type IS NOT NULL
+        AND (metadata IS NULL OR NOT (metadata ? 'resources'))
+    ) sub
+    WHERE resource IS NOT NULL
+  `, [xMin, xMax, yMin, yMax]);
+
+  return new Set(result.rows.map(r => r.resource));
 }
 
 // ─── checkBuildingTerrainPrereq ───────────────────────────────────────────────
