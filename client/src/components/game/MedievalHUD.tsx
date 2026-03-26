@@ -9,7 +9,6 @@ import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { MiniMap } from "./MiniMap";
 import { TreasuryPanel } from "./TreasuryPanel";
-import { TreasuryPanelZustand } from "./TreasuryPanelZustand";
 import { postEconomyTick } from "../../lib/api/economyApi";
 import { useDualResourceSync } from "../../hooks/useDualResourceSync";
 
@@ -56,7 +55,7 @@ type MenuSection =
 export function MedievalHUD() {
   const { gamePhase, currentTurn, endTurn } = useGameState();
   const { currentUser, logout, role, adminModeEnabled, toggleAdminMode } = useAuth();
-  const { novaImperiums, currentNovaImperium, processTurn, hydrateCitiesFromServer } = useNovaImperium();
+  const { novaImperiums, currentNovaImperium, processTurn } = useNovaImperium();
   const { selectedHex } = useMap();
   const { isMuted, toggleMute } = useAudio();
   
@@ -66,8 +65,6 @@ export function MedievalHUD() {
   // Flag fin de tour — empêche le double clic pendant le traitement
   const [isEndingTurn, setIsEndingTurn] = useState(false);
 
-  // Trésorerie — lecture serveur active
-  const useZustandTreasury = false;
   const { 
     selectedCharacter, 
     playerName, 
@@ -658,9 +655,7 @@ export function MedievalHUD() {
             </div>
             
             <div className="text-amber-800">
-              {activeSection === 'treasury' && (
-                useZustandTreasury ? <TreasuryPanelZustand /> : <TreasuryPanel />
-              )}
+              {activeSection === 'treasury' && <TreasuryPanel />}
               {activeSection === 'marketplace' && (
                 <PublicMarketplace 
                   playerId="player" 
