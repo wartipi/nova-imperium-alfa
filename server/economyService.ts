@@ -75,6 +75,29 @@ export async function debitFactionGoldIfEnough(
   return { success: true, goldBefore: current.gold, goldAfter };
 }
 
+// ─── creditFactionGold ────────────────────────────────────────────────────────
+// Crédite `amount` or sur la ligne faction_economy (remboursement ou bonus).
+// Initialise la ligne si absente. Retourne le stock après crédit.
+export async function creditFactionGold(
+  factionId: number,
+  amount:    number,
+): Promise<number> {
+  if (amount <= 0) return (await getFactionEconomy(factionId)).gold;
+
+  // Initialise si absente, puis crédite.
+  await getFactionEconomy(factionId);
+
+  const updated = await db
+    .update(factionEconomy)
+    .set({ gold: sql`${factionEconomy.gold} + ${amount}`, updatedAt: new Date() })
+    .where(eq(factionEconomy.factionId, factionId))
+    .returning({ gold: factionEconomy.gold });
+
+  const goldAfter = updated[0]?.gold ?? 0;
+  console.log(`[creditGold] faction=${factionId} +${amount} or → ${goldAfter}`);
+  return goldAfter;
+}
+
 // ─── aggregateFactionIncome ───────────────────────────────────────────────────
 // Somme food_per_turn + gold_per_turn sur toutes les villes de la faction.
 // Jointure directe DB : cities → colonies (factionId).

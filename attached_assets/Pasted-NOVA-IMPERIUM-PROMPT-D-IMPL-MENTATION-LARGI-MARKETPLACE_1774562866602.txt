@@ -1,0 +1,188 @@
+NOVA IMPERIUM — PROMPT D’IMPLÉMENTATION ÉLARGI (MARKETPLACE + ÉCONOMIE)
+
+Branche :
+NI-10.3
+
+Contexte technique :
+Jeu persistant Node/TS + React/TS + PostgreSQL
+Architecture serveur autoritaire
+Méthode stricte : audit → validation locale → implémentation minimale → vérification
+Aucun refactor massif
+
+OBJECTIF
+Corriger proprement le flux d’achat marketplace pour qu’il utilise l’économie réelle de faction côté serveur, puis renforcer la cohérence inventaire / marketplace sans changer l’architecture.
+
+CIBLE FONCTIONNELLE
+Quand un joueur achète un item en vente directe :
+1. le serveur identifie le joueur via l’auth réelle,
+2. le serveur résout sa faction,
+3. le serveur lit l’or réel de faction,
+4. l’achat échoue si les fonds sont insuffisants,
+5. l’or est débité une seule fois en base si l’achat réussit,
+6. l’objet est transféré proprement du vendeur vers l’acheteur,
+7. les metadata de l’objet sont conservées,
+8. le client ne déduit plus l’or localement.
+
+IMPORTANT
+On garde les endpoints et la structure existante autant que possible.
+On ne refond pas tout le marketplace.
+On ne change pas l’architecture auth.
+On ne touche pas au tick économique hors besoin direct.
+On fait le plus petit patch stable possible.
+
+FICHIERS À AUDITER EN PRIORITÉ
+- server/economyService.ts
+- server/routes.ts
+- server/marketplaceService.ts
+- server/exchangeService.ts
+- server/middleware/auth.ts
+- shared/schema.ts
+- client/src/components/game/PublicMarketplace.tsx
+- client/src/components/game/MedievalHUD.tsx
+- client/src/lib/api/economyApi.ts
+
+PROBLÈMES DÉJÀ IDENTIFIÉS
+- POST /api/marketplace/purchase-integrated/:itemId utilise encore un gold simulé.
+- La route d’achat n’est pas branchée sur requireAuth.
+- Le buyer est encore piloté par le body au lieu de l’identité authentifiée.
+- Le client vérifie et dépense encore l’or localement.
+- PublicMarketplace est monté avec playerId="player" en dur.
+- Lors d’un achat d’objet unique, metadata est écrasé par {}.
+- Le transfert d’objet est encore approximatif et ne garantit pas un vrai passage vendeur → acheteur.
+
+CONTRAINTES
+- Pas de refactor massif.
+- Pas de nouveau système global.
+- Pas de nouvelle architecture de données.
+- Pas de duplication inutile.
+- Le serveur doit rester source de vérité pour la dépense d’or.
+- Préserver les comportements actuels hors périmètre.
+- Rester lisible, déterministe, stable.
+
+PLAN DE TRAVAIL
+
+ÉTAPE 1 — AUDIT COURT AVANT PATCH
+Relire le flux exact :
+client marketplace → route purchase-integrated → marketplaceService → exchangeService → economyService
+Identifier le plus petit point de correction pour rendre le flux cohérent sans réécrire tout le système.
+
+ÉTAPE 2 — AJOUTER UN DÉBIT RÉEL DE GOLD CÔTÉ ÉCONOMIE
+Dans server/economyService.ts, ajouter une fonction dédiée du style :
+
+debitFactionGoldIfEnough(factionId: number, amount: number)
+
+Comportement attendu :
+- amount > 0
+- lecture/initialisation de faction_economy si nécessaire
+- si gold < amount : success false + état courant
+- sinon update réel de gold
+- si possible, faire l’update avec garde gold >= amount pour éviter une double dépense concurrente
+- retourner un résultat clair : success, goldBefore, goldAfter
+
+Ajouter aussi, si nécessaire pour rollback minimal, une fonction inverse simple du style :
+creditFactionGold(factionId: number, amount: number)
+
+IMPORTANT :
+pas de sur-ingénierie
+pas de nouveau service séparé
+juste le minimum propre
+
+ÉTAPE 3 — BRANCHER LA ROUTE D’ACHAT SUR L’AUTH RÉELLE
+Dans server/routes.ts, modifier uniquement la route :
+
+POST /api/marketplace/purchase-integrated/:itemId
+
+Attendu :
+- ajouter requireAuth
+- utiliser req.user.id et req.user.username comme source de vérité
+- ne plus faire confiance à playerId / playerName envoyés par le client
+- résoudre la faction du joueur authentifié
+- si le joueur n’a pas de faction : 403
+- charger l’item marketplace
+- vérifier : item existe, actif, direct_sale
+- calculer le cost depuis fixedPrice
+- débiter l’or via debitFactionGoldIfEnough(...)
+- si fonds insuffisants : 400 avec message clair
+- si débit OK : continuer l’achat
+- si l’achat échoue après débit : faire un remboursement minimal via creditFactionGold(...)
+- répondre avec success, message, goldSpent, goldAfter
+
+IMPORTANT :
+supprimer complètement la simulation playerGold = 1000
+
+ÉTAPE 4 — RENDRE LE TRANSFERT D’OBJET PLUS PROPRE SANS REFACTOR MASSIF
+Quand l’item acheté est un unique_item :
+- conserver toutes les metadata existantes
+- ne plus recréer l’objet avec metadata: {}
+- privilégier un vrai transfert vendeur → acheteur si exchangeService permet de le faire proprement avec un patch minimal
+- si le vrai transfert n’existe pas encore publiquement, ajouter le plus petit helper nécessaire dans exchangeService pour transférer un objet unique connu d’un owner à un autre
+- éviter de dupliquer l’objet si un transfert simple suffit
+- garantir qu’après achat l’objet appartient à l’acheteur et n’est plus au vendeur
+
+IMPORTANT :
+ne pas réécrire exchangeService en profondeur
+ajouter seulement le helper minimum si nécessaire
+
+ÉTAPE 5 — ÉVITER LES DIVERGENCES MARKETPLACE / INVENTAIRE
+Toujours dans le patch minimal :
+- s’assurer qu’un objet vendu ne reste pas disponible comme s’il appartenait encore au vendeur
+- conserver la cohérence entre marketplaceService et exchangeService
+- ne pas refondre tout le modèle
+- simplement corriger le chemin d’achat pour que l’état final soit logique
+
+ÉTAPE 6 — CORRIGER LE CLIENT POUR SUPPRIMER LA DÉPENSE LOCALE D’OR
+Dans client/src/components/game/PublicMarketplace.tsx :
+
+Pour handlePurchase :
+- supprimer la validation bloquante locale de l’or marketplace
+- supprimer spendResources({ gold: cost }) après succès
+- ne plus traiter le stock local comme vérité pour le paiement
+- appeler l’endpoint avec les headers d’authentification
+- laisser le serveur décider seul
+- afficher le message serveur en cas d’erreur ou de succès
+
+IMPORTANT :
+si un helper auth local est nécessaire, faire le plus petit changement possible
+pas besoin de gros refactor utilitaire
+
+ÉTAPE 7 — SUPPRIMER LE PLAYER ID HARD-CODÉ
+Dans client/src/components/game/MedievalHUD.tsx :
+- ne plus passer playerId="player"
+- passer l’utilisateur authentifié réel déjà disponible dans le composant
+- changement minimal uniquement
+
+ÉTAPE 8 — VÉRIFIER LA COMPATIBILITÉ
+Vérifier après patch :
+- compile TypeScript OK
+- route économie existante non cassée
+- achat direct refusé si fonds insuffisants
+- achat direct réussi si fonds suffisants
+- faction_economy.gold décrémenté une seule fois
+- metadata conservées
+- objet transféré proprement à l’acheteur
+- plus de spendResources({ gold: ... }) dans l’achat marketplace
+- plus de playerId="player" injecté dans PublicMarketplace depuis MedievalHUD
+
+FORMAT DE RETOUR ATTENDU
+Je veux une réponse structurée en 6 parties :
+
+1. Audit ultra-court du flux existant
+2. Fichiers modifiés
+3. Résumé exact du patch
+4. Flux avant / après
+5. Points volontairement non traités pour éviter un refactor
+6. Résultat de validation
+
+INTERDIT
+- refonte complète marketplace
+- refonte complète exchangeService
+- nouveau store global
+- nouvelle architecture auth
+- gros déplacement de responsabilités
+- changement massif du client
+- ajout de complexité non nécessaire
+
+PRIORITÉ ABSOLUE
+Simplicité > lisibilité > stabilité > compatibilité
+
+Implémente le plus petit correctif propre possible, mais cette fois corrige aussi le vrai transfert d’objet et la cohérence minimale inventaire / marketplace dans le chemin d’achat.

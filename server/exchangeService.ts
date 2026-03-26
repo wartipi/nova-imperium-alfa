@@ -280,6 +280,14 @@ class ExchangeService {
   }
 
   // Transférer un objet unique entre joueurs
+  // Transfert public : utilisé par le marketplace lors d'un achat
+  // Retrouve le propriétaire courant dans le service, pas besoin de le passer.
+  transferItemToPlayer(itemId: string, toPlayer: string): boolean {
+    const item = this.uniqueItems.get(itemId);
+    if (!item) return false;
+    return this.transferUniqueItem(itemId, item.ownerId, toPlayer);
+  }
+
   private transferUniqueItem(itemId: string, fromPlayer: string, toPlayer: string): boolean {
     const item = this.uniqueItems.get(itemId);
     if (!item || item.ownerId !== fromPlayer || !item.tradeable) {

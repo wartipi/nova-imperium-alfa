@@ -9,9 +9,9 @@ import { marketplaceService, initializeMarketplaceService } from "./marketplaceS
 import { loginEndpoint, requireAuth } from "./middleware/auth";
 import type { AuthRequest } from "./middleware/auth";
 import { db } from "./db";
-import { eq, sql as sqlExpr } from "drizzle-orm";
-import { factionMembers, factionEconomy } from "../shared/schema";
-import { debitFactionGoldIfEnough } from "./economyService";
+import { eq } from "drizzle-orm";
+import { factionMembers } from "../shared/schema";
+import { debitFactionGoldIfEnough, creditFactionGold } from "./economyService";
 import marshalRoutes from "./routes/marshal";
 import publicEventsRoutes from "./routes/publicEvents";
 import mapRoutes from "./routes/map";
@@ -765,29 +765,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = marketplaceService.purchaseDirectSale(itemId, buyerId, buyerName);
 
       if (!result.success) {
-        // Remboursement minimal : l'item n'était plus disponible entre le débit et l'achat.
-        await db
-          .update(factionEconomy)
-          .set({ gold: sqlExpr`${factionEconomy.gold} + ${cost}`, updatedAt: new Date() })
-          .where(eq(factionEconomy.factionId, factionId));
+        // Remboursement : l'item n'était plus disponible entre le débit et l'achat (race rare).
+        await creditFactionGold(factionId, cost);
         return res.status(400).json({ error: result.message });
       }
 
-      // Transfert d'objet unique — avec conservation des metadata
-      if (item.itemType === 'unique_item' && item.uniqueItem) {
-        const newItem = exchangeService.createUniqueItem(
-          item.uniqueItem.name,
-          item.uniqueItem.type,
-          item.uniqueItem.rarity,
-          item.uniqueItem.description,
-          buyerId,
-          item.uniqueItem.effects || [],
-          [],
-          item.uniqueItem.value,
-          item.uniqueItem.metadata || {}
-        );
-        if (!newItem) {
-          return res.status(500).json({ error: "Erreur lors du transfert de l'objet vers votre inventaire" });
+      // Transfert d'objet unique
+      if (item.itemType === 'unique_item') {
+        if (item.uniqueItemId) {
+          // Vrai transfert : retire du vendeur, donne à l'acheteur, conserve toutes les données
+          const transferred = exchangeService.transferItemToPlayer(item.uniqueItemId, buyerId);
+          if (!transferred) {
+            await creditFactionGold(factionId, cost);
+            return res.status(500).json({ error: "Erreur lors du transfert de l'objet" });
+          }
+        } else if (item.uniqueItem) {
+          // Fallback : objet défini inline (pas dans exchangeService) — création avec metadata
+          const newItem = exchangeService.createUniqueItem(
+            item.uniqueItem.name,
+            item.uniqueItem.type,
+            item.uniqueItem.rarity,
+            item.uniqueItem.description,
+            buyerId,
+            item.uniqueItem.effects || [],
+            [],
+            item.uniqueItem.value,
+            item.uniqueItem.metadata || {}
+          );
+          if (!newItem) {
+            await creditFactionGold(factionId, cost);
+            return res.status(500).json({ error: "Erreur lors de la création de l'objet dans votre inventaire" });
+          }
         }
       }
 
