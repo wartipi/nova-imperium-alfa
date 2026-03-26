@@ -1,0 +1,88 @@
+PHASE 9.1 — BRANCHEMENT DU TICK ÉCONOMIQUE AU PASSAGE DE TOUR
+
+Le one-shot de recalcul des villes existantes est ignoré.
+Il n’y a pas de villes héritées à corriger sur la carte actuelle.
+
+La Phase 9 minimale est validée.
+Le prochain objectif est de brancher réellement le tick économique au flux de tour du jeu.
+
+RÈGLES ABSOLUES
+- aucun refactor massif
+- aucun changement d’architecture
+- aucun WebSocket
+- aucune nouvelle ressource
+- aucune dépense réelle dans cette étape
+- aucun changement du modèle DB
+- ne pas toucher au serveur économie sauf si un bug mineur de branchement l’impose
+- ne pas ouvrir encore le chantier marketplace
+
+OBJECTIF
+Faire en sorte que l’économie de faction évolue automatiquement quand le joueur passe un tour, au lieu de dépendre d’appels manuels.
+
+PÉRIMÈTRE
+Tu dois uniquement :
+1. identifier le point exact où le tour du joueur est traité côté client
+2. brancher `postEconomyTick(currentTurn)` à ce moment
+3. recharger l’économie affichée après le tick
+4. conserver le comportement actuel de production / progression / complétion
+
+MISSION
+Tu dois travailler en étapes courtes.
+
+ÉTAPE A — Audit ciblé
+Lis uniquement les fichiers nécessaires pour déterminer :
+- où le tour courant existe
+- où `processTurn()` est déclenché
+- quel composant ou store doit appeler `postEconomyTick(currentTurn)`
+- comment recharger proprement `TreasuryPanel` après ce tick sans refactor global
+
+Tu dois lire en priorité :
+- `client/src/lib/stores/useNovaImperium.tsx`
+- le composant ou bouton qui déclenche la fin de tour
+- `client/src/components/game/TreasuryPanel.tsx`
+- `client/src/lib/api/economyApi.ts`
+- tout fichier strictement nécessaire pour comprendre le flux réel du tour
+
+Réponse attendue pour cette étape :
+1. point exact de branchement recommandé
+2. fichier(s) à modifier
+3. ordre d’appel recommandé
+4. risques éventuels
+Puis tu t’arrêtes.
+
+ÉTAPE B — Implémentation minimale
+Seulement après validation de l’audit :
+- brancher `postEconomyTick(currentTurn)` au bon endroit
+- garder l’ordre d’exécution le plus cohérent possible
+- recharger l’économie affichée après tick
+- ne pas casser `processTurn()`
+- ne pas introduire de logique compliquée
+
+Ordre recommandé à viser si possible :
+1. traitement local du tour existant
+2. appel `postEconomyTick(currentTurn)`
+3. refresh du panneau / reload de l’économie
+4. gestion simple des erreurs sans divergence silencieuse
+
+ÉTAPE C — Vérification
+Vérifier explicitement :
+- le tick est bien appelé lors du passage de tour
+- un même tour ne crédite pas deux fois
+- l’affichage suit correctement
+- pas de régression sur la production
+- pas de double source de vérité visible
+
+FORMAT DE SORTIE
+À chaque étape, je veux :
+1. fichiers modifiés
+2. logique exacte ajoutée
+3. ce qui n’a pas été touché
+4. risques ou incertitudes
+
+IMPORTANT
+- pas de code hors périmètre
+- pas de dépenses marketplace
+- pas d’entretien
+- pas de nouvelle route
+- pas de refactor de store
+- pas de solution théorique : je veux le plus petit branchement réel possible
