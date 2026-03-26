@@ -3,7 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import { requireAuth } from "../middleware/auth";
 import type { AuthRequest } from "../middleware/auth";
 import { db } from "../db";
-import { cityPendingHarvest, cityInventory, cityBuildings } from "../../shared/schema";
+import { cityPendingHarvest, cityInventory, cityBuildings, cities, colonies } from "../../shared/schema";
 import {
   getMyCities,
   getCityByColony,
@@ -19,6 +19,9 @@ import {
   getCityControlledResources,
   checkBuildingTerrainPrereq,
   checkBuildingResourcePrereq,
+  BUILDING_TERRAIN_PREREQS,
+  BUILDING_RESOURCE_PREREQS,
+  BUILDING_PRODUCTION,
 } from "../buildingEffects";
 
 const router = Router();
@@ -61,6 +64,94 @@ router.get("/colony/:colonyId", requireAuth, async (req: AuthRequest, res) => {
   } catch (err) {
     console.error("[GET /api/cities/colony/:colonyId] Erreur:", err);
     return res.status(500).json({ error: "Impossible de récupérer la ville" });
+  }
+});
+
+// ─── GET /api/cities/:cityId/exploitation-context ─────────────────────────────
+// Expose le contexte réel d'exploitation pour une ville :
+//   - terrains contrôlés (via map_tiles dans le territoire)
+//   - ressources contrôlées (via metadata.resources / resource_type)
+//   - bâtiments d'exploitation avec leur statut terrain/ressource
+//   - production réelle par tour (depuis BUILDING_PRODUCTION serveur)
+// Source de vérité canonique — ne pas dupliquer côté client.
+router.get("/:cityId/exploitation-context", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const cityId = parseInt(req.params.cityId, 10);
+    if (isNaN(cityId)) return res.status(400).json({ error: "cityId doit être un entier" });
+
+    const isAdmin = req.user!.role === 'admin';
+
+    let worldX: number;
+    let worldY: number;
+    let cityName: string;
+
+    if (isAdmin) {
+      // Bypass faction — admin peut consulter n'importe quelle ville
+      const cityRows = await db
+        .select({ city: cities, colony: colonies })
+        .from(cities)
+        .innerJoin(colonies, eq(cities.colonyId, colonies.id))
+        .where(eq(cities.id, cityId));
+      if (cityRows.length === 0) return res.status(404).json({ error: "Ville introuvable" });
+      worldX = cityRows[0].colony.worldX;
+      worldY = cityRows[0].colony.worldY;
+      cityName = cityRows[0].city.displayName ?? cityRows[0].city.name;
+    } else {
+      const access = await checkCityAccess(req.user!.id, cityId);
+      if ("error" in access) return res.status(access.status).json({ error: access.error });
+      worldX = access.worldX;
+      worldY = access.worldY;
+      cityName = access.cityRecord.displayName ?? access.cityRecord.name;
+    }
+
+    const [controlledTerrainsSet, controlledResourcesSet] = await Promise.all([
+      getCityControlledTerrains(worldX, worldY),
+      getCityControlledResources(worldX, worldY),
+    ]);
+
+    const controlledTerrains = Array.from(controlledTerrainsSet);
+    const controlledResources = Array.from(controlledResourcesSet);
+
+    // Bâtiments avec prérequis terrain — ce sont les bâtiments d'exploitation Tier 1
+    const exploitations = Object.keys(BUILDING_TERRAIN_PREREQS).map(buildingId => {
+      const terrainResult = checkBuildingTerrainPrereq(buildingId, controlledTerrainsSet);
+      const resourceResult = checkBuildingResourcePrereq(buildingId, controlledResourcesSet);
+
+      const terrainOk = terrainResult === null || terrainResult.ok;
+      const resourceOk = resourceResult === null ? null : resourceResult.ok;
+
+      const missingTerrains = (!terrainOk && terrainResult && !terrainResult.ok)
+        ? terrainResult.missing
+        : [];
+      const missingResources = (resourceOk === false && resourceResult && !resourceResult.ok)
+        ? resourceResult.missing
+        : [];
+
+      const canBuild = terrainOk && (resourceOk === null || resourceOk === true);
+
+      return {
+        buildingId,
+        terrainOk,
+        resourceOk,
+        canBuild,
+        production: BUILDING_PRODUCTION[buildingId] ?? {},
+        missingTerrains,
+        missingResources,
+      };
+    });
+
+    return res.json({
+      cityId,
+      cityName,
+      worldX,
+      worldY,
+      controlledTerrains,
+      controlledResources,
+      exploitations,
+    });
+  } catch (err) {
+    console.error("[GET /api/cities/:cityId/exploitation-context] Erreur:", err);
+    return res.status(500).json({ error: "Impossible de calculer le contexte d'exploitation" });
   }
 });
 

@@ -1,0 +1,169 @@
+NOVA IMPERIUM — PHASE SUIVANTE
+EXPOSER ET AFFICHER LE CONTEXTE D’EXPLOITATION RÉEL DE CHAQUE VILLE
+
+Branche :
+NI-10.3
+
+Contexte technique :
+Jeu persistant Node/TS + React/TS + PostgreSQL
+Architecture serveur autoritaire
+Méthode obligatoire :
+Audit court → proposition minimale → implémentation ciblée → vérification
+Aucun refactor massif
+
+CONTEXTE VALIDÉ
+
+Le noyau exploitation Tier 1 est maintenant en place :
+
+- seed multi-ressources
+- validation serveur terrain + ressource réelle
+- lecture serveur de metadata.resources avec fallback resource_type
+- pipeline logistique actif
+- construction validée côté serveur
+- UI client recadrée pour ne plus mentir sur les terrains
+
+PROBLÈME RESTANT
+
+Le prototype n’est pas encore assez lisible pour les tests utilisateurs.
+
+Aujourd’hui :
+- le joueur voit les terrains d’une colonie
+- mais il ne voit pas clairement les ressources réelles contrôlées
+- ConstructionPanel filtre encore surtout par terrain côté client
+- le serveur peut refuser pour manque de ressource réelle, mais seulement au clic
+- le tooltip de production repose encore sur un mapping local obsolète au lieu de la vérité serveur
+
+Je veux maintenant rendre le prototype compréhensible et testable humainement.
+
+OBJECTIF DE LA PHASE
+
+Je veux exposer le contexte d’exploitation réel de chaque ville côté serveur,
+puis l’afficher proprement côté client.
+
+Je veux que, pour chaque ville, on puisse voir :
+- terrains contrôlés
+- ressources contrôlées
+- bâtiments d’exploitation disponibles
+- bâtiments d’exploitation bloqués
+- raison du blocage
+- production réelle par tour
+
+IMPORTANT :
+Je ne veux pas changer la logique canonique serveur.
+Je veux l’exposer proprement à l’UI.
+
+POINT 1 — AUDIT COURT
+Je veux identifier :
+1. quelles données de contexte existent déjà côté serveur
+2. ce qui manque pour exposer simplement :
+   - terrains contrôlés
+   - ressources contrôlées
+   - compatibilité bâtiment → ville
+3. où ConstructionPanel utilise encore une logique locale obsolète
+4. où le tooltip de production ment encore par rapport à BUILDING_PRODUCTION
+
+POINT 2 — ENDPOINT SERVEUR MINIMAL
+Je veux un endpoint minimal, lisible et stable, par exemple :
+- GET /api/cities/:cityId/exploitation-context
+ou équivalent
+
+Il doit retourner au minimum :
+- cityId
+- controlledTerrains: string[]
+- controlledResources: string[]
+- exploitations: [
+    {
+      buildingId: string,
+      terrainOk: boolean,
+      resourceOk: boolean | null,
+      canBuild: boolean,
+      missingTerrains?: string[],
+      missingResources?: string[]
+    }
+  ]
+
+IMPORTANT :
+Le serveur doit rester la source de vérité.
+Le client ne doit pas réinventer cette logique.
+
+POINT 3 — ALIGNEMENT DU CLIENT
+Dans ConstructionPanel :
+- utiliser les données réelles du contexte d’exploitation
+- ne plus se baser seulement sur availableTerrains côté client pour suggérer la disponibilité
+- afficher clairement si un bâtiment est :
+  - disponible
+  - bloqué par terrain
+  - bloqué par ressource
+- garder la validation finale côté serveur au clic
+
+IMPORTANT :
+Le client peut aider visuellement,
+mais ne doit pas remplacer la validation serveur.
+
+POINT 4 — RESSOURCES CONTRÔLÉES PAR VILLE
+Je veux que la ville affiche clairement ses ressources contrôlées,
+par exemple dans ConstructionPanel ou TreasuryPanel selon le point le plus propre.
+
+Je veux au minimum voir :
+- terrains contrôlés
+- ressources contrôlées
+
+Le but est que le joueur comprenne immédiatement pourquoi une exploitation est possible ou non.
+
+POINT 5 — PRODUCTION RÉELLE
+Le tooltip de production doit cesser d’utiliser un mapping local obsolète si ce mapping n’est plus canonique.
+
+Je veux que la production affichée pour les bâtiments d’exploitation Tier 1
+soit alignée avec la vérité serveur actuelle.
+
+Options acceptables :
+- réutiliser une source de vérité partagée
+- exposer la production via le serveur
+- ou synchroniser explicitement le mapping local avec BUILDING_PRODUCTION
+
+IMPORTANT :
+Je ne veux plus de tooltip qui annonce une production différente du serveur réel.
+
+POINT 6 — RÉSULTAT FONCTIONNEL ATTENDU
+Après ce patch, je veux pouvoir tester ce scénario simplement :
+
+1. j’ouvre une ville
+2. je vois ses terrains contrôlés
+3. je vois ses ressources contrôlées
+4. je vois quels bâtiments d’exploitation sont possibles
+5. je vois pourquoi certains sont bloqués
+6. je vois la vraie production attendue
+7. je peux construire sans avoir à deviner la logique
+
+FORMAT DE RETOUR ATTENDU
+
+Je veux un rapport final structuré exactement en 7 parties :
+
+1. Audit ultra-court du point de départ
+2. Choix minimal retenu
+3. Fichiers modifiés
+4. Résumé exact du patch
+5. Flux avant / après
+6. Points volontairement non traités
+7. Résultat de validation
+
+INTERDIT
+
+- refactor massif
+- réécriture du système de villes
+- duplication de logique serveur dans le client
+- nouvelle architecture complexe
+- complexité inutile
+
+PRIORITÉ ABSOLUE
+
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+BUT FINAL
+
+Rendre le prototype Tier 1 réellement lisible et testable,
+en exposant clairement pour chaque ville :
+- ce qu’elle contrôle
+- ce qu’elle peut exploiter
+- pourquoi
+- et ce qu’elle produit réellement.

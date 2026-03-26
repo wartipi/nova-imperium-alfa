@@ -7,9 +7,17 @@ import { getBuildingCost, canAffordAction } from "../../lib/game/ActionPointsCos
 import { getBuildingAPGeneration, getBuildingMaxAPIncrease } from "../../lib/game/ActionPointsGeneration";
 import { UnifiedTerritorySystem } from "../../lib/systems/UnifiedTerritorySystem";
 import { useMap } from "../../lib/stores/useMap";
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { getCityInventory } from "../../lib/api/economyApi";
 import { apiStartConstruction } from "../../lib/api/citiesApi";
+import { getCityExploitationContext } from "../../lib/api/exploitationApi";
+import type { ExploitationContext } from "../../lib/api/exploitationApi";
+
+// Bâtiments d'exploitation Tier 1 — alignés avec BUILDING_TERRAIN_PREREQS serveur
+const EXPLOITATION_BUILDING_IDS = new Set([
+  'sawmill', 'hunting_post', 'herbalist_house', 'farm', 'granary',
+  'fishing_post', 'mine', 'advanced_mine', 'oil_camp',
+]);
 
 export function ConstructionPanel() {
   const { currentNovaImperium, buildInCity, addCity } = useNovaImperium();
@@ -23,6 +31,8 @@ export function ConstructionPanel() {
 
   // Inventaires de villes (stock local) : keyed by city.id (string du serveur)
   const [cityInventories, setCityInventories] = useState<Record<string, { gold: number; food: number; wood: number; stone: number; iron: number; copper: number; coal: number; oil: number; herbs: number; fur: number }>>({});
+  // Contextes d'exploitation serveur : keyed by city.id
+  const [exploitationContexts, setExploitationContexts] = useState<Record<string, ExploitationContext>>({});
   // Messages de construction : keyed par cityId
   const [buildMessages, setBuildMessages] = useState<Record<string, { type: 'error' | 'ok'; text: string } | null>>({});
 
@@ -52,11 +62,29 @@ export function ConstructionPanel() {
     setCityInventories(map);
   }, []);
 
+  // Récupérer le contexte d'exploitation réel depuis le serveur
+  const refreshExploitationContexts = useCallback(async (cities: Array<{ id: string }>) => {
+    const entries = await Promise.allSettled(
+      cities.map(async (c) => {
+        const numericId = parseInt(c.id, 10);
+        if (isNaN(numericId)) return null;
+        const ctx = await getCityExploitationContext(numericId);
+        return { id: c.id, ctx };
+      })
+    );
+    const map: Record<string, ExploitationContext> = {};
+    for (const r of entries) {
+      if (r.status === 'fulfilled' && r.value) map[r.value.id] = r.value.ctx;
+    }
+    setExploitationContexts(map);
+  }, []);
+
   useEffect(() => {
     if (currentNovaImperium?.cities.length) {
       refreshInventories(currentNovaImperium.cities).catch(() => {});
+      refreshExploitationContexts(currentNovaImperium.cities).catch(() => {});
     }
-  }, [currentNovaImperium?.cities, refreshInventories]);
+  }, [currentNovaImperium?.cities, refreshInventories, refreshExploitationContexts]);
 
   if (!currentNovaImperium) return null;
 
@@ -636,37 +664,36 @@ export function ConstructionPanel() {
 
   const getBuildingProduction = (buildingId: string): Record<string, number> => {
     const productions: Record<string, Record<string, number>> = {
-      // Agriculture
-      'farm': { food: 3, gold: 1 },
-      'garden': { food: 2 },
-      'sawmill': { wood: 2, gold: 1 },
-      
-      // Transport/Commercial
-      'port': { gold: 4, food: 1 },
-      'market': { gold: 6 },
-      'road': { gold: 2 },
-      'shipyard': { gold: 3, wood: 1 },
-      
-      // Defense (no resource production, only protection)
-      'fortress': {},
-      'watchtower': {},
-      'fortifications': {},
-      
-      // Culture
-      'library': { ancient_knowledge: 1 },
-      'temple': { gold: 2, mana: 1 },
-      'sanctuary': { mana: 2 },
-      'obelisk': { gold: 1 },
-      
-      // Magic
-      'mystic_portal': { mana: 3, ancient_knowledge: 1 },
+      // ── Exploitation Tier 1 (source de vérité : BUILDING_PRODUCTION serveur) ──
+      'sawmill':         { wood: 2 },
+      'hunting_post':    { fur: 1, food: 1 },
+      'herbalist_house': { herbs: 2 },
+      'farm':            { food: 3 },
+      'granary':         { food: 1 },
+      'fishing_post':    { food: 2 },
+      'mine':            { stone: 1, iron: 1 },
+      'advanced_mine':   { iron: 2, copper: 1, coal: 1 },
+      'oil_camp':        { oil: 2 },
+
+      // ── Autres bâtiments ────────────────────────────────────────────────────
+      'garden':          { food: 2 },
+      'port':            { gold: 4, food: 1 },
+      'market':          { gold: 6 },
+      'road':            { gold: 2 },
+      'shipyard':        { gold: 3, wood: 1 },
+      'fortress':        {},
+      'watchtower':      {},
+      'fortifications':  {},
+      'library':         { ancient_knowledge: 1 },
+      'temple':          { gold: 2, mana: 1 },
+      'sanctuary':       { mana: 2 },
+      'obelisk':         { gold: 1 },
+      'mystic_portal':   { mana: 3, ancient_knowledge: 1 },
       'legendary_forge': { precious_metals: 2, crystals: 1 },
-      'laboratory': { mana: 2, crystals: 1, ancient_knowledge: 1 },
-      
-      // Ancient
-      'ancient_hall': { ancient_knowledge: 3, mana: 1 },
-      'underground_base': { stone: 2, iron: 1 },
-      'cave_dwelling': { stone: 1, food: 1 }
+      'laboratory':      { mana: 2, crystals: 1, ancient_knowledge: 1 },
+      'ancient_hall':    { ancient_knowledge: 3, mana: 1 },
+      'underground_base':{ stone: 2, iron: 1 },
+      'cave_dwelling':   { stone: 1, food: 1 },
     };
     return productions[buildingId] || {};
   };
@@ -908,9 +935,57 @@ export function ConstructionPanel() {
           <div className="font-medium text-sm mb-2">
             🏘️ {city.name} ({colonyData.controlledTerritories.length} case{colonyData.controlledTerritories.length > 1 ? 's' : ''})
           </div>
-          <div className="text-xs text-purple-600 mb-1">
-            🌍 Terrains disponibles: {colonyData.availableTerrains.length > 0 ? colonyData.availableTerrains.join(', ') : 'Aucun'}
-          </div>
+          {/* Contexte d'exploitation réel (données serveur) */}
+          {(() => {
+            const ctx = exploitationContexts[city.id];
+            if (!ctx) {
+              if (isAdmin) {
+                return (
+                  <div className="text-xs text-purple-200 italic mb-1 bg-purple-50 border border-purple-200 rounded px-2 py-1">
+                    🎯 Mode Admin : toutes constructions autorisées sans prérequis terrain/ressource
+                  </div>
+                );
+              }
+              return (
+                <div className="text-xs text-purple-400 italic mb-1">
+                  Chargement contexte d'exploitation…
+                </div>
+              );
+            }
+            const TERRAIN_LABELS: Record<string, string> = {
+              forest: 'Forêt', mountains: 'Montagnes', hills: 'Collines',
+              fertile_land: 'Terre fertile', shallow_water: 'Eau peu profonde',
+              swamp: 'Marais', desert: 'Désert', wasteland: 'Friche',
+              caves: 'Grottes', sacred_plains: 'Plaines sacrées',
+              enchanted_meadow: 'Prairie enchantée', deep_water: 'Eau profonde',
+              ancient_ruins: 'Ruines', volcano: 'Volcan', plains: 'Plaines',
+            };
+            const RESOURCE_ICONS: Record<string, string> = {
+              deer: '🦌', fur: '🦊', herbs: '🌱', wheat: '🌾', cattle: '🐄',
+              fish: '🐟', stone: '🪨', iron: '⚙️', copper: '🟤', coal: '🖤',
+              oil: '🛢️', crystals: '💎', sacred_stones: '✨', ancient_artifacts: '📿',
+            };
+            return (
+              <div className="mb-2 space-y-1">
+                <div className="text-xs bg-purple-50 border border-purple-300 rounded px-2 py-1">
+                  <span className="font-medium text-purple-800">🌍 Terrains contrôlés : </span>
+                  <span className="text-purple-700">
+                    {ctx.controlledTerrains.length > 0
+                      ? ctx.controlledTerrains.map(t => TERRAIN_LABELS[t] ?? t).join(', ')
+                      : 'Aucun'}
+                  </span>
+                </div>
+                <div className="text-xs bg-teal-50 border border-teal-300 rounded px-2 py-1">
+                  <span className="font-medium text-teal-800">🧺 Ressources contrôlées : </span>
+                  <span className="text-teal-700">
+                    {ctx.controlledResources.length > 0
+                      ? ctx.controlledResources.map(r => `${RESOURCE_ICONS[r] ?? ''}${r}`).join(' · ')
+                      : 'Aucune'}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Inventaire local de la ville */}
           {(() => {
@@ -978,7 +1053,33 @@ export function ConstructionPanel() {
                   <div className="text-xs font-bold text-amber-800 border-b border-amber-300 pb-1">
                     {category} ({categoryBuildings.length})
                   </div>
-                  {categoryBuildings.map(building => (
+                  {categoryBuildings.map(building => {
+                    // Statut d'exploitation réel depuis le serveur (si bâtiment d'exploitation)
+                    const ctx = exploitationContexts[city.id];
+                    const exploitEntry = EXPLOITATION_BUILDING_IDS.has(building.id) && ctx
+                      ? ctx.exploitations.find(e => e.buildingId === building.id)
+                      : undefined;
+
+                    let exploitBadge: React.ReactNode = null;
+                    if (exploitEntry) {
+                      if (exploitEntry.canBuild) {
+                        exploitBadge = <span className="text-xs text-green-600 font-medium">✅ Terrain + ressources OK</span>;
+                      } else if (exploitEntry.terrainOk && exploitEntry.resourceOk === false) {
+                        exploitBadge = (
+                          <span className="text-xs text-orange-600">
+                            ⚠️ Ressource manquante : {exploitEntry.missingResources.join(' ou ')}
+                          </span>
+                        );
+                      } else if (!exploitEntry.terrainOk) {
+                        exploitBadge = (
+                          <span className="text-xs text-red-500">
+                            ❌ Terrain absent : {exploitEntry.missingTerrains.map(t => getTerrainName(t)).join(' ou ')}
+                          </span>
+                        );
+                      }
+                    }
+
+                    return (
                     <div 
                       key={building.id} 
                       className="flex items-center justify-between"
@@ -996,9 +1097,14 @@ export function ConstructionPanel() {
                           <div className="text-xs text-blue-600">
                             ⚡ {isAdmin ? '∞ PA' : `${building.actionPointCost} PA`} | 🕐 {isAdmin ? 'Instantané' : `${building.constructionTime} tour${building.constructionTime > 1 ? 's' : ''}`}
                           </div>
-                          <div className="text-xs text-green-600">
-                            📍 {building.requiredTerrain.map(terrain => getTerrainName(terrain)).join(' ou ')}
-                          </div>
+                          {exploitBadge
+                            ? <div>{exploitBadge}</div>
+                            : (
+                              <div className="text-xs text-green-600">
+                                📍 {building.requiredTerrain.map(terrain => getTerrainName(terrain)).join(' ou ')}
+                              </div>
+                            )
+                          }
                         </div>
                       </div>
                       <Button
@@ -1015,7 +1121,8 @@ export function ConstructionPanel() {
                          !canAffordBuilding(building.id) ? 'PA insuffisants' : 'Construire'}
                       </Button>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : null;
             })}
