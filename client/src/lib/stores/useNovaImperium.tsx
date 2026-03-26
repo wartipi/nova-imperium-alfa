@@ -354,9 +354,6 @@ export const useNovaImperium = create<NovaImperiumState>()(
           };
           
           updatedNI.cities.forEach(city => {
-            // Accumulé localement par tour — non persisté serveur (hors périmètre Phase 8, à clarifier avant Phase 9)
-            updatedNI.resources.food += city.foodPerTurn;
-            
             if (city.currentProduction) {
               city.productionProgress += city.productionPerTurn;
               

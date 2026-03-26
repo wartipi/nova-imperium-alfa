@@ -1,0 +1,82 @@
+ÉTAPE 6 — Client minimal économie
+
+L’Étape 5 est validée.
+
+Tu peux maintenant implémenter uniquement le client minimal de la phase 9.
+
+FICHIERS À MODIFIER UNIQUEMENT
+1. `client/src/lib/api/economyApi.ts` (nouveau fichier)
+2. `client/src/components/game/TreasuryPanel.tsx`
+3. `client/src/lib/stores/useNovaImperium.tsx`
+
+OBJECTIF
+Faire de l’économie affichée une lecture serveur, sans garder de calcul parallèle local.
+
+À FAIRE
+
+1. `client/src/lib/api/economyApi.ts`
+Créer les fonctions minimales :
+- `fetchMyEconomy()`
+- `postEconomyTick(currentTurn: number)`
+
+La lecture doit viser :
+- `GET /api/economy/me`
+Le tick doit viser :
+- `POST /api/economy/tick`
+
+Garder le style des APIs client existantes.
+
+2. `client/src/components/game/TreasuryPanel.tsx`
+Transformer le panneau en lecture pure serveur.
+
+Attendu :
+- supprimer les fonctions locales `calculateIncome()` et `calculateExpenses()`
+- supprimer les hardcodes de revenus locaux
+- supprimer l’usage du `buildingData` comme moteur de calcul économique
+- charger l’économie depuis l’API
+- afficher uniquement les valeurs cohérentes avec la v1 serveur :
+  - stocks `gold`, `food`
+  - revenus `goldPerTurn`, `foodPerTurn`
+- si tu affiches une balance nette, elle doit être basée uniquement sur ce que retourne le serveur
+- retirer du panneau les ressources hors périmètre v1 si elles n’ont pas de source serveur fiable
+
+Important :
+- le changement UI est volontaire
+- mieux vaut afficher moins, mais vrai
+
+3. `client/src/lib/stores/useNovaImperium.tsx`
+Dans `processTurn()` :
+- retirer l’accumulation locale de `updatedNI.resources.food += city.foodPerTurn`
+- ne touche pas à la logique de production
+- ne touche pas à la complétion bâtiment / unité
+- ne touche pas à l’hydratation des villes
+- ne refactore rien d’autre
+
+RÈGLES ABSOLUES
+- pas de refactor massif
+- ne touche pas aux routes serveur
+- ne touche pas `economyService.ts`
+- ne touche pas `CityDTO`
+- pas de nouvelle abstraction inutile
+- pas de nouvelle logique économique côté client
+- pas de cache compliqué
+- le client doit lire, pas recalculer
+
+POINTS À SURVEILLER
+- ne pas casser l’affichage du panneau
+- ne pas garder des calculs parallèles masqués
+- rester cohérent avec le fait que `goldPerTurn` peut être 0 pour certaines villes anciennes non recalculées
+- garder le comportement lisible si l’API n’a pas encore répondu
+
+SORTIE ATTENDUE
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+2. FONCTIONS API AJOUTÉES
+3. CE QUI A ÉTÉ SUPPRIMÉ DU CALCUL LOCAL
+4. CE QUI EST DÉSORMAIS LU DEPUIS LE SERVEUR
+5. CE QUI N’A PAS ÉTÉ TOUCHÉ VOLONTAIREMENT
+6. RISQUES OU INCERTITUDES ÉVENTUELS
+
+Arrête-toi après cette Étape 6.
+Ne déborde pas sur une vérification finale globale.
