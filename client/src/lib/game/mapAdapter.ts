@@ -38,6 +38,9 @@ function dbTileToHexTile(tile: DbTile, arrayX: number, arrayY: number): HexTile 
   const terrain = toTerrainType(tile.terrainType);
   const yields = TERRAIN_YIELDS[terrain] ?? { food: 0, action_points: 0, gold: 0 };
 
+  const meta = tile.metadata as { resources?: string[] } | null | undefined;
+  const resources: string[] = Array.isArray(meta?.resources) ? meta!.resources : [];
+
   return {
     x: arrayX,
     y: arrayY,
@@ -46,6 +49,7 @@ function dbTileToHexTile(tile: DbTile, arrayX: number, arrayY: number): HexTile 
     action_points: yields.action_points,
     gold: yields.gold,
     resource: toResourceType(tile.resourceType),
+    resources,
     hasRiver: false,
     hasRoad: false,
     improvement: null,
@@ -99,6 +103,7 @@ export function adaptBlockToMap(block: SegmentBlock): AdaptedBlock {
       action_points: 0,
       gold: 2,
       resource: null,
+      resources: [],
       hasRiver: false,
       hasRoad: false,
       improvement: null,

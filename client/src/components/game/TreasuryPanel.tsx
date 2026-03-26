@@ -44,14 +44,19 @@ interface UniqueItem {
 }
 
 interface TransferState {
-  gold:     string;
-  food:     string;
-  wood:     string;
-  stone:    string;
-  iron:     string;
-  cityId:   string;
-  loading:  boolean;
-  message:  string | null;
+  gold:    string;
+  food:    string;
+  wood:    string;
+  stone:   string;
+  iron:    string;
+  copper:  string;
+  coal:    string;
+  oil:     string;
+  herbs:   string;
+  fur:     string;
+  cityId:  string;
+  loading: boolean;
+  message: string | null;
 }
 
 interface Props {
@@ -89,6 +94,29 @@ function getAuthHeaders(): Record<string, string> {
 function parseAmount(s: string): number {
   const n = parseInt(s, 10);
   return isNaN(n) || n < 0 ? 0 : n;
+}
+
+type Mats = {
+  gold: number; food: number; wood: number; stone: number; iron: number;
+  copper?: number; coal?: number; oil?: number; herbs?: number; fur?: number;
+};
+
+function isMatsEmpty(m: Mats): boolean {
+  return m.gold === 0 && m.food === 0 && m.wood === 0 && m.stone === 0 && m.iron === 0
+      && (m.copper ?? 0) === 0 && (m.coal ?? 0) === 0 && (m.oil ?? 0) === 0
+      && (m.herbs ?? 0) === 0 && (m.fur ?? 0) === 0;
+}
+
+const MAT_ICONS: Array<[keyof Mats, string]> = [
+  ['gold','🪙'],['food','🌿'],['wood','🪵'],['stone','🪨'],['iron','⚙️'],
+  ['copper','🟤'],['coal','🖤'],['oil','🛢️'],['herbs','🌱'],['fur','🦊'],
+];
+
+function formatMats(m: Mats): string {
+  const parts = MAT_ICONS
+    .map(([k, icon]) => ((m[k] ?? 0) > 0 ? `${m[k]}${icon}` : null))
+    .filter(Boolean);
+  return parts.length > 0 ? parts.join(' ') : '—';
 }
 
 // ─── Bâtiments ────────────────────────────────────────────────────────────────
@@ -182,14 +210,14 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
   const [loading,   setLoading]   = useState(true);
 
   // Transfert banque → ville
-  const [toCity, setToCity] = useState<TransferState>({
-    gold: "", food: "", wood: "", stone: "", iron: "", cityId: "", loading: false, message: null,
-  });
+  const EMPTY_TRANSFER: TransferState = {
+    gold: "", food: "", wood: "", stone: "", iron: "",
+    copper: "", coal: "", oil: "", herbs: "", fur: "",
+    cityId: "", loading: false, message: null,
+  };
 
-  // Transfert banque → joueur
-  const [toPlayer, setToPlayer] = useState<TransferState>({
-    gold: "", food: "", wood: "", stone: "", iron: "", cityId: "", loading: false, message: null,
-  });
+  const [toCity,   setToCity]   = useState<TransferState>(EMPTY_TRANSFER);
+  const [toPlayer, setToPlayer] = useState<TransferState>(EMPTY_TRANSFER);
 
   // ─── Chargement ─────────────────────────────────────────────────────────
 
@@ -270,27 +298,36 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
 
   const handleTransferToCity = async () => {
     const cityId = parseInt(toCity.cityId, 10);
-    const gold  = parseAmount(toCity.gold);
-    const food  = parseAmount(toCity.food);
-    const wood  = parseAmount(toCity.wood);
-    const stone = parseAmount(toCity.stone);
-    const iron  = parseAmount(toCity.iron);
+    const mats = {
+      gold:   parseAmount(toCity.gold),
+      food:   parseAmount(toCity.food),
+      wood:   parseAmount(toCity.wood),
+      stone:  parseAmount(toCity.stone),
+      iron:   parseAmount(toCity.iron),
+      copper: parseAmount(toCity.copper),
+      coal:   parseAmount(toCity.coal),
+      oil:    parseAmount(toCity.oil),
+      herbs:  parseAmount(toCity.herbs),
+      fur:    parseAmount(toCity.fur),
+    };
     if (isNaN(cityId) || cityId < 1) {
       setToCity(prev => ({ ...prev, message: "❌ Sélectionnez une ville" }));
       return;
     }
-    if (gold === 0 && food === 0 && wood === 0 && stone === 0 && iron === 0) {
+    if (Object.values(mats).every(v => v === 0)) {
       setToCity(prev => ({ ...prev, message: "❌ Montant nul" }));
       return;
     }
     setToCity(prev => ({ ...prev, loading: true, message: null }));
     try {
-      const res = await postTransferBankToCity(cityId, { gold, food, wood, stone, iron }, adminModeEnabled);
+      const res = await postTransferBankToCity(cityId, mats, adminModeEnabled);
       const min = res.action.minRemaining;
       const msg = adminModeEnabled
         ? `✅ Transfert immédiat vers ville (admin)`
         : `⏳ Transfert en cours — ${min} min`;
-      setToCity(prev => ({ ...prev, loading: false, message: msg, gold: "", food: "", wood: "", stone: "", iron: "" }));
+      setToCity(prev => ({ ...prev, loading: false, message: msg,
+        gold: "", food: "", wood: "", stone: "", iron: "",
+        copper: "", coal: "", oil: "", herbs: "", fur: "" }));
       setTimeout(() => getPlayerBank().then(b => setBank(b)).catch(() => {}), 300);
     } catch (err: any) {
       const raw = err.message ?? "Erreur transfert";
@@ -300,6 +337,11 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
       else if (raw.includes("INSUFFICIENT_BANK_WOOD"))    msg = "❌ Bois insuffisant en banque";
       else if (raw.includes("INSUFFICIENT_BANK_STONE"))   msg = "❌ Pierre insuffisante en banque";
       else if (raw.includes("INSUFFICIENT_BANK_IRON"))    msg = "❌ Fer insuffisant en banque";
+      else if (raw.includes("INSUFFICIENT_BANK_COPPER"))  msg = "❌ Cuivre insuffisant en banque";
+      else if (raw.includes("INSUFFICIENT_BANK_COAL"))    msg = "❌ Charbon insuffisant en banque";
+      else if (raw.includes("INSUFFICIENT_BANK_OIL"))     msg = "❌ Pétrole insuffisant en banque";
+      else if (raw.includes("INSUFFICIENT_BANK_HERBS"))   msg = "❌ Herbes insuffisantes en banque";
+      else if (raw.includes("INSUFFICIENT_BANK_FUR"))     msg = "❌ Fourrure insuffisante en banque";
       else if (raw.includes("ACTION_ALREADY_ACTIVE"))     msg = "⚠️ Action déjà en cours";
       setToCity(prev => ({ ...prev, loading: false, message: msg }));
     }
@@ -308,23 +350,32 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
   // ─── Transfert banque → joueur ────────────────────────────────────────────
 
   const handleTransferToPlayer = async () => {
-    const gold  = parseAmount(toPlayer.gold);
-    const food  = parseAmount(toPlayer.food);
-    const wood  = parseAmount(toPlayer.wood);
-    const stone = parseAmount(toPlayer.stone);
-    const iron  = parseAmount(toPlayer.iron);
-    if (gold === 0 && food === 0 && wood === 0 && stone === 0 && iron === 0) {
+    const mats = {
+      gold:   parseAmount(toPlayer.gold),
+      food:   parseAmount(toPlayer.food),
+      wood:   parseAmount(toPlayer.wood),
+      stone:  parseAmount(toPlayer.stone),
+      iron:   parseAmount(toPlayer.iron),
+      copper: parseAmount(toPlayer.copper),
+      coal:   parseAmount(toPlayer.coal),
+      oil:    parseAmount(toPlayer.oil),
+      herbs:  parseAmount(toPlayer.herbs),
+      fur:    parseAmount(toPlayer.fur),
+    };
+    if (Object.values(mats).every(v => v === 0)) {
       setToPlayer(prev => ({ ...prev, message: "❌ Montant nul" }));
       return;
     }
     setToPlayer(prev => ({ ...prev, loading: true, message: null }));
     try {
-      const res = await postTransferBankToPlayer({ gold, food, wood, stone, iron }, adminModeEnabled);
+      const res = await postTransferBankToPlayer(mats, adminModeEnabled);
       const min = res.action.minRemaining;
       const msg = adminModeEnabled
         ? "✅ Transfert immédiat sur vous (admin)"
         : `⏳ Transfert en cours — ${min} min`;
-      setToPlayer(prev => ({ ...prev, loading: false, message: msg, gold: "", food: "", wood: "", stone: "", iron: "" }));
+      setToPlayer(prev => ({ ...prev, loading: false, message: msg,
+        gold: "", food: "", wood: "", stone: "", iron: "",
+        copper: "", coal: "", oil: "", herbs: "", fur: "" }));
       setTimeout(() => {
         getPlayerBank().then(b => setBank(b)).catch(() => {});
         getPlayerTransport().then(t => setTransport(t)).catch(() => {});
@@ -337,6 +388,11 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
       else if (raw.includes("INSUFFICIENT_BANK_WOOD"))      msg = "❌ Bois insuffisant en banque";
       else if (raw.includes("INSUFFICIENT_BANK_STONE"))     msg = "❌ Pierre insuffisante en banque";
       else if (raw.includes("INSUFFICIENT_BANK_IRON"))      msg = "❌ Fer insuffisant en banque";
+      else if (raw.includes("INSUFFICIENT_BANK_COPPER"))    msg = "❌ Cuivre insuffisant en banque";
+      else if (raw.includes("INSUFFICIENT_BANK_COAL"))      msg = "❌ Charbon insuffisant en banque";
+      else if (raw.includes("INSUFFICIENT_BANK_OIL"))       msg = "❌ Pétrole insuffisant en banque";
+      else if (raw.includes("INSUFFICIENT_BANK_HERBS"))     msg = "❌ Herbes insuffisantes en banque";
+      else if (raw.includes("INSUFFICIENT_BANK_FUR"))       msg = "❌ Fourrure insuffisante en banque";
       else if (raw.includes("ACTION_ALREADY_ACTIVE"))       msg = "⚠️ Action déjà en cours";
       else if (raw.includes("TRANSPORT_CAPACITY_EXCEEDED")) msg = "❌ Capacité de transport dépassée (max 50 unités)";
       setToPlayer(prev => ({ ...prev, loading: false, message: msg }));
@@ -383,13 +439,17 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
               </span>
             </div>
             <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-amber-700">
-              <span>🪙 {transport.gold} or</span>
-              <span>🌿 {transport.food} nourriture</span>
-              {(transport.wood > 0 || transport.stone > 0 || transport.iron > 0) && (<>
-                <span>🪵 {transport.wood} bois</span>
-                <span>🪨 {transport.stone} pierre</span>
-                <span>⚙️ {transport.iron} fer</span>
-              </>)}
+              {transport.gold   > 0 && <span>🪙 {transport.gold} or</span>}
+              {transport.food   > 0 && <span>🌿 {transport.food} nourriture</span>}
+              {transport.wood   > 0 && <span>🪵 {transport.wood} bois</span>}
+              {transport.stone  > 0 && <span>🪨 {transport.stone} pierre</span>}
+              {transport.iron   > 0 && <span>⚙️ {transport.iron} fer</span>}
+              {(transport.copper ?? 0) > 0 && <span>🟤 {transport.copper} cuivre</span>}
+              {(transport.coal   ?? 0) > 0 && <span>🖤 {transport.coal} charbon</span>}
+              {(transport.oil    ?? 0) > 0 && <span>🛢️ {transport.oil} pétrole</span>}
+              {(transport.herbs  ?? 0) > 0 && <span>🌿 {transport.herbs} herbes</span>}
+              {(transport.fur    ?? 0) > 0 && <span>🦊 {transport.fur} fourrure</span>}
+              {transport.usedUnits === 0 && <span className="text-amber-400 italic">Sac vide</span>}
             </div>
             {transport.usedUnits >= transport.maxUnits && (
               <p className="text-xs text-red-600 font-semibold mt-0.5">⚠️ Sac plein</p>
@@ -454,7 +514,7 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
           </div>
         )}
         <p className="text-xs text-amber-400 italic mt-1">
-          Capacité transport : 50 unités totales (or, nourriture, bois, pierre, fer).
+          Capacité transport : 50 unités totales (10 matériaux Tier 1).
         </p>
         {currentUser && currentUser !== 'player' && (
           <p className="text-xs text-amber-400 mt-1">Joueur : {currentUser}</p>
@@ -469,11 +529,16 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
           <>
             {/* Solde */}
             <div className="grid grid-cols-2 gap-2 mb-2">
-              <StatBox icon="🪙" label="Or en banque"    value={bank.gold} />
-              <StatBox icon="🌿" label="Nour. en banque"  value={bank.food} />
-              <StatBox icon="🪵" label="Bois en banque"   value={bank.wood ?? 0} />
-              <StatBox icon="🪨" label="Pierre en banque" value={bank.stone ?? 0} />
-              <StatBox icon="⚙️" label="Fer en banque"   value={bank.iron ?? 0} />
+              <StatBox icon="🪙" label="Or"        value={bank.gold} />
+              <StatBox icon="🌿" label="Nourriture" value={bank.food} />
+              <StatBox icon="🪵" label="Bois"       value={bank.wood ?? 0} />
+              <StatBox icon="🪨" label="Pierre"     value={bank.stone ?? 0} />
+              <StatBox icon="⚙️" label="Fer"        value={bank.iron ?? 0} />
+              <StatBox icon="🟤" label="Cuivre"     value={bank.copper ?? 0} />
+              <StatBox icon="🖤" label="Charbon"    value={bank.coal ?? 0} />
+              <StatBox icon="🛢️" label="Pétrole"    value={bank.oil ?? 0} />
+              <StatBox icon="🌿" label="Herbes"     value={bank.herbs ?? 0} />
+              <StatBox icon="🦊" label="Fourrure"   value={bank.fur ?? 0} />
             </div>
             <p className="text-xs text-amber-500 italic mb-3">
               Dépôt auto des villes avec banque · Tour {bank.lastProductionTurn}
@@ -493,11 +558,16 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
                     <option key={c.id} value={String(c.id)}>{c.name}</option>
                   ))}
                 </select>
-                <AmountInput label="🪙" value={toCity.gold}  onChange={v => setToCity(p => ({ ...p, gold: v }))}  max={bank.gold} />
-                <AmountInput label="🌿" value={toCity.food}  onChange={v => setToCity(p => ({ ...p, food: v }))}  max={bank.food} />
-                <AmountInput label="🪵" value={toCity.wood}  onChange={v => setToCity(p => ({ ...p, wood: v }))}  max={bank.wood ?? 0} />
-                <AmountInput label="🪨" value={toCity.stone} onChange={v => setToCity(p => ({ ...p, stone: v }))} max={bank.stone ?? 0} />
-                <AmountInput label="⚙️" value={toCity.iron}  onChange={v => setToCity(p => ({ ...p, iron: v }))}  max={bank.iron ?? 0} />
+                <AmountInput label="🪙" value={toCity.gold}   onChange={v => setToCity(p => ({ ...p, gold: v }))}   max={bank.gold} />
+                <AmountInput label="🌿" value={toCity.food}   onChange={v => setToCity(p => ({ ...p, food: v }))}   max={bank.food} />
+                <AmountInput label="🪵" value={toCity.wood}   onChange={v => setToCity(p => ({ ...p, wood: v }))}   max={bank.wood ?? 0} />
+                <AmountInput label="🪨" value={toCity.stone}  onChange={v => setToCity(p => ({ ...p, stone: v }))}  max={bank.stone ?? 0} />
+                <AmountInput label="⚙️" value={toCity.iron}   onChange={v => setToCity(p => ({ ...p, iron: v }))}   max={bank.iron ?? 0} />
+                <AmountInput label="🟤" value={toCity.copper} onChange={v => setToCity(p => ({ ...p, copper: v }))} max={bank.copper ?? 0} />
+                <AmountInput label="🖤" value={toCity.coal}   onChange={v => setToCity(p => ({ ...p, coal: v }))}   max={bank.coal ?? 0} />
+                <AmountInput label="🛢️" value={toCity.oil}    onChange={v => setToCity(p => ({ ...p, oil: v }))}    max={bank.oil ?? 0} />
+                <AmountInput label="🌱" value={toCity.herbs}  onChange={v => setToCity(p => ({ ...p, herbs: v }))}  max={bank.herbs ?? 0} />
+                <AmountInput label="🦊" value={toCity.fur}    onChange={v => setToCity(p => ({ ...p, fur: v }))}    max={bank.fur ?? 0} />
                 <button
                   onClick={handleTransferToCity}
                   disabled={toCity.loading || !toCity.cityId}
@@ -523,11 +593,16 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
                 {transport && <span className="text-amber-400 font-normal ml-1">(libre : {transport.freeUnits} unités)</span>}
               </p>
               <div className="flex flex-wrap gap-1.5 items-end">
-                <AmountInput label="🪙" value={toPlayer.gold}  onChange={v => setToPlayer(p => ({ ...p, gold: v }))}  max={bank.gold} />
-                <AmountInput label="🌿" value={toPlayer.food}  onChange={v => setToPlayer(p => ({ ...p, food: v }))}  max={bank.food} />
-                <AmountInput label="🪵" value={toPlayer.wood}  onChange={v => setToPlayer(p => ({ ...p, wood: v }))}  max={bank.wood ?? 0} />
-                <AmountInput label="🪨" value={toPlayer.stone} onChange={v => setToPlayer(p => ({ ...p, stone: v }))} max={bank.stone ?? 0} />
-                <AmountInput label="⚙️" value={toPlayer.iron}  onChange={v => setToPlayer(p => ({ ...p, iron: v }))}  max={bank.iron ?? 0} />
+                <AmountInput label="🪙" value={toPlayer.gold}   onChange={v => setToPlayer(p => ({ ...p, gold: v }))}   max={bank.gold} />
+                <AmountInput label="🌿" value={toPlayer.food}   onChange={v => setToPlayer(p => ({ ...p, food: v }))}   max={bank.food} />
+                <AmountInput label="🪵" value={toPlayer.wood}   onChange={v => setToPlayer(p => ({ ...p, wood: v }))}   max={bank.wood ?? 0} />
+                <AmountInput label="🪨" value={toPlayer.stone}  onChange={v => setToPlayer(p => ({ ...p, stone: v }))}  max={bank.stone ?? 0} />
+                <AmountInput label="⚙️" value={toPlayer.iron}   onChange={v => setToPlayer(p => ({ ...p, iron: v }))}   max={bank.iron ?? 0} />
+                <AmountInput label="🟤" value={toPlayer.copper} onChange={v => setToPlayer(p => ({ ...p, copper: v }))} max={bank.copper ?? 0} />
+                <AmountInput label="🖤" value={toPlayer.coal}   onChange={v => setToPlayer(p => ({ ...p, coal: v }))}   max={bank.coal ?? 0} />
+                <AmountInput label="🛢️" value={toPlayer.oil}    onChange={v => setToPlayer(p => ({ ...p, oil: v }))}    max={bank.oil ?? 0} />
+                <AmountInput label="🌱" value={toPlayer.herbs}  onChange={v => setToPlayer(p => ({ ...p, herbs: v }))}  max={bank.herbs ?? 0} />
+                <AmountInput label="🦊" value={toPlayer.fur}    onChange={v => setToPlayer(p => ({ ...p, fur: v }))}    max={bank.fur ?? 0} />
                 <button
                   onClick={handleTransferToPlayer}
                   disabled={toPlayer.loading}
@@ -582,22 +657,16 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
                   {h && !h.loading && !h.error && h.data && (
                     <div className="space-y-1 border-t border-amber-100 pt-1.5">
                       <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-amber-600">
-                        <span>⏳ {h.data.pending.gold}🪙 {h.data.pending.food}🌿
-                          {(h.data.pending.wood > 0 || h.data.pending.stone > 0 || h.data.pending.iron > 0) && <> {h.data.pending.wood}🪵 {h.data.pending.stone}🪨 {h.data.pending.iron}⚙️</>}
-                          {" "}(pending)
-                        </span>
-                        <span>📦 {h.data.inventory.gold}🪙 {h.data.inventory.food}🌿
-                          {(h.data.inventory.wood > 0 || h.data.inventory.stone > 0 || h.data.inventory.iron > 0) && <> {h.data.inventory.wood}🪵 {h.data.inventory.stone}🪨 {h.data.inventory.iron}⚙️</>}
-                          {" "}(stock)
-                        </span>
+                        <span>⏳ {formatMats(h.data.pending)} (pending)</span>
+                        <span>📦 {formatMats(h.data.inventory)} (stock)</span>
                       </div>
                       {!h.data.hasBank && (
                         <button
                           onClick={() => handleCollect(city.id)}
-                          disabled={h.collecting || (h.data.pending.gold === 0 && h.data.pending.food === 0 && h.data.pending.wood === 0 && h.data.pending.stone === 0 && h.data.pending.iron === 0)}
+                          disabled={h.collecting || isMatsEmpty(h.data.pending)}
                           className={[
                             "px-2 py-0.5 rounded text-xs font-semibold transition",
-                            h.collecting || (h.data.pending.gold === 0 && h.data.pending.food === 0 && h.data.pending.wood === 0 && h.data.pending.stone === 0 && h.data.pending.iron === 0)
+                            h.collecting || isMatsEmpty(h.data.pending)
                               ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                               : "bg-amber-500 hover:bg-amber-600 text-white",
                           ].join(" ")}

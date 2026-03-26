@@ -100,6 +100,7 @@ export interface HexTile {
   action_points: number;
   gold: number;
   resource: ResourceType | null;
+  resources: string[];
   hasRiver: boolean;
   hasRoad: boolean;
   improvement: ImprovementType | null;

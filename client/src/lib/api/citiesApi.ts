@@ -82,14 +82,19 @@ export async function apiStartConstruction(
   goldCost:         number,
   foodCost:         number,
   constructionTime: number,
-  woodCost  = 0,
-  stoneCost = 0,
-  ironCost  = 0,
+  woodCost   = 0,
+  stoneCost  = 0,
+  ironCost   = 0,
+  copperCost = 0,
+  coalCost   = 0,
+  oilCost    = 0,
+  herbsCost  = 0,
+  furCost    = 0,
 ): Promise<StartConstructionResult> {
   const res = await fetch(`/api/cities/${cityId}/start-construction`, {
     method:  "POST",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-    body:    JSON.stringify({ building, goldCost, foodCost, woodCost, stoneCost, ironCost, constructionTime }),
+    body:    JSON.stringify({ building, goldCost, foodCost, woodCost, stoneCost, ironCost, copperCost, coalCost, oilCost, herbsCost, furCost, constructionTime }),
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));

@@ -13,6 +13,7 @@ import {
   clearProduction,
 } from "../cityService";
 import { createCollectHarvestAction, getActiveAction, msRemaining } from "../playerActionService";
+import { applyBuildingEffects } from "../buildingEffects";
 
 const router = Router();
 
@@ -79,6 +80,7 @@ router.post("/:cityId/buildings", requireAuth, async (req: AuthRequest, res) => 
     }
 
     await addBuilding(cityId, building);
+    await applyBuildingEffects(cityId, building);
     return res.status(201).json({ ok: true });
   } catch (err) {
     console.error("[POST /api/cities/:cityId/buildings] Erreur:", err);
@@ -190,25 +192,35 @@ router.get("/:cityId/harvest", requireAuth, async (req: AuthRequest, res) => {
     ]);
 
     const hasBank = buildingRows.some(b => b.building === 'bank');
-    const pending   = pendingRows[0]   ?? { gold: 0, food: 0, wood: 0, stone: 0, iron: 0 };
-    const inventory = inventoryRows[0] ?? { gold: 0, food: 0, wood: 0, stone: 0, iron: 0 };
+    const pending   = pendingRows[0]   ?? {};
+    const inventory = inventoryRows[0] ?? {};
 
     return res.json({
       cityId,
       hasBank,
       pending: {
-        gold:  pending.gold,
-        food:  pending.food,
-        wood:  pending.wood  ?? 0,
-        stone: pending.stone ?? 0,
-        iron:  pending.iron  ?? 0,
+        gold:   (pending as any).gold   ?? 0,
+        food:   (pending as any).food   ?? 0,
+        wood:   (pending as any).wood   ?? 0,
+        stone:  (pending as any).stone  ?? 0,
+        iron:   (pending as any).iron   ?? 0,
+        copper: (pending as any).copper ?? 0,
+        coal:   (pending as any).coal   ?? 0,
+        oil:    (pending as any).oil    ?? 0,
+        herbs:  (pending as any).herbs  ?? 0,
+        fur:    (pending as any).fur    ?? 0,
       },
       inventory: {
-        gold:  inventory.gold,
-        food:  inventory.food,
-        wood:  inventory.wood  ?? 0,
-        stone: inventory.stone ?? 0,
-        iron:  inventory.iron  ?? 0,
+        gold:   (inventory as any).gold   ?? 0,
+        food:   (inventory as any).food   ?? 0,
+        wood:   (inventory as any).wood   ?? 0,
+        stone:  (inventory as any).stone  ?? 0,
+        iron:   (inventory as any).iron   ?? 0,
+        copper: (inventory as any).copper ?? 0,
+        coal:   (inventory as any).coal   ?? 0,
+        oil:    (inventory as any).oil    ?? 0,
+        herbs:  (inventory as any).herbs  ?? 0,
+        fur:    (inventory as any).fur    ?? 0,
       },
     });
   } catch (err) {
@@ -241,16 +253,22 @@ router.post("/:cityId/collect-harvest", requireAuth, async (req: AuthRequest, re
       return res.status(400).json({ error: "Cette ville a une banque — la production est versée automatiquement" });
     }
 
-    // Lit le pending harvest (5 matériaux V1)
+    // Lit le pending harvest (10 matériaux Tier 1)
     const [pendingRow] = await db.select().from(cityPendingHarvest)
       .where(eq(cityPendingHarvest.cityId, cityId)).limit(1);
-    const pendingGold  = pendingRow?.gold  ?? 0;
-    const pendingFood  = pendingRow?.food  ?? 0;
-    const pendingWood  = pendingRow?.wood  ?? 0;
-    const pendingStone = pendingRow?.stone ?? 0;
-    const pendingIron  = pendingRow?.iron  ?? 0;
+    const pendingGold   = pendingRow?.gold   ?? 0;
+    const pendingFood   = pendingRow?.food   ?? 0;
+    const pendingWood   = pendingRow?.wood   ?? 0;
+    const pendingStone  = pendingRow?.stone  ?? 0;
+    const pendingIron   = pendingRow?.iron   ?? 0;
+    const pendingCopper = (pendingRow as any)?.copper ?? 0;
+    const pendingCoal   = (pendingRow as any)?.coal   ?? 0;
+    const pendingOil    = (pendingRow as any)?.oil    ?? 0;
+    const pendingHerbs  = (pendingRow as any)?.herbs  ?? 0;
+    const pendingFur    = (pendingRow as any)?.fur    ?? 0;
 
-    if (pendingGold === 0 && pendingFood === 0 && pendingWood === 0 && pendingStone === 0 && pendingIron === 0) {
+    if (pendingGold === 0 && pendingFood === 0 && pendingWood === 0 && pendingStone === 0 && pendingIron === 0
+        && pendingCopper === 0 && pendingCoal === 0 && pendingOil === 0 && pendingHerbs === 0 && pendingFur === 0) {
       return res.status(400).json({ error: "Aucune récolte en attente pour cette ville" });
     }
 
@@ -275,7 +293,8 @@ router.post("/:cityId/collect-harvest", requireAuth, async (req: AuthRequest, re
     const action = await createCollectHarvestAction(
       playerId, cityId, cityWorldX, cityWorldY,
       pendingGold, pendingFood, context,
-      pendingWood, pendingStone, pendingIron
+      pendingWood, pendingStone, pendingIron,
+      pendingCopper, pendingCoal, pendingOil, pendingHerbs, pendingFur,
     );
 
     return res.status(201).json({
@@ -286,11 +305,8 @@ router.post("/:cityId/collect-harvest", requireAuth, async (req: AuthRequest, re
         status:          action.status,
         msRemaining:     msRemaining(action),
         expectedEndTime: action.expectedEndTime,
-        pendingGold,
-        pendingFood,
-        pendingWood,
-        pendingStone,
-        pendingIron,
+        pendingGold, pendingFood, pendingWood, pendingStone, pendingIron,
+        pendingCopper, pendingCoal, pendingOil, pendingHerbs, pendingFur,
       },
     });
   } catch (err: any) {
@@ -333,6 +349,7 @@ router.post("/:cityId/start-construction", requireAuth, async (req: AuthRequest,
     if (isAdmin) {
       // Mode admin : construction instantanée, pas de vérification de stock
       await addBuilding(cityId, building);
+      await applyBuildingEffects(cityId, building);
       console.log(`[start-construction] Admin — instantané ${building} cityId=${cityId}`);
       return res.status(201).json({ ok: true, mode: 'instant', building });
     }

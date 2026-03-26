@@ -77,6 +77,11 @@ export interface PlayerBankDTO {
   wood:               number;
   stone:              number;
   iron:               number;
+  copper:             number;
+  coal:               number;
+  oil:                number;
+  herbs:              number;
+  fur:                number;
   lastProductionTurn: number;
   updatedAt:          string;
 }
@@ -93,11 +98,24 @@ export async function getPlayerBank(): Promise<PlayerBankDTO> {
 
 // ─── Harvest ville ───────────────────────────────────────────────────────────
 
+export interface T1Materials {
+  gold:   number;
+  food:   number;
+  wood:   number;
+  stone:  number;
+  iron:   number;
+  copper: number;
+  coal:   number;
+  oil:    number;
+  herbs:  number;
+  fur:    number;
+}
+
 export interface CityHarvestDTO {
   cityId:    number;
   hasBank:   boolean;
-  pending:   { gold: number; food: number; wood: number; stone: number; iron: number };
-  inventory: { gold: number; food: number; wood: number; stone: number; iron: number };
+  pending:   T1Materials;
+  inventory: T1Materials;
 }
 
 export async function getCityHarvest(cityId: number): Promise<CityHarvestDTO> {
@@ -132,6 +150,11 @@ export interface PlayerTransportDTO {
   wood:      number;
   stone:     number;
   iron:      number;
+  copper:    number;
+  coal:      number;
+  oil:       number;
+  herbs:     number;
+  fur:       number;
   updatedAt: string;
   maxUnits:  number;
   usedUnits: number;
@@ -165,11 +188,16 @@ export interface TransferResult {
 }
 
 export interface TransferMaterials {
-  gold?:  number;
-  food?:  number;
-  wood?:  number;
-  stone?: number;
-  iron?:  number;
+  gold?:   number;
+  food?:   number;
+  wood?:   number;
+  stone?:  number;
+  iron?:   number;
+  copper?: number;
+  coal?:   number;
+  oil?:    number;
+  herbs?:  number;
+  fur?:    number;
 }
 
 export async function postTransferBankToCity(
@@ -182,11 +210,16 @@ export async function postTransferBankToCity(
     headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
     body: JSON.stringify({
       cityId,
-      gold:  materials.gold  ?? 0,
-      food:  materials.food  ?? 0,
-      wood:  materials.wood  ?? 0,
-      stone: materials.stone ?? 0,
-      iron:  materials.iron  ?? 0,
+      gold:   materials.gold   ?? 0,
+      food:   materials.food   ?? 0,
+      wood:   materials.wood   ?? 0,
+      stone:  materials.stone  ?? 0,
+      iron:   materials.iron   ?? 0,
+      copper: materials.copper ?? 0,
+      coal:   materials.coal   ?? 0,
+      oil:    materials.oil    ?? 0,
+      herbs:  materials.herbs  ?? 0,
+      fur:    materials.fur    ?? 0,
       adminModeEnabled: adminModeEnabled ?? false,
     }),
   });
@@ -205,11 +238,16 @@ export async function postTransferBankToPlayer(
     method: "POST",
     headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
     body: JSON.stringify({
-      gold:  materials.gold  ?? 0,
-      food:  materials.food  ?? 0,
-      wood:  materials.wood  ?? 0,
-      stone: materials.stone ?? 0,
-      iron:  materials.iron  ?? 0,
+      gold:   materials.gold   ?? 0,
+      food:   materials.food   ?? 0,
+      wood:   materials.wood   ?? 0,
+      stone:  materials.stone  ?? 0,
+      iron:   materials.iron   ?? 0,
+      copper: materials.copper ?? 0,
+      coal:   materials.coal   ?? 0,
+      oil:    materials.oil    ?? 0,
+      herbs:  materials.herbs  ?? 0,
+      fur:    materials.fur    ?? 0,
       adminModeEnabled: adminModeEnabled ?? false,
     }),
   });
@@ -229,6 +267,11 @@ export interface CityInventoryDTO {
   wood:   number;
   stone:  number;
   iron:   number;
+  copper: number;
+  coal:   number;
+  oil:    number;
+  herbs:  number;
+  fur:    number;
 }
 
 export async function getCityInventory(cityId: number): Promise<CityInventoryDTO> {

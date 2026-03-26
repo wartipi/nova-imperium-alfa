@@ -1,0 +1,305 @@
+NOVA IMPERIUM — PHASE TEST : TIER 1 ENTIÈREMENT FONCTIONNEL
+RESSOURCES DE CASE + EXPLOITATION + LOGISTIQUE + CONSOMMATION
+
+Branche :
+NI-10.3
+
+Contexte technique :
+Jeu persistant Node/TS + React/TS + PostgreSQL
+Architecture serveur autoritaire
+Méthode obligatoire :
+Audit court → proposition minimale → implémentation ciblée → vérification
+Aucun refactor massif
+
+CONTEXTE VALIDÉ
+
+La logistique V1 actuelle existe déjà pour :
+- player_bank
+- player_transport
+- city_pending_harvest
+- city_inventory
+- transferts banque → ville
+- transferts banque → joueur
+- collecte physique
+- consommation de construction
+
+Mais cette base reste construite autour d’un modèle ancien :
+- une case = au plus une ressource
+- production serveur réelle encore limitée à goldPerTurn / foodPerTurn
+- gold encore traité comme ressource brute dans la génération actuelle
+
+Je veux maintenant que le TIER 1 fonctionne entièrement pour la phase de test.
+
+OBJECTIF DE LA PHASE
+
+Je veux un Tier 1 réellement jouable de bout en bout.
+
+Cela veut dire :
+
+1. une case peut contenir plusieurs ressources
+2. les ressources de case Tier 1 existent réellement dans la carte
+3. les bâtiments d’exploitation de base peuvent extraire ces ressources
+4. l’extraction alimente le pipeline logistique existant
+5. les matériaux Tier 1 sont stockables, transférables, collectables et consommables
+6. le client n’affiche plus un faux modèle mono-ressource si le serveur passe en multi-ressources
+7. gold ne fait plus partie des ressources brutes de case Tier 1
+
+IMPORTANT :
+Je ne veux pas seulement un cadrage.
+Je veux une implémentation testable du Tier 1 complet.
+
+RÈGLE DE DESIGN À VERROUILLER
+
+Le Tier 1 correspond aux ressources brutes de la carte et à leur exploitation de base.
+
+Le gold NE DOIT PAS être traité comme ressource brute native de case.
+
+Une case peut contenir 0 à plusieurs ressources.
+
+Les cavernes peuvent contenir plusieurs minerais et aussi de l’huile.
+
+TIER 1 À FAIRE FONCTIONNER EN TEST
+
+A. Ressources de case Tier 1
+Ce sont les ressources présentes sur les cases.
+
+Liste cible à valider et brancher :
+- wheat
+- cattle
+- fish
+- deer
+- herbs
+- fur
+- stone
+- iron
+- copper
+- coal
+- oil
+
+B. Matériaux logistiques Tier 1
+Ce sont les ressources que le joueur manipule réellement dans l’économie/logistique.
+
+Liste cible :
+- food
+- wood
+- stone
+- iron
+- copper
+- coal
+- oil
+- herbs
+- fur
+
+IMPORTANT :
+- wood reste Tier 1, mais vient de l’exploitation de terrain/forêt, pas d’un resourceType “wood”
+- gold sort du Tier 1 brut
+- crystals / mana / ancient_knowledge / sacred_stones / ancient_artifacts ne doivent pas entrer dans cette phase de test Tier 1
+
+OBJECTIF FONCTIONNEL EXACT
+
+Je veux qu’à la fin de la phase de test Tier 1 :
+
+1. la carte supporte plusieurs ressources par case
+2. le seed/génération détermine des ressources multiples de façon déterministe
+3. les API carte exposent ces ressources correctement
+4. le client lit correctement plusieurs ressources par case
+5. les bâtiments d’exploitation de base produisent réellement les matériaux Tier 1
+6. cette production entre dans :
+   - player_bank si banque
+   - city_pending_harvest sinon
+7. la collecte physique les transfère vers city_inventory
+8. les transferts ville / joueur / banque restent cohérents
+9. au moins un sous-ensemble de bâtiments de base peut consommer ces matériaux Tier 1 de façon canonique
+10. gold n’est plus généré comme ressource brute de case
+
+FICHIERS À AUDITER EN PRIORITÉ
+
+- server/seeds/mapSeed.ts
+- shared/schema.ts
+- server/economyService.ts
+- server/playerActionService.ts
+- server/routes/economy.ts
+- server/routes/cities.ts
+- client/src/lib/game/mapAdapter.ts
+- client/src/lib/stores/useMapState.tsx
+- client/src/components/game/ConstructionPanel.tsx
+- client/src/components/game/TreasuryPanel.tsx
+- tout fichier API carte / map
+- tout fichier définissant les coûts/productions de bâtiments
+
+POINT 1 — MODÈLE MULTI-RESSOURCES PAR CASE
+
+Le modèle actuel mono-ressource n’est plus suffisant.
+
+Je veux que tu mettes en place le plus petit modèle propre permettant :
+- 0 à N ressources par case
+- persistance propre
+- compatibilité avec l’architecture actuelle
+- génération déterministe
+
+Tu dois choisir la solution la plus stable pour le projet.
+Options possibles :
+- champ jsonb canonique dans map_tiles
+- nouvelle table liée aux tiles
+- autre solution simple
+
+Mais je veux un choix clair, minimal et stable.
+
+IMPORTANT :
+Pas d’abstraction générique inutile.
+Pas de refactor massif.
+
+POINT 2 — GÉNÉRATION / SEED
+
+Je veux que la génération de carte Tier 1 soit corrigée selon les nouvelles règles :
+
+- plus de gold comme brut natif de case
+- support multi-ressources
+- cavernes = pool multi-minerais + huile
+- cohérence terrain → ressources
+
+Je veux une génération déterministe simple et lisible.
+
+POINT 3 — MAPPING TIER 1
+
+Je veux que tu définisses clairement le mapping :
+
+resource(s) on tile
+→ bâtiment d’exploitation
+→ matériau logistique produit
+
+Exemples attendus de logique :
+- forest + sawmill → wood
+- forest + hunting_post + deer/fur → food / fur
+- fertile_land + farm + wheat/cattle → food
+- shallow_water + fishing_post + fish → food
+- hills / mountains / caves + mine / advanced_mine → stone / iron / copper / coal / oil selon les ressources présentes
+- herbs → herbalist_house ou exploitation simple selon ce qui existe déjà
+
+IMPORTANT :
+Je veux un mapping réel, cohérent avec le code et le design.
+Pas juste une liste théorique.
+
+POINT 4 — PIPELINE LOGISTIQUE COMPLET
+
+Le Tier 1 doit fonctionner de bout en bout dans le pipeline réel.
+
+Donc si de nouveaux matériaux logistiques Tier 1 sont retenus :
+- copper
+- coal
+- oil
+- herbs
+- fur
+
+ils doivent être ajoutés partout où nécessaire :
+- player_bank
+- player_transport
+- city_pending_harvest
+- city_inventory
+- API / DTO
+- collecte
+- transferts
+- affichage UI
+
+IMPORTANT :
+Je ne veux pas un Tier 1 “à moitié branché”.
+Pour la phase de test, le Tier 1 doit être complet.
+
+POINT 5 — CONSTRUCTION / CONSOMMATION
+
+Je ne demande pas de réécrire tout le catalogue de bâtiments avancés.
+
+Je veux le minimum propre suivant :
+- les bâtiments d’exploitation de base fonctionnent réellement avec le Tier 1
+- au moins les bâtiments de base pertinents affichent et consomment les matériaux Tier 1 réellement supportés
+- aucun matériau fantôme ne doit être affiché dans le flux test actif
+
+IMPORTANT :
+Ne pas essayer de rendre tout le jeu final d’un coup.
+Je veux un Tier 1 complet pour test, pas un système final complet des 4 tiers.
+
+POINT 6 — GOLD
+
+Je veux que gold soit explicitement sorti du Tier 1 brut.
+
+Cela signifie :
+- plus de génération directe gold comme ressource brute de case dans le Tier 1 test
+- gold peut rester dans le système économique existant s’il sert encore ailleurs
+- mais il ne doit plus être présenté comme ressource brute native de case
+
+IMPORTANT :
+Ne pas casser brutalement toute l’économie gold si elle existe déjà.
+Je veux juste la sortir du flux “brut de case Tier 1”.
+
+PLAN DE TRAVAIL ATTENDU
+
+ÉTAPE 1 — AUDIT COURT
+- confirmer le modèle mono-ressource actuel
+- confirmer les terrains et ressources actives
+- confirmer les bâtiments d’exploitation de base existants
+- confirmer où le pipeline logistique doit être étendu
+
+ÉTAPE 2 — MODÈLE MULTI-RESSOURCES
+- implémenter le support multi-ressources par case
+- garder compatibilité minimale avec le modèle existant si nécessaire
+
+ÉTAPE 3 — GÉNÉRATION TIER 1
+- corriger le seed / mapping des ressources
+- retirer gold du brut de case
+- activer les cavernes multi-minerais + huile
+
+ÉTAPE 4 — PIPELINE LOGISTIQUE TIER 1
+- étendre stockage / transport / collecte / transferts aux matériaux Tier 1 réels
+
+ÉTAPE 5 — EXPLOITATION DE BASE
+- brancher les bâtiments d’exploitation pour produire les bons matériaux Tier 1
+
+ÉTAPE 6 — UI / CLIENT
+- adapter mapAdapter / store / panneaux pour lire et afficher le multi-ressources
+- adapter Treasury / Construction si de nouveaux matériaux logistiques sont branchés
+
+ÉTAPE 7 — VÉRIFICATION
+Je veux vérifier au minimum :
+- une case peut contenir plusieurs ressources
+- les ressources sont visibles côté serveur et client
+- les cavernes peuvent réellement contenir plusieurs minerais + huile
+- gold n’est plus une ressource brute de case Tier 1
+- les bâtiments d’exploitation produisent réellement les matériaux Tier 1
+- ces matériaux entrent bien dans bank / pending / inventory / transport
+- la collecte et les transferts fonctionnent pour tous les matériaux Tier 1 retenus
+- TypeScript compile
+- pas de régression sur la logistique déjà stabilisée
+
+FORMAT DE RETOUR ATTENDU
+
+Je veux un rapport final structuré en 7 parties :
+
+1. Audit ultra-court du point de départ
+2. Choix technique retenu pour le multi-ressources
+3. Fichiers modifiés
+4. Résumé exact du patch
+5. Flux avant / après
+6. Points volontairement non traités
+7. Résultat de validation
+
+INTERDIT
+
+- refactor massif
+- implémentation des tiers 2, 3, 4
+- abstraction générique prématurée
+- réécriture complète de l’économie
+- complexité inutile
+
+PRIORITÉ ABSOLUE
+
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+BUT FINAL
+
+Obtenir un Tier 1 entièrement fonctionnel pour test :
+- ressources brutes cohérentes avec la carte
+- multi-ressources par case
+- exploitation de base réelle
+- pipeline logistique complet
+- consommation réelle
+- sans gold comme brut natif de case.

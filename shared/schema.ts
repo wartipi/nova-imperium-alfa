@@ -446,6 +446,15 @@ export const cities = pgTable("cities", {
   productionPerTurn: integer("production_per_turn").notNull().default(1),
   // Phase 9 : or par tour — dépend uniquement des bâtiments (v1), DEFAULT 0
   goldPerTurn:      integer("gold_per_turn").notNull().default(0),
+  // Tier 1 matériaux bruts par tour (alimentés par les bâtiments d'exploitation)
+  woodPerTurn:      integer("wood_per_turn").notNull().default(0),
+  stonePerTurn:     integer("stone_per_turn").notNull().default(0),
+  ironPerTurn:      integer("iron_per_turn").notNull().default(0),
+  copperPerTurn:    integer("copper_per_turn").notNull().default(0),
+  coalPerTurn:      integer("coal_per_turn").notNull().default(0),
+  oilPerTurn:       integer("oil_per_turn").notNull().default(0),
+  herbsPerTurn:     integer("herbs_per_turn").notNull().default(0),
+  furPerTurn:       integer("fur_per_turn").notNull().default(0),
 });
 
 export type CityRecord = typeof cities.$inferSelect;
@@ -540,6 +549,11 @@ export const playerBank = pgTable("player_bank", {
   wood:               integer("wood").notNull().default(0),
   stone:              integer("stone").notNull().default(0),
   iron:               integer("iron").notNull().default(0),
+  copper:             integer("copper").notNull().default(0),
+  coal:               integer("coal").notNull().default(0),
+  oil:                integer("oil").notNull().default(0),
+  herbs:              integer("herbs").notNull().default(0),
+  fur:                integer("fur").notNull().default(0),
   lastProductionTurn: integer("last_production_turn").notNull().default(0),
   updatedAt:          timestamp("updated_at").notNull().defaultNow(),
 });
@@ -556,6 +570,11 @@ export const cityPendingHarvest = pgTable("city_pending_harvest", {
   wood:      integer("wood").notNull().default(0),
   stone:     integer("stone").notNull().default(0),
   iron:      integer("iron").notNull().default(0),
+  copper:    integer("copper").notNull().default(0),
+  coal:      integer("coal").notNull().default(0),
+  oil:       integer("oil").notNull().default(0),
+  herbs:     integer("herbs").notNull().default(0),
+  fur:       integer("fur").notNull().default(0),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
@@ -571,6 +590,11 @@ export const cityInventory = pgTable("city_inventory", {
   wood:      integer("wood").notNull().default(0),
   stone:     integer("stone").notNull().default(0),
   iron:      integer("iron").notNull().default(0),
+  copper:    integer("copper").notNull().default(0),
+  coal:      integer("coal").notNull().default(0),
+  oil:       integer("oil").notNull().default(0),
+  herbs:     integer("herbs").notNull().default(0),
+  fur:       integer("fur").notNull().default(0),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
@@ -587,6 +611,11 @@ export const playerTransport = pgTable("player_transport", {
   wood:      integer("wood").notNull().default(0),
   stone:     integer("stone").notNull().default(0),
   iron:      integer("iron").notNull().default(0),
+  copper:    integer("copper").notNull().default(0),
+  coal:      integer("coal").notNull().default(0),
+  oil:       integer("oil").notNull().default(0),
+  herbs:     integer("herbs").notNull().default(0),
+  fur:       integer("fur").notNull().default(0),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 

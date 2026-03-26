@@ -22,7 +22,7 @@ export function ConstructionPanel() {
   const [selectedColony, setSelectedColony] = useState<string>('');
 
   // Inventaires de villes (stock local) : keyed by city.id (string du serveur)
-  const [cityInventories, setCityInventories] = useState<Record<string, { gold: number; food: number; wood: number; stone: number; iron: number }>>({});
+  const [cityInventories, setCityInventories] = useState<Record<string, { gold: number; food: number; wood: number; stone: number; iron: number; copper: number; coal: number; oil: number; herbs: number; fur: number }>>({});
   // Messages de construction : keyed par cityId
   const [buildMessages, setBuildMessages] = useState<Record<string, { type: 'error' | 'ok'; text: string } | null>>({});
 
@@ -34,14 +34,19 @@ export function ConstructionPanel() {
         return { id: c.id, inv };
       })
     );
-    const map: Record<string, { gold: number; food: number; wood: number; stone: number; iron: number }> = {};
+    const map: Record<string, { gold: number; food: number; wood: number; stone: number; iron: number; copper: number; coal: number; oil: number; herbs: number; fur: number }> = {};
     for (const r of entries) {
       if (r.status === 'fulfilled') map[r.value.id] = {
-        gold:  r.value.inv.gold,
-        food:  r.value.inv.food,
-        wood:  r.value.inv.wood  ?? 0,
-        stone: r.value.inv.stone ?? 0,
-        iron:  r.value.inv.iron  ?? 0,
+        gold:   r.value.inv.gold,
+        food:   r.value.inv.food,
+        wood:   r.value.inv.wood   ?? 0,
+        stone:  r.value.inv.stone  ?? 0,
+        iron:   r.value.inv.iron   ?? 0,
+        copper: r.value.inv.copper ?? 0,
+        coal:   r.value.inv.coal   ?? 0,
+        oil:    r.value.inv.oil    ?? 0,
+        herbs:  r.value.inv.herbs  ?? 0,
+        fur:    r.value.inv.fur    ?? 0,
       };
     }
     setCityInventories(map);
@@ -708,11 +713,16 @@ export function ConstructionPanel() {
     }
 
     // Extraire les coûts V1 depuis building.cost
-    const goldCost  = Number(building.cost['gold']  ?? 0);
-    const foodCost  = Number(building.cost['food']  ?? 0);
-    const woodCost  = Number(building.cost['wood']  ?? 0);
-    const stoneCost = Number(building.cost['stone'] ?? 0);
-    const ironCost  = Number(building.cost['iron']  ?? 0);
+    const goldCost   = Number(building.cost['gold']   ?? 0);
+    const foodCost   = Number(building.cost['food']   ?? 0);
+    const woodCost   = Number(building.cost['wood']   ?? 0);
+    const stoneCost  = Number(building.cost['stone']  ?? 0);
+    const ironCost   = Number(building.cost['iron']   ?? 0);
+    const copperCost = Number(building.cost['copper'] ?? 0);
+    const coalCost   = Number(building.cost['coal']   ?? 0);
+    const oilCost    = Number(building.cost['oil']    ?? 0);
+    const herbsCost  = Number(building.cost['herbs']  ?? 0);
+    const furCost    = Number(building.cost['fur']    ?? 0);
 
     try {
       const result = await apiStartConstruction(
@@ -724,6 +734,11 @@ export function ConstructionPanel() {
         woodCost,
         stoneCost,
         ironCost,
+        copperCost,
+        coalCost,
+        oilCost,
+        herbsCost,
+        furCost,
       );
 
       if (result.mode === 'instant') {
@@ -748,9 +763,11 @@ export function ConstructionPanel() {
         const miss = body.missing as Partial<Record<string, number>>;
         const labels: Record<string, string> = {
           gold: 'or', food: 'nourriture', wood: 'bois', stone: 'pierre', iron: 'fer',
+          copper: 'cuivre', coal: 'charbon', oil: 'pétrole', herbs: 'herbes', fur: 'fourrure',
         };
         const icons: Record<string, string> = {
           gold: '🪙', food: '🌿', wood: '🪵', stone: '🪨', iron: '⚙️',
+          copper: '🟤', coal: '🖤', oil: '🛢️', herbs: '🌱', fur: '🦊',
         };
         const parts = Object.entries(miss).filter(([, v]) => v! > 0).map(([k, v]) => `${v}${icons[k] ?? ''} ${labels[k] ?? k}`);
         const msg = `❌ ${parts.join(', ')} manquant${parts.length > 1 ? 's' : ''} — transférez depuis la banque`;
@@ -851,7 +868,7 @@ export function ConstructionPanel() {
         };
         
         // Matériaux V1 canoniques — exclure tout bâtiment qui coûte mana/crystals/ancient_knowledge
-        const V1_MATERIALS = new Set(['gold', 'food', 'wood', 'stone', 'iron', 'action_points']);
+        const V1_MATERIALS = new Set(['gold', 'food', 'wood', 'stone', 'iron', 'copper', 'coal', 'oil', 'herbs', 'fur', 'action_points']);
         const isV1Building = (b: typeof buildings[0]) =>
           Object.keys(b.cost).every(k => V1_MATERIALS.has(k));
 
@@ -874,16 +891,21 @@ export function ConstructionPanel() {
           {/* Inventaire local de la ville */}
           {(() => {
             const inv = cityInventories[city.id];
-            const isEmpty = inv && inv.gold === 0 && inv.food === 0 && inv.wood === 0 && inv.stone === 0 && inv.iron === 0;
+            const isEmpty = inv && [inv.gold, inv.food, inv.wood, inv.stone, inv.iron, inv.copper, inv.coal, inv.oil, inv.herbs, inv.fur].every(v => v === 0);
             return inv !== undefined ? (
               <div className="text-xs bg-amber-100 border border-amber-300 rounded px-2 py-1 mb-2">
                 <div className="flex flex-wrap gap-x-3 gap-y-0.5">
                   <span className="font-medium text-amber-800">📦 Stock ville :</span>
-                  <span className="text-amber-700">{inv.gold}🪙 or</span>
-                  <span className="text-amber-700">{inv.food}🌿 nourr.</span>
-                  <span className="text-amber-700">{inv.wood}🪵 bois</span>
-                  <span className="text-amber-700">{inv.stone}🪨 pierre</span>
-                  <span className="text-amber-700">{inv.iron}⚙️ fer</span>
+                  <span className="text-amber-700">{inv.gold}🪙</span>
+                  <span className="text-amber-700">{inv.food}🌿</span>
+                  <span className="text-amber-700">{inv.wood}🪵</span>
+                  <span className="text-amber-700">{inv.stone}🪨</span>
+                  <span className="text-amber-700">{inv.iron}⚙️</span>
+                  {inv.copper > 0 && <span className="text-amber-700">{inv.copper}🟤</span>}
+                  {inv.coal   > 0 && <span className="text-amber-700">{inv.coal}🖤</span>}
+                  {inv.oil    > 0 && <span className="text-amber-700">{inv.oil}🛢️</span>}
+                  {inv.herbs  > 0 && <span className="text-amber-700">{inv.herbs}🌱</span>}
+                  {inv.fur    > 0 && <span className="text-amber-700">{inv.fur}🦊</span>}
                 </div>
                 {isEmpty && <div className="text-amber-500 italic mt-0.5">Vide — transférez depuis la banque</div>}
               </div>

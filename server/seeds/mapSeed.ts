@@ -50,26 +50,75 @@ function hash(a: number, b: number, c: number, d: number): number {
 
 // ─── Table terrain → ressources possibles ────────────────────────────────────
 // Calquée sur MapGenerator.getSuitableResources() côté client
+// ─── RÈGLE DESIGN TIER 1 ────────────────────────────────────────────────────
+// - Gold n'est plus une ressource brute native de case (retiré de toutes les entrées)
+// - Les cavernes peuvent contenir plusieurs minerais + huile (multi-ressources)
+// - Une case peut avoir 0 à N ressources (metadata.resources = string[])
+// - resourceType = ressource primaire (backward-compat), null si aucune
 const TERRAIN_RESOURCES: Partial<Record<TerrainType | string, string[]>> = {
   forest:          ["deer", "fur", "herbs"],
-  mountains:       ["copper", "iron", "gold", "coal", "stone"],
+  mountains:       ["copper", "iron", "coal", "stone"],  // gold retiré
   fertile_land:    ["wheat", "cattle", "herbs"],
   hills:           ["stone", "copper", "iron"],
   swamp:           ["herbs", "oil"],
-  desert:          ["oil", "gold"],
+  desert:          ["oil"],                              // gold retiré
   sacred_plains:   ["sacred_stones", "herbs"],
-  caves:           ["iron", "copper", "crystals"],
-  ancient_ruins:   ["ancient_artifacts", "gold"],
+  caves:           ["iron", "copper", "crystals", "oil"], // oil ajouté
+  ancient_ruins:   ["ancient_artifacts"],                // gold retiré
   wasteland:       ["stone", "oil"],
   shallow_water:   ["fish"],
   deep_water:      ["fish"],
   enchanted_meadow:["crystals", "herbs", "sacred_stones"],
 };
 
-const RESOURCE_DENSITY = 0.25; // 25% des tuiles ont une ressource
+// Terrains multi-ressources : max de ressources distinctes par case
+const MULTI_RESOURCE_MAX: Partial<Record<string, number>> = {
+  caves:     3,
+  mountains: 2,
+};
 
-// ─── Génération déterministe de ressource ────────────────────────────────────
-// Utilise des seeds différents de pickTerrain pour éviter la corrélation
+const RESOURCE_DENSITY = 0.25; // 25% des tuiles ont au moins une ressource
+
+// ─── pickResources ────────────────────────────────────────────────────────────
+// Génération déterministe de 0 à N ressources par case.
+// Retourne [] si la tuile n'a pas de ressource.
+// Pour les terrains multi-ressources, peut retourner plusieurs éléments distincts.
+function pickResources(
+  worldX: number,
+  worldY: number,
+  segX: number,
+  segY: number,
+  terrain: TerrainType | string
+): string[] {
+  // Seed A : décide si la tuile a une ressource
+  const rPresence = seededRandom(hash(worldX + 7, worldY + 13, segX + 3, segY + 5));
+  if (rPresence > RESOURCE_DENSITY) return [];
+
+  const candidates = TERRAIN_RESOURCES[terrain];
+  if (!candidates || candidates.length === 0) return [];
+
+  const maxCount = MULTI_RESOURCE_MAX[terrain] ?? 1;
+
+  // Seed B : choisit la première ressource
+  const rChoice = seededRandom(hash(worldX + 11, worldY + 17, segX + 7, segY + 9));
+  const first = candidates[Math.floor(rChoice * candidates.length)];
+  const result = [first];
+
+  // Pour terrains multi-ressources : décide d'ajouter des ressources supplémentaires
+  for (let i = 1; i < maxCount; i++) {
+    const rExtra = seededRandom(hash(worldX + 23 + i, worldY + 31 + i, segX + 11, segY + 13));
+    if (rExtra > 0.55) break; // ~45% de chance d'avoir une ressource de plus
+
+    const rExtraChoice = seededRandom(hash(worldX + 37 + i, worldY + 41 + i, segX + 17, segY + 19));
+    const remaining = candidates.filter(c => !result.includes(c));
+    if (remaining.length === 0) break;
+    result.push(remaining[Math.floor(rExtraChoice * remaining.length)]);
+  }
+
+  return result;
+}
+
+// Wrapper backward-compat : retourne la ressource primaire (ou null)
 function pickResource(
   worldX: number,
   worldY: number,
@@ -77,16 +126,8 @@ function pickResource(
   segY: number,
   terrain: TerrainType | string
 ): string | null {
-  // Seed A : décide si la tuile a une ressource
-  const rPresence = seededRandom(hash(worldX + 7,  worldY + 13, segX + 3, segY + 5));
-  if (rPresence > RESOURCE_DENSITY) return null;
-
-  const candidates = TERRAIN_RESOURCES[terrain];
-  if (!candidates || candidates.length === 0) return null;
-
-  // Seed B : choisit laquelle parmi les candidates
-  const rChoice = seededRandom(hash(worldX + 11, worldY + 17, segX + 7, segY + 9));
-  return candidates[Math.floor(rChoice * candidates.length)];
+  const resources = pickResources(worldX, worldY, segX, segY, terrain);
+  return resources.length > 0 ? resources[0] : null;
 }
 
 // ─── Centres d'îles de l'archipel (déterministes, codés en dur) ─────────────
@@ -169,17 +210,23 @@ function generateTilesForSegment(
       const terrain = pickTerrain(worldX, worldY, segX, segY);
       const elevation = parseFloat((seededRandom(hash(worldX, worldY, segX + 2, segY + 2)) * 100).toFixed(1));
 
+      const resources = pickResources(worldX, worldY, segX, segY, terrain);
+      const primaryResource = resources.length > 0 ? resources[0] : null;
+      const metadataVal = resources.length > 1
+        ? { resources }
+        : (primaryResource ? { resources: [primaryResource] } : null);
+
       tiles.push({
         localX,
         localY,
         worldX,
         worldY,
         terrainType: terrain,
-        resourceType: pickResource(worldX, worldY, segX, segY, terrain),
+        resourceType: primaryResource,
         elevation,
         isWalkable: TERRAIN_WALKABLE[terrain],
         movementCost: TERRAIN_MOVEMENT_COST[terrain],
-        metadata: null,
+        metadata: metadataVal as any,
       });
     }
   }

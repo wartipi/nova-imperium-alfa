@@ -1,20 +1,19 @@
 /**
  * server/seeds/updateResources.ts
  *
- * Met à jour resource_type sur toutes les tuiles existantes
- * en utilisant la même logique déterministe que mapSeed.ts (pickResource).
+ * Met à jour resource_type ET metadata.resources sur toutes les tuiles existantes
+ * en utilisant la même logique déterministe que mapSeed.ts (pickResources).
  *
  * ─ Ne crée aucune tuile ni segment
- * ─ Ne touche à aucun autre champ
  * ─ Idempotent : relancer le script produit exactement les mêmes valeurs
- * ─ Optimisé : un seul UPDATE par lot de 500 tuiles (UPDATE … WHERE id = ANY(?))
+ * ─ Optimisé : un seul UPDATE par lot de 500 tuiles
+ * ─ Tier 1 : gold retiré des ressources brutes, oil ajouté aux cavernes
+ * ─ Multi-ressources : caves et mountains peuvent avoir plusieurs ressources
  */
 
 import { db } from "../db";
 import { mapTiles } from "../../shared/schema";
 import { sql } from "drizzle-orm";
-
-// ─── Fonctions déterministes (identiques à mapSeed.ts) ───────────────────────
 
 function seededRandom(seed: number): number {
   const x = Math.sin(seed + 1) * 10000;
@@ -27,18 +26,23 @@ function hash(a: number, b: number, c: number, d: number): number {
 
 const TERRAIN_RESOURCES: Record<string, string[]> = {
   forest:          ["deer", "fur", "herbs"],
-  mountains:       ["copper", "iron", "gold", "coal", "stone"],
+  mountains:       ["copper", "iron", "coal", "stone"],
   fertile_land:    ["wheat", "cattle", "herbs"],
   hills:           ["stone", "copper", "iron"],
   swamp:           ["herbs", "oil"],
-  desert:          ["oil", "gold"],
+  desert:          ["oil"],
   sacred_plains:   ["sacred_stones", "herbs"],
-  caves:           ["iron", "copper", "crystals"],
-  ancient_ruins:   ["ancient_artifacts", "gold"],
+  caves:           ["iron", "copper", "crystals", "oil"],
+  ancient_ruins:   ["ancient_artifacts"],
   wasteland:       ["stone", "oil"],
   shallow_water:   ["fish"],
   deep_water:      ["fish"],
   enchanted_meadow:["crystals", "herbs", "sacred_stones"],
+};
+
+const MULTI_RESOURCE_MAX: Record<string, number> = {
+  caves:     3,
+  mountains: 2,
 };
 
 const RESOURCE_DENSITY = 0.25;
@@ -52,62 +56,75 @@ function segmentCoordsFromWorld(worldX: number, worldY: number) {
   };
 }
 
-function pickResource(
+function pickResources(
   worldX: number,
   worldY: number,
   segX: number,
   segY: number,
   terrain: string
-): string | null {
-  const rPresence = seededRandom(hash(worldX + 7,  worldY + 13, segX + 3, segY + 5));
-  if (rPresence > RESOURCE_DENSITY) return null;
+): string[] {
+  const rPresence = seededRandom(hash(worldX + 7, worldY + 13, segX + 3, segY + 5));
+  if (rPresence > RESOURCE_DENSITY) return [];
 
   const candidates = TERRAIN_RESOURCES[terrain];
-  if (!candidates || candidates.length === 0) return null;
+  if (!candidates || candidates.length === 0) return [];
+
+  const maxCount = MULTI_RESOURCE_MAX[terrain] ?? 1;
 
   const rChoice = seededRandom(hash(worldX + 11, worldY + 17, segX + 7, segY + 9));
-  return candidates[Math.floor(rChoice * candidates.length)];
-}
+  const first = candidates[Math.floor(rChoice * candidates.length)];
+  const result = [first];
 
-// ─── Mise à jour groupée via UPDATE … CASE WHEN ──────────────────────────────
-// Envoie un seul UPDATE par lot pour minimiser les aller-retours réseau
+  for (let i = 1; i < maxCount; i++) {
+    const rExtra = seededRandom(hash(worldX + 23 + i, worldY + 31 + i, segX + 11, segY + 13));
+    if (rExtra > 0.55) break;
+
+    const rExtraChoice = seededRandom(hash(worldX + 37 + i, worldY + 41 + i, segX + 17, segY + 19));
+    const remaining = candidates.filter(c => !result.includes(c));
+    if (remaining.length === 0) break;
+    result.push(remaining[Math.floor(rExtraChoice * remaining.length)]);
+  }
+
+  return result;
+}
 
 const BATCH_SIZE = 500;
 
 async function updateBatch(
-  batch: Array<{ id: number; resource: string | null }>
+  batch: Array<{ id: number; resources: string[] }>
 ): Promise<void> {
   if (batch.length === 0) return;
 
-  // Construit : UPDATE map_tiles
-  //   SET resource_type = CASE id WHEN 1 THEN 'deer' WHEN 2 THEN null … END
-  //   WHERE id = ANY(ARRAY[1,2,...])
-  const caseExpression = batch
-    .map(({ id, resource }) =>
-      resource !== null
-        ? `WHEN ${id} THEN '${resource}'`
-        : `WHEN ${id} THEN NULL`
+  const ids = batch.map(({ id }) => id).join(",");
+
+  const primaryCase = batch
+    .map(({ id, resources }) =>
+      resources.length > 0 ? `WHEN ${id} THEN '${resources[0]}'` : `WHEN ${id} THEN NULL`
     )
     .join(" ");
 
-  const ids = batch.map(({ id }) => id).join(",");
+  const metaCase = batch
+    .map(({ id, resources }) => {
+      const json = JSON.stringify({ resources: resources.length > 0 ? resources : [] });
+      const escaped = json.replace(/'/g, "''");
+      return `WHEN ${id} THEN '${escaped}'::jsonb`;
+    })
+    .join(" ");
 
   await db.execute(
     sql.raw(
       `UPDATE map_tiles
-       SET resource_type = CASE id ${caseExpression} END,
-           updated_at = NOW()
+       SET resource_type = CASE id ${primaryCase} END,
+           metadata      = CASE id ${metaCase} END,
+           updated_at    = NOW()
        WHERE id IN (${ids})`
     )
   );
 }
 
-// ─── Script principal ─────────────────────────────────────────────────────────
-
 async function updateResources(): Promise<void> {
-  console.log("Démarrage de la mise à jour des ressources...");
+  console.log("Démarrage de la mise à jour des ressources (Tier 1 / multi-resource)...");
 
-  // 1. Lire toutes les tuiles (champs minimaux)
   const allTiles = await db
     .select({
       id:          mapTiles.id,
@@ -121,8 +138,8 @@ async function updateResources(): Promise<void> {
   const total = allTiles.length;
   console.log(`  Tuiles lues depuis la DB : ${total}`);
 
-  // 2. Calculer les ressources + préparer les lots
   let withResource = 0;
+  let withMulti = 0;
   let withoutResource = 0;
   let processed = 0;
 
@@ -131,9 +148,11 @@ async function updateResources(): Promise<void> {
 
     const batch = slice.map((tile) => {
       const { segX, segY } = segmentCoordsFromWorld(tile.worldX, tile.worldY);
-      const resource = pickResource(tile.worldX, tile.worldY, segX, segY, tile.terrainType);
-      if (resource) withResource++; else withoutResource++;
-      return { id: tile.id, resource };
+      const resources = pickResources(tile.worldX, tile.worldY, segX, segY, tile.terrainType);
+      if (resources.length > 1) withMulti++;
+      else if (resources.length === 1) withResource++;
+      else withoutResource++;
+      return { id: tile.id, resources };
     });
 
     await updateBatch(batch);
@@ -143,12 +162,12 @@ async function updateResources(): Promise<void> {
     console.log(`  Progression : ${processed}/${total} (${pct}%)`);
   }
 
-  // 3. Rapport final
   console.log("");
   console.log("=== Rapport de mise à jour ===");
-  console.log(`  Tuiles mises à jour : ${processed}`);
-  console.log(`  Avec ressource      : ${withResource} (${(withResource / total * 100).toFixed(1)}%)`);
-  console.log(`  Sans ressource      : ${withoutResource} (${(withoutResource / total * 100).toFixed(1)}%)`);
+  console.log(`  Tuiles mises à jour      : ${processed}`);
+  console.log(`  Multi-ressources         : ${withMulti}`);
+  console.log(`  Ressource unique         : ${withResource}`);
+  console.log(`  Sans ressource           : ${withoutResource}`);
 }
 
 updateResources()

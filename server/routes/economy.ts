@@ -145,7 +145,9 @@ router.post("/production-tick", requireAuth, async (req: AuthRequest, res) => {
 router.get("/player-transport", requireAuth, async (req: AuthRequest, res) => {
   try {
     const transport = await getOrInitPlayerTransport(req.user!.id);
-    const usedUnits = transport.gold + transport.food + transport.wood + transport.stone + transport.iron;
+    const usedUnits = transport.gold + transport.food + transport.wood + transport.stone + transport.iron
+                    + (transport.copper ?? 0) + (transport.coal ?? 0) + (transport.oil ?? 0)
+                    + (transport.herbs ?? 0) + (transport.fur ?? 0);
     return res.json({
       ...transport,
       maxUnits: TRANSPORT_MAX_UNITS,
@@ -165,17 +167,23 @@ router.get("/player-transport", requireAuth, async (req: AuthRequest, res) => {
 router.post("/transfer-bank-to-city", requireAuth, async (req: AuthRequest, res) => {
   try {
     const playerId = req.user!.id;
-    const { cityId, gold = 0, food = 0, wood = 0, stone = 0, iron = 0 } = req.body;
+    const {
+      cityId,
+      gold = 0, food = 0, wood = 0, stone = 0, iron = 0,
+      copper = 0, coal = 0, oil = 0, herbs = 0, fur = 0,
+    } = req.body;
 
     if (!Number.isInteger(cityId) || cityId < 1) {
       return res.status(400).json({ error: "cityId est requis (entier > 0)" });
     }
-    for (const [k, v] of [["gold", gold], ["food", food], ["wood", wood], ["stone", stone], ["iron", iron]]) {
+    const matList = [["gold",gold],["food",food],["wood",wood],["stone",stone],["iron",iron],
+                     ["copper",copper],["coal",coal],["oil",oil],["herbs",herbs],["fur",fur]];
+    for (const [k, v] of matList) {
       if (!Number.isInteger(v) || (v as number) < 0) {
         return res.status(400).json({ error: `${k} doit être un entier >= 0` });
       }
     }
-    if (gold === 0 && food === 0 && wood === 0 && stone === 0 && iron === 0) {
+    if (matList.every(([, v]) => (v as number) === 0)) {
       return res.status(400).json({ error: "Montant nul — spécifiez au moins un matériau" });
     }
 
@@ -192,7 +200,8 @@ router.post("/transfer-bank-to-city", requireAuth, async (req: AuthRequest, res)
     };
 
     const action = await createTransferBankToCityAction(
-      playerId, cityId, worldX, worldY, gold, food, context, wood, stone, iron
+      playerId, cityId, worldX, worldY, gold, food, context,
+      wood, stone, iron, copper, coal, oil, herbs, fur,
     );
 
     const ms = msRemaining(action);
@@ -205,7 +214,7 @@ router.post("/transfer-bank-to-city", requireAuth, async (req: AuthRequest, res)
         status:       action.status,
         msRemaining:  ms,
         minRemaining: min,
-        gold, food, wood, stone, iron,
+        gold, food, wood, stone, iron, copper, coal, oil, herbs, fur,
       },
     });
   } catch (err: any) {
@@ -225,14 +234,19 @@ router.post("/transfer-bank-to-city", requireAuth, async (req: AuthRequest, res)
 router.post("/transfer-bank-to-player", requireAuth, async (req: AuthRequest, res) => {
   try {
     const playerId = req.user!.id;
-    const { gold = 0, food = 0, wood = 0, stone = 0, iron = 0 } = req.body;
+    const {
+      gold = 0, food = 0, wood = 0, stone = 0, iron = 0,
+      copper = 0, coal = 0, oil = 0, herbs = 0, fur = 0,
+    } = req.body;
 
-    for (const [k, v] of [["gold", gold], ["food", food], ["wood", wood], ["stone", stone], ["iron", iron]]) {
+    const matList = [["gold",gold],["food",food],["wood",wood],["stone",stone],["iron",iron],
+                     ["copper",copper],["coal",coal],["oil",oil],["herbs",herbs],["fur",fur]];
+    for (const [k, v] of matList) {
       if (!Number.isInteger(v) || (v as number) < 0) {
         return res.status(400).json({ error: `${k} doit être un entier >= 0` });
       }
     }
-    if (gold === 0 && food === 0 && wood === 0 && stone === 0 && iron === 0) {
+    if (matList.every(([, v]) => (v as number) === 0)) {
       return res.status(400).json({ error: "Montant nul — spécifiez au moins un matériau" });
     }
 
@@ -241,7 +255,10 @@ router.post("/transfer-bank-to-player", requireAuth, async (req: AuthRequest, re
       adminModeEnabled: req.body.adminModeEnabled === true,
     };
 
-    const action = await createTransferBankToPlayerAction(playerId, gold, food, context, wood, stone, iron);
+    const action = await createTransferBankToPlayerAction(
+      playerId, gold, food, context,
+      wood, stone, iron, copper, coal, oil, herbs, fur,
+    );
 
     const ms = msRemaining(action);
     const min = Math.ceil(ms / 60000);
@@ -253,7 +270,7 @@ router.post("/transfer-bank-to-player", requireAuth, async (req: AuthRequest, re
         status:       action.status,
         msRemaining:  ms,
         minRemaining: min,
-        gold, food, wood, stone, iron,
+        gold, food, wood, stone, iron, copper, coal, oil, herbs, fur,
       },
     });
   } catch (err: any) {

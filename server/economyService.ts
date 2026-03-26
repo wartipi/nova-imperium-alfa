@@ -234,6 +234,11 @@ export interface PlayerBankDTO {
   wood:               number;
   stone:              number;
   iron:               number;
+  copper:             number;
+  coal:               number;
+  oil:                number;
+  herbs:              number;
+  fur:                number;
   lastProductionTurn: number;
   updatedAt:          string;
 }
@@ -255,32 +260,27 @@ export interface ProductionTickResult {
 // Lit ou initialise la banque du joueur. Retourne toujours un état valide.
 export async function getOrInitPlayerBank(playerId: string): Promise<PlayerBankDTO> {
   const rows = await db.select().from(playerBank).where(eq(playerBank.playerId, playerId)).limit(1);
-  if (rows.length > 0) {
-    const r = rows[0];
+  function rowToDTO(r: typeof playerBank.$inferSelect): PlayerBankDTO {
     return {
       gold: r.gold, food: r.food,
       wood: r.wood ?? 0, stone: r.stone ?? 0, iron: r.iron ?? 0,
+      copper: r.copper ?? 0, coal: r.coal ?? 0, oil: r.oil ?? 0,
+      herbs: r.herbs ?? 0, fur: r.fur ?? 0,
       lastProductionTurn: r.lastProductionTurn, updatedAt: r.updatedAt.toISOString(),
     };
   }
+  if (rows.length > 0) return rowToDTO(rows[0]);
   const [ins] = await db
     .insert(playerBank)
-    .values({ playerId, gold: 0, food: 0, wood: 0, stone: 0, iron: 0, lastProductionTurn: 0 })
+    .values({ playerId, gold: 0, food: 0, wood: 0, stone: 0, iron: 0,
+              copper: 0, coal: 0, oil: 0, herbs: 0, fur: 0, lastProductionTurn: 0 })
     .onConflictDoNothing()
     .returning();
   if (!ins) {
     const [r] = await db.select().from(playerBank).where(eq(playerBank.playerId, playerId)).limit(1);
-    return {
-      gold: r.gold, food: r.food,
-      wood: r.wood ?? 0, stone: r.stone ?? 0, iron: r.iron ?? 0,
-      lastProductionTurn: r.lastProductionTurn, updatedAt: r.updatedAt.toISOString(),
-    };
+    return rowToDTO(r);
   }
-  return {
-    gold: ins.gold, food: ins.food,
-    wood: ins.wood ?? 0, stone: ins.stone ?? 0, iron: ins.iron ?? 0,
-    lastProductionTurn: ins.lastProductionTurn, updatedAt: ins.updatedAt.toISOString(),
-  };
+  return rowToDTO(ins);
 }
 
 // ─── applyProductionTickPerCity ───────────────────────────────────────────────
@@ -306,10 +306,18 @@ export async function applyProductionTickPerCity(
   // Toutes les villes de la faction, avec leurs bâtiments et valeurs économiques.
   const cityRows = await db
     .select({
-      cityId:       cities.id,
-      name:         cities.name,
-      goldPerTurn:  cities.goldPerTurn,
-      foodPerTurn:  cities.foodPerTurn,
+      cityId:        cities.id,
+      name:          cities.name,
+      goldPerTurn:   cities.goldPerTurn,
+      foodPerTurn:   cities.foodPerTurn,
+      woodPerTurn:   cities.woodPerTurn,
+      stonePerTurn:  cities.stonePerTurn,
+      ironPerTurn:   cities.ironPerTurn,
+      copperPerTurn: cities.copperPerTurn,
+      coalPerTurn:   cities.coalPerTurn,
+      oilPerTurn:    cities.oilPerTurn,
+      herbsPerTurn:  cities.herbsPerTurn,
+      furPerTurn:    cities.furPerTurn,
     })
     .from(cities)
     .innerJoin(colonies, eq(cities.colonyId, colonies.id))
@@ -330,31 +338,71 @@ export async function applyProductionTickPerCity(
   }
 
   const results: ProductionTickResult['cities'] = [];
-  let bankGoldDelta = 0;
-  let bankFoodDelta = 0;
+  // Accumulateurs banque pour toutes les villes-avec-banque de la faction
+  let bankGoldDelta   = 0;
+  let bankFoodDelta   = 0;
+  let bankWoodDelta   = 0;
+  let bankStoneDelta  = 0;
+  let bankIronDelta   = 0;
+  let bankCopperDelta = 0;
+  let bankCoalDelta   = 0;
+  let bankOilDelta    = 0;
+  let bankHerbsDelta  = 0;
+  let bankFurDelta    = 0;
   const now = new Date();
 
   for (const city of cityRows) {
-    const g = Number(city.goldPerTurn ?? 0);
-    const f = Number(city.foodPerTurn ?? 0);
-    if (g === 0 && f === 0) continue;
+    const g      = Number(city.goldPerTurn   ?? 0);
+    const f      = Number(city.foodPerTurn   ?? 0);
+    const w      = Number(city.woodPerTurn   ?? 0);
+    const s      = Number(city.stonePerTurn  ?? 0);
+    const ir     = Number(city.ironPerTurn   ?? 0);
+    const cu     = Number(city.copperPerTurn ?? 0);
+    const co     = Number(city.coalPerTurn   ?? 0);
+    const oil    = Number(city.oilPerTurn    ?? 0);
+    const herbs  = Number(city.herbsPerTurn  ?? 0);
+    const fur    = Number(city.furPerTurn    ?? 0);
+
+    if (g === 0 && f === 0 && w === 0 && s === 0 && ir === 0
+        && cu === 0 && co === 0 && oil === 0 && herbs === 0 && fur === 0) continue;
 
     const hasBank = cityHasBank.get(city.cityId) === true;
 
     if (hasBank) {
-      bankGoldDelta += g;
-      bankFoodDelta += f;
+      bankGoldDelta   += g;
+      bankFoodDelta   += f;
+      bankWoodDelta   += w;
+      bankStoneDelta  += s;
+      bankIronDelta   += ir;
+      bankCopperDelta += cu;
+      bankCoalDelta   += co;
+      bankOilDelta    += oil;
+      bankHerbsDelta  += herbs;
+      bankFurDelta    += fur;
       results.push({ cityId: city.cityId, name: city.name, gold: g, food: f, destination: 'bank' });
     } else {
-      // Accumulation dans pending_harvest (UPSERT).
+      // Accumulation dans pending_harvest (UPSERT) — 10 matériaux Tier 1.
       await db
         .insert(cityPendingHarvest)
-        .values({ cityId: city.cityId, gold: g, food: f, updatedAt: now })
+        .values({
+          cityId: city.cityId,
+          gold: g, food: f, wood: w, stone: s, iron: ir,
+          copper: cu, coal: co, oil, herbs, fur,
+          updatedAt: now,
+        })
         .onConflictDoUpdate({
           target: cityPendingHarvest.cityId,
           set: {
-            gold:      sql`${cityPendingHarvest.gold} + ${g}`,
-            food:      sql`${cityPendingHarvest.food} + ${f}`,
+            gold:      sql`${cityPendingHarvest.gold}   + ${g}`,
+            food:      sql`${cityPendingHarvest.food}   + ${f}`,
+            wood:      sql`${cityPendingHarvest.wood}   + ${w}`,
+            stone:     sql`${cityPendingHarvest.stone}  + ${s}`,
+            iron:      sql`${cityPendingHarvest.iron}   + ${ir}`,
+            copper:    sql`${cityPendingHarvest.copper} + ${cu}`,
+            coal:      sql`${cityPendingHarvest.coal}   + ${co}`,
+            oil:       sql`${cityPendingHarvest.oil}    + ${oil}`,
+            herbs:     sql`${cityPendingHarvest.herbs}  + ${herbs}`,
+            fur:       sql`${cityPendingHarvest.fur}    + ${fur}`,
             updatedAt: now,
           },
         });
@@ -365,20 +413,37 @@ export async function applyProductionTickPerCity(
   // Crédit banque joueur groupé + mise à jour garde de tour.
   await db
     .insert(playerBank)
-    .values({ playerId, gold: bankGoldDelta, food: bankFoodDelta, lastProductionTurn: currentTurn, updatedAt: now })
+    .values({
+      playerId,
+      gold: bankGoldDelta, food: bankFoodDelta, wood: bankWoodDelta,
+      stone: bankStoneDelta, iron: bankIronDelta, copper: bankCopperDelta,
+      coal: bankCoalDelta, oil: bankOilDelta, herbs: bankHerbsDelta,
+      fur: bankFurDelta, lastProductionTurn: currentTurn, updatedAt: now,
+    })
     .onConflictDoUpdate({
       target: playerBank.playerId,
       set: {
-        gold:               sql`${playerBank.gold} + ${bankGoldDelta}`,
-        food:               sql`${playerBank.food} + ${bankFoodDelta}`,
+        gold:               sql`${playerBank.gold}   + ${bankGoldDelta}`,
+        food:               sql`${playerBank.food}   + ${bankFoodDelta}`,
+        wood:               sql`${playerBank.wood}   + ${bankWoodDelta}`,
+        stone:              sql`${playerBank.stone}  + ${bankStoneDelta}`,
+        iron:               sql`${playerBank.iron}   + ${bankIronDelta}`,
+        copper:             sql`${playerBank.copper} + ${bankCopperDelta}`,
+        coal:               sql`${playerBank.coal}   + ${bankCoalDelta}`,
+        oil:                sql`${playerBank.oil}    + ${bankOilDelta}`,
+        herbs:              sql`${playerBank.herbs}  + ${bankHerbsDelta}`,
+        fur:                sql`${playerBank.fur}    + ${bankFurDelta}`,
         lastProductionTurn: currentTurn,
         updatedAt:          now,
       },
     });
 
+  const matLog = `+${bankGoldDelta}g+${bankFoodDelta}f+${bankWoodDelta}w+${bankStoneDelta}s`
+               + `+${bankIronDelta}ir+${bankCopperDelta}cu+${bankCoalDelta}co`
+               + `+${bankOilDelta}oil+${bankHerbsDelta}herbs+${bankFurDelta}fur`;
   console.log(
     `[productionTick] player=${playerId} faction=${factionId} tour=${currentTurn}` +
-    ` villes=${cityRows.length} bank+${bankGoldDelta}g+${bankFoodDelta}f` +
+    ` villes=${cityRows.length} bank${matLog}` +
     ` pending=${results.filter(r => r.destination === 'pending').length} villes`
   );
 
