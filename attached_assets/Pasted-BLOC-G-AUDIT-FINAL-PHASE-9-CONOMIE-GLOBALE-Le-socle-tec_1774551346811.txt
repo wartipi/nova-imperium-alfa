@@ -1,0 +1,93 @@
+BLOC G — AUDIT FINAL PHASE 9 : ÉCONOMIE GLOBALE
+
+Le socle technique avant phase 9 est maintenant considéré comme suffisamment consolidé.
+
+Tu dois maintenant ouvrir l’audit final de la Phase 9.
+
+IMPORTANT
+Tu ne dois PAS coder.
+Tu ne dois PAS implémenter la phase 9.
+Tu ne dois PAS refactorer.
+Tu dois uniquement auditer, cadrer et proposer le plus petit chemin cohérent.
+
+CONTEXTE VALIDÉ
+- serveur autoritaire
+- territoires, colonies, villes, bâtiments, production, traités et présence multijoueur consolidés
+- économie locale déjà serveur dans `cities` via `foodPerTurn` et `productionPerTurn`
+- source de vérité = serveur
+- simplicité maximale
+- pas de WebSocket
+- pas de refactor massif
+- pas de systèmes non utilisés
+
+OBJECTIF DE LA PHASE 9
+Ajouter une économie globale minimale et cohérente, servant de base à :
+- ressources persistées
+- revenus agrégés depuis les villes
+- consommation
+- futurs coûts d’unités / achats / entretien
+
+MISSION
+Tu dois produire un audit final strict de la phase 9 avec les sections suivantes :
+
+SECTION 1 — Modèle de données minimal
+Réponds :
+- quel est le plus petit modèle DB cohérent ?
+- niveau de stockage recommandé : faction, ville ou autre ?
+- quelles ressources doivent exister maintenant ?
+- lesquelles doivent rester hors scope ?
+
+SECTION 2 — Dépendances avec l’existant
+Explique comment la phase 9 doit s’articuler avec :
+- `cities`
+- `city_buildings`
+- `city_production`
+- `territories`
+- `factions`
+- stores client actuels
+
+SECTION 3 — Flux serveur recommandé
+Décris le flux exact le plus simple :
+- calcul local existant
+- agrégation globale
+- stockage
+- lecture API
+- consommation
+- dépenses futures
+
+SECTION 4 — Stratégie de calcul
+Tu dois distinguer clairement :
+- recalcul d’état
+- application aux stocks
+- lecture simple côté client
+- points de déclenchement
+
+SECTION 5 — Pièges techniques
+Liste précisément les pièges à éviter, notamment :
+- double source de vérité
+- confusion stock / revenu
+- mélange économie locale / globale
+- suringénierie
+- tick non idempotent
+- modèles trop larges trop tôt
+
+SECTION 6 — Plus petit chemin cohérent
+Donne un ordre d’implémentation minimal, bloc par bloc, sans refactor massif.
+
+SECTION 7 — Décision de périmètre
+Tu dois trancher explicitement :
+- faut-il intégrer l’or maintenant ?
+- faut-il intégrer seulement la nourriture ?
+- faut-il globaliser la production ?
+- faut-il introduire une table dédiée ou étendre `factions` ?
+
+RÈGLE DE SORTIE
+Je veux un audit structuré, précis, tranché, sans code.
+
+CONCLUSION OBLIGATOIRE
+Tu dois terminer par :
+- modèle recommandé
+- chemin minimal recommandé
+- ce qu’il ne faut surtout pas faire dans la phase 9
+
+Arrête-toi après cet audit.
