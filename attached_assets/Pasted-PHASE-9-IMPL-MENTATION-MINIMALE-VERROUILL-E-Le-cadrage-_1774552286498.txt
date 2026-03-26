@@ -1,0 +1,153 @@
+PHASE 9 — IMPLÉMENTATION MINIMALE VERROUILLÉE
+
+Le cadrage Phase 9 est maintenant validé.
+Tu peux commencer l’implémentation, mais uniquement selon le chemin minimal déjà verrouillé.
+
+RÈGLES ABSOLUES
+- aucun refactor massif
+- aucun changement d’architecture
+- aucune nouvelle mécanique hors périmètre
+- aucune ressource supplémentaire au-delà de gold + food
+- ne pas globaliser production_per_turn
+- ne pas ajouter de colonnes économiques dans factions
+- ne pas garder un calcul économique client en parallèle du calcul serveur
+- pas de WebSocket
+- pas de cron
+- pas de tick temps réel automatique
+
+OBJECTIF
+Implémenter une économie globale minimale de faction, cohérente avec l’existant.
+
+PÉRIMÈTRE VERROUILLÉ
+1. Nouvelle table `faction_economy`
+   - `faction_id`
+   - `gold`
+   - `food`
+   - `last_processed_turn`
+   - `updated_at`
+
+2. Extension de `cities`
+   - ajouter `gold_per_turn`
+
+3. Calcul ville
+   - étendre `BUILDING_YIELDS`
+   - intégrer `gold_per_turn` dans `recalculateCityEconomy()`
+   - en v1, `gold_per_turn` dépend uniquement des bâtiments
+   - ne pas dépendre de la population
+
+4. Service d’agrégation
+   - `aggregateFactionIncome(factionId)`
+   - somme `food_per_turn` + `gold_per_turn` sur les villes de la faction
+
+5. Tick économique
+   - `POST /api/economy/tick`
+   - reçoit `currentTurn` dans le body
+   - garde d’idempotence via `last_processed_turn`
+   - applique revenus et dépenses
+   - met à jour `faction_economy`
+
+6. Lecture API
+   - `GET /api/economy/me`
+   - retourne les stocks + revenus agrégés utiles à l’affichage
+
+7. Client
+   - `TreasuryPanel` devient lecture pure depuis l’API
+   - supprimer l’accumulateur économique local pertinent dans `useNovaImperium.processTurn()`
+   - ne plus calculer les revenus localement dans le panneau
+
+ORDRE D’IMPLÉMENTATION OBLIGATOIRE
+
+ÉTAPE 1 — Audit ciblé avant modification
+Relis uniquement les fichiers nécessaires et annonce :
+- fichiers à modifier
+- impact attendu
+- invariants à préserver
+
+Puis arrête-toi.
+
+ÉTAPE 2 — DB + schéma
+Implémente :
+- table `faction_economy`
+- colonne `gold_per_turn` dans `cities`
+- valeurs par défaut cohérentes
+- initialisation minimale pour les factions existantes si nécessaire
+
+Puis donne :
+- fichiers modifiés
+- schéma exact
+- ce qui a été ajouté
+
+Puis arrête-toi.
+
+ÉTAPE 3 — Calcul économique ville
+Implémente :
+- extension `BUILDING_YIELDS`
+- `recalculateCityEconomy()` avec `gold_per_turn`
+- extension du DTO ville si nécessaire
+
+Puis donne :
+- fichiers modifiés
+- logique exacte de calcul
+- déclencheurs conservés
+
+Puis arrête-toi.
+
+ÉTAPE 4 — Service économie faction
+Implémente :
+- `aggregateFactionIncome(factionId)`
+- lecture de `faction_economy`
+- calcul des revenus agrégés
+
+Puis donne :
+- fichiers modifiés
+- responsabilités exactes du service
+
+Puis arrête-toi.
+
+ÉTAPE 5 — Routes API économie
+Implémente :
+- `GET /api/economy/me`
+- `POST /api/economy/tick`
+- contrôle d’accès cohérent avec la faction du joueur
+- garde `last_processed_turn`
+
+Puis donne :
+- fichiers modifiés
+- shape exact des réponses JSON
+- logique d’idempotence retenue
+
+Puis arrête-toi.
+
+ÉTAPE 6 — Client minimal
+Implémente :
+- lecture API dans le panneau concerné
+- suppression du calcul local parallèle
+- suppression de l’accumulateur local économique pertinent si dans le périmètre direct
+
+Puis donne :
+- fichiers modifiés
+- ce qui a été supprimé
+- ce qui est désormais lu depuis le serveur
+
+Puis arrête-toi.
+
+ÉTAPE 7 — Vérification
+Fais une checklist explicite :
+- stocks persistés
+- revenus agrégés
+- tick appliqué une seule fois par tour
+- refresh client correct
+- reload sans perte
+- aucune double source de vérité visible
+
+Puis donne :
+- OK
+- Incertain
+- Échec
+
+IMPORTANT
+À chaque étape :
+- ne fais que le bloc demandé
+- ne déborde pas sur l’étape suivante
+- si un point devient plus gros que prévu, arrête-toi et signale-le
+- pas de rapport théorique : je veux uniquement ce qui a réellement été modifié et vérifié
