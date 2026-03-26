@@ -378,6 +378,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Endpoints pour les objets uniques
+
+  // Route auth — inventaire du joueur connecté (DOIT être avant /:playerId)
+  app.get("/api/unique-items/me", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const inventory = exchangeService.getPlayerInventory(req.user!.id);
+      res.json(inventory);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get player inventory" });
+    }
+  });
+
   app.get("/api/unique-items/:playerId", async (req, res) => {
     try {
       const { playerId } = req.params;

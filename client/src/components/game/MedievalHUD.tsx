@@ -28,7 +28,6 @@ import { UnifiedTerritoryPanel } from "./UnifiedTerritoryPanel";
 import { ReputationManagementPanel } from "./ReputationManagementPanel";
 import { useFactions } from "../../lib/stores/useFactions";
 
-import { PlayerInventory } from "./PlayerInventory";
 import { PublicMarketplace } from "./PublicMarketplace";
 import { useAuth } from "../../lib/auth/AuthContext";
 import { LevelUpNotification, useLevelUpNotification } from "./LevelUpNotification";
@@ -479,8 +478,7 @@ export function MedievalHUD() {
                 </div>
               </div>
               
-              {/* Inventaire d'objets uniques */}
-              <PlayerInventory playerId="player" />
+              {/* Inventaire accessible via TRÉSORERIE */}
 
 
 

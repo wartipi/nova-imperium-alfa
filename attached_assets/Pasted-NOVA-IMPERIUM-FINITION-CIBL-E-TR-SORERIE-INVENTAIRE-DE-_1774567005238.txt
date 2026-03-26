@@ -1,0 +1,214 @@
+NOVA IMPERIUM — FINITION CIBLÉE TRÉSORERIE / INVENTAIRE DE TRANSPORT
+
+Branche :
+NI-10.3
+
+Contexte :
+Jeu persistant Node/TS + React/TS + PostgreSQL
+Architecture serveur autoritaire
+Méthode : audit court → correctifs ciblés → vérification
+Aucun refactor massif
+
+ÉTAT ACTUEL — CONSTATS VALIDÉS
+
+Le gros du regroupement UI est maintenant en place :
+- TreasuryPanel regroupe bien la banque joueur, les villes, pending harvest, inventaire de ville et bâtiments au survol
+- l’onglet Harvest séparé a bien été retiré du menu
+- le survol des bâtiments est bien présent
+
+Mais il reste 4 écarts à corriger pour verrouiller proprement la phase :
+
+1. TreasuryPanel charge encore les objets uniques via /api/unique-items/player
+   → ce n’est pas acceptable comme source canonique si l’utilisateur réel n’est pas littéralement "player"
+
+2. PlayerInventory est encore affiché dans la barre latérale du HUD
+   → cela maintient une dispersion inutile
+
+3. L’inventaire de transport dans TreasuryPanel reste purement visuel
+   → 1 objet = 1 slot implicite
+   → aucune vraie notion de coût en emplacements
+
+4. TreasuryPanel continue de mettre fortement en avant l’économie de faction
+   → alors que la logique locale banque joueur / ville / transport devient centrale
+
+OBJECTIF DE CE PATCH
+
+Finir proprement l’intégration Trésorerie sans refondre le système.
+
+Je veux :
+- un chargement d’inventaire joueur basé sur l’utilisateur réel
+- la suppression de la duplication évidente dans la barre latérale
+- une première vraie notion de coût en emplacements pour l’inventaire de transport
+- un recentrage visuel de TreasuryPanel sur la logistique réelle
+
+IMPORTANT
+
+On reste sur une finition ciblée.
+Pas de gros redesign.
+Pas de refactor backend massif.
+Pas de nouveau système économique complet.
+Le but est de verrouiller proprement la direction actuelle.
+
+RÈGLES MÉTIER À RESPECTER
+
+1. L’inventaire du joueur est un inventaire de transport
+2. Capacité de base : 5 emplacements
+3. Certains objets ou matériaux peuvent prendre plus d’un emplacement
+4. L’UI ne doit plus laisser croire que “1 objet = forcément 1 slot”
+5. Si le backend complet de slot-cost n’existe pas encore, ajouter le minimum propre pour le supporter
+6. La Trésorerie doit refléter le modèle logistique réel, pas un ancien stock global abstrait
+
+PÉRIMÈTRE EXACT
+
+A. Corriger la source de vérité de l’inventaire joueur
+B. Retirer la duplication visuelle de PlayerInventory dans le HUD latéral
+C. Ajouter une notion minimale de slot cost / slot usage
+D. Rééquilibrer TreasuryPanel pour que la logique locale soit la priorité visuelle
+
+FICHIERS À AUDITER EN PRIORITÉ
+
+- client/src/components/game/TreasuryPanel.tsx
+- client/src/components/game/MedievalHUD.tsx
+- client/src/components/game/PlayerInventory.tsx
+- client/src/lib/api/economyApi.ts
+- server/routes.ts
+- server/exchangeService.ts
+- toute route / endpoint liée aux unique-items
+- shared/schema.ts si un petit champ minimal doit être ajouté
+
+POINT 1 — INVENTAIRE JOUEUR : UTILISATEUR RÉEL
+
+Je veux que TreasuryPanel charge l’inventaire du joueur connecté, pas une valeur codée en dur.
+
+À faire :
+- identifier la vraie route actuelle des unique-items
+- si nécessaire, utiliser currentUser réel
+- si possible, éviter les strings hardcodées comme "player"
+- TreasuryPanel doit afficher l’inventaire du vrai joueur authentifié
+
+IMPORTANT :
+Pas de solution magique implicite.
+Je veux un branchement explicite et propre sur l’identité réelle.
+
+POINT 2 — SUPPRIMER LA DUPLICATION DANS LE HUD
+
+Dans MedievalHUD :
+- retirer PlayerInventory de la barre latérale joueur si TreasuryPanel affiche déjà cette information
+- l’objectif est de réduire la dispersion
+- TreasuryPanel devient la vue économique/logistique de référence
+
+IMPORTANT :
+Ne pas casser d’autres usages si PlayerInventory est réutilisé ailleurs.
+Supprimer seulement l’affichage redondant évident.
+
+POINT 3 — AJOUTER UNE NOTION MINIMALE DE SLOT COST
+
+Je veux une première version propre de l’occupation des emplacements.
+
+Minimum attendu :
+- chaque item affiché dans TreasuryPanel doit avoir un coût d’emplacement
+- le panneau doit afficher :
+  - capacité max = 5
+  - emplacements utilisés
+  - emplacements restants
+
+Si aucun champ n’existe encore pour les objets uniques :
+- ajouter le plus petit mécanisme propre possible
+- par exemple un helper local ou une règle serveur minimale déterministe
+- rester simple
+
+Exemples acceptables pour une V1 :
+- carte = 1 slot
+- document = 1 slot
+- artefact = 2 slots
+- relique = 2 slots
+- équipement légendaire = 2 slots
+- objet magique = 1 ou 2 selon ton choix minimal cohérent
+
+IMPORTANT :
+Je veux une logique stable et explicite.
+Pas juste “nombre d’items = nombre de slots”.
+
+L’UI doit refléter le vrai coût d’emplacement.
+
+POINT 4 — RECADRAGE VISUEL DE TREASURYPANEL
+
+Le panneau Trésorerie doit maintenant mettre davantage l’accent sur :
+- inventaire de transport
+- banque personnelle
+- villes
+- pending harvest
+- inventaires de ville
+
+La vue faction peut rester visible si elle existe déjà,
+mais elle ne doit plus dominer toute la logique du panneau.
+
+Attendu :
+- garder la section faction si utile
+- mais faire en sorte que la logistique locale soit clairement le cœur du panneau
+
+Pas besoin de tout refaire graphiquement.
+Juste un recentrage lisible.
+
+PLAN DE TRAVAIL ATTENDU
+
+ÉTAPE 1 — AUDIT COURT
+- vérifier la vraie route des unique-items
+- localiser tous les usages de PlayerInventory
+- choisir la plus petite stratégie pour le slot cost
+
+ÉTAPE 2 — CORRECTION INVENTAIRE JOUEUR
+- TreasuryPanel doit charger l’inventaire du bon joueur
+- plus aucun "player" hardcodé dans ce flux
+
+ÉTAPE 3 — NETTOYAGE HUD
+- retirer la duplication PlayerInventory du panneau latéral
+- garder TreasuryPanel comme vue principale
+
+ÉTAPE 4 — SLOT COST V1
+- ajouter un coût d’emplacement clair par type d’objet
+- calculer :
+  - usedSlots
+  - maxSlots = 5
+  - remainingSlots
+- afficher cela proprement dans TreasuryPanel
+
+ÉTAPE 5 — AJUSTEMENT VISUEL MINIMAL
+- rééquilibrer le panneau pour mettre la logistique locale au centre
+
+ÉTAPE 6 — VÉRIFICATION
+Vérifier au minimum :
+- TreasuryPanel charge l’inventaire du vrai joueur
+- plus de duplication PlayerInventory dans la barre latérale
+- usedSlots / remainingSlots corrects
+- au moins un type d’objet occupe plus d’un emplacement
+- TypeScript compile
+- aucune route existante n’est cassée
+
+FORMAT DE RETOUR ATTENDU
+
+Je veux un rapport final structuré en 6 parties :
+
+1. Audit ultra-court des 4 écarts restants
+2. Choix minimal retenu pour le slot cost
+3. Fichiers modifiés
+4. Résumé exact du patch
+5. Avant / après
+6. Résultat de validation
+
+INTERDIT
+
+- refactor massif du système d’objets uniques
+- refonte complète UI
+- nouveau système complet de matériaux
+- nouvelle architecture d’inventaire
+- complexité inutile
+
+PRIORITÉ ABSOLUE
+
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+But :
+verrouiller proprement Trésorerie comme panneau principal de logistique,
+en corrigeant l’identité joueur réelle, la duplication d’affichage,
+et la première vraie notion de capacité de transport.
