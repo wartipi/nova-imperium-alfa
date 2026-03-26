@@ -1,0 +1,69 @@
+ÉTAPE 2 — DB + calcul économique ville (périmètre réduit validé)
+
+Le plan corrigé est validé.
+
+Tu peux implémenter uniquement l’Étape 2, avec ce périmètre strict :
+
+FICHIERS À MODIFIER UNIQUEMENT
+1. `shared/schema.ts`
+2. `server/cityService.ts`
+
+OBJECTIF
+Mettre en place la base DB minimale de la phase 9 et préparer le calcul ville pour `goldPerTurn`, sans toucher encore aux routes économie, au client, ni aux DTO ville.
+
+À FAIRE
+
+1. `shared/schema.ts`
+- ajouter une nouvelle table `faction_economy`
+- structure minimale attendue :
+  - `factionId` (référence à `factions.id`, unique)
+  - `gold`
+  - `food`
+  - `lastProcessedTurn`
+  - `updatedAt`
+- ajouter `goldPerTurn` dans `cities`
+- `goldPerTurn` doit avoir un `DEFAULT 0`
+- garder une structure additive uniquement
+- ne pas modifier `factions`
+- ne pas ajouter d’autres ressources
+
+2. `server/cityService.ts`
+- étendre `BUILDING_YIELDS` pour inclure `gold`
+- étendre `recalculateCityEconomy()` pour calculer et persister :
+  - `foodPerTurn`
+  - `productionPerTurn`
+  - `goldPerTurn`
+- en v1, `goldPerTurn` dépend uniquement des bâtiments
+- ne pas introduire de dépendance à la population
+- conserver l’idempotence actuelle
+- conserver `addBuilding() -> recalculateCityEconomy()` comme déclencheur unique
+
+IMPORTANT
+- ne modifie PAS `CityDTO`
+- ne modifie PAS `mapCity()`
+- ne crée PAS encore `economyService.ts`
+- ne crée PAS encore `routes/economy.ts`
+- ne touche PAS au client
+- ne touche PAS à `TreasuryPanel`
+- ne touche PAS à `useNovaImperium`
+- ne commence PAS l’Étape 3 ou 4
+- pas de refactor
+- pas de logique supplémentaire
+
+POINTS À SURVEILLER
+- cohérence des defaults DB
+- cohérence des noms de colonnes avec le style existant
+- compatibilité avec les villes déjà présentes
+- ne rien casser sur `foodPerTurn` et `productionPerTurn`
+
+SORTIE ATTENDUE
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+2. SCHÉMA EXACT AJOUTÉ
+3. LOGIQUE EXACTE AJOUTÉE DANS `recalculateCityEconomy()`
+4. CE QUI N’A PAS ÉTÉ TOUCHÉ VOLONTAIREMENT
+5. RISQUES OU INCERTITUDES ÉVENTUELS
+
+Arrête-toi après cette Étape 2.
+Ne déborde pas sur la suite.

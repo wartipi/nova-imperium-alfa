@@ -29,36 +29,39 @@ export interface CityDTO {
 }
 
 // ─── BUILDING_YIELDS ──────────────────────────────────────────────────────────
-// Catalogue canonique des bonus économiques Phase 8 (food + production uniquement).
-// Source de vérité unique — remplace les catalogues locaux des composants client.
-const BUILDING_YIELDS: Record<string, { food?: number; production?: number }> = {
-  palace:     {},
+// Catalogue canonique des bonus économiques (food + production + gold).
+// Phase 9 : gold ajouté — dépend uniquement des bâtiments (v1, sans population).
+// Source de vérité unique — aucun catalogue parallèle côté client.
+const BUILDING_YIELDS: Record<string, { food?: number; production?: number; gold?: number }> = {
+  palace:     { gold: 1 },
   granary:    { food: 2 },
   library:    {},
   barracks:   { production: 1 },
-  market:     {},
+  market:     { gold: 3 },
   temple:     {},
-  courthouse: {},
+  courthouse: { gold: 1 },
   university: {},
 };
 
 // ─── recalculateCityEconomy ───────────────────────────────────────────────────
-// Recalcule et persiste food_per_turn + production_per_turn d'une ville.
-// Déclenché après addBuilding() et createCityForColony().
-// Formule : base (2,1) + somme des yields des bâtiments terminés.
+// Recalcule et persiste food_per_turn + production_per_turn + gold_per_turn.
+// Déclenché après addBuilding() — idempotent.
+// Formule : base (food:2, production:1, gold:0) + somme des yields des bâtiments terminés.
+// Phase 9 : gold_per_turn dépend uniquement des bâtiments (pas de la population en v1).
 async function recalculateCityEconomy(cityId: number): Promise<void> {
   const buildingRows = await db
     .select({ building: cityBuildings.building })
     .from(cityBuildings)
     .where(eq(cityBuildings.cityId, cityId));
 
-  const base = { food: 2, production: 1 };
+  const base = { food: 2, production: 1, gold: 0 };
 
   const totals = buildingRows.reduce(
     (acc, { building }) => {
       const y = BUILDING_YIELDS[building] ?? {};
       acc.food       += y.food       ?? 0;
       acc.production += y.production ?? 0;
+      acc.gold       += y.gold       ?? 0;
       return acc;
     },
     { ...base },
@@ -66,7 +69,11 @@ async function recalculateCityEconomy(cityId: number): Promise<void> {
 
   await db
     .update(cities)
-    .set({ foodPerTurn: totals.food, productionPerTurn: totals.production })
+    .set({
+      foodPerTurn:       totals.food,
+      productionPerTurn: totals.production,
+      goldPerTurn:       totals.gold,
+    })
     .where(eq(cities.id, cityId));
 }
 

@@ -444,6 +444,8 @@ export const cities = pgTable("cities", {
   // Phase 8 : valeurs économiques calculées côté serveur (base + bonus bâtiments)
   foodPerTurn:      integer("food_per_turn").notNull().default(2),
   productionPerTurn: integer("production_per_turn").notNull().default(1),
+  // Phase 9 : or par tour — dépend uniquement des bâtiments (v1), DEFAULT 0
+  goldPerTurn:      integer("gold_per_turn").notNull().default(0),
 });
 
 export type CityRecord = typeof cities.$inferSelect;
@@ -512,3 +514,17 @@ export const treatySignatures = pgTable("treaty_signatures", {
 export type TreatyRecord          = typeof treaties.$inferSelect;
 export type TreatyFactionRecord   = typeof treatyFactions.$inferSelect;
 export type TreatySignatureRecord = typeof treatySignatures.$inferSelect;
+
+// ─── Tables Phase 9 : économie globale de faction ─────────────────────────────
+// Une ligne par faction — stocks persistés (gold, food) mis à jour au tick de tour.
+// lastProcessedTurn : garde d'idempotence — empêche un double tick sur le même tour.
+export const factionEconomy = pgTable("faction_economy", {
+  id:                 serial("id").primaryKey(),
+  factionId:          integer("faction_id").notNull().unique().references(() => factions.id),
+  gold:               integer("gold").notNull().default(0),
+  food:               integer("food").notNull().default(0),
+  lastProcessedTurn:  integer("last_processed_turn").notNull().default(0),
+  updatedAt:          timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type FactionEconomyRecord = typeof factionEconomy.$inferSelect;
