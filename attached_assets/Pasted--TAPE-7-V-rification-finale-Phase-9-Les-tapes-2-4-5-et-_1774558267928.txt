@@ -1,0 +1,72 @@
+ÉTAPE 7 — Vérification finale Phase 9
+
+Les étapes 2, 4, 5 et 6 sont maintenant en place.
+Tu dois faire la vérification finale de la Phase 9.
+
+OBJECTIF
+Vérifier que l’économie globale minimale fonctionne correctement de bout en bout, sans double source de vérité visible.
+
+À vérifier explicitement :
+
+1. Schéma / persistance
+- `cities.gold_per_turn` présent et exploitable
+- `faction_economy` présent
+- aucune régression sur `food_per_turn` et `production_per_turn`
+
+2. Agrégation
+- `aggregateFactionIncome()` retourne bien la somme des villes de la faction
+- `foodPerTurn` et `goldPerTurn` sont cohérents avec l’état DB
+
+3. Lecture API
+- `GET /api/economy/me` retourne bien :
+  - `gold`
+  - `food`
+  - `lastProcessedTurn`
+  - `updatedAt`
+  - `goldPerTurn`
+  - `foodPerTurn`
+
+4. Tick API
+- `POST /api/economy/tick` crédite bien les stocks
+- le même `currentTurn` n’est pas appliqué deux fois
+- `applied: false` est bien retourné au second appel identique
+
+5. Client
+- `TreasuryPanel` lit bien l’économie depuis le serveur
+- le calcul local des revenus a disparu
+- l’accumulation locale de nourriture a disparu de `useNovaImperium.processTurn()`
+- le bouton de refresh recharge bien l’état affiché
+
+6. Reload
+- reload navigateur : les stocks et revenus affichés restent cohérents
+- aucune perte d’état sur les données persistées
+
+7. Double source de vérité
+- le panneau ne calcule plus d’économie parallèle
+- aucune valeur économique v1 affichée ne dépend encore d’un hardcode client
+
+FORMAT DE SORTIE OBLIGATOIRE
+
+Je veux une checklist stricte avec 4 statuts possibles :
+- OK
+- Incertain
+- Échec
+- Hors périmètre assumé
+
+Puis :
+1. Résumé des OK
+2. Résumé des Incertains
+3. Résumé des Échecs
+4. Conclusion finale parmi :
+   - PHASE 9 MINIMALE VALIDÉE
+   - PHASE 9 PRESQUE VALIDÉE — 1 CORRECTION RESTE
+   - PHASE 9 ENCORE TROP FRAGILE
+
+RÈGLES
+- pas de nouveau code
+- pas de patch
+- pas de refactor
+- base-toi uniquement sur ce qui est réellement vérifié
+- si un point n’a pas pu être vérifié, marque-le Incertain au lieu d’inventer
+
+Arrête-toi après cette vérification.
