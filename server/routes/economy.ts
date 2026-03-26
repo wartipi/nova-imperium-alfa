@@ -11,6 +11,14 @@ import {
   getOrInitPlayerBank,
   applyProductionTickPerCity,
 } from "../economyService";
+import {
+  createTransferBankToCityAction,
+  createTransferBankToPlayerAction,
+  getOrInitPlayerTransport,
+  msRemaining,
+  TRANSPORT_MAX_UNITS,
+} from "../playerActionService";
+import { checkCityAccess } from "../cityService";
 
 const router = Router();
 
@@ -129,6 +137,131 @@ router.post("/production-tick", requireAuth, async (req: AuthRequest, res) => {
   } catch (err) {
     console.error("[POST /api/economy/production-tick] Erreur:", err);
     return res.status(500).json({ error: "Impossible d'appliquer le tick de production" });
+  }
+});
+
+// ─── GET /api/economy/player-transport ───────────────────────────────────────
+// Auth requise — retourne l'inventaire de transport du joueur.
+router.get("/player-transport", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const transport = await getOrInitPlayerTransport(req.user!.id);
+    return res.json({
+      ...transport,
+      maxUnits: TRANSPORT_MAX_UNITS,
+      usedUnits: transport.gold + transport.food,
+      freeUnits: Math.max(0, TRANSPORT_MAX_UNITS - transport.gold - transport.food),
+    });
+  } catch (err) {
+    console.error("[GET /api/economy/player-transport] Erreur:", err);
+    return res.status(500).json({ error: "Impossible de lire le transport" });
+  }
+});
+
+// ─── POST /api/economy/transfer-bank-to-city ─────────────────────────────────
+// Auth requise — transfère or/nourriture de la banque joueur vers city_inventory.
+// Body : { cityId: number, gold: number, food: number }
+// Durée : 5 + ceil((gold+food)/10) minutes. Admins : 0ms.
+router.post("/transfer-bank-to-city", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const playerId = req.user!.id;
+    const { cityId, gold = 0, food = 0 } = req.body;
+
+    if (!Number.isInteger(cityId) || cityId < 1) {
+      return res.status(400).json({ error: "cityId est requis (entier > 0)" });
+    }
+    if (!Number.isInteger(gold) || !Number.isInteger(food) || gold < 0 || food < 0) {
+      return res.status(400).json({ error: "gold et food doivent être des entiers >= 0" });
+    }
+    if (gold === 0 && food === 0) {
+      return res.status(400).json({ error: "Montant nul — spécifiez au moins or ou nourriture" });
+    }
+
+    const access = await checkCityAccess(playerId, cityId);
+    if ("error" in access) {
+      return res.status(access.status).json({ error: access.error });
+    }
+
+    const { worldX, worldY } = access.cityRecord;
+
+    const context = {
+      role:             req.user!.role,
+      adminModeEnabled: req.body.adminModeEnabled === true,
+    };
+
+    const action = await createTransferBankToCityAction(
+      playerId, cityId, worldX, worldY, gold, food, context
+    );
+
+    const ms = msRemaining(action);
+    const min = Math.ceil(ms / 60000);
+    return res.status(201).json({
+      ok: true,
+      action: {
+        id:          action.id,
+        type:        action.type,
+        status:      action.status,
+        msRemaining: ms,
+        minRemaining: min,
+        gold,
+        food,
+      },
+    });
+  } catch (err: any) {
+    const msg = err.message ?? "";
+    if (msg.startsWith("ACTION_ALREADY_ACTIVE"))    return res.status(409).json({ error: msg });
+    if (msg.startsWith("INSUFFICIENT_BANK"))        return res.status(422).json({ error: msg });
+    if (msg.startsWith("INVALID_AMOUNT"))           return res.status(400).json({ error: msg });
+    console.error("[POST /api/economy/transfer-bank-to-city] Erreur:", err);
+    return res.status(500).json({ error: "Impossible de créer le transfert" });
+  }
+});
+
+// ─── POST /api/economy/transfer-bank-to-player ───────────────────────────────
+// Auth requise — transfère or/nourriture de la banque vers l'inventaire de transport.
+// Body : { gold: number, food: number, adminModeEnabled?: boolean }
+// Capacité max transport : TRANSPORT_MAX_UNITS (50) unités totales.
+// Durée : 5 + ceil((gold+food)/10) minutes. Admins : 0ms.
+router.post("/transfer-bank-to-player", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const playerId = req.user!.id;
+    const { gold = 0, food = 0 } = req.body;
+
+    if (!Number.isInteger(gold) || !Number.isInteger(food) || gold < 0 || food < 0) {
+      return res.status(400).json({ error: "gold et food doivent être des entiers >= 0" });
+    }
+    if (gold === 0 && food === 0) {
+      return res.status(400).json({ error: "Montant nul — spécifiez au moins or ou nourriture" });
+    }
+
+    const context = {
+      role:             req.user!.role,
+      adminModeEnabled: req.body.adminModeEnabled === true,
+    };
+
+    const action = await createTransferBankToPlayerAction(playerId, gold, food, context);
+
+    const ms = msRemaining(action);
+    const min = Math.ceil(ms / 60000);
+    return res.status(201).json({
+      ok: true,
+      action: {
+        id:           action.id,
+        type:         action.type,
+        status:       action.status,
+        msRemaining:  ms,
+        minRemaining: min,
+        gold,
+        food,
+      },
+    });
+  } catch (err: any) {
+    const msg = err.message ?? "";
+    if (msg.startsWith("ACTION_ALREADY_ACTIVE"))         return res.status(409).json({ error: msg });
+    if (msg.startsWith("INSUFFICIENT_BANK"))             return res.status(422).json({ error: msg });
+    if (msg.startsWith("TRANSPORT_CAPACITY_EXCEEDED"))   return res.status(422).json({ error: msg });
+    if (msg.startsWith("INVALID_AMOUNT"))                return res.status(400).json({ error: msg });
+    console.error("[POST /api/economy/transfer-bank-to-player] Erreur:", err);
+    return res.status(500).json({ error: "Impossible de créer le transfert" });
   }
 });
 

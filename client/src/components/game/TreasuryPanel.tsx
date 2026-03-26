@@ -3,10 +3,14 @@ import { Package, Sparkles, Scroll, Shield, Gem, Sword } from "lucide-react";
 import {
   fetchMyEconomy,
   getPlayerBank,
+  getPlayerTransport,
   getCityHarvest,
   postCollectHarvest,
+  postTransferBankToCity,
+  postTransferBankToPlayer,
   type EconomyDTO,
   type PlayerBankDTO,
+  type PlayerTransportDTO,
   type CityHarvestDTO,
 } from "../../lib/api/economyApi";
 
@@ -19,7 +23,6 @@ interface CityFull {
   buildings:        string[];
   goldPerTurn:      number;
   foodPerTurn:      number;
-  productionPerTurn?: number;
 }
 
 interface CityHarvestState {
@@ -40,6 +43,14 @@ interface UniqueItem {
   tradeable:   boolean;
 }
 
+interface TransferState {
+  gold:     string;
+  food:     string;
+  cityId:   string;
+  loading:  boolean;
+  message:  string | null;
+}
+
 interface Props {
   currentUser?:      string;
   role?:             string | null;
@@ -47,9 +58,6 @@ interface Props {
 }
 
 // ─── Slot cost par type d'objet ─────────────────────────────────────────────
-// V1 : règle déterministe simple, stable.
-// artefact, relique, équipement légendaire occupent 2 emplacements.
-// Les autres occupent 1 emplacement.
 
 const SLOT_COSTS: Record<string, number> = {
   carte:                 1,
@@ -75,26 +83,20 @@ function getAuthHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+function parseAmount(s: string): number {
+  const n = parseInt(s, 10);
+  return isNaN(n) || n < 0 ? 0 : n;
+}
+
 // ─── Bâtiments ────────────────────────────────────────────────────────────────
 
 const BUILDING_LABELS: Record<string, string> = {
-  farm:       "🌾 Ferme",
-  mine:       "⛏️ Mine",
-  barracks:   "⚔️ Caserne",
-  market:     "🛒 Marché",
-  bank:       "🏦 Banque",
-  workshop:   "🔨 Atelier",
-  library:    "📚 Bibliothèque",
-  temple:     "🕍 Temple",
-  wall:       "🧱 Rempart",
-  tower:      "🗼 Tour de guet",
-  harbor:     "⚓ Port",
-  stable:     "🐎 Écurie",
-  blacksmith: "⚒️ Forgeron",
-  sawmill:    "🪓 Scierie",
-  granary:    "🏚️ Grenier",
+  farm:       "🌾 Ferme",   mine:     "⛏️ Mine",    barracks: "⚔️ Caserne",
+  market:     "🛒 Marché",  bank:     "🏦 Banque",   workshop: "🔨 Atelier",
+  library:    "📚 Bibliothèque", temple: "🕍 Temple", wall:    "🧱 Rempart",
+  tower:      "🗼 Tour de guet", harbor: "⚓ Port",   stable:  "🐎 Écurie",
+  blacksmith: "⚒️ Forgeron", sawmill: "🪓 Scierie",  granary: "🏚️ Grenier",
 };
-
 function buildingLabel(b: string) { return BUILDING_LABELS[b] ?? `🏗️ ${b}`; }
 
 function BuildingsTooltip({ buildings }: { buildings: string[] }) {
@@ -126,13 +128,13 @@ function BuildingsTooltip({ buildings }: { buildings: string[] }) {
 function ItemIcon({ type }: { type: string }) {
   const cls = "w-3 h-3 shrink-0";
   switch (type) {
-    case "carte":                  return <Scroll className={cls} />;
-    case "objet_magique":          return <Sparkles className={cls} />;
-    case "artefact":               return <Gem className={cls} />;
-    case "relique":                return <Shield className={cls} />;
-    case "document":               return <Scroll className={cls} />;
-    case "equipement_legendaire":  return <Sword className={cls} />;
-    default:                       return <Package className={cls} />;
+    case "carte":                 return <Scroll className={cls} />;
+    case "objet_magique":         return <Sparkles className={cls} />;
+    case "artefact":              return <Gem className={cls} />;
+    case "relique":               return <Shield className={cls} />;
+    case "document":              return <Scroll className={cls} />;
+    case "equipement_legendaire": return <Sword className={cls} />;
+    default:                      return <Package className={cls} />;
   }
 }
 
@@ -144,15 +146,47 @@ const RARITY_COLOR: Record<string, string> = {
   mythique:   "text-red-500",
 };
 
+// ─── Formulaire de transfert ──────────────────────────────────────────────────
+
+function AmountInput({
+  label, value, onChange, max,
+}: { label: string; value: string; onChange: (v: string) => void; max?: number }) {
+  return (
+    <div className="flex items-center gap-1">
+      <span className="text-xs text-amber-700 w-6">{label}</span>
+      <input
+        type="number"
+        min="0"
+        max={max}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="w-16 text-xs border border-amber-300 rounded px-1 py-0.5 text-amber-900 bg-white"
+        placeholder="0"
+      />
+    </div>
+  );
+}
+
 // ─── TreasuryPanel ────────────────────────────────────────────────────────────
 
 export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
-  const [economy,     setEconomy]     = useState<EconomyDTO | null>(null);
-  const [bank,        setBank]        = useState<PlayerBankDTO | null>(null);
-  const [cities,      setCities]      = useState<CityFull[]>([]);
-  const [harvests,    setHarvests]    = useState<Record<number, CityHarvestState>>({});
-  const [items,       setItems]       = useState<UniqueItem[]>([]);
-  const [loading,     setLoading]     = useState(true);
+  const [economy,   setEconomy]   = useState<EconomyDTO | null>(null);
+  const [bank,      setBank]      = useState<PlayerBankDTO | null>(null);
+  const [transport, setTransport] = useState<PlayerTransportDTO | null>(null);
+  const [cities,    setCities]    = useState<CityFull[]>([]);
+  const [harvests,  setHarvests]  = useState<Record<number, CityHarvestState>>({});
+  const [items,     setItems]     = useState<UniqueItem[]>([]);
+  const [loading,   setLoading]   = useState(true);
+
+  // Transfert banque → ville
+  const [toCity, setToCity] = useState<TransferState>({
+    gold: "", food: "", cityId: "", loading: false, message: null,
+  });
+
+  // Transfert banque → joueur
+  const [toPlayer, setToPlayer] = useState<TransferState>({
+    gold: "", food: "", cityId: "", loading: false, message: null,
+  });
 
   // ─── Chargement ─────────────────────────────────────────────────────────
 
@@ -161,18 +195,18 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
     try {
       const headers = getAuthHeaders();
 
-      // Toutes les sources en parallèle
-      const [ecoRes, bankRes, citiesRes, itemsRes] = await Promise.allSettled([
+      const [ecoRes, bankRes, transportRes, citiesRes, itemsRes] = await Promise.allSettled([
         fetchMyEconomy(),
         getPlayerBank(),
+        getPlayerTransport(),
         fetch("/api/cities/me", { headers }).then(r => r.ok ? r.json() : []),
-        // Endpoint auth — identité réelle du joueur connecté
         fetch("/api/unique-items/me", { headers }).then(r => r.ok ? r.json() : []),
       ]);
 
-      if (ecoRes.status   === "fulfilled") setEconomy(ecoRes.value);
-      if (bankRes.status  === "fulfilled") setBank(bankRes.value);
-      if (itemsRes.status === "fulfilled") setItems(itemsRes.value);
+      if (ecoRes.status       === "fulfilled") setEconomy(ecoRes.value);
+      if (bankRes.status      === "fulfilled") setBank(bankRes.value);
+      if (transportRes.status === "fulfilled") setTransport(transportRes.value);
+      if (itemsRes.status     === "fulfilled") setItems(itemsRes.value);
 
       const cityList: CityFull[] = citiesRes.status === "fulfilled" ? citiesRes.value : [];
       setCities(cityList);
@@ -213,7 +247,7 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
       const result = await postCollectHarvest(cityId, role ?? undefined, adminModeEnabled);
       const min = Math.ceil((result.action.msRemaining ?? 0) / 60000);
       const msg = adminModeEnabled
-        ? "✅ Collecte immédiate (mode admin)"
+        ? "✅ Collecte immédiate (admin)"
         : `⏳ ${min} min restante${min > 1 ? "s" : ""}`;
       setHarvests(prev => ({ ...prev, [cityId]: { ...prev[cityId], collecting: false, message: msg } }));
       setTimeout(() => {
@@ -229,7 +263,73 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
     }
   };
 
-  // ─── Calcul slots ────────────────────────────────────────────────────────
+  // ─── Transfert banque → ville ─────────────────────────────────────────────
+
+  const handleTransferToCity = async () => {
+    const cityId = parseInt(toCity.cityId, 10);
+    const gold = parseAmount(toCity.gold);
+    const food = parseAmount(toCity.food);
+    if (isNaN(cityId) || cityId < 1) {
+      setToCity(prev => ({ ...prev, message: "❌ Sélectionnez une ville" }));
+      return;
+    }
+    if (gold === 0 && food === 0) {
+      setToCity(prev => ({ ...prev, message: "❌ Montant nul" }));
+      return;
+    }
+    setToCity(prev => ({ ...prev, loading: true, message: null }));
+    try {
+      const res = await postTransferBankToCity(cityId, gold, food, adminModeEnabled);
+      const min = res.action.minRemaining;
+      const msg = adminModeEnabled
+        ? `✅ Transfert immédiat vers ville (admin)`
+        : `⏳ Transfert en cours — ${min} min`;
+      setToCity(prev => ({ ...prev, loading: false, message: msg, gold: "", food: "" }));
+      // Rafraîchir banque après transfert
+      setTimeout(() => getPlayerBank().then(b => setBank(b)).catch(() => {}), 300);
+    } catch (err: any) {
+      const raw = err.message ?? "Erreur transfert";
+      let msg = `❌ ${raw}`;
+      if (raw.includes("INSUFFICIENT_BANK_GOLD"))         msg = "❌ Or insuffisant en banque";
+      else if (raw.includes("INSUFFICIENT_BANK_FOOD"))    msg = "❌ Nourriture insuffisante en banque";
+      else if (raw.includes("ACTION_ALREADY_ACTIVE"))     msg = "⚠️ Action déjà en cours";
+      setToCity(prev => ({ ...prev, loading: false, message: msg }));
+    }
+  };
+
+  // ─── Transfert banque → joueur ────────────────────────────────────────────
+
+  const handleTransferToPlayer = async () => {
+    const gold = parseAmount(toPlayer.gold);
+    const food = parseAmount(toPlayer.food);
+    if (gold === 0 && food === 0) {
+      setToPlayer(prev => ({ ...prev, message: "❌ Montant nul" }));
+      return;
+    }
+    setToPlayer(prev => ({ ...prev, loading: true, message: null }));
+    try {
+      const res = await postTransferBankToPlayer(gold, food, adminModeEnabled);
+      const min = res.action.minRemaining;
+      const msg = adminModeEnabled
+        ? "✅ Transfert immédiat sur vous (admin)"
+        : `⏳ Transfert en cours — ${min} min`;
+      setToPlayer(prev => ({ ...prev, loading: false, message: msg, gold: "", food: "" }));
+      setTimeout(() => {
+        getPlayerBank().then(b => setBank(b)).catch(() => {});
+        getPlayerTransport().then(t => setTransport(t)).catch(() => {});
+      }, 300);
+    } catch (err: any) {
+      const raw = err.message ?? "Erreur transfert";
+      let msg = `❌ ${raw}`;
+      if (raw.includes("INSUFFICIENT_BANK_GOLD"))           msg = "❌ Or insuffisant en banque";
+      else if (raw.includes("INSUFFICIENT_BANK_FOOD"))      msg = "❌ Nourriture insuffisante en banque";
+      else if (raw.includes("ACTION_ALREADY_ACTIVE"))       msg = "⚠️ Action déjà en cours";
+      else if (raw.includes("TRANSPORT_CAPACITY_EXCEEDED")) msg = "❌ Capacité de transport dépassée (max 50 unités)";
+      setToPlayer(prev => ({ ...prev, loading: false, message: msg }));
+    }
+  };
+
+  // ─── Calcul slots objets uniques ─────────────────────────────────────────
 
   const usedSlots = items.reduce((sum, item) => sum + slotCost(item), 0);
   const remainingSlots = Math.max(0, MAX_SLOTS - usedSlots);
@@ -252,21 +352,44 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
       </div>
 
       {/* ════════════════════════════════════════════════════════════════════
-          SECTION 1 — Inventaire de transport (PRIORITÉ)
+          SECTION 1 — Inventaire de transport
       ════════════════════════════════════════════════════════════════════ */}
       <Section title="🎒 Inventaire de Transport">
-        {/* Barre de capacité */}
-        <div className="mb-3">
+
+        {/* Transport de ressources (or/nourr.) */}
+        {transport && (
+          <div className="mb-3">
+            <div className="flex items-center justify-between text-xs mb-1">
+              <span className="text-amber-700 font-medium">Ressources portées</span>
+              <span className={[
+                "font-bold text-xs",
+                transport.usedUnits >= transport.maxUnits ? "text-red-600" : "text-green-700"
+              ].join(" ")}>
+                {transport.usedUnits} / {transport.maxUnits} unités · {transport.freeUnits} libres
+              </span>
+            </div>
+            <div className="flex gap-3 text-xs text-amber-700">
+              <span>🪙 {transport.gold} or</span>
+              <span>🌿 {transport.food} nourriture</span>
+            </div>
+            {transport.usedUnits >= transport.maxUnits && (
+              <p className="text-xs text-red-600 font-semibold mt-0.5">⚠️ Sac plein</p>
+            )}
+          </div>
+        )}
+
+        {/* Objets uniques */}
+        <div className="mb-2">
           <div className="flex items-center justify-between text-xs mb-1">
-            <span className="text-amber-700 font-medium">Emplacements</span>
+            <span className="text-amber-700 font-medium">Objets uniques</span>
             <span className={[
               "font-bold",
               usedSlots >= MAX_SLOTS ? "text-red-600" : usedSlots > MAX_SLOTS * 0.6 ? "text-orange-600" : "text-green-700"
             ].join(" ")}>
-              {usedSlots} / {MAX_SLOTS} utilisés · {remainingSlots} libres
+              {usedSlots} / {MAX_SLOTS} slots · {remainingSlots} libres
             </span>
           </div>
-          <div className="flex gap-1">
+          <div className="flex gap-1 mb-1">
             {Array.from({ length: MAX_SLOTS }).map((_, i) => (
               <div
                 key={i}
@@ -279,16 +402,12 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
               />
             ))}
           </div>
-          <p className="text-xs text-amber-500 italic mt-1">
-            Les matériaux doivent être acheminés physiquement avant toute utilisation.
-          </p>
         </div>
 
-        {/* Liste des objets */}
         {items.length === 0 ? (
           <p className="text-xs text-amber-400 italic">Aucun objet porté.</p>
         ) : (
-          <div className="space-y-1 max-h-40 overflow-y-auto">
+          <div className="space-y-1 max-h-36 overflow-y-auto">
             {items.map(item => {
               const cost = slotCost(item);
               return (
@@ -304,53 +423,111 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
                     <span className="text-amber-900 truncate">{item.name}</span>
                     <span className="text-amber-400 shrink-0">({item.rarity})</span>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className={[
-                      "font-semibold text-xs px-1 rounded",
-                      cost > 1 ? "bg-orange-100 text-orange-700" : "bg-amber-100 text-amber-700"
-                    ].join(" ")}>
-                      {cost} slot{cost > 1 ? "s" : ""}
-                    </span>
-                    <span className="text-amber-600">{item.value}⚡</span>
-                  </div>
+                  <span className={[
+                    "font-semibold text-xs px-1 rounded shrink-0",
+                    cost > 1 ? "bg-orange-100 text-orange-700" : "bg-amber-100 text-amber-700"
+                  ].join(" ")}>
+                    {cost} slot{cost > 1 ? "s" : ""}
+                  </span>
                 </div>
               );
             })}
           </div>
         )}
-        {usedSlots > MAX_SLOTS && (
-          <p className="text-xs text-red-600 font-semibold mt-1">
-            ⚠️ Surcharge — {usedSlots - MAX_SLOTS} emplacement{usedSlots - MAX_SLOTS > 1 ? "s" : ""} en excès
-          </p>
-        )}
+        <p className="text-xs text-amber-400 italic mt-1">
+          Ressources : 10 unités = 1 emplacement. Max 50 unités totales.
+        </p>
         {currentUser && currentUser !== 'player' && (
           <p className="text-xs text-amber-400 mt-1">Joueur : {currentUser}</p>
         )}
       </Section>
 
       {/* ════════════════════════════════════════════════════════════════════
-          SECTION 2 — Banque personnelle
+          SECTION 2 — Banque Personnelle + Transferts
       ════════════════════════════════════════════════════════════════════ */}
-      <Section title="🏦 Banque Personnelle">
+      <Section title="🏦 Banque Personnelle & Transferts">
         {bank ? (
-          <div className="space-y-1.5">
-            <div className="grid grid-cols-2 gap-2">
-              <StatBox icon="🪙" label="Or accumulé"      value={bank.gold} />
-              <StatBox icon="🌿" label="Nour. accumulée"  value={bank.food} />
+          <>
+            {/* Solde */}
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <StatBox icon="🪙" label="Or en banque"   value={bank.gold} />
+              <StatBox icon="🌿" label="Nour. en banque" value={bank.food} />
             </div>
-            <p className="text-xs text-amber-500 italic">
-              Versé automatiquement par les villes avec banque · Dernier tick : tour {bank.lastProductionTurn}
+            <p className="text-xs text-amber-500 italic mb-3">
+              Dépôt auto des villes avec banque · Tour {bank.lastProductionTurn}
             </p>
-          </div>
+
+            {/* Séparateur */}
+            <div className="border-t border-amber-200 pt-2 mb-2">
+              <p className="text-xs text-amber-600 font-semibold mb-2">Transférer vers une ville</p>
+              <div className="flex flex-wrap gap-1.5 items-end">
+                <select
+                  value={toCity.cityId}
+                  onChange={e => setToCity(prev => ({ ...prev, cityId: e.target.value }))}
+                  className="text-xs border border-amber-300 rounded px-1 py-0.5 text-amber-900 bg-white flex-1 min-w-24"
+                >
+                  <option value="">— Ville —</option>
+                  {cities.map(c => (
+                    <option key={c.id} value={String(c.id)}>{c.name}</option>
+                  ))}
+                </select>
+                <AmountInput label="🪙" value={toCity.gold} onChange={v => setToCity(p => ({ ...p, gold: v }))} max={bank.gold} />
+                <AmountInput label="🌿" value={toCity.food} onChange={v => setToCity(p => ({ ...p, food: v }))} max={bank.food} />
+                <button
+                  onClick={handleTransferToCity}
+                  disabled={toCity.loading || !toCity.cityId}
+                  className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded disabled:opacity-50 shrink-0"
+                >
+                  {toCity.loading ? "…" : "Envoyer"}
+                </button>
+              </div>
+              {toCity.message && (
+                <p className={[
+                  "text-xs mt-1 font-medium",
+                  toCity.message.startsWith("❌") || toCity.message.startsWith("⚠️")
+                    ? "text-red-600" : "text-green-700"
+                ].join(" ")}>
+                  {toCity.message}
+                </p>
+              )}
+            </div>
+
+            <div className="border-t border-amber-200 pt-2">
+              <p className="text-xs text-amber-600 font-semibold mb-2">
+                Prendre en transport
+                {transport && <span className="text-amber-400 font-normal ml-1">(libre : {transport.freeUnits} unités)</span>}
+              </p>
+              <div className="flex flex-wrap gap-1.5 items-end">
+                <AmountInput label="🪙" value={toPlayer.gold} onChange={v => setToPlayer(p => ({ ...p, gold: v }))} max={bank.gold} />
+                <AmountInput label="🌿" value={toPlayer.food} onChange={v => setToPlayer(p => ({ ...p, food: v }))} max={bank.food} />
+                <button
+                  onClick={handleTransferToPlayer}
+                  disabled={toPlayer.loading}
+                  className="text-xs px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded disabled:opacity-50 shrink-0"
+                >
+                  {toPlayer.loading ? "…" : "Prendre"}
+                </button>
+              </div>
+              {toPlayer.message && (
+                <p className={[
+                  "text-xs mt-1 font-medium",
+                  toPlayer.message.startsWith("❌") || toPlayer.message.startsWith("⚠️")
+                    ? "text-red-600" : "text-green-700"
+                ].join(" ")}>
+                  {toPlayer.message}
+                </p>
+              )}
+            </div>
+          </>
         ) : (
           <p className="text-xs text-amber-400 italic">
-            {loading ? "Chargement…" : "Aucune banque. Construisez une banque dans une ville."}
+            {loading ? "Chargement…" : "Aucune banque — construisez une banque dans une ville."}
           </p>
         )}
       </Section>
 
       {/* ════════════════════════════════════════════════════════════════════
-          SECTION 3 — Villes (production + bâtiments + harvest + collecte)
+          SECTION 3 — Villes (production + harvest + collecte)
       ════════════════════════════════════════════════════════════════════ */}
       <Section title={`🏘️ Villes (${cities.length})`}>
         {loading && cities.length === 0 ? (
@@ -363,22 +540,17 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
               const h = harvests[city.id];
               return (
                 <div key={city.id} className="bg-white border border-amber-200 rounded p-2.5 text-xs">
-                  {/* En-tête */}
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="font-bold text-amber-900 text-sm">{city.name}</span>
                     {h?.data?.hasBank && (
                       <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-xs">🏦 auto</span>
                     )}
                   </div>
-
-                  {/* Production */}
                   <div className="flex gap-3 text-amber-700 mb-1.5">
                     <span>+{city.goldPerTurn ?? 0}🪙/tour</span>
                     <span>+{city.foodPerTurn ?? 0}🌿/tour</span>
                     <BuildingsTooltip buildings={city.buildings ?? []} />
                   </div>
-
-                  {/* Harvest */}
                   {h && !h.loading && !h.error && h.data && (
                     <div className="space-y-1 border-t border-amber-100 pt-1.5">
                       <div className="flex gap-3 text-amber-600">
@@ -391,11 +563,9 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
                           disabled={h.collecting || (h.data.pending.gold === 0 && h.data.pending.food === 0)}
                           className={[
                             "px-2 py-0.5 rounded text-xs font-semibold transition",
-                            h.collecting
-                              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                              : h.data.pending.gold === 0 && h.data.pending.food === 0
-                                ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                                : "bg-amber-500 hover:bg-amber-600 text-white",
+                            h.collecting || (h.data.pending.gold === 0 && h.data.pending.food === 0)
+                              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                              : "bg-amber-500 hover:bg-amber-600 text-white",
                           ].join(" ")}
                         >
                           {h.collecting ? "⏳…" : "🚜 Collecter"}
@@ -419,10 +589,10 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
       {economy && (
         <Section title="📊 Réserves de Faction">
           <div className="grid grid-cols-2 gap-2 mb-1">
-            <StatBox icon="💰" label="Or faction"       value={economy.gold} />
-            <StatBox icon="🌾" label="Nour. faction"    value={economy.food} />
-            <StatBox icon="📈" label="+Or/tour"         value={`+${economy.goldPerTurn}`} />
-            <StatBox icon="📈" label="+Nour./tour"      value={`+${economy.foodPerTurn}`} />
+            <StatBox icon="💰" label="Or faction"    value={economy.gold} />
+            <StatBox icon="🌾" label="Nour. faction" value={economy.food} />
+            <StatBox icon="📈" label="+Or/tour"      value={`+${economy.goldPerTurn}`} />
+            <StatBox icon="📈" label="+Nour./tour"   value={`+${economy.foodPerTurn}`} />
           </div>
           <p className="text-xs text-amber-400 text-right">Tour traité : {economy.lastProcessedTurn}</p>
         </Section>

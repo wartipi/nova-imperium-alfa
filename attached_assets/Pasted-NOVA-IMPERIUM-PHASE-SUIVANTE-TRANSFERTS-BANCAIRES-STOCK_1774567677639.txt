@@ -1,0 +1,300 @@
+NOVA IMPERIUM — PHASE SUIVANTE : TRANSFERTS BANCAIRES + STOCK LOCAL DE VILLE + ACHEMINEMENT CONSTRUCTION
+
+Branche :
+NI-10.3
+
+Contexte :
+Jeu persistant Node/TS + React/TS + PostgreSQL
+Architecture serveur autoritaire
+Méthode : audit court → implémentation minimale propre → vérification
+Aucun refactor massif
+
+RÈGLES DE DESIGN — À RESPECTER STRICTEMENT
+
+1. L’inventaire de ville est un STOCK LOCAL.
+2. Si les matériaux sont déjà dans l’inventaire de la ville, la phase d’acheminement pour la construction est INSTANTANÉE.
+3. Tout transfert de ressources depuis la banque vers :
+   - l’inventaire d’une ville
+   - ou l’inventaire d’un joueur
+   doit passer par une vraie phase de transfert avec durée.
+4. L’inventaire du joueur est un inventaire de transport.
+5. La banque n’est pas un accès magique global.
+6. La construction ne doit jamais consommer directement un stock abstrait de banque sans transfert préalable.
+7. On ne touche pas encore au système complet de gouvernement.
+8. On reste sur le plus petit système logistique propre possible.
+
+OBJECTIF DE LA PHASE
+
+Mettre en place la logique minimale suivante :
+
+A. transfert banque → ville avec durée
+B. transfert banque → joueur avec durée
+C. règle de construction :
+   - si ressources déjà dans city_inventory → acheminement instantané
+   - sinon la construction ne peut pas partir tant que les matériaux n’ont pas été transférés
+D. préparation du futur panneau de construction pour intégrer cette règle
+
+IMPORTANT :
+On ne fait PAS encore un système complet de convois, routes, embuscades, taxes, etc.
+On fait le minimum propre pour verrouiller la logique de transit.
+
+PÉRIMÈTRE
+
+Cette phase concerne :
+- player_bank
+- city_inventory
+- inventaire joueur / transport
+- player_actions
+- panneaux liés à trésorerie / construction si nécessaire
+- règles de validation serveur avant lancement d’une construction
+
+FICHIERS À AUDITER EN PRIORITÉ
+
+- server/economyService.ts
+- server/playerActionService.ts
+- server/routes.ts
+- server/routes/cities.ts
+- server/cityService.ts
+- shared/schema.ts
+- client/src/components/game/TreasuryPanel.tsx
+- client/src/components/game/UnifiedTerritoryPanel.tsx
+- tout composant/panneau qui lance une construction en ville
+- toute logique qui consomme actuellement des ressources “directement”
+
+MODÈLE CIBLE
+
+Je veux 3 couches distinctes :
+
+1. Banque du joueur
+- stock personnel
+- dépôt auto des villes avec banque
+- source de transfert, pas consommation magique directe
+
+2. Inventaire du joueur
+- inventaire de transport
+- capacité limitée
+- sert à porter / déplacer
+
+3. Inventaire de ville
+- stock local de ville
+- si les ressources sont déjà là, elles sont utilisables immédiatement pour construire
+
+RÈGLE DE CONSTRUCTION À VERROUILLER
+
+Pour lancer une construction qui demande des matériaux :
+
+CAS 1 — matériaux déjà dans city_inventory
+- la phase d’acheminement est instantanée
+- la construction peut démarrer directement
+- les matériaux sont consommés depuis city_inventory
+
+CAS 2 — matériaux absents de city_inventory
+- la construction ne doit pas se lancer directement
+- il faut d’abord un transfert depuis la banque ou une autre source logistique future
+- sans matériaux présents en ville, pas de lancement réel
+
+IMPORTANT :
+Aucune consommation directe depuis player_bank pour construire.
+La banque sert de réserve distante, pas de stock local immédiat.
+
+TRANSFERTS À IMPLÉMENTER MAINTENANT
+
+PHASE A — banque vers ville
+Créer une action persistante de transfert du type :
+- transfer_bank_to_city
+
+Comportement attendu :
+1. vérifier auth réelle
+2. vérifier que le joueur a accès à la ville
+3. vérifier que la banque du joueur contient assez de ressources
+4. débiter la banque
+5. créer une action persistante avec durée
+6. à complétion :
+   - créditer city_inventory
+7. si échec avant création d’action, ne rien débiter
+8. si échec après débit mais avant finalisation, prévoir rollback minimal propre
+
+PHASE B — banque vers joueur
+Créer une action persistante de transfert du type :
+- transfer_bank_to_player
+
+Comportement attendu :
+1. vérifier auth réelle
+2. vérifier que la banque contient assez
+3. vérifier capacité de transport du joueur
+4. débiter la banque
+5. créer une action persistante avec durée
+6. à complétion :
+   - créditer l’inventaire joueur
+7. conserver les contraintes de capacité
+
+IMPORTANT :
+Pas de dépôt instantané depuis la banque vers le joueur.
+Pas de téléportation de ressources.
+
+DURÉE DES TRANSFERTS — V1
+
+Si aucune formule existante n’est déjà meilleure, utiliser une formule simple et déterministe.
+
+Exemple acceptable :
+- totalUnits = somme des unités transférées
+- durationMinutes = 5 + ceil(totalUnits / 10)
+
+Même logique que pour la collecte, ou très proche.
+Rester cohérent et lisible.
+
+Si tu choisis une autre formule simple déjà mieux alignée au système actuel, documente-la clairement.
+
+SLOT / CAPACITÉ INVENTAIRE JOUEUR
+
+Respecter le modèle de capacité déjà amorcé :
+- capacité de base : 5 emplacements
+- certains items prennent plus d’un emplacement
+
+Pour les ressources transportées par le joueur, utiliser une règle simple cohérente en V1.
+Exemple acceptable :
+- 1 unité de ressource = 1 emplacement
+ou
+- 10 unités = 1 emplacement
+si c’est plus cohérent avec le système existant
+
+Mais la règle doit être :
+- explicite
+- stable
+- validée côté serveur
+- utilisée dans les checks de transfert banque → joueur
+
+IMPORTANT :
+Ne pas laisser le client décider seul de la capacité.
+
+CONSTRUCTION — PATCH MINIMAL ATTENDU
+
+Audit la logique actuelle de lancement de construction.
+
+Je veux le plus petit correctif propre pour obtenir ce comportement :
+
+- si la ville possède déjà les matériaux requis dans city_inventory :
+  - la construction peut démarrer
+  - consommation immédiate locale
+- sinon :
+  - refus clair indiquant que les matériaux doivent être transférés vers la ville avant construction
+
+IMPORTANT :
+Si le système actuel ne gère pas encore de vrais coûts matériaux détaillés pour tous les bâtiments, faire le minimum compatible avec l’état réel du projet.
+Ne pas inventer un énorme catalogue si le code ne l’a pas encore.
+Mais poser la règle d’architecture propre.
+
+API MINIMALES ATTENDUES
+
+1. lecture banque joueur
+- déjà existante ou réutilisée
+
+2. lecture inventaire ville
+- déjà existante ou étendue minimalement
+
+3. lecture capacité / contenu inventaire joueur
+- si nécessaire pour l’UI
+
+4. lancer transfert banque → ville
+- endpoint auth
+- crée une action serveur
+
+5. lancer transfert banque → joueur
+- endpoint auth
+- crée une action serveur
+
+6. validation de construction
+- doit vérifier city_inventory avant démarrage réel
+
+UI MINIMALE ATTENDUE
+
+Pas besoin d’une grosse refonte.
+
+Je veux juste le minimum exploitable :
+
+Dans Trésorerie ou panneau lié :
+- bouton / action pour transférer banque → ville
+- bouton / action pour transférer banque → joueur
+- retour clair sur temps restant / action active / succès / échec
+
+Dans le panneau de construction :
+- afficher clairement si les matériaux requis sont :
+  - déjà disponibles en ville
+  - ou manquants
+- si disponibles : “acheminement instantané”
+- si absents : bloquer et expliquer qu’un transfert est requis
+
+IMPORTANT :
+L’UI doit refléter la logique réelle.
+Pas de faux message du type “construction lancée” si les matériaux ne sont pas en ville.
+
+PLAN DE TRAVAIL ATTENDU
+
+ÉTAPE 1 — AUDIT
+- localiser où la construction démarre réellement
+- localiser où les ressources sont actuellement supposées être consommées
+- localiser le meilleur point de branchement pour les actions de transfert
+
+ÉTAPE 2 — MODÈLE / PERSISTANCE MINIMALE
+- réutiliser player_actions si possible
+- ajouter seulement le minimum nécessaire
+- pas de nouvelle architecture lourde
+
+ÉTAPE 3 — TRANSFERTS
+- implémenter banque → ville
+- implémenter banque → joueur
+- durée + complétion + validations + rollback minimal
+
+ÉTAPE 4 — VALIDATION CONSTRUCTION
+- construction autorisée seulement si city_inventory couvre le coût
+- sinon refus clair
+
+ÉTAPE 5 — UI MINIMALE
+- exposer les transferts
+- exposer l’état des matériaux
+- exposer la règle “instantané si déjà en ville”
+
+ÉTAPE 6 — VÉRIFICATION
+Vérifier au minimum :
+- banque → ville crée bien une action et crédite la ville à la fin
+- banque → joueur crée bien une action et respecte la capacité
+- construction avec stock local ville → démarrage immédiat
+- construction sans stock local ville → refus propre
+- aucun débit direct magique depuis la banque pour construire
+- TypeScript compile
+
+FORMAT DE RETOUR ATTENDU
+
+Je veux un rapport final structuré en 7 parties :
+
+1. Audit ultra-court du flux actuel
+2. Modèle minimal retenu
+3. Fichiers modifiés
+4. Résumé exact du patch
+5. Flux avant / après
+6. Points volontairement non traités
+7. Résultat de validation
+
+INTERDIT
+
+- refactor massif
+- système complet de convois
+- simulation logistique avancée
+- routes commerciales
+- embuscades
+- gouvernement
+- taxation
+- nouvelle architecture lourde
+- complexité inutile
+
+PRIORITÉ ABSOLUE
+
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+But :
+verrouiller la règle centrale suivante :
+
+- stock local de ville = utilisable immédiatement
+- banque = réserve distante
+- tout transfert depuis la banque prend du temps
+- aucune construction ne consomme magiquement depuis la banque

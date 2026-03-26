@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { requireAuth } from "../middleware/auth";
 import type { AuthRequest } from "../middleware/auth";
 import { db } from "../db";
@@ -140,6 +140,35 @@ router.delete("/:cityId/production", requireAuth, async (req: AuthRequest, res) 
   }
 });
 
+// ─── GET /api/cities/:cityId/inventory ───────────────────────────────────────
+// Auth requise — retourne city_inventory (stock local physique de la ville).
+// Utilisé par le panneau de construction pour vérifier disponibilité des matériaux.
+router.get("/:cityId/inventory", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const cityId = parseInt(req.params.cityId, 10);
+    if (isNaN(cityId)) return res.status(400).json({ error: "cityId doit être un entier" });
+
+    const access = await checkCityAccess(req.user!.id, cityId);
+    if ("error" in access) return res.status(access.status).json({ error: access.error });
+
+    const [rows] = await db
+      .select()
+      .from(cityInventory)
+      .where(eq(cityInventory.cityId, cityId))
+      .limit(1);
+
+    const inv = rows ?? { gold: 0, food: 0 };
+    return res.json({
+      cityId,
+      gold: inv.gold,
+      food: inv.food,
+    });
+  } catch (err) {
+    console.error("[GET /api/cities/:cityId/inventory] Erreur:", err);
+    return res.status(500).json({ error: "Impossible de lire l'inventaire de ville" });
+  }
+});
+
 // ─── GET /api/cities/:cityId/harvest ─────────────────────────────────────────
 // Auth requise — retourne pending_harvest + city_inventory + présence banque.
 router.get("/:cityId/harvest", requireAuth, async (req: AuthRequest, res) => {
@@ -248,6 +277,90 @@ router.post("/:cityId/collect-harvest", requireAuth, async (req: AuthRequest, re
     }
     console.error("[POST /api/cities/:cityId/collect-harvest] Erreur:", err);
     return res.status(500).json({ error: "Impossible de lancer la collecte" });
+  }
+});
+
+// ─── POST /api/cities/:cityId/start-construction ──────────────────────────────
+// Auth requise — démarre une construction avec validation city_inventory.
+// Admin : construction instantanée (bypass stock).
+// Joueur : vérifie et débite city_inventory, puis met en file de production.
+// Body : { building: string, goldCost?: number, foodCost?: number, constructionTime?: number }
+router.post("/:cityId/start-construction", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const cityId = parseInt(req.params.cityId, 10);
+    if (isNaN(cityId)) return res.status(400).json({ error: "cityId doit être un entier" });
+
+    const { building, goldCost = 0, foodCost = 0, constructionTime = 50 } = req.body;
+    if (!building || typeof building !== "string") {
+      return res.status(400).json({ error: "building est requis (string)" });
+    }
+
+    const access = await checkCityAccess(req.user!.id, cityId);
+    if ("error" in access) return res.status(access.status).json({ error: access.error });
+
+    const isAdmin = req.user!.role === 'admin';
+
+    if (isAdmin) {
+      // Mode admin : construction instantanée, pas de vérification de stock
+      await addBuilding(cityId, building);
+      console.log(`[start-construction] Admin — instantané ${building} cityId=${cityId}`);
+      return res.status(201).json({ ok: true, mode: 'instant', building });
+    }
+
+    // Mode joueur : vérifier et débiter city_inventory
+    const invRows = await db
+      .select()
+      .from(cityInventory)
+      .where(eq(cityInventory.cityId, cityId))
+      .limit(1);
+
+    const inv = invRows[0] ?? { gold: 0, food: 0 };
+
+    if (inv.gold < goldCost || inv.food < foodCost) {
+      return res.status(422).json({
+        error: "INSUFFICIENT_CITY_INVENTORY",
+        required:  { gold: goldCost,  food: foodCost },
+        available: { gold: inv.gold,  food: inv.food },
+        missing:   { gold: Math.max(0, goldCost - inv.gold), food: Math.max(0, foodCost - inv.food) },
+      });
+    }
+
+    const now = new Date();
+
+    // Débit city_inventory
+    if (goldCost > 0 || foodCost > 0) {
+      await db
+        .update(cityInventory)
+        .set({
+          gold:      sql`${cityInventory.gold} - ${goldCost}`,
+          food:      sql`${cityInventory.food} - ${foodCost}`,
+          updatedAt: now,
+        })
+        .where(eq(cityInventory.cityId, cityId));
+    }
+
+    // Mise en file de production
+    await setProduction(cityId, {
+      type:     'building',
+      name:     building,
+      cost:     constructionTime,
+      progress: 0,
+    });
+
+    console.log(
+      `[start-construction] Queued ${building} cityId=${cityId}` +
+      ` -${goldCost}g -${foodCost}f → city_inventory durée=${constructionTime} tours`
+    );
+
+    return res.status(201).json({
+      ok:   true,
+      mode: 'queued',
+      building,
+      deducted: { gold: goldCost, food: foodCost },
+    });
+  } catch (err) {
+    console.error("[POST /api/cities/:cityId/start-construction] Erreur:", err);
+    return res.status(500).json({ error: "Impossible de démarrer la construction" });
   }
 });
 

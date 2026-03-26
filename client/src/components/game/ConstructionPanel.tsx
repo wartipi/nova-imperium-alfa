@@ -8,7 +8,9 @@ import { getBuildingAPGeneration, getBuildingMaxAPIncrease } from "../../lib/gam
 import { Resources } from "../../lib/game/types";
 import { UnifiedTerritorySystem } from "../../lib/systems/UnifiedTerritorySystem";
 import { useMap } from "../../lib/stores/useMap";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { getCityInventory } from "../../lib/api/economyApi";
+import { apiStartConstruction } from "../../lib/api/citiesApi";
 
 export function ConstructionPanel() {
   const { currentNovaImperium, buildInCity, addCity } = useNovaImperium();
@@ -19,6 +21,32 @@ export function ConstructionPanel() {
   const [hoveredBuilding, setHoveredBuilding] = useState<string | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const [selectedColony, setSelectedColony] = useState<string>('');
+
+  // Inventaires de villes (stock local) : keyed by city.id (string du serveur)
+  const [cityInventories, setCityInventories] = useState<Record<string, { gold: number; food: number }>>({});
+  // Messages de construction : keyed par cityId
+  const [buildMessages, setBuildMessages] = useState<Record<string, { type: 'error' | 'ok'; text: string } | null>>({});
+
+  // Récupérer city_inventory pour toutes les villes connues
+  const refreshInventories = useCallback(async (cities: Array<{ id: string }>) => {
+    const entries = await Promise.allSettled(
+      cities.map(async (c) => {
+        const inv = await getCityInventory(parseInt(c.id, 10));
+        return { id: c.id, inv };
+      })
+    );
+    const map: Record<string, { gold: number; food: number }> = {};
+    for (const r of entries) {
+      if (r.status === 'fulfilled') map[r.value.id] = { gold: r.value.inv.gold, food: r.value.inv.food };
+    }
+    setCityInventories(map);
+  }, []);
+
+  useEffect(() => {
+    if (currentNovaImperium?.cities.length) {
+      refreshInventories(currentNovaImperium.cities).catch(() => {});
+    }
+  }, [currentNovaImperium?.cities, refreshInventories]);
 
   if (!currentNovaImperium) return null;
 
@@ -664,27 +692,64 @@ export function ConstructionPanel() {
     });
   };
 
-  const handleBuild = (buildingId: string, cityId: string) => {
-
+  const handleBuild = async (buildingId: string, cityId: string) => {
     const building = buildings.find(b => b.id === buildingId);
     if (!building || !currentNovaImperium) return;
-    
+
     const actionCost = getBuildingCost(buildingId);
-    
-    if (canAffordBuilding(buildingId)) {
-      // En mode MJ, construction instantanée sans coûts
-      if (isAdmin) {
+
+    // Effacer le message précédent pour cette ville
+    setBuildMessages(prev => ({ ...prev, [cityId]: null }));
+
+    if (!canAffordBuilding(buildingId)) {
+      console.log(`Ressources insuffisantes (PA ou ressources) pour construire ${buildingId}`);
+      return;
+    }
+
+    // Extraire les coûts or/nourriture depuis building.cost
+    const goldCost = Number(building.cost['gold'] ?? 0);
+    const foodCost = Number(building.cost['food'] ?? 0);
+
+    try {
+      const result = await apiStartConstruction(
+        cityId,
+        buildingId,
+        goldCost,
+        foodCost,
+        building.constructionTime,
+      );
+
+      if (result.mode === 'instant') {
+        // Admin — construction immédiate : mettre à jour l'état local
         buildInCity(cityId, buildingId, {}, building.constructionTime, true);
-        console.log(`[Admin] Construction instantanée de ${buildingId} (ressources infinies, pas d'attente)`);
+        console.log(`[Admin] Construction instantanée de ${buildingId} (serveur validé)`);
+        setBuildMessages(prev => ({ ...prev, [cityId]: { type: 'ok', text: `✅ ${building.name} construit` } }));
       } else {
+        // Joueur — mis en file : déduire PA et mettre à jour production locale
         const success = spendActionPoints(actionCost);
         if (success) {
-          buildInCity(cityId, buildingId, building.cost, building.constructionTime, false);
-          console.log(`Construction de ${buildingId} lancée pour ${building.constructionTime} tours, ${actionCost} PA et ressources déduites`);
+          buildInCity(cityId, buildingId, building.cost as Record<string, number>, building.constructionTime, false);
+          console.log(`Construction de ${buildingId} lancée pour ${building.constructionTime} tours (matériaux déduits du stock ville)`);
+          setBuildMessages(prev => ({ ...prev, [cityId]: { type: 'ok', text: `⏳ ${building.name} en construction (${building.constructionTime} tours)` } }));
+          // Rafraîchir l'inventaire
+          setTimeout(() => refreshInventories(currentNovaImperium.cities).catch(() => {}), 500);
         }
       }
-    } else {
-      console.log(`Ressources insuffisantes pour construire ${buildingId}`);
+    } catch (err: any) {
+      const body = (err as any).body;
+      if (body?.error === 'INSUFFICIENT_CITY_INVENTORY') {
+        const miss = body.missing as { gold: number; food: number };
+        const parts = [];
+        if (miss.gold > 0) parts.push(`${miss.gold}🪙 or manquant`);
+        if (miss.food > 0) parts.push(`${miss.food}🌿 nourriture manquante`);
+        const msg = `❌ ${parts.join(', ')} — transférez depuis la banque`;
+        setBuildMessages(prev => ({ ...prev, [cityId]: { type: 'error', text: msg } }));
+        console.warn(`[Construction] ${msg} pour ${buildingId} city=${cityId}`);
+      } else {
+        const msg = `❌ ${err.message ?? 'Erreur construction'}`;
+        setBuildMessages(prev => ({ ...prev, [cityId]: { type: 'error', text: msg } }));
+        console.error(`[handleBuild] Erreur:`, err);
+      }
     }
   };
 
@@ -785,9 +850,38 @@ export function ConstructionPanel() {
           <div className="font-medium text-sm mb-2">
             🏘️ {city.name} ({colonyData.controlledTerritories.length} case{colonyData.controlledTerritories.length > 1 ? 's' : ''})
           </div>
-          <div className="text-xs text-purple-600 mb-3">
+          <div className="text-xs text-purple-600 mb-1">
             🌍 Terrains disponibles: {colonyData.availableTerrains.length > 0 ? colonyData.availableTerrains.join(', ') : 'Aucun'}
           </div>
+
+          {/* Inventaire local de la ville */}
+          {(() => {
+            const inv = cityInventories[city.id];
+            return inv !== undefined ? (
+              <div className="text-xs bg-amber-100 border border-amber-300 rounded px-2 py-1 mb-2 flex gap-3">
+                <span className="font-medium text-amber-800">📦 Stock ville :</span>
+                <span className="text-amber-700">{inv.gold}🪙 or</span>
+                <span className="text-amber-700">{inv.food}🌿 nourr.</span>
+                {inv.gold === 0 && inv.food === 0 && (
+                  <span className="text-amber-500 italic">Vide — transférez depuis la banque</span>
+                )}
+              </div>
+            ) : (
+              <div className="text-xs text-amber-400 italic mb-2">Chargement stock…</div>
+            );
+          })()}
+
+          {/* Message de construction (erreur ou succès) */}
+          {buildMessages[city.id] && (
+            <div className={[
+              "text-xs rounded px-2 py-1 mb-2 font-medium",
+              buildMessages[city.id]!.type === 'error'
+                ? "bg-red-50 border border-red-300 text-red-700"
+                : "bg-green-50 border border-green-300 text-green-700",
+            ].join(" ")}>
+              {buildMessages[city.id]!.text}
+            </div>
+          )}
 
           {city.currentProduction && hasColonies ? (
             <div className="mb-3">

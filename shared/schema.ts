@@ -566,3 +566,16 @@ export const cityInventory = pgTable("city_inventory", {
 });
 
 export type CityInventoryRecord = typeof cityInventory.$inferSelect;
+
+// ─── player_transport ─────────────────────────────────────────────────────────
+// Ressources physiquement portées par le joueur (inventaire de transport).
+// Alimenté par l'action transfer_bank_to_player à complétion.
+// Capacité max : 50 unités totales (or + nourriture).
+export const playerTransport = pgTable("player_transport", {
+  playerId:  text("player_id").primaryKey(),
+  gold:      integer("gold").notNull().default(0),
+  food:      integer("food").notNull().default(0),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type PlayerTransportRecord = typeof playerTransport.$inferSelect;

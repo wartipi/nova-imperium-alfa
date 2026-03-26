@@ -1,6 +1,13 @@
 import { eq, and, sql } from "drizzle-orm";
 import { db } from "./db";
-import { playerActions, playerPositions, cityPendingHarvest, cityInventory } from "../shared/schema";
+import {
+  playerActions,
+  playerPositions,
+  cityPendingHarvest,
+  cityInventory,
+  playerBank,
+  playerTransport,
+} from "../shared/schema";
 import type { PlayerAction, PathStep } from "../shared/schema";
 import { savePlayerPosition } from "./playerPositionService";
 import type { ActorContext } from "./types/actorContext";
@@ -8,13 +15,15 @@ import type { ActorContext } from "./types/actorContext";
 const HOURS_PER_AP = 6;
 const MS_PER_HOUR = 3600 * 1000;
 
+// Capacité max de transport de ressources (or + nourriture cumulés)
+export const TRANSPORT_MAX_UNITS = 50;
+
 // ─── Helpers de comportement admin ────────────────────────────────────────────
 function shouldIgnoreActionTimers(context: ActorContext): boolean {
   return context.role === 'admin' && context.adminModeEnabled === true;
 }
 
 // Non branché : les PA ne sont pas déduits côté serveur pour les actions de déplacement.
-// À utiliser quand une déduction server-authoritative sera implémentée.
 export function shouldIgnoreActionPointCosts(context: ActorContext): boolean {
   return context.role === 'admin';
 }
@@ -105,27 +114,36 @@ async function completeAction(action: PlayerAction): Promise<PlayerAction> {
     .returning();
 
   if (action.type === "move") {
-    // Mise à jour de la position du joueur à la destination finale.
     await savePlayerPosition(action.playerId, action.endWorldX, action.endWorldY);
     console.log(
       `[PlayerAction] Complétée id=${action.id} player=${action.playerId}` +
       ` → position (${action.endWorldX},${action.endWorldY})`
     );
   } else if (action.type === "collect_harvest") {
-    // Transfert pending_harvest → city_inventory pour la ville stockée dans path[0].cityId.
     const pathData = action.path as Array<{ cityId?: number }>;
     const cityId = pathData?.[0]?.cityId;
     if (cityId) {
       await completeHarvestTransfer(cityId);
     }
     console.log(`[PlayerAction] Récolte complétée id=${action.id} player=${action.playerId} cityId=${cityId}`);
+  } else if (action.type === "transfer_bank_to_city") {
+    const pathData = action.path as Array<{ cityId?: number; gold?: number; food?: number }>;
+    const meta = pathData?.[0] ?? {};
+    if (meta.cityId) {
+      await completeBankToCityTransfer(meta.cityId, meta.gold ?? 0, meta.food ?? 0);
+    }
+    console.log(`[PlayerAction] Transfert banque→ville complété id=${action.id} player=${action.playerId}`);
+  } else if (action.type === "transfer_bank_to_player") {
+    const pathData = action.path as Array<{ gold?: number; food?: number }>;
+    const meta = pathData?.[0] ?? {};
+    await completeBankToPlayerTransfer(action.playerId, meta.gold ?? 0, meta.food ?? 0);
+    console.log(`[PlayerAction] Transfert banque→joueur complété id=${action.id} player=${action.playerId}`);
   }
 
   return updated;
 }
 
 // ─── completeHarvestTransfer ──────────────────────────────────────────────────
-// Vide city_pending_harvest et crédite city_inventory.
 async function completeHarvestTransfer(cityId: number): Promise<void> {
   const rows = await db
     .select()
@@ -138,7 +156,6 @@ async function completeHarvestTransfer(cityId: number): Promise<void> {
   const { gold, food } = rows[0];
   const now = new Date();
 
-  // Crédit city_inventory (UPSERT).
   await db
     .insert(cityInventory)
     .values({ cityId, gold, food, updatedAt: now })
@@ -151,13 +168,54 @@ async function completeHarvestTransfer(cityId: number): Promise<void> {
       },
     });
 
-  // Remise à zéro du stock en attente.
   await db
     .update(cityPendingHarvest)
     .set({ gold: 0, food: 0, updatedAt: now })
     .where(eq(cityPendingHarvest.cityId, cityId));
 
   console.log(`[Harvest] cityId=${cityId} transfert +${gold}g +${food}f → city_inventory`);
+}
+
+// ─── completeBankToCityTransfer ───────────────────────────────────────────────
+// Crédite city_inventory du montant stocké dans le path de l'action.
+async function completeBankToCityTransfer(cityId: number, gold: number, food: number): Promise<void> {
+  if (gold === 0 && food === 0) return;
+  const now = new Date();
+
+  await db
+    .insert(cityInventory)
+    .values({ cityId, gold, food, updatedAt: now })
+    .onConflictDoUpdate({
+      target: cityInventory.cityId,
+      set: {
+        gold:      sql`${cityInventory.gold} + ${gold}`,
+        food:      sql`${cityInventory.food} + ${food}`,
+        updatedAt: now,
+      },
+    });
+
+  console.log(`[Transfer] banque→ville cityId=${cityId} +${gold}g +${food}f → city_inventory`);
+}
+
+// ─── completeBankToPlayerTransfer ────────────────────────────────────────────
+// Crédite player_transport du montant stocké dans le path de l'action.
+async function completeBankToPlayerTransfer(playerId: string, gold: number, food: number): Promise<void> {
+  if (gold === 0 && food === 0) return;
+  const now = new Date();
+
+  await db
+    .insert(playerTransport)
+    .values({ playerId, gold, food, updatedAt: now })
+    .onConflictDoUpdate({
+      target: playerTransport.playerId,
+      set: {
+        gold:      sql`${playerTransport.gold} + ${gold}`,
+        food:      sql`${playerTransport.food} + ${food}`,
+        updatedAt: now,
+      },
+    });
+
+  console.log(`[Transfer] banque→joueur playerId=${playerId} +${gold}g +${food}f → player_transport`);
 }
 
 // ─── Annulation d'une action active ──────────────────────────────────────────
@@ -187,9 +245,6 @@ export async function cancelActiveAction(playerId: string): Promise<PlayerAction
 }
 
 // ─── createCollectHarvestAction ───────────────────────────────────────────────
-// Crée une action de collecte physique pour une ville sans banque.
-// Durée : 5 min + ceil((gold+food)/10) minutes. Admins : 0ms.
-// Le cityId est stocké dans path[0] pour être récupéré à la complétion.
 export async function createCollectHarvestAction(
   playerId:    string,
   cityId:      number,
@@ -239,6 +294,199 @@ export async function createCollectHarvestAction(
   );
 
   return action;
+}
+
+// ─── createTransferBankToCityAction ──────────────────────────────────────────
+// Débite player_bank et crée une action transfer_bank_to_city.
+// À complétion : crédite city_inventory.
+// Durée : même formule que collect_harvest.
+export async function createTransferBankToCityAction(
+  playerId:  string,
+  cityId:    number,
+  cityWorldX: number,
+  cityWorldY: number,
+  gold:      number,
+  food:      number,
+  context:   ActorContext = { role: 'player' },
+): Promise<PlayerAction> {
+  if (gold < 0 || food < 0 || (gold === 0 && food === 0)) {
+    throw new Error("INVALID_AMOUNT: les montants doivent être positifs et non nuls");
+  }
+
+  const existing = await getActiveAction(playerId);
+  if (existing && existing.status === "in_progress") {
+    throw new Error(`ACTION_ALREADY_ACTIVE: joueur ${playerId} a déjà une action en cours (id=${existing.id})`);
+  }
+
+  // Vérifier et débiter la banque
+  const bankRows = await db
+    .select()
+    .from(playerBank)
+    .where(eq(playerBank.playerId, playerId))
+    .limit(1);
+
+  const bank = bankRows[0] ?? { gold: 0, food: 0 };
+  if (bank.gold < gold) throw new Error(`INSUFFICIENT_BANK_GOLD: banque=${bank.gold} requis=${gold}`);
+  if (bank.food < food) throw new Error(`INSUFFICIENT_BANK_FOOD: banque=${bank.food} requis=${food}`);
+
+  const now = new Date();
+
+  await db
+    .update(playerBank)
+    .set({
+      gold:      sql`${playerBank.gold} - ${gold}`,
+      food:      sql`${playerBank.food} - ${food}`,
+      updatedAt: now,
+    })
+    .where(eq(playerBank.playerId, playerId));
+
+  const totalUnits = gold + food;
+  const durationMinutes = shouldIgnoreActionTimers(context)
+    ? 0
+    : Math.max(5, 5 + Math.ceil(totalUnits / 10));
+  const durationMs = durationMinutes * 60 * 1000;
+  const expectedEndTime = new Date(now.getTime() + durationMs);
+
+  const [action] = await db
+    .insert(playerActions)
+    .values({
+      playerId,
+      type: "transfer_bank_to_city",
+      status: "in_progress",
+      startWorldX: cityWorldX,
+      startWorldY: cityWorldY,
+      endWorldX:   cityWorldX,
+      endWorldY:   cityWorldY,
+      path: [{ cityId, gold, food }] as any,
+      totalCost: 0,
+      startTime: now,
+      expectedEndTime,
+      updatedAt: now,
+    })
+    .returning();
+
+  const gmTag = shouldIgnoreActionTimers(context) ? ' [Admin — durée=0]' : '';
+  console.log(
+    `[PlayerAction] Transfert banque→ville créé id=${action.id} player=${playerId}` +
+    ` cityId=${cityId} ${gold}g+${food}f durée=${durationMinutes}min${gmTag}`
+  );
+
+  return action;
+}
+
+// ─── createTransferBankToPlayerAction ────────────────────────────────────────
+// Débite player_bank et crée une action transfer_bank_to_player.
+// À complétion : crédite player_transport.
+// Capacité max transport : TRANSPORT_MAX_UNITS (50) unités totales.
+export async function createTransferBankToPlayerAction(
+  playerId:  string,
+  gold:      number,
+  food:      number,
+  context:   ActorContext = { role: 'player' },
+): Promise<PlayerAction> {
+  if (gold < 0 || food < 0 || (gold === 0 && food === 0)) {
+    throw new Error("INVALID_AMOUNT: les montants doivent être positifs et non nuls");
+  }
+
+  const existing = await getActiveAction(playerId);
+  if (existing && existing.status === "in_progress") {
+    throw new Error(`ACTION_ALREADY_ACTIVE: joueur ${playerId} a déjà une action en cours (id=${existing.id})`);
+  }
+
+  // Vérifier capacité de transport (slot check côté serveur)
+  const transportRows = await db
+    .select()
+    .from(playerTransport)
+    .where(eq(playerTransport.playerId, playerId))
+    .limit(1);
+
+  const current = transportRows[0] ?? { gold: 0, food: 0 };
+  const currentTotal = current.gold + current.food;
+  const addTotal = gold + food;
+
+  if (currentTotal + addTotal > TRANSPORT_MAX_UNITS) {
+    throw new Error(
+      `TRANSPORT_CAPACITY_EXCEEDED: capacité=${TRANSPORT_MAX_UNITS} actuel=${currentTotal} ajout=${addTotal} libre=${TRANSPORT_MAX_UNITS - currentTotal}`
+    );
+  }
+
+  // Vérifier et débiter la banque
+  const bankRows = await db
+    .select()
+    .from(playerBank)
+    .where(eq(playerBank.playerId, playerId))
+    .limit(1);
+
+  const bank = bankRows[0] ?? { gold: 0, food: 0 };
+  if (bank.gold < gold) throw new Error(`INSUFFICIENT_BANK_GOLD: banque=${bank.gold} requis=${gold}`);
+  if (bank.food < food) throw new Error(`INSUFFICIENT_BANK_FOOD: banque=${bank.food} requis=${food}`);
+
+  const now = new Date();
+
+  await db
+    .update(playerBank)
+    .set({
+      gold:      sql`${playerBank.gold} - ${gold}`,
+      food:      sql`${playerBank.food} - ${food}`,
+      updatedAt: now,
+    })
+    .where(eq(playerBank.playerId, playerId));
+
+  const totalUnits = gold + food;
+  const durationMinutes = shouldIgnoreActionTimers(context)
+    ? 0
+    : Math.max(5, 5 + Math.ceil(totalUnits / 10));
+  const durationMs = durationMinutes * 60 * 1000;
+  const expectedEndTime = new Date(now.getTime() + durationMs);
+
+  const [action] = await db
+    .insert(playerActions)
+    .values({
+      playerId,
+      type: "transfer_bank_to_player",
+      status: "in_progress",
+      startWorldX: 0,
+      startWorldY: 0,
+      endWorldX:   0,
+      endWorldY:   0,
+      path: [{ gold, food }] as any,
+      totalCost: 0,
+      startTime: now,
+      expectedEndTime,
+      updatedAt: now,
+    })
+    .returning();
+
+  const gmTag = shouldIgnoreActionTimers(context) ? ' [Admin — durée=0]' : '';
+  console.log(
+    `[PlayerAction] Transfert banque→joueur créé id=${action.id} player=${playerId}` +
+    ` ${gold}g+${food}f durée=${durationMinutes}min${gmTag}`
+  );
+
+  return action;
+}
+
+// ─── getOrInitPlayerTransport ─────────────────────────────────────────────────
+export async function getOrInitPlayerTransport(playerId: string) {
+  const rows = await db
+    .select()
+    .from(playerTransport)
+    .where(eq(playerTransport.playerId, playerId))
+    .limit(1);
+
+  if (rows.length > 0) return rows[0];
+
+  const now = new Date();
+  const [row] = await db
+    .insert(playerTransport)
+    .values({ playerId, gold: 0, food: 0, updatedAt: now })
+    .onConflictDoUpdate({
+      target: playerTransport.playerId,
+      set: { updatedAt: now },
+    })
+    .returning();
+
+  return row;
 }
 
 // ─── Calcul du temps restant en ms ───────────────────────────────────────────

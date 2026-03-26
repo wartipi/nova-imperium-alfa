@@ -120,6 +120,92 @@ export interface CollectHarvestResult {
   };
 }
 
+// ─── Inventaire de transport joueur ──────────────────────────────────────────
+
+export interface PlayerTransportDTO {
+  playerId:  string;
+  gold:      number;
+  food:      number;
+  updatedAt: string;
+  maxUnits:  number;
+  usedUnits: number;
+  freeUnits: number;
+}
+
+export async function getPlayerTransport(): Promise<PlayerTransportDTO> {
+  const res = await fetch("/api/economy/player-transport", {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(`getPlayerTransport: ${res.status} ${res.statusText}`);
+  return res.json();
+}
+
+// ─── Transferts depuis la banque ──────────────────────────────────────────────
+
+export interface TransferResult {
+  ok: boolean;
+  action: {
+    id:           number;
+    type:         string;
+    status:       string;
+    msRemaining:  number;
+    minRemaining: number;
+    gold:         number;
+    food:         number;
+  };
+}
+
+export async function postTransferBankToCity(
+  cityId:           number,
+  gold:             number,
+  food:             number,
+  adminModeEnabled?: boolean,
+): Promise<TransferResult> {
+  const res = await fetch("/api/economy/transfer-bank-to-city", {
+    method: "POST",
+    headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({ cityId, gold, food, adminModeEnabled: adminModeEnabled ?? false }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? `postTransferBankToCity: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function postTransferBankToPlayer(
+  gold:             number,
+  food:             number,
+  adminModeEnabled?: boolean,
+): Promise<TransferResult> {
+  const res = await fetch("/api/economy/transfer-bank-to-player", {
+    method: "POST",
+    headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({ gold, food, adminModeEnabled: adminModeEnabled ?? false }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? `postTransferBankToPlayer: ${res.status}`);
+  }
+  return res.json();
+}
+
+// ─── Inventaire ville ─────────────────────────────────────────────────────────
+
+export interface CityInventoryDTO {
+  cityId: number;
+  gold:   number;
+  food:   number;
+}
+
+export async function getCityInventory(cityId: number): Promise<CityInventoryDTO> {
+  const res = await fetch(`/api/cities/${cityId}/inventory`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(`getCityInventory: ${res.status} ${res.statusText}`);
+  return res.json();
+}
+
 export async function postCollectHarvest(
   cityId:           number,
   role?:            string,

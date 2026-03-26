@@ -67,6 +67,34 @@ export async function apiSetProduction(
   if (!res.ok) throw new Error(`apiSetProduction: HTTP ${res.status}`);
 }
 
+// Démarre une construction avec validation et déduction city_inventory côté serveur.
+// Admin : construction instantanée. Joueur : mise en file + débit inventaire.
+export interface StartConstructionResult {
+  ok:       boolean;
+  mode:     'instant' | 'queued';
+  building: string;
+  deducted?: { gold: number; food: number };
+}
+
+export async function apiStartConstruction(
+  cityId:           string,
+  building:         string,
+  goldCost:         number,
+  foodCost:         number,
+  constructionTime: number,
+): Promise<StartConstructionResult> {
+  const res = await fetch(`/api/cities/${cityId}/start-construction`, {
+    method:  "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    body:    JSON.stringify({ building, goldCost, foodCost, constructionTime }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw Object.assign(new Error(body.error ?? `apiStartConstruction: HTTP ${res.status}`), { body });
+  }
+  return res.json();
+}
+
 // Supprime la production courante (après complétion ou annulation).
 export async function apiClearProduction(cityId: string): Promise<void> {
   const res = await fetch(`/api/cities/${cityId}/production`, {
