@@ -1,0 +1,202 @@
+NOVA IMPERIUM — PLANIFICATION PHASE MATÉRIAUX PAR TIERS
+SOUS-PHASE À PRÉPARER : TIER 1 = MATÉRIAUX BRUTS DE CASES ET EXPLOITATION DE BASE
+
+Branche :
+NI-10.3
+
+Contexte technique :
+Jeu persistant Node/TS + React/TS + PostgreSQL
+Architecture serveur autoritaire
+Méthode obligatoire :
+Audit → Validation → Proposition → Implémentation (si demandée) → Vérification
+Aucun refactor massif
+
+CONTEXTE VALIDÉ
+
+La V1 matériaux canoniques existe déjà pour :
+- gold
+- food
+- wood
+- stone
+- iron
+
+Ces matériaux sont déjà branchés dans :
+- player_bank
+- player_transport
+- city_pending_harvest
+- city_inventory
+- transferts banque → ville
+- transferts banque → joueur
+- collecte physique
+- consommation côté construction
+
+Je veux maintenant planifier un système de matériaux organisé en 4 tiers.
+
+OBJECTIF GLOBAL
+
+Je veux une architecture claire de 4 tiers de matériaux.
+
+MAIS :
+- on ne commence à implémenter que le Tier 1
+- les Tiers 2, 3 et 4 doivent seulement être cadrés pour l’instant
+- pas de refactor massif
+- pas de système générique trop abstrait
+- priorité à la stabilité
+
+RÈGLE DE DESIGN À VERROUILLER
+
+Tier 1 = matériaux bruts extraits directement des cases et de leur exploitation de base
+
+Le Tier 1 doit être la base du système matériel.
+
+Il doit être relié à :
+- la carte
+- les ressources de case
+- les bâtiments d’exploitation de base
+- le pipeline logistique déjà existant
+
+PROPOSITION DE TIERS À RESPECTER
+
+Tier 1 — matériaux bruts
+- matériaux extraits directement depuis la carte
+- exploitation simple
+- aucune transformation préalable
+
+Tier 2 — matériaux transformés
+- transformation simple du Tier 1
+- pas à implémenter maintenant
+
+Tier 3 — composants avancés
+- composants spécialisés
+- pas à implémenter maintenant
+
+Tier 4 — matériaux rares / stratégiques / ésotériques
+- magie, ancien monde, prestige, rareté
+- pas à implémenter maintenant
+
+IMPORTANT :
+Le but de cette phase est seulement de préparer et cadrer correctement le Tier 1.
+
+TIER 1 À RETENIR PAR DÉFAUT
+
+Sauf contradiction forte du code actuel, je veux que le Tier 1 soit basé sur :
+
+- gold
+- food
+- wood
+- stone
+- iron
+
+IMPORTANT :
+On garde ces 5 matériaux parce qu’ils sont déjà canoniques dans le système réel.
+
+QUESTIONS AUXQUELLES L’AUDIT DOIT RÉPONDRE
+
+1. Quels sont les terrainType réellement présents dans le code actuel ?
+2. Quels sont les resourceType réellement présents dans le code actuel ?
+3. Quels bâtiments d’exploitation de base existent déjà ou sont déjà partiellement prévus ?
+4. Quelle production de matériaux existe déjà réellement côté serveur ?
+5. Quels couples terrain/resource/building peuvent devenir des sources cohérentes pour le Tier 1 ?
+6. Quels coûts client ou bâtiments affichent encore des matériaux qui devraient appartenir plus tard aux Tiers 2 à 4 ?
+
+OBJECTIF FONCTIONNEL DU TIER 1
+
+À terme, je veux que le Tier 1 représente les matériaux bruts produits par exploitation de base.
+
+Le flux cible doit être :
+
+case / ressource de case
+→ bâtiment d’exploitation de base
+→ production Tier 1
+→ player_bank ou city_pending_harvest
+→ collecte / stock ville / transferts
+→ construction ou transformation future
+
+IMPORTANT :
+Le Tier 1 doit s’intégrer au pipeline logistique existant.
+On ne refait pas le pipeline.
+On l’alimente avec une production plus cohérente par type de matériau.
+
+CONSIGNES IMPORTANTES
+
+1. Ne pas implémenter les Tiers 2, 3 et 4 maintenant
+Ils doivent seulement être définis comme architecture et direction future.
+
+2. Ne pas créer un énorme catalogue prématuré
+Je veux d’abord un Tier 1 propre.
+
+3. Ne pas casser la compatibilité avec les 5 matériaux déjà canoniques
+Le Tier 1 doit réutiliser ce qui existe déjà.
+
+4. Ne pas inventer de production magique
+Le Tier 1 doit venir :
+- des cases
+- des ressources de cases
+- des exploitations de base
+
+5. Les matériaux avancés type mana / crystals / ancient_knowledge doivent être considérés comme tiers supérieurs
+Ils ne doivent pas contaminer le flux réel du Tier 1.
+
+TRAVAIL DEMANDÉ
+
+ÉTAPE 1 — AUDIT COURT
+Je veux un audit ultra-court du code réel pour identifier :
+- terrainType
+- resourceType
+- bâtiments d’exploitation existants
+- production réelle déjà branchée
+- divergences client / serveur encore présentes
+
+ÉTAPE 2 — PROPOSITION D’ARCHITECTURE 4 TIERS
+Je veux une proposition claire des 4 tiers avec :
+- rôle de chaque tier
+- exemples de matériaux par tier
+- frontière nette entre tiers
+- justification simple
+
+ÉTAPE 3 — DÉFINITION CANONIQUE DU TIER 1
+Je veux que tu proposes la table canonique du Tier 1 :
+- matériau
+- catégorie
+- source terrain / resourceType
+- bâtiment d’exploitation de base recommandé
+- usage principal
+
+IMPORTANT :
+Pas de code à cette étape tant que cette table n’est pas claire.
+
+ÉTAPE 4 — PLAN DE PHASE TIER 1
+Je veux un plan d’implémentation minimal pour le Tier 1 seulement, compatible avec l’architecture actuelle :
+- où brancher la production
+- quels fichiers seraient touchés
+- quels champs / structures réutiliser
+- quels risques de régression existent
+
+FORMAT DE RETOUR ATTENDU
+
+Je veux un rapport structuré en 6 parties :
+
+1. Audit ultra-court du code actuel lié aux matériaux
+2. Proposition d’architecture des 4 tiers
+3. Définition canonique du Tier 1
+4. Mapping terrain / resource / exploitation / matériau
+5. Risques et points de vigilance
+6. Plan minimal d’implémentation du Tier 1
+
+INTERDIT
+
+- refactor massif
+- implémentation immédiate des 4 tiers
+- abstraction générique prématurée
+- mélange entre Tier 1 et matériaux fantasy avancés
+- changement d’architecture
+
+PRIORITÉ ABSOLUE
+
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+BUT FINAL
+
+Préparer un système de matériaux à 4 tiers,
+en commençant proprement par un Tier 1 composé des matériaux bruts des cases
+et de leur exploitation de base.
