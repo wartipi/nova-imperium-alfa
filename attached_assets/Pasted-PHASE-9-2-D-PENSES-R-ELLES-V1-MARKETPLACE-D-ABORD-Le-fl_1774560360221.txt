@@ -1,0 +1,94 @@
+PHASE 9.2 — DÉPENSES RÉELLES V1 : MARKETPLACE D’ABORD
+
+Le flux principal de tour + tick économique est maintenant validé.
+La prochaine étape est d’introduire la première vraie dépense de faction.
+
+CHOIX DE PÉRIMÈTRE
+On commence uniquement par :
+- le débit d’or côté marketplace
+
+On ne touche PAS encore à :
+- entretien d’unités
+- coûts de bâtiments
+- coûts de recrutement
+- upkeep récurrent
+- autres ressources
+
+OBJECTIF
+Faire en sorte qu’un achat marketplace utilisant de l’or débite réellement le stock serveur de faction, au lieu d’un simple calcul local ou simulé.
+
+RÈGLES ABSOLUES
+- aucun refactor massif
+- aucune nouvelle architecture
+- aucune nouvelle ressource
+- ne pas toucher au tick économique
+- ne pas élargir le périmètre au-delà de l’or marketplace
+- pas de WebSocket
+- pas de système générique de dépenses globales si ce n’est pas nécessaire
+- simplicité maximale
+
+MISSION
+Tu dois travailler en étapes courtes.
+
+ÉTAPE A — Audit ciblé
+Lis uniquement les fichiers nécessaires pour déterminer :
+1. quels endpoints marketplace manipulent aujourd’hui un “achat”
+2. où l’or est encore simulé ou hardcodé
+3. quel est le plus petit point de branchement pour débiter réellement `faction_economy.gold`
+4. si le débit doit être fait :
+   - directement dans la route marketplace
+   - ou via une petite fonction dédiée dans `economyService.ts`
+
+Tu dois lire en priorité :
+- `server/routes.ts`
+- les endpoints marketplace concernés
+- `server/economyService.ts`
+- tout service marketplace réellement impliqué par l’achat
+- éventuellement le client marketplace si nécessaire pour comprendre le flux réel
+
+Réponse attendue :
+1. endpoint(s) exact(s) à corriger
+2. point exact où l’or est actuellement simulé
+3. plus petit branchement recommandé
+4. fichiers à modifier
+5. risques éventuels
+Puis tu t’arrêtes.
+
+ÉTAPE B — Implémentation minimale
+Seulement après validation :
+- brancher le débit réel d’or de faction sur le flux d’achat marketplace
+- vérifier qu’on refuse l’achat si l’or est insuffisant
+- débiter le stock serveur si l’achat réussit
+- ne pas casser le reste du marketplace
+- ne pas ajouter encore d’autres coûts
+
+Le flux minimal recherché :
+1. identifier la faction du joueur acheteur
+2. lire son stock d’or réel
+3. comparer au coût
+4. refuser si insuffisant
+5. si achat validé :
+   - débiter `faction_economy.gold`
+   - finaliser l’achat existant
+
+ÉTAPE C — Vérification
+Vérifier explicitement :
+- achat refusé si or insuffisant
+- achat accepté si or suffisant
+- stock d’or débité correctement
+- pas de double dépense sur même achat
+- pas de régression visible côté client
+
+FORMAT DE SORTIE
+À chaque étape, je veux :
+1. fichiers modifiés
+2. logique exacte ajoutée
+3. ce qui n’a pas été touché
+4. risques ou incertitudes
+
+IMPORTANT
+- ne fais pas encore un système de dépenses générique si un simple débit marketplace suffit
+- ne touche pas aux coûts d’unités/bâtiments
+- ne touche pas à l’entretien
+- pas de code hors périmètre
+- vise le plus petit branchement réel possible
