@@ -1,0 +1,267 @@
+NOVA IMPERIUM — RECADRAGE PHASE TIER 1
+MATÉRIAUX BRUTS DE CASES + SUPPORT MULTI-RESSOURCES PAR CASE
+
+Branche :
+NI-10.3
+
+Contexte technique :
+Jeu persistant Node/TS + React/TS + PostgreSQL
+Architecture serveur autoritaire
+Méthode obligatoire :
+Audit → Validation → Proposition → Implémentation (si demandée) → Vérification
+Aucun refactor massif
+
+CONTEXTE VALIDÉ
+
+La V1 matériaux canoniques existe déjà pour :
+- food
+- wood
+- stone
+- iron
+- gold
+
+Ces matériaux sont déjà branchés dans :
+- player_bank
+- player_transport
+- city_pending_harvest
+- city_inventory
+- transferts banque → ville
+- transferts banque → joueur
+- collecte physique
+- consommation côté construction
+
+Mais il faut maintenant recadrer proprement le système de matériaux par tiers, parce que le modèle réel voulu a changé sur 3 points importants :
+
+1. aucune case ne doit donner directement de gold comme matériau brut
+2. une case peut contenir plusieurs ressources
+3. certaines cases, notamment les cavernes, peuvent contenir plusieurs minerais et aussi de l’huile
+
+OBJECTIF DE CETTE PHASE
+
+Je veux recadrer proprement la planification du système de matériaux par tiers en partant de la vraie règle de design suivante :
+
+- Tier 1 = matériaux bruts de cases et de leur exploitation de base
+- une case peut contenir 0 à plusieurs ressources
+- gold ne doit pas être traité comme ressource brute native de case
+- les ressources avancées viendront plus tard dans les tiers supérieurs
+- on ne veut pas casser la V1 actuelle déjà stable
+
+IMPORTANT
+
+Je ne veux PAS une implémentation brute immédiate de tout le système multi-ressources.
+Je veux d’abord un cadrage technique propre et réaliste avant toute implémentation.
+
+AUTREMENT DIT
+
+Je veux :
+- corriger la définition du Tier 1
+- intégrer explicitement la règle multi-ressources par case
+- préparer la migration future du modèle actuel
+- sans lancer encore un refactor massif
+
+RÈGLE DE DESIGN À VERROUILLER
+
+Le Tier 1 ne doit contenir que des matériaux bruts extraits directement :
+- des cases
+- des ressources présentes sur les cases
+- et des bâtiments d’exploitation de base
+
+Le gold ne doit plus être considéré comme ressource brute native de case.
+
+Le gold pourra exister plus tard comme :
+- valeur économique
+- produit raffiné
+- revenu d’échange
+- ressource de transformation
+- ressource spéciale
+mais pas comme brute universelle issue directement d’une case de base
+
+MULTI-RESSOURCES — NOUVELLE RÈGLE CANONIQUE
+
+Je veux que le système cible soit explicitement :
+
+- une case peut contenir plusieurs ressources
+- une ressource de case n’est pas forcément unique
+- les cavernes peuvent contenir plusieurs minerais et aussi de l’huile
+- le modèle actuel à resourceType unique est donc insuffisant à terme
+
+IMPORTANT :
+Cette règle doit être reconnue comme canonique dès maintenant.
+Même si on n’implémente pas encore toute la migration technique dans cette phase.
+
+RECADRAGE DU TIER 1
+
+Je veux que tu repartes de zéro sur la définition du Tier 1 avec cette contrainte :
+
+Le Tier 1 doit contenir uniquement des matériaux bruts cohérents avec la carte et l’exploitation de base.
+
+Exemples probables de Tier 1 :
+- food
+- wood
+- stone
+- iron
+- copper
+- coal
+- oil
+- fish
+- herbs
+- fur
+
+Tu dois valider ce sous-ensemble à partir du code réel et du design actuel.
+
+IMPORTANT :
+- gold ne doit plus être dans la liste par défaut des matériaux bruts de case
+- si tu veux le garder quelque part, il faut justifier clairement qu’il s’agit d’une ressource spéciale ou d’un futur autre niveau économique, pas d’un brut générique
+
+ARCHITECTURE GLOBALE DES 4 TIERS
+
+Je veux garder la logique suivante :
+
+Tier 1 — matériaux bruts
+- extraits directement de la carte
+- exploitation simple
+- pas de transformation préalable
+
+Tier 2 — matériaux transformés
+- transformation simple du Tier 1
+- ex. bois scié, pierre taillée, métal fondu, etc.
+- pas à implémenter maintenant
+
+Tier 3 — composants avancés
+- composants spécialisés
+- artisanat, militaire, mécanique, etc.
+- pas à implémenter maintenant
+
+Tier 4 — matériaux rares / stratégiques / ésotériques
+- magie, ancien monde, prestige, ressources rares
+- pas à implémenter maintenant
+
+IMPORTANT :
+Les tiers 2 à 4 doivent être cadrés, mais pas branchés maintenant.
+
+TRAVAIL DEMANDÉ
+
+ÉTAPE 1 — AUDIT COURT DU MODÈLE ACTUEL
+
+Je veux un audit ultra-court qui répond précisément à ces questions :
+
+1. quels terrains sont réellement générés par le serveur aujourd’hui
+2. quelles ressources de case existent réellement dans la génération actuelle
+3. où le code suppose encore qu’une case n’a qu’une seule ressource
+4. quels bâtiments d’exploitation de base existent déjà côté client ou côté serveur
+5. quels matériaux actuels doivent clairement sortir du Tier 1
+6. quels matériaux bruts Tier 1 sont cohérents avec la carte actuelle
+
+IMPORTANT :
+Ne pas répondre de manière théorique.
+Je veux un audit fondé sur le code réel.
+
+ÉTAPE 2 — RECADRAGE CANONIQUE DU TIER 1
+
+Je veux une proposition claire et justifiée du Tier 1 réel.
+
+Pour chaque matériau retenu, je veux :
+- nom du matériau
+- pourquoi il appartient au Tier 1
+- sur quels terrains / ressources il peut apparaître
+- par quel type d’exploitation de base il peut être obtenu
+
+IMPORTANT :
+Je veux une vraie frontière claire entre :
+- matériaux bruts de Tier 1
+- matériaux à réserver plus tard aux tiers supérieurs
+- ressources économiques abstraites comme le gold
+
+ÉTAPE 3 — MODÈLE MULTI-RESSOURCES : CIBLE TECHNIQUE
+
+Je veux que tu proposes le plus petit modèle technique propre pour représenter à terme :
+
+- une case avec plusieurs ressources
+- des ressources de quantité ou de présence
+- des cavernes multi-minerais
+- sans casser brutalement l’architecture existante
+
+IMPORTANT :
+À cette étape, je ne te demande pas encore d’implémenter.
+Je veux une proposition technique minimale et réaliste.
+
+Par exemple :
+- nouvelle table liée à map_tiles
+- champ jsonb
+- autre solution simple et déterministe
+
+Mais je veux que tu compares les options et choisisses la plus stable pour Nova Imperium.
+
+PRIORITÉ :
+simplicité, lisibilité, stabilité, compatibilité avec le serveur autoritaire
+
+ÉTAPE 4 — STRATÉGIE DE MIGRATION
+
+Je veux un plan propre de migration depuis le modèle actuel :
+
+- map_tiles.resourceType unique
+
+vers un modèle futur :
+
+- 0 à N ressources par case
+
+IMPORTANT :
+Je ne veux pas encore le code d’implémentation complet si ce n’est pas demandé.
+Je veux d’abord :
+- le plan
+- les impacts
+- les risques
+- l’ordre recommandé
+
+ÉTAPE 5 — PLAN DE PHASE TIER 1 RÉELLE
+
+Je veux ensuite un plan minimal d’implémentation pour la future vraie phase Tier 1, basé sur ce nouveau cadrage.
+
+Ce plan doit répondre à :
+- comment relier les ressources de case aux bâtiments d’exploitation
+- comment produire les matériaux Tier 1 dans le pipeline actuel
+- comment garder la compatibilité avec :
+  - player_bank
+  - city_pending_harvest
+  - city_inventory
+  - player_transport
+- comment éviter un refactor massif
+
+IMPORTANT :
+Je ne veux pas encore de code.
+Je veux une planification de qualité, prête à être validée avant implémentation.
+
+CONTRAINTES IMPORTANTES
+
+- ne pas lancer l’implémentation complète du multi-ressources tout de suite
+- ne pas traiter gold comme ressource brute de base
+- ne pas casser la V1 matériaux déjà stable
+- ne pas mélanger Tier 1 et matériaux fantasy avancés
+- ne pas faire d’abstraction générique prématurée
+- rester simple et déterministe
+
+PRIORITÉ ABSOLUE
+
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+FORMAT DE RETOUR ATTENDU
+
+Je veux un rapport structuré exactement en 7 parties :
+
+1. Audit ultra-court du modèle actuel
+2. Erreurs de cadrage à corriger dans l’ancienne vision du Tier 1
+3. Définition canonique proposée du Tier 1
+4. Matériaux explicitement exclus du Tier 1 et pourquoi
+5. Proposition technique minimale pour supporter plusieurs ressources par case
+6. Stratégie de migration depuis resourceType unique
+7. Plan minimal de la future implémentation Tier 1
+
+BUT FINAL
+
+Préparer proprement un vrai système de matériaux par tiers,
+en commençant par un Tier 1 fondé sur les matériaux bruts des cases
+et en intégrant explicitement que :
+- une case peut contenir plusieurs ressources
+- le gold n’est pas une ressource brute native de case
+- les cavernes peuvent porter plusieurs minerais et de l’huile
+sans casser la base logistique déjà stabilisée.
