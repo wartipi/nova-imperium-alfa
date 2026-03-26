@@ -241,13 +241,16 @@ router.post("/:cityId/collect-harvest", requireAuth, async (req: AuthRequest, re
       return res.status(400).json({ error: "Cette ville a une banque — la production est versée automatiquement" });
     }
 
-    // Lit le pending harvest
+    // Lit le pending harvest (5 matériaux V1)
     const [pendingRow] = await db.select().from(cityPendingHarvest)
       .where(eq(cityPendingHarvest.cityId, cityId)).limit(1);
-    const pendingGold = pendingRow?.gold ?? 0;
-    const pendingFood = pendingRow?.food ?? 0;
+    const pendingGold  = pendingRow?.gold  ?? 0;
+    const pendingFood  = pendingRow?.food  ?? 0;
+    const pendingWood  = pendingRow?.wood  ?? 0;
+    const pendingStone = pendingRow?.stone ?? 0;
+    const pendingIron  = pendingRow?.iron  ?? 0;
 
-    if (pendingGold === 0 && pendingFood === 0) {
+    if (pendingGold === 0 && pendingFood === 0 && pendingWood === 0 && pendingStone === 0 && pendingIron === 0) {
       return res.status(400).json({ error: "Aucune récolte en attente pour cette ville" });
     }
 
@@ -266,12 +269,13 @@ router.post("/:cityId/collect-harvest", requireAuth, async (req: AuthRequest, re
       adminModeEnabled: adminModeEnabled === true,
     };
 
-    // Récupère la position de la ville (cityRecord est la ligne cities.*)
-    const cityWorldX = (access as any).cityRecord?.worldX ?? 0;
-    const cityWorldY = (access as any).cityRecord?.worldY ?? 0;
+    const cityWorldX = access.worldX;
+    const cityWorldY = access.worldY;
 
     const action = await createCollectHarvestAction(
-      playerId, cityId, cityWorldX, cityWorldY, pendingGold, pendingFood, context
+      playerId, cityId, cityWorldX, cityWorldY,
+      pendingGold, pendingFood, context,
+      pendingWood, pendingStone, pendingIron
     );
 
     return res.status(201).json({
@@ -284,6 +288,9 @@ router.post("/:cityId/collect-harvest", requireAuth, async (req: AuthRequest, re
         expectedEndTime: action.expectedEndTime,
         pendingGold,
         pendingFood,
+        pendingWood,
+        pendingStone,
+        pendingIron,
       },
     });
   } catch (err: any) {

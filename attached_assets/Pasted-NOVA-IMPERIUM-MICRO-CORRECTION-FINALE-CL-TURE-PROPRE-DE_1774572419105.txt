@@ -1,0 +1,215 @@
+NOVA IMPERIUM — MICRO-CORRECTION FINALE : CLÔTURE PROPRE DE LA PHASE MATÉRIAUX V1
+
+Branche :
+NI-10.3
+
+Contexte :
+Jeu persistant Node/TS + React/TS + PostgreSQL
+Architecture serveur autoritaire
+Méthode : audit court → correctif ciblé → vérification
+Aucun refactor massif
+
+CONTEXTE VALIDÉ
+
+Le gros de la phase Matériaux V1 est déjà en place :
+
+- player_bank supporte gold / food / wood / stone / iron
+- player_transport supporte gold / food / wood / stone / iron
+- city_inventory supporte gold / food / wood / stone / iron
+- city_pending_harvest supporte gold / food / wood / stone / iron
+- transferts banque → ville supportent les 5 matériaux
+- transferts banque → joueur supportent les 5 matériaux
+- la construction consomme déjà les 5 matériaux depuis city_inventory
+- TreasuryPanel et ConstructionPanel affichent déjà en grande partie les 5 matériaux
+
+Mais la phase n’est pas totalement fermée.
+Il reste 3 écarts précis à corriger.
+
+OBJECTIF DE CE PATCH
+
+Fermer proprement la phase Matériaux V1 en supprimant les derniers écarts entre :
+- schéma
+- logique serveur
+- collecte physique
+- affichage UI
+
+Je veux un patch court, ciblé, propre.
+Pas de nouvelle phase.
+Pas de refactor.
+Juste finir correctement ce qui est déjà presque terminé.
+
+LES 3 ÉCARTS À CORRIGER
+
+1. COLLECTE PHYSIQUE INCOMPLÈTE
+Aujourd’hui, createCollectHarvestAction et completeHarvestTransfer ne manipulent encore réellement que :
+- gold
+- food
+
+Alors que city_pending_harvest et city_inventory ont déjà :
+- wood
+- stone
+- iron
+
+Je veux que la collecte physique transfère aussi :
+- wood
+- stone
+- iron
+
+Autrement dit :
+pending_harvest → city_inventory doit être complet pour les 5 matériaux V1.
+
+2. MAUVAISES COORDONNÉES DANS collect-harvest
+Dans la route collect-harvest, le code lit encore les coordonnées depuis :
+- access.cityRecord?.worldX
+- access.cityRecord?.worldY
+
+Ce n’est pas acceptable.
+Le correctif précédent sur checkCityAccess a déjà prévu :
+- access.worldX
+- access.worldY
+
+Je veux que collect-harvest utilise explicitement les vraies coordonnées retournées par checkCityAccess.
+
+3. TEXTE UI TRANSPORT TROMPEUR
+Dans TreasuryPanel, le texte de capacité transport parle encore seulement de :
+- or + nourriture
+
+Alors que le backend calcule maintenant la capacité totale sur :
+- gold
+- food
+- wood
+- stone
+- iron
+
+Je veux que ce texte reflète exactement la règle serveur réelle.
+
+OBJECTIF FONCTIONNEL EXACT
+
+Après ce patch :
+
+1. une ville sans banque peut accumuler en pending :
+- gold
+- food
+- wood
+- stone
+- iron
+
+2. une collecte physique doit transférer ces 5 matériaux en une seule action vers city_inventory
+
+3. la durée de collecte doit être basée sur le total réel des 5 matériaux, pas seulement gold + food
+
+4. la route collect-harvest doit utiliser :
+- access.worldX
+- access.worldY
+
+5. TreasuryPanel doit afficher une phrase de capacité cohérente avec la règle serveur réelle :
+capacité totale sur les 5 matériaux V1
+
+FICHIERS À AUDITER EN PRIORITÉ
+
+- server/playerActionService.ts
+- server/routes/cities.ts
+- client/src/components/game/TreasuryPanel.tsx
+- si nécessaire : client/src/lib/api/economyApi.ts
+- si nécessaire : tout endroit lié à collect_harvest
+
+TRAVAIL DEMANDÉ
+
+ÉTAPE 1 — AUDIT COURT
+Confirmer précisément :
+- où createCollectHarvestAction ignore encore wood/stone/iron
+- où completeHarvestTransfer ignore encore wood/stone/iron
+- où collect-harvest lit encore les mauvaises coordonnées
+- où le texte transport est encore incomplet
+
+ÉTAPE 2 — CORRECTION COLLECTE PHYSIQUE
+Étendre createCollectHarvestAction pour qu’elle prenne en compte :
+- gold
+- food
+- wood
+- stone
+- iron
+
+Étendre completeHarvestTransfer pour qu’il transfère les 5 matériaux de :
+- city_pending_harvest
+vers
+- city_inventory
+
+IMPORTANT :
+- une seule action de collecte
+- pas de micro-actions séparées
+- garder la logique existante
+- juste l’étendre proprement
+
+La durée de collecte doit être basée sur :
+totalUnits = gold + food + wood + stone + iron
+ou une formule équivalente cohérente avec l’existant
+
+ÉTAPE 3 — CORRECTION COORDONNÉES
+Dans la route POST /api/cities/:cityId/collect-harvest :
+- utiliser access.worldX
+- utiliser access.worldY
+- supprimer toute dépendance à access.cityRecord?.worldX / worldY
+
+Je veux un branchement propre, lisible, sans fallback faux.
+
+ÉTAPE 4 — CORRECTION TEXTE UI
+Dans TreasuryPanel :
+- corriger le texte de capacité transport
+- il doit refléter exactement la règle réelle du backend
+
+Exemple acceptable :
+“Capacité transport : 50 unités totales (or, nourriture, bois, pierre, fer).”
+
+ou toute formulation équivalente claire.
+
+IMPORTANT :
+Pas d’ambiguïté.
+Pas de texte partiellement vrai.
+
+CONTRAINTES IMPORTANTES
+
+- aucun refactor massif
+- aucun nouveau système
+- aucune abstraction inutile
+- ne pas retoucher toute la phase matériaux
+- patch minimal uniquement
+
+PRIORITÉ ABSOLUE
+
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+FORMAT DE RETOUR ATTENDU
+
+Je veux un rapport final structuré exactement en 6 parties :
+
+1. Audit ultra-court des 3 écarts restants
+2. Choix minimal retenu
+3. Fichiers modifiés
+4. Résumé exact du patch
+5. Avant / après
+6. Résultat de validation
+
+VALIDATION MINIMALE ATTENDUE
+
+Je veux que tu vérifies au minimum :
+
+- createCollectHarvestAction prend bien en compte les 5 matériaux
+- completeHarvestTransfer transfère bien les 5 matériaux
+- la durée de collecte utilise bien le total des 5 matériaux
+- collect-harvest utilise bien access.worldX / access.worldY
+- TreasuryPanel ne parle plus seulement de or + nourriture
+- TypeScript compile
+- aucune régression sur la collecte gold/food déjà existante
+
+BUT FINAL
+
+Fermer proprement la phase Matériaux V1 pour que :
+- stockage
+- transfert
+- collecte
+- consommation
+- affichage
+
+soient enfin cohérents pour les 5 matériaux canoniques :
+gold, food, wood, stone, iron.

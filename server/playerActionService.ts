@@ -151,29 +151,33 @@ async function completeHarvestTransfer(cityId: number): Promise<void> {
     .where(eq(cityPendingHarvest.cityId, cityId))
     .limit(1);
 
-  if (!rows.length || (rows[0].gold === 0 && rows[0].food === 0)) return;
+  if (!rows.length) return;
+  const { gold, food, wood, stone, iron } = rows[0];
+  if (gold === 0 && food === 0 && wood === 0 && stone === 0 && iron === 0) return;
 
-  const { gold, food } = rows[0];
   const now = new Date();
 
   await db
     .insert(cityInventory)
-    .values({ cityId, gold, food, updatedAt: now })
+    .values({ cityId, gold, food, wood, stone, iron, updatedAt: now })
     .onConflictDoUpdate({
       target: cityInventory.cityId,
       set: {
         gold:      sql`${cityInventory.gold} + ${gold}`,
         food:      sql`${cityInventory.food} + ${food}`,
+        wood:      sql`${cityInventory.wood} + ${wood}`,
+        stone:     sql`${cityInventory.stone} + ${stone}`,
+        iron:      sql`${cityInventory.iron} + ${iron}`,
         updatedAt: now,
       },
     });
 
   await db
     .update(cityPendingHarvest)
-    .set({ gold: 0, food: 0, updatedAt: now })
+    .set({ gold: 0, food: 0, wood: 0, stone: 0, iron: 0, updatedAt: now })
     .where(eq(cityPendingHarvest.cityId, cityId));
 
-  console.log(`[Harvest] cityId=${cityId} transfert +${gold}g +${food}f → city_inventory`);
+  console.log(`[Harvest] cityId=${cityId} transfert +${gold}g+${food}f+${wood}w+${stone}s+${iron}i → city_inventory`);
 }
 
 // ─── completeBankToCityTransfer ───────────────────────────────────────────────
@@ -254,20 +258,23 @@ export async function cancelActiveAction(playerId: string): Promise<PlayerAction
 
 // ─── createCollectHarvestAction ───────────────────────────────────────────────
 export async function createCollectHarvestAction(
-  playerId:    string,
-  cityId:      number,
-  cityWorldX:  number,
-  cityWorldY:  number,
-  pendingGold: number,
-  pendingFood: number,
-  context:     ActorContext = { role: 'player' },
+  playerId:     string,
+  cityId:       number,
+  cityWorldX:   number,
+  cityWorldY:   number,
+  pendingGold:  number,
+  pendingFood:  number,
+  context:      ActorContext = { role: 'player' },
+  pendingWood:  number = 0,
+  pendingStone: number = 0,
+  pendingIron:  number = 0,
 ): Promise<PlayerAction> {
   const existing = await getActiveAction(playerId);
   if (existing && existing.status === "in_progress") {
     throw new Error(`ACTION_ALREADY_ACTIVE: joueur ${playerId} a déjà une action en cours (id=${existing.id})`);
   }
 
-  const totalUnits = pendingGold + pendingFood;
+  const totalUnits = pendingGold + pendingFood + pendingWood + pendingStone + pendingIron;
   const durationMinutes = shouldIgnoreActionTimers(context)
     ? 0
     : Math.max(5, 5 + Math.ceil(totalUnits / 10));
@@ -297,7 +304,7 @@ export async function createCollectHarvestAction(
   const gmTag = shouldIgnoreActionTimers(context) ? ' [Admin — durée=0]' : '';
   console.log(
     `[PlayerAction] Récolte créée id=${action.id} player=${playerId}` +
-    ` cityId=${cityId} pending=${pendingGold}g+${pendingFood}f` +
+    ` cityId=${cityId} pending=${pendingGold}g+${pendingFood}f+${pendingWood}w+${pendingStone}s+${pendingIron}i` +
     ` durée=${durationMinutes}min${gmTag}`
   );
 

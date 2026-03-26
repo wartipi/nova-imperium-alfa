@@ -454,7 +454,7 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
           </div>
         )}
         <p className="text-xs text-amber-400 italic mt-1">
-          Capacité transport : 50 unités totales (or + nourriture).
+          Capacité transport : 50 unités totales (or, nourriture, bois, pierre, fer).
         </p>
         {currentUser && currentUser !== 'player' && (
           <p className="text-xs text-amber-400 mt-1">Joueur : {currentUser}</p>
