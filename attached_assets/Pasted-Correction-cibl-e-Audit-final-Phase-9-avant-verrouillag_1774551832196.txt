@@ -1,0 +1,67 @@
+Correction ciblée — Audit final Phase 9 avant verrouillage
+
+Ton audit Phase 9 est globalement bon, mais je veux une version corrigée sur 4 points précis avant toute implémentation.
+
+POINT 1 — Idempotence du tick
+Tu proposes `last_tick_at` dans `faction_economy` pour empêcher un double tick sur le même tour.
+
+Ce point doit être corrigé :
+- un timestamp ne garantit pas qu’on ne traite pas deux fois le même tour
+- il dit seulement quand un tick a eu lieu
+- il faut soit :
+  1. un identifiant de tour explicite de type `last_processed_turn`
+  2. soit reconnaître clairement qu’il manque aujourd’hui une source de vérité serveur sur le tour, et que ce prérequis doit être cadré
+
+Je veux que tu corriges cette partie explicitement.
+
+POINT 2 — Recalcul de `gold_per_turn`
+Tu proposes un `gold_per_turn` basé sur population + bâtiments, mais tu écris aussi que le recalcul resterait déclenché uniquement par `addBuilding()`.
+
+Ce point doit être corrigé :
+- si `gold_per_turn` dépend de la population, un simple recalcul sur `addBuilding()` n’est pas suffisant
+- tu dois trancher entre deux options :
+  A. v1 simple : `gold_per_turn` dépend uniquement des bâtiments
+  B. v1 plus complète : `gold_per_turn` dépend de population + bâtiments, et il faut alors lister tous les déclencheurs de recalcul nécessaires
+
+Je veux une décision explicite, pas une ambiguïté.
+
+POINT 3 — Référence au client actuel
+Tu écris :
+- `useFactions : resources.gold local → doit être remplacé par une lecture serveur`
+
+Cette phrase doit être vérifiée/reformulée :
+- ne mentionne `useFactions` que si tu confirmes réellement qu’il porte de l’état économique local dans le flux actif
+- sinon, reformule à partir de ce qui est réellement vérifié :
+  - `useNovaImperium.resources.food` accumulé localement
+  - `TreasuryPanel` qui calcule encore localement revenus/dépenses
+
+POINT 4 — TreasuryPanel
+Tu écris que les revenus deviennent serveur mais que les dépenses peuvent rester calculées localement “dans un premier temps”.
+
+Je veux que tu recadres cela proprement :
+- soit le panneau devient une lecture pure
+- soit tu assumes explicitement que certaines valeurs affichées restent des estimations locales temporaires
+- ta recommandation principale doit viser la simplicité ET l’absence de double source de vérité visible
+
+MISSION
+Je veux une version corrigée de l’audit Phase 9, mais seulement pour les sections suivantes :
+- SECTION 2 — Dépendances avec l’existant
+- SECTION 3 — Flux serveur recommandé
+- SECTION 4 — Stratégie de calcul
+- SECTION 7 — Décision de périmètre
+- CONCLUSION
+
+RÈGLES
+- pas de code
+- pas de nouveau refactor
+- pas d’architecture plus lourde
+- pas de théorie abstraite
+- tu dois trancher clairement quand il y a une ambiguïté
+
+FORMAT DE SORTIE
+1. Version corrigée des sections concernées
+2. Modèle recommandé final
+3. Chemin minimal recommandé final
+4. Ce qu’il faut éviter absolument en Phase 9
+
+Arrête-toi après cette correction.
