@@ -127,16 +127,16 @@ async function completeAction(action: PlayerAction): Promise<PlayerAction> {
     }
     console.log(`[PlayerAction] Récolte complétée id=${action.id} player=${action.playerId} cityId=${cityId}`);
   } else if (action.type === "transfer_bank_to_city") {
-    const pathData = action.path as Array<{ cityId?: number; gold?: number; food?: number }>;
+    const pathData = action.path as Array<{ cityId?: number; gold?: number; food?: number; wood?: number; stone?: number; iron?: number }>;
     const meta = pathData?.[0] ?? {};
     if (meta.cityId) {
-      await completeBankToCityTransfer(meta.cityId, meta.gold ?? 0, meta.food ?? 0);
+      await completeBankToCityTransfer(meta.cityId, meta.gold ?? 0, meta.food ?? 0, meta.wood ?? 0, meta.stone ?? 0, meta.iron ?? 0);
     }
     console.log(`[PlayerAction] Transfert banque→ville complété id=${action.id} player=${action.playerId}`);
   } else if (action.type === "transfer_bank_to_player") {
-    const pathData = action.path as Array<{ gold?: number; food?: number }>;
+    const pathData = action.path as Array<{ gold?: number; food?: number; wood?: number; stone?: number; iron?: number }>;
     const meta = pathData?.[0] ?? {};
-    await completeBankToPlayerTransfer(action.playerId, meta.gold ?? 0, meta.food ?? 0);
+    await completeBankToPlayerTransfer(action.playerId, meta.gold ?? 0, meta.food ?? 0, meta.wood ?? 0, meta.stone ?? 0, meta.iron ?? 0);
     console.log(`[PlayerAction] Transfert banque→joueur complété id=${action.id} player=${action.playerId}`);
   }
 
@@ -178,44 +178,52 @@ async function completeHarvestTransfer(cityId: number): Promise<void> {
 
 // ─── completeBankToCityTransfer ───────────────────────────────────────────────
 // Crédite city_inventory du montant stocké dans le path de l'action.
-async function completeBankToCityTransfer(cityId: number, gold: number, food: number): Promise<void> {
-  if (gold === 0 && food === 0) return;
+// Matériaux V1 : gold, food, wood, stone, iron.
+async function completeBankToCityTransfer(cityId: number, gold: number, food: number, wood = 0, stone = 0, iron = 0): Promise<void> {
+  if (gold === 0 && food === 0 && wood === 0 && stone === 0 && iron === 0) return;
   const now = new Date();
 
   await db
     .insert(cityInventory)
-    .values({ cityId, gold, food, updatedAt: now })
+    .values({ cityId, gold, food, wood, stone, iron, updatedAt: now })
     .onConflictDoUpdate({
       target: cityInventory.cityId,
       set: {
         gold:      sql`${cityInventory.gold} + ${gold}`,
         food:      sql`${cityInventory.food} + ${food}`,
+        wood:      sql`${cityInventory.wood} + ${wood}`,
+        stone:     sql`${cityInventory.stone} + ${stone}`,
+        iron:      sql`${cityInventory.iron} + ${iron}`,
         updatedAt: now,
       },
     });
 
-  console.log(`[Transfer] banque→ville cityId=${cityId} +${gold}g +${food}f → city_inventory`);
+  console.log(`[Transfer] banque→ville cityId=${cityId} +${gold}g+${food}f+${wood}w+${stone}s+${iron}i → city_inventory`);
 }
 
 // ─── completeBankToPlayerTransfer ────────────────────────────────────────────
 // Crédite player_transport du montant stocké dans le path de l'action.
-async function completeBankToPlayerTransfer(playerId: string, gold: number, food: number): Promise<void> {
-  if (gold === 0 && food === 0) return;
+// Matériaux V1 : gold, food, wood, stone, iron.
+async function completeBankToPlayerTransfer(playerId: string, gold: number, food: number, wood = 0, stone = 0, iron = 0): Promise<void> {
+  if (gold === 0 && food === 0 && wood === 0 && stone === 0 && iron === 0) return;
   const now = new Date();
 
   await db
     .insert(playerTransport)
-    .values({ playerId, gold, food, updatedAt: now })
+    .values({ playerId, gold, food, wood, stone, iron, updatedAt: now })
     .onConflictDoUpdate({
       target: playerTransport.playerId,
       set: {
         gold:      sql`${playerTransport.gold} + ${gold}`,
         food:      sql`${playerTransport.food} + ${food}`,
+        wood:      sql`${playerTransport.wood} + ${wood}`,
+        stone:     sql`${playerTransport.stone} + ${stone}`,
+        iron:      sql`${playerTransport.iron} + ${iron}`,
         updatedAt: now,
       },
     });
 
-  console.log(`[Transfer] banque→joueur playerId=${playerId} +${gold}g +${food}f → player_transport`);
+  console.log(`[Transfer] banque→joueur playerId=${playerId} +${gold}g+${food}f+${wood}w+${stone}s+${iron}i → player_transport`);
 }
 
 // ─── Annulation d'une action active ──────────────────────────────────────────
@@ -299,7 +307,7 @@ export async function createCollectHarvestAction(
 // ─── createTransferBankToCityAction ──────────────────────────────────────────
 // Débite player_bank et crée une action transfer_bank_to_city.
 // À complétion : crédite city_inventory.
-// Durée : même formule que collect_harvest.
+// Matériaux V1 : gold, food, wood, stone, iron.
 export async function createTransferBankToCityAction(
   playerId:  string,
   cityId:    number,
@@ -308,8 +316,12 @@ export async function createTransferBankToCityAction(
   gold:      number,
   food:      number,
   context:   ActorContext = { role: 'player' },
+  wood  = 0,
+  stone = 0,
+  iron  = 0,
 ): Promise<PlayerAction> {
-  if (gold < 0 || food < 0 || (gold === 0 && food === 0)) {
+  if (gold < 0 || food < 0 || wood < 0 || stone < 0 || iron < 0
+      || (gold === 0 && food === 0 && wood === 0 && stone === 0 && iron === 0)) {
     throw new Error("INVALID_AMOUNT: les montants doivent être positifs et non nuls");
   }
 
@@ -325,9 +337,12 @@ export async function createTransferBankToCityAction(
     .where(eq(playerBank.playerId, playerId))
     .limit(1);
 
-  const bank = bankRows[0] ?? { gold: 0, food: 0 };
-  if (bank.gold < gold) throw new Error(`INSUFFICIENT_BANK_GOLD: banque=${bank.gold} requis=${gold}`);
-  if (bank.food < food) throw new Error(`INSUFFICIENT_BANK_FOOD: banque=${bank.food} requis=${food}`);
+  const bank = bankRows[0] ?? { gold: 0, food: 0, wood: 0, stone: 0, iron: 0 };
+  if (bank.gold  < gold)  throw new Error(`INSUFFICIENT_BANK_GOLD: banque=${bank.gold} requis=${gold}`);
+  if (bank.food  < food)  throw new Error(`INSUFFICIENT_BANK_FOOD: banque=${bank.food} requis=${food}`);
+  if (bank.wood  < wood)  throw new Error(`INSUFFICIENT_BANK_WOOD: banque=${bank.wood} requis=${wood}`);
+  if (bank.stone < stone) throw new Error(`INSUFFICIENT_BANK_STONE: banque=${bank.stone} requis=${stone}`);
+  if (bank.iron  < iron)  throw new Error(`INSUFFICIENT_BANK_IRON: banque=${bank.iron} requis=${iron}`);
 
   const now = new Date();
 
@@ -336,11 +351,14 @@ export async function createTransferBankToCityAction(
     .set({
       gold:      sql`${playerBank.gold} - ${gold}`,
       food:      sql`${playerBank.food} - ${food}`,
+      wood:      sql`${playerBank.wood} - ${wood}`,
+      stone:     sql`${playerBank.stone} - ${stone}`,
+      iron:      sql`${playerBank.iron} - ${iron}`,
       updatedAt: now,
     })
     .where(eq(playerBank.playerId, playerId));
 
-  const totalUnits = gold + food;
+  const totalUnits = gold + food + wood + stone + iron;
   const durationMinutes = shouldIgnoreActionTimers(context)
     ? 0
     : Math.max(5, 5 + Math.ceil(totalUnits / 10));
@@ -357,7 +375,7 @@ export async function createTransferBankToCityAction(
       startWorldY: cityWorldY,
       endWorldX:   cityWorldX,
       endWorldY:   cityWorldY,
-      path: [{ cityId, gold, food }] as any,
+      path: [{ cityId, gold, food, wood, stone, iron }] as any,
       totalCost: 0,
       startTime: now,
       expectedEndTime,
@@ -368,7 +386,7 @@ export async function createTransferBankToCityAction(
   const gmTag = shouldIgnoreActionTimers(context) ? ' [Admin — durée=0]' : '';
   console.log(
     `[PlayerAction] Transfert banque→ville créé id=${action.id} player=${playerId}` +
-    ` cityId=${cityId} ${gold}g+${food}f durée=${durationMinutes}min${gmTag}`
+    ` cityId=${cityId} ${gold}g+${food}f+${wood}w+${stone}s+${iron}i durée=${durationMinutes}min${gmTag}`
   );
 
   return action;
@@ -377,14 +395,19 @@ export async function createTransferBankToCityAction(
 // ─── createTransferBankToPlayerAction ────────────────────────────────────────
 // Débite player_bank et crée une action transfer_bank_to_player.
 // À complétion : crédite player_transport.
-// Capacité max transport : TRANSPORT_MAX_UNITS (50) unités totales.
+// Capacité max transport : TRANSPORT_MAX_UNITS (50) unités totales (tous matériaux).
+// Matériaux V1 : gold, food, wood, stone, iron.
 export async function createTransferBankToPlayerAction(
   playerId:  string,
   gold:      number,
   food:      number,
   context:   ActorContext = { role: 'player' },
+  wood  = 0,
+  stone = 0,
+  iron  = 0,
 ): Promise<PlayerAction> {
-  if (gold < 0 || food < 0 || (gold === 0 && food === 0)) {
+  if (gold < 0 || food < 0 || wood < 0 || stone < 0 || iron < 0
+      || (gold === 0 && food === 0 && wood === 0 && stone === 0 && iron === 0)) {
     throw new Error("INVALID_AMOUNT: les montants doivent être positifs et non nuls");
   }
 
@@ -393,16 +416,16 @@ export async function createTransferBankToPlayerAction(
     throw new Error(`ACTION_ALREADY_ACTIVE: joueur ${playerId} a déjà une action en cours (id=${existing.id})`);
   }
 
-  // Vérifier capacité de transport (slot check côté serveur)
+  // Vérifier capacité de transport (tous matériaux cumulés)
   const transportRows = await db
     .select()
     .from(playerTransport)
     .where(eq(playerTransport.playerId, playerId))
     .limit(1);
 
-  const current = transportRows[0] ?? { gold: 0, food: 0 };
-  const currentTotal = current.gold + current.food;
-  const addTotal = gold + food;
+  const current = transportRows[0] ?? { gold: 0, food: 0, wood: 0, stone: 0, iron: 0 };
+  const currentTotal = current.gold + current.food + current.wood + current.stone + current.iron;
+  const addTotal = gold + food + wood + stone + iron;
 
   if (currentTotal + addTotal > TRANSPORT_MAX_UNITS) {
     throw new Error(
@@ -417,9 +440,12 @@ export async function createTransferBankToPlayerAction(
     .where(eq(playerBank.playerId, playerId))
     .limit(1);
 
-  const bank = bankRows[0] ?? { gold: 0, food: 0 };
-  if (bank.gold < gold) throw new Error(`INSUFFICIENT_BANK_GOLD: banque=${bank.gold} requis=${gold}`);
-  if (bank.food < food) throw new Error(`INSUFFICIENT_BANK_FOOD: banque=${bank.food} requis=${food}`);
+  const bank = bankRows[0] ?? { gold: 0, food: 0, wood: 0, stone: 0, iron: 0 };
+  if (bank.gold  < gold)  throw new Error(`INSUFFICIENT_BANK_GOLD: banque=${bank.gold} requis=${gold}`);
+  if (bank.food  < food)  throw new Error(`INSUFFICIENT_BANK_FOOD: banque=${bank.food} requis=${food}`);
+  if (bank.wood  < wood)  throw new Error(`INSUFFICIENT_BANK_WOOD: banque=${bank.wood} requis=${wood}`);
+  if (bank.stone < stone) throw new Error(`INSUFFICIENT_BANK_STONE: banque=${bank.stone} requis=${stone}`);
+  if (bank.iron  < iron)  throw new Error(`INSUFFICIENT_BANK_IRON: banque=${bank.iron} requis=${iron}`);
 
   const now = new Date();
 
@@ -428,11 +454,14 @@ export async function createTransferBankToPlayerAction(
     .set({
       gold:      sql`${playerBank.gold} - ${gold}`,
       food:      sql`${playerBank.food} - ${food}`,
+      wood:      sql`${playerBank.wood} - ${wood}`,
+      stone:     sql`${playerBank.stone} - ${stone}`,
+      iron:      sql`${playerBank.iron} - ${iron}`,
       updatedAt: now,
     })
     .where(eq(playerBank.playerId, playerId));
 
-  const totalUnits = gold + food;
+  const totalUnits = gold + food + wood + stone + iron;
   const durationMinutes = shouldIgnoreActionTimers(context)
     ? 0
     : Math.max(5, 5 + Math.ceil(totalUnits / 10));
@@ -449,7 +478,7 @@ export async function createTransferBankToPlayerAction(
       startWorldY: 0,
       endWorldX:   0,
       endWorldY:   0,
-      path: [{ gold, food }] as any,
+      path: [{ gold, food, wood, stone, iron }] as any,
       totalCost: 0,
       startTime: now,
       expectedEndTime,
@@ -460,7 +489,7 @@ export async function createTransferBankToPlayerAction(
   const gmTag = shouldIgnoreActionTimers(context) ? ' [Admin — durée=0]' : '';
   console.log(
     `[PlayerAction] Transfert banque→joueur créé id=${action.id} player=${playerId}` +
-    ` ${gold}g+${food}f durée=${durationMinutes}min${gmTag}`
+    ` ${gold}g+${food}f+${wood}w+${stone}s+${iron}i durée=${durationMinutes}min${gmTag}`
   );
 
   return action;
@@ -479,7 +508,7 @@ export async function getOrInitPlayerTransport(playerId: string) {
   const now = new Date();
   const [row] = await db
     .insert(playerTransport)
-    .values({ playerId, gold: 0, food: 0, updatedAt: now })
+    .values({ playerId, gold: 0, food: 0, wood: 0, stone: 0, iron: 0, updatedAt: now })
     .onConflictDoUpdate({
       target: playerTransport.playerId,
       set: { updatedAt: now },

@@ -22,7 +22,7 @@ export function ConstructionPanel() {
   const [selectedColony, setSelectedColony] = useState<string>('');
 
   // Inventaires de villes (stock local) : keyed by city.id (string du serveur)
-  const [cityInventories, setCityInventories] = useState<Record<string, { gold: number; food: number }>>({});
+  const [cityInventories, setCityInventories] = useState<Record<string, { gold: number; food: number; wood: number; stone: number; iron: number }>>({});
   // Messages de construction : keyed par cityId
   const [buildMessages, setBuildMessages] = useState<Record<string, { type: 'error' | 'ok'; text: string } | null>>({});
 
@@ -34,9 +34,15 @@ export function ConstructionPanel() {
         return { id: c.id, inv };
       })
     );
-    const map: Record<string, { gold: number; food: number }> = {};
+    const map: Record<string, { gold: number; food: number; wood: number; stone: number; iron: number }> = {};
     for (const r of entries) {
-      if (r.status === 'fulfilled') map[r.value.id] = { gold: r.value.inv.gold, food: r.value.inv.food };
+      if (r.status === 'fulfilled') map[r.value.id] = {
+        gold:  r.value.inv.gold,
+        food:  r.value.inv.food,
+        wood:  r.value.inv.wood  ?? 0,
+        stone: r.value.inv.stone ?? 0,
+        iron:  r.value.inv.iron  ?? 0,
+      };
     }
     setCityInventories(map);
   }, []);
@@ -666,8 +672,9 @@ export function ConstructionPanel() {
       .join(', ');
   };
 
-  const formatResourceCost = (cost: Record<string, number>): string => {
+  const formatResourceCost = (cost: Record<string, number | undefined>): string => {
     return Object.entries(cost)
+      .filter(([, amount]) => amount !== undefined && amount > 0)
       .map(([resource, amount]) => `${amount} ${getResourceIcon(resource)}`)
       .join(', ');
   };
@@ -700,9 +707,12 @@ export function ConstructionPanel() {
       return;
     }
 
-    // Extraire les coûts or/nourriture depuis building.cost
-    const goldCost = Number(building.cost['gold'] ?? 0);
-    const foodCost = Number(building.cost['food'] ?? 0);
+    // Extraire les coûts V1 depuis building.cost
+    const goldCost  = Number(building.cost['gold']  ?? 0);
+    const foodCost  = Number(building.cost['food']  ?? 0);
+    const woodCost  = Number(building.cost['wood']  ?? 0);
+    const stoneCost = Number(building.cost['stone'] ?? 0);
+    const ironCost  = Number(building.cost['iron']  ?? 0);
 
     try {
       const result = await apiStartConstruction(
@@ -711,6 +721,9 @@ export function ConstructionPanel() {
         goldCost,
         foodCost,
         building.constructionTime,
+        woodCost,
+        stoneCost,
+        ironCost,
       );
 
       if (result.mode === 'instant') {
@@ -732,11 +745,15 @@ export function ConstructionPanel() {
     } catch (err: any) {
       const body = (err as any).body;
       if (body?.error === 'INSUFFICIENT_CITY_INVENTORY') {
-        const miss = body.missing as { gold: number; food: number };
-        const parts = [];
-        if (miss.gold > 0) parts.push(`${miss.gold}🪙 or manquant`);
-        if (miss.food > 0) parts.push(`${miss.food}🌿 nourriture manquante`);
-        const msg = `❌ ${parts.join(', ')} — transférez depuis la banque`;
+        const miss = body.missing as Partial<Record<string, number>>;
+        const labels: Record<string, string> = {
+          gold: 'or', food: 'nourriture', wood: 'bois', stone: 'pierre', iron: 'fer',
+        };
+        const icons: Record<string, string> = {
+          gold: '🪙', food: '🌿', wood: '🪵', stone: '🪨', iron: '⚙️',
+        };
+        const parts = Object.entries(miss).filter(([, v]) => v! > 0).map(([k, v]) => `${v}${icons[k] ?? ''} ${labels[k] ?? k}`);
+        const msg = `❌ ${parts.join(', ')} manquant${parts.length > 1 ? 's' : ''} — transférez depuis la banque`;
         setBuildMessages(prev => ({ ...prev, [cityId]: { type: 'error', text: msg } }));
         console.warn(`[Construction] ${msg} pour ${buildingId} city=${cityId}`);
       } else {
@@ -833,10 +850,16 @@ export function ConstructionPanel() {
           y: colonyData.colony.y
         };
         
-        // Filtrer les bâtiments selon les terrains disponibles dans cette colonie
-        const availableBuildings = buildings.filter(building => 
-          building.requiredTerrain.includes('any') || 
-          building.requiredTerrain.some(terrain => colonyData.availableTerrains.includes(terrain))
+        // Matériaux V1 canoniques — exclure tout bâtiment qui coûte mana/crystals/ancient_knowledge
+        const V1_MATERIALS = new Set(['gold', 'food', 'wood', 'stone', 'iron', 'action_points']);
+        const isV1Building = (b: typeof buildings[0]) =>
+          Object.keys(b.cost).every(k => V1_MATERIALS.has(k));
+
+        // Filtrer les bâtiments selon les terrains disponibles dans cette colonie + matériaux V1
+        const availableBuildings = buildings.filter(building =>
+          isV1Building(building) &&
+          (building.requiredTerrain.includes('any') ||
+           building.requiredTerrain.some(terrain => colonyData.availableTerrains.includes(terrain)))
         );
         
         return (
@@ -851,14 +874,18 @@ export function ConstructionPanel() {
           {/* Inventaire local de la ville */}
           {(() => {
             const inv = cityInventories[city.id];
+            const isEmpty = inv && inv.gold === 0 && inv.food === 0 && inv.wood === 0 && inv.stone === 0 && inv.iron === 0;
             return inv !== undefined ? (
-              <div className="text-xs bg-amber-100 border border-amber-300 rounded px-2 py-1 mb-2 flex gap-3">
-                <span className="font-medium text-amber-800">📦 Stock ville :</span>
-                <span className="text-amber-700">{inv.gold}🪙 or</span>
-                <span className="text-amber-700">{inv.food}🌿 nourr.</span>
-                {inv.gold === 0 && inv.food === 0 && (
-                  <span className="text-amber-500 italic">Vide — transférez depuis la banque</span>
-                )}
+              <div className="text-xs bg-amber-100 border border-amber-300 rounded px-2 py-1 mb-2">
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                  <span className="font-medium text-amber-800">📦 Stock ville :</span>
+                  <span className="text-amber-700">{inv.gold}🪙 or</span>
+                  <span className="text-amber-700">{inv.food}🌿 nourr.</span>
+                  <span className="text-amber-700">{inv.wood}🪵 bois</span>
+                  <span className="text-amber-700">{inv.stone}🪨 pierre</span>
+                  <span className="text-amber-700">{inv.iron}⚙️ fer</span>
+                </div>
+                {isEmpty && <div className="text-amber-500 italic mt-0.5">Vide — transférez depuis la banque</div>}
               </div>
             ) : (
               <div className="text-xs text-amber-400 italic mb-2">Chargement stock…</div>
@@ -933,12 +960,12 @@ export function ConstructionPanel() {
                         onClick={() => handleBuild(building.id, city.id)}
                         disabled={
                           city.currentProduction !== null || 
-                          city.buildings.includes(building.id as any) || 
+                          (city.buildings as string[]).includes(building.id) || 
                           !canAffordBuilding(building.id)
                         }
                         className="text-xs bg-amber-600 hover:bg-amber-700 disabled:opacity-50"
                       >
-                        {city.buildings.includes(building.id as any) ? 'Construit' : 
+                        {(city.buildings as string[]).includes(building.id) ? 'Construit' : 
                          !canAffordBuilding(building.id) ? 'PA insuffisants' : 'Construire'}
                       </Button>
                     </div>
@@ -1002,10 +1029,10 @@ export function ConstructionPanel() {
                       <Button
                         size="sm"
                         onClick={() => handleBuild(building.id, city.id)}
-                        disabled={city.buildings.includes(building.id as any)}
+                        disabled={(city.buildings as string[]).includes(building.id)}
                         className="text-xs bg-amber-600 hover:bg-amber-700 disabled:opacity-50"
                       >
-                        {city.buildings.includes(building.id as any) ? 'Construit' : 'Construire'}
+                        {(city.buildings as string[]).includes(building.id) ? 'Construit' : 'Construire'}
                       </Button>
                     </div>
                   ))}

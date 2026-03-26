@@ -537,6 +537,9 @@ export const playerBank = pgTable("player_bank", {
   playerId:           text("player_id").primaryKey(),
   gold:               integer("gold").notNull().default(0),
   food:               integer("food").notNull().default(0),
+  wood:               integer("wood").notNull().default(0),
+  stone:              integer("stone").notNull().default(0),
+  iron:               integer("iron").notNull().default(0),
   lastProductionTurn: integer("last_production_turn").notNull().default(0),
   updatedAt:          timestamp("updated_at").notNull().defaultNow(),
 });
@@ -550,6 +553,9 @@ export const cityPendingHarvest = pgTable("city_pending_harvest", {
   cityId:    integer("city_id").primaryKey().references(() => cities.id),
   gold:      integer("gold").notNull().default(0),
   food:      integer("food").notNull().default(0),
+  wood:      integer("wood").notNull().default(0),
+  stone:     integer("stone").notNull().default(0),
+  iron:      integer("iron").notNull().default(0),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
@@ -562,6 +568,9 @@ export const cityInventory = pgTable("city_inventory", {
   cityId:    integer("city_id").primaryKey().references(() => cities.id),
   gold:      integer("gold").notNull().default(0),
   food:      integer("food").notNull().default(0),
+  wood:      integer("wood").notNull().default(0),
+  stone:     integer("stone").notNull().default(0),
+  iron:      integer("iron").notNull().default(0),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
@@ -570,11 +579,14 @@ export type CityInventoryRecord = typeof cityInventory.$inferSelect;
 // ─── player_transport ─────────────────────────────────────────────────────────
 // Ressources physiquement portées par le joueur (inventaire de transport).
 // Alimenté par l'action transfer_bank_to_player à complétion.
-// Capacité max : 50 unités totales (or + nourriture).
+// Capacité max : 50 unités totales (gold + food + wood + stone + iron cumulés).
 export const playerTransport = pgTable("player_transport", {
   playerId:  text("player_id").primaryKey(),
   gold:      integer("gold").notNull().default(0),
   food:      integer("food").notNull().default(0),
+  wood:      integer("wood").notNull().default(0),
+  stone:     integer("stone").notNull().default(0),
+  iron:      integer("iron").notNull().default(0),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 

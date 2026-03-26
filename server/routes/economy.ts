@@ -145,11 +145,12 @@ router.post("/production-tick", requireAuth, async (req: AuthRequest, res) => {
 router.get("/player-transport", requireAuth, async (req: AuthRequest, res) => {
   try {
     const transport = await getOrInitPlayerTransport(req.user!.id);
+    const usedUnits = transport.gold + transport.food + transport.wood + transport.stone + transport.iron;
     return res.json({
       ...transport,
       maxUnits: TRANSPORT_MAX_UNITS,
-      usedUnits: transport.gold + transport.food,
-      freeUnits: Math.max(0, TRANSPORT_MAX_UNITS - transport.gold - transport.food),
+      usedUnits,
+      freeUnits: Math.max(0, TRANSPORT_MAX_UNITS - usedUnits),
     });
   } catch (err) {
     console.error("[GET /api/economy/player-transport] Erreur:", err);
@@ -158,22 +159,24 @@ router.get("/player-transport", requireAuth, async (req: AuthRequest, res) => {
 });
 
 // ─── POST /api/economy/transfer-bank-to-city ─────────────────────────────────
-// Auth requise — transfère or/nourriture de la banque joueur vers city_inventory.
-// Body : { cityId: number, gold: number, food: number }
-// Durée : 5 + ceil((gold+food)/10) minutes. Admins : 0ms.
+// Auth requise — transfère matériaux de la banque joueur vers city_inventory.
+// Body : { cityId, gold?, food?, wood?, stone?, iron? }
+// Matériaux V1 : gold, food, wood, stone, iron. Durée : 5+ceil(total/10) min. Admins : 0ms.
 router.post("/transfer-bank-to-city", requireAuth, async (req: AuthRequest, res) => {
   try {
     const playerId = req.user!.id;
-    const { cityId, gold = 0, food = 0 } = req.body;
+    const { cityId, gold = 0, food = 0, wood = 0, stone = 0, iron = 0 } = req.body;
 
     if (!Number.isInteger(cityId) || cityId < 1) {
       return res.status(400).json({ error: "cityId est requis (entier > 0)" });
     }
-    if (!Number.isInteger(gold) || !Number.isInteger(food) || gold < 0 || food < 0) {
-      return res.status(400).json({ error: "gold et food doivent être des entiers >= 0" });
+    for (const [k, v] of [["gold", gold], ["food", food], ["wood", wood], ["stone", stone], ["iron", iron]]) {
+      if (!Number.isInteger(v) || (v as number) < 0) {
+        return res.status(400).json({ error: `${k} doit être un entier >= 0` });
+      }
     }
-    if (gold === 0 && food === 0) {
-      return res.status(400).json({ error: "Montant nul — spécifiez au moins or ou nourriture" });
+    if (gold === 0 && food === 0 && wood === 0 && stone === 0 && iron === 0) {
+      return res.status(400).json({ error: "Montant nul — spécifiez au moins un matériau" });
     }
 
     const access = await checkCityAccess(playerId, cityId);
@@ -189,7 +192,7 @@ router.post("/transfer-bank-to-city", requireAuth, async (req: AuthRequest, res)
     };
 
     const action = await createTransferBankToCityAction(
-      playerId, cityId, worldX, worldY, gold, food, context
+      playerId, cityId, worldX, worldY, gold, food, context, wood, stone, iron
     );
 
     const ms = msRemaining(action);
@@ -197,13 +200,12 @@ router.post("/transfer-bank-to-city", requireAuth, async (req: AuthRequest, res)
     return res.status(201).json({
       ok: true,
       action: {
-        id:          action.id,
-        type:        action.type,
-        status:      action.status,
-        msRemaining: ms,
+        id:           action.id,
+        type:         action.type,
+        status:       action.status,
+        msRemaining:  ms,
         minRemaining: min,
-        gold,
-        food,
+        gold, food, wood, stone, iron,
       },
     });
   } catch (err: any) {
@@ -217,20 +219,21 @@ router.post("/transfer-bank-to-city", requireAuth, async (req: AuthRequest, res)
 });
 
 // ─── POST /api/economy/transfer-bank-to-player ───────────────────────────────
-// Auth requise — transfère or/nourriture de la banque vers l'inventaire de transport.
-// Body : { gold: number, food: number, adminModeEnabled?: boolean }
-// Capacité max transport : TRANSPORT_MAX_UNITS (50) unités totales.
-// Durée : 5 + ceil((gold+food)/10) minutes. Admins : 0ms.
+// Auth requise — transfère matériaux de la banque vers l'inventaire de transport.
+// Body : { gold?, food?, wood?, stone?, iron?, adminModeEnabled? }
+// Capacité max transport : 50 unités totales (tous matériaux cumulés). Admins : 0ms.
 router.post("/transfer-bank-to-player", requireAuth, async (req: AuthRequest, res) => {
   try {
     const playerId = req.user!.id;
-    const { gold = 0, food = 0 } = req.body;
+    const { gold = 0, food = 0, wood = 0, stone = 0, iron = 0 } = req.body;
 
-    if (!Number.isInteger(gold) || !Number.isInteger(food) || gold < 0 || food < 0) {
-      return res.status(400).json({ error: "gold et food doivent être des entiers >= 0" });
+    for (const [k, v] of [["gold", gold], ["food", food], ["wood", wood], ["stone", stone], ["iron", iron]]) {
+      if (!Number.isInteger(v) || (v as number) < 0) {
+        return res.status(400).json({ error: `${k} doit être un entier >= 0` });
+      }
     }
-    if (gold === 0 && food === 0) {
-      return res.status(400).json({ error: "Montant nul — spécifiez au moins or ou nourriture" });
+    if (gold === 0 && food === 0 && wood === 0 && stone === 0 && iron === 0) {
+      return res.status(400).json({ error: "Montant nul — spécifiez au moins un matériau" });
     }
 
     const context = {
@@ -238,7 +241,7 @@ router.post("/transfer-bank-to-player", requireAuth, async (req: AuthRequest, re
       adminModeEnabled: req.body.adminModeEnabled === true,
     };
 
-    const action = await createTransferBankToPlayerAction(playerId, gold, food, context);
+    const action = await createTransferBankToPlayerAction(playerId, gold, food, context, wood, stone, iron);
 
     const ms = msRemaining(action);
     const min = Math.ceil(ms / 60000);
@@ -250,8 +253,7 @@ router.post("/transfer-bank-to-player", requireAuth, async (req: AuthRequest, re
         status:       action.status,
         msRemaining:  ms,
         minRemaining: min,
-        gold,
-        food,
+        gold, food, wood, stone, iron,
       },
     });
   } catch (err: any) {

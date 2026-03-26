@@ -74,6 +74,9 @@ export interface PlayerBankDTO {
   playerId:           string;
   gold:               number;
   food:               number;
+  wood:               number;
+  stone:              number;
+  iron:               number;
   lastProductionTurn: number;
   updatedAt:          string;
 }
@@ -93,8 +96,8 @@ export async function getPlayerBank(): Promise<PlayerBankDTO> {
 export interface CityHarvestDTO {
   cityId:    number;
   hasBank:   boolean;
-  pending:   { gold: number; food: number };
-  inventory: { gold: number; food: number };
+  pending:   { gold: number; food: number; wood: number; stone: number; iron: number };
+  inventory: { gold: number; food: number; wood: number; stone: number; iron: number };
 }
 
 export async function getCityHarvest(cityId: number): Promise<CityHarvestDTO> {
@@ -126,6 +129,9 @@ export interface PlayerTransportDTO {
   playerId:  string;
   gold:      number;
   food:      number;
+  wood:      number;
+  stone:     number;
+  iron:      number;
   updatedAt: string;
   maxUnits:  number;
   usedUnits: number;
@@ -152,19 +158,37 @@ export interface TransferResult {
     minRemaining: number;
     gold:         number;
     food:         number;
+    wood:         number;
+    stone:        number;
+    iron:         number;
   };
+}
+
+export interface TransferMaterials {
+  gold?:  number;
+  food?:  number;
+  wood?:  number;
+  stone?: number;
+  iron?:  number;
 }
 
 export async function postTransferBankToCity(
   cityId:           number,
-  gold:             number,
-  food:             number,
+  materials:        TransferMaterials,
   adminModeEnabled?: boolean,
 ): Promise<TransferResult> {
   const res = await fetch("/api/economy/transfer-bank-to-city", {
     method: "POST",
     headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-    body: JSON.stringify({ cityId, gold, food, adminModeEnabled: adminModeEnabled ?? false }),
+    body: JSON.stringify({
+      cityId,
+      gold:  materials.gold  ?? 0,
+      food:  materials.food  ?? 0,
+      wood:  materials.wood  ?? 0,
+      stone: materials.stone ?? 0,
+      iron:  materials.iron  ?? 0,
+      adminModeEnabled: adminModeEnabled ?? false,
+    }),
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -174,14 +198,20 @@ export async function postTransferBankToCity(
 }
 
 export async function postTransferBankToPlayer(
-  gold:             number,
-  food:             number,
+  materials:        TransferMaterials,
   adminModeEnabled?: boolean,
 ): Promise<TransferResult> {
   const res = await fetch("/api/economy/transfer-bank-to-player", {
     method: "POST",
     headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-    body: JSON.stringify({ gold, food, adminModeEnabled: adminModeEnabled ?? false }),
+    body: JSON.stringify({
+      gold:  materials.gold  ?? 0,
+      food:  materials.food  ?? 0,
+      wood:  materials.wood  ?? 0,
+      stone: materials.stone ?? 0,
+      iron:  materials.iron  ?? 0,
+      adminModeEnabled: adminModeEnabled ?? false,
+    }),
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -196,6 +226,9 @@ export interface CityInventoryDTO {
   cityId: number;
   gold:   number;
   food:   number;
+  wood:   number;
+  stone:  number;
+  iron:   number;
 }
 
 export async function getCityInventory(cityId: number): Promise<CityInventoryDTO> {

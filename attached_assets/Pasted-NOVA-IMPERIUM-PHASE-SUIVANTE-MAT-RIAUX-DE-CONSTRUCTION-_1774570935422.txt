@@ -1,0 +1,260 @@
+NOVA IMPERIUM — PHASE SUIVANTE : MATÉRIAUX DE CONSTRUCTION CANONIQUES
+
+Branche :
+NI-10.3
+
+Contexte :
+Jeu persistant Node/TS + React/TS + PostgreSQL
+Architecture serveur autoritaire
+Méthode : audit court → implémentation minimale propre → vérification
+Aucun refactor massif
+
+CONTEXTE VALIDÉ
+
+La logistique locale est maintenant en place :
+
+- player_bank
+- player_transport
+- city_pending_harvest
+- city_inventory
+- transferts banque → ville
+- transferts banque → joueur
+- construction validée par city_inventory
+- plus de dépendance client au vieux stock global pour les matériaux de construction
+- double tick économique retiré du pipeline actif de fin de tour
+
+PROBLÈME ACTUEL
+
+Le client affiche encore des coûts de bâtiments avec plusieurs matériaux :
+- wood
+- stone
+- iron
+- food
+- gold
+- mana
+- crystals
+- ancient_knowledge
+- etc.
+
+Mais le serveur ne valide pas encore tout ce catalogue comme un système canonique complet de matériaux stockés / transportés / consommés.
+
+Je veux maintenant supprimer cette divergence.
+
+OBJECTIF DE LA PHASE
+
+Faire coïncider à 100 % :
+
+- les matériaux affichés
+- les matériaux réellement stockés
+- les matériaux réellement transportés
+- les matériaux réellement consommés à la construction
+
+IMPORTANT :
+Je ne veux pas un énorme système complet d’un coup.
+Je veux une V1 propre, limitée, stable.
+
+RÈGLE DE DESIGN À VERROUILLER
+
+Un matériau ne doit apparaître dans un coût de construction que s’il est réellement supporté par le système serveur actuel de manière canonique.
+
+Canonique veut dire :
+- stockable
+- transférable
+- lisible côté serveur
+- consommable côté serveur
+- affichable honnêtement côté client
+
+Si un matériau n’est pas encore réellement supporté, il doit :
+- soit être retiré temporairement des coûts affichés
+- soit être explicitement repoussé à une phase ultérieure
+- mais il ne doit plus rester comme faux coût décoratif.
+
+PÉRIMÈTRE V1 À RETENIR
+
+Je veux une première version volontairement réduite.
+
+Choisir un petit set de matériaux réellement supportés en V1.
+Set recommandé si cohérent avec le code actuel :
+- gold
+- food
+- wood
+- stone
+- iron
+
+IMPORTANT :
+Ne pas intégrer mana / crystals / ancient_knowledge / precious_metals / etc. dans cette phase
+sauf si le code actuel les supporte déjà proprement de bout en bout sans complexité.
+
+PRIORITÉ :
+poser un noyau fiable, pas un catalogue complet.
+
+FICHIERS À AUDITER EN PRIORITÉ
+
+- shared/schema.ts
+- server/economyService.ts
+- server/playerActionService.ts
+- server/routes/economy.ts
+- server/routes/cities.ts
+- server/cityService.ts
+- client/src/components/game/ConstructionPanel.tsx
+- client/src/components/game/TreasuryPanel.tsx
+- client/src/lib/api/economyApi.ts
+- client/src/lib/api/citiesApi.ts
+- tout fichier contenant les définitions de coûts de bâtiments
+- tout endroit où les matériaux sont encore hardcodés côté client sans source serveur canonique
+
+OBJECTIF FONCTIONNEL EXACT
+
+Je veux qu’en V1 :
+
+1. la banque du joueur puisse stocker les matériaux canoniques retenus
+2. l’inventaire de transport du joueur puisse transporter ces matériaux canoniques
+3. l’inventaire de ville puisse stocker ces matériaux canoniques
+4. les transferts banque → joueur et banque → ville puissent transférer ces matériaux canoniques
+5. la construction puisse consommer ces matériaux canoniques depuis city_inventory
+6. le client n’affiche plus de coûts de bâtiments impossibles à vérifier côté serveur
+
+POINT 1 — AUDIT DES COÛTS DE BÂTIMENTS
+
+Je veux un audit ultra-court de :
+- où les coûts de bâtiments sont définis
+- quels matériaux sont actuellement affichés
+- lesquels sont réellement supportés côté serveur
+- lesquels ne le sont pas encore
+
+À partir de cet audit, choisir le plus petit sous-ensemble cohérent pour la V1.
+
+POINT 2 — SCHÉMA / PERSISTANCE MINIMALE
+
+Étendre uniquement le minimum nécessaire pour les matériaux retenus.
+
+Selon le code actuel, cela peut vouloir dire ajouter des colonnes à :
+- player_bank
+- player_transport
+- city_inventory
+- city_pending_harvest si nécessaire
+
+IMPORTANT :
+- rester simple
+- pas de structure ultra-générique complexe si ce n’est pas nécessaire maintenant
+- mieux vaut quelques colonnes propres pour la V1 qu’une abstraction prématurée
+
+POINT 3 — TRANSFERTS
+
+Les transferts déjà existants doivent être étendus aux matériaux canoniques retenus.
+
+Je veux que :
+- banque → ville fonctionne pour ces matériaux
+- banque → joueur fonctionne pour ces matériaux
+- les validations serveur s’appliquent à ces matériaux
+- la capacité transport reste cohérente et vérifiée côté serveur
+
+IMPORTANT :
+Ne pas casser la logique existante pour gold/food.
+Étendre proprement, sans régression.
+
+POINT 4 — CONSTRUCTION CANONIQUE
+
+Le serveur doit devenir la vraie source de vérité des coûts consommés.
+
+Je veux que pour un bâtiment :
+
+- le coût réellement validé côté serveur corresponde au coût affiché
+- si city_inventory contient les matériaux requis → construction autorisée
+- sinon → refus clair
+- les matériaux soient débités depuis city_inventory uniquement
+
+IMPORTANT :
+Aucune consommation depuis la banque.
+Aucune consommation depuis un stock global client.
+Aucune divergence entre coût affiché et coût réellement vérifié.
+
+POINT 5 — CLIENT / UI
+
+Dans ConstructionPanel :
+- ne plus afficher de matériaux qui ne sont pas encore réellement supportés
+- les coûts visibles doivent correspondre exactement à la V1 serveur retenue
+
+Dans TreasuryPanel :
+- afficher proprement les matériaux réellement gérés dans :
+  - banque
+  - transport
+  - inventaire de ville
+
+IMPORTANT :
+Pas besoin de refonte visuelle.
+Je veux surtout une UI honnête et cohérente.
+
+POINT 6 — RÈGLE SUR LES MATÉRIAUX NON RETENUS
+
+Pour les matériaux non inclus dans la V1 :
+- les retirer temporairement des coûts actifs affichés
+ou
+- les neutraliser proprement dans le catalogue de bâtiments utilisé par le flux réel
+
+Mais je ne veux plus de situation où :
+- le client affiche un coût en crystals/mana/etc.
+- alors que le serveur n’a aucun vrai stock ni validation de ce matériau
+
+PLAN DE TRAVAIL ATTENDU
+
+ÉTAPE 1 — AUDIT
+- lister les matériaux affichés actuellement
+- lister les matériaux réellement supportés côté serveur
+- proposer le sous-ensemble V1 canonique
+
+ÉTAPE 2 — SCHÉMA MINIMAL
+- ajouter le minimum de colonnes / champs nécessaires
+- migration claire
+- valeurs par défaut propres
+
+ÉTAPE 3 — SERVICES / ROUTES
+- étendre banque / transport / inventaire ville / transferts
+- garder les validations serveur propres
+
+ÉTAPE 4 — CONSTRUCTION
+- aligner coût affiché et coût réellement vérifié
+- consommation uniquement depuis city_inventory
+
+ÉTAPE 5 — UI
+- nettoyer ConstructionPanel
+- nettoyer TreasuryPanel
+- ne laisser visibles que les matériaux canoniques de la V1
+
+ÉTAPE 6 — VÉRIFICATION
+Vérifier au minimum :
+- les matériaux V1 sont bien stockés en banque
+- les matériaux V1 sont bien transférables vers joueur et ville
+- les matériaux V1 sont bien visibles côté UI
+- la construction consomme bien les matériaux V1 depuis city_inventory
+- aucun matériau fantôme n’est encore affiché pour un flux réel
+- TypeScript compile
+- aucune régression sur gold/food
+
+FORMAT DE RETOUR ATTENDU
+
+Je veux un rapport final structuré en 7 parties :
+
+1. Audit ultra-court des matériaux actuels
+2. Sous-ensemble V1 retenu
+3. Fichiers modifiés
+4. Résumé exact du patch
+5. Flux avant / après
+6. Points volontairement non traités
+7. Résultat de validation
+
+INTERDIT
+
+- refactor massif
+- système complet de ressources avancées
+- abstraction générique prématurée
+- intégration de tous les matériaux fantasy d’un coup
+- complexité inutile
+
+PRIORITÉ ABSOLUE
+
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+But :
+faire en sorte que les matériaux affichés, stockés, transportés et consommés
+soient enfin exactement les mêmes dans le système réel.

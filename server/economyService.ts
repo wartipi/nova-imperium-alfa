@@ -231,6 +231,9 @@ export async function applyFactionEconomyTick(
 export interface PlayerBankDTO {
   gold:               number;
   food:               number;
+  wood:               number;
+  stone:              number;
+  iron:               number;
   lastProductionTurn: number;
   updatedAt:          string;
 }
@@ -254,18 +257,30 @@ export async function getOrInitPlayerBank(playerId: string): Promise<PlayerBankD
   const rows = await db.select().from(playerBank).where(eq(playerBank.playerId, playerId)).limit(1);
   if (rows.length > 0) {
     const r = rows[0];
-    return { gold: r.gold, food: r.food, lastProductionTurn: r.lastProductionTurn, updatedAt: r.updatedAt.toISOString() };
+    return {
+      gold: r.gold, food: r.food,
+      wood: r.wood ?? 0, stone: r.stone ?? 0, iron: r.iron ?? 0,
+      lastProductionTurn: r.lastProductionTurn, updatedAt: r.updatedAt.toISOString(),
+    };
   }
   const [ins] = await db
     .insert(playerBank)
-    .values({ playerId, gold: 0, food: 0, lastProductionTurn: 0 })
+    .values({ playerId, gold: 0, food: 0, wood: 0, stone: 0, iron: 0, lastProductionTurn: 0 })
     .onConflictDoNothing()
     .returning();
   if (!ins) {
     const [r] = await db.select().from(playerBank).where(eq(playerBank.playerId, playerId)).limit(1);
-    return { gold: r.gold, food: r.food, lastProductionTurn: r.lastProductionTurn, updatedAt: r.updatedAt.toISOString() };
+    return {
+      gold: r.gold, food: r.food,
+      wood: r.wood ?? 0, stone: r.stone ?? 0, iron: r.iron ?? 0,
+      lastProductionTurn: r.lastProductionTurn, updatedAt: r.updatedAt.toISOString(),
+    };
   }
-  return { gold: ins.gold, food: ins.food, lastProductionTurn: ins.lastProductionTurn, updatedAt: ins.updatedAt.toISOString() };
+  return {
+    gold: ins.gold, food: ins.food,
+    wood: ins.wood ?? 0, stone: ins.stone ?? 0, iron: ins.iron ?? 0,
+    lastProductionTurn: ins.lastProductionTurn, updatedAt: ins.updatedAt.toISOString(),
+  };
 }
 
 // ─── applyProductionTickPerCity ───────────────────────────────────────────────

@@ -157,11 +157,14 @@ router.get("/:cityId/inventory", requireAuth, async (req: AuthRequest, res) => {
       .where(eq(cityInventory.cityId, cityId))
       .limit(1);
 
-    const inv = rows ?? { gold: 0, food: 0 };
+    const inv = rows ?? { gold: 0, food: 0, wood: 0, stone: 0, iron: 0 };
     return res.json({
       cityId,
-      gold: inv.gold,
-      food: inv.food,
+      gold:  inv.gold,
+      food:  inv.food,
+      wood:  inv.wood  ?? 0,
+      stone: inv.stone ?? 0,
+      iron:  inv.iron  ?? 0,
     });
   } catch (err) {
     console.error("[GET /api/cities/:cityId/inventory] Erreur:", err);
@@ -187,14 +190,26 @@ router.get("/:cityId/harvest", requireAuth, async (req: AuthRequest, res) => {
     ]);
 
     const hasBank = buildingRows.some(b => b.building === 'bank');
-    const pending   = pendingRows[0]   ?? { gold: 0, food: 0 };
-    const inventory = inventoryRows[0] ?? { gold: 0, food: 0 };
+    const pending   = pendingRows[0]   ?? { gold: 0, food: 0, wood: 0, stone: 0, iron: 0 };
+    const inventory = inventoryRows[0] ?? { gold: 0, food: 0, wood: 0, stone: 0, iron: 0 };
 
     return res.json({
       cityId,
       hasBank,
-      pending:   { gold: pending.gold,   food: pending.food },
-      inventory: { gold: inventory.gold, food: inventory.food },
+      pending: {
+        gold:  pending.gold,
+        food:  pending.food,
+        wood:  pending.wood  ?? 0,
+        stone: pending.stone ?? 0,
+        iron:  pending.iron  ?? 0,
+      },
+      inventory: {
+        gold:  inventory.gold,
+        food:  inventory.food,
+        wood:  inventory.wood  ?? 0,
+        stone: inventory.stone ?? 0,
+        iron:  inventory.iron  ?? 0,
+      },
     });
   } catch (err) {
     console.error("[GET /api/cities/:cityId/harvest] Erreur:", err);
@@ -284,13 +299,21 @@ router.post("/:cityId/collect-harvest", requireAuth, async (req: AuthRequest, re
 // Auth requise — démarre une construction avec validation city_inventory.
 // Admin : construction instantanée (bypass stock).
 // Joueur : vérifie et débite city_inventory, puis met en file de production.
-// Body : { building: string, goldCost?: number, foodCost?: number, constructionTime?: number }
+// Body : { building, goldCost?, foodCost?, woodCost?, stoneCost?, ironCost?, constructionTime? }
 router.post("/:cityId/start-construction", requireAuth, async (req: AuthRequest, res) => {
   try {
     const cityId = parseInt(req.params.cityId, 10);
     if (isNaN(cityId)) return res.status(400).json({ error: "cityId doit être un entier" });
 
-    const { building, goldCost = 0, foodCost = 0, constructionTime = 50 } = req.body;
+    const {
+      building,
+      goldCost  = 0,
+      foodCost  = 0,
+      woodCost  = 0,
+      stoneCost = 0,
+      ironCost  = 0,
+      constructionTime = 50,
+    } = req.body;
     if (!building || typeof building !== "string") {
       return res.status(400).json({ error: "building est requis (string)" });
     }
@@ -314,26 +337,36 @@ router.post("/:cityId/start-construction", requireAuth, async (req: AuthRequest,
       .where(eq(cityInventory.cityId, cityId))
       .limit(1);
 
-    const inv = invRows[0] ?? { gold: 0, food: 0 };
+    const inv = invRows[0] ?? { gold: 0, food: 0, wood: 0, stone: 0, iron: 0 };
 
-    if (inv.gold < goldCost || inv.food < foodCost) {
+    const insufficient: Record<string, number> = {};
+    if (inv.gold  < goldCost)  insufficient.gold  = goldCost  - inv.gold;
+    if (inv.food  < foodCost)  insufficient.food  = foodCost  - inv.food;
+    if (inv.wood  < woodCost)  insufficient.wood  = woodCost  - inv.wood;
+    if (inv.stone < stoneCost) insufficient.stone = stoneCost - inv.stone;
+    if (inv.iron  < ironCost)  insufficient.iron  = ironCost  - inv.iron;
+
+    if (Object.keys(insufficient).length > 0) {
       return res.status(422).json({
         error: "INSUFFICIENT_CITY_INVENTORY",
-        required:  { gold: goldCost,  food: foodCost },
-        available: { gold: inv.gold,  food: inv.food },
-        missing:   { gold: Math.max(0, goldCost - inv.gold), food: Math.max(0, foodCost - inv.food) },
+        required:  { gold: goldCost, food: foodCost, wood: woodCost, stone: stoneCost, iron: ironCost },
+        available: { gold: inv.gold, food: inv.food, wood: inv.wood, stone: inv.stone, iron: inv.iron },
+        missing:   insufficient,
       });
     }
 
     const now = new Date();
 
     // Débit city_inventory
-    if (goldCost > 0 || foodCost > 0) {
+    if (goldCost > 0 || foodCost > 0 || woodCost > 0 || stoneCost > 0 || ironCost > 0) {
       await db
         .update(cityInventory)
         .set({
-          gold:      sql`${cityInventory.gold} - ${goldCost}`,
-          food:      sql`${cityInventory.food} - ${foodCost}`,
+          gold:      sql`${cityInventory.gold}  - ${goldCost}`,
+          food:      sql`${cityInventory.food}  - ${foodCost}`,
+          wood:      sql`${cityInventory.wood}  - ${woodCost}`,
+          stone:     sql`${cityInventory.stone} - ${stoneCost}`,
+          iron:      sql`${cityInventory.iron}  - ${ironCost}`,
           updatedAt: now,
         })
         .where(eq(cityInventory.cityId, cityId));
@@ -349,14 +382,14 @@ router.post("/:cityId/start-construction", requireAuth, async (req: AuthRequest,
 
     console.log(
       `[start-construction] Queued ${building} cityId=${cityId}` +
-      ` -${goldCost}g -${foodCost}f → city_inventory durée=${constructionTime} tours`
+      ` -${goldCost}g-${foodCost}f-${woodCost}w-${stoneCost}s-${ironCost}i → city_inventory durée=${constructionTime} tours`
     );
 
     return res.status(201).json({
       ok:   true,
       mode: 'queued',
       building,
-      deducted: { gold: goldCost, food: foodCost },
+      deducted: { gold: goldCost, food: foodCost, wood: woodCost, stone: stoneCost, iron: ironCost },
     });
   } catch (err) {
     console.error("[POST /api/cities/:cityId/start-construction] Erreur:", err);
