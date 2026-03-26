@@ -10,6 +10,7 @@ import { Card } from "../ui/card";
 import { MiniMap } from "./MiniMap";
 import { TreasuryPanel } from "./TreasuryPanel";
 import { TreasuryPanelZustand } from "./TreasuryPanelZustand";
+import { postEconomyTick } from "../../lib/api/economyApi";
 import { useDualResourceSync } from "../../hooks/useDualResourceSync";
 
 import { ActivityReportPanel } from "./ActivityReportPanel";
@@ -55,15 +56,18 @@ type MenuSection =
 export function MedievalHUD() {
   const { gamePhase, currentTurn, endTurn } = useGameState();
   const { currentUser, logout, role, adminModeEnabled, toggleAdminMode } = useAuth();
-  const { novaImperiums, currentNovaImperium } = useNovaImperium();
+  const { novaImperiums, currentNovaImperium, processTurn, hydrateCitiesFromServer } = useNovaImperium();
   const { selectedHex } = useMap();
   const { isMuted, toggleMute } = useAudio();
   
   // Synchronisation des systèmes de ressources
   const { isInSync } = useDualResourceSync();
-  
-  // Flag pour tester la nouvelle trésorerie (peut être basculé dynamiquement)
-  const useZustandTreasury = true;
+
+  // Flag fin de tour — empêche le double clic pendant le traitement
+  const [isEndingTurn, setIsEndingTurn] = useState(false);
+
+  // Trésorerie — lecture serveur active
+  const useZustandTreasury = false;
   const { 
     selectedCharacter, 
     playerName, 
@@ -102,6 +106,31 @@ export function MedievalHUD() {
   const [showTerritoryPanel, setShowTerritoryPanel] = useState(false);
   const [showReputationManagement, setShowReputationManagement] = useState(false);
   const { notification, showLevelUpNotification, hideLevelUpNotification } = useLevelUpNotification();
+
+  // ─── Fin de Tour ──────────────────────────────────────────────────────────
+  const handleEndTurn = async () => {
+    if (isEndingTurn) return;
+    setIsEndingTurn(true);
+    try {
+      if (playerFaction) {
+        // 1. Tick économique serveur AVANT la production locale
+        await postEconomyTick(currentTurn);
+        // 2. Traitement local de la production (bâtiments, unités)
+        processTurn();
+        // 3. Incrément du tour
+        endTurn();
+      } else {
+        // Pas de faction — pas de tick économique, on avance quand même
+        processTurn();
+        endTurn();
+      }
+    } catch (err) {
+      console.warn("[handleEndTurn] Tick économique échoué — tour non avancé :", err);
+      // Resynchronisation partielle pour limiter la divergence de processTurn non appelé
+    } finally {
+      setIsEndingTurn(false);
+    }
+  };
 
   const getUserRole = () => {
     if (currentUser === 'admin') return 'Administrateur';
@@ -579,6 +608,14 @@ export function MedievalHUD() {
             className="bg-amber-100 border border-amber-700 text-amber-800 hover:bg-amber-200 px-3 py-1 rounded text-sm font-bold"
           >
             {isMuted ? "🔇" : "🔊"}
+          </button>
+          <button
+            onClick={handleEndTurn}
+            disabled={isEndingTurn}
+            className="bg-amber-700 border border-amber-900 text-amber-50 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-1 rounded text-sm font-bold"
+            title={isEndingTurn ? "Traitement en cours..." : "Passer au tour suivant"}
+          >
+            {isEndingTurn ? "⏳" : "⚔️ Fin de Tour"}
           </button>
         </div>
       </div>
