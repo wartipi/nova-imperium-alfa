@@ -1,0 +1,91 @@
+NOVA IMPERIUM — MICRO-CORRECTION
+FIX DES CHAMPS missingTerrains / missingResources DANS exploitation-context
+
+Branche :
+NI-10.3
+
+Contexte :
+Le nouvel endpoint GET /api/cities/:cityId/exploitation-context est en place
+et ConstructionPanel le consomme déjà correctement.
+
+PROBLÈME RESTANT
+
+Dans server/routes/cities.ts, l’endpoint exploitation-context construit :
+
+- missingTerrains depuis terrainResult.missing
+- missingResources depuis resourceResult.missing
+
+Mais les helpers canoniques retournent :
+- required
+- available
+
+et non pas missing.
+
+Helpers concernés :
+- checkBuildingTerrainPrereq()
+- checkBuildingResourcePrereq()
+
+OBJECTIF
+
+Corriger ce dernier écart pour que l’endpoint exploitation-context
+soit parfaitement aligné avec la logique canonique serveur.
+
+FICHIER À MODIFIER
+
+- server/routes/cities.ts
+
+TRAVAIL DEMANDÉ
+
+ÉTAPE 1 — AUDIT COURT
+Confirmer que :
+- terrainResult.missing n’existe pas
+- resourceResult.missing n’existe pas
+- les helpers retournent bien required / available
+
+ÉTAPE 2 — CORRECTION
+Dans l’endpoint GET /api/cities/:cityId/exploitation-context :
+
+remplacer :
+- missingTerrains = terrainResult.missing
+- missingResources = resourceResult.missing
+
+par :
+- missingTerrains = terrainResult.required
+- missingResources = resourceResult.required
+
+IMPORTANT :
+Je veux garder la forme de réponse actuelle de l’endpoint.
+Je veux seulement corriger la source des champs.
+
+ÉTAPE 3 — VÉRIFICATION
+Je veux vérifier au minimum :
+- TypeScript compile
+- l’endpoint exploitation-context retourne bien les champs missingTerrains / missingResources
+- ces champs contiennent les valeurs attendues
+- aucun changement inutile hors périmètre
+
+FORMAT DE RETOUR ATTENDU
+
+Je veux un rapport final en 5 parties :
+
+1. Audit ultra-court de l’écart
+2. Choix minimal retenu
+3. Fichier modifié
+4. Résumé exact du patch
+5. Résultat de validation
+
+INTERDIT
+
+- refactor massif
+- changement de structure de réponse
+- duplication de logique
+- complexité inutile
+
+PRIORITÉ ABSOLUE
+
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+BUT FINAL
+
+Faire en sorte que exploitation-context reflète exactement
+les helpers canoniques terrain/ressource du serveur.

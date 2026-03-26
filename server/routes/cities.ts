@@ -121,10 +121,10 @@ router.get("/:cityId/exploitation-context", requireAuth, async (req: AuthRequest
       const resourceOk = resourceResult === null ? null : resourceResult.ok;
 
       const missingTerrains = (!terrainOk && terrainResult && !terrainResult.ok)
-        ? terrainResult.missing
+        ? terrainResult.required
         : [];
       const missingResources = (resourceOk === false && resourceResult && !resourceResult.ok)
-        ? resourceResult.missing
+        ? resourceResult.required
         : [];
 
       const canBuild = terrainOk && (resourceOk === null || resourceOk === true);
