@@ -361,6 +361,17 @@ export function ConstructionPanel() {
       requiredTerrain: ['swamp'],
       actionPointCost: 20
     },
+    {
+      id: 'oil_camp',
+      name: 'Camp d\'extraction pétrolière',
+      cost: { wood: 10, iron: 8, action_points: 25 },
+      constructionTime: 6,
+      description: 'Exploitation des gisements d\'huile souterrains. Produit 2 pétrole/tour.',
+      icon: '🛢️',
+      category: 'Production',
+      requiredTerrain: ['swamp', 'desert', 'wasteland'],
+      actionPointCost: 25
+    },
 
     // === DÉSERT (desert) ===
     { 
@@ -764,7 +775,18 @@ export function ConstructionPanel() {
       }
     } catch (err: any) {
       const body = (err as any).body;
-      if (body?.error === 'INSUFFICIENT_CITY_INVENTORY') {
+      if (body?.error === 'TERRAIN_PREREQUISITE_NOT_MET') {
+        const required: string[] = body.required ?? [];
+        const terrainLabels: Record<string, string> = {
+          forest: 'forêt', fertile_land: 'terre fertile', shallow_water: 'eau peu profonde',
+          mountains: 'montagnes', caves: 'grottes', swamp: 'marais', desert: 'désert',
+          wasteland: 'friche', enchanted_meadow: 'prairie enchantée',
+        };
+        const reqStr = required.map(t => terrainLabels[t] ?? t).join(' ou ');
+        const msg = `❌ Terrain requis absent : ${reqStr} — ville mal placée pour ce bâtiment`;
+        setBuildMessages(prev => ({ ...prev, [cityId]: { type: 'error', text: msg } }));
+        console.warn(`[Construction] ${msg} pour ${buildingId} city=${cityId}`);
+      } else if (body?.error === 'INSUFFICIENT_CITY_INVENTORY') {
         const miss = body.missing as Partial<Record<string, number>>;
         const labels: Record<string, string> = {
           gold: 'or', food: 'nourriture', wood: 'bois', stone: 'pierre', iron: 'fer',

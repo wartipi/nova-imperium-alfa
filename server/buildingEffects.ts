@@ -10,8 +10,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { db } from "./db";
-import { cities } from "../shared/schema";
-import { eq, sql } from "drizzle-orm";
+import { cities, mapTiles } from "../shared/schema";
+import { eq, sql, and, gte, lte } from "drizzle-orm";
 
 export type T1Material = 'food' | 'wood' | 'stone' | 'iron' | 'copper' | 'coal' | 'oil' | 'herbs' | 'fur';
 
@@ -35,7 +35,23 @@ export const BUILDING_PRODUCTION: Record<string, BuildingProduction> = {
   advanced_mine:    { iron: 2, copper: 1, coal: 1 },
 
   // ── Désert / marais / wasteland (huile) ────────────────────────────────────
-  // Réservé pour futur bâtiment d'extraction (puits, camp d'exploitation).
+  oil_camp:         { oil: 2 },
+};
+
+// ─── BUILDING_TERRAIN_PREREQS ─────────────────────────────────────────────────
+// Terrains requis par bâtiment d'exploitation (au moins 1 case dans le territoire).
+// Seuls les bâtiments d'exploitation ont des prérequis terrain.
+// Les bâtiments sans entrée ici sont libres de prérequis terrain (défense, commerce…).
+export const BUILDING_TERRAIN_PREREQS: Record<string, string[]> = {
+  sawmill:          ['forest'],
+  hunting_post:     ['forest'],
+  herbalist_house:  ['forest', 'enchanted_meadow'],
+  farm:             ['fertile_land'],
+  granary:          ['fertile_land'],
+  fishing_post:     ['shallow_water'],
+  mine:             ['mountains'],
+  advanced_mine:    ['caves'],
+  oil_camp:         ['swamp', 'desert', 'wasteland'],
 };
 
 // Colonnes cities affectées pour l'incrément/décrément production.
@@ -51,6 +67,50 @@ export const T1_CITY_COLUMNS: Record<T1Material, string> = {
   herbs:  'herbs_per_turn',
   fur:    'fur_per_turn',
 };
+
+// ─── getCityControlledTerrains ────────────────────────────────────────────────
+// Requête SQL : récupère tous les terrainType distincts dans un rayon AABB autour
+// de la position (worldX, worldY) de la colonie.
+// Rayon = 5 tuiles (AABB conservateur — peut inclure quelques tuiles hors hex exact
+// mais ne manque jamais une tuile réellement dans le territoire).
+// Retourne un Set<string> des types de terrain présents.
+export async function getCityControlledTerrains(
+  colonyWorldX: number,
+  colonyWorldY: number,
+  radius: number = 5,
+): Promise<Set<string>> {
+  const rows = await db
+    .selectDistinct({ terrainType: mapTiles.terrainType })
+    .from(mapTiles)
+    .where(
+      and(
+        gte(mapTiles.worldX, colonyWorldX - radius),
+        lte(mapTiles.worldX, colonyWorldX + radius),
+        gte(mapTiles.worldY, colonyWorldY - radius),
+        lte(mapTiles.worldY, colonyWorldY + radius),
+      )
+    );
+
+  return new Set(rows.map(r => r.terrainType));
+}
+
+// ─── checkBuildingTerrainPrereq ───────────────────────────────────────────────
+// Vérifie que le Set de terrains contrôlés contient au moins 1 terrain requis.
+// Retourne null si le bâtiment n'a pas de prérequis terrain (toujours autorisé).
+// Retourne { ok: true } si le prérequis est satisfait.
+// Retourne { ok: false, required, available } si non satisfait.
+export function checkBuildingTerrainPrereq(
+  buildingId: string,
+  terrains:   Set<string>,
+): { ok: true } | { ok: false; required: string[]; available: string[] } | null {
+  const prereqs = BUILDING_TERRAIN_PREREQS[buildingId];
+  if (!prereqs) return null; // pas de prérequis — toujours OK
+
+  const ok = prereqs.some(t => terrains.has(t));
+  if (ok) return { ok: true };
+
+  return { ok: false, required: prereqs, available: [...terrains] };
+}
 
 // ─── applyBuildingEffects ─────────────────────────────────────────────────────
 // Incrémente les colonnes *PerTurn de la ville selon le bâtiment posé.

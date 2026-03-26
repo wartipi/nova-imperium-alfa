@@ -13,7 +13,7 @@ import {
   clearProduction,
 } from "../cityService";
 import { createCollectHarvestAction, getActiveAction, msRemaining } from "../playerActionService";
-import { applyBuildingEffects } from "../buildingEffects";
+import { applyBuildingEffects, getCityControlledTerrains, checkBuildingTerrainPrereq } from "../buildingEffects";
 
 const router = Router();
 
@@ -362,6 +362,23 @@ router.post("/:cityId/start-construction", requireAuth, async (req: AuthRequest,
       await applyBuildingEffects(cityId, building);
       console.log(`[start-construction] Admin — instantané ${building} cityId=${cityId}`);
       return res.status(201).json({ ok: true, mode: 'instant', building });
+    }
+
+    // Mode joueur : validation terrain prérequis
+    {
+      const terrains = await getCityControlledTerrains(access.worldX, access.worldY, 5);
+      const terrainCheck = checkBuildingTerrainPrereq(building, terrains);
+      if (terrainCheck !== null && !terrainCheck.ok) {
+        console.log(
+          `[start-construction] Terrain insuffisant — cityId=${cityId} building=${building}` +
+          ` requis=${terrainCheck.required.join('/')} disponible=${terrainCheck.available.join(',')}`
+        );
+        return res.status(422).json({
+          error:     'TERRAIN_PREREQUISITE_NOT_MET',
+          required:  terrainCheck.required,
+          available: terrainCheck.available,
+        });
+      }
     }
 
     // Mode joueur : vérifier et débiter city_inventory
