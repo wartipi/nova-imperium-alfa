@@ -117,7 +117,7 @@ function mapCity(
 export async function checkCityAccess(
   playerId: string,
   cityId:   number,
-): Promise<{ cityRecord: typeof cities.$inferSelect; factionId: number } | { error: string; status: number }> {
+): Promise<{ cityRecord: typeof cities.$inferSelect; factionId: number; worldX: number; worldY: number } | { error: string; status: number }> {
   const memberRows = await db
     .select({ factionId: factionMembers.factionId })
     .from(factionMembers)
@@ -143,7 +143,12 @@ export async function checkCityAccess(
     return { error: "Cette ville n'appartient pas à votre faction", status: 403 };
   }
 
-  return { cityRecord: cityRows[0].city, factionId };
+  return {
+    cityRecord: cityRows[0].city,
+    factionId,
+    worldX: cityRows[0].colony.worldX,
+    worldY: cityRows[0].colony.worldY,
+  };
 }
 
 // ─── getMyCities ──────────────────────────────────────────────────────────────

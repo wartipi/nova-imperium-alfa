@@ -5,7 +5,6 @@ import { useAuth } from "../../lib/auth/AuthContext";
 import { Button } from "../ui/button";
 import { getBuildingCost, canAffordAction } from "../../lib/game/ActionPointsCosts";
 import { getBuildingAPGeneration, getBuildingMaxAPIncrease } from "../../lib/game/ActionPointsGeneration";
-import { Resources } from "../../lib/game/types";
 import { UnifiedTerritorySystem } from "../../lib/systems/UnifiedTerritorySystem";
 import { useMap } from "../../lib/stores/useMap";
 import { useState, useEffect, useCallback } from "react";
@@ -676,20 +675,15 @@ export function ConstructionPanel() {
   const canAffordBuilding = (buildingId: string): boolean => {
     const building = buildings.find(b => b.id === buildingId);
     if (!building || !currentNovaImperium) return false;
-    
+
     // En mode MJ, on peut toujours construire
     if (isAdmin) return true;
-    
+
     const actionCost = getBuildingCost(buildingId);
-    const resources = currentNovaImperium.resources;
-    
-    // Check Action Points
-    if (!canAffordAction(actionPoints, actionCost)) return false;
-    
-    // Check all required resources
-    return Object.entries(building.cost).every(([resource, amount]) => {
-      return resources[resource as keyof Resources] >= amount;
-    });
+
+    // Seule vérification locale : les PA.
+    // Les matériaux sont validés côté serveur via city_inventory.
+    return canAffordAction(actionPoints, actionCost);
   };
 
   const handleBuild = async (buildingId: string, cityId: string) => {
@@ -728,7 +722,7 @@ export function ConstructionPanel() {
         // Joueur — mis en file : déduire PA et mettre à jour production locale
         const success = spendActionPoints(actionCost);
         if (success) {
-          buildInCity(cityId, buildingId, building.cost as Record<string, number>, building.constructionTime, false);
+          buildInCity(cityId, buildingId, {}, building.constructionTime, false);
           console.log(`Construction de ${buildingId} lancée pour ${building.constructionTime} tours (matériaux déduits du stock ville)`);
           setBuildMessages(prev => ({ ...prev, [cityId]: { type: 'ok', text: `⏳ ${building.name} en construction (${building.constructionTime} tours)` } }));
           // Rafraîchir l'inventaire

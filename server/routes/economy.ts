@@ -181,7 +181,7 @@ router.post("/transfer-bank-to-city", requireAuth, async (req: AuthRequest, res)
       return res.status(access.status).json({ error: access.error });
     }
 
-    const { worldX, worldY } = access.cityRecord;
+    const { worldX, worldY } = access;
 
     const context = {
       role:             req.user!.role,

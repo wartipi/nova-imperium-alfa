@@ -1,0 +1,215 @@
+NOVA IMPERIUM — CORRECTION CIBLÉE : LOGISTIQUE LOCALE SANS DOUBLE MODÈLE
+
+Branche :
+NI-10.3
+
+Contexte :
+Jeu persistant Node/TS + React/TS + PostgreSQL
+Architecture serveur autoritaire
+Méthode : audit court → correctifs ciblés → vérification
+Aucun refactor massif
+
+ÉTAT ACTUEL — DELTA À CORRIGER
+
+Le patch logistique existe déjà, mais 3 incohérences restent ouvertes :
+
+1. transfer-bank-to-city lit worldX/worldY depuis access.cityRecord, alors que checkCityAccess retourne encore la ligne cities.* au lieu d’exposer proprement les coordonnées réelles de la colonie.
+
+2. ConstructionPanel continue à dépendre du vieux modèle client :
+   - canAffordBuilding() vérifie encore currentNovaImperium.resources
+   - handleBuild() continue à appeler buildInCity(... building.cost ...)
+   Donc le nouveau modèle city_inventory coexiste encore avec l’ancien stock global abstrait.
+
+3. Le modèle de capacité transport est incohérent entre backend et UI :
+   - backend : max 50 unités totales
+   - UI : texte “10 unités = 1 emplacement”
+   Cette règle n’est pas réellement appliquée côté serveur.
+
+OBJECTIF DE CE PATCH
+
+Verrouiller proprement le modèle suivant :
+
+- city_inventory = stock local canonique pour construire
+- player_bank = réserve distante
+- tout transfert depuis la banque prend du temps
+- aucune construction ne dépend d’un stock global client abstrait
+- UI et backend racontent exactement la même règle de transport
+
+IMPORTANT
+
+On ne refond pas tout.
+On corrige uniquement les écarts structurels restants.
+Je veux le plus petit patch propre possible.
+
+FICHIERS À AUDITER EN PRIORITÉ
+
+- server/cityService.ts
+- server/routes/economy.ts
+- server/routes/cities.ts
+- server/playerActionService.ts
+- client/src/components/game/ConstructionPanel.tsx
+- client/src/components/game/TreasuryPanel.tsx
+- client/src/lib/api/citiesApi.ts
+- client/src/lib/api/economyApi.ts
+- tout endroit où buildInCity ou currentNovaImperium.resources influence encore la construction
+
+RÈGLE DE DESIGN À VERROUILLER
+
+1. La construction joueur doit dépendre uniquement de :
+   - l’accès à la ville
+   - la disponibilité des matériaux dans city_inventory
+   - les contraintes de terrain / bâtiment
+   - les PA si elles restent dans le modèle
+2. Elle ne doit plus dépendre d’un stock global client.
+3. Le client peut afficher des infos locales, mais le serveur reste la seule source de vérité pour les matériaux.
+4. La capacité transport affichée doit être exactement celle validée côté serveur.
+
+POINT 1 — CORRIGER LE FLUX DES COORDONNÉES RÉELLES DE VILLE
+
+Dans cityService.ts :
+- corriger checkCityAccess pour qu’il retourne aussi les coordonnées réelles de la colonie
+- solution minimale acceptable :
+  soit enrichir la valeur retournée avec colonyRecord
+  soit retourner worldX/worldY explicitement
+- mais arrêter de dépendre d’un cityRecord incomplet
+
+Dans routes/economy.ts :
+- transfer-bank-to-city doit utiliser les vraies coordonnées de ville, pas des champs supposés présents sur cities.*
+- le code doit être typé proprement
+- plus de fallback implicite faux
+
+ATTENDU :
+le transfert banque → ville doit être ancré à la vraie position de la ville de façon cohérente.
+
+POINT 2 — PURGER CONSTRUCTIONPANEL DU VIEUX STOCK GLOBAL
+
+Dans ConstructionPanel.tsx :
+
+Je veux retirer la dépendance métier à currentNovaImperium.resources pour la construction joueur.
+
+À faire :
+- canAffordBuilding() ne doit plus refuser une construction joueur en fonction du stock global client
+- conserver si nécessaire :
+  - la vérification PA
+  - la vérification terrain
+  - la vérification “déjà construit / déjà en cours”
+- mais ne plus utiliser les ressources globales comme vérité métier pour les matériaux
+
+Dans handleBuild():
+- l’appel serveur apiStartConstruction doit devenir la validation canonique des matériaux
+- si le serveur dit INSUFFICIENT_CITY_INVENTORY :
+  - afficher le message local déjà en place
+  - ne pas lancer la construction
+- si succès joueur :
+  - ne pas réintroduire une déduction locale parallèle depuis un stock global
+  - ne pas laisser buildInCity redéduire les coûts matériaux d’une autre source
+
+IMPORTANT :
+Si buildInCity attend encore building.cost pour des raisons historiques :
+- adapter au plus petit patch propre
+- par exemple lui passer un coût neutre pour la partie ressources si nécessaire
+- ou extraire le strict minimum pour qu’il serve à l’état visuel / production sans refaire une deuxième consommation
+
+But :
+zéro double dépense locale.
+zéro dépendance métier à currentNovaImperium.resources pour construire.
+
+POINT 3 — ALIGNER LA CAPACITÉ TRANSPORT UI / BACKEND
+
+Aujourd’hui le backend applique :
+- max 50 unités totales transportées
+
+Donc choisir UNE règle unique et l’appliquer partout.
+
+Je veux la plus petite correction cohérente :
+- soit garder simplement “max 50 unités totales”
+- soit implémenter réellement une autre règle côté serveur si elle est déjà presque prête
+
+Mais pour ce patch minimal, la bonne option probable est :
+- backend inchangé
+- UI corrigée pour afficher exactement :
+  - capacité max 50 unités
+  - unités utilisées
+  - unités libres
+- retirer le texte faux “10 unités = 1 emplacement” si cette règle n’est pas réellement appliquée
+
+IMPORTANT :
+Les slots d’objets uniques peuvent rester séparés.
+Mais le transport des ressources doit avoir un wording cohérent avec le backend réel.
+
+POINT 4 — VÉRIFIER LA CONSTRUCTION JOUEUR DE BOUT EN BOUT
+
+Audit le flux actuel de construction et verrouille ce comportement :
+
+CAS JOUEUR NORMAL
+- si city_inventory couvre gold/food requis :
+  - le serveur accepte
+  - la construction démarre
+  - aucun autre stock parallèle n’est touché
+- sinon :
+  - refus clair
+  - message “transférez depuis la banque”
+  - aucune construction locale lancée
+
+CAS ADMIN
+- garder le bypass instantané si déjà prévu
+- ne pas casser ce comportement
+
+IMPORTANT :
+Le but n’est pas de réinventer tout le système de coûts multi-ressources.
+On corrige le flux réel déjà en place.
+
+PLAN DE TRAVAIL ATTENDU
+
+ÉTAPE 1 — AUDIT
+- localiser précisément où currentNovaImperium.resources influe encore sur la construction
+- localiser si buildInCity redéduit les coûts ou non
+- choisir le plus petit point de correction
+
+ÉTAPE 2 — COORDONNÉES DE VILLE
+- corriger checkCityAccess
+- corriger transfer-bank-to-city
+
+ÉTAPE 3 — CONSTRUCTION PANEL
+- retirer la dépendance au stock global client
+- garder seulement les validations locales légitimes
+- laisser le serveur décider pour les matériaux
+
+ÉTAPE 4 — ALIGNEMENT TRANSPORT
+- corriger le texte / l’affichage pour refléter exactement la capacité serveur réelle
+
+ÉTAPE 5 — VÉRIFICATION
+Vérifier au minimum :
+- transfer-bank-to-city utilise bien les vraies coordonnées de ville
+- une construction joueur ne dépend plus de currentNovaImperium.resources
+- une construction réussie ne provoque pas de double consommation locale
+- une construction sans stock ville échoue proprement
+- l’UI transport raconte exactement la règle backend
+- TypeScript compile sur les fichiers modifiés
+
+FORMAT DE RETOUR ATTENDU
+
+Je veux un rapport final structuré en 6 parties :
+
+1. Audit ultra-court des 3 incohérences
+2. Choix minimal retenu
+3. Fichiers modifiés
+4. Résumé exact du patch
+5. Avant / après
+6. Résultat de validation
+
+INTERDIT
+
+- refactor massif
+- nouveau système économique global
+- réécriture complète de buildInCity
+- refonte complète UI
+- complexité inutile
+
+PRIORITÉ ABSOLUE
+
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+But :
+éliminer la coexistence entre l’ancien modèle “stock global client”
+et le nouveau modèle “stock local canonique de ville”.
