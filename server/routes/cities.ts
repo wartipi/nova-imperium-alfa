@@ -159,14 +159,19 @@ router.get("/:cityId/inventory", requireAuth, async (req: AuthRequest, res) => {
       .where(eq(cityInventory.cityId, cityId))
       .limit(1);
 
-    const inv = rows ?? { gold: 0, food: 0, wood: 0, stone: 0, iron: 0 };
+    const inv = rows ?? {};
     return res.json({
       cityId,
-      gold:  inv.gold,
-      food:  inv.food,
-      wood:  inv.wood  ?? 0,
-      stone: inv.stone ?? 0,
-      iron:  inv.iron  ?? 0,
+      gold:   (inv as any).gold   ?? 0,
+      food:   (inv as any).food   ?? 0,
+      wood:   (inv as any).wood   ?? 0,
+      stone:  (inv as any).stone  ?? 0,
+      iron:   (inv as any).iron   ?? 0,
+      copper: (inv as any).copper ?? 0,
+      coal:   (inv as any).coal   ?? 0,
+      oil:    (inv as any).oil    ?? 0,
+      herbs:  (inv as any).herbs  ?? 0,
+      fur:    (inv as any).fur    ?? 0,
     });
   } catch (err) {
     console.error("[GET /api/cities/:cityId/inventory] Erreur:", err);
@@ -330,11 +335,16 @@ router.post("/:cityId/start-construction", requireAuth, async (req: AuthRequest,
 
     const {
       building,
-      goldCost  = 0,
-      foodCost  = 0,
-      woodCost  = 0,
-      stoneCost = 0,
-      ironCost  = 0,
+      goldCost   = 0,
+      foodCost   = 0,
+      woodCost   = 0,
+      stoneCost  = 0,
+      ironCost   = 0,
+      copperCost = 0,
+      coalCost   = 0,
+      oilCost    = 0,
+      herbsCost  = 0,
+      furCost    = 0,
       constructionTime = 50,
     } = req.body;
     if (!building || typeof building !== "string") {
@@ -361,36 +371,59 @@ router.post("/:cityId/start-construction", requireAuth, async (req: AuthRequest,
       .where(eq(cityInventory.cityId, cityId))
       .limit(1);
 
-    const inv = invRows[0] ?? { gold: 0, food: 0, wood: 0, stone: 0, iron: 0 };
+    const invRow = invRows[0] ?? {};
+    const inv = {
+      gold:   (invRow as any).gold   ?? 0,
+      food:   (invRow as any).food   ?? 0,
+      wood:   (invRow as any).wood   ?? 0,
+      stone:  (invRow as any).stone  ?? 0,
+      iron:   (invRow as any).iron   ?? 0,
+      copper: (invRow as any).copper ?? 0,
+      coal:   (invRow as any).coal   ?? 0,
+      oil:    (invRow as any).oil    ?? 0,
+      herbs:  (invRow as any).herbs  ?? 0,
+      fur:    (invRow as any).fur    ?? 0,
+    };
 
     const insufficient: Record<string, number> = {};
-    if (inv.gold  < goldCost)  insufficient.gold  = goldCost  - inv.gold;
-    if (inv.food  < foodCost)  insufficient.food  = foodCost  - inv.food;
-    if (inv.wood  < woodCost)  insufficient.wood  = woodCost  - inv.wood;
-    if (inv.stone < stoneCost) insufficient.stone = stoneCost - inv.stone;
-    if (inv.iron  < ironCost)  insufficient.iron  = ironCost  - inv.iron;
+    if (inv.gold   < goldCost)   insufficient.gold   = goldCost   - inv.gold;
+    if (inv.food   < foodCost)   insufficient.food   = foodCost   - inv.food;
+    if (inv.wood   < woodCost)   insufficient.wood   = woodCost   - inv.wood;
+    if (inv.stone  < stoneCost)  insufficient.stone  = stoneCost  - inv.stone;
+    if (inv.iron   < ironCost)   insufficient.iron   = ironCost   - inv.iron;
+    if (inv.copper < copperCost) insufficient.copper = copperCost - inv.copper;
+    if (inv.coal   < coalCost)   insufficient.coal   = coalCost   - inv.coal;
+    if (inv.oil    < oilCost)    insufficient.oil    = oilCost    - inv.oil;
+    if (inv.herbs  < herbsCost)  insufficient.herbs  = herbsCost  - inv.herbs;
+    if (inv.fur    < furCost)    insufficient.fur    = furCost    - inv.fur;
 
     if (Object.keys(insufficient).length > 0) {
       return res.status(422).json({
-        error: "INSUFFICIENT_CITY_INVENTORY",
-        required:  { gold: goldCost, food: foodCost, wood: woodCost, stone: stoneCost, iron: ironCost },
-        available: { gold: inv.gold, food: inv.food, wood: inv.wood, stone: inv.stone, iron: inv.iron },
+        error:     "INSUFFICIENT_CITY_INVENTORY",
+        required:  { gold: goldCost, food: foodCost, wood: woodCost, stone: stoneCost, iron: ironCost, copper: copperCost, coal: coalCost, oil: oilCost, herbs: herbsCost, fur: furCost },
+        available: inv,
         missing:   insufficient,
       });
     }
 
     const now = new Date();
 
-    // Débit city_inventory
-    if (goldCost > 0 || foodCost > 0 || woodCost > 0 || stoneCost > 0 || ironCost > 0) {
+    // Débit city_inventory (10 matériaux Tier 1)
+    if (goldCost > 0 || foodCost > 0 || woodCost > 0 || stoneCost > 0 || ironCost > 0
+        || copperCost > 0 || coalCost > 0 || oilCost > 0 || herbsCost > 0 || furCost > 0) {
       await db
         .update(cityInventory)
         .set({
-          gold:      sql`${cityInventory.gold}  - ${goldCost}`,
-          food:      sql`${cityInventory.food}  - ${foodCost}`,
-          wood:      sql`${cityInventory.wood}  - ${woodCost}`,
-          stone:     sql`${cityInventory.stone} - ${stoneCost}`,
-          iron:      sql`${cityInventory.iron}  - ${ironCost}`,
+          gold:      sql`${cityInventory.gold}   - ${goldCost}`,
+          food:      sql`${cityInventory.food}   - ${foodCost}`,
+          wood:      sql`${cityInventory.wood}   - ${woodCost}`,
+          stone:     sql`${cityInventory.stone}  - ${stoneCost}`,
+          iron:      sql`${cityInventory.iron}   - ${ironCost}`,
+          copper:    sql`${cityInventory.copper} - ${copperCost}`,
+          coal:      sql`${cityInventory.coal}   - ${coalCost}`,
+          oil:       sql`${cityInventory.oil}    - ${oilCost}`,
+          herbs:     sql`${cityInventory.herbs}  - ${herbsCost}`,
+          fur:       sql`${cityInventory.fur}    - ${furCost}`,
           updatedAt: now,
         })
         .where(eq(cityInventory.cityId, cityId));
@@ -406,14 +439,15 @@ router.post("/:cityId/start-construction", requireAuth, async (req: AuthRequest,
 
     console.log(
       `[start-construction] Queued ${building} cityId=${cityId}` +
-      ` -${goldCost}g-${foodCost}f-${woodCost}w-${stoneCost}s-${ironCost}i → city_inventory durée=${constructionTime} tours`
+      ` -${goldCost}g-${foodCost}f-${woodCost}w-${stoneCost}s-${ironCost}i-${copperCost}cu-${coalCost}co-${oilCost}oil-${herbsCost}h-${furCost}fur` +
+      ` → city_inventory durée=${constructionTime} tours`
     );
 
     return res.status(201).json({
       ok:   true,
       mode: 'queued',
       building,
-      deducted: { gold: goldCost, food: foodCost, wood: woodCost, stone: stoneCost, iron: ironCost },
+      deducted: { gold: goldCost, food: foodCost, wood: woodCost, stone: stoneCost, iron: ironCost, copper: copperCost, coal: coalCost, oil: oilCost, herbs: herbsCost, fur: furCost },
     });
   } catch (err) {
     console.error("[POST /api/cities/:cityId/start-construction] Erreur:", err);

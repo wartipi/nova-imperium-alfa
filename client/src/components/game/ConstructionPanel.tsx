@@ -575,16 +575,21 @@ export function ConstructionPanel() {
 
   const getResourceIcon = (resource: string): string => {
     const icons: Record<string, string> = {
-      food: '🍞',
-      gold: '💰',
-      wood: '🪵',
-      stone: '🪨',
-      iron: '⚔️',
-      precious_metals: '🥇',
-      mana: '🔮',
-      crystals: '💎',
+      food:              '🍞',
+      gold:              '💰',
+      wood:              '🪵',
+      stone:             '🪨',
+      iron:              '⚙️',
+      copper:            '🟤',
+      coal:              '🖤',
+      oil:               '🛢️',
+      herbs:             '🌱',
+      fur:               '🦊',
+      precious_metals:   '🥇',
+      mana:              '🔮',
+      crystals:          '💎',
       ancient_knowledge: '📜',
-      action_points: '⚡'
+      action_points:     '⚡',
     };
     return icons[resource] || '❓';
   };

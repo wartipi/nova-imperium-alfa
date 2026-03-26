@@ -1,0 +1,249 @@
+NOVA IMPERIUM — CORRECTION CIBLÉE FINALE
+ALIGNEMENT COMPLET CONSTRUCTION / INVENTAIRE VILLE SUR LES 10 MATÉRIAUX TIER 1
+
+Branche :
+NI-10.3
+
+Contexte technique :
+Jeu persistant Node/TS + React/TS + PostgreSQL
+Architecture serveur autoritaire
+Méthode obligatoire :
+Audit court → correction minimale ciblée → vérification
+Aucun refactor massif
+
+CONTEXTE VALIDÉ
+
+Le gros du patch Tier 1 est déjà en place :
+
+- déplacement admin avec header X-Admin-Mode correctement branché
+- ActorContext.adminModeEnabled côté serveur
+- map multi-ressources via metadata.resources
+- seed déterministe multi-ressources
+- gold retiré des ressources brutes de case
+- cavernes multi-minerais + huile
+- schéma étendu à 10 matériaux Tier 1
+- production par tour étendue à 10 matériaux
+- collecte physique étendue à 10 matériaux
+- transferts banque → ville / banque → joueur étendus à 10 matériaux
+- TreasuryPanel étendu à 10 matériaux
+- ConstructionPanel côté client déjà préparé pour 10 matériaux
+
+Les 10 matériaux Tier 1 déjà branchés dans le pipeline sont :
+
+- gold
+- food
+- wood
+- stone
+- iron
+- copper
+- coal
+- oil
+- herbs
+- fur
+
+PROBLÈME RESTANT
+
+Le client de construction est déjà passé aux 10 matériaux, mais le serveur n’est pas totalement aligné.
+
+Il reste 3 écarts précis :
+
+1. GET /api/cities/:cityId/inventory ne retourne encore réellement que :
+- gold
+- food
+- wood
+- stone
+- iron
+
+Il manque :
+- copper
+- coal
+- oil
+- herbs
+- fur
+
+2. POST /api/cities/:cityId/start-construction ne valide et ne débite encore que :
+- goldCost
+- foodCost
+- woodCost
+- stoneCost
+- ironCost
+
+Le client envoie déjà aussi :
+- copperCost
+- coalCost
+- oilCost
+- herbsCost
+- furCost
+
+Mais le serveur les ignore encore.
+
+3. Quelques types client/API et petits helpers UI ne sont pas complètement alignés avec les 10 matériaux :
+- types de réponse partiels dans economyApi.ts
+- helper d’icônes / affichage coûts incomplet dans ConstructionPanel
+
+OBJECTIF DE CE PATCH
+
+Fermer proprement l’alignement du Tier 1 sur la construction réelle.
+
+Je veux que :
+- l’inventaire ville retourne bien les 10 matériaux
+- start-construction valide bien les 10 matériaux
+- start-construction débite bien les 10 matériaux depuis city_inventory
+- les messages d’erreur de stock manquant couvrent bien les 10 matériaux
+- les types client/API ne racontent plus un modèle partiel
+- les petits helpers UI restants soient cohérents avec les 10 matériaux
+
+IMPORTANT :
+Je ne veux pas une nouvelle phase.
+Je ne veux pas de refactor.
+Je veux une correction courte et ciblée.
+
+FICHIERS À AUDITER EN PRIORITÉ
+
+- server/routes/cities.ts
+- client/src/lib/api/citiesApi.ts
+- client/src/lib/api/economyApi.ts
+- client/src/components/game/ConstructionPanel.tsx
+
+TRAVAIL DEMANDÉ
+
+ÉTAPE 1 — AUDIT COURT
+Confirmer précisément :
+- où GET /inventory coupe encore à 5 matériaux
+- où start-construction coupe encore à 5 matériaux
+- quels types client restent partiels
+- quel helper UI reste incomplet
+
+ÉTAPE 2 — INVENTAIRE VILLE
+Dans GET /api/cities/:cityId/inventory :
+je veux retourner proprement les 10 matériaux :
+
+- gold
+- food
+- wood
+- stone
+- iron
+- copper
+- coal
+- oil
+- herbs
+- fur
+
+Aucun fallback partiel à 5 matériaux.
+
+ÉTAPE 3 — START-CONSTRUCTION
+Dans POST /api/cities/:cityId/start-construction :
+
+je veux que le body accepte et traite complètement :
+- goldCost
+- foodCost
+- woodCost
+- stoneCost
+- ironCost
+- copperCost
+- coalCost
+- oilCost
+- herbsCost
+- furCost
+
+Mode joueur :
+- vérifier les 10 matériaux dans city_inventory
+- construire un objet insufficient complet sur les 10 matériaux
+- retourner required / available / missing sur les 10 matériaux
+- débiter les 10 matériaux depuis city_inventory
+
+Mode admin :
+- garder le bypass instantané existant
+- ne pas casser ce comportement
+
+IMPORTANT :
+Aucune consommation depuis la banque.
+Aucune consommation depuis un stock global client.
+Uniquement city_inventory.
+
+ÉTAPE 4 — TYPES CLIENT / API
+Dans citiesApi.ts et economyApi.ts :
+- aligner les interfaces de réponse avec les 10 matériaux
+- supprimer les DTO partiels encore en retard
+
+IMPORTANT :
+Je veux des types cohérents avec le runtime actuel.
+Pas de types mensongers.
+
+ÉTAPE 5 — PETIT NETTOYAGE UI
+Dans ConstructionPanel :
+- compléter le helper d’icônes/formatage pour les nouveaux matériaux si nécessaire
+- vérifier que les coûts 10 matériaux s’affichent proprement
+- ne pas faire de refonte visuelle
+
+IMPORTANT :
+Seulement les petits correctifs nécessaires à la cohérence.
+
+RÉSULTAT FONCTIONNEL ATTENDU
+
+Après ce patch :
+
+1. l’inventaire ville expose bien les 10 matériaux
+2. un bâtiment coûtant copper/coal/oil/herbs/fur est réellement validé côté serveur
+3. ces matériaux sont réellement débités depuis city_inventory
+4. les erreurs INSUFFICIENT_CITY_INVENTORY couvrent bien les 10 matériaux
+5. le client et le serveur racontent exactement le même modèle
+6. aucun faux support “10 matériaux” seulement côté client
+
+PLAN DE TRAVAIL ATTENDU
+
+ÉTAPE 1 — AUDIT
+- localiser les coupes à 5 matériaux
+
+ÉTAPE 2 — ROUTE INVENTAIRE
+- étendre GET /inventory à 10 matériaux
+
+ÉTAPE 3 — ROUTE CONSTRUCTION
+- étendre validation + missing + débit à 10 matériaux
+
+ÉTAPE 4 — TYPES / UI
+- aligner les types API
+- corriger le helper visuel minimal
+
+ÉTAPE 5 — VÉRIFICATION
+Je veux vérifier au minimum :
+- GET /inventory renvoie bien les 10 matériaux
+- start-construction vérifie bien les 10 matériaux
+- start-construction débite bien les 10 matériaux
+- INSUFFICIENT_CITY_INVENTORY inclut bien les nouveaux matériaux
+- aucun type client partiel ne reste sur ce flux
+- TypeScript compile
+- pas de régression sur gold/food/wood/stone/iron
+
+FORMAT DE RETOUR ATTENDU
+
+Je veux un rapport final structuré exactement en 6 parties :
+
+1. Audit ultra-court des écarts restants
+2. Choix minimal retenu
+3. Fichiers modifiés
+4. Résumé exact du patch
+5. Avant / après
+6. Résultat de validation
+
+INTERDIT
+
+- refactor massif
+- nouvelle architecture
+- réécriture du système de construction
+- ajout de nouveaux matériaux
+- complexité inutile
+
+PRIORITÉ ABSOLUE
+
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+BUT FINAL
+
+Fermer proprement le Tier 1 de test en faisant en sorte que :
+- inventaire ville
+- construction serveur
+- types client
+- affichage des coûts
+
+soient enfin parfaitement alignés sur les 10 matériaux déjà présents dans le reste du pipeline.
