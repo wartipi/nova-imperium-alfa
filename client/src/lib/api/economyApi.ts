@@ -47,11 +47,26 @@ export async function postEconomyTick(currentTurn: number): Promise<TickResponse
   return res.json();
 }
 
+// ─── Types matériaux Tier 1 (partagé) ────────────────────────────────────────
+
+export interface T1Materials {
+  gold:   number;
+  food:   number;
+  wood:   number;
+  stone:  number;
+  iron:   number;
+  copper: number;
+  coal:   number;
+  oil:    number;
+  herbs:  number;
+  fur:    number;
+}
+
 // ─── Production tick par-ville ───────────────────────────────────────────────
 
 export interface ProductionTickResult {
   applied: boolean;
-  cities:  Array<{ cityId: number; name: string; gold: number; food: number; destination: 'bank' | 'pending' }>;
+  cities:  Array<T1Materials & { cityId: number; name: string; destination: 'bank' | 'pending' }>;
   reason?: string;
 }
 
@@ -98,19 +113,6 @@ export async function getPlayerBank(): Promise<PlayerBankDTO> {
 
 // ─── Harvest ville ───────────────────────────────────────────────────────────
 
-export interface T1Materials {
-  gold:   number;
-  food:   number;
-  wood:   number;
-  stone:  number;
-  iron:   number;
-  copper: number;
-  coal:   number;
-  oil:    number;
-  herbs:  number;
-  fur:    number;
-}
-
 export interface CityHarvestDTO {
   cityId:    number;
   hasBank:   boolean;
@@ -138,6 +140,14 @@ export interface CollectHarvestResult {
     expectedEndTime: string;
     pendingGold:     number;
     pendingFood:     number;
+    pendingWood:     number;
+    pendingStone:    number;
+    pendingIron:     number;
+    pendingCopper:   number;
+    pendingCoal:     number;
+    pendingOil:      number;
+    pendingHerbs:    number;
+    pendingFur:      number;
   };
 }
 
@@ -184,6 +194,11 @@ export interface TransferResult {
     wood:         number;
     stone:        number;
     iron:         number;
+    copper:       number;
+    coal:         number;
+    oil:          number;
+    herbs:        number;
+    fur:          number;
   };
 }
 

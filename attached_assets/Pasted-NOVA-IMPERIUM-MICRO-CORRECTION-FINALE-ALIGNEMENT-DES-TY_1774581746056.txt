@@ -1,0 +1,175 @@
+NOVA IMPERIUM — MICRO-CORRECTION FINALE
+ALIGNEMENT DES TYPES CLIENT economyApi.ts AVEC LE RUNTIME 10 MATÉRIAUX
+
+Branche :
+NI-10.3
+
+Contexte technique :
+Jeu persistant Node/TS + React/TS + PostgreSQL
+Architecture serveur autoritaire
+Méthode :
+audit court → correction minimale → vérification
+Aucun refactor massif
+
+CONTEXTE VALIDÉ
+
+La correction principale est déjà en place :
+
+- GET /api/cities/:cityId/inventory retourne bien les 10 matériaux
+- POST /api/cities/:cityId/start-construction valide et débite bien les 10 matériaux
+- ConstructionPanel affiche maintenant correctement les nouveaux matériaux
+
+Le dernier écart restant est côté types client dans :
+- client/src/lib/api/economyApi.ts
+
+PROBLÈME RESTANT
+
+Certaines interfaces TypeScript sont encore partielles alors que le runtime renvoie déjà 10 matériaux.
+
+Écarts confirmés :
+
+1. CollectHarvestResult
+Le type action ne contient encore que :
+- pendingGold
+- pendingFood
+
+Alors que la route serveur renvoie aussi :
+- pendingWood
+- pendingStone
+- pendingIron
+- pendingCopper
+- pendingCoal
+- pendingOil
+- pendingHerbs
+- pendingFur
+
+2. TransferResult
+Le type action ne contient encore que :
+- gold
+- food
+- wood
+- stone
+- iron
+
+Alors que les routes serveur renvoient aussi :
+- copper
+- coal
+- oil
+- herbs
+- fur
+
+3. ProductionTickResult
+Le type cities[] ne contient encore que :
+- gold
+- food
+
+Alors que le serveur produit déjà aussi :
+- wood
+- stone
+- iron
+- copper
+- coal
+- oil
+- herbs
+- fur
+
+OBJECTIF DE CE PATCH
+
+Faire correspondre exactement les types client de economyApi.ts
+au runtime réel actuel déjà en place.
+
+Je veux un patch minuscule, ciblé, sans toucher à la logique métier.
+
+FICHIER À MODIFIER
+
+- client/src/lib/api/economyApi.ts
+
+TRAVAIL DEMANDÉ
+
+ÉTAPE 1 — AUDIT COURT
+Confirmer les 3 types encore partiels :
+- CollectHarvestResult
+- TransferResult
+- ProductionTickResult
+
+ÉTAPE 2 — CORRECTION DES TYPES
+Créer ou réutiliser un type cohérent pour les 10 matériaux si utile,
+mais sans complexité inutile.
+
+Je veux que :
+
+A. CollectHarvestResult.action expose :
+- pendingGold
+- pendingFood
+- pendingWood
+- pendingStone
+- pendingIron
+- pendingCopper
+- pendingCoal
+- pendingOil
+- pendingHerbs
+- pendingFur
+
+B. TransferResult.action expose :
+- gold
+- food
+- wood
+- stone
+- iron
+- copper
+- coal
+- oil
+- herbs
+- fur
+
+C. ProductionTickResult.cities[] expose :
+- gold
+- food
+- wood
+- stone
+- iron
+- copper
+- coal
+- oil
+- herbs
+- fur
+- destination
+
+IMPORTANT :
+Je veux des types alignés avec ce que le serveur renvoie déjà réellement.
+Pas d’approximation.
+Pas de type partiel legacy.
+
+ÉTAPE 3 — VÉRIFICATION
+Vérifier au minimum :
+- plus aucun type partiel 5 matériaux sur ces flux
+- TypeScript compile
+- aucune logique runtime modifiée
+- aucun changement serveur inutile
+
+FORMAT DE RETOUR ATTENDU
+
+Je veux un rapport final structuré en 5 parties :
+
+1. Audit ultra-court de l’écart restant
+2. Choix minimal retenu
+3. Fichier modifié
+4. Résumé exact du patch
+5. Résultat de validation
+
+INTERDIT
+
+- refactor massif
+- changement de logique
+- nouvelle abstraction inutile
+- modification serveur
+- complexité inutile
+
+PRIORITÉ ABSOLUE
+
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+BUT FINAL
+
+Faire en sorte que economyApi.ts ne mente plus sur le modèle réel
+et reflète exactement le runtime actuel des 10 matériaux Tier 1.
