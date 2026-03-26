@@ -366,7 +366,7 @@ export function ConstructionPanel() {
       name: 'Camp d\'extraction pétrolière',
       cost: { wood: 10, iron: 8, action_points: 25 },
       constructionTime: 6,
-      description: 'Exploitation des gisements d\'huile souterrains. Produit 2 pétrole/tour.',
+      description: 'Exploitation de gisements pétroliers. Requiert du pétrole réel sur les cases contrôlées (marais/désert/friche). Produit 2 pétrole/tour.',
       icon: '🛢️',
       category: 'Production',
       requiredTerrain: ['swamp', 'desert', 'wasteland'],
@@ -784,6 +784,16 @@ export function ConstructionPanel() {
         };
         const reqStr = required.map(t => terrainLabels[t] ?? t).join(' ou ');
         const msg = `❌ Terrain requis absent : ${reqStr} — ville mal placée pour ce bâtiment`;
+        setBuildMessages(prev => ({ ...prev, [cityId]: { type: 'error', text: msg } }));
+        console.warn(`[Construction] ${msg} pour ${buildingId} city=${cityId}`);
+      } else if (body?.error === 'RESOURCE_PREREQUISITE_NOT_MET') {
+        const required: string[] = body.required ?? [];
+        const resourceLabels: Record<string, string> = {
+          deer: 'gibier (cerf)', fur: 'fourrure', herbs: 'herbes', wheat: 'blé', cattle: 'bétail',
+          fish: 'poisson', stone: 'pierre', iron: 'fer', copper: 'cuivre', coal: 'charbon', oil: 'pétrole',
+        };
+        const reqStr = required.map(r => resourceLabels[r] ?? r).join(' ou ');
+        const msg = `❌ Ressource absente du territoire : ${reqStr} — aucune case contrôlée ne fournit cette ressource`;
         setBuildMessages(prev => ({ ...prev, [cityId]: { type: 'error', text: msg } }));
         console.warn(`[Construction] ${msg} pour ${buildingId} city=${cityId}`);
       } else if (body?.error === 'INSUFFICIENT_CITY_INVENTORY') {

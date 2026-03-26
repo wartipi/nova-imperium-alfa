@@ -1,0 +1,139 @@
+NOVA IMPERIUM — PHASE SUIVANTE
+PASSAGE DE LA VALIDATION TERRAIN À LA VALIDATION DES RESSOURCES RÉELLES DES CASES
+
+Branche :
+NI-10.3
+
+Contexte technique :
+Jeu persistant Node/TS + React/TS + PostgreSQL
+Architecture serveur autoritaire
+Méthode :
+audit court → correction ciblée → vérification
+Aucun refactor massif
+
+CONTEXTE VALIDÉ
+
+Le système a déjà progressé :
+
+- carte multi-ressources via metadata.resources
+- pipeline logistique Tier 1 opérationnel
+- bâtiments d’exploitation de base présents
+- validation terrain serveur active pour les bâtiments d’exploitation
+- oil_camp ajouté
+- oilPerTurn branché
+- construction serveur + stock ville + tick production fonctionnels
+
+PROBLÈME RESTANT
+
+Le système n’est pas encore relié aux ressources réelles des cases.
+
+Aujourd’hui :
+- getCityControlledTerrains() ne lit que les terrainType autour de la colonie
+- checkBuildingTerrainPrereq() ne valide que les terrains
+- les bâtiments produisent encore selon un mapping statique bâtiment → output
+- aucune vérification n’utilise réellement metadata.resources
+
+Donc actuellement :
+- mine peut produire sans vérifier si les cases ont vraiment stone / iron / copper / coal
+- oil_camp peut produire avec swamp/desert/wasteland même sans true oil sur les cases
+- on est encore sur terrain → production, pas ressource réelle → production
+
+OBJECTIF DE LA PHASE
+
+Je veux faire passer le prototype à l’étape suivante :
+
+les bâtiments d’exploitation doivent dépendre des ressources réelles présentes
+sur les cases contrôlées par la ville.
+
+IMPORTANT :
+Je ne veux pas un refactor massif.
+Je veux une version minimale, stable, lisible.
+
+RÈGLE DE DESIGN À VERROUILLER
+
+Pour les bâtiments d’exploitation, le serveur doit valider au minimum :
+
+- terrain compatible si nécessaire
+- ET présence d’au moins une ressource réelle compatible dans les cases contrôlées
+
+La production ne doit plus dépendre uniquement du terrain ou d’un mapping statique aveugle.
+
+TRAVAIL DEMANDÉ
+
+ÉTAPE 1 — AUDIT COURT
+Je veux identifier :
+- où metadata.resources est disponible côté serveur
+- comment interroger les ressources des cases contrôlées autour d’une colonie
+- quels bâtiments d’exploitation doivent dépendre de quelles ressources
+
+ÉTAPE 2 — LECTURE DES RESSOURCES RÉELLES
+Ajouter une fonction serveur minimale du type :
+- getCityControlledResources(...)
+ou équivalent
+
+Elle doit lire les cases contrôlées autour de la colonie et extraire les ressources réelles
+depuis metadata.resources (et fallback éventuel sur resourceType si nécessaire).
+
+ÉTAPE 3 — VALIDATION SERVEUR RÉELLE
+Je veux remplacer ou compléter la validation terrain actuelle par une validation de ressources réelles.
+
+Exemples attendus :
+- sawmill → au moins forêt ou logique bois valide
+- hunting_post → deer ou fur
+- herbalist_house → herbs
+- farm → wheat ou cattle
+- fishing_post → fish
+- mine / advanced_mine → stone / iron / copper / coal selon logique retenue
+- oil_camp → oil réel sur les cases contrôlées
+
+IMPORTANT :
+Je veux que oil_camp exige du vrai oil, pas seulement swamp/desert/wasteland.
+
+ÉTAPE 4 — PRODUCTION MINIMALE CANONIQUE
+Je ne demande pas encore un calcul complexe par quantité de gisements.
+
+Je veux un système minimal stable, par exemple :
+- si la ressource compatible existe dans le territoire, le bâtiment produit
+- sinon il ne peut pas être construit
+ou variante équivalente simple
+
+IMPORTANT :
+Simplicité avant sophistication.
+
+ÉTAPE 5 — CLIENT
+Corriger le minimum client nécessaire :
+- retirer le faux helper local simulé de tooltip si possible
+- éviter toute UI qui raconte encore un faux modèle
+
+FORMAT DE RETOUR ATTENDU
+
+Je veux un rapport final structuré en 6 parties :
+
+1. Audit ultra-court du point de départ
+2. Choix minimal retenu
+3. Fichiers modifiés
+4. Résumé exact du patch
+5. Avant / après
+6. Résultat de validation
+
+INTERDIT
+
+- refactor massif
+- système quantitatif complexe
+- équilibrage avancé
+- tiers 2/3/4
+- complexité inutile
+
+PRIORITÉ ABSOLUE
+
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+BUT FINAL
+
+Passer de :
+terrain → bâtiment → production
+
+à :
+ressource réelle de case → bâtiment → production
+
+pour rendre le prototype Tier 1 réellement canonique côté serveur.

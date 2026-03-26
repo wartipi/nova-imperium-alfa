@@ -11,7 +11,7 @@
 
 import { db } from "./db";
 import { cities, mapTiles } from "../shared/schema";
-import { eq, sql, and, gte, lte } from "drizzle-orm";
+import { eq, sql, and, gte, lte, isNotNull } from "drizzle-orm";
 
 export type T1Material = 'food' | 'wood' | 'stone' | 'iron' | 'copper' | 'coal' | 'oil' | 'herbs' | 'fur';
 
@@ -39,19 +39,33 @@ export const BUILDING_PRODUCTION: Record<string, BuildingProduction> = {
 };
 
 // ─── BUILDING_TERRAIN_PREREQS ─────────────────────────────────────────────────
-// Terrains requis par bâtiment d'exploitation (au moins 1 case dans le territoire).
-// Seuls les bâtiments d'exploitation ont des prérequis terrain.
-// Les bâtiments sans entrée ici sont libres de prérequis terrain (défense, commerce…).
+// Terrains requis par bâtiment (au moins 1 case de ce terrain dans le territoire).
+// Seuls les bâtiments dont le terrain conditionne réellement l'exploitation.
+// sawmill et granary : validés uniquement par terrain (pas de resource_type "wood").
 export const BUILDING_TERRAIN_PREREQS: Record<string, string[]> = {
   sawmill:          ['forest'],
   hunting_post:     ['forest'],
-  herbalist_house:  ['forest', 'enchanted_meadow'],
+  herbalist_house:  ['forest', 'enchanted_meadow', 'fertile_land', 'swamp', 'sacred_plains'],
   farm:             ['fertile_land'],
   granary:          ['fertile_land'],
   fishing_post:     ['shallow_water'],
-  mine:             ['mountains'],
+  mine:             ['mountains', 'hills'],
   advanced_mine:    ['caves'],
   oil_camp:         ['swamp', 'desert', 'wasteland'],
+};
+
+// ─── BUILDING_RESOURCE_PREREQS ────────────────────────────────────────────────
+// Ressources réelles (resource_type dans map_tiles) requises en plus du terrain.
+// Bâtiments sans entrée ici : terrain seul suffit (ex : sawmill → forest).
+// Note : "wood" n'existe pas comme resource_type en DB — sawmill validé par terrain uniquement.
+export const BUILDING_RESOURCE_PREREQS: Record<string, string[]> = {
+  hunting_post:     ['deer', 'fur'],
+  herbalist_house:  ['herbs'],
+  farm:             ['wheat', 'cattle'],
+  fishing_post:     ['fish'],
+  mine:             ['stone', 'iron', 'copper', 'coal'],
+  advanced_mine:    ['iron', 'copper', 'coal'],
+  oil_camp:         ['oil'],
 };
 
 // Colonnes cities affectées pour l'incrément/décrément production.
@@ -69,11 +83,7 @@ export const T1_CITY_COLUMNS: Record<T1Material, string> = {
 };
 
 // ─── getCityControlledTerrains ────────────────────────────────────────────────
-// Requête SQL : récupère tous les terrainType distincts dans un rayon AABB autour
-// de la position (worldX, worldY) de la colonie.
-// Rayon = 5 tuiles (AABB conservateur — peut inclure quelques tuiles hors hex exact
-// mais ne manque jamais une tuile réellement dans le territoire).
-// Retourne un Set<string> des types de terrain présents.
+// Retourne les terrainType distincts dans un rayon AABB autour de la colonie.
 export async function getCityControlledTerrains(
   colonyWorldX: number,
   colonyWorldY: number,
@@ -90,26 +100,59 @@ export async function getCityControlledTerrains(
         lte(mapTiles.worldY, colonyWorldY + radius),
       )
     );
-
   return new Set(rows.map(r => r.terrainType));
 }
 
+// ─── getCityControlledResources ───────────────────────────────────────────────
+// Retourne les resource_type distincts (non nuls) dans un rayon AABB autour
+// de la colonie. Lit la colonne resource_type de map_tiles (colonne directe,
+// pas metadata — metadata est NULL en production actuelle).
+export async function getCityControlledResources(
+  colonyWorldX: number,
+  colonyWorldY: number,
+  radius: number = 5,
+): Promise<Set<string>> {
+  const rows = await db
+    .selectDistinct({ resourceType: mapTiles.resourceType })
+    .from(mapTiles)
+    .where(
+      and(
+        gte(mapTiles.worldX, colonyWorldX - radius),
+        lte(mapTiles.worldX, colonyWorldX + radius),
+        gte(mapTiles.worldY, colonyWorldY - radius),
+        lte(mapTiles.worldY, colonyWorldY + radius),
+        isNotNull(mapTiles.resourceType),
+      )
+    );
+  return new Set(rows.map(r => r.resourceType as string));
+}
+
 // ─── checkBuildingTerrainPrereq ───────────────────────────────────────────────
-// Vérifie que le Set de terrains contrôlés contient au moins 1 terrain requis.
-// Retourne null si le bâtiment n'a pas de prérequis terrain (toujours autorisé).
-// Retourne { ok: true } si le prérequis est satisfait.
-// Retourne { ok: false, required, available } si non satisfait.
+// null   → pas de prérequis terrain pour ce bâtiment (toujours OK)
+// ok     → au moins 1 terrain compatible trouvé
+// !ok    → terrain manquant
 export function checkBuildingTerrainPrereq(
   buildingId: string,
   terrains:   Set<string>,
 ): { ok: true } | { ok: false; required: string[]; available: string[] } | null {
   const prereqs = BUILDING_TERRAIN_PREREQS[buildingId];
-  if (!prereqs) return null; // pas de prérequis — toujours OK
-
-  const ok = prereqs.some(t => terrains.has(t));
-  if (ok) return { ok: true };
-
+  if (!prereqs) return null;
+  if (prereqs.some(t => terrains.has(t))) return { ok: true };
   return { ok: false, required: prereqs, available: [...terrains] };
+}
+
+// ─── checkBuildingResourcePrereq ──────────────────────────────────────────────
+// null   → pas de prérequis ressource pour ce bâtiment (ex : sawmill)
+// ok     → au moins 1 resource_type compatible dans le territoire
+// !ok    → ressource absente
+export function checkBuildingResourcePrereq(
+  buildingId: string,
+  resources:  Set<string>,
+): { ok: true } | { ok: false; required: string[]; available: string[] } | null {
+  const prereqs = BUILDING_RESOURCE_PREREQS[buildingId];
+  if (!prereqs) return null;
+  if (prereqs.some(r => resources.has(r))) return { ok: true };
+  return { ok: false, required: prereqs, available: [...resources] };
 }
 
 // ─── applyBuildingEffects ─────────────────────────────────────────────────────

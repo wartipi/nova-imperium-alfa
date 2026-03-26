@@ -13,7 +13,13 @@ import {
   clearProduction,
 } from "../cityService";
 import { createCollectHarvestAction, getActiveAction, msRemaining } from "../playerActionService";
-import { applyBuildingEffects, getCityControlledTerrains, checkBuildingTerrainPrereq } from "../buildingEffects";
+import {
+  applyBuildingEffects,
+  getCityControlledTerrains,
+  getCityControlledResources,
+  checkBuildingTerrainPrereq,
+  checkBuildingResourcePrereq,
+} from "../buildingEffects";
 
 const router = Router();
 
@@ -364,9 +370,13 @@ router.post("/:cityId/start-construction", requireAuth, async (req: AuthRequest,
       return res.status(201).json({ ok: true, mode: 'instant', building });
     }
 
-    // Mode joueur : validation terrain prérequis
+    // Mode joueur : validation terrain + ressources réelles des cases contrôlées
     {
-      const terrains = await getCityControlledTerrains(access.worldX, access.worldY, 5);
+      const [terrains, resources] = await Promise.all([
+        getCityControlledTerrains(access.worldX, access.worldY, 5),
+        getCityControlledResources(access.worldX, access.worldY, 5),
+      ]);
+
       const terrainCheck = checkBuildingTerrainPrereq(building, terrains);
       if (terrainCheck !== null && !terrainCheck.ok) {
         console.log(
@@ -379,6 +389,24 @@ router.post("/:cityId/start-construction", requireAuth, async (req: AuthRequest,
           available: terrainCheck.available,
         });
       }
+
+      const resourceCheck = checkBuildingResourcePrereq(building, resources);
+      if (resourceCheck !== null && !resourceCheck.ok) {
+        console.log(
+          `[start-construction] Ressource absente — cityId=${cityId} building=${building}` +
+          ` requis=${resourceCheck.required.join('/')} disponible=${resourceCheck.available.join(',')}`
+        );
+        return res.status(422).json({
+          error:     'RESOURCE_PREREQUISITE_NOT_MET',
+          required:  resourceCheck.required,
+          available: resourceCheck.available,
+        });
+      }
+
+      console.log(
+        `[start-construction] Prérequis OK — cityId=${cityId} building=${building}` +
+        ` terrains=[${[...terrains].join(',')}] resources=[${[...resources].join(',')}]`
+      );
     }
 
     // Mode joueur : vérifier et débiter city_inventory
