@@ -1,0 +1,110 @@
+NOVA IMPERIUM — PHASE 10.3 — RÉCONCILIATION FINALE AVEC LA BRANCHE PUBLIQUE
+Branche : `NI-10.3`
+
+Ton rapport 10.3 n’est pas validé publiquement en l’état.
+
+Le problème n’est pas le design.
+Le problème est que la branche visible `NI-10.3` ne montre pas encore clairement les deux corrections principales que tu affirmes avoir appliquées.
+
+CONSTATS SUR LE DÉPÔT PUBLIC
+
+1. A3 est bien visible
+
+* `client/src/lib/api/economyApi.ts`
+* `postEconomyTick` est bien annoté `@deprecated`
+* avec un commentaire explicite disant de ne pas l’utiliser
+
+2. A1 n’est pas visible
+
+* `server/cityService.ts` calcule bien `goldPerTurn`
+* mais `CityDTO` / `mapCity()` visibles ne le renvoient pas publiquement
+* `client/src/lib/api/citiesApi.ts` ne contient pas `goldPerTurn`
+
+3. A2 n’est pas visible
+
+* `client/src/lib/api/citiesApi.ts`
+* `StartConstructionResult.deducted` reste limité à :
+  `gold, food, wood, stone, iron`
+* les 5 matériaux T1 restants ne sont pas dans le type visible
+
+4. A4 / A5 ressemblent bien à des stubs de définition collaborative
+
+* `ConstructionPanelZustand.tsx` : `handleConstruct = alert(...)`
+* `RecruitmentPanelZustand.tsx` : `recruitmentTime: 0`, `cost: {}`, `alert(...)`
+* je ne te demande pas de les refactorer si ce n’est pas le chemin actif
+
+OBJECTIF
+Je veux maintenant une vraie réconciliation entre :
+
+* ton rapport 10.3
+* et ce qui est réellement visible sur `NI-10.3`
+
+CE QUE TU DOIS FAIRE
+
+1. A1 — Pousser réellement `goldPerTurn`
+   Modifier réellement :
+
+* `server/cityService.ts`
+
+  * ajouter `goldPerTurn` dans `CityDTO`
+  * ajouter `goldPerTurn` dans le retour de `mapCity()`
+* `client/src/lib/api/citiesApi.ts`
+
+  * aligner le type ville client avec ce champ
+
+2. A2 — Pousser réellement le type `deducted`
+   Modifier réellement :
+
+* `client/src/lib/api/citiesApi.ts`
+* `StartConstructionResult.deducted` doit contenir les 10 matériaux T1 :
+
+  * gold
+  * food
+  * wood
+  * stone
+  * iron
+  * copper
+  * coal
+  * oil
+  * herbs
+  * fur
+
+3. A4 / A5 — ne pas ouvrir de refonte
+   Je ne veux pas de refactor de ces panneaux.
+   Je veux seulement, si utile :
+
+* un commentaire explicite de cadrage,
+* ou une confirmation claire qu’ils restent hors chemin actif.
+
+4. LEGACY CLIENT
+   Je ne te demande pas encore de le corriger automatiquement.
+   Mais je veux que tu me signales explicitement s’il reste des écritures locales optimistes dans les chemins actifs du Tier 1.
+
+FORMAT DE TA RÉPONSE
+Je veux exactement :
+
+1. ÉTAT DE BRANCHE
+
+* les changements sont-ils réellement poussés sur `NI-10.3` ?
+
+2. FICHIERS TOUCHÉS
+
+* liste précise
+
+3. DIFF STRUCTUREL
+
+* par fichier
+* concret
+
+4. VÉRIFICATION PUBLIQUE
+
+* ce qui est maintenant visible dans la branche
+* pas ce qui existe seulement en local
+
+5. POINTS LAISSÉS VOLONTAIREMENT HORS PÉRIMÈTRE
+
+* liste courte
+
+IMPORTANT FINAL
+Ne me renvoie pas un rapport théorique.
+Je veux que la branche publique visible corresponde enfin au rapport 10.3.
