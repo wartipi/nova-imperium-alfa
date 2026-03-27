@@ -1,0 +1,93 @@
+NOVA IMPERIUM — SEGMENT 11.1 — DERNIER AJUSTEMENT AVANT IMPLÉMENTATION DU MARCHÉ DES RESSOURCES
+Branche : `NI-10.3`
+
+Ton BLOC 1 est bon dans son axe, mais je ne valide pas encore l’implémentation.
+
+Je valide :
+
+* `market_guilds`
+* `market_orders`
+* `market_trades`
+* séparation propre d’avec le marketplace existant
+* nouvel onglet / nouvelle vue dans `PublicMarketplace`
+* escrow via `player_bank`
+* commission vendeur-only
+* commission active/pending avec délai 24 h
+* reversement vers `player_bank` si owner joueur / `faction_economy` si owner faction
+* dérivation du propriétaire via `cities -> colonies`, sans duplication dans `market_guilds`
+
+Mais je veux 3 corrections avant tout code.
+
+1. PAS D’AUTO-MATCH EN 11.1
+   Tu proposes dans `placeOrder()` un fill immédiat si un contre-ordre compatible existe.
+
+Je refuse cela pour cette phase.
+
+Je veux rester sur le design validé :
+
+* carnet d’ordres manuel
+* un joueur poste un ordre
+* un autre joueur choisit explicitement de le remplir
+* pas de matching automatique à la création
+
+Décision attendue :
+
+* `placeOrder()` = validation + escrow + création d’ordre seulement
+* ajouter une action distincte de fill explicite, par exemple :
+
+  * `POST /api/market/:cityId/orders/:orderId/fill`
+
+2. GATE COMPLET SANS GUILDE
+   Je ne valide pas les routes GET “optionnelles”.
+
+Règle validée :
+
+* sans `guilde_des_marchands`, aucun accès au marché des ressources
+* pas de lecture
+* pas d’écriture
+
+Décision attendue :
+
+* toutes les routes du marché des ressources requièrent auth
+* toutes vérifient la présence de `guilde_des_marchands`
+* sans guilde → 403
+* côté UI, l’onglet peut exister mais ne charge pas le carnet sans guilde
+
+3. OWNERSHIP — DÉPENDANCE À EXPLICITER
+   Le design de reversement de commission dépend bien de l’ownership canonique de la ville/colonie.
+
+Je veux que tu l’écrives explicitement dans le plan :
+
+* le marché ne stocke pas d’owner
+* il dérive le propriétaire depuis `cities -> colonies`
+* cela suppose que l’ownership canonique des colonies soit bien branchée publiquement
+* si cette fondation n’est pas encore réconciliée publiquement, le marché dépend de cette étape
+
+FORMAT DE TA RÉPONSE
+Je veux exactement :
+
+1. BLOC 1 FINAL CORRIGÉ
+
+* suppression explicite de l’auto-match
+* stratégie de fill manuel
+* gate complet lecture + écriture
+* note explicite sur la dépendance ownership
+
+2. FICHIERS EXACTS À MODIFIER
+   Liste finale précise
+
+3. PLAN D’IMPLÉMENTATION FINAL
+   Étapes courtes, ordonnées, sans code
+
+4. STOP VALIDATION
+   Tu t’arrêtes ici.
+   Tu n’implémentes rien avant mon accord.
+
+IMPORTANT FINAL
+Je veux un marché des ressources :
+
+* séparé du marketplace existant
+* manuel
+* sans auto-match initial
+* inaccessible sans `guilde_des_marchands`
+* et branché sur l’ownership canonique sans duplication.
