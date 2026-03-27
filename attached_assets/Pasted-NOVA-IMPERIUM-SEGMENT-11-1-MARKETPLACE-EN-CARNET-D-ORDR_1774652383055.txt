@@ -1,0 +1,212 @@
+NOVA IMPERIUM — SEGMENT 11.1 — MARKETPLACE EN CARNET D’ORDRES MANUEL
+Branche : `NI-10.3`
+
+CONTEXTE
+Je modifie le cadrage du marketplace.
+
+Je ne veux plus un simple système d’annonces à prix fixe où seul le vendeur poste une offre.
+
+Je veux un marché où :
+
+* le prix est déterminé librement par les joueurs
+* chacun peut poster une offre d’achat ou une offre de vente
+* un autre joueur peut venir combler cette offre
+* totalement ou partiellement
+* à n’importe quel prix choisi par le créateur de l’ordre
+
+Je veux conserver la logique territoriale déjà validée :
+
+* l’accès au marché public se fait uniquement via un bâtiment `guilde_des_marchands`
+* le niveau du marché détermine la commission
+* la commission va au propriétaire du marché
+* le marché devient donc une vraie source de revenu pour les joueurs
+
+OBJECTIF DE CE BLOC
+Tu dois faire uniquement le **BLOC 1 — AUDIT + PROPOSITION**.
+
+Aucune implémentation.
+Aucun code.
+Aucune migration.
+
+RÈGLES VALIDÉES
+
+1. Le marché est accessible uniquement via une `guilde_des_marchands`
+2. Chaque ordre est lié à un marché précis
+3. Le prix est librement fixé par le joueur
+4. Il existe deux types d’ordres :
+
+   * `buy`
+   * `sell`
+5. Un autre joueur peut remplir un ordre :
+
+   * totalement
+   * ou partiellement
+6. Le prix exécuté est celui de l’ordre rempli
+7. Le niveau du marché détermine la commission
+8. La commission va au propriétaire canonique du marché
+9. Les ressources et le gold utilisés viennent de `player_bank`
+10. Pas de logistique physique dans cette phase
+11. Pas d’auto-match complexe dans cette phase
+12. Pas d’enchères séparées dans cette phase — ce carnet d’ordres remplace le besoin immédiat d’un système d’enchères
+
+DÉCISION STRUCTURELLE IMPORTANTE
+Je veux un **carnet d’ordres manuel**, pas un moteur de matching automatique complet.
+
+Donc :
+
+* un joueur poste un ordre
+* cet ordre reste ouvert
+* un autre joueur choisit explicitement de le remplir
+* le serveur applique l’échange
+* pas d’auto-consommation multi-ordres
+* pas de priorités complexes d’exécution dans cette première phase
+
+RÈGLES D’ESCROW À AUDITER
+Pour éviter les doubles dépenses, je veux que tu audites un modèle où :
+
+1. ordre de vente
+
+* la ressource est retirée immédiatement du `player_bank`
+* elle est mise en escrow dans l’ordre
+
+2. ordre d’achat
+
+* le gold est retiré immédiatement du `player_bank`
+* il est mis en escrow dans l’ordre
+
+3. remplissage
+
+* si on remplit un ordre de vente :
+
+  * l’acheteur paie
+  * reçoit la ressource
+  * le vendeur reçoit le gold net
+  * le propriétaire du marché reçoit la commission
+
+* si on remplit un ordre d’achat :
+
+  * le vendeur apporte la ressource
+  * reçoit le gold net depuis l’escrow
+  * l’acheteur reçoit la ressource
+  * le propriétaire du marché reçoit la commission
+
+4. annulation
+
+* le créateur de l’ordre récupère le restant de l’escrow
+
+CE QUE TU DOIS AUDITER
+
+1. comment représenter proprement le marché dans l’existant :
+
+* bâtiment / ville / ownership / niveau
+
+2. comment représenter un ordre :
+
+* type
+* créateur
+* marché utilisé
+* ressource
+* quantité initiale
+* quantité restante
+* prix unitaire
+* escrow
+* statut
+
+3. comment exécuter un fill partiel proprement
+
+4. comment calculer et attribuer la commission du marché
+
+5. quels sont les risques critiques :
+
+* double spend
+* annulation concurrente
+* fill concurrent
+* ordre orphelin
+* marché supprimé
+* commission mal attribuée
+* désynchronisation client
+
+PROPOSITION TECHNIQUE ATTENDUE
+Je m’attends probablement à une structure de type :
+
+* table `market_orders`
+  avec des champs du genre :
+* `id`
+* `marketId` ou équivalent canonique
+* `ownerPlayerId`
+* `orderType` (`buy` | `sell`)
+* `resourceType`
+* `quantityInitial`
+* `quantityRemaining`
+* `unitPriceGold`
+* `status`
+* `createdAt`
+* `updatedAt`
+
+Et probablement un petit journal d’exécution si nécessaire, par exemple :
+
+* `market_trades`
+  Mais tu dois d’abord auditer si c’est nécessaire immédiatement ou si on peut rester minimal.
+
+COMMISSION
+Je veux une table simple de commission par niveau de `guilde_des_marchands`.
+
+Propose quelque chose du type :
+
+* niveau 1 → X%
+* niveau 2 → Y%
+* niveau 3 → Z%
+
+Simple, lisible, stable.
+
+UI ATTENDUE
+Je veux une UI minimale :
+
+* voir les ordres ouverts d’un marché
+* poster un ordre d’achat
+* poster un ordre de vente
+* remplir un ordre
+* annuler mes ordres
+* voir mes ordres
+
+Pas de gros tableau complexe si ce n’est pas nécessaire.
+
+FORMAT DE TA RÉPONSE
+Je veux exactement :
+
+1. AUDIT COURT
+
+* état actuel utile
+* représentation canonique du marché
+* représentation canonique des ordres
+* risques
+
+2. PROPOSITION TECHNIQUE MINIMALE
+
+* tables à ajouter
+* routes à ajouter
+* services à ajouter
+* logique d’escrow
+* logique de commission
+* UI minimale
+
+3. FICHIERS EXACTS À MODIFIER
+
+4. PLAN D’IMPLÉMENTATION MINIMAL
+   Étapes courtes, ordonnées, sans code
+
+5. STOP VALIDATION
+   Tu t’arrêtes ici.
+   Tu n’implémentes rien avant mon accord.
+
+IMPORTANT FINAL
+Le marketplace doit rester :
+
+* ancré dans le monde via `guilde_des_marchands`
+* serveur-authoritative
+* simple
+* stable
+* piloté par les joueurs
+* avec prix libres
+* avec ordres d’achat et de vente
+* sans moteur de matching automatique complexe dans cette première phase
