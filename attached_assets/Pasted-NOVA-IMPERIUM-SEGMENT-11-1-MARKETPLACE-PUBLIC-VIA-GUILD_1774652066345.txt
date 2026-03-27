@@ -1,0 +1,141 @@
+NOVA IMPERIUM — SEGMENT 11.1 — MARKETPLACE PUBLIC VIA GUILDE DES MARCHANDS
+Branche : `NI-10.3`
+
+CONTEXTE
+Je veux brancher le marketplace, mais avec une contrainte structurelle forte :
+
+* l’accès au marché public ne doit PAS être global ni libre partout
+* sur le même principe que l’accès à la banque, le bâtiment `guilde_des_marchands` doit être le seul point d’accès au marché public
+* je veux conserver cette logique
+* le niveau du marché doit déterminer la commission prise sur les transactions
+* cette commission doit aller au propriétaire du marché
+* le marché doit donc devenir une vraie source de revenu pour les joueurs
+
+OBJECTIF DE CE BLOC
+Tu dois faire uniquement le **BLOC 1 — AUDIT + PROPOSITION**, sans implémentation.
+
+Je veux un marketplace prix fixe, serveur-authoritative, simple, stable, et compatible avec les systèmes déjà en place.
+
+RÈGLES VALIDÉES
+
+1. Le marché public est accessible uniquement via un bâtiment `guilde_des_marchands`
+2. Une annonce est liée à un marché précis
+3. Le niveau du marché détermine la commission
+4. La commission va au propriétaire canonique de la case / ville / structure qui héberge le marché
+5. Les ressources vendues proviennent de `player_bank`
+6. Les ressources achetées arrivent dans `player_bank`
+7. Le paiement se fait en gold depuis `player_bank`
+8. Pas de logistique physique dans cette phase
+9. Pas d’enchères dans cette phase
+10. Pas de refactor massif ni d’abstraction générique inutile
+
+HYPOTHÈSE FONCTIONNELLE À AUDITER
+Je préfère, sauf contrainte technique contraire clairement justifiée :
+
+* marché public utilisable par tous les joueurs
+* mais chaque annonce est postée via une `guilde_des_marchands`
+* et le propriétaire de cette guilde touche la commission sur les ventes conclues via ce marché
+
+Tu dois confirmer si ce modèle est le plus petit passage propre, ou proposer une variante plus simple sans casser cette logique.
+
+CE QUE TU DOIS AUDITER
+
+1. comment représenter un “marché” dans le système actuel :
+
+* bâtiment de ville existant ?
+* bâtiment lié à une ville ?
+* autre structure déjà canonique ?
+
+2. comment déterminer proprement :
+
+* quel marché est utilisé pour poster une annonce
+* qui est le propriétaire canonique de ce marché
+* quel est le niveau du marché
+* quel est le taux de commission appliqué
+
+3. comment intégrer cela sans casser :
+
+* `player_bank`
+* villes
+* bâtiments
+* ownership existant
+* logique serveur-authoritative
+
+4. quels sont les risques :
+
+* double spend
+* achat concurrent
+* annulation concurrente
+* commission mal attribuée
+* marché détruit / absent / niveau invalide
+* annonce orpheline si structure supprimée plus tard
+
+PROPOSITION TECHNIQUE ATTENDUE
+Je m’attends probablement à une structure de type :
+
+* table `market_listings`
+* référence au marché utilisé (`marketBuildingId`, `cityId`, ou équivalent canonique)
+* `sellerPlayerId`
+* `resourceType`
+* `quantityInitial`
+* `quantityRemaining`
+* `unitPriceGold`
+* `status`
+* timestamps
+
+Et il faudra probablement une logique serveur du type :
+
+* `createMarketListing()`
+* `buyMarketListing()`
+* `cancelMarketListing()`
+* `getOpenMarketListings()`
+* `getMyMarketListings()`
+
+Mais tu dois d’abord auditer le meilleur branchement réel dans le code existant.
+
+COMMISSION
+Je veux que tu proposes une table minimale et lisible de commission par niveau de `guilde_des_marchands`.
+
+Exemple de format attendu :
+
+* niveau 1 → X%
+* niveau 2 → Y%
+* niveau 3 → Z%
+
+Rester simple. Pas de taxes dynamiques.
+
+SORTIE ATTENDUE
+Je veux exactement :
+
+1. AUDIT COURT
+
+* état actuel utile
+* comment représenter le marché dans l’existant
+* comment déterminer ownership et niveau
+* risques
+
+2. PROPOSITION TECHNIQUE MINIMALE
+
+* tables à ajouter
+* routes à ajouter
+* services à ajouter
+* règles de commission
+* UI minimale à brancher
+
+3. FICHIERS EXACTS À MODIFIER
+
+4. PLAN D’IMPLÉMENTATION MINIMAL
+   Étapes courtes, ordonnées, sans code
+
+5. STOP VALIDATION
+   Tu t’arrêtes ici.
+   Tu n’implémentes rien avant mon accord.
+
+IMPORTANT FINAL
+Le marketplace ne doit pas être un menu global abstrait.
+Il doit rester ancré dans le monde :
+
+* accès via `guilde_des_marchands`
+* commission réelle pour le propriétaire
+* revenu territorial réel pour les joueurs
+* logique simple, stable, serveur-authoritative
