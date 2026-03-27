@@ -1,0 +1,79 @@
+NOVA IMPERIUM — PHASE 10.3b — FERMETURE DU DERNIER WRITE OPTIMISTE ACTIF
+Branche : `NI-10.3`
+
+CONTEXTE
+La réconciliation publique 10.3 est validée pour :
+
+* `goldPerTurn` dans `CityDTO`
+* `StartConstructionResult.deducted` à 10 matériaux
+* `postEconomyTick` marqué `@deprecated`
+
+Mais il reste un dernier risque actif :
+le chemin recrutement Zustand écrit encore localement avant confirmation serveur.
+
+OBJECTIF
+Fermer le dernier write optimiste actif du prototype Tier 1, sans refactor et sans ouvrir de nouvelle feature.
+
+PÉRIMÈTRE STRICT
+Tu travailles uniquement sur le chemin actif de recrutement :
+
+* `RecruitmentPanelZustand`
+* éventuellement le store / helper directement impliqué
+* uniquement ce qui est nécessaire pour empêcher un faux état visible côté client avant confirmation serveur
+
+INTERDIT
+
+* refonte architecture
+* changement gameplay
+* refactor large du store
+* nettoyage opportuniste hors sujet
+* réouverture de ConstructionPanelZustand si ce n’est pas requis
+* nouveaux systèmes unités / armées / combat
+
+CE QUE JE VEUX
+
+1. Auditer précisément le chemin actif de recrutement Zustand :
+
+* composant
+* appel store/helper
+* écriture locale optimiste éventuelle sur :
+
+  * `currentProduction`
+  * ressources
+  * autres états visibles
+
+2. Corriger le minimum nécessaire pour que :
+
+* l’action de recrutement demande au serveur de démarrer la production
+* le client n’affiche pas une unité/production comme acquise avant réponse serveur
+* l’état visible soit soit :
+
+  * basé sur la réponse serveur immédiate
+  * soit basé sur une hydratation serveur rapide
+* aucune dépense locale fictive ne soit appliquée avant confirmation
+
+3. Conserver la fluidité UI si possible, mais sans mensonge visible.
+
+FORMAT DE TA RÉPONSE
+Je veux exactement :
+
+1. AUDIT CIBLÉ
+
+* chemin exact
+* write optimiste exact
+* risque visible exact
+
+2. CORRECTION MINIMALE PROPOSÉE
+
+* ce que tu changes
+* pourquoi c’est le minimum sûr
+
+3. FICHIERS EXACTS À MODIFIER
+
+4. STOP VALIDATION
+   Tu t’arrêtes ici.
+   Tu n’implémentes rien avant mon accord.
+
+IMPORTANT FINAL
+Le but n’est pas de refaire le recrutement.
+Le but est uniquement de supprimer le dernier faux état client actif dans le pipeline Tier 1.
