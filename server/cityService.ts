@@ -54,6 +54,7 @@ const BUILDING_YIELDS: Record<string, { food?: number; production?: number; gold
   courthouse: { gold: 1 },
   university: {},
   bank:       {},  // Présence détectée pour router la production vers player_bank
+  guilde_des_marchands: {},  // Gate pour le marché des ressources (market_guilds)
 };
 
 // ─── recalculateCityEconomy ───────────────────────────────────────────────────

@@ -1,0 +1,232 @@
+NOVA IMPERIUM — SEGMENT 11.1 — BLOC 2 IMPLÉMENTATION VALIDÉE DU MARCHÉ DES RESSOURCES
+Branche : `NI-10.3`
+
+Le BLOC 1 est validé.
+Tu peux maintenant implémenter le marché des ressources.
+
+OBJECTIF
+Ajouter un marché des ressources séparé du marketplace existant, ancré dans `guilde_des_marchands`, serveur-authoritative, avec carnet d’ordres manuel.
+
+RÈGLES VALIDÉES
+
+1. Le marché des ressources ne remplace pas le marketplace existant
+2. Il s’ajoute proprement via un nouvel onglet / nouvelle vue dans `PublicMarketplace`
+3. L’accès est bloqué sans `guilde_des_marchands`
+4. Le carnet d’ordres est manuel :
+
+   * `buy`
+   * `sell`
+   * fill explicite
+   * fill partiel ou total
+   * cancel
+5. Pas d’auto-match à la création
+6. Les ressources et le gold passent uniquement par `player_bank`
+7. La commission est payée seulement par le vendeur
+8. La commission active au moment du trade s’applique
+9. Changement de fee :
+
+   * max 1 fois / 24 h
+   * actif après 24 h
+10. Le marché ne stocke aucun owner
+11. Le propriétaire du marché est dérivé via :
+
+* `market_guilds.cityId`
+* `cities.colonyId`
+* `colonies.ownerType / ownerPlayerId / ownerFactionId`
+
+PRÉREQUIS CONFIRMÉ
+L’ownership canonique des colonies est présent sur la branche `NI-10.3` :
+
+* `ownerType`
+* `ownerPlayerId`
+* `ownerPlayerName`
+* `ownerFactionId`
+* `ownerFactionName`
+
+PÉRIMÈTRE STRICT
+Tu implémentes uniquement :
+
+* tables du marché des ressources
+* routes du marché des ressources
+* service serveur du marché des ressources
+* API client
+* nouvel onglet / vue dans `PublicMarketplace`
+* gate par `guilde_des_marchands`
+
+Tu n’ouvres PAS :
+
+* auto-match
+* marketplace physique
+* transport
+* taxes supplémentaires
+* historique analytique avancé
+* refactor massif
+* modification du marketplace existant hors intégration minimale
+
+TABLES À AJOUTER
+
+1. `market_guilds`
+
+* `cityId` PK FK → `cities.id`
+* `tier` NOT NULL DEFAULT 1
+* `activeFeeBps` NOT NULL DEFAULT 0
+* `pendingFeeBps` nullable
+* `pendingFeeAppliesAt` nullable
+* `lastFeeChangeRequestedAt` nullable
+* `createdAt`
+
+2. `market_orders`
+
+* `id` serial PK
+* `cityId`
+* `playerId`
+* `playerName`
+* `side` (`buy` | `sell`)
+* `resourceType`
+* `pricePerUnit`
+* `quantityTotal`
+* `quantityRemaining`
+* `status` (`open` | `filled` | `cancelled`)
+* `createdAt`
+* `updatedAt`
+
+3. `market_trades`
+
+* `id` serial PK
+* `cityId`
+* `buyOrderId`
+* `sellOrderId`
+* `buyerId`
+* `sellerId`
+* `resourceType`
+* `quantity`
+* `pricePerUnit`
+* `totalGold`
+* `feeBpsApplied`
+* `feeAmount`
+* `executedAt`
+
+ROUTES À AJOUTER
+Toutes les routes :
+
+* `requireAuth`
+* vérification de présence de `guilde_des_marchands`
+* sans guilde → `403 "Ce marché nécessite la Guilde des Marchands"`
+
+Routes finales :
+
+1. `GET /api/market/:cityId/guild`
+2. `GET /api/market/:cityId/orders`
+3. `POST /api/market/:cityId/orders`
+4. `DELETE /api/market/:cityId/orders/:orderId`
+5. `POST /api/market/:cityId/orders/:orderId/fill`
+6. `GET /api/market/:cityId/trades`
+7. `PATCH /api/market/:cityId/guild/fee`
+
+LOGIQUE SERVEUR
+
+1. `placeOrder()`
+
+* validation
+* gate
+* escrow
+* création d’ordre
+* AUCUN auto-match
+
+2. `cancelOrder()`
+
+* seulement propriétaire de l’ordre ou admin
+* retour de l’escrow restant
+* ordre → `cancelled`
+
+3. `fillOrder()`
+
+* action explicite
+* quantity partielle ou totale
+* transaction atomique réelle
+* vérification des fonds / ressources du filleur
+* promotion lazy du fee pending si `pendingFeeAppliesAt <= now()`
+* calcul :
+
+  * `feeAmount = floor(totalGold * activeFeeBps / 10000)`
+* reversement :
+
+  * vendeur reçoit net
+  * propriétaire du marché reçoit la commission
+  * si ownerType = `player` → `player_bank`
+  * si ownerType = `faction` → `faction_economy`
+* création d’une ligne `market_trades`
+
+4. `updateFee()`
+
+* owner canonique du marché ou admin
+* respect plafond par tier :
+
+  * T1 0..600
+  * T2 0..1200
+  * T3 0..2000
+  * T4 0..2500
+* max une demande toutes les 24 h
+* activation après 24 h
+
+BUILDING GATE
+Dans `server/cityService.ts`, ajouter :
+
+* `'guilde_des_marchands': {}`
+
+INTÉGRATION UI
+Dans `PublicMarketplace.tsx` :
+
+* ajouter un onglet `Marché des Ressources`
+* ne pas casser les flux existants
+* si la ville n’a pas `guilde_des_marchands` :
+
+  * écran bloquant
+  * aucun fetch du carnet
+* si la guilde existe :
+
+  * afficher carnet d’ordres
+  * formulaire buy/sell
+  * action fill
+  * historique trades
+  * fee actif / pending / activation
+
+FICHIERS À MODIFIER
+
+* `shared/schema.ts`
+* `server/cityService.ts`
+* `server/marketService.ts`
+* `server/routes/market.ts`
+* `server/routes.ts`
+* `client/src/lib/api/marketApi.ts`
+* `client/src/components/game/PublicMarketplace.tsx`
+
+SORTIE ATTENDUE APRÈS IMPLÉMENTATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+2. RÉSUMÉ DES CHANGEMENTS PAR FICHIER
+3. POINTS DE VÉRIFICATION
+
+* sans guilde → 403
+* avec guilde → placeOrder OK
+* fill explicite OK
+* annulation OK
+* reversement commission OK
+* fee cooldown 24 h OK
+* aucun auto-match
+* UI séparée du marketplace existant
+
+4. BUGS OU LIMITES RÉELLES
+
+* seulement si réel
+
+IMPORTANT FINAL
+Tu implémentes maintenant.
+Tu ne réouvres pas le design.
+Tu gardes strictement :
+
+* marché manuel
+* pas d’auto-match
+* gate complet
+* owner dérivé, jamais stocké en double

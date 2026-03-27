@@ -24,6 +24,7 @@ import unitsRoutes from "./routes/units";
 import factionRoutes from "./routes/factions";
 import territoryRoutes from "./routes/territories";
 import economyRoutes from "./routes/economy";
+import marketRoutes from "./routes/market";
 import { seedFactions } from "./seeds/factionSeed";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -911,6 +912,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/cities', citiesRoutes);
   app.use('/api/units', unitsRoutes);
   app.use('/api/economy', economyRoutes);
+  app.use('/api/market', marketRoutes);
 
   const httpServer = createServer(app);
   return httpServer;

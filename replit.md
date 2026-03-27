@@ -28,6 +28,7 @@ Preferred communication style: Simple, everyday language.
 - **Advanced Pathfinding**: Hexagonal A* algorithm for optimal pathfinding with terrain cost management and animated unit movement.
 - **Multi-Level Exploration**: A 5-level exploration system that progressively reveals resources and reduces movement costs based on competence level.
 - **Hybrid Public Marketplace**: Supports both direct sales (fixed price) and auctions (variable price) with a comprehensive backend service and real-time notifications.
+- **Resource Marketplace (Phase 11.1)**: DB-backed order book with manual fill, escrow via `player_bank`, commission with 24h pending delay, ownership derived from `colonies` canonical chain. Tables: `market_guilds`, `market_orders`, `market_trades`. Gate: `guilde_des_marchands` building required on all routes.
 - **Unified City Foundation**: Streamlined process for founding colonies using user-defined display names.
 - **Security Measures**: Coordinated masking for unique map items in the marketplace, visible only to the owner.
 - **Icon Unification**: Shared icon system across the main game and map viewer for visual consistency.

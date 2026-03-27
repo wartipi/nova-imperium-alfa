@@ -1,5 +1,11 @@
-import React, { useState, useEffect } from "react";
-import { ShoppingCart, Plus, Gavel, DollarSign, Clock, User, Search, Filter, X, Eye } from "lucide-react";
+import React, { useState, useEffect, useCallback } from "react";
+import { ShoppingCart, Plus, Gavel, DollarSign, Clock, User, Search, Filter, X, Eye, Store } from "lucide-react";
+import {
+  fetchMarketGuild, fetchMarketOrders, fetchMarketTrades,
+  placeMarketOrder, cancelMarketOrder, fillMarketOrder, updateMarketFee,
+  type MarketGuild, type MarketOrder, type MarketTrade,
+  type ResourceType, type OrderSide, RESOURCE_LABELS, ALL_RESOURCES,
+} from "../../lib/api/marketApi";
 import { useResources } from '../../lib/stores/useResources';
 import { useGameLogging } from '../../lib/hooks/useGameLogging';
 import InteractiveMapViewer from './InteractiveMapViewer';
@@ -83,7 +89,20 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
   const [playerInventory, setPlayerInventory] = useState<UniqueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [inventoryLoading, setInventoryLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'buy' | 'sell'>('buy');
+  const [activeTab, setActiveTab] = useState<'buy' | 'sell' | 'marche_ressources'>('buy');
+
+  // ─── État Marché des Ressources ─────────────────────────────────────────────
+  interface CityOption { cityId: number; name: string; hasGuild: boolean }
+  const [rmCities, setRmCities]             = useState<CityOption[]>([]);
+  const [rmCityId, setRmCityId]             = useState<number | null>(null);
+  const [rmGuild, setRmGuild]               = useState<MarketGuild | null>(null);
+  const [rmOrders, setRmOrders]             = useState<MarketOrder[]>([]);
+  const [rmTrades, setRmTrades]             = useState<MarketTrade[]>([]);
+  const [rmLoading, setRmLoading]           = useState(false);
+  const [rmMsg, setRmMsg]                   = useState<string | null>(null);
+  const [rmOrderForm, setRmOrderForm]       = useState({ side: 'sell' as OrderSide, resourceType: 'wood' as ResourceType, pricePerUnit: 10, quantity: 1 });
+  const [rmFillQty, setRmFillQty]           = useState<Record<number, number>>({});
+  const [rmFeeInput, setRmFeeInput]         = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'resource' | 'unique_item'>('all');
   const [showSellModal, setShowSellModal] = useState(false);
@@ -181,7 +200,103 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
     return true;
   });
 
-  // Helper auth — même pattern que economyApi.ts
+  // ─── Fonctions Marché des Ressources ─────────────────────────────────────────
+
+  const rmGetAuth = (): Record<string, string> => {
+    const saved = localStorage.getItem("nova_imperium_auth");
+    if (!saved) return {};
+    const { token } = JSON.parse(saved);
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
+  const rmFetchCities = useCallback(async () => {
+    try {
+      const resp = await fetch("/api/cities/me", { headers: rmGetAuth() });
+      if (!resp.ok) return;
+      const data = await resp.json();
+      const opts: { cityId: number; name: string; hasGuild: boolean }[] = (data ?? []).map((c: any) => ({
+        cityId:   c.cityId ?? c.id,
+        name:     c.name,
+        hasGuild: Array.isArray(c.buildings) && c.buildings.includes("guilde_des_marchands"),
+      }));
+      setRmCities(opts);
+      const first = opts.find(o => o.hasGuild);
+      if (first && rmCityId === null) setRmCityId(first.cityId);
+    } catch { /* silencieux */ }
+  }, []);
+
+  const rmLoadMarket = useCallback(async (cityId: number) => {
+    setRmLoading(true);
+    setRmMsg(null);
+    try {
+      const [guildData, orders, trades] = await Promise.all([
+        fetchMarketGuild(cityId),
+        fetchMarketOrders(cityId),
+        fetchMarketTrades(cityId),
+      ]);
+      setRmGuild(guildData.guild);
+      setRmOrders(orders);
+      setRmTrades(trades);
+    } catch (e: any) {
+      setRmMsg(e.message ?? "Erreur de chargement");
+      setRmGuild(null);
+      setRmOrders([]);
+      setRmTrades([]);
+    } finally {
+      setRmLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "marche_ressources") {
+      rmFetchCities();
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (rmCityId !== null) rmLoadMarket(rmCityId);
+  }, [rmCityId]);
+
+  const rmPlaceOrder = async () => {
+    if (!rmCityId) return;
+    try {
+      const result = await placeMarketOrder(rmCityId, rmOrderForm);
+      setRmMsg(`✅ Ordre #${result.orderId} créé — escrow prélevé.`);
+      rmLoadMarket(rmCityId);
+    } catch (e: any) { setRmMsg(`❌ ${e.message}`); }
+  };
+
+  const rmCancelOrder = async (orderId: number) => {
+    if (!rmCityId) return;
+    try {
+      await cancelMarketOrder(rmCityId, orderId);
+      setRmMsg(`✅ Ordre #${orderId} annulé — escrow retourné.`);
+      rmLoadMarket(rmCityId);
+    } catch (e: any) { setRmMsg(`❌ ${e.message}`); }
+  };
+
+  const rmFillOrder = async (orderId: number) => {
+    if (!rmCityId) return;
+    const qty = rmFillQty[orderId] ?? 1;
+    try {
+      const r = await fillMarketOrder(rmCityId, orderId, qty);
+      setRmMsg(`✅ Fill #${orderId} — ${qty} unités — ${r.totalGold}g (frais: ${r.feeAmount}g)`);
+      rmLoadMarket(rmCityId);
+    } catch (e: any) { setRmMsg(`❌ ${e.message}`); }
+  };
+
+  const rmUpdateFee = async () => {
+    if (!rmCityId) return;
+    const bps = parseInt(rmFeeInput, 10);
+    if (isNaN(bps)) { setRmMsg("❌ Valeur invalide"); return; }
+    try {
+      await updateMarketFee(rmCityId, bps);
+      setRmMsg(`✅ Commission en attente : ${bps} bps — active dans 24 h`);
+      rmLoadMarket(rmCityId);
+    } catch (e: any) { setRmMsg(`❌ ${e.message}`); }
+  };
+
+  // ─── Helper auth — même pattern que economyApi.ts ─────────────────────────
   const getAuthHeaders = (): Record<string, string> => {
     const saved = localStorage.getItem("nova_imperium_auth");
     if (!saved) return {};
@@ -551,6 +666,17 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
           >
             💰 Vendre
           </button>
+          <button
+            onClick={() => setActiveTab('marche_ressources')}
+            className={`flex-1 py-4 px-6 font-medium transition-colors ${
+              activeTab === 'marche_ressources'
+                ? 'bg-emerald-200 text-emerald-900 border-b-2 border-emerald-600'
+                : 'text-amber-700 hover:bg-amber-100'
+            }`}
+            style={{ userSelect: 'none', pointerEvents: 'auto' }}
+          >
+            🏪 Marché des Ressources
+          </button>
         </div>
 
         {/* Contenu */}
@@ -615,7 +741,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                 )}
               </div>
             </div>
-          ) : (
+          ) : activeTab === 'sell' ? (
             // Onglet Vendre
             <div className="h-full flex flex-col">
               <div className="flex-1 overflow-y-auto p-6">
@@ -764,6 +890,212 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                   )}
                 </div>
               </div>
+            </div>
+          ) : (
+            // ─── Onglet Marché des Ressources ──────────────────────────────────
+            <div className="h-full flex flex-col overflow-hidden bg-emerald-50">
+
+              {/* Sélecteur de ville */}
+              <div className="p-4 border-b border-emerald-200 bg-emerald-100 flex items-center gap-4 flex-shrink-0">
+                <label className="font-semibold text-emerald-900 text-sm whitespace-nowrap">Marché de :</label>
+                <select
+                  value={rmCityId ?? ""}
+                  onChange={e => { const v = parseInt(e.target.value, 10); if (!isNaN(v)) setRmCityId(v); }}
+                  className="px-3 py-1.5 border border-emerald-400 rounded-lg text-sm bg-white flex-1 max-w-xs"
+                >
+                  <option value="">— Sélectionner une ville —</option>
+                  {rmCities.map(c => (
+                    <option key={c.cityId} value={c.cityId} disabled={!c.hasGuild}>
+                      {c.name}{c.hasGuild ? "" : " (pas de guilde)"}
+                    </option>
+                  ))}
+                </select>
+                {rmCityId && (
+                  <button
+                    onClick={() => rmLoadMarket(rmCityId)}
+                    className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-sm"
+                    style={{ pointerEvents: "auto" }}
+                  >🔄 Rafraîchir</button>
+                )}
+              </div>
+
+              {/* Message feedback */}
+              {rmMsg && (
+                <div className={`px-4 py-2 text-sm font-medium flex-shrink-0 ${rmMsg.startsWith("✅") ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+                  {rmMsg}
+                </div>
+              )}
+
+              {!rmCityId ? (
+                <div className="flex-1 flex items-center justify-center text-emerald-700 text-center p-8">
+                  <div>
+                    <div className="text-4xl mb-4">🏪</div>
+                    <p className="text-lg font-semibold mb-2">Sélectionnez une ville</p>
+                    <p className="text-sm">Choisissez une ville disposant de la Guilde des Marchands pour accéder au carnet d'ordres.</p>
+                  </div>
+                </div>
+              ) : rmLoading ? (
+                <div className="flex-1 flex items-center justify-center text-emerald-700">Chargement...</div>
+              ) : !rmGuild ? (
+                <div className="flex-1 flex items-center justify-center text-center p-8">
+                  <div>
+                    <div className="text-4xl mb-4">🔒</div>
+                    <p className="text-lg font-semibold text-red-800 mb-2">Guilde des Marchands requise</p>
+                    <p className="text-sm text-red-700">Cette ville n'a pas de Guilde des Marchands. Construisez-la pour débloquer le marché des ressources.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+
+                  {/* Info guilde */}
+                  <div className="bg-white border border-emerald-200 rounded-lg p-3 flex flex-wrap gap-4 items-center text-sm">
+                    <span className="font-semibold text-emerald-900">Tier {rmGuild.tier}</span>
+                    <span className="text-emerald-800">Commission active : <strong>{rmGuild.activeFeeBps} bps</strong> ({(rmGuild.activeFeeBps/100).toFixed(2)}%)</span>
+                    {rmGuild.pendingFeeBps != null && (
+                      <span className="text-amber-700">En attente : {rmGuild.pendingFeeBps} bps — actif le {new Date(rmGuild.pendingFeeAppliesAt!).toLocaleString()}</span>
+                    )}
+                    <div className="flex gap-2 ml-auto items-center">
+                      <input
+                        type="number" min={0} max={600}
+                        placeholder="bps"
+                        value={rmFeeInput}
+                        onChange={e => setRmFeeInput(e.target.value)}
+                        className="w-20 px-2 py-1 border border-emerald-300 rounded text-sm"
+                      />
+                      <button onClick={rmUpdateFee} className="px-3 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded text-sm" style={{ pointerEvents: "auto" }}>
+                        Changer commission
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Formulaire nouvel ordre */}
+                  <div className="bg-white border border-emerald-200 rounded-lg p-4">
+                    <h4 className="font-bold text-emerald-900 mb-3">Poster un ordre</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                      <select value={rmOrderForm.side} onChange={e => setRmOrderForm(f => ({ ...f, side: e.target.value as OrderSide }))}
+                        className="px-2 py-1.5 border border-emerald-300 rounded text-sm">
+                        <option value="sell">🔻 Vendre</option>
+                        <option value="buy">🔺 Acheter</option>
+                      </select>
+                      <select value={rmOrderForm.resourceType} onChange={e => setRmOrderForm(f => ({ ...f, resourceType: e.target.value as ResourceType }))}
+                        className="px-2 py-1.5 border border-emerald-300 rounded text-sm">
+                        {ALL_RESOURCES.map(r => <option key={r} value={r}>{RESOURCE_LABELS[r]}</option>)}
+                      </select>
+                      <div className="flex items-center gap-1">
+                        <label className="text-xs text-emerald-700 whitespace-nowrap">Qté</label>
+                        <input type="number" min={1} value={rmOrderForm.quantity}
+                          onChange={e => setRmOrderForm(f => ({ ...f, quantity: parseInt(e.target.value) || 1 }))}
+                          className="w-full px-2 py-1.5 border border-emerald-300 rounded text-sm" />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <label className="text-xs text-emerald-700 whitespace-nowrap">Prix/u</label>
+                        <input type="number" min={1} value={rmOrderForm.pricePerUnit}
+                          onChange={e => setRmOrderForm(f => ({ ...f, pricePerUnit: parseInt(e.target.value) || 1 }))}
+                          className="w-full px-2 py-1.5 border border-emerald-300 rounded text-sm" />
+                      </div>
+                      <button onClick={rmPlaceOrder}
+                        className={`py-1.5 px-4 rounded text-white text-sm font-semibold ${rmOrderForm.side === "sell" ? "bg-red-600 hover:bg-red-700" : "bg-blue-600 hover:bg-blue-700"}`}
+                        style={{ pointerEvents: "auto" }}>
+                        {rmOrderForm.side === "sell" ? "Vendre" : "Acheter"} → Escrow
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      {rmOrderForm.side === "sell"
+                        ? `Escrow : ${rmOrderForm.quantity} × ${RESOURCE_LABELS[rmOrderForm.resourceType]} débité immédiatement.`
+                        : `Escrow : ${rmOrderForm.quantity * rmOrderForm.pricePerUnit} or débité immédiatement.`}
+                    </p>
+                  </div>
+
+                  {/* Carnet d'ordres — SELL */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-white border border-red-200 rounded-lg p-3">
+                      <h4 className="font-bold text-red-800 mb-2 text-sm">Ordres VENTE ({rmOrders.filter(o => o.side === "sell").length})</h4>
+                      {rmOrders.filter(o => o.side === "sell").length === 0
+                        ? <p className="text-xs text-gray-400 italic">Aucun ordre de vente</p>
+                        : rmOrders.filter(o => o.side === "sell").map(o => (
+                          <div key={o.id} className="border border-red-100 rounded p-2 mb-2 text-xs">
+                            <div className="flex justify-between font-semibold">
+                              <span>{RESOURCE_LABELS[o.resourceType as ResourceType]}</span>
+                              <span className="text-red-700">{o.pricePerUnit} g/u</span>
+                            </div>
+                            <div className="text-gray-600">Qté : {o.quantityRemaining}/{o.quantityTotal} — {o.playerName}</div>
+                            <div className="flex gap-2 mt-1.5 items-center">
+                              <input type="number" min={1} max={o.quantityRemaining}
+                                value={rmFillQty[o.id] ?? o.quantityRemaining}
+                                onChange={e => setRmFillQty(q => ({ ...q, [o.id]: parseInt(e.target.value) || 1 }))}
+                                className="w-16 px-1 py-0.5 border border-gray-300 rounded text-xs" />
+                              <button onClick={() => rmFillOrder(o.id)}
+                                className="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs"
+                                style={{ pointerEvents: "auto" }}>
+                                Acheter
+                              </button>
+                              {o.playerId === playerId && (
+                                <button onClick={() => rmCancelOrder(o.id)}
+                                  className="px-2 py-0.5 bg-gray-400 hover:bg-gray-500 text-white rounded text-xs"
+                                  style={{ pointerEvents: "auto" }}>
+                                  Annuler
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+
+                    {/* Carnet d'ordres — BUY */}
+                    <div className="bg-white border border-blue-200 rounded-lg p-3">
+                      <h4 className="font-bold text-blue-800 mb-2 text-sm">Ordres ACHAT ({rmOrders.filter(o => o.side === "buy").length})</h4>
+                      {rmOrders.filter(o => o.side === "buy").length === 0
+                        ? <p className="text-xs text-gray-400 italic">Aucun ordre d'achat</p>
+                        : rmOrders.filter(o => o.side === "buy").map(o => (
+                          <div key={o.id} className="border border-blue-100 rounded p-2 mb-2 text-xs">
+                            <div className="flex justify-between font-semibold">
+                              <span>{RESOURCE_LABELS[o.resourceType as ResourceType]}</span>
+                              <span className="text-blue-700">{o.pricePerUnit} g/u</span>
+                            </div>
+                            <div className="text-gray-600">Qté : {o.quantityRemaining}/{o.quantityTotal} — {o.playerName}</div>
+                            <div className="flex gap-2 mt-1.5 items-center">
+                              <input type="number" min={1} max={o.quantityRemaining}
+                                value={rmFillQty[o.id] ?? o.quantityRemaining}
+                                onChange={e => setRmFillQty(q => ({ ...q, [o.id]: parseInt(e.target.value) || 1 }))}
+                                className="w-16 px-1 py-0.5 border border-gray-300 rounded text-xs" />
+                              <button onClick={() => rmFillOrder(o.id)}
+                                className="px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white rounded text-xs"
+                                style={{ pointerEvents: "auto" }}>
+                                Vendre
+                              </button>
+                              {o.playerId === playerId && (
+                                <button onClick={() => rmCancelOrder(o.id)}
+                                  className="px-2 py-0.5 bg-gray-400 hover:bg-gray-500 text-white rounded text-xs"
+                                  style={{ pointerEvents: "auto" }}>
+                                  Annuler
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+
+                  {/* Historique des trades */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-3">
+                    <h4 className="font-bold text-gray-800 mb-2 text-sm">Historique ({rmTrades.length} trades)</h4>
+                    {rmTrades.length === 0
+                      ? <p className="text-xs text-gray-400 italic">Aucun trade effectué</p>
+                      : <div className="space-y-1 max-h-48 overflow-y-auto">
+                          {rmTrades.map(t => (
+                            <div key={t.id} className="flex gap-3 text-xs text-gray-700 border-b border-gray-100 pb-1">
+                              <span className="text-gray-400">{new Date(t.executedAt).toLocaleString()}</span>
+                              <span className="font-semibold">{t.quantity}× {RESOURCE_LABELS[t.resourceType as ResourceType]}</span>
+                              <span>@ {t.pricePerUnit}g/u = {t.totalGold}g</span>
+                              <span className="text-gray-400">frais: {t.feeAmount}g</span>
+                            </div>
+                          ))}
+                        </div>
+                    }
+                  </div>
+
+                </div>
+              )}
             </div>
           )}
         </div>

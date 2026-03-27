@@ -651,3 +651,65 @@ export const units = pgTable("units", {
 });
 
 export type UnitRecord = typeof units.$inferSelect;
+
+// ─── market_guilds ────────────────────────────────────────────────────────────
+// Une ligne par ville ayant le bâtiment guilde_des_marchands.
+// Créée lazily à la première requête sur ce marché.
+// Le propriétaire est DÉRIVÉ via cities → colonies (ownership canonique Phase 11).
+// Jamais stocké ici pour éviter la duplication.
+export const marketGuilds = pgTable("market_guilds", {
+  cityId:                    integer("city_id").primaryKey().references(() => cities.id),
+  tier:                      integer("tier").notNull().default(1),
+  activeFeeBps:              integer("active_fee_bps").notNull().default(0),
+  pendingFeeBps:             integer("pending_fee_bps"),
+  pendingFeeAppliesAt:       timestamp("pending_fee_applies_at"),
+  lastFeeChangeRequestedAt:  timestamp("last_fee_change_requested_at"),
+  createdAt:                 timestamp("created_at").notNull().defaultNow(),
+});
+
+export type MarketGuildRecord = typeof marketGuilds.$inferSelect;
+
+// ─── market_orders ────────────────────────────────────────────────────────────
+// Carnet d'ordres du marché des ressources.
+// side = 'buy' | 'sell'
+// resourceType ∈ food|wood|stone|iron|copper|coal|oil|herbs|fur
+// status = 'open' | 'filled' | 'cancelled'
+// quantityRemaining : décrémenté à chaque fill partiel.
+export const marketOrders = pgTable("market_orders", {
+  id:                serial("id").primaryKey(),
+  cityId:            integer("city_id").notNull().references(() => cities.id),
+  playerId:          text("player_id").notNull(),
+  playerName:        text("player_name").notNull(),
+  side:              text("side").notNull(),
+  resourceType:      text("resource_type").notNull(),
+  pricePerUnit:      integer("price_per_unit").notNull(),
+  quantityTotal:     integer("quantity_total").notNull(),
+  quantityRemaining: integer("quantity_remaining").notNull(),
+  status:            text("status").notNull().default("open"),
+  createdAt:         timestamp("created_at").notNull().defaultNow(),
+  updatedAt:         timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type MarketOrderRecord = typeof marketOrders.$inferSelect;
+
+// ─── market_trades ────────────────────────────────────────────────────────────
+// Journal des transactions exécutées sur le marché des ressources.
+// feeBpsApplied : fee actif au moment du fill (post lazy-promotion éventuelle).
+// feeAmount     : floor(totalGold × feeBpsApplied / 10000)
+export const marketTrades = pgTable("market_trades", {
+  id:           serial("id").primaryKey(),
+  cityId:       integer("city_id").notNull().references(() => cities.id),
+  buyOrderId:   integer("buy_order_id").notNull().references(() => marketOrders.id),
+  sellOrderId:  integer("sell_order_id").notNull().references(() => marketOrders.id),
+  buyerId:      text("buyer_id").notNull(),
+  sellerId:     text("seller_id").notNull(),
+  resourceType: text("resource_type").notNull(),
+  quantity:     integer("quantity").notNull(),
+  pricePerUnit: integer("price_per_unit").notNull(),
+  totalGold:    integer("total_gold").notNull(),
+  feeBpsApplied:integer("fee_bps_applied").notNull(),
+  feeAmount:    integer("fee_amount").notNull(),
+  executedAt:   timestamp("executed_at").notNull().defaultNow(),
+});
+
+export type MarketTradeRecord = typeof marketTrades.$inferSelect;
