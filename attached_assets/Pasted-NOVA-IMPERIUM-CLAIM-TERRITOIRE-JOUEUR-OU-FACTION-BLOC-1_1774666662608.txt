@@ -1,0 +1,91 @@
+NOVA IMPERIUM — CLAIM TERRITOIRE JOUEUR OU FACTION — BLOC 1 FINAL CORRIGÉ AVANT IMPLÉMENTATION
+Branche : `NI-10.3`
+
+Ton plan va dans la bonne direction, mais je ne valide pas encore l’implémentation.
+
+Je valide :
+
+* ownership canonique polymorphe sur `territories`
+* `ownerType = 'player' | 'faction'`
+* `ownerPlayerId / ownerPlayerName`
+* `ownerFactionId / ownerFactionName`
+* backfill des territoires existants vers `ownerType='faction'`
+* `playerId / playerName` conservés comme historique du joueur qui a posé le claim
+* absence de modification de `foundColony()` dans cette phase
+
+Mais je veux 4 corrections avant tout code.
+
+1. LA FAÇADE/UI ACTIVE NE DOIT PAS FILTRER UNIQUEMENT SUR `ownerPlayerId`
+   Tu proposes de modifier `UnifiedTerritorySystem.getPlayerTerritories()` pour filtrer sur `ownerPlayerId`.
+
+Je refuse cela tel quel.
+
+Raison :
+
+* les territoires existants sont backfillés en `ownerType='faction'`
+* les membres d’une faction ne verraient alors plus les territoires possédés par leur faction dans le panneau actif
+* cela casserait immédiatement le parcours joueur
+
+Décision attendue :
+
+* la façade active doit exposer des **territoires accessibles** au joueur, pas seulement ses territoires personnels
+* logique minimale attendue :
+
+  * inclure `ownerType='player' && ownerPlayerId === playerId`
+  * inclure aussi `ownerType='faction' && ownerFactionId === playerFactionId` si le joueur a une faction
+
+Tu peux renommer la fonction si nécessaire, mais je veux une sémantique correcte.
+
+2. LE BUG `getPlayerTerritories('player')` DOIT ÊTRE CORRIGÉ DANS CETTE PHASE
+   Tu as bien identifié que l’appel actuel utilise une chaîne littérale hardcodée.
+
+Je veux que cette correction soit incluse explicitement dans le plan final :
+
+* utiliser l’identité réelle du joueur
+* et sa faction réelle si nécessaire
+
+Je ne veux pas que ce point reste “préexistant mais hors scope”.
+Il touche directement le panneau actif.
+
+3. `server/index.ts` DOIT ÊTRE AJOUTÉ À LA LISTE DES FICHIERS
+   Tu prévois un backfill idempotent appelé au démarrage.
+   Donc `server/index.ts` doit apparaître explicitement dans la liste des fichiers à modifier.
+
+4. PERMISSIONS — FORMULATION PLUS CLAIRE
+   Je veux que tu écrives noir sur blanc :
+
+* `ownerType + ownerPlayer* / ownerFaction*` = ownership canonique
+* les nouveaux checks de territoire doivent se baser sur cet owner canonique
+* `factionId / factionName` restent legacy / compatibilité seulement
+* ils ne doivent plus servir de gate de permission dans le nouveau code
+
+FORMAT DE TA RÉPONSE
+Je veux exactement :
+
+1. BLOC 1 FINAL CORRIGÉ
+
+* ownership canonique final
+* statut exact de `playerId/playerName`
+* statut exact de `factionId/factionName`
+* stratégie correcte pour la façade/UI active
+* correction du hardcode `getPlayerTerritories('player')`
+* règle UI de choix player/faction
+* règle de permission future
+
+2. FICHIERS EXACTS À MODIFIER
+   Liste précise, incluant `server/index.ts` et la façade/UI active
+
+3. PLAN D’IMPLÉMENTATION FINAL
+   Étapes courtes, ordonnées, sans code
+
+4. STOP VALIDATION
+   Tu t’arrêtes ici.
+   Tu n’implémentes rien avant mon accord.
+
+IMPORTANT FINAL
+Je veux un claim de territoire qui puisse appartenir :
+
+* à un joueur
+* ou à une faction
+
+sans ambiguïté sur le propriétaire réel, sans casser le panneau actif, et sans faire disparaître les territoires de faction pour les membres de faction.
