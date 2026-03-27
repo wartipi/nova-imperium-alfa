@@ -401,7 +401,7 @@ export async function tickCityProduction(playerId: string): Promise<CityProducti
   const completedBuildings: { cityId: number; cityName: string; buildingId: string }[] = [];
   const completedUnits: { cityId: number; cityName: string; unitId: number; unitType: string; unitName: string }[] = [];
 
-  for (const { city } of rows) {
+  for (const { city, colony } of rows) {
     const prod = productionRows.find(p => p.cityId === city.id);
     if (!prod) continue;
 
@@ -427,7 +427,7 @@ export async function tickCityProduction(playerId: string): Promise<CityProducti
           console.warn(`[tickCityProduction] Type d'unité inconnu : ${prod.productionName} — production ignorée`);
           await clearProduction(city.id);
         } else {
-          const unitId = await createProducedUnit(owner, city.id, city.worldX, city.worldY, prod.productionName);
+          const unitId = await createProducedUnit(owner, city.id, colony.worldX, colony.worldY, prod.productionName);
           await clearProduction(city.id);
           completedUnits.push({
             cityId:   city.id,

@@ -1,0 +1,107 @@
+NOVA IMPERIUM — PHASE 10.1 — BLOC 3 VÉRIFICATION FINALE
+Branche : `NI-10.3`
+
+La validation structurelle de 10.1 est accordée.
+
+Je ne veux maintenant **aucune nouvelle modification de design**.
+Je veux uniquement une **vérification d’exécution** de ce qui a déjà été implémenté.
+
+OBJECTIF
+Prouver que le pipeline unités serveur-authoritative fonctionne réellement de bout en bout :
+
+ville → file de production → tick serveur → unité persistée → route API → hydratation client → toast
+
+PÉRIMÈTRE
+Tu ne refactors rien.
+Tu ne modifies l’architecture en rien.
+Tu ne touches qu’au strict minimum si un bug bloquant de raccordement est découvert pendant la vérification.
+
+JE VEUX UNE VÉRIFICATION CONCRÈTE DES POINTS SUIVANTS
+
+1. COMPILATION
+
+* vérifier compilation / typecheck serveur
+* vérifier compilation / typecheck client
+* signaler toute erreur réelle
+* si une correction minimale est nécessaire, l’indiquer explicitement avant de l’appliquer
+
+2. SCHÉMA / BOOTSTRAP
+
+* confirmer que `ensureUnitsTable()` crée bien la table `units`
+* confirmer que `queuedByPlayerId` existe bien côté `city_production`
+* confirmer qu’aucune erreur SQL n’apparaît au démarrage
+
+3. PIPELINE DE PRODUCTION UNITÉ
+   Valider ce scénario exact :
+
+* lancer une production d’unité depuis une ville
+* confirmer que la ligne de `city_production` existe
+* confirmer que `queuedByPlayerId` est alimenté
+* exécuter le tick de production
+* confirmer qu’au tick terminal :
+
+  * une ligne est créée dans `units`
+  * la production est vidée après succès
+  * `completedUnits` contient bien `cityId`, `cityName`, `unitId`, `unitType`, `unitName`
+
+4. ROUTE API UNITÉS
+
+* appeler `GET /api/units/me`
+* confirmer que la réponse contient bien un DTO hydratable côté client
+* confirmer que `strength` est injecté côté serveur
+* confirmer que le catalogue ne quitte pas le serveur
+
+5. CLIENT
+
+* confirmer que `hydrateUnitsFromServer()` recharge bien les unités
+* confirmer que `MedievalHUD` appelle bien cette hydratation après `apiProductionTick()`
+* confirmer que le toast de complétion unité s’affiche
+* confirmer qu’aucune création locale en double n’apparaît
+
+6. NON-RÉGRESSION BÂTIMENTS
+
+* confirmer que la production des bâtiments continue de fonctionner
+* confirmer que les toasts bâtiments existent toujours
+* confirmer qu’aucune régression n’a été introduite par 10.1
+
+FORMAT DE LA RÉPONSE
+Je veux exactement :
+
+1. RÉSULTAT DE COMPILATION
+
+* serveur
+* client
+
+2. VÉRIFICATION DU PIPELINE UNITÉ
+
+* étape par étape
+* avec résultats réels observés
+
+3. VÉRIFICATION API
+
+* shape réel du DTO retourné
+
+4. VÉRIFICATION CLIENT
+
+* hydratation
+* toast
+* absence de doublon
+
+5. NON-RÉGRESSION BÂTIMENTS
+
+* oui/non
+* détails courts
+
+6. BUGS DÉTECTÉS
+
+* liste courte
+* uniquement si réel
+
+7. SI CORRECTIONS MINIMALES APPLIQUÉES
+
+* fichiers touchés
+* raison exacte
+
+IMPORTANT FINAL
+Je ne veux pas un résumé théorique.
+Je veux un rapport de vérification basé sur l’exécution réelle du code déjà branché.
