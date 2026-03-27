@@ -1,0 +1,67 @@
+NOVA IMPERIUM — PHASE 10.1 — DERNIER VERROU AVANT FEU VERT
+Branche : `NI-10.3`
+
+Ton BLOC 1 est presque validé.
+Je valide maintenant :
+
+* `strength` retiré de la table `units`
+* `experience` persisté
+* `queuedByPlayerId` avec fallback transitoire loggé
+* `UnitType` élargi
+* les callsites réels de `setProduction(...)`
+* le montage des routes
+
+Mais il reste **un dernier point à verrouiller proprement** :
+
+PROBLÈME À CORRIGER — LIEU DU MAPPING `strength`
+Je ne veux pas d’ambiguïté entre :
+
+* catalogue serveur canonique
+* hydratation client
+* payload de `/api/units/me`
+
+Actuellement, ton plan dit :
+
+* `strength` est dérivé depuis `server/unitCatalog.ts`
+* mais aussi que `apiGetMyUnits()` “retourne le catalogue pour le mapping strength”
+
+Je veux une décision plus propre et plus simple :
+
+DÉCISION ATTENDUE
+
+* `strength` n’est PAS persisté en DB
+* `server/unitCatalog.ts` reste la source canonique unique
+* le calcul de `strength` doit se faire côté serveur au moment de construire la réponse API
+* `GET /api/units/me` doit renvoyer directement des unités client-compatibles, ou au minimum un DTO enrichi avec `strength`
+* le client ne doit PAS avoir à reconstruire `strength` à partir d’un catalogue séparé
+* le client ne doit PAS recevoir le catalogue complet juste pour hydrater les unités, sauf nécessité absolue clairement justifiée
+
+BUT
+Je veux éviter :
+
+* duplication du catalogue côté client
+* mapping partiellement canonique côté client
+* transport inutile du catalogue complet à chaque appel
+
+FORMAT DE TA RÉPONSE
+Je veux exactement :
+
+1. AJUSTEMENT FINAL DE DTO
+
+* où `strength` est calculé
+* shape exact de la réponse `GET /api/units/me`
+* différence entre record DB et DTO API
+
+2. FICHIERS EXACTS À MODIFIER
+   Liste finale mise à jour
+
+3. PLAN FINAL D’IMPLÉMENTATION
+   Étapes minimales, sans code
+
+4. STOP VALIDATION
+   Tu t’arrêtes.
+   Tu ne codes rien.
+   Tu attends mon accord.
+
+IMPORTANT
+Après cette correction, si tout est cohérent, je passerai en validation d’implémentation.
