@@ -1,0 +1,160 @@
+NOVA IMPERIUM — PHASE SUIVANTE
+BOUCLE DE TEST COMPLÈTE : PRODUCTION → DESTINATION → COLLECTE → TRANSFERT → CONSTRUCTION
+
+Branche :
+NI-10.3
+
+Contexte technique :
+Jeu persistant Node/TS + React/TS + PostgreSQL
+Architecture serveur autoritaire
+Méthode obligatoire :
+Audit court → proposition minimale → implémentation ciblée → vérification
+Aucun refactor massif
+
+CONTEXTE VALIDÉ
+
+Le prototype a déjà :
+
+- carte multi-ressources
+- seed déterministe
+- validation serveur terrain + ressource réelle
+- exploitation Tier 1 active
+- production par tour
+- bank / pending / city_inventory / player_transport
+- collecte physique
+- transferts
+- construction serveur
+- contexte d’exploitation affiché dans ConstructionPanel
+
+PROBLÈME RESTANT
+
+Le prototype n’est pas encore assez lisible pour tester facilement la boucle complète de gameplay.
+
+Aujourd’hui, une grande partie de la logique existe,
+mais le testeur ne voit pas encore assez clairement :
+
+- ce qui a été produit au dernier tour
+- dans quelle ville
+- où cette production a été envoyée
+- ce qui reste à collecter
+- ce qui est déjà disponible pour construire
+
+OBJECTIF DE LA PHASE
+
+Je veux rendre la boucle complète de test immédiatement visible et compréhensible :
+
+production
+→ destination
+→ collecte
+→ transfert
+→ construction
+
+Je veux que le joueur/testeur puisse valider la boucle en quelques clics,
+sans avoir à deviner ce qui s’est passé.
+
+POINT 1 — AUDIT COURT
+Je veux identifier :
+
+1. où le end turn déclenche aujourd’hui la production réelle
+2. quelles données de résultat existent déjà côté serveur après le tick
+3. ce que TreasuryPanel affiche déjà
+4. ce qui manque pour afficher clairement :
+   - production du dernier tour
+   - destination de cette production
+   - état logistique courant
+5. si un résumé par ville est déjà partiellement disponible ou non
+
+POINT 2 — RÉSUMÉ DE PRODUCTION DE TOUR
+Je veux qu’après une fin de tour, on puisse voir clairement :
+
+- quelle ville a produit quoi
+- combien
+- vers quelle destination c’est allé :
+  - bank
+  - pending harvest
+
+Option minimale acceptable :
+- bloc résumé dans TreasuryPanel
+- ou message de résultat après end turn
+- ou les deux si c’est léger
+
+IMPORTANT :
+Je veux une lecture claire, pas un log technique brut.
+
+POINT 3 — VISIBILITÉ LOGISTIQUE
+Je veux que l’interface rende très lisible l’état actuel de la logistique pour chaque ville :
+
+- production par tour
+- pending harvest
+- city inventory
+- player bank
+- player transport
+
+IMPORTANT :
+Pas besoin de refaire tous les panneaux.
+Je veux surtout éviter que le testeur doive deviner où se trouvent les matériaux.
+
+POINT 4 — LIEN AVEC LA CONSTRUCTION
+Je veux que la boucle soit lisible jusqu’au réinvestissement :
+
+- après production / collecte / transfert,
+- il doit être facile de voir qu’un bâtiment est maintenant constructible
+
+Je ne demande pas de nouvelle logique serveur ici.
+Je veux surtout rendre visible le résultat des systèmes déjà en place.
+
+POINT 5 — UX DE TEST
+Je veux qu’un testeur puisse faire ce scénario simplement :
+
+1. construire une exploitation
+2. finir le tour
+3. voir la production gagnée
+4. voir si elle va en banque ou pending
+5. collecter si nécessaire
+6. transférer si nécessaire
+7. construire un autre bâtiment grâce aux matériaux obtenus
+
+Si ce scénario n’est pas lisible aujourd’hui,
+corriger le minimum nécessaire pour qu’il le devienne.
+
+POINT 6 — NE PAS CHANGER LE NOYAU
+Je ne veux pas :
+- refondre l’économie
+- changer les règles de production
+- modifier le modèle logistique
+- ajouter de nouveaux matériaux
+
+Je veux seulement rendre testable et visible la boucle déjà existante.
+
+FORMAT DE RETOUR ATTENDU
+
+Je veux un rapport final structuré exactement en 7 parties :
+
+1. Audit ultra-court du point de départ
+2. Choix minimal retenu
+3. Fichiers modifiés
+4. Résumé exact du patch
+5. Flux avant / après
+6. Points volontairement non traités
+7. Résultat de validation
+
+INTERDIT
+
+- refactor massif
+- nouvelle architecture
+- changement de règles économiques
+- complexité inutile
+
+PRIORITÉ ABSOLUE
+
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+BUT FINAL
+
+Obtenir un prototype réellement testable de bout en bout,
+où le joueur peut voir clairement :
+
+- ce que ses villes produisent
+- où vont les matériaux
+- ce qu’il doit collecter ou transférer
+- et ce qu’il peut construire ensuite grâce à cette boucle.

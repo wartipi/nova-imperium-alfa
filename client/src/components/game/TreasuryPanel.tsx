@@ -23,6 +23,14 @@ interface CityFull {
   buildings:        string[];
   goldPerTurn:      number;
   foodPerTurn:      number;
+  woodPerTurn?:     number;
+  stonePerTurn?:    number;
+  ironPerTurn?:     number;
+  copperPerTurn?:   number;
+  coalPerTurn?:     number;
+  oilPerTurn?:      number;
+  herbsPerTurn?:    number;
+  furPerTurn?:      number;
 }
 
 interface CityHarvestState {
@@ -649,9 +657,27 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
                       <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-xs">🏦 auto</span>
                     )}
                   </div>
-                  <div className="flex gap-3 text-amber-700 mb-1.5">
-                    <span>+{city.goldPerTurn ?? 0}🪙/tour</span>
-                    <span>+{city.foodPerTurn ?? 0}🌿/tour</span>
+                  <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-amber-700 mb-1.5 text-xs">
+                    {(() => {
+                      const perTurn: Mats = {
+                        gold:   city.goldPerTurn   ?? 0,
+                        food:   city.foodPerTurn   ?? 0,
+                        wood:   city.woodPerTurn   ?? 0,
+                        stone:  city.stonePerTurn  ?? 0,
+                        iron:   city.ironPerTurn   ?? 0,
+                        copper: city.copperPerTurn ?? 0,
+                        coal:   city.coalPerTurn   ?? 0,
+                        oil:    city.oilPerTurn    ?? 0,
+                        herbs:  city.herbsPerTurn  ?? 0,
+                        fur:    city.furPerTurn    ?? 0,
+                      };
+                      const active = MAT_ICONS.filter(([k]) => (perTurn[k] ?? 0) > 0);
+                      return active.length === 0
+                        ? <span className="text-amber-400 italic">Aucune production</span>
+                        : active.map(([k, icon]) => (
+                            <span key={k} className="bg-amber-100 px-1 rounded">+{perTurn[k]}{icon}/tour</span>
+                          ));
+                    })()}
                     <BuildingsTooltip buildings={city.buildings ?? []} />
                   </div>
                   {h && !h.loading && !h.error && h.data && (

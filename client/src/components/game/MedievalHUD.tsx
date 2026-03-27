@@ -9,7 +9,7 @@ import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { MiniMap } from "./MiniMap";
 import { TreasuryPanel } from "./TreasuryPanel";
-import { postProductionTick } from "../../lib/api/economyApi";
+import { postProductionTick, type ProductionTickResult } from "../../lib/api/economyApi";
 import { useDualResourceSync } from "../../hooks/useDualResourceSync";
 
 import { ActivityReportPanel } from "./ActivityReportPanel";
@@ -103,6 +103,9 @@ export function MedievalHUD() {
   const [showReputationManagement, setShowReputationManagement] = useState(false);
   const { notification, showLevelUpNotification, hideLevelUpNotification } = useLevelUpNotification();
 
+  // Résumé du dernier tick de production (affiché après fin de tour)
+  const [lastTurnResult, setLastTurnResult] = useState<ProductionTickResult | null>(null);
+
   // ─── Fin de Tour ──────────────────────────────────────────────────────────
   const handleEndTurn = async () => {
     if (isEndingTurn) return;
@@ -114,6 +117,9 @@ export function MedievalHUD() {
         try {
           const prodResult = await postProductionTick(currentTurn);
           console.log("[handleEndTurn] Production tick:", prodResult);
+          if (prodResult.applied && prodResult.cities.length > 0) {
+            setLastTurnResult(prodResult);
+          }
         } catch (prodErr) {
           console.warn("[handleEndTurn] Production tick échoué (non bloquant):", prodErr);
         }
@@ -816,6 +822,56 @@ export function MedievalHUD() {
         actionPointsBonus={notification.actionPointsBonus}
         onClose={hideLevelUpNotification}
       />
+
+      {/* ─── Résumé du dernier tick de production ─────────────────────────── */}
+      {lastTurnResult && lastTurnResult.applied && lastTurnResult.cities.length > 0 && (
+        <div className="fixed bottom-24 right-4 z-[9990] pointer-events-auto max-w-xs w-full">
+          <div className="bg-amber-900 border-2 border-amber-500 rounded-lg shadow-2xl p-3 text-white text-xs">
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-bold text-amber-200 text-sm">⚡ Tour {currentTurn - 1} — Production</span>
+              <button
+                onClick={() => setLastTurnResult(null)}
+                className="text-amber-400 hover:text-white ml-2 font-bold text-base leading-none"
+              >✕</button>
+            </div>
+            <div className="space-y-1.5">
+              {lastTurnResult.cities.map(city => {
+                const mats = [
+                  [city.gold,   '🪙'], [city.food,   '🌿'], [city.wood,  '🪵'],
+                  [city.stone,  '🪨'], [city.iron,   '⚙️'], [city.copper,'🟤'],
+                  [city.coal,   '🖤'], [city.oil,    '🛢️'], [city.herbs, '🌱'],
+                  [city.fur,    '🦊'],
+                ] as [number, string][];
+                const active = mats.filter(([v]) => v > 0);
+                return (
+                  <div key={city.cityId} className="bg-amber-800 rounded p-1.5">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className="font-semibold text-amber-100">{city.name}</span>
+                      <span className={[
+                        "text-xs px-1 rounded font-medium",
+                        city.destination === 'bank' ? "bg-blue-600 text-white" : "bg-orange-600 text-white"
+                      ].join(" ")}>
+                        {city.destination === 'bank' ? '🏦 banque' : '⏳ à collecter'}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {active.length === 0
+                        ? <span className="text-amber-400 italic">rien produit</span>
+                        : active.map(([v, icon], i) => (
+                            <span key={i} className="bg-amber-700 px-1 rounded text-amber-100">+{v}{icon}</span>
+                          ))
+                      }
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-amber-400 italic mt-2 text-xs">
+              Ouvrez Trésorerie pour voir les stocks · Transfert → Construire
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Logout Confirmation Modal */}
       {showLogoutConfirm && (

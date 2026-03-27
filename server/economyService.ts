@@ -253,7 +253,12 @@ export interface CityHarvestDTO {
 
 export interface ProductionTickResult {
   applied: boolean;
-  cities:  Array<{ cityId: number; name: string; gold: number; food: number; destination: 'bank' | 'pending' }>;
+  cities:  Array<{
+    cityId: number; name: string;
+    gold: number; food: number; wood: number; stone: number; iron: number;
+    copper: number; coal: number; oil: number; herbs: number; fur: number;
+    destination: 'bank' | 'pending';
+  }>;
 }
 
 // ─── getOrInitPlayerBank ──────────────────────────────────────────────────────
@@ -379,7 +384,7 @@ export async function applyProductionTickPerCity(
       bankOilDelta    += oil;
       bankHerbsDelta  += herbs;
       bankFurDelta    += fur;
-      results.push({ cityId: city.cityId, name: city.name, gold: g, food: f, destination: 'bank' });
+      results.push({ cityId: city.cityId, name: city.name, gold: g, food: f, wood: w, stone: s, iron: ir, copper: cu, coal: co, oil, herbs, fur, destination: 'bank' });
     } else {
       // Accumulation dans pending_harvest (UPSERT) — 10 matériaux Tier 1.
       await db
@@ -406,7 +411,7 @@ export async function applyProductionTickPerCity(
             updatedAt: now,
           },
         });
-      results.push({ cityId: city.cityId, name: city.name, gold: g, food: f, destination: 'pending' });
+      results.push({ cityId: city.cityId, name: city.name, gold: g, food: f, wood: w, stone: s, iron: ir, copper: cu, coal: co, oil, herbs, fur, destination: 'pending' });
     }
   }
 
