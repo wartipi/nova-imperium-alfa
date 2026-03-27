@@ -1,0 +1,117 @@
+NOVA IMPERIUM — FOUNDCOLONY APRÈS CLAIM JOUEUR/FACTION — RÉCONCILIATION PUBLIQUE
+Branche : `NI-10.3`
+
+Le correctif n’est pas validé publiquement.
+
+CONSTATS SUR LA BRANCHE PUBLIQUE
+Dans `server/territoryService.ts`, `foundColony()` montre encore l’ancien comportement :
+
+1. hard gate faction toujours présent :
+
+* `Vous devez appartenir à une faction`
+* `Votre faction n'est pas active`
+
+2. `is_capital` encore calculé uniquement via :
+
+* `where(eq(colonies.ownerFactionId, factionId))`
+
+3. insertion de colonie encore forcée en :
+
+* `ownerType: "faction"`
+* `ownerFactionId: factionId`
+* `ownerPlayerId: null`
+
+Donc le flux public reste incohérent :
+
+* claim personnel possible
+* fondation encore faction-only
+
+OBJECTIF
+Je veux une vraie réconciliation entre :
+
+* ton rapport local
+* et le code public visible sur `NI-10.3`
+
+PÉRIMÈTRE STRICT
+Un seul fichier doit être touché :
+
+* `server/territoryService.ts`
+
+Je ne veux PAS rouvrir :
+
+* `server/cityService.ts`
+* `claimTerritory()`
+* `UnifiedTerritoryPanel`
+* le marketplace
+* aucun autre fichier
+
+ATTENDU TECHNIQUE DANS `foundColony()`
+
+1. Supprimer le hard gate faction
+   Je ne veux plus :
+
+* `Vous devez appartenir à une faction`
+
+La faction doit être résolue de façon optionnelle :
+
+* si le joueur a une faction active → `factionId`, `factionName`
+* sinon → `factionId = null`, `factionName = null`
+
+2. Lire le territoire à `(worldX, worldY)`
+   Si un territoire existe sur la case :
+
+* valider l’accès
+* puis faire hériter à la colonie l’owner canonique du territoire
+
+Règle minimale d’accès :
+
+* territoire `ownerType='player'` → accès si `ownerPlayerId === playerId`
+* territoire `ownerType='faction'` → accès si `ownerFactionId === playerFactionId`
+* sinon → `403`
+
+3. Si aucun territoire n’existe sur la case
+
+* joueur avec faction active → colonie `ownerType='faction'`
+* joueur sans faction → colonie `ownerType='player'`
+
+4. Conserver les autres validations déjà en place
+
+* nom obligatoire
+* case existante et walkable
+* pas de colonie déjà sur la case
+* aucune autre colonie à distance `<= 6`
+
+5. Corriger `is_capital`
+
+* si owner final = `faction` → première colonie de cette faction
+* si owner final = `player` → première colonie de ce joueur
+
+FORMAT DE TA RÉPONSE
+Je veux exactement :
+
+1. ÉTAT DE BRANCHE
+
+* le correctif est-il réellement poussé sur `NI-10.3` ?
+
+2. COMMIT / DIFF EXACT
+
+* commit hash exact si poussé
+* sinon diff exact de `server/territoryService.ts`
+
+3. VÉRIFICATION PUBLIQUE
+
+* ce qui est maintenant visible dans le dépôt
+* pas ce qui existe seulement en local
+
+4. POINTS DE VÉRIFICATION
+
+* joueur sans faction + pas de territoire → fondation `ownerType='player'`
+* joueur avec faction + pas de territoire → fondation `ownerType='faction'`
+* territoire `ownerType='player'` du joueur → fondation autorisée et héritée
+* territoire `ownerType='faction'` de la faction du joueur → fondation autorisée et héritée
+* territoire d’un autre owner → `403`
+* `is_capital` correct dans les deux cas
+
+IMPORTANT FINAL
+Je valide uniquement ce qui est visible publiquement sur `NI-10.3`.
+Je ne veux plus un rapport local seul.
