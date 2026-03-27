@@ -1,0 +1,133 @@
+NOVA IMPERIUM — SEGMENT 11.1 — AJUSTEMENT FINAL DE LA COMMISSION DU MARCHÉ
+Branche : `NI-10.3`
+
+Je modifie à nouveau la logique de commission.
+
+Je ne veux plus figer la commission sur l’ordre.
+
+Je veux le modèle suivant :
+
+RÈGLES VALIDÉES
+
+1. Le marché reste accessible uniquement via `guilde_des_marchands`
+2. Le propriétaire du marché choisit librement sa commission
+3. La commission est bornée par le tier du marché
+4. Les plafonds sont :
+
+* Tier 1 → 0% à 6% = 0 à 600 bps
+* Tier 2 → 0% à 12% = 0 à 1200 bps
+* Tier 3 → 0% à 20% = 0 à 2000 bps
+* Tier 4 → 0% à 25% = 0 à 2500 bps
+
+5. Le changement de commission est limité à **1 fois par 24 h**
+6. Le changement ne devient actif qu’après **24 h**
+7. Le marché doit afficher :
+
+* le tarif actif actuel
+* le prochain tarif planifié
+* son heure d’activation
+
+8. La commission est appliquée **au moment de la transaction**
+9. La commission est facturée **au vendeur uniquement**
+10. La commission est versée au `player_bank` du propriétaire du marché
+11. Aucune commission n’est prélevée à la création d’ordre
+12. Aucune commission n’est prélevée à l’annulation
+
+DÉCISION STRUCTURELLE IMPORTANTE
+Je ne veux plus `feeBpsLocked` dans les ordres.
+
+La logique correcte devient :
+
+* les ordres restent ouverts
+* lorsqu’un trade s’exécute, il utilise le `activeFeeBps` du marché à cet instant
+* l’équité est assurée par le préavis obligatoire de 24 h
+* l’historique du trade doit stocker le tarif réellement appliqué
+
+CONSÉQUENCE ATTENDUE
+
+* `market_orders` ne stocke pas `feeBpsLocked`
+* `market_trades` doit stocker :
+
+  * `feeBpsApplied`
+  * `feeGold`
+
+MODÈLE SERVEUR À AUDITER / PROPOSER
+Je veux que tu reprennes ton BLOC 1 final et que tu le corriges avec cette logique.
+
+Je m’attends probablement à une structure du type :
+
+`market_guilds`
+
+* `id`
+* `cityId`
+* `ownerPlayerId`
+* `tier`
+* `activeFeeBps`
+* `pendingFeeBps` nullable
+* `pendingFeeAppliesAt` nullable
+* `lastFeeChangeRequestedAt` nullable
+
+avec règles :
+
+* seul le propriétaire peut demander un changement
+* un seul changement en attente à la fois
+* validation serveur du plafond selon le tier
+* activation forcée à `now + 24h`
+
+`market_orders`
+
+* pas de `feeBpsLocked`
+
+`market_trades`
+
+* `feeBpsApplied`
+* `feeGold`
+
+RÈGLE D’EXÉCUTION À RESPECTER
+
+1. Remplissage d’un ordre de vente :
+
+* buyer paie le prix brut
+* seller reçoit prix brut - commission
+* propriétaire du marché reçoit la commission
+
+2. Remplissage d’un ordre d’achat :
+
+* le gold acheteur est déjà en escrow
+* seller livre la ressource
+* seller reçoit prix brut - commission
+* propriétaire du marché reçoit la commission
+* buyer reçoit la ressource
+
+FORMAT DE TA RÉPONSE
+Je veux exactement :
+
+1. BLOC 1 FINAL CORRIGÉ
+
+* modèle de commission active/pending
+* validation du cooldown 24 h
+* confirmation suppression de `feeBpsLocked`
+* confirmation `feeBpsApplied` + `feeGold` dans `market_trades`
+* confirmation vendeur-only
+
+2. FICHIERS EXACTS À MODIFIER
+   Liste précise mise à jour
+
+3. PLAN D’IMPLÉMENTATION FINAL
+   Étapes courtes, ordonnées, sans code
+
+4. STOP VALIDATION
+   Tu t’arrêtes.
+   Tu n’implémentes rien avant mon accord.
+
+IMPORTANT FINAL
+Le marché doit rester :
+
+* ancré dans `guilde_des_marchands`
+* piloté par les joueurs
+* avec prix libres
+* avec ordres buy/sell
+* avec commission réglable par le propriétaire
+* avec préavis obligatoire de 24 h
+* avec commission appliquée seulement lors du trade
+* avec commission payée seulement par le vendeur
