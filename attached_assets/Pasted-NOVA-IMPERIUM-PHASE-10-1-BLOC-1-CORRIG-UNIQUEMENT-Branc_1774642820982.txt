@@ -1,0 +1,146 @@
+NOVA IMPERIUM — PHASE 10.1 — BLOC 1 CORRIGÉ UNIQUEMENT
+Branche cible : `NI-10.3`
+
+Tu dois reprendre ton audit précédent, mais je ne valide pas encore l’implémentation.
+
+Ton diagnostic principal est bon :
+
+* `city_production` est bien la file canonique de production
+* `tickCityProduction()` complète déjà les bâtiments côté serveur
+* le cas unité se limite encore à vider la production sans créer d’unité persistée
+
+Mais ton BLOC 1 n’est pas validé tel quel.
+Tu dois corriger les points suivants avant toute ligne de code.
+
+OBJECTIF DE TA RÉPONSE
+Tu dois revenir avec un **BLOC 1 corrigé uniquement**, sans implémenter, sans patch, sans migration, sans code final.
+
+CORRECTIONS OBLIGATOIRES
+
+1. BRANCHEMENT DES ROUTES
+   Tu as proposé `server/index.ts` pour brancher la future route unités.
+
+Je veux que tu ré-audites ce point précisément et que tu corriges ton plan si nécessaire.
+Vérifie le vrai point de branchement actuel des routes applicatives dans `NI-10.3`.
+
+Attendu :
+
+* identifier le bon fichier de branchement réel
+* corriger ton plan en conséquence
+* ne pas conserver `server/index.ts` si ce n’est pas le bon point d’entrée
+
+2. PROPRIÉTÉ DES UNITÉS / `queuedByPlayerId`
+   Tu as rejeté `queuedByPlayerId` en supposant implicitement qu’une faction équivaut à un seul joueur actif.
+
+Je veux que tu ré-audites cette hypothèse à partir du code réel, pas d’une supposition.
+Tu dois vérifier :
+
+* comment `tickCityProduction(playerId)` sélectionne les villes
+* comment fonctionne `faction_members`
+* s’il existe déjà un lien déterministe entre la ligne `city_production` et le joueur qui a lancé la production
+* si ce lien n’existe pas explicitement, alors tu dois recommander l’ajout de `queuedByPlayerId`
+
+Attendu :
+
+* décision claire
+* justification structurelle
+* pas d’hypothèse sociale ou gameplay
+* uniquement une justification technique déterministe
+
+3. ALIGNEMENT DU CATALOGUE D’UNITÉS
+   Ton `UNIT_CATALOG` proposé doit être réconcilié avec les unités réellement recrutables dans l’UI actuelle.
+
+Je veux que tu audits précisément :
+
+* les unités disponibles dans `RecruitmentPanel`
+* les types réellement utilisés côté client
+* les éventuels écarts entre catalogue proposé et unités recrutables
+
+Ensuite tu dois proposer UNE des deux voies, explicitement :
+
+* soit étendre le catalogue serveur à toutes les unités actuellement recrutables
+* soit réduire explicitement le périmètre de l’UI à un sous-ensemble canonique validé
+
+Attendu :
+
+* pas de demi-alignement
+* pas de “on verra plus tard”
+* décision nette sur le périmètre réel de 10.1
+
+4. MAPPING CANONIQUE `UnitRecord -> Unit`
+   Tu as proposé une hydratation client encore incomplète et partiellement reconstruite localement.
+
+Je veux que tu définisses proprement :
+
+* quels champs seront réellement persistés côté serveur
+* quels champs seront dérivés
+* où cette dérivation aura lieu
+* comment éviter de recréer une “vérité locale” implicite côté client
+
+Tu dois auditer le type `Unit` réellement attendu par le client et proposer un mapping complet et déterministe.
+
+Attendu :
+
+* mapping complet
+* pas seulement `attack`, `defense`, `strength`
+* inclure les champs nécessaires au fonctionnement réel de l’UI
+* préciser si certains champs doivent être ajoutés à la table `units` pour éviter une reconstruction fragile
+
+5. MIGRATION / SCHÉMA
+   Tu as évoqué une création SQL directe de table comme étape rapide.
+
+Je ne veux pas de double source de vérité du schéma.
+Tu dois confirmer une stratégie propre unique :
+
+* `schema.ts`
+* migration cohérente
+* pas de `CREATE TABLE IF NOT EXISTS` improvisé comme chemin normal
+
+PÉRIMÈTRE À RESPECTER
+Ne pas ouvrir :
+
+* refonte du système d’armées
+* combat
+* déplacement avancé
+* équilibrage
+* abstraction générique
+* nettoyage opportuniste hors sujet
+
+Tu restes strictement sur :
+ville → file de production → tick serveur → unité persistée → hydratation client → feedback visuel
+
+FORMAT DE TA RÉPONSE
+Je veux exactement cette structure :
+
+1. AUDIT CORRIGÉ
+
+* source de vérité actuelle
+* trou structurel exact
+* vrai point de branchement des routes
+* verdict sur `queuedByPlayerId`
+* écart exact entre UI et catalogue unité
+* exigences réelles du type `Unit`
+
+2. PROPOSITION TECHNIQUE CORRIGÉE
+
+* shape minimal de la table `units`
+* décision claire sur ownership
+* décision claire sur catalogue unité
+* payload `completedUnits` corrigé
+* stratégie d’hydratation client corrigée
+* stratégie de migration propre
+
+3. FICHIERS EXACTS À MODIFIER
+   Liste précise, pas générique.
+
+4. PLAN D’IMPLÉMENTATION MINIMAL
+   Étapes courtes, ordonnées, sans code.
+
+5. STOP VALIDATION
+   Tu t’arrêtes ici.
+   Tu ne codes rien.
+   Tu attends mon accord.
+
+IMPORTANT FINAL
+Je ne veux pas un plan “presque bon”.
+Je veux un BLOC 1 corrigé, déterministe, cohérent avec le code réel de `NI-10.3`, et sans hypothèse non prouvée.
