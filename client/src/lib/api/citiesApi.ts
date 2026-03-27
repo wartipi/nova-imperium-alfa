@@ -119,7 +119,7 @@ export interface CityProductionTickResult {
   applied: boolean;
   progressed: number[];
   completedBuildings: { cityId: number; cityName: string; buildingId: string }[];
-  completedUnits: { cityId: number }[];
+  completedUnits: { cityId: number; cityName: string; unitId: number; unitType: string; unitName: string }[];
 }
 
 export async function apiProductionTick(): Promise<CityProductionTickResult> {

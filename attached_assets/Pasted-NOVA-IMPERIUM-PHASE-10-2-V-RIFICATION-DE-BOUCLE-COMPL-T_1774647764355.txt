@@ -1,0 +1,153 @@
+NOVA IMPERIUM — PHASE 10.2 — VÉRIFICATION DE BOUCLE COMPLÈTE ET VERROUILLAGE
+Branche : `NI-10.3`
+
+CONTEXTE
+La phase 10.1 est considérée comme validée fonctionnellement :
+
+* production d’unités serveur-authoritative
+* unité persistée côté serveur
+* route `/api/units/me`
+* hydratation client
+* toast de complétion
+* bug coordonnées `cities` vs `colonies` corrigé
+
+Je ne veux PAS ouvrir une nouvelle feature majeure maintenant.
+
+OBJECTIF DE 10.2
+Verrouiller la boucle complète Tier 1 déjà existante, de bout en bout, sans refactor et sans changement d’architecture.
+
+PÉRIMÈTRE STRICT
+Tu travailles uniquement sur :
+
+* vérification complète du pipeline ressources → exploitation → logistique → construction → production unité
+* détection de régressions
+* corrections minimales si un bug bloquant réel est trouvé
+* suppression éventuelle de petits comportements legacy trompeurs uniquement s’ils cassent la cohérence réelle
+
+INTERDIT
+
+* nouveau système gameplay majeur
+* refonte architecture
+* abstraction générique
+* équilibrage large
+* tiers 2/3/4
+* refactor opportuniste
+* chantier combat / armées / politique / faction avancée
+
+SCÉNARIOS À TESTER OBLIGATOIREMENT
+
+1. EXPLOITATION
+
+* construire un bâtiment d’exploitation valide
+* vérifier que la production va au bon flux (`city_pending_harvest` ou équivalent réel)
+* vérifier que les validations terrain / ressource restent correctes
+
+2. LOGISTIQUE
+
+* collecter les ressources produites
+* transférer banque → ville
+* transférer banque → joueur
+* vérifier qu’aucun stock ne duplique ou ne disparaît anormalement
+
+3. CONSTRUCTION BÂTIMENT
+
+* lancer une construction nécessitant des matériaux
+* vérifier la consommation réelle depuis `city_inventory`
+* exécuter le tick
+* vérifier :
+
+  * progression
+  * complétion
+  * ajout du bâtiment
+  * application d’effet
+  * vidage correct de la file
+  * toast bâtiment
+
+4. PRODUCTION UNITÉ
+
+* lancer une production d’unité
+* vérifier `queuedByPlayerId`
+* exécuter le tick terminal
+* vérifier :
+
+  * unité créée en DB
+  * coordonnées correctes
+  * file vidée après succès
+  * `completedUnits` correct
+  * `/api/units/me` correct
+  * hydratation client correcte
+  * toast unité
+
+5. NON-RÉGRESSION CROISÉE
+
+* vérifier qu’un bâtiment fonctionne encore après avoir produit une unité
+* vérifier qu’une unité fonctionne encore après une construction bâtiment
+* vérifier qu’aucun tick ne casse un autre pipeline
+* vérifier qu’aucune décision locale client legacy ne crée un faux état
+
+6. UI / VISIBILITÉ
+
+* vérifier que les panneaux affichent l’état réel
+* vérifier que les rafraîchissements automatiques sont cohérents
+* vérifier qu’il n’y a pas de toast en double
+* vérifier qu’il n’y a pas de doublons d’unités ou de bâtiments
+
+MÉTHODE
+Tu travailles en deux blocs stricts.
+
+BLOC 1 — VÉRIFICATION
+Tu exécutes les scénarios ci-dessus et tu rapportes :
+
+* ce qui marche
+* ce qui casse
+* la cause exacte si un bug existe
+
+À ce stade :
+
+* tu ne refactors rien
+* tu ne touches qu’au strict minimum si un bug bloquant empêche la vérification
+
+BLOC 2 — CORRECTIONS MINIMALES
+Seulement si un bug réel est trouvé :
+
+* corriger le minimum nécessaire
+* pas de nettoyage opportuniste
+* pas de changement de design
+* puis re-vérifier le scénario concerné
+
+FORMAT DE TA RÉPONSE
+Je veux exactement :
+
+1. RÉSULTAT GLOBAL
+
+* boucle complète validée ou non
+
+2. VÉRIFICATION PAR SEGMENT
+
+* exploitation
+* logistique
+* construction bâtiment
+* production unité
+* UI / visibilité
+* non-régression
+
+3. BUGS DÉTECTÉS
+
+* liste courte
+* cause exacte
+* gravité
+
+4. SI CORRECTIONS APPLIQUÉES
+
+* fichiers touchés
+* correction minimale apportée
+* résultat après re-test
+
+5. VERDICT FINAL
+
+* ce qui est verrouillé
+* ce qui reste à faire avant phase suivante
+
+IMPORTANT FINAL
+Le but de 10.2 n’est pas d’ajouter du contenu.
+Le but est de verrouiller le prototype Tier 1 existant en validant que tous les pipelines déjà branchés fonctionnent ensemble sans régression.
