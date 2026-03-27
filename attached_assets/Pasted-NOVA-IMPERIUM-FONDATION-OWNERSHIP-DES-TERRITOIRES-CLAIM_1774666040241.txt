@@ -1,0 +1,130 @@
+NOVA IMPERIUM — FONDATION OWNERSHIP DES TERRITOIRES : CLAIM JOUEUR OU FACTION
+Branche : `NI-10.3`
+
+Je veux changer la logique de claim des territoires.
+
+OBJECTIF MÉTIER
+Un territoire doit pouvoir être revendiqué :
+
+* soit pour un joueur
+* soit pour une faction
+
+Règle voulue :
+
+* si le joueur n’est dans aucune faction, il peut seulement claim pour lui-même
+* si le joueur appartient à une faction, on doit lui demander s’il veut claim :
+
+  * pour lui-même
+  * ou pour sa faction
+
+IMPORTANT
+Je ne veux PAS traiter cela comme un simple popup UI.
+Je veux une ownership canonique propre des territoires.
+
+CONTEXTE ACTUEL
+Aujourd’hui :
+
+* `claimTerritory()` exige encore une faction active
+* puis écrit toujours `playerId/playerName` et `factionId/factionName`
+* sans distinguer clairement le propriétaire réel du claim
+
+Je veux corriger cela proprement.
+
+OBJECTIF DE CE BLOC
+Je veux uniquement le **BLOC 1 — AUDIT + PROPOSITION**.
+
+Aucun code.
+Aucune migration.
+Aucune implémentation.
+
+DÉCISION STRUCTURELLE ATTENDUE
+Je m’attends à une ownership polymorphe sur `territories`, du type :
+
+* `ownerType = 'player' | 'faction'`
+* `ownerPlayerId` nullable
+* `ownerPlayerName` nullable
+* `ownerFactionId` nullable
+* `ownerFactionName` nullable
+
+Et je veux conserver :
+
+* `playerId`
+* `playerName`
+
+comme historique du joueur qui a posé le claim, pas comme propriétaire canonique obligatoire.
+
+RÈGLES MÉTIER À AUDITER
+
+1. Si le joueur n’a pas de faction :
+
+* claim possible seulement pour `player`
+
+2. Si le joueur a une faction active :
+
+* claim possible pour :
+
+  * `player`
+  * ou `faction`
+
+3. Backfill attendu des territoires existants :
+
+* `ownerType = 'faction'`
+* `ownerFactionId = factionId`
+* `ownerFactionName = factionName`
+* `ownerPlayerId = null`
+* `ownerPlayerName = null`
+
+4. Les champs historiques existants restent :
+
+* `playerId/playerName` = claimer historique
+* `factionId/factionName` = compatibilité / historique / legacy si nécessaire
+
+5. Je ne veux pas rouvrir `foundColony()` dans cette phase.
+   La fondation des colonies peut rester inchangée pour l’instant.
+   Le but ici est seulement de rendre le claim des territoires polymorphe.
+
+CE QUE TU DOIS AUDITER
+
+1. le schéma réel actuel des territoires
+2. les routes/services actuels qui supposent encore un claim de faction seulement
+3. le meilleur point d’ancrage pour l’owner canonique
+4. la stratégie de backfill minimale
+5. les permissions minimales :
+
+   * accès au territoire claimé
+   * usage futur par le système
+
+FORMAT DE TA RÉPONSE
+Je veux exactement :
+
+1. AUDIT COURT
+
+* schéma actuel utile
+* problème structurel actuel
+* dépendances réelles au claim de faction
+
+2. PROPOSITION TECHNIQUE MINIMALE
+
+* champs à ajouter
+* règle de claim joueur/faction
+* stratégie de backfill
+* statut des champs historiques existants
+* permissions minimales à prévoir
+
+3. FICHIERS EXACTS À MODIFIER
+   Liste précise
+
+4. PLAN D’IMPLÉMENTATION MINIMAL
+   Étapes courtes, ordonnées, sans code
+
+5. STOP VALIDATION
+   Tu t’arrêtes ici.
+   Tu n’implémentes rien avant mon accord.
+
+IMPORTANT FINAL
+Je veux un claim de territoire qui puisse appartenir :
+
+* à un joueur
+* ou à une faction
+
+sans supprimer les factions, sans ambiguïté sur le propriétaire réel, et sans simplement bricoler un choix UI sur le schéma actuel.
