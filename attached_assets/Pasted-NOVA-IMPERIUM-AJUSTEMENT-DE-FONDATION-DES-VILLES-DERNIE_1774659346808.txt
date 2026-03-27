@@ -1,0 +1,76 @@
+NOVA IMPERIUM — AJUSTEMENT DE FONDATION DES VILLES — DERNIER CORRECTIF AVANT IMPLÉMENTATION
+Branche : `NI-10.3`
+
+Ton plan est presque validé, mais il manque une validation critique.
+
+Je valide :
+
+* suppression de la condition “la case doit être revendiquée par la faction”
+* changement de distance :
+
+  * ancien : refus si `dist < 4`
+  * nouveau : refus si `dist <= 6`
+* maintien de `claimTerritory()` inchangé dans cette phase
+* ownership initial inchangé :
+
+  * `ownerType='faction'`
+  * `ownerFactionId`
+  * `ownerFactionName`
+  * `ownerPlayerId=null`
+  * `ownerPlayerName=null`
+
+MAIS JE NE VALIDE PAS ENCORE L’IMPLÉMENTATION
+
+PROBLÈME CRITIQUE
+Actuellement, `foundColony()` ne vérifie pas directement si la case est walkable.
+
+Avant, cette sécurité existait indirectement parce que :
+
+* `claimTerritory()` validait `map_tiles.isWalkable`
+* puis `foundColony()` exigeait que la case soit déjà revendiquée
+
+Si tu retires la vérification de territoire sans ajouter un contrôle direct dans `foundColony()`, tu risques d’autoriser une fondation sur :
+
+* une case non walkable
+* une case d’eau
+* ou une coordonnée invalide absente de `map_tiles`
+
+CORRECTION OBLIGATOIRE
+Je veux que `foundColony()` conserve désormais les validations suivantes :
+
+1. joueur membre d’une faction active
+2. nom non vide
+3. **case existante et walkable**
+4. aucune colonie déjà sur cette position exacte
+5. aucune autre colonie à distance `<= 6`
+6. plus aucune exigence de territoire déjà revendiqué
+
+La validation à ajouter doit lire `map_tiles` directement dans `foundColony()` :
+
+* si aucune case n’existe → refus
+* si `isWalkable = false` → refus
+
+FORMAT DE TA RÉPONSE
+Je veux exactement :
+
+1. BLOC 1 FINAL CORRIGÉ
+
+* validations conservées
+* validation supprimée
+* validation walkable ajoutée
+* nouvelle règle de distance
+* confirmation que `claimTerritory()` reste inchangé
+
+2. FICHIERS EXACTS À MODIFIER
+   Liste précise
+
+3. PLAN D’IMPLÉMENTATION FINAL
+   Étapes courtes, ordonnées, sans code
+
+4. STOP VALIDATION
+   Tu t’arrêtes ici.
+   Tu n’implémentes rien avant mon accord.
+
+IMPORTANT FINAL
+Je veux bien retirer le pré-claim.
+Mais je ne veux pas perdre la sécurité de terrain valide/walkable qui était jusque-là assurée indirectement.
