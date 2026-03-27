@@ -36,19 +36,24 @@ router.get("/colonies", async (_req, res) => {
 });
 
 // ─── POST /api/territories/claim ──────────────────────────────────────────────
-// Authentifié — revendiquer une case
+// Authentifié — revendiquer une case pour le joueur ou sa faction.
+// Body : { worldX, worldY, ownerType?: 'player' | 'faction' }
+// Si le joueur n'a pas de faction active, ownerType est forcé à 'player'.
 router.post("/claim", requireAuth, async (req: AuthRequest, res) => {
   try {
-    const { worldX, worldY } = req.body;
+    const { worldX, worldY, ownerType: rawOwnerType } = req.body;
 
     if (typeof worldX !== "number" || typeof worldY !== "number") {
       return res.status(400).json({ error: "worldX et worldY sont requis (entiers)" });
     }
 
+    const ownerType: 'player' | 'faction' =
+      rawOwnerType === 'faction' ? 'faction' : 'player';
+
     const playerId = req.user!.id;
     const playerName = req.user!.username;
 
-    const result = await claimTerritory(playerId, playerName, worldX, worldY);
+    const result = await claimTerritory(playerId, playerName, worldX, worldY, ownerType);
 
     if ("error" in result) {
       return res.status(result.status).json({ error: result.error });

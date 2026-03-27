@@ -13,14 +13,22 @@ export interface Territory {
   y: number;
   worldX: number;
   worldY: number;
+  // Historique du claimer
   playerId: string;
   playerName: string;
+  // Legacy seulement
   factionId?: string;
   factionName?: string;
   claimedDate: number;
   colonyId?: string;
   colonyName?: string;
   controlledByColony?: string;
+  // Phase 12 — Ownership canonique
+  ownerType: 'player' | 'faction';
+  ownerPlayerId:   string | null;
+  ownerPlayerName: string | null;
+  ownerFactionId:  string | null;
+  ownerFactionName: string | null;
 }
 
 class UnifiedTerritorySystemClass {
@@ -59,9 +67,15 @@ class UnifiedTerritorySystemClass {
         worldY: t.worldY,
         playerId: t.playerId,
         playerName: t.playerName,
-        factionId: String(t.factionId),
-        factionName: t.factionName,
+        factionId:   t.factionId   != null ? String(t.factionId)   : undefined,
+        factionName: t.factionName != null ? t.factionName         : undefined,
         claimedDate: new Date(t.claimedAt).getTime(),
+        // Phase 12 — ownership canonique
+        ownerType:        t.ownerType ?? 'faction',
+        ownerPlayerId:    t.ownerPlayerId   ?? null,
+        ownerPlayerName:  t.ownerPlayerName ?? null,
+        ownerFactionId:   t.ownerFactionId  != null ? String(t.ownerFactionId) : null,
+        ownerFactionName: t.ownerFactionName ?? null,
         ...(colony
           ? {
               colonyId: String(colony.id),
@@ -95,6 +109,17 @@ class UnifiedTerritorySystemClass {
 
   getFactionTerritories(factionId: string): Territory[] {
     return Array.from(this.territories.values()).filter(t => t.factionId === factionId);
+  }
+
+  // Phase 12 — Territoires accessibles pour un joueur :
+  //   • ownerType='player' && ownerPlayerId === playerId
+  //   • ownerType='faction' && ownerFactionId === playerFactionId (si fourni)
+  getAccessibleTerritories(playerId: string, playerFactionId?: string | null): Territory[] {
+    return Array.from(this.territories.values()).filter(t => {
+      if (t.ownerType === 'player' && t.ownerPlayerId === playerId) return true;
+      if (t.ownerType === 'faction' && playerFactionId && t.ownerFactionId === playerFactionId) return true;
+      return false;
+    });
   }
 
   getAllTerritories(): Territory[] {

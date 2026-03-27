@@ -400,14 +400,22 @@ export type InsertPlayerAction = z.infer<typeof insertPlayerActionSchema>;
 // ─── Tables Phase 3 : territoires revendiqués et colonies ─────────────────────
 
 export const territories = pgTable("territories", {
-  id:          serial("id").primaryKey(),
-  worldX:      integer("world_x").notNull(),
-  worldY:      integer("world_y").notNull(),
-  playerId:    text("player_id").notNull(),
-  playerName:  text("player_name").notNull(),
-  factionId:   integer("faction_id").notNull().references(() => factions.id),
-  factionName: text("faction_name").notNull(),
-  claimedAt:   timestamp("claimed_at").notNull().defaultNow(),
+  id:              serial("id").primaryKey(),
+  worldX:          integer("world_x").notNull(),
+  worldY:          integer("world_y").notNull(),
+  // Historique du joueur qui a physiquement posé le claim — jamais utilisé comme gate de permission
+  playerId:        text("player_id").notNull(),
+  playerName:      text("player_name").notNull(),
+  // Legacy / compatibilité uniquement — ne sert plus de gate de permission dans le nouveau code
+  factionId:       integer("faction_id").references(() => factions.id),
+  factionName:     text("faction_name"),
+  claimedAt:       timestamp("claimed_at").notNull().defaultNow(),
+  // Phase 12 — Ownership canonique polymorphe (mutable)
+  ownerType:       text("owner_type").notNull().default("faction"),
+  ownerPlayerId:   text("owner_player_id"),
+  ownerPlayerName: text("owner_player_name"),
+  ownerFactionId:  integer("owner_faction_id"),
+  ownerFactionName: text("owner_faction_name"),
 }, (table) => ({
   uniquePos: unique("territories_world_pos_unique").on(table.worldX, table.worldY),
 }));

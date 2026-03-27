@@ -7,11 +7,19 @@ export interface TerritoryDTO {
   id: number;
   worldX: number;
   worldY: number;
+  // Historique du claimer — ne sert pas de gate de permission
   playerId: string;
   playerName: string;
-  factionId: number;
-  factionName: string;
+  // Legacy seulement
+  factionId: number | null;
+  factionName: string | null;
   claimedAt: string;
+  // Phase 12 — Ownership canonique
+  ownerType: 'player' | 'faction';
+  ownerPlayerId:   string | null;
+  ownerPlayerName: string | null;
+  ownerFactionId:  number | null;
+  ownerFactionName: string | null;
 }
 
 export interface ColonyDTO {
@@ -34,10 +42,45 @@ function mapTerritory(row: typeof territories.$inferSelect): TerritoryDTO {
     worldY: row.worldY,
     playerId: row.playerId,
     playerName: row.playerName,
-    factionId: row.factionId,
-    factionName: row.factionName,
+    factionId: row.factionId ?? null,
+    factionName: row.factionName ?? null,
     claimedAt: row.claimedAt.toISOString(),
+    ownerType: (row.ownerType ?? 'faction') as 'player' | 'faction',
+    ownerPlayerId:   row.ownerPlayerId   ?? null,
+    ownerPlayerName: row.ownerPlayerName ?? null,
+    ownerFactionId:  row.ownerFactionId  ?? null,
+    ownerFactionName: row.ownerFactionName ?? null,
   };
+}
+
+// ─── Backfill idempotent Phase 12 ─────────────────────────────────────────────
+// Remplit ownerType/ownerFaction* pour les territoires existants sans ownership canonique.
+export async function backfillTerritoryOwnership(): Promise<void> {
+  const rows = await db
+    .select({ id: territories.id, factionId: territories.factionId, factionName: territories.factionName })
+    .from(territories)
+    .where(sql`${territories.ownerType} IS NULL OR ${territories.ownerFactionId} IS NULL`);
+
+  if (rows.length === 0) {
+    console.log('[backfillTerritoryOwnership] Tous les territoires ont déjà un owner canonique — skip');
+    return;
+  }
+
+  for (const row of rows) {
+    if (row.factionId != null) {
+      await db
+        .update(territories)
+        .set({
+          ownerType:        'faction',
+          ownerFactionId:   row.factionId,
+          ownerFactionName: row.factionName ?? '',
+          ownerPlayerId:    null,
+          ownerPlayerName:  null,
+        })
+        .where(eq(territories.id, row.id));
+    }
+  }
+  console.log(`[backfillTerritoryOwnership] Backfill terminé : ${rows.length} territoire(s) mis à jour`);
 }
 
 function mapColony(row: typeof colonies.$inferSelect): ColonyDTO {
@@ -69,32 +112,37 @@ export async function claimTerritory(
   playerId: string,
   playerName: string,
   worldX: number,
-  worldY: number
+  worldY: number,
+  ownerType: 'player' | 'faction'
 ): Promise<{ territory: TerritoryDTO } | { error: string; status: number }> {
-  // 1. Joueur membre d'une faction active
+  // 1. Résoudre la faction du joueur (optionnelle selon ownerType)
+  let factionId:   number | null = null;
+  let factionName: string | null = null;
+
   const memberRows = await db
     .select({ factionId: factionMembers.factionId })
     .from(factionMembers)
     .where(eq(factionMembers.playerId, playerId));
 
-  if (memberRows.length === 0) {
-    return { error: "Vous devez appartenir à une faction pour revendiquer un territoire", status: 403 };
+  if (memberRows.length > 0) {
+    const fId = memberRows[0].factionId;
+    const factionRows = await db
+      .select({ name: factions.name, isActive: factions.isActive })
+      .from(factions)
+      .where(eq(factions.id, fId));
+
+    if (factionRows.length > 0 && factionRows[0].isActive) {
+      factionId   = fId;
+      factionName = factionRows[0].name;
+    }
   }
 
-  const factionId = memberRows[0].factionId;
-
-  const factionRows = await db
-    .select({ name: factions.name, isActive: factions.isActive })
-    .from(factions)
-    .where(eq(factions.id, factionId));
-
-  if (factionRows.length === 0 || !factionRows[0].isActive) {
-    return { error: "Votre faction n'est pas active", status: 403 };
+  // 2. Valider ownerType selon présence faction
+  if (ownerType === 'faction' && factionId === null) {
+    return { error: "Vous devez appartenir à une faction active pour revendiquer au nom d'une faction", status: 403 };
   }
 
-  const factionName = factionRows[0].name;
-
-  // 2. Case non déjà revendiquée
+  // 3. Case non déjà revendiquée
   const existing = await db
     .select({ id: territories.id })
     .from(territories)
@@ -104,7 +152,7 @@ export async function claimTerritory(
     return { error: "Ce territoire est déjà revendiqué", status: 409 };
   }
 
-  // 3. Case walkable dans map_tiles
+  // 4. Case walkable
   const tileRows = await db
     .select({ isWalkable: mapTiles.isWalkable })
     .from(mapTiles)
@@ -114,10 +162,15 @@ export async function claimTerritory(
     return { error: "Cette case n'est pas revendiquable", status: 422 };
   }
 
-  // 4. Insertion
+  // 5. Construire l'ownership canonique
+  const ownerFields = ownerType === 'faction'
+    ? { ownerType: 'faction' as const, ownerFactionId: factionId, ownerFactionName: factionName, ownerPlayerId: null, ownerPlayerName: null }
+    : { ownerType: 'player' as const, ownerPlayerId: playerId, ownerPlayerName: playerName, ownerFactionId: null, ownerFactionName: null };
+
+  // 6. Insertion
   const inserted = await db
     .insert(territories)
-    .values({ worldX, worldY, playerId, playerName, factionId, factionName })
+    .values({ worldX, worldY, playerId, playerName, factionId, factionName, ...ownerFields })
     .returning();
 
   return { territory: mapTerritory(inserted[0]) };

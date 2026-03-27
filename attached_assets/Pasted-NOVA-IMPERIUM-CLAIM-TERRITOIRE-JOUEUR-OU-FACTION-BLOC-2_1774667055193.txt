@@ -1,0 +1,189 @@
+NOVA IMPERIUM — CLAIM TERRITOIRE JOUEUR OU FACTION — BLOC 2 IMPLÉMENTATION VALIDÉE
+Branche : `NI-10.3`
+
+Le BLOC 1 est validé.
+Tu peux maintenant implémenter.
+
+OBJECTIF
+Permettre qu’un territoire soit revendiqué :
+
+* soit pour un joueur
+* soit pour une faction
+
+sans ambiguïté sur le propriétaire réel, et sans casser le panneau actif.
+
+DÉCISIONS VALIDÉES
+
+1. Ownership canonique sur `territories` :
+
+* `ownerType` NOT NULL DEFAULT `'faction'`
+* `ownerPlayerId`
+* `ownerPlayerName`
+* `ownerFactionId`
+* `ownerFactionName`
+
+2. `playerId / playerName`
+
+* restent NOT NULL
+* enregistrent uniquement le joueur qui a physiquement posé le claim
+* ne servent plus jamais de gate de permission
+
+3. `factionId / factionName`
+
+* passent NULLABLE
+* restent legacy / compatibilité seulement
+* ne servent plus jamais de gate de permission dans le nouveau code
+
+4. Backfill des territoires existants :
+
+* `ownerType = 'faction'`
+* `ownerFactionId = factionId`
+* `ownerFactionName = factionName`
+* `ownerPlayerId = null`
+* `ownerPlayerName = null`
+
+5. Règle de claim :
+
+* joueur sans faction → claim direct pour `player`
+* joueur avec faction → choix :
+
+  * `player`
+  * `faction`
+
+6. Façade/UI active :
+
+* ne pas filtrer seulement sur `ownerPlayerId`
+* exposer des **territoires accessibles** :
+
+  * `ownerType='player' && ownerPlayerId === playerId`
+  * ou `ownerType='faction' && ownerFactionId === playerFactionId`
+
+7. Correction du hardcode :
+
+* `getPlayerTerritories('player')` doit disparaître du panneau actif
+* utiliser l’identité réelle du joueur et sa faction réelle
+
+PÉRIMÈTRE STRICT
+Tu implémentes uniquement :
+
+* schéma `territories`
+* service claim
+* backfill
+* route `/claim`
+* DTO client territoires
+* façade `UnifiedTerritorySystem`
+* `UnifiedTerritoryPanel`
+
+Tu n’ouvres PAS :
+
+* `foundColony()`
+* gouvernance de faction
+* refactor massif
+* backend non lié aux territoires
+
+FICHIERS À MODIFIER
+
+* `shared/schema.ts`
+* `server/territoryService.ts`
+* `server/index.ts`
+* `server/routes/territories.ts`
+* `client/src/lib/api/territoriesApi.ts`
+* `client/src/lib/systems/UnifiedTerritorySystem.ts`
+* `client/src/components/game/UnifiedTerritoryPanel.tsx`
+
+IMPLÉMENTATION ATTENDUE
+
+1. `shared/schema.ts`
+
+* ajouter les 5 colonnes owner sur `territories`
+* rendre `factionId` et `factionName` nullables
+
+2. `server/territoryService.ts`
+
+* ajouter `backfillTerritoryOwnership()` idempotente
+* modifier `claimTerritory()` pour accepter `ownerType`
+* branch `player` :
+
+  * pas d’exigence de faction
+  * `ownerPlayerId = playerId`
+  * `ownerPlayerName = playerName`
+  * `ownerFactionId = null`
+  * `ownerFactionName = null`
+  * `factionId = null`
+  * `factionName = null`
+* branch `faction` :
+
+  * faction active obligatoire
+  * `ownerFactionId = factionId`
+  * `ownerFactionName = factionName`
+  * `ownerPlayerId = null`
+  * `ownerPlayerName = null`
+* `playerId / playerName` toujours enregistrés dans les deux cas
+
+3. `server/index.ts`
+
+* appeler `backfillTerritoryOwnership()` au démarrage
+
+4. `server/routes/territories.ts`
+
+* `POST /claim` :
+
+  * lire `ownerType` dans le body
+  * si pas de faction active → forcer `ownerType='player'`
+  * si faction active → accepter seulement `'player'` ou `'faction'`
+  * si `ownerType='faction'` sans faction active → refus explicite
+  * appeler le service avec validation stricte
+
+5. `client/src/lib/api/territoriesApi.ts`
+
+* ajouter les 5 champs owner au DTO
+* faire accepter `ownerType` à `apiClaimTerritory`
+
+6. `client/src/lib/systems/UnifiedTerritorySystem.ts`
+
+* ajouter les 5 champs owner à l’interface `Territory`
+* corriger tous les casts de `factionId` nullable
+* ajouter `getAccessibleTerritories(playerId, playerFactionId?)`
+
+7. `client/src/components/game/UnifiedTerritoryPanel.tsx`
+
+* remplacer `getPlayerTerritories('player')` par `getAccessibleTerritories(realPlayerId, realFactionId?)`
+* si joueur sans faction :
+
+  * claim direct `ownerType='player'`
+* si joueur avec faction :
+
+  * mini-choix inline :
+
+    * “Pour moi”
+    * “Pour ma faction”
+* pas de modale
+* pas de nouveau composant
+
+SORTIE ATTENDUE APRÈS IMPLÉMENTATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+2. RÉSUMÉ DES CHANGEMENTS PAR FICHIER
+3. POINTS DE VÉRIFICATION
+
+* backfill OK
+* claim joueur sans faction → ownerType='player'
+* claim joueur avec faction → choix player/faction OK
+* panneau actif affiche territoires personnels + de faction accessibles
+* hardcode `getPlayerTerritories('player')` supprimé
+* aucun nouveau code ne gate sur `factionId`
+
+4. BUGS OU LIMITES RÉELLES
+
+* seulement si réel
+
+IMPORTANT FINAL
+Tu implémentes maintenant.
+Tu ne réouvres pas le design.
+Tu gardes strictement :
+
+* ownership canonique sur `territories`
+* façade/UI active cohérente
+* choix player/faction minimal
+* pas de refactor massif

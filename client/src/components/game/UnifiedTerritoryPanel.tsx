@@ -19,15 +19,23 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
     spendActionPoints,
     playerName = 'Joueur'
   } = usePlayer();
-  const { isAdmin } = useAuth();
+  const { isAdmin, currentUser } = useAuth();
   const { playerFaction } = useFactions();
   const { showAlert, AlertComponent } = useCustomAlert();
+
+  // Identité réelle du joueur pour getAccessibleTerritories
+  const realPlayerId   = currentUser ?? playerName;
+  const realFactionId  = playerFaction ? String(playerFaction.id) : null;
 
   const [isLoading, setIsLoading] = useState(false);
   const [territories, setTerritories] = useState<Territory[]>([]);
   const [showColonyModal, setShowColonyModal] = useState(false);
   const [selectedTerritory, setSelectedTerritory] = useState<Territory | null>(null);
   const [colonyName, setColonyName] = useState('');
+  // Phase 12 — choix ownership lors du claim
+  const [ownerType, setOwnerType] = useState<'player' | 'faction'>(
+    playerFaction ? 'faction' : 'player'
+  );
 
   // Recharger la façade locale depuis le serveur puis rafraîchir l'affichage
   const reloadFromServer = useCallback(async () => {
@@ -39,17 +47,17 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
     UnifiedTerritorySystem.loadFromServer(serverTerritories, serverColonies, originWorldX, originWorldY);
     const refreshed = isAdmin
       ? UnifiedTerritorySystem.getAllTerritories()
-      : UnifiedTerritorySystem.getPlayerTerritories('player');
+      : UnifiedTerritorySystem.getAccessibleTerritories(realPlayerId, realFactionId);
     setTerritories(refreshed);
-  }, [isAdmin]);
+  }, [isAdmin, realPlayerId, realFactionId]);
 
   // Charger les territoires depuis la façade locale
   const loadTerritories = useCallback(() => {
     const list = isAdmin
       ? UnifiedTerritorySystem.getAllTerritories()
-      : UnifiedTerritorySystem.getPlayerTerritories('player');
+      : UnifiedTerritorySystem.getAccessibleTerritories(realPlayerId, realFactionId);
     setTerritories(list);
-  }, [isAdmin]);
+  }, [isAdmin, realPlayerId, realFactionId]);
 
   useEffect(() => {
     loadTerritories();
@@ -57,15 +65,6 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
 
   // Revendiquer le territoire à la position de l'avatar
   const handleClaimTerritory = async () => {
-    if (!isAdmin && !playerFaction) {
-      showAlert({
-        title: "Faction requise",
-        message: "Vous devez faire partie d'une faction pour revendiquer un territoire.",
-        type: "error"
-      });
-      return;
-    }
-
     const claimCost = 10;
     if (!isAdmin && actionPoints < claimCost) {
       showAlert({
@@ -84,6 +83,10 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
       }
     }
 
+    // Choisir l'ownerType effectif :
+    // sans faction → toujours 'player' ; avec faction → selon le choix de l'UI
+    const effectiveOwnerType: 'player' | 'faction' = playerFaction ? ownerType : 'player';
+
     setIsLoading(true);
     try {
       const avatarPos = getAvatarPosition();
@@ -91,13 +94,17 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
       const worldX = avatarPos.x + originWorldX;
       const worldY = avatarPos.y + originWorldY;
 
-      console.log(`[Claim] hex=(${avatarPos.x},${avatarPos.y}) → world=(${worldX},${worldY})`);
+      console.log(`[Claim] hex=(${avatarPos.x},${avatarPos.y}) → world=(${worldX},${worldY}) ownerType=${effectiveOwnerType}`);
 
-      await apiClaimTerritory(worldX, worldY);
+      await apiClaimTerritory(worldX, worldY, effectiveOwnerType);
+
+      const ownerLabel = effectiveOwnerType === 'faction'
+        ? `pour ${playerFaction?.name}`
+        : 'pour vous personnellement';
 
       showAlert({
         title: "Territoire Revendiqué",
-        message: `Territoire revendiqué en (${avatarPos.x}, ${avatarPos.y})${playerFaction ? ` pour ${playerFaction.name}` : ''} !`,
+        message: `Territoire revendiqué en (${avatarPos.x}, ${avatarPos.y}) ${ownerLabel} !`,
         type: "success"
       });
 
@@ -215,17 +222,40 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
         <p className="medieval-text text-sm mb-4">
           Placez votre avatar sur une case libre et cliquez sur le bouton ci-dessous.
         </p>
+
+        {/* Mini-choix owner — affiché uniquement si le joueur a une faction */}
+        {!isAdmin && playerFaction && (
+          <div className="flex gap-2 mb-3">
+            <button
+              onClick={() => setOwnerType('faction')}
+              className={`flex-1 text-sm py-2 px-3 rounded border font-medium transition-colors ${
+                ownerType === 'faction'
+                  ? 'bg-amber-700 text-white border-amber-800'
+                  : 'bg-amber-50 text-amber-900 border-amber-400 hover:bg-amber-100'
+              }`}
+            >
+              🏰 Pour ma faction
+            </button>
+            <button
+              onClick={() => setOwnerType('player')}
+              className={`flex-1 text-sm py-2 px-3 rounded border font-medium transition-colors ${
+                ownerType === 'player'
+                  ? 'bg-blue-700 text-white border-blue-800'
+                  : 'bg-blue-50 text-blue-900 border-blue-400 hover:bg-blue-100'
+              }`}
+            >
+              👤 Pour moi
+            </button>
+          </div>
+        )}
+
         <button
           onClick={handleClaimTerritory}
-          disabled={isLoading || (!isAdmin && !playerFaction)}
+          disabled={isLoading}
           className="w-full medieval-button medieval-button-success py-3 px-4 disabled:opacity-50 disabled:cursor-not-allowed mb-3"
         >
           {isLoading ? 'Revendication...' : `🚩 Revendiquer (${isAdmin ? '0' : '10'} PA)`}
         </button>
-
-        {!isAdmin && !playerFaction && (
-          <p className="text-red-700 text-xs mt-3 font-medium">⚠️ Vous devez faire partie d'une faction</p>
-        )}
       </div>
 
       {/* Liste des territoires */}

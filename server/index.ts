@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { backfillTileMetadata } from "./seeds/backfillTileMetadata";
 import { ensureUnitsTable } from "./cityService";
+import { backfillTerritoryOwnership } from "./territoryService";
 
 const app = express();
 app.use(express.json());
@@ -45,6 +46,10 @@ app.use((req, res, next) => {
   );
   ensureUnitsTable().catch(err =>
     console.error('[ensureUnitsTable] Erreur non-bloquante:', err)
+  );
+  // Backfill idempotent Phase 12 : ajoute l'ownership canonique aux territoires existants
+  backfillTerritoryOwnership().catch(err =>
+    console.error('[backfillTerritoryOwnership] Erreur non-bloquante:', err)
   );
 
   const server = await registerRoutes(app);

@@ -19,11 +19,19 @@ export interface TerritoryDTO {
   id: number;
   worldX: number;
   worldY: number;
+  // Historique du claimer — ne sert pas de gate de permission
   playerId: string;
   playerName: string;
-  factionId: number;
-  factionName: string;
+  // Legacy seulement
+  factionId: number | null;
+  factionName: string | null;
   claimedAt: string;
+  // Phase 12 — Ownership canonique
+  ownerType: 'player' | 'faction';
+  ownerPlayerId:   string | null;
+  ownerPlayerName: string | null;
+  ownerFactionId:  number | null;
+  ownerFactionName: string | null;
 }
 
 export interface ColonyDTO {
@@ -51,11 +59,15 @@ export async function fetchAllColonies(): Promise<ColonyDTO[]> {
   return res.json();
 }
 
-export async function apiClaimTerritory(worldX: number, worldY: number): Promise<TerritoryDTO> {
+export async function apiClaimTerritory(
+  worldX: number,
+  worldY: number,
+  ownerType: 'player' | 'faction' = 'player'
+): Promise<TerritoryDTO> {
   const res = await fetch("/api/territories/claim", {
     method: "POST",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-    body: JSON.stringify({ worldX, worldY }),
+    body: JSON.stringify({ worldX, worldY, ownerType }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
