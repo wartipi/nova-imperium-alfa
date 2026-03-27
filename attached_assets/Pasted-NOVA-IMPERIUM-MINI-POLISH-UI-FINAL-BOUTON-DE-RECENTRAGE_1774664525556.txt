@@ -1,0 +1,99 @@
+NOVA IMPERIUM — MINI-POLISH UI FINAL + BOUTON DE RECENTRAGE CAMÉRA
+Branche : NI-10.3
+
+CONTEXTE
+Les deux micro-ajustements UI suivants sont déjà censés être présents sur la branche :
+
+PublicMarketplace.tsx
+l’onglet par défaut doit être marche_ressources
+UnifiedTerritoryPanel.tsx
+une aide joueur doit être visible :
+“Pour fonder une colonie : revendiquez d’abord un territoire, puis déplacez votre avatar dessus.”
+
+Je ne veux PAS rouvrir ces sujets côté backend.
+Je veux maintenant ajouter un dernier confort joueur : un bouton pour recentrer la caméra sur le personnage.
+
+OBJECTIF
+Faire un mini-raccordement UI final, strictement limité à :
+
+vérifier l’état réel des deux ajustements UI ci-dessus
+ajouter un bouton de recentrage caméra sur le personnage
+ne toucher à aucun backend
+ne faire aucun refactor massif
+
+PÉRIMÈTRE STRICT
+Aucun nouveau système.
+Aucune modification backend.
+Aucune modification des routes.
+Aucune modification des services.
+Aucune logique de suivi automatique permanent.
+
+BOUTON CAMÉRA — RÈGLES VALIDÉES
+Je veux un bouton UI explicite, visible dans l’interface active, par exemple :
+
+🎯 Recentrer
+ou un libellé équivalent simple et lisible
+
+Comportement attendu :
+
+action manuelle uniquement
+recentre la caméra sur la position actuelle du personnage / avatar joueur
+ne change pas le zoom
+ne déclenche pas de suivi automatique
+ne modifie pas les contrôles caméra existants
+utilise la source de vérité réellement utilisée par le jeu pour connaître la position actuelle du joueur
+pas de duplication d’état si un état caméra / joueur existe déjà
+
+POINT DE BRANCHEMENT ATTENDU
+Tu dois choisir le plus petit point d’intégration propre dans l’UI active, par exemple :
+
+HUD
+overlay
+composant caméra déjà utilisé
+ou autre point réellement monté dans NI-10.3
+
+Je veux la solution la plus simple, la plus stable, et la moins invasive.
+
+CE QUE TU DOIS FAIRE
+Je veux uniquement une réponse de réconciliation / implémentation ciblée avec :
+
+vérification que les deux micro-ajustements UI précédents sont bien présents dans la branche réelle
+ajout du bouton de recentrage caméra
+redémarrage / recompilation si nécessaire
+confirmation du résultat attendu en test joueur
+
+FICHIERS CONCERNÉS
+Probablement :
+
+client/src/components/game/PublicMarketplace.tsx
+client/src/components/game/UnifiedTerritoryPanel.tsx
+plus le fichier UI / HUD / caméra réellement utilisé pour le bouton de recentrage
+
+Mais tu dois confirmer le fichier exact pour la caméra à partir du code réel.
+
+FORMAT DE TA RÉPONSE
+Je veux exactement :
+
+ÉTAT DE BRANCHE
+ce qui est déjà présent
+ce qui ne l’est pas
+FICHIERS MODIFIÉS
+liste précise
+DIFF / CHANGEMENTS EXACTS
+PublicMarketplace.tsx
+UnifiedTerritoryPanel.tsx
+fichier du bouton de recentrage caméra
+CONFIRMATION BACKEND
+confirmer explicitement qu’aucun fichier serveur n’a été touché
+RÉSULTAT ATTENDU EN TEST JOUEUR
+ouverture de MARCHÉ PUBLIQUE → onglet ressources affiché par défaut
+ouverture de GESTION DE TERRITOIRE → aide fondation visible
+clic sur Recentrer → caméra recentrée sur le personnage sans changer le zoom
+
+IMPORTANT FINAL
+Je ne veux pas de nouveau système.
+Je veux uniquement :
+
+vérifier les deux micro-ajustements UI déjà annoncés
+ajouter le bouton de recentrage caméra
+garder tout le reste intact.
