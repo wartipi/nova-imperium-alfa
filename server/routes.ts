@@ -20,6 +20,7 @@ import playerStateRoutes from "./routes/playerState";
 import playerActionsRoutes from "./routes/playerActions";
 import playersRoutes from "./routes/players";
 import citiesRoutes from "./routes/cities";
+import unitsRoutes from "./routes/units";
 import factionRoutes from "./routes/factions";
 import territoryRoutes from "./routes/territories";
 import economyRoutes from "./routes/economy";
@@ -892,6 +893,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/player', playerActionsRoutes);
   app.use('/api/players', playersRoutes);
   app.use('/api/cities', citiesRoutes);
+  app.use('/api/units', unitsRoutes);
   app.use('/api/economy', economyRoutes);
 
   const httpServer = createServer(app);

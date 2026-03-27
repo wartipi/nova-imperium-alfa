@@ -1,7 +1,9 @@
 import { eq, inArray } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { db } from "./db";
-import { cities, colonies, factionMembers, cityBuildings, cityProduction } from "../shared/schema";
+import { cities, colonies, factionMembers, cityBuildings, cityProduction, units } from "../shared/schema";
 import { applyBuildingEffects } from "./buildingEffects";
+import { UNIT_CATALOG } from "./unitCatalog";
 
 export interface CityProductionDTO {
   type:     string;
@@ -253,11 +255,41 @@ export async function addBuilding(cityId: number, building: string): Promise<voi
   await recalculateCityEconomy(cityId);
 }
 
+// ─── ensureUnitsTable ─────────────────────────────────────────────────────────
+// Bootstrap idempotent : crée la table units si absente et ajoute la colonne
+// queued_by_player_id à city_production si absente (compat pré-migration).
+export async function ensureUnitsTable(): Promise<void> {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS units (
+      id                 SERIAL PRIMARY KEY,
+      owner_player_id    TEXT NOT NULL,
+      city_id            INTEGER NOT NULL REFERENCES cities(id),
+      unit_type          TEXT NOT NULL,
+      name               TEXT NOT NULL,
+      world_x            INTEGER NOT NULL,
+      world_y            INTEGER NOT NULL,
+      attack             INTEGER NOT NULL,
+      defense            INTEGER NOT NULL,
+      health             INTEGER NOT NULL,
+      max_health         INTEGER NOT NULL,
+      movement           INTEGER NOT NULL,
+      movement_remaining INTEGER NOT NULL,
+      experience         INTEGER NOT NULL DEFAULT 0,
+      created_at         TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
+    ALTER TABLE city_production
+    ADD COLUMN IF NOT EXISTS queued_by_player_id TEXT
+  `);
+}
+
 // ─── setProduction ────────────────────────────────────────────────────────────
 // UPSERT dans city_production — couvre démarrage ET mises à jour de progression.
 export async function setProduction(
   cityId: number,
   data: { type: string; name: string; cost: number; progress: number },
+  queuedByPlayerId?: string,
 ): Promise<void> {
   await db
     .insert(cityProduction)
@@ -267,6 +299,7 @@ export async function setProduction(
       productionName:     data.name,
       productionCost:     data.cost,
       productionProgress: data.progress,
+      queuedByPlayerId:   queuedByPlayerId ?? null,
     })
     .onConflictDoUpdate({
       target: cityProduction.cityId,
@@ -275,8 +308,44 @@ export async function setProduction(
         productionName:     data.name,
         productionCost:     data.cost,
         productionProgress: data.progress,
+        queuedByPlayerId:   queuedByPlayerId ?? null,
       },
     });
+}
+
+// ─── createProducedUnit ───────────────────────────────────────────────────────
+// Crée une unité persistée à partir de la production complétée.
+// Les stats viennent du catalogue serveur. strength n'est pas persisté.
+export async function createProducedUnit(
+  ownerPlayerId: string,
+  cityId: number,
+  cityWorldX: number,
+  cityWorldY: number,
+  unitType: string,
+): Promise<number> {
+  const stats = UNIT_CATALOG[unitType];
+  if (!stats) throw new Error(`[createProducedUnit] Type inconnu : ${unitType}`);
+
+  const [row] = await db
+    .insert(units)
+    .values({
+      ownerPlayerId,
+      cityId,
+      unitType,
+      name:              stats.name,
+      worldX:            cityWorldX,
+      worldY:            cityWorldY,
+      attack:            stats.attack,
+      defense:           stats.defense,
+      health:            stats.health,
+      maxHealth:         stats.health,
+      movement:          stats.movement,
+      movementRemaining: stats.movement,
+      experience:        0,
+    })
+    .returning({ id: units.id });
+
+  return row.id;
 }
 
 // ─── clearProduction ──────────────────────────────────────────────────────────
@@ -296,7 +365,7 @@ export interface CityProductionTickResult {
   applied: boolean;
   progressed: number[];  // cityIds dont la progression a avancé
   completedBuildings: { cityId: number; cityName: string; buildingId: string }[];
-  completedUnits: { cityId: number }[];
+  completedUnits: { cityId: number; cityName: string; unitId: number; unitType: string; unitName: string }[];
 }
 
 export async function tickCityProduction(playerId: string): Promise<CityProductionTickResult> {
@@ -330,7 +399,7 @@ export async function tickCityProduction(playerId: string): Promise<CityProducti
 
   const progressed: number[] = [];
   const completedBuildings: { cityId: number; cityName: string; buildingId: string }[] = [];
-  const completedUnits: { cityId: number }[] = [];
+  const completedUnits: { cityId: number; cityName: string; unitId: number; unitType: string; unitName: string }[] = [];
 
   for (const { city } of rows) {
     const prod = productionRows.find(p => p.cityId === city.id);
@@ -348,10 +417,27 @@ export async function tickCityProduction(playerId: string): Promise<CityProducti
         completedBuildings.push({ cityId: city.id, cityName: city.name, buildingId: prod.productionName });
         console.log(`[tickCityProduction] ${city.name} → ${prod.productionName} terminé`);
       } else {
-        // Unité : juste vider la production (pas de table unit à mettre à jour ici)
-        await clearProduction(city.id);
-        completedUnits.push({ cityId: city.id });
-        console.log(`[tickCityProduction] ${city.name} → unité ${prod.productionName} terminée`);
+        // Unité : résoudre le propriétaire, créer l'unité persistée, vider la file après succès.
+        const owner = prod.queuedByPlayerId ?? playerId;
+        if (!prod.queuedByPlayerId) {
+          console.warn(`[tickCityProduction] queuedByPlayerId absent sur ${city.name}/${prod.productionName} — fallback transitoire sur playerId (ligne pré-migration)`);
+        }
+        const stats = UNIT_CATALOG[prod.productionName];
+        if (!stats) {
+          console.warn(`[tickCityProduction] Type d'unité inconnu : ${prod.productionName} — production ignorée`);
+          await clearProduction(city.id);
+        } else {
+          const unitId = await createProducedUnit(owner, city.id, city.worldX, city.worldY, prod.productionName);
+          await clearProduction(city.id);
+          completedUnits.push({
+            cityId:   city.id,
+            cityName: city.name,
+            unitId,
+            unitType: prod.productionName,
+            unitName: stats.name,
+          });
+          console.log(`[tickCityProduction] ${city.name} → ${stats.name} (id=${unitId}) créé pour ${owner}`);
+        }
       }
     } else {
       await db

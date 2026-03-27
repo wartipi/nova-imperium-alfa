@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { backfillTileMetadata } from "./seeds/backfillTileMetadata";
+import { ensureUnitsTable } from "./cityService";
 
 const app = express();
 app.use(express.json());
@@ -41,6 +42,9 @@ app.use((req, res, next) => {
   // Backfill idempotent : remplit metadata.resources sur les tuiles existantes
   backfillTileMetadata().catch(err =>
     console.error('[backfillMetadata] Erreur non-bloquante:', err)
+  );
+  ensureUnitsTable().catch(err =>
+    console.error('[ensureUnitsTable] Erreur non-bloquante:', err)
   );
 
   const server = await registerRoutes(app);

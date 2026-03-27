@@ -224,7 +224,7 @@ router.put("/:cityId/production", requireAuth, async (req: AuthRequest, res) => 
       return res.status(access.status).json({ error: access.error });
     }
 
-    await setProduction(cityId, { type, name, cost, progress });
+    await setProduction(cityId, { type, name, cost, progress }, req.user!.id);
     return res.json({ ok: true });
   } catch (err) {
     console.error("[PUT /api/cities/:cityId/production] Erreur:", err);
@@ -588,7 +588,7 @@ router.post("/:cityId/start-construction", requireAuth, async (req: AuthRequest,
       name:     building,
       cost:     constructionTime,
       progress: 0,
-    });
+    }, req.user!.id);
 
     console.log(
       `[start-construction] Queued ${building} cityId=${cityId}` +

@@ -1,0 +1,220 @@
+NOVA IMPERIUM — PHASE 10.1 — BLOC 2 IMPLÉMENTATION VALIDÉE
+Branche : `NI-10.3`
+
+Le BLOC 1 est validé.
+Tu peux maintenant implémenter, mais en respectant strictement le périmètre validé.
+
+OBJECTIF
+Fermer proprement le pipeline serveur-authoritative des unités :
+
+ville → file de production → tick serveur → unité persistée → DTO serveur → hydratation client → toast de complétion
+
+PÉRIMÈTRE STRICT
+Tu implémentes uniquement :
+
+* persistance canonique des unités produites
+* ownership correct via `queuedByPlayerId`
+* route serveur de lecture des unités
+* hydratation client depuis le serveur
+* toast de complétion unité
+* compatibilité avec le pipeline bâtiments existant
+
+Tu n’ouvres PAS :
+
+* refonte armées
+* combat
+* déplacement avancé
+* équilibrage
+* abstraction générique
+* nettoyage opportuniste hors sujet
+
+DÉCISIONS VALIDÉES À RESPECTER
+
+1. `city_production` reste la file canonique
+2. ajout d’une table `units` minimale dans `shared/schema.ts`
+3. ajout de `queuedByPlayerId` dans `city_production`
+4. `strength` n’est PAS persisté en DB
+5. `server/unitCatalog.ts` est la source canonique unique des stats de type
+6. `GET /api/units/me` calcule `strength` côté serveur et renvoie un DTO directement hydratable
+7. le client ne reconstruit pas localement les unités
+8. fallback `queuedByPlayerId ?? playerId` autorisé uniquement pour compat legacy pré-migration, avec log serveur explicite
+
+FICHIERS À MODIFIER
+
+* `shared/schema.ts`
+* `client/src/lib/game/types.ts`
+* `server/unitCatalog.ts`
+* `server/cityService.ts`
+* `server/index.ts`
+* `server/routes/cities.ts`
+* `server/routes/units.ts`
+* `server/routes.ts`
+* `client/src/lib/api/unitsApi.ts`
+* `client/src/lib/stores/useNovaImperium.tsx`
+* `client/src/components/game/MedievalHUD.tsx`
+
+IMPLÉMENTATION ATTENDUE
+
+1. `shared/schema.ts`
+
+* ajouter la table `units`
+* ne PAS inclure `strength`
+* inclure :
+
+  * `id`
+  * `ownerPlayerId`
+  * `cityId`
+  * `unitType`
+  * `name`
+  * `worldX`
+  * `worldY`
+  * `attack`
+  * `defense`
+  * `health`
+  * `maxHealth`
+  * `movement`
+  * `movementRemaining`
+  * `experience`
+  * `createdAt`
+* ajouter `queuedByPlayerId` à `cityProduction`
+
+2. `client/src/lib/game/types.ts`
+
+* étendre `UnitType` aux 15 unités réellement recrutables
+* ne pas laisser de cast trompeur sur des valeurs hors union
+
+3. `server/unitCatalog.ts`
+
+* créer le catalogue serveur canonique des 15 unités
+* inclure les stats nécessaires à la création de l’unité
+* inclure `strength`
+* usage serveur uniquement
+
+4. `server/cityService.ts`
+
+* ajouter `ensureUnitsTable()` :
+
+  * `CREATE TABLE IF NOT EXISTS units`
+  * `ALTER TABLE city_production ADD COLUMN IF NOT EXISTS queued_by_player_id ...`
+* adapter `setProduction(...)` pour accepter `queuedByPlayerId`
+* créer `createProducedUnit(...)`
+* dans `tickCityProduction(playerId)` :
+
+  * si production bâtiment : ne rien casser
+  * si production unité :
+
+    * résoudre le propriétaire réel
+    * fallback legacy `queuedByPlayerId ?? playerId` avec `console.warn(...)`
+    * créer l’unité persistée
+    * vider la file seulement après création réussie
+    * pousser un `completedUnits` enrichi
+
+5. `server/index.ts`
+
+* appeler `ensureUnitsTable()` au démarrage
+
+6. `server/routes/cities.ts`
+
+* passer `req.user!.id` à `setProduction(...)` sur les deux callsites :
+
+  * `PUT /api/cities/:cityId/production`
+  * `start-construction` si applicable
+
+7. `server/routes/units.ts`
+
+* créer `GET /api/units/me`
+* lire les units DB du joueur connecté
+* enrichir côté serveur :
+
+  * `strength` depuis `UNIT_CATALOG`
+  * `movement` DTO = `movementRemaining`
+  * `maxMovement` DTO = `movement`
+  * `abilities = []`
+* retourner un DTO directement compatible avec `Unit`
+
+8. `server/routes.ts`
+
+* monter `app.use('/api/units', unitsRoutes)`
+
+9. `client/src/lib/api/unitsApi.ts`
+
+* créer `apiGetMyUnits()`
+* appel réseau simple
+* aucune logique métier locale
+
+10. `client/src/lib/stores/useNovaImperium.tsx`
+
+* ajouter `hydrateUnitsFromServer()`
+* faire un spread direct du DTO reçu
+* ne pas recalculer `strength`
+* brancher l’hydratation unités dans le pipeline de fin de tour
+
+11. `client/src/components/game/MedievalHUD.tsx`
+
+* après `apiProductionTick()` :
+
+  * hydrate cities
+  * hydrate units
+  * afficher toast de complétion pour chaque unité terminée
+* conserver le comportement bâtiment existant
+
+DTO ATTENDU POUR `/api/units/me`
+Le client doit recevoir directement quelque chose de compatible avec `Unit`, par exemple :
+
+* `id`
+* `type`
+* `name`
+* `x`
+* `y`
+* `strength`
+* `attack`
+* `defense`
+* `health`
+* `maxHealth`
+* `movement`
+* `maxMovement`
+* `experience`
+* `abilities`
+
+IMPORTANT
+Ne renvoie pas le catalogue au client.
+Ne persiste pas `strength`.
+Ne crée pas de logique locale de reconstruction dans le store client.
+
+CONTRAINTES D’IMPLÉMENTATION
+
+* fonctions petites
+* modifications minimales
+* aucun refactor hors sujet
+* ne pas casser les bâtiments
+* ne pas changer le gameplay
+* ne pas ajouter de couches génériques inutiles
+
+SORTIE ATTENDUE APRÈS IMPLÉMENTATION
+Je veux un rapport structuré exactement ainsi :
+
+1. FICHIERS MODIFIÉS
+   Liste précise des fichiers touchés
+
+2. RÉSUMÉ DES CHANGEMENTS
+   Très concret, par fichier
+
+3. POINTS DE VÉRIFICATION
+   Confirmer :
+
+* compilation TypeScript
+* bâtiments toujours fonctionnels
+* unité persistée à la complétion
+* file vidée après création réussie
+* ownership correct
+* hydratation client depuis serveur
+* toast unité visible
+* aucun doublon
+
+4. LIMITES OU POINTS À SURVEILLER
+   Seulement si réel
+
+IMPORTANT FINAL
+Tu implémentes maintenant.
+Tu ne réouvres pas le design.
+Tu appliques exactement le plan validé.

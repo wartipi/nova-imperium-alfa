@@ -3,6 +3,8 @@ import { subscribeWithSelector } from "zustand/middleware";
 import type { NovaImperium, Unit, City, DiplomaticRelation, Resources, BuildingType } from "../game/types";
 import { AI } from "../game/AI";
 import { fetchMyCities, apiAddBuilding, apiSetProduction } from "../api/citiesApi";
+import { apiGetMyUnits } from "../api/unitsApi";
+import type { UnitDTO } from "../api/unitsApi";
 import { useMap } from "./useMap";
 
 interface NovaImperiumState {
@@ -23,6 +25,7 @@ interface NovaImperiumState {
   addCity: (city: City) => void;
   foundColony: (x: number, y: number, colonyName: string, playerId: string, playerName: string, factionId: string, factionName: string) => boolean;
   hydrateCitiesFromServer: () => Promise<void>;
+  hydrateUnitsFromServer: () => Promise<void>;
   renameCityDisplayName: (cityId: string, newDisplayName: string) => boolean;
   researchTechnology: (techId: string) => void;
   sendDiplomaticProposal: (targetNIId: string, type: string) => void;
@@ -416,6 +419,39 @@ export const useNovaImperium = create<NovaImperiumState>()(
       } catch (err) {
         // Échec silencieux — la carte reste jouable sans villes hydratées
         console.warn("[hydrateCitiesFromServer] Erreur chargement villes:", err);
+      }
+    },
+
+    hydrateUnitsFromServer: async () => {
+      try {
+        const dtos: UnitDTO[] = await apiGetMyUnits();
+        const hydratedUnits: Unit[] = dtos.map(dto => ({
+          id:          dto.id,
+          type:        dto.type as Unit['type'],
+          name:        dto.name,
+          x:           dto.x,
+          y:           dto.y,
+          strength:    dto.strength,
+          attack:      dto.attack,
+          defense:     dto.defense,
+          health:      dto.health,
+          maxHealth:   dto.maxHealth,
+          movement:    dto.movement,
+          maxMovement: dto.maxMovement,
+          experience:  dto.experience,
+          abilities:   dto.abilities,
+        }));
+        set((state) => {
+          const updated = state.novaImperiums.map((ni) => {
+            if (ni.id !== state.currentNovaImperiumId) return ni;
+            return { ...ni, units: hydratedUnits };
+          });
+          const updatedCurrentNI = updated.find((ni) => ni.id === state.currentNovaImperiumId) || null;
+          console.log(`[hydrateUnitsFromServer] ${hydratedUnits.length} unité(s) chargée(s) depuis le serveur.`);
+          return { novaImperiums: updated, currentNovaImperium: updatedCurrentNI };
+        });
+      } catch (err) {
+        console.warn("[hydrateUnitsFromServer] Erreur chargement unités:", err);
       }
     },
 

@@ -15,14 +15,13 @@ export type TerrainType =
   | 'enchanted_meadow' // 14 - Prairie enchantée
   | 'plains'           // 15 - Plaine standard
 
-export type UnitType = 
-  | 'warrior' 
-  | 'archer' 
-  | 'settler' 
-  | 'scout' 
-  | 'spearman' 
-  | 'swordsman' 
-  | 'catapult';
+export type UnitType =
+  | 'warrior' | 'spearman' | 'swordsman'
+  | 'archer' | 'crossbowman'
+  | 'catapult' | 'trebuchet'
+  | 'horseman' | 'knight'
+  | 'galley' | 'warship'
+  | 'scout' | 'settler' | 'diplomat' | 'spy';
 
 export type BuildingType = 
   // Bâtiments Phase 7/8 — utilisés dans le flux persisté (BUILDING_YIELDS serveur, city_buildings)

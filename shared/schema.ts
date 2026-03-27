@@ -482,6 +482,7 @@ export const cityProduction = pgTable("city_production", {
   productionCost:     integer("production_cost").notNull(),
   productionProgress: integer("production_progress").notNull().default(0),
   startedAt:          timestamp("started_at").notNull().defaultNow(),
+  queuedByPlayerId:   text("queued_by_player_id"),
 });
 
 export type CityBuildingRecord  = typeof cityBuildings.$inferSelect;
@@ -620,3 +621,26 @@ export const playerTransport = pgTable("player_transport", {
 });
 
 export type PlayerTransportRecord = typeof playerTransport.$inferSelect;
+
+// ─── Tables Phase 10.1 : unités persistées ────────────────────────────────────
+// Une ligne par unité produite — ownership explicite via ownerPlayerId.
+// strength non persisté : dérivé du catalogue serveur (UNIT_CATALOG) à l'hydratation.
+export const units = pgTable("units", {
+  id:                serial("id").primaryKey(),
+  ownerPlayerId:     text("owner_player_id").notNull(),
+  cityId:            integer("city_id").notNull().references(() => cities.id),
+  unitType:          text("unit_type").notNull(),
+  name:              text("name").notNull(),
+  worldX:            integer("world_x").notNull(),
+  worldY:            integer("world_y").notNull(),
+  attack:            integer("attack").notNull(),
+  defense:           integer("defense").notNull(),
+  health:            integer("health").notNull(),
+  maxHealth:         integer("max_health").notNull(),
+  movement:          integer("movement").notNull(),          // capacité maximale
+  movementRemaining: integer("movement_remaining").notNull(), // restant du tour courant
+  experience:        integer("experience").notNull().default(0),
+  createdAt:         timestamp("created_at").notNull().defaultNow(),
+});
+
+export type UnitRecord = typeof units.$inferSelect;

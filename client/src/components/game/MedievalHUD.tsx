@@ -55,7 +55,7 @@ type MenuSection =
 export function MedievalHUD() {
   const { gamePhase, currentTurn, endTurn } = useGameState();
   const { currentUser, logout, role, adminModeEnabled, toggleAdminMode } = useAuth();
-  const { novaImperiums, currentNovaImperium, processTurn, hydrateCitiesFromServer } = useNovaImperium();
+  const { novaImperiums, currentNovaImperium, processTurn, hydrateCitiesFromServer, hydrateUnitsFromServer } = useNovaImperium();
   const { selectedHex } = useMap();
   const { isMuted, toggleMute } = useAudio();
   
@@ -139,6 +139,8 @@ export function MedievalHUD() {
 
   // Toast complétion de construction
   const [buildingToasts, setBuildingToasts] = useState<Array<{ id: number; buildingId: string; cityName: string }>>([]);
+  // Toast complétion d'unité
+  const [unitToasts, setUnitToasts] = useState<Array<{ id: number; unitType: string; unitName: string; cityName: string }>>([]);
   const toastCounterRef = React.useRef(0);
 
   useEffect(() => {
@@ -177,11 +179,18 @@ export function MedievalHUD() {
           console.log("[handleEndTurn] City production tick:", cityTickResult);
           // Hydrate le store local depuis l'état serveur réel
           await hydrateCitiesFromServer();
-          // Toasts de complétion à partir du résultat serveur (pas d'une décision locale)
+          await hydrateUnitsFromServer();
+          // Toasts bâtiments
           for (const { buildingId, cityName } of cityTickResult.completedBuildings) {
             window.dispatchEvent(new CustomEvent('nova:building-completed', {
               detail: { buildingId, cityName },
             }));
+          }
+          // Toasts unités
+          for (const { unitType, unitName, cityName } of cityTickResult.completedUnits) {
+            const id = ++toastCounterRef.current;
+            setUnitToasts(prev => [...prev, { id, unitType, unitName, cityName }]);
+            setTimeout(() => setUnitToasts(prev => prev.filter(t => t.id !== id)), 6000);
           }
           if (cityTickResult.completedBuildings.length > 0 || cityTickResult.progressed.length > 0 || cityTickResult.completedUnits.length > 0) {
             window.dispatchEvent(new CustomEvent('nova:logistic-refresh'));
@@ -911,6 +920,23 @@ export function MedievalHUD() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* ─── Toasts complétion d'unité ─────────────────────────────────────── */}
+      {unitToasts.length > 0 && (
+        <div className="fixed bottom-44 left-4 z-[9990] pointer-events-auto flex flex-col gap-2 max-w-xs">
+          {unitToasts.map(toast => (
+            <div key={toast.id} className="bg-blue-900 border-2 border-blue-400 rounded-lg shadow-2xl p-3 text-white text-xs">
+              <div className="font-bold text-blue-200 text-sm mb-1">
+                ⚔️ {toast.unitName} recrutée
+              </div>
+              {toast.cityName && (
+                <p className="text-blue-300 text-xs mb-1">📍 {toast.cityName}</p>
+              )}
+              <p className="text-blue-500 italic text-xs mt-1">Unité disponible dans vos forces</p>
+            </div>
+          ))}
         </div>
       )}
 
