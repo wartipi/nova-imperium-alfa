@@ -1,0 +1,117 @@
+NOVA IMPERIUM — FONDATION REQUISE AVANT MARKETPLACE : PROPRIÉTÉ COURANTE CANONIQUE DES VILLES
+Branche : `NI-10.3`
+
+Changement de direction important :
+
+La propriété des villes est transférable dès maintenant.
+Donc je ne valide plus un design marketplace qui dépend :
+
+* de `founderId`
+* ou d’un `ownerPlayerId` stocké localement dans `market_guilds`
+
+Il faut corriger la fondation tout de suite.
+
+OBJECTIF DE CE BLOC
+Faire uniquement le **BLOC 1 — AUDIT + PROPOSITION** pour la canonicalisation de la propriété courante des villes, avant l’implémentation du marketplace.
+
+Aucun code.
+Aucune migration.
+Aucune implémentation.
+
+CONSTATS DE DÉPART
+
+* `colonies` porte actuellement `founderId` / `founderName` et `factionId`
+* `cities` référence `colonyId`
+* la ville semble déjà s’ancrer métier dans `colony`
+* `founderId` doit désormais être traité comme historique, pas comme propriétaire courant
+
+DÉCISION VALIDÉE
+Je veux maintenant une distinction claire entre :
+
+* propriétaire fondateur (historique)
+* propriétaire courant (canonique, transférable)
+
+PROPOSITION ATTENDUE
+Je m’attends probablement à la solution minimale suivante :
+
+* ajouter à `colonies` :
+
+  * `ownerPlayerId`
+  * `ownerPlayerName`
+* initialiser ces champs à la création depuis le fondateur
+* garder `founderId` / `founderName` inchangés comme historique
+* faire dériver le propriétaire actuel d’une ville depuis :
+
+  * `cities.colonyId -> colonies.ownerPlayerId`
+
+CONSÉQUENCE POUR LE MARKETPLACE
+Je veux que tu prennes en compte dès maintenant que :
+
+* `market_guilds` ne devra PAS stocker `ownerPlayerId`
+* le propriétaire du marché devra toujours être dérivé depuis le propriétaire courant de la ville
+* les revenus et permissions devront suivre automatiquement les transferts de propriété
+
+POINT À TRANCHER DANS TA PROPOSITION
+Je veux une règle claire pour le comportement du marché lors d’un transfert de ville.
+
+Ma préférence actuelle est :
+
+* le `activeFeeBps` du marché reste inchangé
+* tout changement de fee en attente (`pendingFeeBps`, `pendingFeeAppliesAt`) est annulé lors du transfert
+* le nouveau propriétaire récupère le contrôle immédiatement
+* l’ancien propriétaire ne peut pas laisser un changement retardé “piégé”
+
+Tu peux proposer une variante seulement si elle est plus simple et plus stable.
+
+CE QUE TU DOIS AUDITER
+
+1. où la propriété courante doit vivre canoniquement :
+
+* `colonies`
+* `cities`
+* autre
+* et pourquoi
+
+2. quels services/routes devront changer ensuite
+
+* lecture de ville
+* autorisations
+* futurs transferts
+* marketplace
+
+3. quels risques cela évite
+
+* duplication de vérité
+* revenu de marché envoyé au mauvais joueur
+* permissions incohérentes
+* dérive entre fondateur et propriétaire courant
+
+FORMAT DE TA RÉPONSE
+Je veux exactement :
+
+1. AUDIT COURT
+
+* source de vérité actuelle
+* problème structurel
+* meilleur point d’ancrage pour le propriétaire courant
+
+2. PROPOSITION TECHNIQUE MINIMALE
+
+* champs à ajouter
+* règles d’initialisation
+* règles de transfert
+* impact sur le futur marketplace
+
+3. FICHIERS EXACTS À MODIFIER
+   Liste précise
+
+4. PLAN D’IMPLÉMENTATION MINIMAL
+   Étapes courtes, ordonnées, sans code
+
+5. STOP VALIDATION
+   Tu t’arrêtes ici.
+   Tu n’implémentes rien avant mon accord.
+
+IMPORTANT FINAL
+Je ne veux plus utiliser `founderId` comme propriétaire courant.
+Je veux une propriété courante canonique, transférable, simple, stable, et exploitable par le marketplace sans duplication de vérité.
