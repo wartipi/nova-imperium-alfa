@@ -1,0 +1,102 @@
+NOVA IMPERIUM — OWNERSHIP CANONIQUE DES VILLES — BLOC 1 FINAL CORRIGÉ
+Branche : `NI-10.3`
+
+Ton audit va dans la bonne direction, mais je ne valide pas encore l’implémentation.
+
+Je valide :
+
+* ownership canonique sur `colonies`
+* `ownerType = 'player' | 'faction'`
+* backfill des villes existantes vers `ownerType = 'faction'`
+* `founderId` / `founderName` qui restent historiques
+* conservation des factions comme entité économique réelle
+
+Mais je veux 4 corrections avant tout code.
+
+1. LE TRANSFERT DOIT ÊTRE DANS LE PÉRIMÈTRE MAINTENANT
+   La propriété des villes est transférable dès maintenant.
+   Donc je ne valide pas une phase qui ajoute seulement les colonnes owner sans inclure un vrai mécanisme canonique de transfert.
+
+Je veux que ton plan inclue :
+
+* un service de transfert d’ownership
+* et une route dédiée
+  même si l’UI arrive plus tard.
+
+2. `territoryService.checkColonyAccess()` DOIT ÊTRE REFACORISÉ AUSSI
+   Dans ton audit, tu identifies bien `territoryService.ts/checkColonyAccess()` comme dépendance réelle à `factionId`.
+   Mais dans ta liste finale des fichiers à modifier, `territoryService.ts` ne couvre que `foundColony()`.
+
+Je veux corriger cette incohérence :
+
+* les checks de territoire actifs doivent eux aussi passer par l’owner canonique
+* pas seulement la création de colonie
+
+3. `ownerType` NE DOIT PAS RESTER NULLABLE DANS L’ÉTAT FINAL
+   Je ne valide pas une base durable où `ownerType` reste nullable “par simplicité db:push”.
+
+Décision attendue :
+
+* ajout des colonnes
+* backfill immédiat
+* puis SQL explicite / bootstrap idempotent pour rendre `ownerType` NOT NULL
+
+En revanche :
+
+* `ownerPlayerId`
+* `ownerPlayerName`
+* `ownerFactionId`
+* `ownerFactionName`
+  peuvent rester nullables selon `ownerType`
+* l’intégrité croisée reste gérée par le service layer
+
+4. DTO PLUS COMPLET
+   Je veux exposer aussi :
+
+* `ownerPlayerName`
+* `ownerFactionName`
+  pas seulement les IDs
+
+Je ne veux pas rouvrir le DTO plus tard juste pour afficher le propriétaire courant.
+
+DÉCISION MÉTIER VALIDÉE
+Les villes existantes doivent être backfillées ainsi :
+
+* `ownerType = 'faction'`
+* `ownerFactionId = factionId`
+* `ownerFactionName = factionName`
+* `ownerPlayerId = null`
+* `ownerPlayerName = null`
+
+Le champ `factionId` reste structurel / historique / de compatibilité,
+mais ne doit plus être la source unique des permissions.
+
+FORMAT DE TA RÉPONSE
+Je veux exactement :
+
+1. BLOC 1 FINAL CORRIGÉ
+
+* source de vérité finale
+* règle de transfert
+* services/checks à refactorer
+* stratégie de backfill
+* stratégie NOT NULL
+* DTO final
+
+2. FICHIERS EXACTS À MODIFIER
+   Liste précise, incluant les checks territoire et la route/service de transfert
+
+3. PLAN D’IMPLÉMENTATION FINAL
+   Étapes courtes, ordonnées, sans code
+
+4. STOP VALIDATION
+   Tu t’arrêtes ici.
+   Tu n’implémentes rien avant mon accord.
+
+IMPORTANT FINAL
+Je veux une ownership canonique des villes qui supporte :
+
+* joueur
+* faction
+
+sans supprimer les factions, sans réutiliser `founderId` comme owner courant, et sans laisser `ownerType` nullable dans l’état final.
