@@ -1,0 +1,84 @@
+NOVA IMPERIUM — RÉCONCILIATION PUBLIQUE DU MINI-POLISH UI + BOUTON CAMÉRA
+Branche : `NI-10.3`
+
+Ta réponse n’est pas validée publiquement telle quelle.
+
+Constat sur la branche visible :
+
+1. `PublicMarketplace.tsx`
+
+* OK publiquement :
+* l’onglet par défaut est bien `marche_ressources`
+
+2. `UnifiedTerritoryPanel.tsx`
+
+* le panneau de fondation existe bien
+* mais la banderole d’aide annoncée n’est pas visible publiquement
+
+3. `MedievalHUD.tsx`
+
+* le bouton `🎯 Recentrer` n’est pas visible publiquement
+* aucun appel à `centerCameraOnAvatar()` n’apparaît publiquement dans ce composant
+
+OBJECTIF
+Je veux une vraie réconciliation entre :
+
+* ton rapport local
+* et la branche publique `NI-10.3`
+
+PÉRIMÈTRE STRICT
+Aucune modification backend.
+Aucune route.
+Aucun service.
+Aucun refactor massif.
+
+Seulement :
+
+* confirmer que `PublicMarketplace.tsx` est déjà correct
+* pousser réellement la banderole d’aide dans `UnifiedTerritoryPanel.tsx`
+* pousser réellement le bouton de recentrage caméra dans le composant UI actif approprié
+
+RÈGLES VALIDÉES POUR LE BOUTON CAMÉRA
+
+1. bouton manuel uniquement
+2. recentre la caméra sur la position actuelle du personnage
+3. ne change pas le zoom
+4. ne déclenche pas de suivi automatique permanent
+5. n’altère pas les contrôles existants
+6. utilise la fonction déjà existante du moteur si elle est bien disponible
+7. aucun backend touché
+
+JE VEUX EXACTEMENT
+
+1. ÉTAT DE BRANCHE
+
+* ce qui est déjà poussé
+* ce qui ne l’est pas
+
+2. FICHIERS MODIFIÉS
+
+* liste précise
+
+3. DIFF / CHANGEMENTS EXACTS
+
+* `UnifiedTerritoryPanel.tsx`
+* composant UI choisi pour le bouton caméra
+* confirmer que `PublicMarketplace.tsx` n’a plus besoin de changement
+
+4. CONFIRMATION BACKEND
+
+* confirmer explicitement qu’aucun fichier serveur n’a été touché
+
+5. VÉRIFICATION PUBLIQUE
+
+* ce qui est maintenant visible sur `NI-10.3`
+
+6. RÉSULTAT ATTENDU EN TEST JOUEUR
+
+* marché publique ouvre directement sur l’onglet ressources
+* aide fondation visible dans gestion de territoire
+* clic sur `Recentrer` → caméra recentrée sur le personnage, sans changer le zoom
+
+IMPORTANT FINAL
+Je valide uniquement ce qui est visible publiquement sur `NI-10.3`.
+Je ne veux pas un rapport local seul.

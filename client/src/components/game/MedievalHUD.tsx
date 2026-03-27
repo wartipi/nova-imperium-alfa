@@ -703,7 +703,7 @@ export function MedievalHUD() {
 
       {/* Bouton Recentrer caméra */}
       <button
-        className="absolute bottom-52 right-4 pointer-events-auto z-[9990] bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs font-semibold px-3 py-1.5 rounded shadow-md border border-amber-600"
+        className="fixed bottom-48 right-4 pointer-events-auto z-[9991] bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs font-semibold px-3 py-1.5 rounded shadow-md border border-amber-600"
         onClick={() => (window as any).gameEngine?.centerCameraOnAvatar()}
         title="Recentrer la caméra sur votre personnage (ou appuyez sur Espace)"
       >
