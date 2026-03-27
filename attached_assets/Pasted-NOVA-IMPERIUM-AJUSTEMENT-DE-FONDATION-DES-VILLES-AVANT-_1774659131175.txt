@@ -1,0 +1,95 @@
+NOVA IMPERIUM — AJUSTEMENT DE FONDATION DES VILLES AVANT MARKETPLACE
+Branche : `NI-10.3`
+
+Changement de règle validé :
+
+Je ne veux plus que la fondation d’une ville dépende du fait que la case soit déjà revendiquée par la faction.
+
+Je veux maintenant la logique suivante :
+
+* on peut fonder une ville d’abord
+* puis revendiquer les territoires autour ensuite
+* la vraie contrainte structurante pour fonder une ville est uniquement spatiale
+
+RÈGLE VALIDÉE
+La seule condition forte à respecter pour fonder une ville est :
+
+* ne pas avoir une autre ville dans un rayon de 6 cases
+
+Traduction attendue en validation serveur :
+
+* si une autre colonie existe à une distance `<= 6`, la fondation est refusée
+* donc la distance minimale autorisée devient `7`
+
+CONTEXTE CODE ACTUEL
+Actuellement, `foundColony()` impose encore :
+
+* appartenance à une faction active
+* case revendiquée par la faction du joueur
+* distance minimale 4
+
+Je veux modifier cela proprement.
+
+DÉCISION DE DESIGN
+Pour cette phase :
+
+1. On supprime dans `foundColony()` la condition :
+
+   * “la case doit être revendiquée par la faction du joueur”
+
+2. On conserve pour l’instant :
+
+   * case walkable obligatoire
+   * nom obligatoire
+   * pas de colonie déjà sur la case
+   * appartenance à une faction active
+   * ownership initial de la colonie en :
+
+     * `ownerType = 'faction'`
+     * `ownerFactionId = factionId`
+     * `ownerFactionName = factionName`
+     * `ownerPlayerId = null`
+     * `ownerPlayerName = null`
+
+3. On change la règle de distance :
+
+   * ancien comportement : distance minimale 4
+   * nouveau comportement : aucune ville dans un rayon de 6
+   * donc refus si `dist <= 6`
+
+4. `claimTerritory()` reste inchangé pour l’instant :
+
+   * la revendication de territoire reste une action de faction
+   * on ne rouvre pas ce système dans cette phase
+
+OBJECTIF
+Je veux que tu me fasses uniquement le **BLOC 1 FINAL CORRIGÉ** avant implémentation.
+
+JE VEUX EXACTEMENT
+
+1. BLOC 1 FINAL CORRIGÉ
+
+* nouvelle règle de fondation
+* validations conservées
+* validation supprimée
+* nouvelle règle de distance
+* cohérence avec ownership actuel
+* confirmation que `claimTerritory()` reste inchangé
+
+2. FICHIERS EXACTS À MODIFIER
+   Liste précise
+
+3. PLAN D’IMPLÉMENTATION FINAL
+   Étapes courtes, ordonnées, sans code
+
+4. STOP VALIDATION
+   Tu t’arrêtes ici.
+   Tu n’implémentes rien avant mon accord.
+
+IMPORTANT FINAL
+Je veux un passage minimal, propre et stable :
+
+* on retire la dépendance “ville = case déjà claim”
+* on garde le reste cohérent avec le système faction actuel
+* on impose seulement une vraie contrainte spatiale forte :
+  aucune autre ville dans un rayon de 6 cases
