@@ -1,0 +1,90 @@
+NOVA IMPERIUM — PHASE DE RACCORDEMENT UI APRÈS TEST PRÉLIMINAIRE
+Branche : `NI-10.3`
+
+Le test préliminaire révèle un problème de branchement UI.
+
+CONSTATS VALIDÉS
+
+1. Le backend du nouveau marché ressources existe :
+
+* routes `/api/market/:cityId/guild`
+* `/api/market/:cityId/orders`
+* `/api/market/:cityId/trades`
+* `/api/market/:cityId/guild/fee`
+
+2. Le backend de fondation de ville existe :
+
+* `POST /api/territories/colonies/found`
+
+3. Mais côté joueur :
+
+* le panneau de marché visible semble encore majoritairement l’ancien marketplace
+* aucun point d’entrée clair ne permet de fonder une ville depuis l’UI active
+
+OBJECTIF
+Je veux maintenant un **audit de raccordement UI uniquement**.
+
+Je ne veux PAS de nouvelle feature système.
+Je veux identifier précisément ce qui manque pour rendre testables par un joueur :
+
+* la fondation de ville
+* le marché ressources
+
+CE QUE TU DOIS AUDITER
+
+1. MARCHÉ RESSOURCES
+
+* est-ce que `PublicMarketplace.tsx` appelle réellement les nouvelles routes `/api/market/*` ?
+* est-ce qu’il existe un vrai nouvel onglet ressources distinct de l’ancien marketplace ?
+* est-ce que la condition `guilde_des_marchands` est réellement branchée dans l’UI active ?
+* si non, quel est le plus petit raccordement propre à faire sans casser le marketplace existant ?
+
+2. FONDATION DE VILLE
+
+* où serait le point d’entrée UI le plus propre pour fonder une ville ?
+* carte / panneau territoire / HUD / action contextuelle ?
+* existe-t-il déjà une UI partielle ou aucun branchement du tout ?
+* quel est le plus petit passage propre pour rendre `POST /api/territories/colonies/found` testable par un joueur normal ?
+
+3. PÉRIMÈTRE
+   Je veux uniquement :
+
+* audit des composants actifs
+* identification des fichiers exacts à modifier
+* proposition de raccordement minimal
+
+Je ne veux pas encore d’implémentation.
+Je ne veux pas de refactor massif.
+
+FORMAT DE TA RÉPONSE
+Je veux exactement :
+
+1. AUDIT UI — MARCHÉ
+
+* ce qui est réellement branché
+* ce qui ne l’est pas
+* où raccorder proprement
+
+2. AUDIT UI — FONDATION DE VILLE
+
+* point d’entrée existant ou absent
+* meilleur point de raccordement minimal
+
+3. FICHIERS EXACTS À MODIFIER
+
+4. PLAN DE RACCORDEMENT MINIMAL
+
+* étapes courtes
+* sans code
+
+5. STOP VALIDATION
+   Tu t’arrêtes ici.
+   Tu n’implémentes rien avant mon accord.
+
+IMPORTANT FINAL
+Le but n’est pas d’ajouter de nouvelles mécaniques.
+Le but est de rendre réellement testables dans l’UI :
+
+* le nouveau marché ressources
+* la fondation de ville
+  avec le plus petit raccordement propre possible.
