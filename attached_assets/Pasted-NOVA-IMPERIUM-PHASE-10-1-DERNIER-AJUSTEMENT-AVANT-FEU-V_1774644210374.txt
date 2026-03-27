@@ -1,0 +1,85 @@
+NOVA IMPERIUM — PHASE 10.1 — DERNIER AJUSTEMENT AVANT FEU VERT
+Branche : `NI-10.3`
+
+Ton BLOC 1 final est presque validé.
+Je valide maintenant :
+
+* l’élargissement de `UnitType` aux 15 unités réellement recrutables
+* la propagation de `queuedByPlayerId` sur les deux callsites de `setProduction(...)`
+* le montage de la future route unités dans `server/routes.ts`
+* le bootstrap idempotent au démarrage comme stratégie compatible avec l’existant
+
+Mais il reste **un dernier verrou de conception** avant implémentation.
+
+CORRECTION OBLIGATOIRE — NE PAS PERSISTER `strength`
+Je ne valide pas `strength` dans la table `units`.
+
+Raison :
+
+* `strength` est un champ dérivé / de présentation
+* le persister en base crée une duplication de vérité avec le catalogue serveur et/ou avec les stats de combat
+* ce n’est pas un état métier mutable indispensable comme `health`, `experience`, `movementRemaining`, `ownerPlayerId`, etc.
+
+Décision attendue :
+
+* retirer `strength` de la table `units`
+* conserver `experience` en base avec valeur initiale `0`
+* définir clairement comment `strength` est obtenu côté hydratation client :
+
+  * soit depuis le catalogue serveur
+  * soit via une règle canonique unique
+* mais PAS comme colonne persistée en DB
+
+CORRECTION DE CADRAGE — MAPPING CANONIQUE `UnitRecord -> Unit`
+Je veux que tu explicites le mapping final complet pour éviter toute vérité implicite :
+
+Exemple attendu de clarification :
+
+* `type = unit.unitType`
+* `x = worldX`
+* `y = worldY`
+* `health = health`
+* `maxHealth = maxHealth`
+* `movement = movementRemaining`
+* `maxMovement = base movement du catalogue`
+* `experience = experience`
+* `strength = valeur canonique dérivée`
+* `abilities = []` si aucun système d’aptitudes n’existe encore
+
+Le point important :
+
+* `strength` ne doit pas être persisté
+* `maxMovement` doit être justifié proprement
+* le mapping doit être complet et déterministe
+
+CORRECTION DE SÉCURITÉ — FALLBACK OWNERSHIP
+Le fallback `queuedByPlayerId ?? playerId` est acceptable uniquement comme compatibilité transitoire pour les anciennes lignes pré-migration.
+
+Je veux que tu le cadres explicitement ainsi :
+
+* fallback transitoire uniquement
+* log serveur si `queuedByPlayerId` est absent sur une production unité
+* pour toute nouvelle production post-migration, `queuedByPlayerId` doit être alimenté normalement via les callsites déjà identifiés
+
+FORMAT DE TA RÉPONSE
+Je veux exactement :
+
+1. AJUSTEMENT FINAL
+
+* verdict sur `strength`
+* mapping final `UnitRecord -> Unit`
+* cadrage final du fallback ownership
+
+2. FICHIERS EXACTS À MODIFIER
+   Liste finale mise à jour
+
+3. PLAN D’IMPLÉMENTATION FINAL
+   Étapes minimales, sans code
+
+4. STOP VALIDATION
+   Tu t’arrêtes.
+   Tu ne codes rien.
+   Tu attends mon accord.
+
+IMPORTANT
+Après cette correction, si tout est cohérent, je passerai en validation d’implémentation.
