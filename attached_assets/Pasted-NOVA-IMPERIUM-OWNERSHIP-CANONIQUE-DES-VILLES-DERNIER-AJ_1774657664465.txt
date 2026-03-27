@@ -1,0 +1,61 @@
+NOVA IMPERIUM — OWNERSHIP CANONIQUE DES VILLES — DERNIER AJUSTEMENT AVANT FEU VERT
+Branche : `NI-10.3`
+
+Ton BLOC 1 est presque validé.
+
+Je valide maintenant :
+
+* séparation stricte entre `canAccessColony(...)` et `canTransferColony(...)`
+* transfert d’une colonie `ownerType = 'faction'` réservé à `admin` uniquement en phase 1
+* `ownerType + ownerPlayer* / ownerFaction*` comme ownership canonique
+* `factionId / factionName` conservés comme legacy / compatibilité
+* inclusion de `territoryService`
+* route/service de transfert dans le périmètre
+* DTO complet avec IDs + noms
+
+Mais il manque encore UNE décision métier explicite avant implémentation :
+
+RÈGLE DE CRÉATION DES NOUVELLES COLONIES
+Je veux que tu verrouilles noir sur blanc le comportement de `foundColony()`.
+
+Décision attendue :
+
+* toute nouvelle colonie créée par `foundColony()` doit être initialisée en :
+
+  * `ownerType = 'faction'`
+  * `ownerFactionId = factionId`
+  * `ownerFactionName = factionName`
+  * `ownerPlayerId = null`
+  * `ownerPlayerName = null`
+
+Justification :
+
+* le code actuel reste encore structuré autour de la faction pour le claim, l’accès et l’économie
+* les colonies existantes sont backfillées en `ownerType = 'faction'`
+* il faut garder une règle unique et cohérente
+* le passage vers `ownerType = 'player'` doit venir uniquement via le mécanisme explicite de transfert
+
+JE VEUX MAINTENANT EXACTEMENT :
+
+1. BLOC 1 FINAL CORRIGÉ
+
+* règle explicite de création des nouvelles colonies
+* confirmation que le backfill existant et `foundColony()` suivent la même sémantique
+* DTO final inchangé si pas d’autre ajustement
+
+2. FICHIERS EXACTS À MODIFIER
+   Liste finale précise
+
+3. PLAN D’IMPLÉMENTATION FINAL
+   Étapes courtes, ordonnées, sans code
+
+4. STOP VALIDATION
+   Tu t’arrêtes ici.
+   Tu n’implémentes rien avant mon accord.
+
+IMPORTANT FINAL
+Je veux une règle unique :
+
+* villes existantes → backfill `ownerType = 'faction'`
+* nouvelles villes → création `ownerType = 'faction'`
+* passage à `ownerType = 'player'` uniquement par transfert explicite
