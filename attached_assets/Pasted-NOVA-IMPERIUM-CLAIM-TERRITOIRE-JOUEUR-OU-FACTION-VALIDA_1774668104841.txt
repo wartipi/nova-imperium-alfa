@@ -1,0 +1,63 @@
+NOVA IMPERIUM — CLAIM TERRITOIRE JOUEUR OU FACTION — VALIDATION ACCORDÉE
+Branche : `NI-10.3`
+
+La phase est validée publiquement.
+
+Le commit `5b21290` est bien présent sur `origin/NI-10.3`, et les points critiques sont visibles dans la branche :
+
+* ownership canonique polymorphe sur `territories`
+* route `/claim` qui lit `ownerType`
+* façade/UI active qui utilise `getAccessibleTerritories(...)`
+* panneau actif qui transmet bien `effectiveOwnerType`
+
+Je considère donc cette étape comme verrouillée.
+
+PROCHAINE ÉTAPE
+On revient maintenant au flux joueur complet pour rendre réellement testable la progression suivante :
+
+1. claim territoire
+2. fonder une ville
+3. construire `guilde_des_marchands`
+4. ouvrir le marché des ressources
+
+OBJECTIF DU PROCHAIN BLOC
+Je veux uniquement un **audit ciblé** de cette séquence complète côté joueur.
+
+Je ne veux PAS encore de nouveau code.
+Je veux identifier le prochain vrai blocant dans l’ordre réel d’usage.
+
+CE QUE TU DOIS AUDITER
+
+1. après l’implémentation du claim joueur/faction, le panneau actif permet-il bien de revendiquer un territoire de façon testable en jeu ?
+2. la fondation de ville est-elle maintenant cohérente avec ce nouveau système de claim, ou reste-t-elle partiellement faction-only dans son parcours joueur ?
+3. la `guilde_des_marchands` est-elle réellement constructible depuis le panneau de construction actif ?
+4. une fois construite, le marché des ressources devient-il réellement utilisable dans le parcours joueur normal ?
+
+FORMAT DE TA RÉPONSE
+Je veux exactement :
+
+1. AUDIT DU FLUX JOUEUR COMPLET
+
+* claim
+* fondation
+* construction de la guilde
+* ouverture du marché
+
+2. BLOCANT PRINCIPAL ACTUEL
+
+* un seul, le plus important
+
+3. PROPOSITION MINIMALE
+
+* plus petit raccordement ou correction à faire ensuite
+
+4. FICHIERS EXACTS À MODIFIER
+
+* si nécessaire
+
+5. STOP VALIDATION
+   Tu t’arrêtes ici.
+   Tu n’implémentes rien avant mon accord.
+
+IMPORTANT FINAL
+Je veux maintenant raisonner en parcours joueur réel, pas en sous-systèmes isolés.
