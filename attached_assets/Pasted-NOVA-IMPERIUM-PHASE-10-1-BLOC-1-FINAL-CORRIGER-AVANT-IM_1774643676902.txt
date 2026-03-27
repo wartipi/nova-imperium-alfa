@@ -1,0 +1,90 @@
+NOVA IMPERIUM — PHASE 10.1 — BLOC 1 FINAL À CORRIGER AVANT IMPLÉMENTATION
+Branche : `NI-10.3`
+
+Ton BLOC 1 corrigé est presque validé, mais il reste 3 ajustements obligatoires avant feu vert.
+
+Tu ne codes toujours rien.
+Tu reviens avec un **BLOC 1 final corrigé uniquement**.
+
+CORRECTION 1 — ALIGNEMENT `UnitType` / CATALOGUE 15 UNITÉS
+Tu as choisi un catalogue serveur de 15 unités, aligné avec `RecruitmentPanel`.
+
+Dans ce cas, tu ne peux plus conserver un `UnitType` client limité à 7 valeurs avec un simple cast `unit.unitType as UnitType`.
+
+Je veux une décision explicite et cohérente :
+
+* soit tu élargis `client/src/lib/game/types.ts` pour que `UnitType` couvre les 15 unités réellement recrutables,
+* soit tu réduis explicitement le périmètre et tu abandonnes le catalogue 15.
+
+Mais je refuse un cast qui masque une incohérence de contrat entre serveur et client.
+
+Attendu :
+
+* décision claire
+* impact exact sur `types.ts`
+* confirmation que l’hydratation `UnitRecord -> Unit` est alors réellement canonique et typée proprement
+
+CORRECTION 2 — PROPAGATION RÉELLE DE `queuedByPlayerId`
+Tu as bien justifié l’ajout de `queuedByPlayerId` dans `city_production`.
+
+Mais ton plan d’implémentation ne couvre pas encore correctement le chemin réel du recrutement unité.
+
+Le pipeline actuel d’unité passe par :
+
+* `trainUnit()`
+* `apiSetProduction(...)`
+* `PUT /api/cities/:cityId/production`
+* `setProduction(...)`
+
+Je veux que tu corriges ton plan pour que `queuedByPlayerId` soit bien injecté dans le vrai chemin utilisé par les unités.
+
+Attendu :
+
+* préciser que `PUT /api/cities/:cityId/production` doit passer `req.user!.id` à `setProduction(...)`
+* préciser si `start-construction` doit aussi passer ce champ par cohérence
+* lister exactement tous les callsites de `setProduction(...)` à adapter
+
+Je ne veux aucune ambiguïté ici :
+la justification ownership est bonne seulement si le pipeline réel alimente effectivement `queuedByPlayerId`.
+
+CORRECTION 3 — STRATÉGIE SCHÉMA / MIGRATION
+Tu peux garder une stratégie bootstrap SQL idempotente si tu juges que c’est le plus petit passage compatible avec ce dépôt.
+
+Mais je veux que tu corriges ton cadrage :
+
+* ne présente pas `schema.ts + CREATE TABLE IF NOT EXISTS / ALTER TABLE IF NOT EXISTS` comme une “source unique de vérité”
+* si tu gardes cette stratégie, nomme-la correctement comme :
+
+  * schéma canonique dans `shared/schema.ts`
+  * bootstrap SQL idempotent de mise à niveau au démarrage
+* ou bien propose à la place une vraie migration si tu estimes cela plus propre
+
+Attendu :
+
+* formulation exacte de la stratégie retenue
+* justification courte
+* pas de contradiction de vocabulaire
+
+FORMAT DE TA RÉPONSE
+Je veux exactement ceci :
+
+1. BLOC 1 FINAL CORRIGÉ
+
+* verdict sur `UnitType`
+* verdict sur `queuedByPlayerId`
+* verdict sur la stratégie schéma/migration
+
+2. FICHIERS EXACTS À MODIFIER
+   Liste finale, précise.
+
+3. PLAN D’IMPLÉMENTATION FINAL
+   Étapes minimales, ordonnées, sans code.
+
+4. STOP VALIDATION
+   Tu t’arrêtes.
+   Tu n’implémentes rien.
+   Tu attends mon accord.
+
+IMPORTANT
+Je ne veux plus un plan “presque cohérent”.
+Je veux un plan final entièrement compatible avec le code réel de `NI-10.3`, sans cast trompeur, sans ownership implicite, et sans contradiction sur la stratégie de schéma.
