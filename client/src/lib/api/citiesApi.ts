@@ -32,6 +32,12 @@ export interface CityDTO {
   productionPerTurn: number;
   // Phase 9 : gold par tour (palace/market/courthouse)
   goldPerTurn:       number;
+  // Phase 11 — Ownership canonique
+  ownerType:        string;
+  ownerPlayerId:    string | null;
+  ownerPlayerName:  string | null;
+  ownerFactionId:   number | null;
+  ownerFactionName: string | null;
 }
 
 // ─── Lecture ──────────────────────────────────────────────────────────────────

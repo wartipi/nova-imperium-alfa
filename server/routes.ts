@@ -33,6 +33,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Seed idempotent des factions système (Guilde de Pandem)
   await seedFactions();
 
+  // Backfill idempotent Phase 11 — ownership canonique des colonies
+  // Toute colonie ownerType='faction' sans ownerFactionId reçoit ownerFactionId/ownerFactionName depuis factionId/factionName.
+  try {
+    const { sql: rawSql } = await import("drizzle-orm");
+    await db.execute(rawSql`
+      UPDATE colonies
+      SET owner_faction_id   = faction_id,
+          owner_faction_name = faction_name
+      WHERE owner_type = 'faction'
+        AND owner_faction_id IS NULL
+    `);
+    console.log("[Startup] Backfill ownership colonique terminé (idempotent)");
+  } catch (err) {
+    console.error("[Startup] Backfill ownership échoué (non bloquant):", err);
+  }
+
   // Routes factions
   app.use("/api/factions", factionRoutes);
   // Routes territoires et colonies (Phase 3)

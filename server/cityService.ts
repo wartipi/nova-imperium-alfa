@@ -1,9 +1,10 @@
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, or } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { db } from "./db";
 import { cities, colonies, factionMembers, cityBuildings, cityProduction, units } from "../shared/schema";
 import { applyBuildingEffects } from "./buildingEffects";
 import { UNIT_CATALOG } from "./unitCatalog";
+import { canAccessColony } from "./ownershipService";
 
 export interface CityProductionDTO {
   type:     string;
@@ -31,6 +32,12 @@ export interface CityDTO {
   productionPerTurn: number;
   // Phase 9 : gold par tour — calculé via recalculateCityEconomy, stocké en DB
   goldPerTurn:       number;
+  // Phase 11 — Ownership canonique
+  ownerType:        string;
+  ownerPlayerId:    string | null;
+  ownerPlayerName:  string | null;
+  ownerFactionId:   number | null;
+  ownerFactionName: string | null;
 }
 
 // ─── BUILDING_YIELDS ──────────────────────────────────────────────────────────
@@ -115,27 +122,23 @@ function mapCity(
     productionPerTurn: city.productionPerTurn,
     // Phase 9 : gold par tour (palace/market/courthouse)
     goldPerTurn:       city.goldPerTurn ?? 0,
+    // Phase 11 — Ownership canonique
+    ownerType:        colony.ownerType,
+    ownerPlayerId:    colony.ownerPlayerId    ?? null,
+    ownerPlayerName:  colony.ownerPlayerName  ?? null,
+    ownerFactionId:   colony.ownerFactionId   ?? null,
+    ownerFactionName: colony.ownerFactionName ?? null,
   };
 }
 
 // ─── checkCityAccess ──────────────────────────────────────────────────────────
-// Vérifie que cityId (cities.id) appartient à la faction du joueur.
-// Utilisé par toutes les routes Phase 7 qui ciblent une ville par son ID.
+// Phase 11 : utilise canAccessColony (ownership canonique) pour vérifier l'accès.
+// ownerType='faction' → tout membre de la faction propriétaire a accès.
+// ownerType='player'  → uniquement le joueur propriétaire.
 export async function checkCityAccess(
   playerId: string,
   cityId:   number,
 ): Promise<{ cityRecord: typeof cities.$inferSelect; factionId: number; worldX: number; worldY: number } | { error: string; status: number }> {
-  const memberRows = await db
-    .select({ factionId: factionMembers.factionId })
-    .from(factionMembers)
-    .where(eq(factionMembers.playerId, playerId));
-
-  if (memberRows.length === 0) {
-    return { error: "Vous n'appartenez à aucune faction", status: 403 };
-  }
-
-  const factionId = memberRows[0].factionId;
-
   const cityRows = await db
     .select({ city: cities, colony: colonies })
     .from(cities)
@@ -146,36 +149,44 @@ export async function checkCityAccess(
     return { error: "Ville introuvable", status: 404 };
   }
 
-  if (cityRows[0].colony.factionId !== factionId) {
-    return { error: "Cette ville n'appartient pas à votre faction", status: 403 };
+  const { city, colony } = cityRows[0];
+
+  const hasAccess = await canAccessColony(playerId, colony);
+  if (!hasAccess) {
+    return { error: "Accès refusé à cette ville", status: 403 };
   }
 
   return {
-    cityRecord: cityRows[0].city,
-    factionId,
-    worldX: cityRows[0].colony.worldX,
-    worldY: cityRows[0].colony.worldY,
+    cityRecord: city,
+    factionId:  colony.factionId,
+    worldX:     colony.worldX,
+    worldY:     colony.worldY,
   };
 }
 
 // ─── getMyCities ──────────────────────────────────────────────────────────────
-// Retourne les villes des colonies appartenant à la faction du joueur.
-// Phase 7 : inclut les bâtiments (city_buildings) et la production courante (city_production).
+// Phase 11 : retourne les villes dont l'owner canonique est la faction du joueur
+// OU dont l'ownerPlayerId est le joueur lui-même.
 export async function getMyCities(playerId: string): Promise<CityDTO[]> {
   const memberRows = await db
     .select({ factionId: factionMembers.factionId })
     .from(factionMembers)
     .where(eq(factionMembers.playerId, playerId));
 
-  if (memberRows.length === 0) return [];
+  const factionId = memberRows.length > 0 ? memberRows[0].factionId : null;
 
-  const factionId = memberRows[0].factionId;
+  const whereClause = factionId
+    ? or(
+        eq(colonies.ownerFactionId, factionId),
+        eq(colonies.ownerPlayerId, playerId),
+      )
+    : eq(colonies.ownerPlayerId, playerId);
 
   const rows = await db
     .select({ city: cities, colony: colonies })
     .from(cities)
     .innerJoin(colonies, eq(cities.colonyId, colonies.id))
-    .where(eq(colonies.factionId, factionId));
+    .where(whereClause);
 
   if (rows.length === 0) return [];
 
@@ -204,22 +215,11 @@ export async function getMyCities(playerId: string): Promise<CityDTO[]> {
 }
 
 // ─── getCityByColony ──────────────────────────────────────────────────────────
-// Retourne la ville d'une colonie donnée (par colonies.id), si elle appartient à la faction du joueur.
+// Phase 11 : utilise canAccessColony (ownership canonique) pour vérifier l'accès.
 export async function getCityByColony(
   playerId: string,
   colonyId: number,
 ): Promise<CityDTO | null | { error: string; status: number }> {
-  const memberRows = await db
-    .select({ factionId: factionMembers.factionId })
-    .from(factionMembers)
-    .where(eq(factionMembers.playerId, playerId));
-
-  if (memberRows.length === 0) {
-    return { error: "Vous n'appartenez à aucune faction", status: 403 };
-  }
-
-  const factionId = memberRows[0].factionId;
-
   const rows = await db
     .select({ city: cities, colony: colonies })
     .from(cities)
@@ -230,8 +230,9 @@ export async function getCityByColony(
 
   const { city, colony } = rows[0];
 
-  if (colony.factionId !== factionId) {
-    return { error: "Cette colonie n'appartient pas à votre faction", status: 403 };
+  const hasAccess = await canAccessColony(playerId, colony);
+  if (!hasAccess) {
+    return { error: "Accès refusé à cette colonie", status: 403 };
   }
 
   const buildingRows = await db
@@ -378,17 +379,22 @@ export async function tickCityProduction(playerId: string): Promise<CityProducti
     .from(factionMembers)
     .where(eq(factionMembers.playerId, playerId));
 
-  if (memberRows.length === 0) {
+  const factionId = memberRows.length > 0 ? memberRows[0].factionId : null;
+
+  if (!factionId) {
     return { applied: false, progressed: [], completedBuildings: [], completedUnits: [] };
   }
 
-  const factionId = memberRows[0].factionId;
+  const whereClause = or(
+    eq(colonies.ownerFactionId, factionId),
+    eq(colonies.ownerPlayerId, playerId),
+  );
 
   const rows = await db
     .select({ city: cities, colony: colonies })
     .from(cities)
     .innerJoin(colonies, eq(cities.colonyId, colonies.id))
-    .where(eq(colonies.factionId, factionId));
+    .where(whereClause);
 
   if (rows.length === 0) {
     return { applied: true, progressed: [], completedBuildings: [], completedUnits: [] };

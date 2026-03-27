@@ -413,16 +413,23 @@ export const territories = pgTable("territories", {
 }));
 
 export const colonies = pgTable("colonies", {
-  id:          serial("id").primaryKey(),
-  name:        text("name").notNull(),
-  worldX:      integer("world_x").notNull(),
-  worldY:      integer("world_y").notNull(),
-  founderId:   text("founder_id").notNull(),
-  founderName: text("founder_name").notNull(),
-  factionId:   integer("faction_id").notNull().references(() => factions.id),
-  factionName: text("faction_name").notNull(),
-  foundedAt:   timestamp("founded_at").notNull().defaultNow(),
-  isCapital:   boolean("is_capital").notNull().default(false),
+  id:              serial("id").primaryKey(),
+  name:            text("name").notNull(),
+  worldX:          integer("world_x").notNull(),
+  worldY:          integer("world_y").notNull(),
+  founderId:       text("founder_id").notNull(),
+  founderName:     text("founder_name").notNull(),
+  factionId:       integer("faction_id").notNull().references(() => factions.id),
+  factionName:     text("faction_name").notNull(),
+  foundedAt:       timestamp("founded_at").notNull().defaultNow(),
+  isCapital:       boolean("is_capital").notNull().default(false),
+  // Phase 11 — Ownership canonique (mutable, transférable)
+  // ownerType est toujours NOT NULL : DEFAULT 'faction' couvre les lignes existantes au db:push
+  ownerType:       text("owner_type").notNull().default("faction"),
+  ownerPlayerId:   text("owner_player_id"),
+  ownerPlayerName: text("owner_player_name"),
+  ownerFactionId:  integer("owner_faction_id"),
+  ownerFactionName: text("owner_faction_name"),
 }, (table) => ({
   uniquePos: unique("colonies_world_pos_unique").on(table.worldX, table.worldY),
 }));

@@ -7,6 +7,7 @@ import {
   claimTerritory,
   foundColony,
 } from "../territoryService";
+import { transferColonyOwnership } from "../ownershipService";
 
 const router = Router();
 
@@ -83,6 +84,53 @@ router.post("/colonies/found", requireAuth, async (req: AuthRequest, res) => {
   } catch (err) {
     console.error("[Territories] foundColony error:", err);
     res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// ─── POST /api/territories/colonies/:colonyId/transfer ────────────────────────
+// Transfère l'ownership d'une colonie.
+// Payload : { targetOwnerType: 'player', targetPlayerId } | { targetOwnerType: 'faction', targetFactionId }
+// Règles : ownerType='faction' → admin uniquement. ownerType='player' → propriétaire ou admin.
+// Le serveur valide la cible et hydrate le nom — le client ne fournit aucun nom.
+router.post("/colonies/:colonyId/transfer", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const colonyId = parseInt(req.params.colonyId, 10);
+    if (isNaN(colonyId)) {
+      return res.status(400).json({ error: "colonyId invalide" });
+    }
+
+    const { targetOwnerType, targetPlayerId, targetFactionId } = req.body;
+
+    if (targetOwnerType !== "player" && targetOwnerType !== "faction") {
+      return res.status(400).json({ error: "targetOwnerType doit être 'player' ou 'faction'" });
+    }
+
+    if (targetOwnerType === "player" && !targetPlayerId) {
+      return res.status(400).json({ error: "targetPlayerId requis pour un transfert vers un joueur" });
+    }
+
+    if (targetOwnerType === "faction" && typeof targetFactionId !== "number") {
+      return res.status(400).json({ error: "targetFactionId (entier) requis pour un transfert vers une faction" });
+    }
+
+    const requestingPlayerId = req.user!.id;
+    const requesterRole      = req.user!.role;
+
+    const payload =
+      targetOwnerType === "player"
+        ? { targetOwnerType: "player" as const, targetPlayerId: String(targetPlayerId) }
+        : { targetOwnerType: "faction" as const, targetFactionId: Number(targetFactionId) };
+
+    const result = await transferColonyOwnership(colonyId, requestingPlayerId, requesterRole, payload);
+
+    if ("error" in result) {
+      return res.status(result.status).json({ error: result.error });
+    }
+
+    return res.status(200).json({ success: true, colonyId });
+  } catch (err) {
+    console.error("[Territories] transferColonyOwnership error:", err);
+    res.status(500).json({ error: "Erreur serveur lors du transfert" });
   }
 });
 

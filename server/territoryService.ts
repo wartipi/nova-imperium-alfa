@@ -199,16 +199,27 @@ export async function foundColony(
   const colonyCount = await db
     .select({ count: sql<number>`count(*)` })
     .from(colonies)
-    .where(eq(colonies.factionId, factionId));
+    .where(eq(colonies.ownerFactionId, factionId));
 
   const isCapital = Number(colonyCount[0].count) === 0;
 
   // 7 + 8. Transaction atomique : colonie + ville liée
   // Invariant : pas de colonie sans ville, pas de ville sans colonie.
+  // Phase 11 : ownership canonique initialisé en ownerType='faction' à la création.
   return await db.transaction(async (tx) => {
     const [insertedColony] = await tx
       .insert(colonies)
-      .values({ name: trimmedName, worldX, worldY, founderId: playerId, founderName: playerName, factionId, factionName, isCapital })
+      .values({
+        name: trimmedName, worldX, worldY,
+        founderId: playerId, founderName: playerName,
+        factionId, factionName,
+        isCapital,
+        ownerType:        "faction",
+        ownerFactionId:   factionId,
+        ownerFactionName: factionName,
+        ownerPlayerId:    null,
+        ownerPlayerName:  null,
+      })
       .returning();
 
     // Création atomique de la ville liée à la colonie

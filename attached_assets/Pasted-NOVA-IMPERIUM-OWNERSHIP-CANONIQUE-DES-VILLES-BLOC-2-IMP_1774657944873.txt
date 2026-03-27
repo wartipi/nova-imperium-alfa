@@ -1,0 +1,186 @@
+NOVA IMPERIUM — OWNERSHIP CANONIQUE DES VILLES — BLOC 2 IMPLÉMENTATION VALIDÉE
+Branche : `NI-10.3`
+
+Le BLOC 1 est validé.
+Tu peux maintenant implémenter.
+
+OBJECTIF
+Introduire une ownership canonique des villes/colonies compatible avec :
+
+* owner joueur
+* owner faction
+
+sans supprimer la logique faction existante, mais sans continuer à utiliser `founderId` ou `colonies.factionId` comme unique vérité d’ownership.
+
+DÉCISIONS VALIDÉES
+
+1. La source de vérité de l’ownership courant est `colonies`
+2. `founderId` / `founderName` restent historiques
+3. Ajouter sur `colonies` :
+
+* `ownerType` NOT NULL DEFAULT `'faction'`
+* `ownerPlayerId` nullable
+* `ownerPlayerName` nullable
+* `ownerFactionId` nullable
+* `ownerFactionName` nullable
+
+4. Backfill des colonies existantes :
+
+* `ownerType = 'faction'`
+* `ownerFactionId = factionId`
+* `ownerFactionName = factionName`
+* `ownerPlayerId = null`
+* `ownerPlayerName = null`
+
+5. Toute nouvelle colonie créée par `foundColony()` est initialisée en :
+
+* `ownerType = 'faction'`
+* `ownerFactionId = factionId`
+* `ownerFactionName = factionName`
+* `ownerPlayerId = null`
+* `ownerPlayerName = null`
+
+6. `canAccessColony(...)` et `canTransferColony(...)` sont séparées
+7. Pour cette phase :
+
+* `ownerType = 'player'` → transfert par le joueur propriétaire ou admin
+* `ownerType = 'faction'` → transfert admin-only
+
+8. `factionId` / `factionName` restent présents pour compatibilité / structure legacy,
+   mais les permissions refactorées et le futur marketplace doivent lire l’owner canonique, pas `factionId`
+
+GARDE-FOU OBLIGATOIRE À AJOUTER
+Le transfert doit avoir un payload explicite et validé.
+
+Je veux une route/service qui accepte clairement :
+
+* `targetOwnerType: 'player' | 'faction'`
+
+et selon le cas :
+
+* si `targetOwnerType = 'player'` :
+
+  * `targetPlayerId`
+* si `targetOwnerType = 'faction'` :
+
+  * `targetFactionId`
+
+Le serveur doit :
+
+* valider que la cible existe réellement
+* hydrater lui-même `ownerPlayerName` ou `ownerFactionName`
+* ne jamais faire confiance à un nom envoyé par le client
+
+FICHIERS À MODIFIER
+
+* `shared/schema.ts`
+* `server/ownershipService.ts` (nouveau)
+* `server/cityService.ts`
+* `server/territoryService.ts`
+* `server/economyService.ts`
+* `server/seeds/factionSeed.ts`
+* `server/routes/territories.ts`
+* `client/src/lib/api/citiesApi.ts`
+
+IMPLÉMENTATION ATTENDUE
+
+1. `shared/schema.ts`
+   Ajouter les 5 colonnes owner à `colonies` :
+
+* `ownerType` NOT NULL DEFAULT `'faction'`
+* `ownerPlayerId`
+* `ownerPlayerName`
+* `ownerFactionId`
+* `ownerFactionName`
+
+2. Bootstrap / backfill
+   Après ajout des colonnes :
+
+* backfill immédiat des colonies existantes depuis `factionId` / `factionName`
+* garantir ensuite que `ownerType` est bien non nul durablement
+
+3. `server/ownershipService.ts`
+   Créer :
+
+* `canAccessColony(playerId, colony)`
+* `canTransferColony(playerId, requesterRole, colony)`
+* `transferColonyOwnership(...)`
+
+`transferColonyOwnership(...)` doit :
+
+* accepter explicitement `targetOwnerType`
+* valider la cible
+* hydrater le nom cible depuis les tables canoniques
+* mettre à jour les champs owner de `colonies`
+* ne pas toucher à `founder*`
+
+4. `server/territoryService.ts`
+
+* `foundColony()` doit initialiser les nouveaux champs owner selon la règle validée
+* les checks de territoire dépendant encore de `factionId` doivent être ajustés selon le owner canonique si nécessaire
+
+5. `server/cityService.ts`
+   Refactorer les accès pour utiliser `canAccessColony(...)` à la place du gating direct sur `colonies.factionId` dans les chemins concernés :
+
+* `checkCityAccess()`
+* `getMyCities()`
+* `getCityByColony()`
+* et les points apparentés utiles à la cohérence de cette phase
+
+6. `server/economyService.ts`
+   Adapter `aggregateFactionIncome()` pour raisonner sur `ownerFactionId` au lieu de `factionId`
+
+7. `server/routes/territories.ts`
+   Ajouter la route de transfert, par exemple :
+
+* `POST /api/territories/colonies/:colonyId/transfer`
+
+avec :
+
+* auth
+* lecture du rôle depuis `req.user.role`
+* validation stricte du payload cible
+
+8. DTO client
+   Dans `client/src/lib/api/citiesApi.ts`, exposer :
+
+* `ownerType`
+* `ownerPlayerId`
+* `ownerPlayerName`
+* `ownerFactionId`
+* `ownerFactionName`
+* `founderName`
+
+CONTRAINTES
+
+* pas de refactor massif
+* pas de suppression des factions
+* pas de réutilisation de `founderId` comme owner courant
+* pas de gouvernance de faction inventée maintenant
+* pas de marketplace dans cette phase
+* modifications minimales, lisibles, stables
+
+SORTIE ATTENDUE APRÈS IMPLÉMENTATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+2. RÉSUMÉ DES CHANGEMENTS PAR FICHIER
+3. POINTS DE VÉRIFICATION
+
+* backfill OK
+* nouvelles colonies créées en `ownerType='faction'`
+* accès ville OK
+* transfert admin d’une colonie faction OK
+* transfert non-admin d’une colonie faction = 403
+* transfert vers joueur OK
+* transfert vers faction OK
+* DTO owner complet OK
+
+4. BUGS OU LIMITES RÉELLES
+
+* seulement si réel
+
+IMPORTANT FINAL
+Tu implémentes maintenant.
+Tu ne réouvres pas le design.
+Tu appliques exactement le plan validé, avec payload de transfert explicite et validation cible côté serveur.

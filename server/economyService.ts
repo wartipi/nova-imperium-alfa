@@ -99,8 +99,8 @@ export async function creditFactionGold(
 }
 
 // ─── aggregateFactionIncome ───────────────────────────────────────────────────
-// Somme food_per_turn + gold_per_turn sur toutes les villes de la faction.
-// Jointure directe DB : cities → colonies (factionId).
+// Phase 11 : somme food_per_turn + gold_per_turn sur toutes les villes
+// dont l'ownerFactionId correspond à la faction (ownership canonique).
 // Ne passe pas par CityDTO ni par le client.
 export async function aggregateFactionIncome(factionId: number): Promise<FactionIncomeDTO> {
   const rows = await db
@@ -110,7 +110,7 @@ export async function aggregateFactionIncome(factionId: number): Promise<Faction
     })
     .from(cities)
     .innerJoin(colonies, eq(cities.colonyId, colonies.id))
-    .where(eq(colonies.factionId, factionId));
+    .where(eq(colonies.ownerFactionId, factionId));
 
   const row = rows[0];
   return {
