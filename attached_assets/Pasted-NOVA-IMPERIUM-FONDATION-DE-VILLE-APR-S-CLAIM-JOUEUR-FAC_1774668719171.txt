@@ -1,0 +1,108 @@
+NOVA IMPERIUM — FONDATION DE VILLE APRÈS CLAIM JOUEUR/FACTION — BLOC 2 CIBLÉ
+Branche : `NI-10.3`
+
+Le blocant principal est confirmé :
+
+* `foundColony()` est encore hard-gaté par “joueur membre d’une faction active”
+* puis crée toujours une colonie `ownerType='faction'`
+
+Conséquence :
+
+* joueur solo → claim personnel OK
+* fondation → 403
+* flux mort
+
+IMPORTANT
+Je ne veux PAS rouvrir `server/cityService.ts` dans cette phase.
+La branche publique montre déjà que `getMyCities()` couvre :
+
+* `ownerFactionId = factionId`
+* ou `ownerPlayerId = playerId`
+
+Donc le vrai correctif à faire est uniquement dans `server/territoryService.ts`.
+
+OBJECTIF
+Rendre `foundColony()` cohérent avec l’ownership canonique des territoires.
+
+RÈGLES VALIDÉES
+
+1. On supprime le hard gate :
+
+* “Vous devez appartenir à une faction”
+
+2. On résout la faction du joueur de façon optionnelle :
+
+* si le joueur a une faction active → faction disponible
+* sinon → pas de faction
+
+3. On regarde s’il existe un territoire sur la case `(worldX, worldY)`
+
+4. Si un territoire existe sur la case :
+
+* la fondation est autorisée seulement si le joueur a accès à ce territoire
+* et la colonie hérite de l’owner canonique du territoire :
+
+  * si territoire `ownerType='player'` → colonie `ownerType='player'`
+  * si territoire `ownerType='faction'` → colonie `ownerType='faction'`
+
+5. Si aucun territoire n’existe sur la case :
+
+* joueur avec faction active → colonie `ownerType='faction'`
+* joueur sans faction → colonie `ownerType='player'`
+
+6. Le reste des validations reste inchangé :
+
+* nom obligatoire
+* case existante et walkable
+* pas de colonie déjà sur la case
+* aucune autre colonie à distance `<= 6`
+
+7. Je ne veux pas rouvrir d’autre fichier dans cette phase, sauf si un helper minimal est strictement nécessaire.
+   Le but est un correctif ciblé.
+
+POINT CRITIQUE
+Si un territoire existe sur la case mais appartient à quelqu’un d’autre, la fondation doit être refusée.
+
+Règle minimale d’accès attendue :
+
+* territoire `ownerType='player'` → accès si `ownerPlayerId === playerId`
+* territoire `ownerType='faction'` → accès si joueur membre de `ownerFactionId`
+
+Je ne veux pas qu’on puisse fonder une ville sur un territoire revendiqué par un autre owner.
+
+FORMAT DE TA RÉPONSE
+Je veux exactement :
+
+1. AUDIT COURT
+
+* blocant confirmé
+* logique actuelle
+* logique cible minimale
+
+2. PROPOSITION MINIMALE
+
+* règles d’ownership de la colonie
+* comportement si territoire présent
+* comportement si territoire absent
+* validation d’accès minimale
+
+3. FICHIERS EXACTS À MODIFIER
+
+* en principe `server/territoryService.ts` uniquement
+* et justifier si autre fichier strictement nécessaire
+
+4. PLAN D’IMPLÉMENTATION MINIMAL
+
+* étapes courtes
+* sans code
+
+5. STOP VALIDATION
+   Tu t’arrêtes ici.
+   Tu n’implémentes rien avant mon accord.
+
+IMPORTANT FINAL
+Je veux corriger le flux joueur réel :
+
+* claim joueur/faction
+* puis fondation cohérente avec cet ownership
+  sans rouvrir inutilement d’autres services qui sont déjà corrects publiquement.
