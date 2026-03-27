@@ -200,6 +200,15 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
         </h3>
       </div>
 
+      {/* Aide fondation */}
+      {!isAdmin && (
+        <div className="parchment-section p-3 mb-4 border-l-4 border-amber-600 bg-amber-50">
+          <p className="medieval-text text-xs text-amber-900">
+            <span className="font-semibold">Pour fonder une colonie :</span> revendiquez d'abord un territoire (bouton ci-dessous), puis déplacez votre avatar dessus — le bouton de fondation apparaîtra dans la liste.
+          </p>
+        </div>
+      )}
+
       {/* Section de revendication */}
       <div className="parchment-section p-4 mb-6">
         <h4 className="medieval-subtitle mb-3">🗺️ Revendiquer un Territoire</h4>

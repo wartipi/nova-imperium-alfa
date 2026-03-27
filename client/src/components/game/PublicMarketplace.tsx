@@ -89,7 +89,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
   const [playerInventory, setPlayerInventory] = useState<UniqueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [inventoryLoading, setInventoryLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'buy' | 'sell' | 'marche_ressources'>('buy');
+  const [activeTab, setActiveTab] = useState<'buy' | 'sell' | 'marche_ressources'>('marche_ressources');
 
   // ─── État Marché des Ressources ─────────────────────────────────────────────
   interface CityOption { cityId: number; name: string; hasGuild: boolean }
