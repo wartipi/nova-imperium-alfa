@@ -1,0 +1,114 @@
+NOVA IMPERIUM — PHASE 10.1 — RÉCONCILIATION CODE RÉEL / RAPPORT
+Branche : `NI-10.3`
+
+Ton dernier rapport n’est pas validé, non pas à cause du design, mais parce qu’il ne correspond pas à l’état public visible de la branche.
+
+Le dépôt public montre des ajouts partiels, mais pas le branchement complet que tu affirmes avoir terminé.
+
+CONSTATS SUR LA BRANCHE PUBLIQUE
+
+1. `server/routes/units.ts` existe bien et construit un DTO unités.
+2. `client/src/lib/api/unitsApi.ts` existe bien avec `apiGetMyUnits()`.
+3. `server/unitCatalog.ts` existe bien.
+
+Mais plusieurs fondations critiques annoncées dans ton rapport ne sont pas visibles sur `NI-10.3` :
+
+* `shared/schema.ts` ne montre pas `queuedByPlayerId`, ni `units`, ni `UnitRecord`
+* `server/cityService.ts` montre encore la vieille branche unité :
+  `clearProduction(city.id)` + `completedUnits.push({ cityId })`
+* `server/routes.ts` ne monte pas `/api/units`
+* `server/index.ts` ne montre pas `ensureUnitsTable()`
+* `client/src/lib/game/types.ts` est encore à 7 types
+* `useNovaImperium.tsx` ne montre pas `hydrateUnitsFromServer()`
+* `MedievalHUD.tsx` ne montre ni `hydrateUnitsFromServer` ni `unitToasts`
+
+OBJECTIF
+Je veux que tu réconcilies le code réel avec ton rapport.
+
+RÈGLES
+
+* Ne me renvoie pas un nouveau résumé théorique.
+* Ne me renvoie pas un “grep local” non vérifiable.
+* Soit tu pousses réellement les changements manquants sur la branche `NI-10.3`,
+* soit tu me donnes un diff exact et complet fichier par fichier.
+
+FICHIERS À CORRIGER OU CONFIRMER PUBLIQUEMENT
+
+* `shared/schema.ts`
+* `server/cityService.ts`
+* `server/routes.ts`
+* `server/index.ts`
+* `server/routes/cities.ts`
+* `client/src/lib/game/types.ts`
+* `client/src/lib/stores/useNovaImperium.tsx`
+* `client/src/components/game/MedievalHUD.tsx`
+
+ATTENDU TECHNIQUE
+
+1. `shared/schema.ts`
+
+* ajouter réellement `queuedByPlayerId` à `cityProduction`
+* ajouter réellement la table `units`
+* exporter les types associés
+
+2. `server/cityService.ts`
+
+* ajouter réellement `ensureUnitsTable()`
+* adapter réellement `setProduction(..., queuedByPlayerId?)`
+* ajouter réellement `createProducedUnit()`
+* réécrire réellement la branche unité de `tickCityProduction()` :
+
+  * owner = `queuedByPlayerId ?? playerId`
+  * fallback legacy loggé
+  * création persistée
+  * `clearProduction()` après succès
+  * `completedUnits` enrichi
+
+3. `server/routes.ts`
+
+* importer `unitsRoutes`
+* monter `app.use('/api/units', unitsRoutes)`
+
+4. `server/index.ts`
+
+* appeler `ensureUnitsTable()` si tu conserves le bootstrap idempotent
+
+5. `client/src/lib/game/types.ts`
+
+* élargir réellement `UnitType` aux 15 unités
+
+6. `useNovaImperium.tsx`
+
+* ajouter réellement `hydrateUnitsFromServer()`
+
+7. `MedievalHUD.tsx`
+
+* appeler réellement `hydrateUnitsFromServer()` après `apiProductionTick()`
+* ajouter réellement les `unitToasts`
+
+FORMAT DE TA RÉPONSE
+Je veux exactement :
+
+1. ÉTAT DE BRANCHE
+
+* soit “les changements sont maintenant poussés sur `NI-10.3`”
+* soit “les changements ne sont pas poussés, voici le diff exact”
+
+2. DIFF EXACT PAR FICHIER
+
+* uniquement les fichiers réellement touchés
+* résumé concret, pas narratif
+
+3. POINTS DE VÉRIFICATION
+
+* ce qui est maintenant visible dans le dépôt
+* pas ce qui existe seulement en local
+
+4. CE QUI RESTE HORS PÉRIMÈTRE
+
+* liste courte
+
+IMPORTANT FINAL
+Le critère de validation est désormais simple :
+le code visible dans `NI-10.3` doit correspondre au rapport.
+Tant que cet alignement n’existe pas, je ne valide pas la phase 10.1.
