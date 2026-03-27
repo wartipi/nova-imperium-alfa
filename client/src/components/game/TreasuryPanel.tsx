@@ -278,6 +278,13 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
+  // Resynchronisation globale — écoute l'événement logistique déclenché par n'importe quel panneau
+  useEffect(() => {
+    const handler = () => { loadAll(); };
+    window.addEventListener('nova:logistic-refresh', handler);
+    return () => window.removeEventListener('nova:logistic-refresh', handler);
+  }, [loadAll]);
+
   // ─── Collecte physique ────────────────────────────────────────────────────
 
   const handleCollect = async (cityId: number) => {
@@ -293,6 +300,7 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
         getCityHarvest(cityId)
           .then(data => setHarvests(prev => ({ ...prev, [cityId]: { ...prev[cityId], data } })))
           .catch(() => {});
+        window.dispatchEvent(new CustomEvent('nova:logistic-refresh'));
       }, adminModeEnabled ? 800 : 2000);
     } catch (err: any) {
       const msg = err.message?.startsWith("ACTION_ALREADY_ACTIVE")
@@ -336,7 +344,10 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
       setToCity(prev => ({ ...prev, loading: false, message: msg,
         gold: "", food: "", wood: "", stone: "", iron: "",
         copper: "", coal: "", oil: "", herbs: "", fur: "" }));
-      setTimeout(() => getPlayerBank().then(b => setBank(b)).catch(() => {}), 300);
+      setTimeout(() => {
+        getPlayerBank().then(b => setBank(b)).catch(() => {});
+        window.dispatchEvent(new CustomEvent('nova:logistic-refresh'));
+      }, 300);
     } catch (err: any) {
       const raw = err.message ?? "Erreur transfert";
       let msg = `❌ ${raw}`;
@@ -387,6 +398,7 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
       setTimeout(() => {
         getPlayerBank().then(b => setBank(b)).catch(() => {});
         getPlayerTransport().then(t => setTransport(t)).catch(() => {});
+        window.dispatchEvent(new CustomEvent('nova:logistic-refresh'));
       }, 300);
     } catch (err: any) {
       const raw = err.message ?? "Erreur transfert";

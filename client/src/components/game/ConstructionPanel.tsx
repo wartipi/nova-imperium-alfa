@@ -86,6 +86,17 @@ export function ConstructionPanel() {
     }
   }, [currentNovaImperium?.cities, refreshInventories, refreshExploitationContexts]);
 
+  // Resynchronisation globale — recharge inventaires et contextes après tout événement logistique
+  useEffect(() => {
+    const handler = () => {
+      if (!currentNovaImperium?.cities?.length) return;
+      refreshInventories(currentNovaImperium.cities).catch(() => {});
+      refreshExploitationContexts(currentNovaImperium.cities).catch(() => {});
+    };
+    window.addEventListener('nova:logistic-refresh', handler);
+    return () => window.removeEventListener('nova:logistic-refresh', handler);
+  }, [currentNovaImperium?.cities, refreshInventories, refreshExploitationContexts]);
+
   if (!currentNovaImperium) return null;
 
   // Obtenir les colonies du joueur avec leurs territoires contrôlés depuis UnifiedTerritorySystem
@@ -776,6 +787,7 @@ export function ConstructionPanel() {
         buildInCity(cityId, buildingId, {}, building.constructionTime, true);
         console.log(`[Admin] Construction instantanée de ${buildingId} (serveur validé)`);
         setBuildMessages(prev => ({ ...prev, [cityId]: { type: 'ok', text: `✅ ${building.name} construit` } }));
+        setTimeout(() => window.dispatchEvent(new CustomEvent('nova:logistic-refresh')), 300);
       } else {
         // Joueur — mis en file : déduire PA et mettre à jour production locale
         const success = spendActionPoints(actionCost);
@@ -783,8 +795,11 @@ export function ConstructionPanel() {
           buildInCity(cityId, buildingId, {}, building.constructionTime, false);
           console.log(`Construction de ${buildingId} lancée pour ${building.constructionTime} tours (matériaux déduits du stock ville)`);
           setBuildMessages(prev => ({ ...prev, [cityId]: { type: 'ok', text: `⏳ ${building.name} en construction (${building.constructionTime} tours)` } }));
-          // Rafraîchir l'inventaire
-          setTimeout(() => refreshInventories(currentNovaImperium.cities).catch(() => {}), 500);
+          // Rafraîchir l'inventaire et notifier les autres panneaux
+          setTimeout(() => {
+            refreshInventories(currentNovaImperium.cities).catch(() => {});
+            window.dispatchEvent(new CustomEvent('nova:logistic-refresh'));
+          }, 500);
         }
       }
     } catch (err: any) {

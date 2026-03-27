@@ -119,6 +119,7 @@ export function MedievalHUD() {
           console.log("[handleEndTurn] Production tick:", prodResult);
           if (prodResult.applied && prodResult.cities.length > 0) {
             setLastTurnResult(prodResult);
+            window.dispatchEvent(new CustomEvent('nova:logistic-refresh'));
           }
         } catch (prodErr) {
           console.warn("[handleEndTurn] Production tick échoué (non bloquant):", prodErr);

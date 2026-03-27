@@ -1,0 +1,151 @@
+NOVA IMPERIUM — PHASE SUIVANTE
+AUTO-SYNCHRONISATION UI APRÈS TICK / COLLECTE / TRANSFERT / CONSTRUCTION
+
+Branche :
+NI-10.3
+
+Contexte technique :
+Jeu persistant Node/TS + React/TS + PostgreSQL
+Architecture serveur autoritaire
+Méthode obligatoire :
+Audit court → proposition minimale → implémentation ciblée → vérification
+Aucun refactor massif
+
+CONTEXTE VALIDÉ
+
+Le prototype dispose déjà de :
+
+- production Tier 1 par tour
+- résumé visuel du tick dans MedievalHUD
+- affichage production/tour dans TreasuryPanel
+- collecte physique
+- transferts banque → ville / joueur
+- construction serveur
+- contexte d’exploitation serveur affiché dans ConstructionPanel
+
+PROBLÈME RESTANT
+
+Le prototype n’est pas encore totalement fluide pour le test,
+car les panneaux ne se resynchronisent pas automatiquement après les actions importantes.
+
+Aujourd’hui :
+- TreasuryPanel recharge surtout au montage ou via bouton manuel
+- ConstructionPanel recharge certains états au montage, mais pas comme système global cohérent
+- MedievalHUD affiche le résumé du tick, mais ne déclenche pas une remise à jour coordonnée des panneaux
+- le testeur peut voir des données périmées après :
+  - fin de tour
+  - collecte
+  - transfert
+  - construction
+
+OBJECTIF DE LA PHASE
+
+Je veux que l’UI se resynchronise automatiquement après les événements clés,
+afin que le prototype soit vraiment testable sans friction.
+
+Je veux que, sans action manuelle superflue, les vues concernées se mettent à jour après :
+- end turn / production tick
+- collecte physique
+- transfert banque → ville
+- transfert banque → joueur
+- lancement de construction
+- complétion immédiate admin si applicable
+
+POINT 1 — AUDIT COURT
+Je veux identifier précisément :
+1. où TreasuryPanel recharge aujourd’hui ses données
+2. où ConstructionPanel recharge ses inventaires et contextes
+3. quels événements mettent à jour uniquement l’état local sans invalidation globale
+4. quel mécanisme minimal est le plus propre :
+   - event window
+   - refresh token Zustand
+   - callback parent
+   - autre solution simple
+
+IMPORTANT :
+Je veux la solution la plus simple et stable,
+pas une architecture événementielle complexe.
+
+POINT 2 — CHOIX TECHNIQUE MINIMAL
+Je veux un mécanisme léger de “refresh global logistique” ou équivalent.
+
+Objectif :
+- quand une action modifie l’économie/logistique,
+- les panneaux concernés savent qu’ils doivent relire le serveur.
+
+Exemples de sources :
+- postProductionTick
+- postCollectHarvest
+- postTransferBankToCity
+- postTransferBankToPlayer
+- apiStartConstruction
+- éventuellement complétion d’actions si visible côté client
+
+POINT 3 — TREASURYPANEL
+Je veux que TreasuryPanel se mette à jour automatiquement quand un événement logistique pertinent survient.
+
+Au minimum :
+- banque
+- transport
+- villes
+- harvest/pending/inventory
+
+POINT 4 — CONSTRUCTIONPANEL
+Je veux que ConstructionPanel se mette à jour automatiquement quand un événement logistique pertinent survient.
+
+Au minimum :
+- city_inventory
+- exploitation-context si utile
+- messages de construction inchangés si possible
+
+POINT 5 — MEDIEVALHUD
+Je veux que la fin de tour :
+- garde le résumé visuel déjà présent
+- mais déclenche aussi le refresh des panneaux dépendants
+
+IMPORTANT :
+Je ne veux pas casser la popup résumé existante.
+Je veux la compléter par un vrai rafraîchissement cohérent.
+
+POINT 6 — UX DE TEST ATTENDUE
+Je veux que ce scénario devienne fluide :
+
+1. je construis une exploitation
+2. je finis le tour
+3. je vois le résumé
+4. j’ouvre Trésorerie ou Construction
+5. les données sont déjà à jour
+6. je collecte / transfère
+7. les stocks se mettent à jour sans bricolage manuel
+8. je peux enchaîner directement
+
+FORMAT DE RETOUR ATTENDU
+
+Je veux un rapport final structuré exactement en 7 parties :
+
+1. Audit ultra-court du point de départ
+2. Choix minimal retenu
+3. Fichiers modifiés
+4. Résumé exact du patch
+5. Flux avant / après
+6. Points volontairement non traités
+7. Résultat de validation
+
+INTERDIT
+
+- refactor massif
+- bus d’événements complexe
+- nouvelle architecture globale
+- duplication de logique serveur
+- complexité inutile
+
+PRIORITÉ ABSOLUE
+
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+BUT FINAL
+
+Faire en sorte que le prototype soit vraiment fluide à tester :
+- les actions changent le monde
+- l’interface se met à jour toute seule
+- le joueur n’a plus besoin de forcer manuellement les rafraîchissements.
