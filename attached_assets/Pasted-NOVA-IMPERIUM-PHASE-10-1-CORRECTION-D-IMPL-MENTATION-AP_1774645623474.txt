@@ -1,0 +1,127 @@
+NOVA IMPERIUM — PHASE 10.1 — CORRECTION D’IMPLÉMENTATION APRÈS AUDIT
+Branche : `NI-10.3`
+
+Le rapport d’implémentation n’est pas validé.
+
+Le dépôt public visible montre quelques ajouts partiels (`server/unitCatalog.ts`, `server/routes/units.ts`, `client/src/lib/api/unitsApi.ts`), mais les branchements structurels critiques ne sont pas en place.
+
+Tu dois corriger cela maintenant.
+
+OBJECTIF
+Fermer réellement le pipeline serveur-authoritative des unités dans le code visible de la branche :
+
+file canonique → tick serveur → unité persistée → route montée → hydratation client → toast unité
+
+PROBLÈMES CONSTATÉS
+
+1. `server/cityService.ts` est encore en ancien état
+   Le code visible montre encore :
+
+* `setProduction(cityId, { type, name, cost, progress })`
+* branche unité de `tickCityProduction()` qui fait seulement :
+
+  * `clearProduction(city.id)`
+  * `completedUnits.push({ cityId })`
+
+Donc :
+
+* pas de `queuedByPlayerId`
+* pas de `createProducedUnit()`
+* pas de persistance d’unité
+* pas de payload enrichi côté unités
+
+Tu dois corriger cela.
+
+2. `shared/schema.ts` n’est pas aligné
+   Le schéma visible montre encore :
+
+* `city_production` sans `queuedByPlayerId`
+* pas de table `units` visible/exportée
+
+Alors que `server/routes/units.ts` importe `units` depuis `../../shared/schema`.
+
+Tu dois rendre le schéma réellement cohérent.
+
+3. `server/routes.ts` ne monte pas `/api/units`
+   La route `server/routes/units.ts` existe, mais elle n’est pas branchée dans `server/routes.ts`.
+
+Tu dois :
+
+* importer `unitsRoutes`
+* ajouter `app.use('/api/units', unitsRoutes)`
+
+4. Client non raccordé
+   Le code visible montre encore :
+
+* `UnitType` limité à 7 valeurs
+* pas de `hydrateUnitsFromServer()` dans le store
+* `MedievalHUD.tsx` hydrate encore seulement les villes après `apiProductionTick()`
+* pas de toast unité visible
+
+Tu dois raccorder le client jusqu’au bout.
+
+IMPLÉMENTATION ATTENDUE
+
+A. `shared/schema.ts`
+Ajouter réellement :
+
+* colonne `queuedByPlayerId` dans `cityProduction`
+* table `units`
+* types exportés associés
+
+B. `server/cityService.ts`
+Modifier réellement :
+
+* `setProduction(...)` pour accepter `queuedByPlayerId`
+* ajouter `createProducedUnit(...)`
+* dans `tickCityProduction(playerId)` :
+
+  * résoudre le propriétaire via `queuedByPlayerId ?? playerId`
+  * logguer le fallback legacy
+  * créer l’unité persistée
+  * vider la file seulement après succès
+  * retourner `completedUnits` enrichi avec au minimum :
+
+    * `cityId`
+    * `cityName`
+    * `unitId`
+    * `unitType`
+    * `unitName`
+
+C. `server/index.ts`
+Appeler `ensureUnitsTable()` si tu gardes la stratégie bootstrap SQL.
+
+D. `server/routes/cities.ts`
+Propager `req.user!.id` vers `setProduction(...)` sur les vrais callsites.
+
+E. `server/routes.ts`
+Monter réellement `unitsRoutes`.
+
+F. `client/src/lib/game/types.ts`
+Étendre réellement `UnitType` aux 15 unités.
+
+G. `client/src/lib/stores/useNovaImperium.tsx`
+Ajouter réellement `hydrateUnitsFromServer()`.
+
+H. `client/src/components/game/MedievalHUD.tsx`
+Après `apiProductionTick()` :
+
+* hydrater les villes
+* hydrater les unités
+* afficher un toast pour chaque unité complétée
+
+IMPORTANT
+Je ne veux pas un nouveau rapport théorique.
+Je veux que le code visible de la branche soit cohérent d’un bout à l’autre.
+
+SORTIE ATTENDUE
+Quand tu réponds après implémentation, donne exactement :
+
+1. FICHIERS MODIFIÉS
+2. DIFF STRUCTUREL PAR FICHIER
+3. POINTS DE VÉRIFICATION RÉELS
+4. CE QUI RESTE HORS PÉRIMÈTRE
+
+IMPORTANT FINAL
+Ne déclare pas “compilation OK” si le dépôt visible reste incohérent.
+Le critère de validation est la cohérence réelle du code branché, pas le rapport.
