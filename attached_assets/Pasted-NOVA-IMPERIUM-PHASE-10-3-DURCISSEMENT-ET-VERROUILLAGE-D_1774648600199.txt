@@ -1,0 +1,159 @@
+NOVA IMPERIUM — PHASE 10.3 — DURCISSEMENT ET VERROUILLAGE DU PROTOTYPE TIER 1
+Branche : `NI-10.3`
+
+CONTEXTE
+La phase 10.2 est considérée comme validée :
+
+* boucle complète Tier 1 fonctionnelle
+* exploitation validée
+* logistique validée
+* construction bâtiment validée
+* production unité validée
+* non-régression croisée validée
+* un seul bug bloquant trouvé puis corrigé : le DTO client `completedUnits`
+* `lastProductionTurn=9999` identifié comme donnée de test résiduelle, pas comme bug de code
+
+OBJECTIF DE 10.3
+Je ne veux pas ouvrir une nouvelle grosse feature.
+
+Je veux maintenant :
+
+* durcir les contrats,
+* nettoyer les points legacy trompeurs,
+* normaliser l’état de test,
+* polir légèrement l’UI,
+* verrouiller proprement le prototype Tier 1.
+
+PRIORITÉ
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+INTERDIT
+
+* nouveau système gameplay majeur
+* refonte d’architecture
+* abstraction générique
+* combat
+* armées avancées
+* déplacement d’unités avancé
+* tiers 2/3/4
+* équilibrage massif
+* nettoyage opportuniste hors sujet
+
+PÉRIMÈTRE DE TRAVAIL
+
+1. CONTRATS API / TYPES
+   Auditer les DTO client/serveur réellement utilisés dans la boucle Tier 1 :
+
+* production tick
+* unités
+* villes
+* économie
+* logistique
+
+But :
+
+* vérifier qu’aucun type client n’est en retard sur un payload serveur réel
+* corriger uniquement les contrats réellement incohérents
+* éviter toute divergence future silencieuse
+
+2. LEGACY CLIENT TROMPEUR
+   Auditer les composants et stores qui :
+
+* écrivent localement un état optimiste
+* puis sont corrigés plus tard par hydratation serveur
+
+But :
+
+* identifier les cas où cela peut mentir visiblement au joueur
+* ne corriger que les cas réellement problématiques
+* conserver la fluidité si l’optimisme local est inoffensif
+
+3. DONNÉES DE TEST / ÉTAT INITIAL
+   Auditer :
+
+* les seeds
+* les valeurs résiduelles de test
+* les états initiaux non neutres
+* les préconditions nécessaires à un test propre du Tier 1
+
+But :
+
+* éviter des valeurs parasites comme `lastProductionTurn=9999`
+* rendre les tests plus déterministes
+* ne pas transformer ceci en gros système de tests automatisés si le projet n’en a pas déjà un
+
+4. POLISH UI MINIMAL
+   Auditer :
+
+* cohérence des toasts
+* cohérence des rafraîchissements
+* messages d’erreur
+* lisibilité des états de blocage / complétion
+
+But :
+
+* améliorer ce qui est trompeur ou flou
+* ne pas refaire l’interface
+
+5. VERROUILLAGE FINAL TIER 1
+   À la fin, je veux une liste claire :
+
+* ce qui est désormais stable et canonique
+* ce qui reste explicitement hors périmètre
+
+MÉTHODE
+Tu travailles en 2 blocs stricts.
+
+BLOC 1 — AUDIT
+Tu fais un audit court mais réel de :
+
+* contrats API/types
+* legacy client trompeur
+* données de test résiduelles
+* polish UI minimal
+
+Puis tu me rends :
+
+1. verdict
+2. risques réels
+3. corrections minimales proposées
+4. fichiers exacts à modifier
+
+Tu t’arrêtes là.
+Tu n’implémentes rien sans validation.
+
+BLOC 2 — IMPLÉMENTATION CIBLÉE
+Seulement après validation :
+
+* appliquer les corrections minimales retenues
+* aucune dérive de périmètre
+* aucun refactor massif
+
+FORMAT DE TA RÉPONSE
+Je veux exactement :
+
+1. AUDIT 10.3
+
+* contrats API
+* legacy client
+* données de test
+* UI/polish
+
+2. RISQUES RÉELS
+
+* uniquement ceux confirmés par le code
+
+3. CORRECTIONS MINIMALES PROPOSÉES
+
+* pas de wishlist
+* seulement ce qui renforce la solidité du prototype
+
+4. FICHIERS EXACTS À MODIFIER
+
+5. STOP VALIDATION
+   Tu t’arrêtes ici.
+   Tu attends mon accord avant de coder.
+
+IMPORTANT FINAL
+10.3 n’est pas une phase de contenu.
+10.3 est une phase de durcissement et de verrouillage du prototype Tier 1.

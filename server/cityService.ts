@@ -29,6 +29,8 @@ export interface CityDTO {
   // Phase 8 : valeurs économiques calculées serveur (base + bonus bâtiments)
   foodPerTurn:       number;
   productionPerTurn: number;
+  // Phase 9 : gold par tour — calculé via recalculateCityEconomy, stocké en DB
+  goldPerTurn:       number;
 }
 
 // ─── BUILDING_YIELDS ──────────────────────────────────────────────────────────
@@ -111,6 +113,8 @@ function mapCity(
     // Phase 8 : valeurs économiques depuis la DB (calculées par recalculateCityEconomy)
     foodPerTurn:       city.foodPerTurn,
     productionPerTurn: city.productionPerTurn,
+    // Phase 9 : gold par tour (palace/market/courthouse)
+    goldPerTurn:       city.goldPerTurn ?? 0,
   };
 }
 

@@ -30,6 +30,8 @@ export interface CityDTO {
   // Phase 8 : économie calculée serveur (base + bonus bâtiments)
   foodPerTurn:       number;
   productionPerTurn: number;
+  // Phase 9 : gold par tour (palace/market/courthouse)
+  goldPerTurn:       number;
 }
 
 // ─── Lecture ──────────────────────────────────────────────────────────────────
@@ -73,7 +75,10 @@ export interface StartConstructionResult {
   ok:       boolean;
   mode:     'instant' | 'queued';
   building: string;
-  deducted?: { gold: number; food: number; wood: number; stone: number; iron: number };
+  deducted?: {
+    gold: number; food: number; wood: number; stone: number; iron: number;
+    copper: number; coal: number; oil: number; herbs: number; fur: number;
+  };
 }
 
 export async function apiStartConstruction(

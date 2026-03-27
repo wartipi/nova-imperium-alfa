@@ -35,6 +35,11 @@ export async function fetchMyEconomy(): Promise<EconomyDTO> {
   return res.json();
 }
 
+/**
+ * @deprecated NON UTILISÉ — tick économie faction (gold/food via /api/economy/tick).
+ * Le tick actif est postProductionTick → /api/economy/production-tick.
+ * Conserver pour ne pas casser les imports potentiels, mais NE PAS appeler.
+ */
 export async function postEconomyTick(currentTurn: number): Promise<TickResponseDTO> {
   const res = await fetch("/api/economy/tick", {
     method: "POST",
