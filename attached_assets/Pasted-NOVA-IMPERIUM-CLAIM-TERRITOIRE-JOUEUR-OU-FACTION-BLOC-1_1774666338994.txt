@@ -1,0 +1,91 @@
+NOVA IMPERIUM — CLAIM TERRITOIRE JOUEUR OU FACTION — BLOC 1 FINAL CORRIGÉ
+Branche : `NI-10.3`
+
+Ton audit va dans la bonne direction, mais je ne valide pas encore l’implémentation.
+
+Je valide :
+
+* ownership canonique polymorphe sur `territories`
+* `ownerType = 'player' | 'faction'`
+* `ownerPlayerId / ownerPlayerName`
+* `ownerFactionId / ownerFactionName`
+* backfill des territoires existants vers `ownerType='faction'`
+* conservation de `playerId / playerName` comme historique du joueur qui a posé le claim
+* absence de modification de `foundColony()` dans cette phase
+
+Mais je veux 4 corrections avant tout code.
+
+1. INCLURE LA FAÇADE / SOURCE UI ACTIVE DES TERRITOIRES
+   Le panneau actif `UnifiedTerritoryPanel` ne fait pas que poster le claim.
+   Il recharge aussi la liste via une façade locale du type :
+
+* `UnifiedTerritorySystem.getPlayerTerritories('player')`
+
+Je veux que ton plan couvre explicitement cette couche si elle reste utilisée par l’UI active.
+
+Sinon on risque :
+
+* API correcte
+* mais panneau incohérent après claim
+
+Décision attendue :
+
+* identifier précisément le fichier / système local qui alimente la liste des territoires
+* l’inclure dans les fichiers à modifier si nécessaire
+
+2. STATUT DE `factionId / factionName`
+   Je ne veux pas que `factionId / factionName` soient présentés comme “historique du claim”.
+
+Décision attendue :
+
+* `playerId / playerName` = historique du joueur qui a posé le claim
+* `ownerType + ownerPlayer* / ownerFaction*` = ownership canonique
+* `factionId / factionName` = legacy / compatibilité seulement
+
+Je veux que ce soit écrit explicitement.
+
+3. RÈGLE UI DE CHOIX MINIMALE
+   Je veux verrouiller le comportement suivant :
+
+* joueur sans faction → aucun choix, claim direct pour `player`
+* joueur avec faction → mini-choix explicite :
+
+  * pour moi
+  * pour ma faction
+
+Je ne veux pas d’un système parallèle.
+Je veux que ce choix soit branché dans l’UI active existante.
+
+4. PERMISSIONS FUTURES
+   Je veux que ton plan l’écrive explicitement :
+   à partir de cette phase, les nouveaux checks de territoire doivent se baser sur l’owner canonique (`ownerType`, `ownerPlayer*`, `ownerFaction*`), pas sur `factionId`.
+
+FORMAT DE TA RÉPONSE
+Je veux exactement :
+
+1. BLOC 1 FINAL CORRIGÉ
+
+* ownership canonique final
+* statut exact de `playerId/playerName`
+* statut exact de `factionId/factionName`
+* impact sur la façade/UI active
+* règle UI de choix player/faction
+* règle de permission future
+
+2. FICHIERS EXACTS À MODIFIER
+   Liste précise, incluant la façade / source UI si nécessaire
+
+3. PLAN D’IMPLÉMENTATION FINAL
+   Étapes courtes, ordonnées, sans code
+
+4. STOP VALIDATION
+   Tu t’arrêtes ici.
+   Tu n’implémentes rien avant mon accord.
+
+IMPORTANT FINAL
+Je veux un claim de territoire qui puisse appartenir :
+
+* à un joueur
+* ou à une faction
+
+sans ambiguïté sur le propriétaire réel, sans casser l’UI active, et sans simplement ajouter un choix visuel sur un modèle encore incohérent.
