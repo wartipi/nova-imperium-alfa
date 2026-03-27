@@ -1,0 +1,133 @@
+NOVA IMPERIUM — FONDATION OWNERSHIP DES VILLES : JOUEUR OU FACTION
+Branche : `NI-10.3`
+
+Changement de cadrage important :
+
+Une ville peut appartenir :
+
+* soit à un joueur
+* soit à une faction
+
+La faction est une entité économique réelle.
+Je ne veux donc PAS supprimer la logique faction.
+Je ne veux pas non plus continuer à utiliser `founderId` comme propriétaire courant.
+
+Le code actuel reste encore fortement structuré autour de `factionId` pour l’accès aux villes.
+Donc la bonne direction est :
+
+* garder les factions
+* mais introduire une ownership canonique plus riche sur `colonies`
+
+OBJECTIF DE CE BLOC
+Tu dois faire uniquement le **BLOC 1 — AUDIT + PROPOSITION**.
+
+Aucun code.
+Aucune migration.
+Aucune implémentation.
+
+DÉCISION MÉTIER VALIDÉE
+Le propriétaire courant canonique d’une ville doit pouvoir être :
+
+* un joueur
+* ou une faction
+
+Je veux donc un modèle de type owner polymorphe.
+
+PROPOSITION ATTENDUE
+Je m’attends probablement à quelque chose comme :
+
+sur `colonies` :
+
+* `ownerType` = `'player' | 'faction'`
+* `ownerPlayerId` nullable
+* `ownerPlayerName` nullable
+* `ownerFactionId` nullable
+* `ownerFactionName` nullable
+
+`founderId` / `founderName` restent historiques.
+
+RÈGLE D’INTÉGRITÉ ATTENDUE
+
+* si `ownerType = 'player'` :
+
+  * ownerPlayer* rempli
+  * ownerFaction* null
+* si `ownerType = 'faction'` :
+
+  * ownerFaction* rempli
+  * ownerPlayer* null
+
+POINT CRITIQUE À AUDITER
+Le code actuel utilise encore `colonies.factionId` pour :
+
+* `getMyCities()`
+* les contrôles d’accès ville
+* le tick de production de ville
+* probablement d’autres permissions
+
+Je veux que tu audites précisément comment remplacer proprement cette logique par une fonction canonique d’accès, du genre :
+
+* si ownerType = player → seul ce joueur a accès
+* si ownerType = faction → les membres de cette faction ont accès
+
+IMPORTANT
+Je ne veux pas :
+
+* supprimer les factions
+* ni les ignorer
+* ni faire semblant qu’une ville est toujours “de faction”
+
+Je veux une vraie ownership canonique compatible avec les deux cas.
+
+CE QUE TU DOIS AUDITER
+
+1. comment introduire l’owner canonique sur `colonies`
+2. quels services actuels dépendent encore de `factionId`
+3. quelle stratégie de transition minimale appliquer
+4. comment initialiser les données existantes
+5. comment cette ownership servira ensuite au marketplace
+
+BACKFILL ATTENDU
+Je veux probablement ce comportement initial :
+
+* les villes existantes deviennent `ownerType = 'faction'`
+* `ownerFactionId = factionId`
+* `ownerFactionName = factionName`
+* ownerPlayer* = null
+* founder* reste historique
+
+À proposer seulement si c’est bien le plus petit passage propre.
+
+FORMAT DE TA RÉPONSE
+Je veux exactement :
+
+1. AUDIT COURT
+
+* source de vérité actuelle
+* dépendances réelles à `factionId`
+* problème structurel actuel
+
+2. PROPOSITION TECHNIQUE MINIMALE
+
+* champs à ajouter
+* règle d’intégrité
+* stratégie de backfill
+* stratégie de permission canonique
+* impact futur sur marketplace
+
+3. FICHIERS EXACTS À MODIFIER
+   Liste précise
+
+4. PLAN D’IMPLÉMENTATION MINIMAL
+   Étapes courtes, ordonnées, sans code
+
+5. STOP VALIDATION
+   Tu t’arrêtes ici.
+   Tu n’implémentes rien avant mon accord.
+
+IMPORTANT FINAL
+Je veux une ownership canonique des villes qui supporte :
+
+* joueur
+* faction
+  sans supprimer la logique faction existante, mais sans continuer à l’utiliser comme unique vérité d’ownership.
