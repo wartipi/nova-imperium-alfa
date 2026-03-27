@@ -1,0 +1,96 @@
+NOVA IMPERIUM — MICRO-CORRECTION
+DÉPLACER LES DISPATCHS DE COMPLÉTION DE BÂTIMENT APRÈS LA PERSISTANCE SERVEUR
+
+Branche :
+NI-10.3
+
+Contexte :
+Le système de toast de complétion de bâtiment est en place,
+ainsi que les dispatchs :
+- nova:logistic-refresh
+- nova:building-completed
+
+PROBLÈME RESTANT
+
+Dans client/src/lib/stores/useNovaImperium.tsx,
+les dispatchs sont envoyés trop tôt :
+
+- avant la résolution de Promise.all([
+    apiAddBuilding(...),
+    apiClearProduction(...)
+  ])
+
+Conséquence :
+les panneaux qui rechargent sur nova:logistic-refresh
+peuvent interroger le serveur avant que le bâtiment soit réellement persisté.
+
+OBJECTIF
+
+Je veux que les dispatchs de complétion partent
+seulement après la persistance serveur réussie.
+
+FICHIER À MODIFIER
+
+- client/src/lib/stores/useNovaImperium.tsx
+
+TRAVAIL DEMANDÉ
+
+ÉTAPE 1 — AUDIT COURT
+Confirmer que dans processTurn(), branche completed_building :
+- nova:logistic-refresh
+- nova:building-completed
+sont dispatchés avant Promise.all(apiAddBuilding, apiClearProduction)
+
+ÉTAPE 2 — CORRECTION
+Déplacer les deux dispatchs dans le .then() de Promise.all(...)
+
+Ordre attendu :
+
+Promise.all([
+  apiAddBuilding(update.cityId, update.building),
+  apiClearProduction(update.cityId),
+]).then(() => {
+  window.dispatchEvent(new CustomEvent('nova:logistic-refresh'));
+  window.dispatchEvent(new CustomEvent('nova:building-completed', {
+    detail: { buildingId: update.building, cityName: update.cityName }
+  }));
+}).catch(() => {
+  get().hydrateCitiesFromServer();
+});
+
+IMPORTANT :
+Je veux conserver exactement la logique existante,
+mais corriger l’ordre des effets.
+
+ÉTAPE 3 — VÉRIFICATION
+Je veux vérifier au minimum :
+- dispatch après persistance serveur, pas avant
+- toast toujours affiché
+- TreasuryPanel et ConstructionPanel refresh sur état serveur déjà à jour
+- aucune erreur TypeScript nouvelle
+
+FORMAT DE RETOUR ATTENDU
+
+Je veux un rapport final en 5 parties :
+
+1. Audit ultra-court de l’écart
+2. Choix minimal retenu
+3. Fichier modifié
+4. Résumé exact du patch
+5. Résultat de validation
+
+INTERDIT
+
+- refactor massif
+- nouvelle architecture
+- changement du flux métier
+- complexité inutile
+
+PRIORITÉ ABSOLUE
+
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+BUT FINAL
+
+Faire en sorte que la complétion de bâtiment
+ne notifie l’UI qu’après persistance serveur réelle.

@@ -403,14 +403,15 @@ export const useNovaImperium = create<NovaImperiumState>()(
       for (const update of productionUpdates) {
         if (update.kind === 'completed_building') {
           // Notifier l'UI de la complétion et déclencher le refresh des panneaux
-          window.dispatchEvent(new CustomEvent('nova:logistic-refresh'));
-          window.dispatchEvent(new CustomEvent('nova:building-completed', {
-            detail: { buildingId: update.building, cityName: update.cityName },
-          }));
           Promise.all([
             apiAddBuilding(update.cityId, update.building),
             apiClearProduction(update.cityId),
-          ]).catch(() => {
+          ]).then(() => {
+            window.dispatchEvent(new CustomEvent('nova:logistic-refresh'));
+            window.dispatchEvent(new CustomEvent('nova:building-completed', {
+              detail: { buildingId: update.building, cityName: update.cityName },
+            }));
+          }).catch(() => {
             console.warn(`[processTurn] Échec serveur (complétion bâtiment) — resynchronisation`);
             get().hydrateCitiesFromServer();
           });
