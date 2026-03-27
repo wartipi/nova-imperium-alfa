@@ -1,6 +1,7 @@
 import { eq, inArray } from "drizzle-orm";
 import { db } from "./db";
 import { cities, colonies, factionMembers, cityBuildings, cityProduction } from "../shared/schema";
+import { applyBuildingEffects } from "./buildingEffects";
 
 export interface CityProductionDTO {
   type:     string;
@@ -339,8 +340,10 @@ export async function tickCityProduction(playerId: string): Promise<CityProducti
 
     if (newProgress >= prod.productionCost) {
       if (prod.productionType === 'building') {
-        // addBuilding : idempotent + recalcul économique inclus
+        // addBuilding : idempotent + recalcul économique inclus (foodPerTurn/productionPerTurn/goldPerTurn)
         await addBuilding(city.id, prod.productionName);
+        // applyBuildingEffects : effets T1 d'exploitation (wood, stone, iron, copper, coal, oil, herbs, fur)
+        await applyBuildingEffects(city.id, prod.productionName);
         await clearProduction(city.id);
         completedBuildings.push({ cityId: city.id, cityName: city.name, buildingId: prod.productionName });
         console.log(`[tickCityProduction] ${city.name} → ${prod.productionName} terminé`);

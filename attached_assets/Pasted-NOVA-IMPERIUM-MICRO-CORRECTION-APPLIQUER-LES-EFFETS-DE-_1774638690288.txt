@@ -1,0 +1,106 @@
+NOVA IMPERIUM — MICRO-CORRECTION
+APPLIQUER LES EFFETS DE BÂTIMENT LORS DE LA COMPLÉTION SERVEUR DE PRODUCTION
+
+Branche :
+NI-10.3
+
+Contexte :
+Le tick serveur-authoritatif de production de ville est maintenant en place :
+- tickCityProduction()
+- POST /api/cities/production-tick
+- apiProductionTick()
+- handleEndTurn → tick serveur → hydrateCitiesFromServer → toasts/refresh
+
+PROBLÈME RESTANT
+
+Dans server/cityService.ts, tickCityProduction() complète un bâtiment avec :
+
+- addBuilding(city.id, prod.productionName)
+- clearProduction(city.id)
+
+Mais n’appelle pas :
+- applyBuildingEffects(city.id, prod.productionName)
+
+Conséquence :
+le bâtiment terminé est bien ajouté et visible,
+mais ses effets T1 d’exploitation peuvent ne pas être activés.
+
+IMPORTANT :
+addBuilding() recalcule seulement foodPerTurn / productionPerTurn / goldPerTurn via BUILDING_YIELDS.
+Les matériaux Tier 1 d’exploitation (wood, stone, iron, copper, coal, oil, herbs, fur)
+sont appliqués dans buildingEffects.ts par applyBuildingEffects().
+
+OBJECTIF
+
+Faire en sorte que la complétion serveur d’un bâtiment
+active aussi ses effets réels,
+comme c’était déjà le cas dans les autres chemins de pose de bâtiment.
+
+FICHIERS À MODIFIER
+
+- server/cityService.ts
+- éventuellement import à ajouter depuis server/buildingEffects.ts
+
+TRAVAIL DEMANDÉ
+
+ÉTAPE 1 — AUDIT COURT
+Confirmer que dans tickCityProduction(), branche completed_building :
+- addBuilding(...) est bien appelé
+- clearProduction(...) est bien appelé
+- applyBuildingEffects(...) est absent
+
+ÉTAPE 2 — CORRECTION
+Dans tickCityProduction(), branche completed_building :
+
+faire :
+1. addBuilding(city.id, prod.productionName)
+2. applyBuildingEffects(city.id, prod.productionName)
+3. clearProduction(city.id)
+
+IMPORTANT :
+Je veux garder le tick serveur comme source d’autorité.
+Je veux seulement compléter le chaînage de la complétion.
+
+ÉTAPE 3 — PRUDENCE
+Vérifier qu’on n’introduit pas de double application involontaire.
+
+Point à valider clairement :
+- soit addBuilding() + applyBuildingEffects() reste le bon couple minimal
+- soit il faut consolider autrement si addBuilding() couvre déjà une partie
+Mais je veux une réponse fondée sur le code réel, pas une supposition.
+
+ÉTAPE 4 — VÉRIFICATION
+Je veux vérifier au minimum :
+- bâtiment terminé toujours ajouté
+- production clear toujours correcte
+- colonnes *PerTurn T1 bien mises à jour après complétion serveur
+- aucune régression sur les bâtiments non producteurs
+- TypeScript compile
+
+FORMAT DE RETOUR ATTENDU
+
+Je veux un rapport final en 6 parties :
+
+1. Audit ultra-court de l’écart
+2. Choix minimal retenu
+3. Fichiers modifiés
+4. Résumé exact du patch
+5. Avant / après
+6. Résultat de validation
+
+INTERDIT
+
+- refactor massif
+- changement d’architecture
+- retour de logique client
+- complexité inutile
+
+PRIORITÉ ABSOLUE
+
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+BUT FINAL
+
+Faire en sorte qu’un bâtiment terminé par le tick serveur
+soit non seulement ajouté,
+mais qu’il active aussi immédiatement ses effets réels de production.
