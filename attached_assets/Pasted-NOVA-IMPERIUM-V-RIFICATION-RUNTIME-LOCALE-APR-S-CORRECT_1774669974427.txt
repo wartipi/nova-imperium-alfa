@@ -1,0 +1,106 @@
+NOVA IMPERIUM — VÉRIFICATION RUNTIME LOCALE APRÈS CORRECTIF `foundColony()`
+Branche locale : `NI-10.3`
+Contexte : HEAD local contient le correctif, mais `origin/NI-10.3` n’est pas encore à jour depuis cet environnement.
+
+IMPORTANT
+Je ne te demande PAS de nouveau code pour l’instant.
+Je ne te demande PAS de réexpliquer le diff.
+Je veux uniquement une **vérification runtime locale** du flux joueur réel, sur la version locale actuellement lancée.
+
+OBJECTIF
+Valider localement que le correctif de `foundColony()` rend enfin cohérente la séquence :
+
+* claim joueur/faction
+* puis fondation compatible avec cet ownership
+
+SCÉNARIOS À TESTER
+
+1. JOUEUR SANS FACTION — PAS DE TERRITOIRE PRÉALABLE
+
+* tenter une fondation sur case valide
+* attendu :
+
+  * succès
+  * colonie créée avec `ownerType='player'`
+  * `ownerPlayerId = playerId`
+  * `ownerFactionId = null`
+
+2. JOUEUR AVEC FACTION — PAS DE TERRITOIRE PRÉALABLE
+
+* tenter une fondation sur case valide
+* attendu :
+
+  * succès
+  * colonie créée avec `ownerType='faction'`
+  * `ownerFactionId = factionId`
+
+3. TERRITOIRE `ownerType='player'` DU JOUEUR
+
+* claim personnel
+* puis fondation sur cette case
+* attendu :
+
+  * succès
+  * colonie hérite `ownerType='player'`
+
+4. TERRITOIRE `ownerType='faction'` DE LA FACTION DU JOUEUR
+
+* claim faction
+* puis fondation sur cette case
+* attendu :
+
+  * succès
+  * colonie hérite `ownerType='faction'`
+
+5. TERRITOIRE D’UN AUTRE OWNER
+
+* tenter une fondation sur territoire personnel d’un autre joueur
+* tenter une fondation sur territoire d’une autre faction
+* attendu :
+
+  * `403`
+  * message cohérent
+
+6. `is_capital`
+
+* vérifier qu’une première colonie perso devient capitale perso
+* vérifier qu’une première colonie faction devient capitale faction
+* vérifier qu’une deuxième colonie du même owner n’est pas capitale
+
+7. LISTING DES VILLES
+
+* vérifier qu’après fondation :
+
+  * un owner joueur voit bien sa ville dans `GET /api/cities/me`
+  * un owner faction voit bien sa ville dans `GET /api/cities/me`
+
+FORMAT DE TA RÉPONSE
+Je veux exactement :
+
+1. COMMIT TESTÉ
+
+* hash HEAD local exact
+
+2. RÉSULTATS PAR SCÉNARIO
+
+* 1 à 7
+* succès/échec
+* résultat observé concret
+
+3. BLOCS COHÉRENTS
+
+* ce qui est maintenant validé localement
+
+4. BUGS RESTANTS
+
+* uniquement si réel
+
+5. SI CORRECTIF MINIMAL NÉCESSAIRE
+
+* fichier exact
+* raison exacte
+* pas d’autre dérive
+
+IMPORTANT FINAL
+Je veux un rapport de test local, pas un rapport GitHub.
+Tant que `origin` n’est pas à jour, tu travailles et tu raisonnes explicitement en “validation locale”.

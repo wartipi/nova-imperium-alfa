@@ -29,10 +29,16 @@ export interface ColonyDTO {
   worldY: number;
   founderId: string;
   founderName: string;
-  factionId: number;
-  factionName: string;
+  factionId: number | null;
+  factionName: string | null;
   foundedAt: string;
   isCapital: boolean;
+  // Phase 12 — Ownership canonique
+  ownerType: 'player' | 'faction';
+  ownerPlayerId:   string | null;
+  ownerPlayerName: string | null;
+  ownerFactionId:  number | null;
+  ownerFactionName: string | null;
 }
 
 function mapTerritory(row: typeof territories.$inferSelect): TerritoryDTO {
@@ -91,10 +97,15 @@ function mapColony(row: typeof colonies.$inferSelect): ColonyDTO {
     worldY: row.worldY,
     founderId: row.founderId,
     founderName: row.founderName,
-    factionId: row.factionId,
-    factionName: row.factionName,
+    factionId: row.factionId ?? null,
+    factionName: row.factionName ?? null,
     foundedAt: row.foundedAt.toISOString(),
     isCapital: row.isCapital,
+    ownerType: (row.ownerType ?? 'faction') as 'player' | 'faction',
+    ownerPlayerId:   row.ownerPlayerId   ?? null,
+    ownerPlayerName: row.ownerPlayerName ?? null,
+    ownerFactionId:  row.ownerFactionId  ?? null,
+    ownerFactionName: row.ownerFactionName ?? null,
   };
 }
 

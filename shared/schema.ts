@@ -427,8 +427,8 @@ export const colonies = pgTable("colonies", {
   worldY:          integer("world_y").notNull(),
   founderId:       text("founder_id").notNull(),
   founderName:     text("founder_name").notNull(),
-  factionId:       integer("faction_id").notNull().references(() => factions.id),
-  factionName:     text("faction_name").notNull(),
+  factionId:       integer("faction_id").references(() => factions.id),
+  factionName:     text("faction_name"),
   foundedAt:       timestamp("founded_at").notNull().defaultNow(),
   isCapital:       boolean("is_capital").notNull().default(false),
   // Phase 11 — Ownership canonique (mutable, transférable)
