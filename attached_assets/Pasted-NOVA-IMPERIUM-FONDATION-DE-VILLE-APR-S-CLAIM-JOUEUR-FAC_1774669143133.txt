@@ -1,0 +1,111 @@
+NOVA IMPERIUM — FONDATION DE VILLE APRÈS CLAIM JOUEUR/FACTION — BLOC 2 FINAL CIBLÉ
+Branche : `NI-10.3`
+
+Le blocant principal est confirmé :
+
+* `foundColony()` exige encore une faction active
+* puis crée encore toujours une colonie `ownerType='faction'`
+
+Je valide le diagnostic général, mais je veux une implémentation plus précise.
+
+OBJECTIF
+Corriger `foundColony()` pour qu’elle soit cohérente avec l’ownership canonique des territoires déjà en place.
+
+PÉRIMÈTRE STRICT
+Un seul fichier à modifier :
+
+* `server/territoryService.ts`
+
+Je ne veux PAS rouvrir :
+
+* `server/cityService.ts`
+* `claimTerritory()`
+* `UnifiedTerritoryPanel`
+* le marketplace
+* d’autres services
+
+DÉCISIONS VALIDÉES
+
+1. Supprimer le hard gate faction
+   Je ne veux plus :
+
+* `Vous devez appartenir à une faction`
+
+La faction doit être résolue de façon optionnelle :
+
+* si le joueur a une faction active → faction disponible
+* sinon → `factionId = null`, `factionName = null`
+
+2. Si un territoire existe sur la case de fondation
+   `foundColony()` doit lire le territoire à `(worldX, worldY)`.
+
+Si un territoire existe :
+
+* la fondation est autorisée seulement si le joueur a accès à ce territoire
+* et la colonie hérite de l’owner canonique du territoire
+
+Règle minimale d’accès :
+
+* si territoire `ownerType='player'` → accès si `ownerPlayerId === playerId`
+* si territoire `ownerType='faction'` → accès si `ownerFactionId === playerFactionId`
+* sinon → `403`
+
+Règle d’héritage :
+
+* territoire `ownerType='player'` → colonie `ownerType='player'`
+* territoire `ownerType='faction'` → colonie `ownerType='faction'`
+
+3. Si aucun territoire n’existe sur la case
+
+* joueur avec faction active → colonie `ownerType='faction'`
+* joueur sans faction → colonie `ownerType='player'`
+
+4. Le reste des validations reste inchangé
+
+* nom obligatoire
+* case existante et walkable
+* pas de colonie déjà sur la case
+* aucune autre colonie à distance `<= 6`
+
+5. Corriger `is_capital`
+   Je veux un calcul cohérent avec le nouvel owner :
+
+* si `ownerType='faction'` → première colonie de cette faction
+* si `ownerType='player'` → première colonie de ce joueur
+
+FORMAT DE TA RÉPONSE
+Je veux exactement :
+
+1. FICHIER MODIFIÉ
+
+* `server/territoryService.ts`
+
+2. CHANGEMENTS APPLIQUÉS
+
+* suppression du gate faction dur
+* résolution faction optionnelle
+* lecture du territoire sur la case
+* validation d’accès au territoire
+* héritage de l’owner canonique du territoire
+* fallback owner si aucun territoire n’existe
+* correction de `is_capital`
+
+3. VÉRIFICATION
+
+* joueur sans faction + pas de territoire → fondation `ownerType='player'`
+* joueur avec faction + pas de territoire → fondation `ownerType='faction'`
+* territoire `ownerType='player'` du joueur → fondation autorisée et héritée
+* territoire `ownerType='faction'` de la faction du joueur → fondation autorisée et héritée
+* territoire appartenant à un autre owner → `403`
+* `is_capital` correct dans les deux cas
+
+4. CONFIRMATION
+
+* aucun autre fichier touché
+
+IMPORTANT FINAL
+Je veux un correctif ciblé, pas un refactor.
+Le but est simplement de rendre cohérente la séquence :
+
+* claim joueur/faction
+* puis fondation de ville compatible avec cet ownership
