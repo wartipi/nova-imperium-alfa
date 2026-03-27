@@ -1,0 +1,136 @@
+NOVA IMPERIUM — PHASE SUIVANTE
+COMPLÉTION VISIBLE DES ACTIONS LOGISTIQUES DIFFÉRÉES
+
+Branche :
+NI-10.3
+
+Contexte technique :
+Jeu persistant Node/TS + React/TS + PostgreSQL
+Architecture serveur autoritaire
+Méthode obligatoire :
+Audit court → proposition minimale → implémentation ciblée → vérification
+Aucun refactor massif
+
+CONTEXTE VALIDÉ
+
+Le prototype dispose déjà de :
+
+- exploitation Tier 1 active
+- production par tour
+- stockage/logistique
+- collecte physique
+- transferts banque → ville / joueur
+- construction
+- résumé du tick de production
+- auto-refresh UI via nova:logistic-refresh après tick / collecte / transfert / construction
+
+PROBLÈME RESTANT
+
+Les actions différées existent,
+mais leur complétion réelle n’est pas encore assez visible et lisible pour le test utilisateur.
+
+Aujourd’hui, on peut lancer :
+- une collecte
+- un transfert banque → ville
+- un transfert banque → joueur
+
+Mais pour un testeur, il faut mieux voir :
+- quand l’action est terminée
+- quel stock a changé
+- quel résultat concret a été appliqué
+- comment l’UI réagit à la fin réelle de l’action
+
+OBJECTIF DE LA PHASE
+
+Je veux rendre la complétion des actions logistiques différées
+claire, visible et testable de bout en bout.
+
+Je veux que quand une action finit réellement :
+- l’UI le sache
+- le joueur le voie
+- les stocks pertinents se mettent à jour
+- l’action active disparaisse proprement
+- le résultat soit compréhensible sans deviner
+
+POINT 1 — AUDIT COURT
+Je veux identifier :
+
+1. comment les actions en cours sont actuellement suivies côté client
+2. comment ActiveActionWidget lit l’état d’action
+3. comment la fin réelle d’une action est actuellement détectée
+4. si la complétion déclenche déjà un refresh ou non
+5. où le prototype reste ambigu pour un testeur
+
+POINT 2 — COMPLÉTION RÉELLE
+Je veux un mécanisme simple pour que la fin réelle d’une action logistique :
+- déclenche un refresh des panneaux concernés
+- fasse disparaître l’état “action en cours”
+- rende visible le résultat final
+
+IMPORTANT :
+Je ne veux pas une architecture complexe.
+Je veux la solution la plus simple et stable.
+
+POINT 3 — FEEDBACK UTILISATEUR
+Je veux un retour visuel clair à la fin d’une action, par exemple :
+- collecte terminée
+- transfert terminé
+- ressources livrées
+
+Ce retour peut être :
+- dans ActiveActionWidget
+- dans TreasuryPanel
+- via un petit message toast / inline
+- ou équivalent minimal propre
+
+IMPORTANT :
+Je veux éviter toute ambiguïté sur “est-ce que l’action a vraiment fini”.
+
+POINT 4 — AUTO-REFRESH À LA COMPLÉTION
+Aujourd’hui, il existe déjà un refresh au lancement de plusieurs actions.
+Je veux maintenant garantir aussi le refresh à la fin effective.
+
+Au minimum pour :
+- collecte physique
+- transfert banque → ville
+- transfert banque → joueur
+
+POINT 5 — SCÉNARIO TESTABLE
+Je veux qu’un testeur puisse faire :
+
+1. lancer une collecte ou un transfert
+2. voir l’action active
+3. attendre la fin
+4. voir l’action disparaître
+5. voir le stock final mis à jour
+6. comprendre immédiatement ce qui a été livré
+
+FORMAT DE RETOUR ATTENDU
+
+Je veux un rapport final structuré exactement en 7 parties :
+
+1. Audit ultra-court du point de départ
+2. Choix minimal retenu
+3. Fichiers modifiés
+4. Résumé exact du patch
+5. Flux avant / après
+6. Points volontairement non traités
+7. Résultat de validation
+
+INTERDIT
+
+- refactor massif
+- architecture événementielle complexe
+- changement du modèle serveur d’action
+- complexité inutile
+
+PRIORITÉ ABSOLUE
+
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+BUT FINAL
+
+Faire en sorte que les actions logistiques différées
+soient non seulement lançables,
+mais aussi clairement observables jusqu’à leur complétion réelle,
+pour finaliser un prototype vraiment testable.
