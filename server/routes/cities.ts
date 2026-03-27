@@ -11,6 +11,7 @@ import {
   addBuilding,
   setProduction,
   clearProduction,
+  tickCityProduction,
 } from "../cityService";
 import { createCollectHarvestAction, getActiveAction, msRemaining } from "../playerActionService";
 import {
@@ -37,6 +38,22 @@ router.get("/me", requireAuth, async (req: AuthRequest, res) => {
   } catch (err) {
     console.error("[GET /api/cities/me] Erreur:", err);
     return res.status(500).json({ error: "Impossible de récupérer les villes" });
+  }
+});
+
+// ─── POST /api/cities/production-tick ─────────────────────────────────────────
+// Auth requise — avance la file de production de toutes les villes du joueur.
+// Décision serveur-authoritative : progression, complétion bâtiment/unité.
+// Appelé depuis handleEndTurn dans MedievalHUD à chaque fin de tour.
+// DOIT être déclaré avant /:cityId pour qu'Express ne traite pas "production-tick" comme un id.
+router.post("/production-tick", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const result = await tickCityProduction(req.user!.id);
+    console.log(`[POST /api/cities/production-tick] applied=${result.applied} progressed=${result.progressed.length} completedBuildings=${result.completedBuildings.length} completedUnits=${result.completedUnits.length}`);
+    return res.json(result);
+  } catch (err) {
+    console.error("[POST /api/cities/production-tick] Erreur:", err);
+    return res.status(500).json({ error: "Impossible d'exécuter le tick de production" });
   }
 });
 

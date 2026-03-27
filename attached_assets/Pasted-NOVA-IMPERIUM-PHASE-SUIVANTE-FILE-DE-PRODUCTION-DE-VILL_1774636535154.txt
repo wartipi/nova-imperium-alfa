@@ -1,0 +1,238 @@
+NOVA IMPERIUM — PHASE SUIVANTE
+FILE DE PRODUCTION DE VILLE SERVEUR-AUTHORITATIVE
+
+Branche :
+NI-10.3
+
+Contexte technique :
+Jeu persistant Node/TS + React/TS + PostgreSQL
+Architecture serveur autoritaire
+Méthode obligatoire :
+Audit court → proposition minimale → implémentation ciblée → vérification
+Aucun refactor massif
+
+CONTEXTE VALIDÉ
+
+Le prototype dispose déjà de :
+
+- construction serveur via start-construction
+- currentProduction persisté côté serveur
+- hydration des villes via fetchMyCities / hydrateCitiesFromServer
+- toasts de complétion de bâtiment
+- auto-refresh UI via nova:logistic-refresh
+- pipeline logistique Tier 1 stable
+- fin de tour avec tick économique distinct
+
+PROBLÈME RESTANT
+
+La file de production de ville n’est pas encore canonique côté serveur.
+
+Aujourd’hui :
+- le client lance la production
+- puis processTurn() côté client incrémente productionProgress
+- le client décide lui-même quand une construction est terminée
+- puis il persiste après coup via apiAddBuilding / apiClearProduction / apiSetProduction
+
+Cela crée encore une double autorité :
+- source visuelle locale
+- source persistée serveur ensuite
+
+Je veux supprimer cette ambiguïté.
+
+OBJECTIF DE LA PHASE
+
+Je veux que la file de production de ville devienne serveur-authoritative.
+
+Je veux que :
+- l’avancement de production soit calculé côté serveur
+- la complétion d’un bâtiment soit décidée côté serveur
+- le client hydrate ensuite l’état réel
+- les toasts et refresh UI soient déclenchés à partir du résultat serveur
+- processTurn() ne décide plus localement de la progression/complétion des villes
+
+IMPORTANT :
+Je ne veux pas de refonte globale.
+Je veux le plus petit passage propre vers un modèle autoritaire.
+
+PÉRIMÈTRE PRIORITAIRE
+
+Priorité absolue :
+- production de bâtiments de ville
+
+Pour les unités :
+- audit obligatoire
+- si le support complet est trivial, l’inclure
+- sinon ne pas ouvrir un gros front
+- dans ce cas, sécuriser explicitement leur comportement sans casser l’existant
+
+AUTREMENT DIT :
+je préfère une file bâtiment 100% serveur-authoritative
+plutôt qu’un demi-refactor bâtiments + unités instable.
+
+FICHIERS À AUDITER EN PRIORITÉ
+
+- client/src/lib/stores/useNovaImperium.tsx
+- client/src/components/game/MedievalHUD.tsx
+- client/src/lib/api/citiesApi.ts
+- server/routes/cities.ts
+- tout service serveur gérant déjà les villes / currentProduction
+- shared/schema.ts si nécessaire
+- tout endpoint déjà utilisé par fetchMyCities / start-construction / clear production
+
+POINT 1 — AUDIT COURT
+
+Je veux confirmer précisément :
+
+1. où currentProduction et progress sont aujourd’hui persistés côté serveur
+2. où processTurn() incrémente encore localement la progression
+3. comment une complétion bâtiment est actuellement décidée
+4. si le serveur possède déjà assez d’informations pour faire avancer la file
+5. si le cas des unités est incomplet ou non
+6. quel est le plus petit point d’entrée serveur pour avancer la file à chaque fin de tour
+
+IMPORTANT :
+Je veux un audit basé sur le code réel, pas une proposition théorique.
+
+POINT 2 — CHOIX TECHNIQUE MINIMAL
+
+Je veux la solution la plus simple et stable.
+
+Cible minimale attendue :
+- un tick serveur dédié pour la production de ville
+- appelé explicitement depuis le client à la fin de tour
+- qui avance les currentProduction serveur
+- qui complète les bâtiments côté serveur si le coût de production est atteint
+- qui renvoie un résumé des complétions utiles à l’UI
+
+Exemple acceptable :
+- POST /api/cities/production-tick
+ou équivalent
+
+IMPORTANT :
+Je ne veux pas de système générique surdimensionné.
+Je veux un tick serveur clair, ciblé, lisible.
+
+POINT 3 — SERVEUR AUTHORITATIF
+
+Je veux déplacer côté serveur :
+
+- progression de production
+- détection de complétion
+- ajout du bâtiment terminé
+- clear de currentProduction terminé
+- réponse structurée de tick
+
+La réponse du tick doit idéalement permettre à l’UI de savoir :
+- quelles villes ont progressé
+- quels bâtiments ont été terminés
+- éventuellement quels items sont restés en cours
+
+Format minimal acceptable :
+{
+  applied: true,
+  progressed: [...],
+  completedBuildings: [
+    { cityId, cityName, buildingId }
+  ]
+}
+
+Si unités incluses proprement :
+- compléter avec completedUnits
+Sinon :
+- ne pas forcer leur implémentation dans cette phase
+
+POINT 4 — CLIENT
+
+Je veux que MedievalHUD handleEndTurn :
+
+1. déclenche le tick économique déjà existant
+2. déclenche le tick serveur de production de ville
+3. hydrate les villes depuis le serveur
+4. déclenche les toasts de complétion à partir du résultat serveur
+5. déclenche le refresh UI global après état serveur confirmé
+
+IMPORTANT :
+Le client ne doit plus “deviner” qu’un bâtiment est terminé.
+Il doit le savoir par le retour serveur.
+
+POINT 5 — useNovaImperium / processTurn
+
+Je veux retirer de processTurn() tout ce qui relève de la file de production des villes :
+
+- plus d’incrément local de productionProgress pour les villes
+- plus de complétion locale de bâtiment
+- plus de décision locale sur currentProduction des villes
+
+Mais je veux conserver ce qui n’est pas concerné si encore utile, par exemple :
+- reset mouvement des unités
+- logique AI locale si elle existe encore
+- autres effets non liés à la file de ville
+
+IMPORTANT :
+Je ne veux pas casser tout processTurn().
+Je veux seulement retirer la double autorité sur les villes.
+
+POINT 6 — TOASTS ET REFRESH
+
+Je veux que les toasts de complétion de bâtiment restent en place,
+mais soient déclenchés à partir du résultat du tick serveur,
+pas d’une décision locale.
+
+Je veux aussi que :
+- nova:logistic-refresh
+- nova:building-completed
+
+partent seulement après résultat serveur confirmé et hydration cohérente.
+
+POINT 7 — SCÉNARIO TESTABLE ATTENDU
+
+Je veux pouvoir tester :
+
+1. lancer une construction
+2. finir un tour
+3. le serveur avance la progression
+4. finir le tour final
+5. le serveur termine le bâtiment
+6. le client hydrate
+7. le toast s’affiche
+8. la ville montre le bâtiment réellement ajouté
+9. les effets deviennent visibles sans ambiguïté
+
+IMPORTANT :
+Je veux que ce scénario soit déterministe et lisible.
+
+CONTRAINTES IMPORTANTES
+
+- pas de refactor massif
+- pas de nouvelle architecture complexe
+- pas de duplication logique client/serveur
+- pas de décision locale client sur la complétion des bâtiments
+- ne pas casser la logique logistique déjà stabilisée
+- rester simple et compatible avec l’existant
+
+CAS UNITÉS
+
+Je veux une décision explicite dans le rapport :
+
+- soit unités incluses proprement dans le tick serveur
+- soit unités laissées hors périmètre avec raison claire
+- mais pas de zone grise silencieuse
+
+FORMAT DE RETOUR ATTENDU
+
+Je veux un rapport final structuré exactement en 7 parties :
+
+1. Audit ultra-court du point de départ
+2. Choix minimal retenu
+3. Fichiers modifiés
+4. Résumé exact du patch
+5. Flux avant / après
+6. Points volontairement non traités
+7. Résultat de validation
+
+BUT FINAL
+
+Obtenir une file de production de ville réellement serveur-authoritative,
+au moins pour les bâtiments,
+afin de supprimer la double autorité actuelle
+et de rendre le prototype structurellement propre pour les tests.

@@ -111,3 +111,22 @@ export async function apiClearProduction(cityId: string): Promise<void> {
   });
   if (!res.ok) throw new Error(`apiClearProduction: HTTP ${res.status}`);
 }
+
+// ─── Tick de production serveur-authoritatif ──────────────────────────────────
+// Avance la file de production de toutes les villes du joueur côté serveur.
+// Retourne le résumé des complétions pour que l'UI affiche les toasts.
+export interface CityProductionTickResult {
+  applied: boolean;
+  progressed: number[];
+  completedBuildings: { cityId: number; cityName: string; buildingId: string }[];
+  completedUnits: { cityId: number }[];
+}
+
+export async function apiProductionTick(): Promise<CityProductionTickResult> {
+  const res = await fetch("/api/cities/production-tick", {
+    method:  "POST",
+    headers: { ...getAuthHeaders() },
+  });
+  if (!res.ok) throw new Error(`apiProductionTick: HTTP ${res.status}`);
+  return res.json();
+}

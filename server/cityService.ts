@@ -285,3 +285,79 @@ export async function clearProduction(cityId: number): Promise<void> {
     .delete(cityProduction)
     .where(eq(cityProduction.cityId, cityId));
 }
+
+// ─── tickCityProduction ───────────────────────────────────────────────────────
+// Avance la file de production de toutes les villes du joueur d'un tour.
+// Source d'autorité unique : incrémente productionProgress côté serveur,
+// complète le bâtiment ou l'unité si progress >= cost.
+// Retourne un résumé structuré des complétions pour l'UI.
+export interface CityProductionTickResult {
+  applied: boolean;
+  progressed: number[];  // cityIds dont la progression a avancé
+  completedBuildings: { cityId: number; cityName: string; buildingId: string }[];
+  completedUnits: { cityId: number }[];
+}
+
+export async function tickCityProduction(playerId: string): Promise<CityProductionTickResult> {
+  const memberRows = await db
+    .select({ factionId: factionMembers.factionId })
+    .from(factionMembers)
+    .where(eq(factionMembers.playerId, playerId));
+
+  if (memberRows.length === 0) {
+    return { applied: false, progressed: [], completedBuildings: [], completedUnits: [] };
+  }
+
+  const factionId = memberRows[0].factionId;
+
+  const rows = await db
+    .select({ city: cities, colony: colonies })
+    .from(cities)
+    .innerJoin(colonies, eq(cities.colonyId, colonies.id))
+    .where(eq(colonies.factionId, factionId));
+
+  if (rows.length === 0) {
+    return { applied: true, progressed: [], completedBuildings: [], completedUnits: [] };
+  }
+
+  const cityIds = rows.map(r => r.city.id);
+
+  const productionRows = await db
+    .select()
+    .from(cityProduction)
+    .where(inArray(cityProduction.cityId, cityIds));
+
+  const progressed: number[] = [];
+  const completedBuildings: { cityId: number; cityName: string; buildingId: string }[] = [];
+  const completedUnits: { cityId: number }[] = [];
+
+  for (const { city } of rows) {
+    const prod = productionRows.find(p => p.cityId === city.id);
+    if (!prod) continue;
+
+    const newProgress = prod.productionProgress + city.productionPerTurn;
+
+    if (newProgress >= prod.productionCost) {
+      if (prod.productionType === 'building') {
+        // addBuilding : idempotent + recalcul économique inclus
+        await addBuilding(city.id, prod.productionName);
+        await clearProduction(city.id);
+        completedBuildings.push({ cityId: city.id, cityName: city.name, buildingId: prod.productionName });
+        console.log(`[tickCityProduction] ${city.name} → ${prod.productionName} terminé`);
+      } else {
+        // Unité : juste vider la production (pas de table unit à mettre à jour ici)
+        await clearProduction(city.id);
+        completedUnits.push({ cityId: city.id });
+        console.log(`[tickCityProduction] ${city.name} → unité ${prod.productionName} terminée`);
+      }
+    } else {
+      await db
+        .update(cityProduction)
+        .set({ productionProgress: newProgress })
+        .where(eq(cityProduction.cityId, city.id));
+      progressed.push(city.id);
+    }
+  }
+
+  return { applied: true, progressed, completedBuildings, completedUnits };
+}

@@ -10,6 +10,7 @@ import { Card } from "../ui/card";
 import { MiniMap } from "./MiniMap";
 import { TreasuryPanel } from "./TreasuryPanel";
 import { postProductionTick, type ProductionTickResult } from "../../lib/api/economyApi";
+import { apiProductionTick } from "../../lib/api/citiesApi";
 import { useDualResourceSync } from "../../hooks/useDualResourceSync";
 
 import { ActivityReportPanel } from "./ActivityReportPanel";
@@ -54,7 +55,7 @@ type MenuSection =
 export function MedievalHUD() {
   const { gamePhase, currentTurn, endTurn } = useGameState();
   const { currentUser, logout, role, adminModeEnabled, toggleAdminMode } = useAuth();
-  const { novaImperiums, currentNovaImperium, processTurn } = useNovaImperium();
+  const { novaImperiums, currentNovaImperium, processTurn, hydrateCitiesFromServer } = useNovaImperium();
   const { selectedHex } = useMap();
   const { isMuted, toggleMute } = useAudio();
   
@@ -170,7 +171,25 @@ export function MedievalHUD() {
         } catch (prodErr) {
           console.warn("[handleEndTurn] Production tick échoué (non bloquant):", prodErr);
         }
-        // Traitement local de la production (bâtiments, unités)
+        // Tick de production de ville — serveur autoritaire
+        try {
+          const cityTickResult = await apiProductionTick();
+          console.log("[handleEndTurn] City production tick:", cityTickResult);
+          // Hydrate le store local depuis l'état serveur réel
+          await hydrateCitiesFromServer();
+          // Toasts de complétion à partir du résultat serveur (pas d'une décision locale)
+          for (const { buildingId, cityName } of cityTickResult.completedBuildings) {
+            window.dispatchEvent(new CustomEvent('nova:building-completed', {
+              detail: { buildingId, cityName },
+            }));
+          }
+          if (cityTickResult.completedBuildings.length > 0 || cityTickResult.progressed.length > 0 || cityTickResult.completedUnits.length > 0) {
+            window.dispatchEvent(new CustomEvent('nova:logistic-refresh'));
+          }
+        } catch (cityTickErr) {
+          console.warn("[handleEndTurn] Tick production ville échoué (non bloquant):", cityTickErr);
+        }
+        // Reset mouvement unités + IA locale (production ville retirée de processTurn)
         processTurn();
         // Incrément du tour
         endTurn();

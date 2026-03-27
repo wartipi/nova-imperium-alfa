@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import type { NovaImperium, Unit, City, DiplomaticRelation, Resources, BuildingType } from "../game/types";
 import { AI } from "../game/AI";
-import { fetchMyCities, apiAddBuilding, apiSetProduction, apiClearProduction } from "../api/citiesApi";
+import { fetchMyCities, apiAddBuilding, apiSetProduction } from "../api/citiesApi";
 import { useMap } from "./useMap";
 
 interface NovaImperiumState {
@@ -334,15 +334,9 @@ export const useNovaImperium = create<NovaImperiumState>()(
     },
     
     processTurn: () => {
-      // Phase 7 : collecter les changements de production avant le set()
-      // pour déclencher les appels serveur après la mise à jour locale.
-      type ProductionUpdate =
-        | { kind: 'completed_building'; cityId: string; building: string; cityName: string }
-        | { kind: 'completed_unit';     cityId: string }
-        | { kind: 'progressed';         cityId: string; type: string; name: string; cost: number; progress: number };
-
-      const productionUpdates: ProductionUpdate[] = [];
-
+      // Production des villes désormais serveur-authoritative via POST /api/cities/production-tick.
+      // processTurn() ne gère plus la progression/complétion des bâtiments et unités.
+      // Rôle restant : reset mouvement des unités + IA locale.
       set(state => {
         const updatedNIs = state.novaImperiums.map(ni => {
           const updatedNI = {
@@ -352,86 +346,21 @@ export const useNovaImperium = create<NovaImperiumState>()(
               movement: unit.maxMovement
             }))
           };
-          
-          updatedNI.cities.forEach(city => {
-            if (city.currentProduction) {
-              city.productionProgress += city.productionPerTurn;
-              
-              if (city.productionProgress >= city.currentProduction.cost) {
-                console.log(`${city.name} completed ${city.currentProduction.name}`);
-                // Phase 7 : enregistrer la complétion (uniquement pour les villes du joueur)
-                if (ni.id === state.currentNovaImperiumId) {
-                  if (city.currentProduction.type === 'building') {
-                    productionUpdates.push({ kind: 'completed_building', cityId: city.id, building: city.currentProduction.name, cityName: city.name });
-                  } else {
-                    productionUpdates.push({ kind: 'completed_unit', cityId: city.id });
-                  }
-                }
-                city.currentProduction = null;
-                city.productionProgress = 0;
-              } else if (ni.id === state.currentNovaImperiumId) {
-                // Phase 7 : enregistrer la progression (non finale)
-                productionUpdates.push({
-                  kind:     'progressed',
-                  cityId:   city.id,
-                  type:     city.currentProduction.type,
-                  name:     city.currentProduction.name,
-                  cost:     city.currentProduction.cost,
-                  progress: city.productionProgress,
-                });
-              }
-            }
-          });
-          
+
           if (!ni.isPlayer) {
             AI.processTurn(updatedNI);
           }
-          
+
           return updatedNI;
         });
-        
+
         const updatedCurrentNI = updatedNIs.find(ni => ni.id === state.currentNovaImperiumId) || null;
-        
+
         return {
           novaImperiums: updatedNIs,
           currentNovaImperium: updatedCurrentNI
         };
       });
-
-      // Phase 7 : persistance serveur des changements de production après set().
-      // Chaque appel a son propre catch → hydrateCitiesFromServer() pour éviter toute divergence silencieuse.
-      for (const update of productionUpdates) {
-        if (update.kind === 'completed_building') {
-          // Notifier l'UI de la complétion et déclencher le refresh des panneaux
-          Promise.all([
-            apiAddBuilding(update.cityId, update.building),
-            apiClearProduction(update.cityId),
-          ]).then(() => {
-            window.dispatchEvent(new CustomEvent('nova:logistic-refresh'));
-            window.dispatchEvent(new CustomEvent('nova:building-completed', {
-              detail: { buildingId: update.building, cityName: update.cityName },
-            }));
-          }).catch(() => {
-            console.warn(`[processTurn] Échec serveur (complétion bâtiment) — resynchronisation`);
-            get().hydrateCitiesFromServer();
-          });
-        } else if (update.kind === 'completed_unit') {
-          apiClearProduction(update.cityId).catch(() => {
-            console.warn(`[processTurn] Échec serveur (complétion unité) — resynchronisation`);
-            get().hydrateCitiesFromServer();
-          });
-        } else {
-          apiSetProduction(update.cityId, {
-            type:     update.type,
-            name:     update.name,
-            cost:     update.cost,
-            progress: update.progress,
-          }).catch(() => {
-            console.warn(`[processTurn] Échec serveur (progression) — resynchronisation`);
-            get().hydrateCitiesFromServer();
-          });
-        }
-      }
     },
 
     // Phase 6 : foundColony ne crée plus de ville locale.
