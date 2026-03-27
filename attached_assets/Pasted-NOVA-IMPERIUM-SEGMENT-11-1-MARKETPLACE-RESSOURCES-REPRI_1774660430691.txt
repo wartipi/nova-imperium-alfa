@@ -1,0 +1,125 @@
+NOVA IMPERIUM — SEGMENT 11.1 — MARKETPLACE RESSOURCES (REPRISE PROPRE)
+Branche : `NI-10.3`
+
+On revient au marketplace.
+
+Mais je veux repartir proprement à partir de l’état réel de la branche.
+
+CONTEXTE À RESPECTER
+
+1. Il existe déjà un marketplace actif dans le projet :
+
+* endpoints `/api/marketplace/*`
+* ventes directes
+* enchères
+* ressources
+* objets uniques
+* `PublicMarketplace.tsx` déjà monté
+
+Je ne veux donc PAS remplacer brutalement ce marketplace existant.
+
+2. Je veux ajouter un **marché des ressources** distinct, fondé sur :
+
+* accès uniquement via `guilde_des_marchands`
+* ordres `buy` / `sell`
+* prix librement choisis par les joueurs
+* fill total ou partiel
+* commission du marché
+* commission payée par le vendeur uniquement
+* commission active/pending avec délai de 24 h
+* commission réglable par le propriétaire dans les plafonds par tier
+
+3. Ownership
+   Le propriétaire du marché doit être dérivé depuis la ville/colonie canonique.
+   Je ne veux pas stocker un owner parallèle dans `market_guilds`.
+
+OBJECTIF DE CE BLOC
+Je veux uniquement un **BLOC 1 FINAL CORRIGÉ** pour le marketplace ressources.
+
+Aucune implémentation.
+Aucun code.
+Aucune migration.
+
+RÈGLES VALIDÉES
+
+1. Le marché des ressources ne remplace pas le marketplace existant
+2. Il doit être ajouté :
+
+* soit comme nouvel onglet dans `PublicMarketplace`
+* soit comme nouvelle vue/composant dédié
+
+3. L’accès au marché des ressources est bloqué sans `guilde_des_marchands`
+4. Le marché des ressources fonctionne comme un carnet d’ordres manuel :
+
+* `buy`
+* `sell`
+* fill partiel
+* cancel
+
+5. Les ressources et le gold passent uniquement par `player_bank`
+6. La commission est payée seulement par le vendeur
+7. La commission active au moment du trade s’applique
+8. Le changement de commission :
+
+* max 1 fois par 24 h
+* devient actif après 24 h
+
+9. Le marché doit exposer :
+
+* tarif actif
+* prochain tarif
+* heure d’activation
+
+10. Les plafonds de commission sont :
+
+* Tier 1 → 0 à 600 bps
+* Tier 2 → 0 à 1200 bps
+* Tier 3 → 0 à 2000 bps
+* Tier 4 → 0 à 2500 bps
+
+POINT IMPORTANT À AUDITER
+L’ownership canonique des villes n’est pas encore parfaitement réconciliée publiquement dans la branche.
+Je veux donc que tu proposes le plus petit branchement propre du marché des ressources :
+
+* sans dupliquer l’owner dans `market_guilds`
+* mais en identifiant clairement la dépendance à l’ownership canonique de la ville
+
+CE QUE TU DOIS PRODUIRE
+Je veux exactement :
+
+1. AUDIT COURT
+
+* état actuel du marketplace existant
+* point d’intégration du marché des ressources
+* dépendance réelle à l’ownership de ville
+* risques
+
+2. PROPOSITION TECHNIQUE MINIMALE
+
+* tables à ajouter
+* routes à ajouter
+* services à ajouter
+* stratégie UI retenue
+* logique d’escrow
+* logique de commission
+* comment dériver le propriétaire du marché sans duplication
+
+3. FICHIERS EXACTS À MODIFIER
+   Liste précise
+
+4. PLAN D’IMPLÉMENTATION MINIMAL
+   Étapes courtes, ordonnées, sans code
+
+5. STOP VALIDATION
+   Tu t’arrêtes ici.
+   Tu n’implémentes rien avant mon accord.
+
+IMPORTANT FINAL
+Je veux un marché des ressources :
+
+* ancré dans `guilde_des_marchands`
+* séparé proprement du marketplace existant
+* compatible avec l’ownership canonique futur des villes
+* simple
+* stable
+* serveur-authoritative
