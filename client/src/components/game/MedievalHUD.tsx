@@ -106,6 +106,52 @@ export function MedievalHUD() {
   // Résumé du dernier tick de production (affiché après fin de tour)
   const [lastTurnResult, setLastTurnResult] = useState<ProductionTickResult | null>(null);
 
+  // ─── Noms lisibles par buildingId ────────────────────────────────────────
+  const BUILDING_NAMES: Record<string, { name: string; icon: string; bankEffect?: boolean }> = {
+    outpost:          { name: 'Avant-poste',              icon: '🏗️' },
+    exploration_camp: { name: "Camp d'exploration",        icon: '⛺' },
+    observation_tower:{ name: "Tour d'observation",        icon: '🗼' },
+    sawmill:          { name: 'Scierie',                   icon: '🪚', },
+    hunting_post:     { name: 'Poste de chasse',           icon: '🏹' },
+    druidic_temple:   { name: 'Temple druidique',          icon: '🌳' },
+    herbalist_house:  { name: "Maison de l'herboriste",    icon: '🌿' },
+    mine:             { name: 'Mine',                      icon: '⛏️' },
+    advanced_mine:    { name: 'Mine avancée',              icon: '⛏️' },
+    fortress:         { name: 'Forteresse',                icon: '🏰' },
+    watchtower:       { name: 'Tour de guet',              icon: '🗼' },
+    oil_camp:         { name: "Camp pétrolier",            icon: '🛢️' },
+    farm:             { name: 'Ferme',                     icon: '🌾' },
+    granary:          { name: 'Grenier',                   icon: '🏚️' },
+    fishing_post:     { name: 'Poste de pêche',            icon: '🎣' },
+    bank:             { name: 'Banque',                    icon: '🏦', bankEffect: true },
+    market:           { name: 'Marché',                    icon: '🛒' },
+    workshop:         { name: 'Atelier',                   icon: '🔨' },
+    library:          { name: 'Bibliothèque',              icon: '📚' },
+    temple:           { name: 'Temple',                    icon: '🕍' },
+    wall:             { name: 'Rempart',                   icon: '🧱' },
+    tower:            { name: 'Tour de guet',              icon: '🗼' },
+    harbor:           { name: 'Port',                      icon: '⚓' },
+    stable:           { name: 'Écurie',                    icon: '🐎' },
+    blacksmith:       { name: 'Forgeron',                  icon: '⚒️' },
+    barracks:         { name: 'Caserne',                   icon: '⚔️' },
+  };
+
+  // Toast complétion de construction
+  const [buildingToasts, setBuildingToasts] = useState<Array<{ id: number; buildingId: string; cityName: string }>>([]);
+  const toastCounterRef = React.useRef(0);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { buildingId, cityName } = (e as CustomEvent).detail ?? {};
+      if (!buildingId) return;
+      const id = ++toastCounterRef.current;
+      setBuildingToasts(prev => [...prev, { id, buildingId, cityName }]);
+      setTimeout(() => setBuildingToasts(prev => prev.filter(t => t.id !== id)), 6000);
+    };
+    window.addEventListener('nova:building-completed', handler);
+    return () => window.removeEventListener('nova:building-completed', handler);
+  }, []);
+
   // ─── Fin de Tour ──────────────────────────────────────────────────────────
   const handleEndTurn = async () => {
     if (isEndingTurn) return;
@@ -823,6 +869,31 @@ export function MedievalHUD() {
         actionPointsBonus={notification.actionPointsBonus}
         onClose={hideLevelUpNotification}
       />
+
+      {/* ─── Toasts complétion de construction ────────────────────────────── */}
+      {buildingToasts.length > 0 && (
+        <div className="fixed bottom-24 left-4 z-[9990] pointer-events-auto flex flex-col gap-2 max-w-xs">
+          {buildingToasts.map(toast => {
+            const meta = BUILDING_NAMES[toast.buildingId];
+            const icon = meta?.icon ?? '🏗️';
+            const name = meta?.name ?? toast.buildingId;
+            return (
+              <div key={toast.id} className="bg-emerald-900 border-2 border-emerald-400 rounded-lg shadow-2xl p-3 text-white text-xs">
+                <div className="font-bold text-emerald-200 text-sm mb-1">
+                  {icon} {name} terminé{meta?.bankEffect ? '' : ''}
+                </div>
+                {toast.cityName && (
+                  <p className="text-emerald-300 text-xs mb-1">📍 {toast.cityName}</p>
+                )}
+                {meta?.bankEffect && (
+                  <p className="text-emerald-400 italic text-xs">🏦 Dépôt automatique actif dès le prochain tour</p>
+                )}
+                <p className="text-emerald-500 italic text-xs mt-1">Trésorerie et Construction mis à jour</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* ─── Résumé du dernier tick de production ─────────────────────────── */}
       {lastTurnResult && lastTurnResult.applied && lastTurnResult.cities.length > 0 && (

@@ -1,0 +1,142 @@
+NOVA IMPERIUM — PHASE SUIVANTE
+COMPLÉTION VISIBLE DES CONSTRUCTIONS DE VILLE ET DE LEURS EFFETS
+
+Branche :
+NI-10.3
+
+Contexte technique :
+Jeu persistant Node/TS + React/TS + PostgreSQL
+Architecture serveur autoritaire
+Méthode obligatoire :
+Audit court → proposition minimale → implémentation ciblée → vérification
+Aucun refactor massif
+
+CONTEXTE VALIDÉ
+
+Le prototype dispose déjà de :
+
+- exploitation Tier 1
+- production par tour
+- stockage/logistique
+- collecte physique
+- transferts
+- construction serveur
+- progression visuelle de construction
+- résumé du tick de production
+- auto-refresh UI
+- actions différées avec complétion visible
+
+PROBLÈME RESTANT
+
+La complétion des constructions de ville n’est pas encore assez visible pour le test utilisateur.
+
+Aujourd’hui :
+- on peut lancer une construction
+- on voit une progression
+- mais il manque encore une confirmation claire de :
+  - quand le bâtiment est terminé
+  - quel bâtiment a été ajouté
+  - quel effet réel cela a eu
+  - si la ville produit désormais autre chose
+  - si de nouveaux bâtiments deviennent disponibles
+
+OBJECTIF DE LA PHASE
+
+Je veux rendre la fin de construction de ville
+claire, visible et immédiatement compréhensible.
+
+Je veux que lorsqu’un bâtiment se termine :
+- le joueur le voie clairement
+- la ville montre le nouveau bâtiment
+- les effets soient visibles sans ambiguïté
+- l’UI se resynchronise automatiquement
+- le prototype soit lisible de bout en bout
+
+POINT 1 — AUDIT COURT
+Je veux identifier :
+
+1. comment une construction de ville est complétée aujourd’hui
+2. où processTurn() / production locale ajoute le bâtiment
+3. si la complétion déclenche déjà un refresh ou non
+4. ce qui est visible aujourd’hui côté joueur
+5. ce qui reste silencieux ou ambigu
+
+POINT 2 — SIGNAL DE COMPLÉTION
+Je veux un mécanisme minimal pour qu’à la complétion d’une construction :
+
+- l’UI sache qu’un bâtiment vient d’être terminé
+- les panneaux concernés se rechargent
+- un message clair soit affiché
+
+IMPORTANT :
+Je ne veux pas d’architecture complexe.
+Je veux la solution la plus simple et stable.
+
+POINT 3 — FEEDBACK UTILISATEUR
+Je veux un retour clair du type :
+
+- ✅ Scierie terminée à TestVille6
+- ✅ Mine avancée terminée
+- ✅ Banque terminée — dépôt automatique actif
+
+Le feedback peut être :
+- un encart temporaire
+- un toast léger
+- un message inline dans le panneau concerné
+- ou autre solution simple
+
+IMPORTANT :
+Je veux que le testeur comprenne immédiatement ce qui vient de changer.
+
+POINT 4 — AUTO-REFRESH DES EFFETS
+Quand une construction se termine,
+je veux que les éléments dépendants se mettent à jour automatiquement :
+
+- liste des bâtiments de la ville
+- production par tour de la ville
+- contexte d’exploitation si impacté
+- panneaux Construction / Trésorerie si nécessaire
+
+IMPORTANT :
+Je ne veux pas d’action manuelle requise pour constater le résultat.
+
+POINT 5 — SCÉNARIO TESTABLE
+Je veux qu’un testeur puisse faire :
+
+1. lancer une construction
+2. finir les tours nécessaires
+3. voir la construction se terminer
+4. voir le bâtiment apparaître
+5. voir les effets réels immédiatement
+6. continuer à jouer sans devoir deviner si ça a marché
+
+FORMAT DE RETOUR ATTENDU
+
+Je veux un rapport final structuré exactement en 7 parties :
+
+1. Audit ultra-court du point de départ
+2. Choix minimal retenu
+3. Fichiers modifiés
+4. Résumé exact du patch
+5. Flux avant / après
+6. Points volontairement non traités
+7. Résultat de validation
+
+INTERDIT
+
+- refactor massif
+- nouvelle architecture globale
+- refonte du système de ville
+- duplication inutile de logique
+- complexité inutile
+
+PRIORITÉ ABSOLUE
+
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+BUT FINAL
+
+Faire en sorte que la fin d’une construction de ville
+soit aussi visible et compréhensible
+que la fin d’une action logistique,
+pour compléter un prototype réellement testable.

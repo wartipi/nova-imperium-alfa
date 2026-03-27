@@ -337,7 +337,7 @@ export const useNovaImperium = create<NovaImperiumState>()(
       // Phase 7 : collecter les changements de production avant le set()
       // pour déclencher les appels serveur après la mise à jour locale.
       type ProductionUpdate =
-        | { kind: 'completed_building'; cityId: string; building: string }
+        | { kind: 'completed_building'; cityId: string; building: string; cityName: string }
         | { kind: 'completed_unit';     cityId: string }
         | { kind: 'progressed';         cityId: string; type: string; name: string; cost: number; progress: number };
 
@@ -362,7 +362,7 @@ export const useNovaImperium = create<NovaImperiumState>()(
                 // Phase 7 : enregistrer la complétion (uniquement pour les villes du joueur)
                 if (ni.id === state.currentNovaImperiumId) {
                   if (city.currentProduction.type === 'building') {
-                    productionUpdates.push({ kind: 'completed_building', cityId: city.id, building: city.currentProduction.name });
+                    productionUpdates.push({ kind: 'completed_building', cityId: city.id, building: city.currentProduction.name, cityName: city.name });
                   } else {
                     productionUpdates.push({ kind: 'completed_unit', cityId: city.id });
                   }
@@ -402,6 +402,11 @@ export const useNovaImperium = create<NovaImperiumState>()(
       // Chaque appel a son propre catch → hydrateCitiesFromServer() pour éviter toute divergence silencieuse.
       for (const update of productionUpdates) {
         if (update.kind === 'completed_building') {
+          // Notifier l'UI de la complétion et déclencher le refresh des panneaux
+          window.dispatchEvent(new CustomEvent('nova:logistic-refresh'));
+          window.dispatchEvent(new CustomEvent('nova:building-completed', {
+            detail: { buildingId: update.building, cityName: update.cityName },
+          }));
           Promise.all([
             apiAddBuilding(update.cityId, update.building),
             apiClearProduction(update.cityId),
