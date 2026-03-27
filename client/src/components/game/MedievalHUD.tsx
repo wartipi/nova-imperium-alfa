@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useGameState } from "../../lib/stores/useGameState";
 import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { useMap } from "../../lib/stores/useMap";
