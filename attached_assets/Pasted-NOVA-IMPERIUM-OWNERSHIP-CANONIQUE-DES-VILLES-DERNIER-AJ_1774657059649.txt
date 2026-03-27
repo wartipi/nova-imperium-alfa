@@ -1,0 +1,107 @@
+NOVA IMPERIUM — OWNERSHIP CANONIQUE DES VILLES — DERNIER AJUSTEMENT AVANT IMPLÉMENTATION
+Branche : `NI-10.3`
+
+Ton BLOC 1 est presque validé.
+
+Je valide :
+
+* `colonies` comme source de vérité de l’ownership courant
+* `founderId` / `founderName` historiques
+* `ownerType = 'player' | 'faction'`
+* backfill initial des villes existantes vers `ownerType = 'faction'`
+* `ownerType NOT NULL`
+* DTO enrichi avec noms + IDs
+* route/service de transfert dans le périmètre
+
+Mais je ne valide PAS encore la logique d’autorisation du transfert.
+
+PROBLÈME STRUCTUREL
+Tu proposes `canAccessColony(playerId, colony)` comme fonction canonique de permission,
+puis tu l’utilises aussi comme base pour `transferColonyOwnership(...)`.
+
+Je refuse cela.
+
+Raison :
+
+* pour une colonie `ownerType = 'faction'`,
+* `canAccessColony()` donnerait accès à tout membre de la faction,
+* ce qui reviendrait à autoriser tout membre à transférer la ville,
+* alors que la gouvernance de faction n’est pas encore définie.
+
+Je veux une séparation stricte entre :
+
+* droit d’accès à une colonie
+* droit de transférer sa propriété
+
+DÉCISION VALIDÉE
+Pour cette phase :
+
+1. `canAccessColony(playerId, colony)`
+   sert uniquement à l’accès métier courant :
+
+* consultation
+* actions de ville
+* accès opérationnel autorisé
+
+2. Le transfert utilise une logique PLUS STRICTE :
+
+* si `ownerType = 'player'` :
+
+  * le propriétaire joueur peut transférer
+  * ou admin
+* si `ownerType = 'faction'` :
+
+  * admin seulement pour l’instant
+
+Je ne veux PAS :
+
+* “tout membre de faction peut transférer”
+* ni une gouvernance implicite inventée avant le vrai système de faction
+
+CE QUE TU DOIS CORRIGER
+Je veux un BLOC 1 final corrigé avec :
+
+1. une distinction explicite entre :
+
+* `canAccessColony`
+* et la permission de transfert
+
+2. soit une nouvelle fonction dédiée :
+
+* `canTransferColonyOwnership(...)`
+  ou
+* une logique équivalente intégrée dans `transferColonyOwnership(...)`
+
+3. une clarification écrite sur le statut de `factionId` :
+
+* `ownerType + ownerPlayer* / ownerFaction*` = ownership canonique
+* `factionId / factionName` = compatibilité / structure legacy
+* les permissions refactorées et le futur marketplace doivent se baser sur l’owner canonique, pas sur `factionId`
+
+FORMAT DE TA RÉPONSE
+Je veux exactement :
+
+1. BLOC 1 FINAL CORRIGÉ
+
+* séparation accès / transfert
+* règle finale d’autorisation du transfert
+* statut exact de `factionId`
+* DTO final inchangé ou ajusté si nécessaire
+
+2. FICHIERS EXACTS À MODIFIER
+   Liste précise
+
+3. PLAN D’IMPLÉMENTATION FINAL
+   Étapes courtes, ordonnées, sans code
+
+4. STOP VALIDATION
+   Tu t’arrêtes ici.
+   Tu n’implémentes rien avant mon accord.
+
+IMPORTANT FINAL
+Je veux une ownership canonique qui supporte :
+
+* joueur
+* faction
+
+mais je ne veux pas accorder à tous les membres d’une faction le pouvoir de transférer une ville tant que la gouvernance de faction n’existe pas encore.
