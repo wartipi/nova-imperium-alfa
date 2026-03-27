@@ -1,0 +1,159 @@
+NOVA IMPERIUM — CLAIM TERRITOIRE JOUEUR OU FACTION — RÉCONCILIATION PUBLIQUE AVANT VALIDATION
+Branche : `NI-10.3`
+
+Ton rapport d’implémentation n’est pas validé publiquement.
+
+Le problème n’est plus le design.
+Le problème est l’écart entre ce que tu annonces et ce qui est réellement visible sur la branche publique `NI-10.3`.
+
+CONSTATS SUR LA BRANCHE PUBLIQUE
+
+1. `shared/schema.ts`
+
+* les champs d’ownership canonique visibles concernent `colonies`
+* `territories` visible garde encore seulement :
+
+  * `playerId`
+  * `playerName`
+  * `factionId`
+  * `factionName`
+* je ne vois pas :
+
+  * `ownerType`
+  * `ownerPlayerId`
+  * `ownerPlayerName`
+  * `ownerFactionId`
+  * `ownerFactionName`
+    sur `territories`
+
+2. `server/territoryService.ts`
+
+* je ne vois pas publiquement :
+
+  * `backfillTerritoryOwnership`
+  * ni `ownerType`
+  * ni la logique claim `player/faction`
+
+3. `server/routes/territories.ts`
+
+* `POST /claim` lit encore seulement `worldX` et `worldY`
+* je ne vois pas `ownerType`
+
+4. `client/src/lib/api/territoriesApi.ts`
+
+* je ne vois pas publiquement `ownerType` dans le DTO
+* ni `apiClaimTerritory(..., ownerType)`
+
+5. `UnifiedTerritorySystem.ts`
+
+* `getAccessibleTerritories(...)` existe publiquement
+* mais ce n’est pas suffisant si l’UI active ne l’utilise pas
+
+6. `UnifiedTerritoryPanel.tsx`
+
+* je vois encore :
+
+  * `apiClaimTerritory(worldX, worldY)`
+  * `getPlayerTerritories('player')`
+  * le gate faction dans le panneau actif
+
+OBJECTIF
+Je veux maintenant une vraie réconciliation entre :
+
+* ton rapport local
+* et l’état public visible de `NI-10.3`
+
+FICHIERS À RÉCONCILIER PUBLIQUEMENT
+
+* `shared/schema.ts`
+* `server/territoryService.ts`
+* `server/routes/territories.ts`
+* `client/src/lib/api/territoriesApi.ts`
+* `client/src/lib/systems/UnifiedTerritorySystem.ts`
+* `client/src/components/game/UnifiedTerritoryPanel.tsx`
+
+ATTENDU TECHNIQUE
+
+A. `shared/schema.ts`
+Sur `territories`, ajouter réellement :
+
+* `ownerType` NOT NULL DEFAULT `'faction'`
+* `ownerPlayerId`
+* `ownerPlayerName`
+* `ownerFactionId`
+* `ownerFactionName`
+
+Et si c’est bien le plan retenu :
+
+* `factionId`
+* `factionName`
+  doivent devenir nullables
+
+B. `server/territoryService.ts`
+Ajouter réellement :
+
+* `backfillTerritoryOwnership()` idempotente
+* `claimTerritory(..., ownerType)`
+* branch `player`
+* branch `faction`
+
+C. `server/routes/territories.ts`
+`POST /claim` doit réellement :
+
+* lire `ownerType`
+* valider le choix
+* refuser `ownerType='faction'` sans faction active
+* forcer `player` si nécessaire
+
+D. `client/src/lib/api/territoriesApi.ts`
+Le DTO territoire doit réellement exposer :
+
+* `ownerType`
+* `ownerPlayerId`
+* `ownerPlayerName`
+* `ownerFactionId`
+* `ownerFactionName`
+
+`apiClaimTerritory` doit réellement accepter `ownerType`
+
+E. `UnifiedTerritoryPanel.tsx`
+Le panneau actif doit réellement :
+
+* supprimer `getPlayerTerritories('player')`
+* utiliser la lecture correcte des territoires accessibles
+* supprimer le gate “faction obligatoire”
+* proposer le choix inline :
+
+  * `Pour moi`
+  * `Pour ma faction`
+    quand le joueur a une faction
+
+FORMAT DE TA RÉPONSE
+Je veux exactement :
+
+1. ÉTAT DE BRANCHE
+
+* les changements sont-ils réellement poussés sur `NI-10.3` ?
+
+2. COMMIT / DIFF EXACT
+
+* commit hash exact si déjà poussé
+* sinon diff exact fichier par fichier
+
+3. VÉRIFICATION PUBLIQUE
+
+* ce qui est maintenant visible dans le dépôt
+* pas ce qui existe seulement en local
+
+4. POINTS DE VÉRIFICATION
+
+* backfill OK
+* route `/claim` prend bien `ownerType`
+* claim joueur sans faction → `player`
+* claim joueur avec faction → choix `player/faction`
+* panneau actif n’utilise plus `getPlayerTerritories('player')`
+* aucun nouveau code ne gate sur `factionId`
+
+IMPORTANT FINAL
+Je valide uniquement ce qui est visible publiquement sur `NI-10.3`.
+Je ne veux plus un rapport local seul.
