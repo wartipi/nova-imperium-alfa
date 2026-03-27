@@ -1,0 +1,329 @@
+NOVA IMPERIUM — PHASE 10.1 — UNITÉS SERVEUR-AUTHORITATIVES
+Branche cible : `NI-10.3`
+
+CONTEXTE PROJET
+Jeu persistant Node/TypeScript + React/TypeScript + PostgreSQL
+Architecture : serveur autoritaire
+Méthode obligatoire : Audit → Validation → Implémentation ciblée → Vérification → Verrouillage
+Priorités absolues : Simplicité > Lisibilité > Stabilité > Compatibilité
+Interdits : refactor massif, changement d’architecture, abstraction générique inutile, comportements implicites côté client, duplication de logique métier
+
+OBJECTIF DE CETTE PHASE
+Compléter le pipeline des unités exactement comme cela a été fait pour les bâtiments :
+
+* la production doit être décidée et complétée côté serveur
+* l’unité terminée doit être réellement persistée côté serveur
+* le client ne doit plus “inventer” la fin de production d’une unité
+* le client doit uniquement hydrater et afficher l’état réel du serveur
+
+ÉTAT ACTUEL CONFIRMÉ
+
+1. `city_production` est déjà la file canonique de production d’une ville
+2. `tickCityProduction(playerId)` existe déjà côté serveur et incrémente la progression
+3. pour les bâtiments : le serveur ajoute le bâtiment, applique les effets, vide la file
+4. pour les unités : le serveur ne fait actuellement que `clearProduction(city.id)` puis retourne `completedUnits`, sans créer d’unité persistée
+5. `completedUnits` est actuellement trop pauvre pour une bonne hydratation UI
+6. la production des unités est donc incomplète structurellement : la file existe, la complétion logique existe, mais pas la persistance canonique de l’unité terminée
+
+CONTRAINTE FONDAMENTALE
+NE PAS refaire le système d’armées.
+NE PAS ouvrir combat, déplacement militaire, fusion d’unités, équilibrage, composition avancée, ou refonte du store.
+Cette phase doit seulement créer le plus petit pipeline propre permettant :
+ville → file de production → tick serveur → unité persistée → hydratation client → feedback visuel
+
+DÉCISION D’ARCHITECTURE À RESPECTER
+
+* `city_production` reste la source de vérité de la file en cours
+* il faut ajouter une source de vérité canonique minimale pour les unités terminées
+* cette source de vérité doit être une table dédiée aux unités persistées
+* NE PAS utiliser `armies` comme stockage canonique d’unités individuelles
+* `armies` pourra consommer des IDs d’unités plus tard, mais ce n’est pas le chantier ici
+
+CIBLE MINIMALE À ATTEINDRE
+Créer le plus petit passage propre suivant :
+
+1. SCHEMA — PERSISTANCE DES UNITÉS
+   Ajouter une table minimale `units` dans `shared/schema.ts` (nom possible : `units`, sauf si un nom équivalent existe déjà et est meilleur).
+   Cette table doit rester simple et suffisante pour le Tier 1.
+
+Champs minimaux attendus :
+
+* `id` : identifiant texte ou serial, choisir l’option la plus cohérente avec le projet existant
+* `ownerPlayerId` : propriétaire réel de l’unité
+* `cityId` ou `originCityId` : ville d’origine
+* `unitType` : identifiant canonique du type d’unité
+* `name` : nom affichable si utile
+* `worldX`
+* `worldY`
+* `health`
+* `maxHealth`
+* `attack`
+* `defense`
+* `movement`
+* `movementRemaining`
+* `createdAt`
+
+Règles :
+
+* rester minimal
+* pas de colonnes spéculatives “pour plus tard”
+* pas de système de progression d’expérience
+* pas de logique d’armée embarquée dans cette table
+* la position initiale de l’unité doit être celle de la ville qui l’a produite
+
+2. SCHEMA — PROPRIÉTAIRE DE LA FILE
+   Ajouter à `city_production` un champ explicite permettant de savoir quel joueur a lancé la production si ce champ n’existe pas déjà, par exemple :
+
+* `queuedByPlayerId`
+
+But :
+
+* éviter toute ambiguïté si plusieurs joueurs d’une même faction accèdent aux mêmes villes
+* permettre que l’unité terminée appartienne au bon joueur
+* garder la file de production canonique mais aussi traçable
+
+IMPORTANT :
+
+* si tu constates qu’un autre champ serveur existant garantit déjà ce lien de manière fiable et déterministe, documente-le clairement avant d’éviter cet ajout
+* sinon, ajoute ce champ sans débat
+
+3. CATALOGUE SERVEUR MINIMAL DES UNITÉS
+   Le serveur ne doit pas dépendre du client pour connaître les stats de base d’une unité.
+   Créer un petit catalogue canonique côté serveur pour les unités recrutables Tier 1.
+   Ce catalogue doit être minimal, lisible, localisé à un seul endroit, et utilisé uniquement pour :
+
+* valider le type d’unité produit
+* générer les stats initiales persistées
+* éventuellement fournir le nom canonique si utile
+
+Contraintes :
+
+* pas de duplication inutile avec 4 catalogues dispersés
+* pas de gros moteur générique
+* si un catalogue partagé simple et déjà existant peut être réutilisé proprement, fais-le
+* sinon crée un petit catalogue serveur local clair
+
+4. SERVICE SERVEUR — CRÉATION CANONIQUE D’UNE UNITÉ
+   Dans le service ville / production :
+
+* créer une fonction serveur explicite du type `createProducedUnit(...)`
+* elle doit :
+
+  * recevoir les informations minimales nécessaires
+  * résoudre le type d’unité via le catalogue serveur
+  * lire la ville pour récupérer sa position
+  * créer l’unité persistée dans la nouvelle table
+  * retourner l’unité créée ou un DTO minimal exploitable
+
+Cette fonction doit être :
+
+* petite
+* déterministe
+* sans effet secondaire inutile
+* facile à lire
+* facile à réutiliser plus tard si nécessaire
+
+5. TICK DE PRODUCTION — COMPLÉTION SERVEUR
+   Modifier `tickCityProduction(playerId)` pour que le cas `productionType === "unit"` fasse maintenant :
+
+* déterminer le propriétaire réel
+* créer l’unité persistée côté serveur
+* vider la file de production seulement après création réussie
+* retourner un payload de complétion plus riche
+
+Le payload `completedUnits` doit devenir au minimum quelque chose comme :
+
+* `cityId`
+* `cityName`
+* `unitId`
+* `unitType`
+* éventuellement `unitName` si utile à l’UI
+
+Règles critiques :
+
+* ne jamais marquer une unité terminée sans l’avoir persistée
+* ne jamais vider la file si la création persistée a échoué
+* conserver le comportement existant des bâtiments sans le casser
+* ne pas modifier inutilement la logique économique déjà stable
+
+6. ROUTE DE LECTURE DES UNITÉS
+   Ajouter une route serveur minimaliste pour hydrater les unités réelles du joueur, par exemple :
+
+* `GET /api/units/me`
+
+Cette route doit :
+
+* retourner uniquement les unités appartenant au joueur connecté
+* être simple
+* ne pas faire de jointures excessives si non nécessaires
+* fournir uniquement les champs utiles au client Tier 1
+
+7. CLIENT — HYDRATATION CANONIQUE DES UNITÉS
+   Ajouter un appel API client pour lire les unités du joueur depuis le serveur.
+   Créer une fonction du type :
+
+* `apiGetMyUnits()`
+* puis `hydrateUnitsFromServer()`
+
+But :
+
+* le store client des unités doit être hydraté depuis le serveur
+* la fin d’une unité ne doit plus être “déduite” localement
+* le client ne doit plus être la source de vérité de l’existence d’une unité
+
+IMPORTANT :
+
+* ne pas faire un grand refactor du store
+* modifier le minimum nécessaire
+* préserver la compatibilité avec l’UI existante autant que possible
+
+8. CLIENT — FIN DE TOUR
+   Dans le pipeline de fin de tour, conserver la logique déjà propre :
+
+* tick économique
+* tick production serveur
+* hydratation villes
+* hydratation unités
+* feedback visuel
+
+Ajouter :
+
+* toast de complétion d’unité
+* refresh visuel fiable
+* pas de décision locale de complétion
+
+9. CLIENT — RECRUTEMENT
+   Auditer le démarrage du recrutement d’unité.
+   Si le client injecte encore de la logique locale trompeuse dans l’état des villes ou des unités, corriger seulement le strict nécessaire pour que :
+
+* l’action de recrutement demande au serveur de démarrer la file
+* l’état affiché reflète ensuite la réponse ou l’hydratation serveur
+* le client ne prétende pas qu’une unité existe avant qu’elle existe réellement côté serveur
+
+ATTENTION :
+
+* ne pas réécrire toute l’UI de recrutement
+* ne pas casser les interactions existantes
+* ne pas changer les coûts ou l’équilibrage
+
+FICHIERS À AUDITER EN PRIORITÉ
+Commencer par lire précisément les fichiers suivants avant toute modification :
+
+* `shared/schema.ts`
+* `server/cityService.ts`
+* routes villes associées
+* API client villes / production
+* store client des unités
+* composants de recrutement / affichage d’unités
+
+MÉTHODE OBLIGATOIRE — STOP GATES
+Tu dois travailler en 3 blocs stricts.
+
+BLOC 1 — AUDIT + PLAN
+Tu commences par :
+
+* lister les fichiers exacts à modifier
+* confirmer où est la source de vérité actuelle
+* confirmer le plus petit ajout de schéma nécessaire
+* confirmer si `queuedByPlayerId` est nécessaire ou non, avec justification
+* proposer le shape exact de la table `units`
+* proposer le shape exact du payload `completedUnits`
+* proposer la séquence d’implémentation la plus petite et la plus sûre
+
+À LA FIN DU BLOC 1 :
+
+* tu t’arrêtes
+* tu n’implémentes rien
+* tu attends validation
+
+BLOC 2 — IMPLÉMENTATION CIBLÉE
+Seulement après validation :
+
+* modifier le schéma
+* générer la migration minimale
+* ajouter la persistance des unités
+* brancher le tick serveur
+* ajouter la lecture serveur
+* brancher l’hydratation client
+* ajouter le feedback visuel minimal
+
+Règle :
+
+* modifications minimales
+* pas de nettoyage opportuniste hors sujet
+* pas de renommage global
+* pas de refactor adjacent “tant qu’à y être”
+
+BLOC 3 — VÉRIFICATION
+Après implémentation :
+
+* vérifier compilation TypeScript
+* vérifier que la production bâtiment fonctionne toujours
+* vérifier qu’une unité terminée est bien persistée
+* vérifier que la file est bien vidée après création réussie
+* vérifier que l’unité appartient au bon joueur
+* vérifier que le client la recharge depuis le serveur
+* vérifier que le toast de complétion s’affiche
+* vérifier qu’aucune logique locale legacy ne crée l’unité en double
+
+SCÉNARIO DE TEST MINIMAL À VALIDER
+Le rapport final devra démontrer ce scénario :
+
+1. une ville démarre une production d’unité
+2. la ligne existe dans `city_production`
+3. le tick serveur avance la progression
+4. au tick terminal, le serveur crée une unité persistée
+5. le serveur vide ensuite la file
+6. `completedUnits` retourne les bonnes infos
+7. le client réhydrate les unités
+8. l’unité apparaît côté UI sans création locale arbitraire
+9. aucun doublon n’est créé
+10. les bâtiments continuent de fonctionner comme avant
+
+RÈGLES DE STYLE
+
+* garder les fonctions petites
+* nommage explicite
+* commentaires uniquement quand ils apportent une vraie valeur structurelle
+* pas de smartness inutile
+* pas d’abstraction “future-proof” excessive
+* pas de logique métier critique cachée dans un composant React
+* pas de logique de persistance cachée côté client
+
+SORTIE ATTENDUE DE TA PART
+Quand tu réponds, structure toujours ainsi :
+
+1. AUDIT COURT
+
+* source de vérité actuelle
+* trou structurel exact
+* fichiers à modifier
+
+2. PROPOSITION TECHNIQUE
+
+* schéma minimal
+* services à ajouter/modifier
+* routes à ajouter/modifier
+* hydratation client minimale
+* risques éventuels
+
+3. PLAN D’IMPLÉMENTATION
+
+* étape 1
+* étape 2
+* étape 3
+* étape 4
+
+4. STOP VALIDATION
+   Tu t’arrêtes ici et tu attends mon accord avant de coder.
+
+IMPORTANT FINAL
+Le but n’est PAS de “moderniser” le système des unités.
+Le but est de fermer proprement le trou structurel exact suivant :
+
+`city_production` existe déjà
+`tickCityProduction()` existe déjà
+la complétion logique existe déjà
+mais l’unité terminée n’a pas encore de persistance canonique serveur
+
+Tu dois corriger exactement cela, avec le plus petit passage propre possible.
