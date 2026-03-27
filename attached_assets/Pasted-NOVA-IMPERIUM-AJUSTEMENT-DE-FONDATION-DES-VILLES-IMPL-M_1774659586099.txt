@@ -1,0 +1,114 @@
+NOVA IMPERIUM — AJUSTEMENT DE FONDATION DES VILLES — IMPLÉMENTATION VALIDÉE
+Branche : `NI-10.3`
+
+Le plan est validé.
+Tu peux maintenant implémenter.
+
+OBJECTIF
+Modifier `foundColony()` pour que la fondation d’une ville :
+
+* ne dépende plus d’un territoire déjà revendiqué par la faction,
+* mais conserve une validation terrain correcte,
+* et applique une contrainte spatiale plus forte.
+
+DÉCISIONS VALIDÉES
+
+1. On supprime dans `foundColony()` la vérification :
+
+* “la case doit être revendiquée par la faction du joueur”
+
+2. On conserve :
+
+* joueur membre d’une faction active
+* nom non vide
+* aucune colonie déjà sur la case exacte
+* ownership initial inchangé :
+
+  * `ownerType = 'faction'`
+  * `ownerFactionId = factionId`
+  * `ownerFactionName = factionName`
+  * `ownerPlayerId = null`
+  * `ownerPlayerName = null`
+
+3. On ajoute une validation directe de terrain dans `foundColony()` :
+
+* lecture de `map_tiles` via `worldX` / `worldY`
+* si aucune case → refus
+* si `isWalkable = false` → refus
+
+4. On change la règle de distance :
+
+* ancien comportement : refus si `dist < 4`
+* nouveau comportement : refus si `dist <= 6`
+* donc distance minimale autorisée = `7`
+
+5. `claimTerritory()` reste totalement inchangé dans cette phase.
+
+FICHIER À MODIFIER
+
+* `server/territoryService.ts`
+
+IMPLÉMENTATION ATTENDUE
+
+1. Supprimer la vérification de territoire revendiqué
+   Retirer dans `foundColony()` :
+
+* la requête sur `territories` à la position `(worldX, worldY)`
+* le refus “Ce territoire n'est pas revendiqué”
+* le refus “Ce territoire n'appartient pas à votre faction”
+
+2. Ajouter la validation directe de terrain
+   Dans `foundColony()`, après la validation du nom :
+
+* lire `mapTiles` sur `(worldX, worldY)`
+* si aucune ligne :
+
+  * retourner une erreur explicite du type `Position invalide (case inexistante)`
+* si `isWalkable = false` :
+
+  * retourner une erreur explicite du type `Impossible de fonder une ville sur ce terrain (case non praticable)`
+
+3. Mettre à jour la règle de distance
+   Remplacer :
+
+* `if (dist < 4)`
+  par :
+* `if (dist <= 6)`
+
+Mettre aussi à jour le message d’erreur pour indiquer :
+
+* distance observée
+* minimum requis : `7`
+
+4. Ne rien modifier d’autre
+
+* pas de refactor annexe
+* pas de changement dans `claimTerritory()`
+* pas de changement DTO
+* pas de changement ownership
+* pas de modification d’autres services
+
+VALIDATION ATTENDUE
+Je veux un rapport final avec exactement :
+
+1. FICHIER MODIFIÉ
+
+* `server/territoryService.ts`
+
+2. CHANGEMENTS APPLIQUÉS
+
+* suppression du pré-claim
+* ajout validation `map_tiles`
+* changement distance `4 -> 7`
+
+3. VÉRIFICATION
+
+* test position valide walkable sans claim préalable → succès
+* test position non walkable → refus
+* test position inexistante dans `map_tiles` → refus
+* test position à distance `<= 6` d’une colonie → refus
+* confirmation que `claimTerritory()` est inchangé
+
+IMPORTANT FINAL
+Tu implémentes uniquement ce micro-changement.
+Tu ne réouvres aucun autre design.

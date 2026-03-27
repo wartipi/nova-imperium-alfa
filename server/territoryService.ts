@@ -159,18 +159,18 @@ export async function foundColony(
     return { error: "Le nom de la colonie est requis", status: 400 };
   }
 
-  // 3. La case doit être revendiquée par la faction du joueur
-  const territoryRows = await db
-    .select({ factionId: territories.factionId })
-    .from(territories)
-    .where(and(eq(territories.worldX, worldX), eq(territories.worldY, worldY)));
+  // 3. Case existante et walkable (validation directe — remplace l'ancienne exigence de territoire revendiqué)
+  const tileRows = await db
+    .select({ isWalkable: mapTiles.isWalkable })
+    .from(mapTiles)
+    .where(and(eq(mapTiles.worldX, worldX), eq(mapTiles.worldY, worldY)));
 
-  if (territoryRows.length === 0) {
-    return { error: "Ce territoire n'est pas revendiqué", status: 403 };
+  if (tileRows.length === 0) {
+    return { error: "Position invalide (case inexistante)", status: 422 };
   }
 
-  if (territoryRows[0].factionId !== factionId) {
-    return { error: "Ce territoire n'appartient pas à votre faction", status: 403 };
+  if (!tileRows[0].isWalkable) {
+    return { error: "Impossible de fonder une ville sur ce terrain (case non praticable)", status: 422 };
   }
 
   // 4. Pas de colonie déjà présente à cette position
@@ -183,13 +183,13 @@ export async function foundColony(
     return { error: "Une colonie existe déjà sur ce territoire", status: 409 };
   }
 
-  // 5. Distance minimale 4 hexagones
+  // 5. Aucune autre colonie dans un rayon de 6 (distance minimale autorisée : 7)
   const allColonies = await db.select({ worldX: colonies.worldX, worldY: colonies.worldY }).from(colonies);
   for (const col of allColonies) {
     const dist = hexDistance(worldX, worldY, col.worldX, col.worldY);
-    if (dist < 4) {
+    if (dist <= 6) {
       return {
-        error: `Trop proche d'une colonie existante (distance : ${dist} hexagone${dist > 1 ? "s" : ""}, minimum requis : 4)`,
+        error: `Trop proche d'une colonie existante (distance : ${dist} hexagone${dist > 1 ? "s" : ""}, minimum requis : 7)`,
         status: 422,
       };
     }
