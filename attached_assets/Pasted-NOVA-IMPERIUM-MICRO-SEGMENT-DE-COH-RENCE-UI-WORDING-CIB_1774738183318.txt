@@ -1,0 +1,151 @@
+NOVA IMPERIUM — MICRO-SEGMENT DE COHÉRENCE UI / WORDING
+CIBLE : HARMONISATION DES LIBELLÉS “VILLE / TERRITOIRE”
+Branche cible : NI-10.3
+
+RÔLE
+Tu exécutes une passe de cohérence UI très ciblée.
+Tu ne touches pas à la logique métier.
+Tu ne touches pas au backend.
+Tu ne refactors pas.
+Tu harmonises uniquement les titres, sous-titres, aides et libellés utilisateur liés au nouveau point d’entrée :
+“GESTION VILLE/TERRITOIRE”.
+
+CONTEXTE VALIDÉ
+Les points suivants sont déjà faits et ne doivent PAS être retravaillés :
+- clic sur une case de ville = flux normal, pas d’ouverture de panneau de gestion
+- le pipeline complet de gestion de ville est maintenant accessible depuis “GESTION VILLE/TERRITOIRE”
+- CityManagementPanel est réouvert depuis UnifiedTerritoryPanel
+- ConstructionPanel a déjà été partiellement renommé
+- le menu latéral affiche déjà “GESTION VILLE/TERRITOIRE”
+
+OBJECTIF
+Je veux une cohérence complète de wording dans l’UI active :
+- mêmes termes partout
+- mêmes concepts partout
+- plus de mélange entre “gestion de territoire” seul, “menu de ville”, ou autres restes legacy
+- vocabulaire lisible pour le joueur
+
+IMPORTANT
+C’est un segment UI / wording uniquement.
+Tu ne modifies aucune règle.
+Tu ne modifies aucun flux technique.
+Tu n’ajoutes aucune feature.
+Tu ne changes pas la structure des panneaux sauf si un micro-ajustement de titre ou texte l’exige.
+
+INTERDICTIONS ABSOLUES
+- aucun changement backend
+- aucun refactor massif
+- aucun changement de routes
+- aucun changement de logique territoire / ville / claim / fondation / construction / marché / banque
+- aucun déplacement de composants
+- aucune correction bonus hors wording/UI immédiat
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Avant toute modification, tu dois afficher exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+- objectif précis
+- fichiers touchés
+- raison de chaque fichier
+- ordre d’exécution
+- risques
+- vérifications prévues
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE ATTENDU
+Lis d’abord en priorité :
+- client/src/components/game/MedievalHUD.tsx
+- client/src/components/game/UnifiedTerritoryPanel.tsx
+- client/src/components/game/ConstructionPanel.tsx
+- client/src/components/game/CityManagementPanel.tsx
+- client/src/components/game/TileInfoPanel.tsx
+
+Tu peux toucher uniquement les fichiers qui ont réellement besoin d’un ajustement de wording.
+
+OBJECTIF DE WORDING
+Le vocabulaire cible doit être cohérent avec cette logique :
+
+- “GESTION VILLE/TERRITOIRE” = point d’entrée global de gestion
+- “Territoire” = case revendiquée / territoire contrôlé
+- “Colonie / Ville” = entité fondée sur un territoire et gérable
+- “Gérer la ville” = action explicite d’ouverture du pipeline complet
+- le clic carte ne doit plus être présenté comme un accès de gestion
+
+À AUDITER ET CORRIGER
+Tu dois rechercher et harmoniser uniquement les textes utilisateurs encore incohérents, par exemple :
+- titres de panneau internes
+- sous-titres
+- aide utilisateur
+- libellés de bouton
+- messages de fallback / empty state
+- instructions “utilisez le menu …”
+- éventuelles mentions legacy “gestion de territoire” quand on parle en réalité du point d’entrée combiné ville/territoire
+
+EXEMPLES DE CIBLES ATTENDUES
+1. UnifiedTerritoryPanel
+- le titre interne ne doit plus être seulement :
+  - “Mes Territoires”
+  - ou “Gestion de Territoire (Admin)”
+si cela entre en contradiction avec le point d’entrée réel
+- il doit refléter clairement la double portée :
+  ville + territoire
+
+2. ConstructionPanel
+- vérifier qu’il ne reste plus aucune mention ambiguë
+- garder les textes cohérents avec “GESTION VILLE/TERRITOIRE”
+
+3. CityManagementPanel
+- vérifier si le titre / les onglets / textes d’aide sont cohérents avec l’accès désormais centralisé via le menu latéral
+- ne pas réécrire son UX, seulement corriger le wording si nécessaire
+
+4. TileInfoPanel
+- vérifier si des libellés donnent encore l’impression qu’on gère la ville depuis le clic carte
+- si oui, reformuler pour rester informatif et non gestionnaire
+
+STYLE ATTENDU
+- simple
+- direct
+- lisible
+- pas trop long
+- pas de jargon technique côté joueur
+- pas de termes contradictoires entre panneaux
+
+CONTRAINTE IMPORTANTE
+Tu dois faire le plus petit passage propre possible.
+Si un texte est déjà bon, tu ne le touches pas.
+Tu ne réécris pas tous les écrans “pour harmoniser le style”.
+Tu corriges seulement les vrais écarts.
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- <chaque fichier modifié>
+
+3. VÉRIFICATIONS
+- confirmer que le menu latéral reste “GESTION VILLE/TERRITOIRE”
+- confirmer que le titre du panneau principal est cohérent avec ce point d’entrée
+- confirmer que ConstructionPanel ne contient plus de wording contradictoire
+- confirmer que les éventuels textes de CityManagementPanel / TileInfoPanel restent cohérents
+- aucune nouvelle erreur TS
+
+4. RISQUES RÉSIDUELS
+- uniquement les vrais
+- sans les corriger hors périmètre
+
+CONTRAINTE FINALE
+Tu fais uniquement une passe de cohérence UI/wording.
+Tu ne touches pas à la logique.
+Tu ne dérives pas.

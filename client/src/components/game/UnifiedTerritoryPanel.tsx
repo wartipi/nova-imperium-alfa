@@ -206,7 +206,7 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
       {/* En-tête */}
       <div className="mb-6">
         <h3 className="medieval-subtitle mb-4">
-          {isAdmin ? 'Gestion de Territoire (Admin)' : 'Mes Territoires'}
+          {isAdmin ? 'Gestion Ville/Territoire (Admin)' : 'Mes Villes & Territoires'}
         </h3>
       </div>
 
