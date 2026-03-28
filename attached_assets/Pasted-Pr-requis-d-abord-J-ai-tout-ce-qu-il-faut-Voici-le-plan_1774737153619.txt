@@ -1,0 +1,88 @@
+Pré-requis d'abord.
+
+J'ai tout ce qu'il faut. Voici le plan complet avant toute modification.
+
+PRÉ-REQUIS
+1. BRANCHE
+NI-10.3
+(confirmé — le git branch --show-current a répondu avant le lock passager)
+
+2. ÉTAT GIT
+git diff --stat HEAD :
+  client/src/components/game/ConstructionPanel.tsx | 148 +++++++++++++++--------
+  1 file changed, 99 insertions(+), 49 deletions(-)
+(les seules modifications en cours sont celles du checkpoint précédent — ConstructionPanel.tsx dropdown)
+
+3. PLAN D'EXÉCUTION
+Objectif : supprimer l'ouverture du CityManagementPanel au clic case → renommer le label menu → mettre à jour les 3 textes ConstructionPanel.
+
+Fichiers touchés :
+
+Fichier	Raison
+GameCanvas.tsx	Contient le court-circuit selectCity + état selectedCityId + mount de CityManagementPanel
+MedievalHUD.tsx	Label 'GESTION DE TERRITOIRE' → 'GESTION VILLE/TERRITOIRE'
+ConstructionPanel.tsx	3 occurrences du même texte utilisateur
+Ordre : GameCanvas → MedievalHUD → ConstructionPanel (indépendants, peuvent être faits en parallèle sauf ordre de lecture).
+
+Risques : useCitySelection et CityManagementPanel importés — si d'autres composants les utilisent, pas de problème (on ne les supprime que dans GameCanvas). Vérification post-modif via grep.
+
+Vérifications prévues : grep residuel selectCity/selectedCityId/CityManagementPanel dans GameCanvas, pas de nouvelles erreurs TS.
+
+C'est parti.
+
+Je fais les 3 fichiers en parallèle.
+
+Maintenant le bloc cœur du court-circuit et le mount.
+
+Vérifications finales en parallèle puis redémarrage.
+
+Exit code 1 sans output = aucune occurrence trouvée. Parfait.
+
+Aucune erreur TS sur GameCanvas ni MedievalHUD. Toutes les erreurs listées sont pré-existantes (FactionPanel, PlayerAvatar, RecruitmentPanel, ConstructionPanel lignes 801-805).
+
+VÉRIFICATIONS OBLIGATOIRES
+1. FICHIERS MODIFIÉS
+client/src/components/game/GameCanvas.tsx
+client/src/components/game/MedievalHUD.tsx
+client/src/components/game/ConstructionPanel.tsx
+2. PREUVES
+git diff -- GameCanvas.tsx
+-import { CityManagementPanel } from "./CityManagementPanel";
+-import { useCitySelection } from "../../lib/hooks/useCitySelection";
+-  const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
+-  const { selectCity } = useCitySelection();
+-        // IMPROVED: Use dedicated city selection hook
+-        const { city, cityId } = selectCity(hex.x, hex.y);
+-        if (city) {
+-          setSelectedCityId(cityId);
+-          setMouseDownPos(null);
+-          return;
+-        }
+-  }, [selectedUnit, setSelectedHex, moveUnit, mouseDownPos, selectCity, setPendingMovement]);
++  }, [selectedUnit, setSelectedHex, moveUnit, mouseDownPos, setPendingMovement]);
+-      {selectedCityId && (
+-        <CityManagementPanel
+-          cityId={selectedCityId}
+-          onClose={() => setSelectedCityId(null)}
+-        />
+-      )}
+git diff -- MedievalHUD.tsx
+-    { id: 'territory' as MenuSection, label: 'GESTION DE TERRITOIRE', icon: '🗺️' },
++    { id: 'territory' as MenuSection, label: 'GESTION VILLE/TERRITOIRE', icon: '🗺️' },
+git diff -- ConstructionPanel.tsx (lignes GESTION)
+-💡 Utilisez le menu "GESTION DE TERRITOIRE" pour fonder de nouvelles colonies
++💡 Utilisez le menu "GESTION VILLE/TERRITOIRE" pour fonder de nouvelles colonies
+-📍 Utilisez le menu "GESTION DE TERRITOIRE" pour commencer
++📍 Utilisez le menu "GESTION VILLE/TERRITOIRE" pour commencer
+-Fondez d'abord une colonie via "GESTION DE TERRITOIRE"
++Fondez d'abord une colonie via "GESTION VILLE/TERRITOIRE"
+3. VÉRIFICATIONS
+Point	Résultat
+Clic ville → aucun menu de ville	✅ Le bloc selectCity → setSelectedCityId → return est supprimé ; le clic continue dans le flux normal
+Sélection de case / déplacement reste actif	✅ setSelectedHex, setPendingMovement, moveUnit intacts
+Label menu = "GESTION VILLE/TERRITOIRE"	✅ MedievalHUD.tsx ligne 256
+Textes ConstructionPanel mis à jour	✅ 3/3 occurrences remplacées
+Aucune nouvelle erreur TS	✅ Zéro erreur sur GameCanvas et MedievalHUD
+4. RISQUES RÉSIDUELS
+useCitySelection et CityManagementPanel existent toujours dans leur fichiers d'origine — aucun problème, ils ne sont simplement plus importés dans GameCanvas. Si aucun autre composant ne les utilise, ils resteront du code mort (hors périmètre).
+Le clic sur une case de ville sélectionne maintenant la case normalement et propose le déplacement — si le joueur est adjacent, la modale de déplacement s'affichera comme pour n'importe quelle case marchable. C'est le comportement attendu.
