@@ -19,6 +19,7 @@ import {
   TRANSPORT_MAX_UNITS,
 } from "../playerActionService";
 import { checkCityAccess } from "../cityService";
+import { checkAccessPoint, resolveAccessPoint } from "../accessPointService";
 
 const router = Router();
 
@@ -99,8 +100,27 @@ router.post("/tick", requireAuth, async (req: AuthRequest, res) => {
   }
 });
 
+// ─── GET /api/economy/bank-access-check ──────────────────────────────────────
+// Route info : retourne l'état d'accès physique du joueur à la banque.
+// Pas de gate — utilisée par l'UI au montage pour afficher les options de transfert.
+router.get("/bank-access-check", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const playerId = req.user!.id;
+    const isAdmin  = req.user!.role === "admin";
+
+    if (isAdmin) {
+      return res.json({ allowed: true, cityId: 0, isAdmin: true });
+    }
+
+    const result = await checkAccessPoint(playerId, "bank");
+    return res.json({ ...result, isAdmin: false });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── GET /api/economy/player-bank/me ─────────────────────────────────────────
-// Auth requise — retourne la banque personnelle du joueur.
+// Auth requise — retourne la banque personnelle du joueur (lecture sans gate physique).
 router.get("/player-bank/me", requireAuth, async (req: AuthRequest, res) => {
   try {
     const bank = await getOrInitPlayerBank(req.user!.id);
@@ -163,6 +183,7 @@ router.get("/player-transport", requireAuth, async (req: AuthRequest, res) => {
 router.post("/transfer-bank-to-city", requireAuth, async (req: AuthRequest, res) => {
   try {
     const playerId = req.user!.id;
+    const isAdmin  = req.user!.role === "admin";
     const {
       cityId,
       gold = 0, food = 0, wood = 0, stone = 0, iron = 0,
@@ -181,6 +202,11 @@ router.post("/transfer-bank-to-city", requireAuth, async (req: AuthRequest, res)
     }
     if (matList.every(([, v]) => (v as number) === 0)) {
       return res.status(400).json({ error: "Montant nul — spécifiez au moins un matériau" });
+    }
+
+    // Gate physique banque pour les non-admins.
+    if (!isAdmin) {
+      await resolveAccessPoint(playerId, "bank");
     }
 
     const access = await checkCityAccess(playerId, cityId);
@@ -230,6 +256,7 @@ router.post("/transfer-bank-to-city", requireAuth, async (req: AuthRequest, res)
 router.post("/transfer-bank-to-player", requireAuth, async (req: AuthRequest, res) => {
   try {
     const playerId = req.user!.id;
+    const isAdmin  = req.user!.role === "admin";
     const {
       gold = 0, food = 0, wood = 0, stone = 0, iron = 0,
       copper = 0, coal = 0, oil = 0, herbs = 0, fur = 0,
@@ -244,6 +271,11 @@ router.post("/transfer-bank-to-player", requireAuth, async (req: AuthRequest, re
     }
     if (matList.every(([, v]) => (v as number) === 0)) {
       return res.status(400).json({ error: "Montant nul — spécifiez au moins un matériau" });
+    }
+
+    // Gate physique banque pour les non-admins.
+    if (!isAdmin) {
+      await resolveAccessPoint(playerId, "bank");
     }
 
     const context = {

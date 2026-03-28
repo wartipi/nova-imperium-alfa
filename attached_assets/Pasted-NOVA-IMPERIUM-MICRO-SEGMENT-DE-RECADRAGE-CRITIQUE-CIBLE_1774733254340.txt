@@ -1,0 +1,200 @@
+NOVA IMPERIUM — MICRO-SEGMENT DE RECADRAGE CRITIQUE
+CIBLE : ACCÈS PHYSIQUE AUX SERVICES CENTRAUX (MARCHÉ + BANQUE)
+Branche cible : NI-10.3
+
+RÔLE
+Tu agis comme système de contrôle puis implémentation ciblée.
+Tu ne dérives pas.
+Tu corriges une erreur de cadrage métier introduite par la migration précédente.
+
+CORRECTION DE RÈGLE CANONIQUE
+La règle canonique correcte est :
+
+1. Le marché est un service central.
+2. La banque est un service central.
+3. Les bâtiments guilde_des_marchands et bank ne créent pas ces services.
+4. Ces bâtiments sont des points d’accès physiques à ces services.
+5. Le joueur ne peut accéder à un service central QUE s’il est physiquement sur une case contenant le bâtiment correspondant.
+6. Sans présence physique sur une case valide :
+   - aucun accès au marché
+   - aucun accès à la banque
+
+IMPORTANT
+Donc :
+- oui au modèle “service central”
+- non au modèle “accès depuis n’importe quelle ville possédée”
+- le gate canonique est la position réelle du joueur sur une case équipée
+
+ERREUR À CORRIGER
+La migration précédente du marché a transformé le système en réseau global, mais a laissé l’accès dépendre d’une simple sélection de ville.
+Ceci est faux au regard de la règle canonique.
+Il faut remplacer ce faux accès “à distance” par un accès “depuis terminal physique”.
+
+PRIORITÉ
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+INTERDIT
+- refactor massif
+- nouveau gros système
+- supprimer le modèle réseau global
+- réécrire tout le marché et toute la banque d’un coup sans audit
+- confondre “service central” et “accès distant libre”
+
+==================================================
+PHASE 1 — AUDIT OBLIGATOIRE
+==================================================
+
+Lis d’abord :
+- client/src/components/game/PublicMarketplace.tsx
+- client/src/components/game/TreasuryPanel.tsx
+- client/src/components/game/MedievalHUD.tsx
+- server/routes/market.ts
+- server/marketService.ts
+- server/routes/economy.ts
+- server/economyService.ts
+- shared/schema.ts
+- tout store ou service client qui donne la position réelle du joueur / avatar
+
+Ensuite réponds précisément à ces questions :
+
+1. POSITION JOUEUR
+- où la position réelle du joueur est-elle disponible côté client ?
+- où est-elle disponible côté serveur ?
+- quelle est la source d’autorité réelle de la position ?
+
+2. CASES D’ACCÈS
+- comment déterminer qu’une case correspond à une ville / colonie contenant un bâtiment bank ou guilde_des_marchands ?
+- la vérification doit-elle se faire via cityId, worldX/worldY, ou jointure ville/colonie/position ?
+
+3. MARCHÉ
+- où l’accès est-il aujourd’hui ouvert à distance par simple sélection de ville ?
+- quelles routes doivent être protégées par la présence physique réelle du joueur sur une case valide ?
+
+4. BANQUE
+- où l’accès bancaire est-il aujourd’hui possible sans présence physique ?
+- quelles routes doivent être protégées par la même logique ?
+
+5. SOURCE DE VÉRITÉ
+- quelle est la plus petite façon propre de vérifier :
+  “le joueur est actuellement sur une case contenant un bâtiment d’accès valide”
+
+==================================================
+PHASE 2 — RÈGLE D’IMPLÉMENTATION
+==================================================
+
+Tu dois appliquer la règle suivante :
+
+MARCHÉ
+- accès autorisé seulement si le joueur est physiquement sur une case correspondant à une ville possédant guilde_des_marchands
+- une fois autorisé, le carnet reste global
+- le point d’accès local détermine les frais
+- sans présence sur une case valide : accès refusé
+
+BANQUE
+- accès autorisé seulement si le joueur est physiquement sur une case correspondant à une ville possédant bank
+- une fois autorisé, l’accès est au service bancaire central
+- sans présence sur une case valide : accès refusé
+
+IMPORTANT
+Le gate doit être :
+- basé sur la position réelle du joueur
+- pas seulement sur ownership
+- pas seulement sur cityId choisi dans l’UI
+
+==================================================
+PHASE 3 — IMPLÉMENTATION MINIMALE RECOMMANDÉE
+==================================================
+
+Tu dois viser le plus petit passage propre :
+
+1. créer un helper serveur du type :
+- resolveCurrentAccessPointForPlayer(playerId, serviceType)
+ou équivalent
+
+2. ce helper doit :
+- lire la position réelle du joueur
+- retrouver si cette position correspond à une ville
+- vérifier si cette ville possède le bâtiment requis
+- retourner soit :
+  - accès valide + cityId + fee context éventuel
+  - soit refus clair
+
+3. routes marché :
+- ne plus dépendre de la ville arbitrairement sélectionnée par l’utilisateur pour autoriser l’accès
+- la ville réellement utilisée doit être celle du point d’accès où se trouve le joueur
+
+4. routes banque :
+- appliquer la même logique
+
+5. UI :
+- ne plus présenter le service comme librement accessible depuis n’importe quelle ville
+- afficher clairement :
+  - accès disponible si le joueur est sur un point d’accès valide
+  - sinon message de refus explicite
+
+==================================================
+PHASE 4 — CONTRAINTE DE STABILITÉ
+==================================================
+
+Tu ne dois pas faire une refonte complète de tous les écrans.
+Tu dois :
+- corriger d’abord la logique d’autorisation
+- puis adapter le minimum d’UI nécessaire
+
+Tant que possible :
+- garde le réseau global du marché
+- garde la logique de frais déjà migrée
+- remplace uniquement le faux accès à distance
+
+==================================================
+PHASE 5 — VÉRIFICATIONS OBLIGATOIRES
+==================================================
+
+Teste explicitement :
+
+1. joueur sur une case avec guilde_des_marchands
+- accès marché OK
+
+2. joueur hors de toute case avec guilde_des_marchands
+- accès marché refusé
+
+3. joueur sur une case avec bank
+- accès banque OK
+
+4. joueur hors de toute case avec bank
+- accès banque refusé
+
+5. marché global
+- carnet toujours global une fois l’accès obtenu
+
+6. non-régression
+- pas de casse sur les frais
+- pas de casse sur ownership
+- pas de casse sur les routes existantes hors contrôle d’accès
+
+==================================================
+FORMAT DE RÉPONSE ATTENDU
+==================================================
+
+Je veux exactement :
+
+1. AUDIT FINAL
+- où l’accès à distance existe encore
+- où la position joueur est réellement lue
+- quelle source de vérité est retenue
+
+2. MODIFICATIONS FAITES
+- fichier par fichier
+- but précis
+
+3. VÉRIFICATIONS
+- cas testés
+- résultats
+
+4. ÉTAT FINAL
+- phrase claire sur l’accès physique au marché et à la banque
+
+CONTRAINTE FINALE
+Tu corriges le modèle d’accès.
+Tu ne casses pas le modèle de service central.
+Tu remplaces seulement l’accès distant libre par un accès physique via terminal.
