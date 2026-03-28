@@ -112,6 +112,20 @@ export function ConstructionPanel() {
     playerColoniesWithTerritories.map(c => `${c.colony.colonyName} (${c.colony.x},${c.colony.y}) - ${c.controlledTerritories.length} cases - terrains: ${c.availableTerrains.join(', ')}`)
   );
 
+  // ─── Clé stable par colonie (colonyId si disponible, sinon "x,y") ───────────
+  const colonyKey = (c: (typeof playerColoniesWithTerritories)[0]): string =>
+    c.colony.colonyId ? String(c.colony.colonyId) : `${c.colony.x},${c.colony.y}`;
+
+  // Sélection effective joueur : validée contre la liste courante, fallback première
+  const effectiveSelected = playerColoniesWithTerritories.some(c => colonyKey(c) === selectedColony)
+    ? selectedColony
+    : playerColoniesWithTerritories.length > 0 ? colonyKey(playerColoniesWithTerritories[0]) : '';
+
+  // Sélection effective admin : city.id, fallback première ville
+  const effectiveAdminCityId = currentNovaImperium.cities.some(c => c.id === selectedColony)
+    ? selectedColony
+    : currentNovaImperium.cities.length > 0 ? currentNovaImperium.cities[0].id : '';
+
   const buildings = [
     // === TERRE EN FRICHE (wasteland) ===
     { 
@@ -952,8 +966,26 @@ export function ConstructionPanel() {
         </div>
       )}
 
-      {/* Liste des colonies avec leurs constructions disponibles */}
-      {hasColonies ? playerColoniesWithTerritories.map(colonyData => {
+      {/* Menu déroulant — sélection de la ville à afficher */}
+      {hasColonies && (
+        <div className="mb-3">
+          <label className="text-xs font-semibold text-amber-800 mb-1 block">Ville sélectionnée</label>
+          <select
+            value={effectiveSelected}
+            onChange={e => setSelectedColony(e.target.value)}
+            className="w-full text-sm border border-amber-400 rounded px-2 py-1 text-amber-900 bg-white"
+          >
+            {playerColoniesWithTerritories.map(c => (
+              <option key={colonyKey(c)} value={colonyKey(c)}>
+                {c.colony.colonyName} ({c.controlledTerritories.length} case{c.controlledTerritories.length > 1 ? 's' : ''})
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Fiche de la ville sélectionnée */}
+      {hasColonies ? playerColoniesWithTerritories.filter(c => colonyKey(c) === effectiveSelected).map(colonyData => {
         // Trouver la ville correspondante dans le système Nova Imperium
         const city = currentNovaImperium.cities.find(c => c.x === colonyData.colony.x && c.y === colonyData.colony.y) || {
           id: colonyData.colony.colonyId!,
@@ -1193,56 +1225,74 @@ export function ConstructionPanel() {
             Fondez d'abord une colonie via "GESTION DE TERRITOIRE"
           </div>
         </div>
-      ) : currentNovaImperium.cities.map(city => (
-        <div key={city.id} className="bg-amber-50 border border-amber-700 rounded p-3">
-          <div className="font-medium text-sm mb-2">{city.name}</div>
-          <div className="space-y-3">
-            {['Basique', 'Production', 'Commerce', 'Défense', 'Spirituel', 'Magie', 'Éducation', 'Navigation', 'Stockage', 'Prestige'].map(category => {
-              const categoryBuildings = buildings.filter(b => b.category === category);
-              return (
-                <div key={category} className="space-y-1">
-                  <div className="text-xs font-bold text-amber-800 border-b border-amber-300 pb-1">
-                    {category}
-                  </div>
-                  {categoryBuildings.map(building => (
-                    <div 
-                      key={building.id} 
-                      className="flex items-center justify-between"
-                      onMouseEnter={(e) => handleMouseEnter(building.id, e)}
-                      onMouseLeave={handleMouseLeave}
-                      onMouseMove={handleMouseMove}
-                    >
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm">{building.icon}</span>
-                        <div>
-                          <div className="text-xs font-medium">{building.name}</div>
-                          <div className="text-xs text-amber-700">
-                            {formatResourceCost(building.cost)}
-                          </div>
-                          <div className="text-xs text-blue-600">
-                            ⚡ ∞ PA | 🕐 Instantané
-                          </div>
-                          <div className="text-xs text-green-600">
-                            📍 {building.requiredTerrain.map(terrain => getTerrainName(terrain)).join(' ou ')}
-                          </div>
-                        </div>
+      ) : (
+        <>
+          {currentNovaImperium.cities.length > 1 && (
+            <div className="mb-3">
+              <label className="text-xs font-semibold text-amber-800 mb-1 block">Ville sélectionnée</label>
+              <select
+                value={effectiveAdminCityId}
+                onChange={e => setSelectedColony(e.target.value)}
+                className="w-full text-sm border border-amber-400 rounded px-2 py-1 text-amber-900 bg-white"
+              >
+                {currentNovaImperium.cities.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {currentNovaImperium.cities.filter(c => c.id === effectiveAdminCityId).map(city => (
+            <div key={city.id} className="bg-amber-50 border border-amber-700 rounded p-3">
+              <div className="font-medium text-sm mb-2">{city.name}</div>
+              <div className="space-y-3">
+                {['Basique', 'Production', 'Commerce', 'Défense', 'Spirituel', 'Magie', 'Éducation', 'Navigation', 'Stockage', 'Prestige'].map(category => {
+                  const categoryBuildings = buildings.filter(b => b.category === category);
+                  return (
+                    <div key={category} className="space-y-1">
+                      <div className="text-xs font-bold text-amber-800 border-b border-amber-300 pb-1">
+                        {category}
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => handleBuild(building.id, city.id)}
-                        disabled={(city.buildings as string[]).includes(building.id)}
-                        className="text-xs bg-amber-600 hover:bg-amber-700 disabled:opacity-50"
-                      >
-                        {(city.buildings as string[]).includes(building.id) ? 'Construit' : 'Construire'}
-                      </Button>
+                      {categoryBuildings.map(building => (
+                        <div
+                          key={building.id}
+                          className="flex items-center justify-between"
+                          onMouseEnter={(e) => handleMouseEnter(building.id, e)}
+                          onMouseLeave={handleMouseLeave}
+                          onMouseMove={handleMouseMove}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm">{building.icon}</span>
+                            <div>
+                              <div className="text-xs font-medium">{building.name}</div>
+                              <div className="text-xs text-amber-700">
+                                {formatResourceCost(building.cost)}
+                              </div>
+                              <div className="text-xs text-blue-600">
+                                ⚡ ∞ PA | 🕐 Instantané
+                              </div>
+                              <div className="text-xs text-green-600">
+                                📍 {building.requiredTerrain.map(terrain => getTerrainName(terrain)).join(' ou ')}
+                              </div>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            onClick={() => handleBuild(building.id, city.id)}
+                            disabled={(city.buildings as string[]).includes(building.id)}
+                            className="text-xs bg-amber-600 hover:bg-amber-700 disabled:opacity-50"
+                          >
+                            {(city.buildings as string[]).includes(building.id) ? 'Construit' : 'Construire'}
+                          </Button>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ))}
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </>
+      )}
       
       {/* Tooltip */}
       {hoveredBuilding && (
