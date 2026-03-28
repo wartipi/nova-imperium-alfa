@@ -1,0 +1,184 @@
+NOVA IMPERIUM — MICRO-SEGMENT D’IMPLÉMENTATION
+CIBLE : PASSAGE DU MARCHÉ LOCAL AU RÉSEAU GLOBAL MINIMAL
+Branche cible : NI-10.3
+
+RÔLE
+Tu exécutes un passage minimal, propre et stable.
+Tu ne fais pas de refonte lourde.
+Tu appliques exactement les décisions canonisées ci-dessous.
+Tu ne réouvres pas les autres segments harmonisés.
+
+DÉCISIONS CANONIQUES VALIDÉES
+1. Il existe un réseau commercial global.
+2. La guilde_des_marchands n’est plus un gate dur d’existence du marché.
+3. Toute ville peut servir de point d’accès au réseau.
+4. Sans guilde, l’accès reste possible avec frais fixes élevés : 500 bps (5%).
+5. Avec guilde, le frais appliqué est celui de market_guilds.activeFeeBps de la ville choisie.
+6. Pour ce premier passage, cityId dans market_orders reste la métadonnée du point d’entrée de création de l’ordre.
+7. Le frais reste calculé à partir de order.cityId, pas à partir de la ville du filler.
+8. Le destinataire des frais reste le propriétaire de la ville liée à order.cityId.
+9. Pas de migration de schéma dans ce segment.
+10. Objectif : réseau global minimal + compatibilité maximale.
+
+IMPORTANT
+Tu ne mets PAS le frais sur la ville du filler dans ce segment.
+Tu ne rends PAS cityId nullable.
+Tu ne crées PAS de trésor central global.
+Tu fais le plus petit passage propre.
+
+PRIORITÉ
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+INTERDIT
+- refactor massif
+- changement d’architecture
+- migration DB inutile
+- nouveau système de trésor central
+- modification des segments déjà harmonisés hors dépendance directe
+
+==================================================
+PHASE 1 — AUDIT LOCAL CIBLÉ
+==================================================
+
+Lis :
+- server/marketService.ts
+- server/routes/market.ts
+- client/src/components/game/PublicMarketplace.tsx
+- client/src/lib/api/marketApi.ts
+- shared/schema.ts
+
+Vérifie :
+1. où checkGuildGate bloque aujourd’hui
+2. où les requêtes filtrent encore par cityId
+3. où l’UI disable les villes sans guilde
+4. quels textes UI supposent encore un marché local fermé
+
+==================================================
+PHASE 2 — IMPLÉMENTATION CIBLÉE
+==================================================
+
+A. BACKEND — DÉCOUPLAGE GATE / FRAIS
+
+Remplace la logique checkGuildGate() par une logique de résolution de contexte marché.
+
+Objectif :
+- ne plus throw 403 quand la ville n’a pas de guilde
+- retourner un contexte exploitable du type :
+  {
+    hasGuild: boolean,
+    feeBps: number,
+    owner: ...
+  }
+
+Règles :
+- si la ville a guilde_des_marchands :
+  feeBps = market_guilds.activeFeeBps
+  ensureGuildRecord(cityId) peut créer la ligne lazily si absente
+- si la ville n’a pas de guilde :
+  feeBps = 500
+  aucune erreur 403
+  pas besoin de ligne market_guilds si non nécessaire
+
+B. BACKEND — CARNET GLOBAL MINIMAL
+
+Le carnet d’ordres doit devenir global sans migration de schéma.
+
+Règle :
+- market_orders.cityId reste stocké
+- MAIS getOpenOrders(...) ne doit plus filtrer par cityId
+- il retourne tous les ordres ouverts du réseau
+
+Même principe pour l’historique :
+- rendre getTradeHistory(...) global lui aussi pour ce premier passage
+- pas de filtre cityId pour l’affichage réseau global
+
+C. BACKEND — FRAIS
+
+Conserver pour ce segment :
+- frais calculés depuis order.cityId
+- frais reversés au propriétaire de order.cityId
+- fillOrder() garde cette logique
+- aucune bascule vers la ville du filler
+
+D. UI — PUBLICMARKETPLACE
+
+Corriger PublicMarketplace pour refléter le réseau global :
+
+1. supprimer disabled={!c.hasGuild}
+2. toute ville du joueur doit être sélectionnable
+3. remplacer “(pas de guilde)” par un affichage de frais estimés :
+   - avec guilde : afficher le taux réel
+   - sans guilde : afficher “frais réseau: 5%”
+4. garder la sélection de ville comme point d’entrée de création d’ordre
+5. le carnet affiché doit être global
+6. le texte UI ne doit plus laisser croire à un marché local isolé
+
+E. API CLIENT
+
+Ajuster seulement si nécessaire :
+- conserver cityId dans les appels si nécessaire pour le point d’entrée
+- ne pas casser les signatures inutilement
+
+==================================================
+PHASE 3 — VÉRIFICATIONS OBLIGATOIRES
+==================================================
+
+Teste explicitement :
+
+1. ville sans guilde
+- accès au marché possible
+- pas de 403
+- affichage frais 5%
+- carnet visible
+
+2. ville avec guilde
+- accès au marché possible
+- affichage du taux réel
+- carnet visible
+
+3. ordre créé depuis ville A
+- visible depuis ville B
+- visible depuis ville sans guilde
+- visible depuis ville avec guilde
+
+4. fill d’ordre
+- fonctionne toujours
+- frais toujours calculés depuis order.cityId
+- distribution des frais inchangée
+- aucune régression sur owner player/faction
+
+5. non-régression
+- create order OK
+- cancel order OK
+- fill OK
+- update fee OK pour ville avec guilde
+- aucune nouvelle erreur TS
+
+==================================================
+FORMAT DE RÉPONSE ATTENDU
+==================================================
+
+Je veux exactement :
+
+1. AUDIT FINAL
+- ce qui bloquait encore
+- ce qui a été changé
+
+2. MODIFICATIONS FAITES
+- fichier par fichier
+- but précis
+
+3. VÉRIFICATIONS
+- cas testés
+- résultats
+
+4. ÉTAT FINAL
+- une phrase claire sur le marché désormais global
+
+CONTRAINTE FINALE
+Tu fais uniquement ce passage minimal :
+- plus de gate dur
+- carnet global
+- cityId conservé comme point d’entrée de création
+- frais conservés sur order.cityId
+- aucune refonte lourde

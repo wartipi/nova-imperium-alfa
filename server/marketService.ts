@@ -19,11 +19,17 @@ const VALID_RESOURCES: ReadonlySet<string> = new Set([
 const TIER_CAPS: Record<number, number> = { 1: 600, 2: 1200, 3: 2000, 4: 2500 };
 const COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 h en ms
 
-// ─── checkGuildGate ───────────────────────────────────────────────────────────
-// Vérifie la présence de guilde_des_marchands dans les bâtiments de la ville.
-// Lance une erreur si absent. Crée la ligne market_guilds lazily si absente.
-// Retourne la ligne market_guilds.
-export async function checkGuildGate(cityId: number) {
+// ─── resolveMarketContext ─────────────────────────────────────────────────────
+// Résout le contexte de marché pour une ville donnée.
+// Ne throw JAMAIS 403 — toute ville peut servir de point d'accès au réseau.
+// Sans guilde : feeBps = 500 (5%). Avec guilde : feeBps = market_guilds.activeFeeBps.
+export interface MarketContext {
+  hasGuild:    boolean;
+  feeBps:      number;
+  guildRecord: typeof marketGuilds.$inferSelect | null;
+}
+
+export async function resolveMarketContext(cityId: number): Promise<MarketContext> {
   const [buildingRow] = await db
     .select({ building: cityBuildings.building })
     .from(cityBuildings)
@@ -31,17 +37,21 @@ export async function checkGuildGate(cityId: number) {
     .limit(1);
 
   if (!buildingRow) {
-    throw Object.assign(new Error("Ce marché nécessite la Guilde des Marchands"), { status: 403 });
+    return { hasGuild: false, feeBps: 500, guildRecord: null };
   }
 
-  // Création lazy de la ligne market_guilds
+  // Création lazy de la ligne market_guilds si absente.
   await db
     .insert(marketGuilds)
     .values({ cityId, tier: 1, activeFeeBps: 0 })
     .onConflictDoNothing();
 
   const [guild] = await db.select().from(marketGuilds).where(eq(marketGuilds.cityId, cityId)).limit(1);
-  return guild;
+  return {
+    hasGuild:    true,
+    feeBps:      guild?.activeFeeBps ?? 0,
+    guildRecord: guild ?? null,
+  };
 }
 
 // ─── deriveMarketOwner ────────────────────────────────────────────────────────
@@ -84,31 +94,37 @@ async function promoteFeeLazy(cityId: number, tx: typeof db | Parameters<Paramet
 }
 
 // ─── getMarketInfo ────────────────────────────────────────────────────────────
+// Retourne le contexte marché sans gate dur.
 export async function getMarketInfo(cityId: number) {
-  const guild = await checkGuildGate(cityId);
-  const owner = await deriveMarketOwner(cityId);
-  return { guild, owner };
+  const context = await resolveMarketContext(cityId);
+  const owner   = await deriveMarketOwner(cityId);
+  return {
+    guild:    context.guildRecord,
+    hasGuild: context.hasGuild,
+    feeBps:   context.feeBps,
+    owner,
+  };
 }
 
 // ─── getOpenOrders ────────────────────────────────────────────────────────────
-export async function getOpenOrders(cityId: number) {
-  await checkGuildGate(cityId);
+// Réseau global : retourne TOUS les ordres ouverts, sans filtre cityId.
+// cityId transmis par la route reste le point d'entrée de contexte, non filtrant.
+export async function getOpenOrders(_cityId: number) {
   return db
     .select()
     .from(marketOrders)
-    .where(and(eq(marketOrders.cityId, cityId), eq(marketOrders.status, "open")))
+    .where(eq(marketOrders.status, "open"))
     .orderBy(desc(marketOrders.createdAt));
 }
 
 // ─── getTradeHistory ──────────────────────────────────────────────────────────
-export async function getTradeHistory(cityId: number) {
-  await checkGuildGate(cityId);
+// Réseau global : retourne les 100 derniers trades, sans filtre cityId.
+export async function getTradeHistory(_cityId: number) {
   return db
     .select()
     .from(marketTrades)
-    .where(eq(marketTrades.cityId, cityId))
     .orderBy(desc(marketTrades.executedAt))
-    .limit(50);
+    .limit(100);
 }
 
 // ─── Helpers ressource player_bank ───────────────────────────────────────────
@@ -200,7 +216,7 @@ export async function placeOrder(
   if (!Number.isInteger(quantity) || quantity <= 0)
     throw Object.assign(new Error("quantity doit être un entier positif"), { status: 400 });
 
-  await checkGuildGate(cityId);
+  // Réseau global : pas de gate guilde. La ville sert de point d'entrée de création d'ordre.
   await ensurePlayerBank(playerId);
 
   const res = resourceType as ResourceType;
@@ -247,8 +263,7 @@ export async function cancelOrder(
   if (!isAdmin && order.playerId !== requesterId)
     throw Object.assign(new Error("Accès refusé : vous n'êtes pas le propriétaire de cet ordre"), { status: 403 });
 
-  await checkGuildGate(order.cityId);
-
+  // Réseau global : pas de gate guilde pour l'annulation d'un ordre.
   // Retour escrow résiduel
   await ensurePlayerBank(order.playerId);
   if (order.side === "sell") {
@@ -284,7 +299,9 @@ export async function fillOrder(
   if (quantity > order.quantityRemaining)
     throw Object.assign(new Error(`Quantité demandée (${quantity}) dépasse le résiduel de l'ordre (${order.quantityRemaining})`), { status: 400 });
 
-  await checkGuildGate(order.cityId);
+  // Résoudre le contexte de frais depuis la ville d'origine de l'ordre (order.cityId).
+  // Pas de gate guilde — la ville du filler peut différer.
+  const feeContext = await resolveMarketContext(order.cityId);
   await ensurePlayerBank(fillerId);
 
   const totalGold = quantity * order.pricePerUnit;
@@ -297,12 +314,14 @@ export async function fillOrder(
   const sellOrderId = order.side === "sell" ? order.id : 0;
 
   const result = await db.transaction(async (tx) => {
-    // 1. Promotion lazy du fee pending
-    await promoteFeeLazy(order.cityId, tx);
-
-    // 2. Relire le fee actif post-promotion
-    const [guild] = await tx.select().from(marketGuilds).where(eq(marketGuilds.cityId, order.cityId)).limit(1);
-    const feeBps  = guild?.activeFeeBps ?? 0;
+    // 1. Si guilde présente sur la ville de l'ordre : promouvoir le fee pending
+    //    puis relire. Si pas de guilde : feeBps fixe = 500 bps (5%).
+    let feeBps = feeContext.feeBps;
+    if (feeContext.hasGuild) {
+      await promoteFeeLazy(order.cityId, tx);
+      const [guild] = await tx.select().from(marketGuilds).where(eq(marketGuilds.cityId, order.cityId)).limit(1);
+      feeBps = guild?.activeFeeBps ?? 0;
+    }
     const feeAmount = Math.floor(totalGold * feeBps / 10000);
     const netSeller = totalGold - feeAmount;
 
@@ -390,7 +409,12 @@ export async function updateFee(
   isAdmin:     boolean,
   requesterFactionId?: number,
 ): Promise<void> {
-  const guild = await checkGuildGate(cityId);
+  // updateFee nécessite que la ville ait une guilde_des_marchands (logique de gestion locale).
+  const context = await resolveMarketContext(cityId);
+  if (!context.hasGuild)
+    throw Object.assign(new Error("La modification de commission nécessite la Guilde des Marchands dans cette ville"), { status: 403 });
+
+  const guild = context.guildRecord!;
   const cap   = TIER_CAPS[guild.tier] ?? 600;
 
   if (!Number.isInteger(newFeeBps) || newFeeBps < 0 || newFeeBps > cap)

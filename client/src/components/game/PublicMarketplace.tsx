@@ -15,13 +15,15 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
 
   // ─── États ────────────────────────────────────────────────────────────────────
   interface CityOption { cityId: number; name: string; hasGuild: boolean }
-  const [rmCities, setRmCities]     = useState<CityOption[]>([]);
-  const [rmCityId, setRmCityId]     = useState<number | null>(null);
-  const [rmGuild, setRmGuild]       = useState<MarketGuild | null>(null);
-  const [rmOrders, setRmOrders]     = useState<MarketOrder[]>([]);
-  const [rmTrades, setRmTrades]     = useState<MarketTrade[]>([]);
-  const [rmLoading, setRmLoading]   = useState(false);
-  const [rmMsg, setRmMsg]           = useState<string | null>(null);
+  const [rmCities, setRmCities]         = useState<CityOption[]>([]);
+  const [rmCityId, setRmCityId]         = useState<number | null>(null);
+  const [rmGuild, setRmGuild]           = useState<MarketGuild | null>(null);
+  const [rmHasGuild, setRmHasGuild]     = useState<boolean>(false);
+  const [rmNetworkFeeBps, setRmNetworkFeeBps] = useState<number>(500);
+  const [rmOrders, setRmOrders]         = useState<MarketOrder[]>([]);
+  const [rmTrades, setRmTrades]         = useState<MarketTrade[]>([]);
+  const [rmLoading, setRmLoading]       = useState(false);
+  const [rmMsg, setRmMsg]               = useState<string | null>(null);
   const [rmOrderForm, setRmOrderForm] = useState({
     side: 'sell' as OrderSide,
     resourceType: 'wood' as ResourceType,
@@ -51,7 +53,8 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
         hasGuild: Array.isArray(c.buildings) && c.buildings.includes("guilde_des_marchands"),
       }));
       setRmCities(opts);
-      const first = opts.find(o => o.hasGuild);
+      // Réseau global : toute ville peut servir de point d'accès — pas besoin de guilde.
+      const first = opts[0];
       if (first && rmCityId === null) setRmCityId(first.cityId);
     } catch { /* silencieux */ }
   }, []);
@@ -67,6 +70,8 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
         fetchMarketTrades(cityId),
       ]);
       setRmGuild(guildData.guild);
+      setRmHasGuild((guildData as any).hasGuild ?? guildData.guild != null);
+      setRmNetworkFeeBps((guildData as any).feeBps ?? (guildData.guild != null ? guildData.guild.activeFeeBps : 500));
       setRmOrders(orders);
       setRmTrades(trades);
     } catch (e: any) {
@@ -141,7 +146,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
             <span className="text-3xl">🏪</span>
             <div>
               <h2 className="text-2xl font-bold text-amber-900">Marché des Ressources</h2>
-              <p className="text-sm text-amber-700">Carnet d'ordres · Guilde des Marchands requise</p>
+              <p className="text-sm text-amber-700">Réseau commercial global · Point d'accès par ville</p>
             </div>
           </div>
           <button
@@ -167,8 +172,8 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
             >
               <option value="">— Sélectionner une ville —</option>
               {rmCities.map(c => (
-                <option key={c.cityId} value={c.cityId} disabled={!c.hasGuild}>
-                  {c.name}{c.hasGuild ? "" : " (pas de guilde)"}
+                <option key={c.cityId} value={c.cityId}>
+                  {c.name}{c.hasGuild ? "" : " (frais réseau: 5%)"}
                 </option>
               ))}
             </select>
@@ -196,53 +201,56 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
               <div>
                 <div className="text-4xl mb-4">🏪</div>
                 <p className="text-lg font-semibold mb-2">Sélectionnez une ville</p>
-                <p className="text-sm">Choisissez une ville disposant de la Guilde des Marchands pour accéder au carnet d'ordres.</p>
+                <p className="text-sm">Choisissez une ville comme point d'accès au réseau commercial global.</p>
               </div>
             </div>
 
           ) : rmLoading ? (
             <div className="flex-1 flex items-center justify-center text-emerald-700">Chargement...</div>
 
-          ) : !rmGuild ? (
-            <div className="flex-1 flex items-center justify-center text-center p-8">
-              <div>
-                <div className="text-4xl mb-4">🔒</div>
-                <p className="text-lg font-semibold text-red-800 mb-2">Guilde des Marchands requise</p>
-                <p className="text-sm text-red-700">Cette ville n'a pas de Guilde des Marchands. Construisez-la pour débloquer le marché des ressources.</p>
-              </div>
-            </div>
-
           ) : (
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
 
-              {/* Info guilde + commission */}
-              <div className="bg-white border border-emerald-200 rounded-lg p-3 flex flex-wrap gap-4 items-center text-sm">
-                <span className="font-semibold text-emerald-900">Tier {rmGuild.tier}</span>
-                <span className="text-emerald-800">
-                  Commission active : <strong>{rmGuild.activeFeeBps} bps</strong> ({(rmGuild.activeFeeBps / 100).toFixed(2)}%)
-                </span>
-                {rmGuild.pendingFeeBps != null && (
-                  <span className="text-amber-700">
-                    En attente : {rmGuild.pendingFeeBps} bps — actif le {new Date(rmGuild.pendingFeeAppliesAt!).toLocaleString()}
+              {/* Info point d'accès + commission réseau */}
+              {rmHasGuild && rmGuild ? (
+                <div className="bg-white border border-emerald-200 rounded-lg p-3 flex flex-wrap gap-4 items-center text-sm">
+                  <span className="font-semibold text-emerald-900">🏦 Guilde Tier {rmGuild.tier}</span>
+                  <span className="text-emerald-800">
+                    Commission active : <strong>{rmGuild.activeFeeBps} bps</strong> ({(rmGuild.activeFeeBps / 100).toFixed(2)}%)
                   </span>
-                )}
-                <div className="flex gap-2 ml-auto items-center">
-                  <input
-                    type="number" min={0} max={600}
-                    placeholder="bps"
-                    value={rmFeeInput}
-                    onChange={e => setRmFeeInput(e.target.value)}
-                    className="w-20 px-2 py-1 border border-emerald-300 rounded text-sm"
-                  />
-                  <button
-                    onClick={rmUpdateFee}
-                    className="px-3 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded text-sm"
-                    style={{ pointerEvents: "auto" }}
-                  >
-                    Changer commission
-                  </button>
+                  {rmGuild.pendingFeeBps != null && (
+                    <span className="text-amber-700">
+                      En attente : {rmGuild.pendingFeeBps} bps — actif le {new Date(rmGuild.pendingFeeAppliesAt!).toLocaleString()}
+                    </span>
+                  )}
+                  <div className="flex gap-2 ml-auto items-center">
+                    <input
+                      type="number" min={0} max={600}
+                      placeholder="bps"
+                      value={rmFeeInput}
+                      onChange={e => setRmFeeInput(e.target.value)}
+                      className="w-20 px-2 py-1 border border-emerald-300 rounded text-sm"
+                    />
+                    <button
+                      onClick={rmUpdateFee}
+                      className="px-3 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded text-sm"
+                      style={{ pointerEvents: "auto" }}
+                    >
+                      Changer commission
+                    </button>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 flex flex-wrap gap-4 items-center text-sm">
+                  <span className="font-semibold text-amber-900">🌐 Point d'accès réseau</span>
+                  <span className="text-amber-800">
+                    Frais réseau : <strong>500 bps</strong> (5%) — tarif sans Guilde des Marchands
+                  </span>
+                  <span className="text-amber-700 text-xs ml-auto">
+                    Construisez la Guilde des Marchands pour configurer des frais réduits
+                  </span>
+                </div>
+              )}
 
               {/* Formulaire nouvel ordre */}
               <div className="bg-white border border-emerald-200 rounded-lg p-4">
