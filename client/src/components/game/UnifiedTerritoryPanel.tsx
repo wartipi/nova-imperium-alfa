@@ -7,6 +7,7 @@ import { useFactions } from '../../lib/stores/useFactions';
 import { useMap } from '../../lib/stores/useMap';
 import { useCustomAlert } from '../ui/CustomAlert';
 import { fetchAllTerritories, fetchAllColonies, apiClaimTerritory, apiFoundColony } from '../../lib/api/territoriesApi';
+import { CityManagementPanel } from './CityManagementPanel';
 
 interface UnifiedTerritoryPanelProps {
   onClose: () => void;
@@ -22,6 +23,7 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
   const { isAdmin, currentUser } = useAuth();
   const { playerFaction } = useFactions();
   const { showAlert, AlertComponent } = useCustomAlert();
+  const { currentNovaImperium } = useNovaImperium();
 
   // Identité réelle du joueur pour getAccessibleTerritories
   const realPlayerId   = currentUser ?? playerName;
@@ -32,6 +34,7 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
   const [showColonyModal, setShowColonyModal] = useState(false);
   const [selectedTerritory, setSelectedTerritory] = useState<Territory | null>(null);
   const [colonyName, setColonyName] = useState('');
+  const [managedCityId, setManagedCityId] = useState<string | null>(null);
   // Phase 12 — choix ownership lors du claim
   const [ownerType, setOwnerType] = useState<'player' | 'faction'>(
     playerFaction ? 'faction' : 'player'
@@ -296,10 +299,28 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
                     )}
                   </div>
 
-                  {/* Bouton Fonder une Colonie — seulement si l'avatar est présent et pas encore de colonie */}
-                  {!territory.colonyId && (
-                    <div className="flex flex-col gap-2">
-                      {isAvatarOnTerritory(territory) ? (
+                  <div className="flex flex-col gap-2">
+                    {/* Bouton Gérer la ville — si une ville serveur existe pour ce territoire */}
+                    {territory.colonyId && (() => {
+                      const city = currentNovaImperium?.cities.find(
+                        c => c.x === territory.x && c.y === territory.y
+                      );
+                      return city ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setManagedCityId(city.id);
+                          }}
+                          className="text-xs bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded font-medium"
+                        >
+                          🏘️ Gérer la ville
+                        </button>
+                      ) : null;
+                    })()}
+
+                    {/* Bouton Fonder une Colonie — seulement si pas encore de colonie */}
+                    {!territory.colonyId && (
+                      isAvatarOnTerritory(territory) ? (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -313,9 +334,9 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
                         <div className="text-xs text-gray-500 px-3 py-2 border border-gray-300 rounded font-medium">
                           🏘️ Déplacez votre avatar ici
                         </div>
-                      )}
-                    </div>
-                  )}
+                      )
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -368,6 +389,14 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Pipeline complet de gestion de ville */}
+      {managedCityId && (
+        <CityManagementPanel
+          cityId={managedCityId}
+          onClose={() => setManagedCityId(null)}
+        />
       )}
     </div>
   );

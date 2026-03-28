@@ -1,0 +1,118 @@
+NOVA IMPERIUM — IMPLÉMENTATION CIBLÉE STRICTE
+CIBLE : RÉTABLIR LE PIPELINE COMPLET DE GESTION DE VILLE
+DEPUIS “GESTION VILLE/TERRITOIRE”
+Branche cible : NI-10.3
+
+CONTEXTE VALIDÉ
+Les points suivants sont déjà faits et ne doivent PAS être retravaillés :
+- clic sur une case de ville = flux normal, pas d’ouverture de panneau de gestion
+- GameCanvas ne monte plus CityManagementPanel au clic
+- menu latéral renommé “GESTION VILLE/TERRITOIRE”
+
+PROBLÈME ACTUEL
+Le nouveau point d’entrée n’est pas encore complet :
+- UnifiedTerritoryPanel gère claim + fondation + liste des territoires
+- mais ne permet pas encore d’ouvrir le pipeline complet de gestion de ville
+- CityManagementPanel contient encore ce pipeline complet :
+  - vue d’ensemble
+  - construction
+  - recrutement
+  - renommage
+
+OBJECTIF
+Je veux que le pipeline complet de gestion de ville soit accessible UNIQUEMENT depuis :
+“GESTION VILLE/TERRITOIRE”
+
+Je ne veux PAS réintroduire l’accès par clic sur la case de ville.
+
+INTERDICTIONS ABSOLUES
+- ne pas retoucher GameCanvas.tsx
+- ne pas retravailler le renommage du menu
+- ne pas retravailler ConstructionPanel hors dépendance directe
+- aucun refactor massif
+- aucun changement backend
+- aucune fusion lourde de composants
+- aucune dérive hors périmètre
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+- objectif précis
+- fichiers touchés
+- raison de chaque fichier
+- ordre d’exécution
+- risques
+- vérifications prévues
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE ATTENDU
+Tu dois normalement toucher uniquement :
+- client/src/components/game/UnifiedTerritoryPanel.tsx
+- éventuellement client/src/components/game/CityManagementPanel.tsx si un ajustement mineur est strictement nécessaire
+
+Tu ne touches pas GameCanvas.tsx.
+
+IMPLÉMENTATION ATTENDUE
+
+1. UnifiedTerritoryPanel.tsx
+- ajouter un état du type managedCityId
+- pour chaque territoire ayant une colonie/ville réelle, ajouter un bouton explicite :
+  “🏘️ Gérer la ville”
+- ce bouton ne doit apparaître que si la ville serveur correspondante existe réellement
+- au clic, ouvrir CityManagementPanel
+- conserver intact :
+  - navigation vers territoire
+  - revendication
+  - fondation de colonie
+
+2. Correspondance territoire -> ville
+- utiliser la correspondance la plus simple et déjà cohérente avec le projet
+- priorité : match par coordonnées x/y avec currentNovaImperium.cities
+- ne pas inventer un nouveau système d’indexation si ce n’est pas nécessaire
+
+3. CityManagementPanel
+- le réutiliser tel quel autant que possible
+- ne faire qu’un ajustement mineur si un vrai blocage de montage apparaît
+- ne pas refaire sa structure
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- client/src/components/game/UnifiedTerritoryPanel.tsx
+- git diff -- client/src/components/game/CityManagementPanel.tsx (uniquement si touché)
+
+3. VÉRIFICATIONS
+- ouvrir “GESTION VILLE/TERRITOIRE”
+- voir un territoire avec colonie/ville
+- cliquer “Gérer la ville”
+- confirmer que CityManagementPanel s’ouvre
+- confirmer accès aux onglets :
+  - vue d’ensemble
+  - construction
+  - recrutement
+- confirmer que le clic sur la carte n’ouvre toujours pas le menu ville
+- aucune nouvelle erreur TS
+
+4. RISQUES RÉSIDUELS
+- uniquement les vrais
+- sans les corriger hors périmètre
+
+CONTRAINTE FINALE
+Tu rétablis le pipeline complet de gestion de ville,
+mais uniquement depuis “GESTION VILLE/TERRITOIRE”.
+Tu ne remets pas l’ancien comportement au clic sur la carte.
+Tu fais le plus petit passage propre.
