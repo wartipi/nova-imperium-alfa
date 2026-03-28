@@ -12,7 +12,7 @@ import type { PlayerAction, PathStep } from "../shared/schema";
 import { savePlayerPosition } from "./playerPositionService";
 import type { ActorContext } from "./types/actorContext";
 
-const HOURS_PER_AP = 6;
+const HOURS_PER_AP = 1 / 60; // 1 minute par AP (phase test ; était 6h)
 const MS_PER_HOUR = 3600 * 1000;
 
 // Capacité max de transport de ressources (or + nourriture cumulés)

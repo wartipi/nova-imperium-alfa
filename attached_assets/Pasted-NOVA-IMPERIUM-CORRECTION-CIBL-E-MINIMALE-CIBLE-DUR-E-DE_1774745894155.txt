@@ -1,0 +1,91 @@
+NOVA IMPERIUM — CORRECTION CIBLÉE MINIMALE
+CIBLE : DURÉE DE DÉPLACEMENT JOUEUR TROP LONGUE
+Branche cible : NI-10.3
+
+CONTEXTE VALIDÉ
+L’audit a confirmé que :
+- le spawn n’est pas le problème
+- la position joueur est valide
+- le pathfinding fonctionne
+- la route move fonctionne
+- le blocage perçu vient du temps réel des déplacements
+
+CAUSE CONFIRMÉE
+Dans server/playerActionService.ts :
+- HOURS_PER_AP = 6
+- durationMs = totalCost * HOURS_PER_AP * MS_PER_HOUR
+
+Conséquence :
+- 1 AP = 6 heures réelles
+- un déplacement de 2 AP = 12 heures
+- après le premier move, le joueur reste bloqué en ACTION_ALREADY_ACTIVE pendant des heures
+
+OBJECTIF
+Faire le plus petit correctif possible pour rendre le déplacement joueur testable immédiatement.
+
+DÉCISION VALIDÉE
+Pour cette phase :
+- 1 minute par AP
+- donc HOURS_PER_AP = 1 / 60
+
+INTERDICTIONS ABSOLUES
+- aucun refactor massif
+- ne pas toucher au pathfinding
+- ne pas toucher au spawn
+- ne pas toucher aux routes
+- ne pas introduire de config env
+- ne pas élargir le périmètre
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+- objectif précis
+- fichier touché
+- ligne / constante touchée
+- ordre d’exécution
+- risques
+- vérifications prévues
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE ATTENDU
+Tu dois toucher uniquement :
+- server/playerActionService.ts
+
+CORRECTION ATTENDUE
+- remplacer HOURS_PER_AP = 6
+- par HOURS_PER_AP = 1 / 60
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- server/playerActionService.ts
+
+3. VÉRIFICATIONS
+- déplacer un joueur normal sur une case adjacente walkable
+- confirmer que la requête move est toujours 201
+- confirmer que msRemaining correspond maintenant à environ 1 min par AP
+- exemple attendu :
+  - move coût 2 AP ≈ 2 minutes
+- confirmer qu’aucune autre logique n’a changé
+
+4. RISQUES RÉSIDUELS
+- uniquement les vrais
+- mentionner explicitement que les anciennes actions déjà créées gardent leur ancienne expectedEndTime jusqu’à annulation ou fin
+
+CONTRAINTE FINALE
+Tu fais un correctif minimal sur une seule constante.
+Aucune dérive.
