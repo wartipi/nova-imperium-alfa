@@ -30,7 +30,8 @@ export function GameCanvas() {
   const { isAdmin, adminModeEnabled, isAuthenticated } = useAuth();
   const { novaImperiums, selectedUnit, moveUnit } = useNovaImperium();
   const { avatarPosition, avatarRotation, isMoving, selectedCharacter, moveAvatarToHex, isHexVisible, isHexInCurrentVision, pendingMovement, setPendingMovement } = usePlayer();
-  
+  const { activeAction } = usePlayerActions();
+
   // State management - reduced manual state
   const [mouseDownPos, setMouseDownPos] = useState<{ x: number; y: number } | null>(null);
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
@@ -189,6 +190,61 @@ export function GameCanvas() {
     const interval = setInterval(poll, 5000);
     return () => clearInterval(interval);
   }, [isAuthenticated]);
+
+  // Hydratation au montage — reprend une action déjà en cours si rechargement de page
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    fetchCurrentAction().then(({ action }) => {
+      if (action?.status === "in_progress" && !usePlayerActions.getState().isActionActive()) {
+        usePlayerActions.getState().setActiveAction(action);
+        console.log(`[GameCanvas] Action reprise au montage: id=${action.id} type=${action.type} msRemaining=${action.msRemaining}`);
+      }
+    }).catch(() => {});
+  }, [isAuthenticated]);
+
+  // Mouvement case-par-case — déplace l'avatar le long du chemin pendant toute la durée de l'action
+  useEffect(() => {
+    if (!activeAction || activeAction.type !== "move" || activeAction.status !== "in_progress") return;
+    const path = activeAction.path;
+    if (!path || path.length < 2) return;
+
+    const startMs   = new Date(activeAction.startTime).getTime();
+    const totalMs   = new Date(activeAction.expectedEndTime).getTime() - startMs;
+    let finalSynced = false;
+
+    const tick = () => {
+      const elapsedMs = Date.now() - startMs;
+      const { originWorldX, originWorldY } = useMap.getState();
+
+      // Déterminer la case courante selon le temps écoulé
+      let currentHex = path[0];
+      let cumulative  = 0;
+      for (let i = 1; i < path.length; i++) {
+        const stepMs = path[i].cost * 5000; // 5 s par PA
+        cumulative  += stepMs;
+        if (elapsedMs < cumulative) break;
+        currentHex = path[i];
+      }
+      moveAvatarToHex(currentHex.worldX - originWorldX, currentHex.worldY - originWorldY);
+
+      // Sync finale quand le timer est écoulé
+      // fetchCurrentAction() déclenche la complétion lazy côté serveur AVANT fetchPlayerPosition
+      if (elapsedMs >= totalMs && !finalSynced) {
+        finalSynced = true;
+        fetchCurrentAction()
+          .then(() => fetchPlayerPosition())
+          .then(serverPos => {
+            const { originWorldX: ox, originWorldY: oy } = useMap.getState();
+            moveAvatarToHex(serverPos.worldX - ox, serverPos.worldY - oy);
+            console.log(`[GameCanvas] Sync finale position (${serverPos.worldX},${serverPos.worldY})`);
+          }).catch(() => {});
+      }
+    };
+
+    tick();
+    const interval = setInterval(tick, 500);
+    return () => clearInterval(interval);
+  }, [activeAction, moveAvatarToHex]);
 
   // IMPROVED: Memoized terrain check using centralized helper
   const isTerrainWalkable = useCallback((terrain: string): boolean => {
