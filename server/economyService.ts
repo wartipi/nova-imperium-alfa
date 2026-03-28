@@ -1,4 +1,4 @@
-import { eq, sql, and, gte } from "drizzle-orm";
+import { eq, sql, and, gte, or } from "drizzle-orm";
 import { db } from "./db";
 import { cities, colonies, factionEconomy, cityBuildings, playerBank, cityPendingHarvest } from "../shared/schema";
 
@@ -296,7 +296,7 @@ export async function getOrInitPlayerBank(playerId: string): Promise<PlayerBankD
 // Ne touche PAS à faction_economy.
 export async function applyProductionTickPerCity(
   playerId:    string,
-  factionId:   number,
+  factionId:   number | null,
   currentTurn: number,
 ): Promise<ProductionTickResult> {
   // Initialise + lit l'état de la banque.
@@ -308,7 +308,13 @@ export async function applyProductionTickPerCity(
     return { applied: false, cities: [] };
   }
 
-  // Toutes les villes de la faction, avec leurs bâtiments et valeurs économiques.
+  // Sélection canonique — même règle que getMyCities() et tickCityProduction() :
+  //   • si faction : ownerFactionId === factionId OU ownerPlayerId === playerId
+  //   • si pas de faction : ownerPlayerId === playerId uniquement
+  const ownerWhere = factionId !== null
+    ? or(eq(colonies.ownerFactionId, factionId), eq(colonies.ownerPlayerId, playerId))
+    : eq(colonies.ownerPlayerId, playerId);
+
   const cityRows = await db
     .select({
       cityId:        cities.id,
@@ -326,7 +332,7 @@ export async function applyProductionTickPerCity(
     })
     .from(cities)
     .innerJoin(colonies, eq(cities.colonyId, colonies.id))
-    .where(eq(colonies.factionId, factionId));
+    .where(ownerWhere);
 
   // Détection de banque par ville.
   const cityIds = cityRows.map(c => c.cityId);
@@ -447,7 +453,7 @@ export async function applyProductionTickPerCity(
                + `+${bankIronDelta}ir+${bankCopperDelta}cu+${bankCoalDelta}co`
                + `+${bankOilDelta}oil+${bankHerbsDelta}herbs+${bankFurDelta}fur`;
   console.log(
-    `[productionTick] player=${playerId} faction=${factionId} tour=${currentTurn}` +
+    `[productionTick] player=${playerId} faction=${factionId ?? 'aucune'} tour=${currentTurn}` +
     ` villes=${cityRows.length} bank${matLog}` +
     ` pending=${results.filter(r => r.destination === 'pending').length} villes`
   );

@@ -1,0 +1,152 @@
+NOVA IMPERIUM — MICRO-SEGMENT SUIVANT
+CIBLE : ALIGNEMENT DU TICK ÉCONOMIQUE AVEC L’OWNERSHIP CANONIQUE
+Branche cible : NI-10.3
+
+RÔLE
+Tu exécutes une correction ciblée.
+Tu ne dérives pas.
+Tu ne touches pas au marché actif, à la fondation, ni au panneau territoire sauf si une dépendance directe l’exige.
+
+CONTEXTE CONFIRMÉ
+Les points suivants sont déjà harmonisés et ne doivent pas être réouverts :
+- fondation de colonie exige un territoire revendiqué
+- TileInfoPanel affiche l’ownership canonique
+- tickCityProduction gère maintenant les villes player-owned sans faction
+- PublicMarketplace est verrouillé sur le marché canonique des ressources
+
+PROBLÈME RESTANT
+Il reste un bug satellite probable côté tick économique :
+les colonies ownerType='player' d’un joueur sans faction risquent encore de ne pas générer correctement leur production économique globale si le service économique filtre encore via colonies.factionId legacy au lieu de l’ownership canonique.
+
+OBJECTIF
+Aligner le tick économique avec les mêmes règles d’ownership canonique que celles déjà appliquées à getMyCities() et tickCityProduction().
+
+PRIORITÉ
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+INTERDIT
+- refactor massif
+- changement d’architecture
+- nouveau système économique
+- modification non nécessaire du marché ou des panneaux UI
+- duplication de logique si une fonction existante peut être adaptée
+- toucher au schéma sans nécessité absolue
+
+==================================================
+PHASE 1 — AUDIT OBLIGATOIRE
+==================================================
+
+Lis d’abord :
+- server/economyService.ts
+- server/routes/economy.ts
+- server/cityService.ts
+- server/ownershipService.ts
+- shared/schema.ts
+- si nécessaire, les helpers appelés par applyProductionTickPerCity ou le tick économique réel
+
+Tu dois identifier précisément :
+1. quelle fonction exécute réellement le tick économique
+2. comment elle sélectionne les villes concernées
+3. si elle utilise encore :
+   - colonies.factionId
+   - ou une logique legacy non canonique
+4. si les colonies ownerType='player' sans faction sont actuellement exclues
+5. quels effets sont concernés :
+   - player_bank
+   - factionEconomy
+   - city_pending_harvest
+   - city_inventory
+   - autres dérivés éventuels
+
+==================================================
+PHASE 2 — CIBLE DE CORRECTION
+==================================================
+
+Tu dois corriger le tick économique pour que :
+
+1. une colonie ownerType='faction'
+- continue d’alimenter la logique faction de manière inchangée, si déjà valide
+
+2. une colonie ownerType='player'
+- fonctionne même si le joueur n’a aucune faction
+- soit sélectionnée via ownerPlayerId
+- produise ses effets économiques correctement
+
+3. aucune logique ne repose uniquement sur colonies.factionId legacy pour déterminer si une ville doit être traitée
+
+RÈGLE ATTENDUE
+La sélection des villes / colonies concernées doit suivre la même logique canonique que :
+- getMyCities()
+- tickCityProduction()
+
+Autrement dit :
+- si faction active : ownerFactionId = faction du joueur OU ownerPlayerId = joueur
+- si pas de faction : ownerPlayerId = joueur
+
+IMPORTANT
+Ne mélange pas :
+- ownership legacy de colonie
+- founderId
+- factionId historique
+avec la permission ou la sélection canonique du tick.
+
+==================================================
+PHASE 3 — CONTRAINTES D’IMPLÉMENTATION
+==================================================
+
+- fais la plus petite correction possible
+- touche le moins de fichiers possible
+- si le bug est concentré dans economyService.ts, garde-le là
+- ne refactorise pas tout le service si un ciblage de WHERE/filtrage suffit
+- ne casse pas les villes de faction déjà fonctionnelles
+- ne change pas les règles métier du marché, de la fondation ou du tick de production ville
+
+==================================================
+PHASE 4 — VÉRIFICATION OBLIGATOIRE
+==================================================
+
+Après correction, vérifie explicitement :
+
+1. CAS JOUEUR SANS FACTION
+- possède une colonie ownerType='player'
+- tick économique appliqué
+- effets produits réellement visibles aux bons endroits
+
+2. CAS JOUEUR AVEC FACTION
+- possède ou accède à une colonie ownerType='faction'
+- tick économique toujours correct
+- pas de régression
+
+3. CAS MIXTE
+- si possible, un joueur avec faction et une colonie player-owned
+- vérifier qu’aucun des deux cas n’est ignoré
+
+4. NON-RÉGRESSION
+- pas de casse sur /api/economy/*
+- pas de casse sur TreasuryPanel
+- pas de casse sur player_bank / factionEconomy / pending harvest
+
+==================================================
+FORMAT DE RÉPONSE ATTENDU
+==================================================
+
+Je veux exactement :
+
+1. AUDIT FINAL
+- où était le bug
+- quelle logique legacy restait en place
+
+2. MODIFICATIONS FAITES
+- fichier par fichier
+- but précis
+
+3. VÉRIFICATIONS
+- cas testés
+- résultats
+
+4. ÉTAT FINAL
+- phrase claire sur le tick économique et l’ownership canonique
+
+CONTRAINTE FINALE
+Tu ne repars pas sur un autre sujet.
+Tu corriges uniquement l’alignement du tick économique avec l’ownership canonique.

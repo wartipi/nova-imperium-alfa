@@ -127,11 +127,7 @@ router.post("/production-tick", requireAuth, async (req: AuthRequest, res) => {
     const playerId = req.user!.id;
     const factionId = await resolveFactionId(playerId);
 
-    if (factionId === null) {
-      // Pas de faction → tick ignoré proprement (pas d'erreur bloquante)
-      return res.json({ applied: false, cities: [], reason: "no_faction" });
-    }
-
+    // factionId peut être null — applyProductionTickPerCity gère le cas canoniquement
     const result = await applyProductionTickPerCity(playerId, factionId, currentTurn);
     return res.json(result);
   } catch (err) {
