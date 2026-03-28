@@ -1,0 +1,88 @@
+NOVA IMPERIUM — AUDIT LOCAL CIBLÉ : GUILDES ABSENTES DU MENU DE CONSTRUCTION ACTIF
+Branche locale : `NI-10.3`
+
+CONTEXTE
+Le flux local claim → fondation est maintenant suffisamment validé pour continuer les tests dans l’environnement local, même si `origin/NI-10.3` est encore en retard d’un commit.
+
+Le prochain blocant joueur réel est maintenant :
+
+* les options de construction `guilde_des_marchands` et/ou `guilde de banquiers` ne sont pas disponibles dans le menu de construction actif.
+
+OBJECTIF
+Je veux uniquement un **audit local ciblé** du système de construction réellement utilisé par le joueur.
+
+Je ne veux PAS encore de code.
+Je ne veux PAS de nouveau backend.
+Je ne veux PAS de refactor massif.
+
+CE QUE TU DOIS AUDITER
+
+1. PANNEAU ACTIF
+
+* quel est le panneau de construction réellement utilisé par un joueur normal ?
+* est-ce bien `ConstructionPanelZustand` via `CityManagementPanel` ?
+* est-ce lui qui alimente réellement l’UI active en jeu ?
+
+2. CATALOGUE ACTIF
+
+* où vit exactement le catalogue de bâtiments affiché dans ce panneau ?
+* `guilde_des_marchands` est-elle absente ?
+* une guilde de banquiers existe-t-elle quelque part dans un autre catalogue ou uniquement côté concept/lore ?
+* le panneau actif est-il encore un stub collaboratif avec `alert(...)` au clic ?
+
+3. COMPATIBILITÉ AVEC LE BACKEND
+
+* le backend connaît-il déjà `guilde_des_marchands` comme bâtiment valide/gate ?
+* si oui, quel est le plus petit raccordement propre pour la faire apparaître dans le panneau actif ?
+* faut-il aussi auditer un éventuel bâtiment banque/guilde de banquiers, ou est-il encore absent du backend aussi ?
+
+4. DÉCISION MINIMALE
+   Je veux savoir quel est le plus petit passage propre :
+
+* ajouter la/les guilde(s) au catalogue actif
+* ou raccorder le panneau actif au vrai pipeline serveur si le panneau actuel est encore un stub
+
+IMPORTANT
+Je ne veux pas :
+
+* un deuxième système de construction
+* un contournement temporaire hors UI active
+* un bricolage qui casse le pipeline serveur-authoritative déjà en place
+
+FORMAT DE TA RÉPONSE
+Je veux exactement :
+
+1. AUDIT COURT
+
+* panneau actif réel
+* catalogue actif réel
+* `guilde_des_marchands` présente ou absente
+* guilde de banquiers présente ou absente
+* nature du blocage exact
+
+2. BLOCANT PRINCIPAL ACTUEL
+
+* un seul
+* le plus important
+
+3. PROPOSITION MINIMALE
+
+* plus petit raccordement/correctif à faire ensuite
+* sans code
+
+4. FICHIERS EXACTS À MODIFIER
+
+* si nécessaire
+
+5. STOP VALIDATION
+   Tu t’arrêtes ici.
+   Tu n’implémentes rien avant mon accord.
+
+IMPORTANT FINAL
+Le but est de rendre réellement testable localement la suite du parcours joueur :
+
+* fonder une ville
+* construire la Guilde des Marchands
+* puis ouvrir le marché des ressources
+
+Et si la guilde de banquiers n’existe pas encore réellement dans le pipeline actif, je veux que tu le dises explicitement.
