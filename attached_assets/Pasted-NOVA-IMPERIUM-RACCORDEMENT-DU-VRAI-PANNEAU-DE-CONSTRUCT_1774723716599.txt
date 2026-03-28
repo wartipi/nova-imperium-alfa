@@ -1,0 +1,111 @@
+NOVA IMPERIUM — RACCORDEMENT DU VRAI PANNEAU DE CONSTRUCTION + AJOUT DES GUILDES ÉCONOMIQUES
+Branche locale : `NI-10.3`
+
+Le diagnostic est validé :
+
+* le panneau de construction réellement monté en jeu est `ConstructionPanelZustand`
+* ce panneau est un stub : `handleConstruct()` fait seulement `alert(...)`
+* donc aucune construction réelle n’atteint le serveur
+* `guilde_des_marchands` est absente du catalogue actif
+* la “guilde de banquiers” n’existe pas comme bâtiment canonique ; le backend connaît un bâtiment `bank`
+
+OBJECTIF
+Je veux rendre réellement testable en jeu :
+
+* la construction de `guilde_des_marchands`
+* et, dans la même passe si c’est propre, la construction de `bank`
+
+Je ne veux PAS de nouveau backend.
+Je ne veux PAS de nouveau système.
+Je veux seulement raccorder le vrai panneau actif et compléter son catalogue.
+
+DÉCISIONS VALIDÉES
+
+1. Le panneau de construction actif doit devenir le vrai pipeline serveur
+
+* remplacer `ConstructionPanelZustand` par `ConstructionPanel` dans `CityManagementPanel.tsx`
+
+2. `ConstructionPanelZustand.tsx` n’est pas supprimé
+
+* il est simplement retiré du montage actif
+* aucun nettoyage opportuniste
+
+3. Dans `ConstructionPanel.tsx`, ajouter au catalogue réel :
+
+* `guilde_des_marchands`
+* et aussi `bank` dans la même passe
+
+4. Aucun nouvel ID de bâtiment
+
+* utiliser exactement les IDs backend existants :
+
+  * `guilde_des_marchands`
+  * `bank`
+
+5. Aucun changement backend
+
+* pas de route
+* pas de service
+* pas de schéma
+* pas de migration
+
+CE QUE TU DOIS FAIRE
+
+1. `client/src/components/game/CityManagementPanel.tsx`
+
+* remplacer l’import de `ConstructionPanelZustand` par `ConstructionPanel`
+* remplacer le composant monté dans l’onglet construction
+* conserver le reste intact
+
+2. `client/src/components/game/ConstructionPanel.tsx`
+
+* ajouter `guilde_des_marchands` au catalogue des bâtiments affichés
+* ajouter `bank` au même catalogue
+* donner à ces deux bâtiments :
+
+  * nom affiché
+  * description simple
+  * coût cohérent avec le système existant
+  * temps / PA cohérents avec le reste du catalogue
+* ne pas inventer de mécanique spéciale si le backend n’en demande pas
+
+RÈGLES IMPORTANTES
+
+* `guilde_des_marchands` doit devenir réellement sélectionnable et lançable
+* `bank` doit devenir réellement sélectionnable et lançable
+* la construction doit passer par le pipeline serveur-authoritative déjà présent dans `ConstructionPanel`
+* ne pas créer de deuxième catalogue parallèle
+* ne pas modifier `ConstructionPanelZustand.tsx`
+* ne pas modifier le backend
+
+FORMAT DE TA RÉPONSE
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+
+* liste précise
+
+2. CHANGEMENTS APPLIQUÉS
+
+* `CityManagementPanel.tsx`
+* `ConstructionPanel.tsx`
+
+3. CONFIRMATION BACKEND
+
+* confirmer explicitement qu’aucun fichier serveur n’a été touché
+
+4. VÉRIFICATION LOCALE
+
+* le panneau actif est bien `ConstructionPanel`
+* `guilde_des_marchands` apparaît dans le menu
+* `bank` apparaît dans le menu
+* un clic lance bien la vraie construction serveur
+* plus aucun `alert(...)` du stub dans le flux joueur normal
+
+IMPORTANT FINAL
+Je veux le plus petit passage propre pour rendre testable localement la suite du parcours joueur :
+
+* fonder une ville
+* construire la Guilde des Marchands
+* construire la banque
+* puis ouvrir le marché des ressources

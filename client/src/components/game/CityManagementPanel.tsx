@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNovaImperium } from '../../lib/stores/useNovaImperium';
 import { useAuth } from '../../lib/auth/AuthContext';
 import { UnifiedTerritorySystem } from '../../lib/systems/UnifiedTerritorySystem';
-import { ConstructionPanelZustand } from './ConstructionPanelZustand';
+import { ConstructionPanel } from './ConstructionPanel';
 import { RecruitmentPanelZustand } from './RecruitmentPanelZustand';
 import { CityRenameModal } from './CityRenameModal';
 import { useCustomAlert } from '../ui/CustomAlert';
@@ -179,7 +179,7 @@ export function CityManagementPanel({ cityId, onClose }: CityManagementPanelProp
                   ✅ Migration progressive activée - Stats collaboratives en cours
                 </div>
               </div>
-              <ConstructionPanelZustand />
+              <ConstructionPanel />
             </div>
           )}
 

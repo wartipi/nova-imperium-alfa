@@ -620,6 +620,30 @@ export function ConstructionPanel() {
       category: 'Spirituel',
       requiredTerrain: ['enchanted_meadow'],
       actionPointCost: 45
+    },
+
+    // === COMMERCE ÉCONOMIQUE — universels (pas de prérequis terrain serveur) ===
+    {
+      id: 'guilde_des_marchands',
+      name: 'Guilde des Marchands',
+      cost: { wood: 20, stone: 15, gold: 30, action_points: 25 },
+      constructionTime: 6,
+      description: 'Débloque l\'accès au marché des ressources entre joueurs',
+      icon: '🏦',
+      category: 'Commerce',
+      requiredTerrain: ['any'],
+      actionPointCost: 25
+    },
+    {
+      id: 'bank',
+      name: 'Banque',
+      cost: { stone: 20, gold: 40, action_points: 30 },
+      constructionTime: 7,
+      description: 'Verse automatiquement la production de la ville dans la banque du joueur',
+      icon: '🏛️',
+      category: 'Commerce',
+      requiredTerrain: ['any'],
+      actionPointCost: 30
     }
   ];
 
