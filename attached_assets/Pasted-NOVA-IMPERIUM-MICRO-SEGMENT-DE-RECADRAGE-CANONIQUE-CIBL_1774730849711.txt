@@ -1,0 +1,155 @@
+NOVA IMPERIUM — MICRO-SEGMENT DE RECADRAGE CANONIQUE
+CIBLE : GUILDE DES MARCHANDS / BANQUE CENTRALE / RÉSEAU COMMERCIAL GLOBAL
+Branche cible : NI-10.3
+
+RÔLE
+Tu agis comme système de contrôle + implémentation potentielle ultérieure.
+Pour cette passe, tu ne dois PAS implémenter immédiatement une refonte.
+Tu dois d’abord auditer précisément le système actuel et préparer le plus petit plan propre de migration vers la nouvelle règle canonique.
+
+CONTEXTE CONFIRMÉ
+Déjà harmonisé :
+- fondation de colonie exige un territoire revendiqué
+- ownership canonique affiché dans TileInfoPanel
+- tickCityProduction aligné avec ownerType
+- tick économique /api/economy/production-tick aligné avec ownerType
+- PublicMarketplace actif verrouillé sur le flux canonique visible
+- ConstructionPanel a été allégé avec une liste de colonies repliable
+
+NOUVELLE RÈGLE CANONIQUE À PRENDRE EN COMPTE
+La Guilde des Marchands ne doit plus être pensée comme un bâtiment qui “crée un marché local” ou qui “autorise l’existence du marché”.
+
+Nouvelle règle :
+- il existe une banque centrale / un réseau commercial global du jeu
+- tout joueur pouvant commercer accède au même réseau
+- la ville choisie sert de point d’accès au réseau
+- la présence / le niveau de la guilde_des_marchands modifie les frais d’utilisation
+- la guilde ne doit plus agir comme gate dur d’existence du marché
+
+IMPORTANT
+Tu ne modifies pas encore le système tant que l’audit structurel n’est pas produit.
+Tu dois d’abord montrer clairement :
+- ce que le code fait aujourd’hui
+- ce qui contredit la règle canonique
+- quel est le plus petit ordre de migration possible
+
+PRIORITÉ
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+INTERDIT
+- refactor massif
+- nouveau gros système
+- suppression brutale de tables / routes / endpoints
+- refonte complète du carnet sans audit
+- mélange audit et implémentation profonde dans la même passe
+- casser le marché actif actuel tant que le nouveau modèle n’est pas validé
+
+==================================================
+PHASE 1 — AUDIT OBLIGATOIRE
+==================================================
+
+Lis d’abord :
+- client/src/components/game/PublicMarketplace.tsx
+- client/src/components/game/MedievalHUD.tsx
+- server/routes/market.ts
+- server/marketService.ts
+- server/economyService.ts
+- shared/schema.ts
+
+Ensuite réponds précisément à ces questions :
+
+1. UI ACTIVE
+- quel est le point d’entrée réel du marché pour le joueur
+- quel rôle joue actuellement la sélection de ville dans PublicMarketplace
+- est-ce que la ville choisie représente un marché local ou seulement un point d’accès technique ?
+
+2. BACKEND ACTUEL
+- quelles routes dépendent aujourd’hui de cityId
+- où checkGuildGate() est appelé
+- quelles opérations sont actuellement impossibles sans guilde
+- où les frais sont calculés
+- à qui les frais sont reversés actuellement
+
+3. MODÈLE MÉTIER ACTUEL
+- le carnet est-il réellement local à une ville
+- les ordres sont-ils stockés comme ordres de ville
+- quels champs de schéma rendent le système actuellement “local”
+
+4. ÉCART AVEC LA RÈGLE CANONIQUE
+- en quoi le système actuel ne représente pas une banque centrale / un réseau global
+- quels éléments sont encore des gates d’accès au lieu d’être des modulateurs de frais
+- quels éléments devraient devenir :
+  - point d’accès
+  - modificateur de frais
+  - logique réseau global
+
+5. RISQUES DE MIGRATION
+- quels morceaux sont simples à adapter
+- quels morceaux sont sensibles
+- quels changements seraient destructeurs ou trop lourds pour un micro-segment
+
+==================================================
+PHASE 2 — PROPOSITION DE MIGRATION MINIMALE
+==================================================
+
+Tu ne codes pas encore la migration complète.
+Tu proposes le plus petit ordre de correction possible.
+
+Tu dois fournir un plan en étapes courtes, par exemple :
+
+Étape A — fixer la règle de frais canonique
+Étape B — remplacer le gate dur par une résolution de frais
+Étape C — décider si le carnet reste scopé par cityId ou devient global
+Étape D — adapter l’UI de sélection de ville
+Étape E — définir la destination canonique des frais
+
+IMPORTANT
+Tu dois proposer les options quand une règle n’est pas encore complètement déterminée, notamment :
+- frais sans guilde
+- frais avec guilde tier 1+
+- destination des frais
+- statut exact de cityId dans le nouveau modèle
+
+==================================================
+PHASE 3 — NE PAS IMPLÉMENTER
+==================================================
+
+Tu t’arrêtes à :
+- audit
+- écarts
+- plan minimal de migration
+
+Tu n’implémentes pas la refonte du marché dans cette passe.
+
+==================================================
+FORMAT DE RÉPONSE ATTENDU
+==================================================
+
+Je veux exactement :
+
+1. AUDIT FINAL
+- fonctionnement réel actuel
+- rôle réel de la guilde
+- rôle réel de cityId
+- rôle réel des frais
+
+2. ÉCARTS CANONIQUES
+- ce qui contredit la nouvelle règle
+- classé du plus structurant au moins structurant
+
+3. PLAN MINIMAL DE MIGRATION
+- étape 1
+- étape 2
+- étape 3
+- sans code
+
+4. FICHIERS PROBABLEMENT CONCERNÉS
+- liste précise
+
+5. STOP VALIDATION
+- tu t’arrêtes
+- aucune implémentation profonde sans validation
+
+CONTRAINTE FINALE
+Tu n’essaies pas encore de “corriger vite”.
+Tu cadres la migration proprement pour éviter une casse du marché actuel.
