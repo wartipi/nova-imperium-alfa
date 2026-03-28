@@ -1,0 +1,136 @@
+NOVA IMPERIUM — CORRECTION UI CIBLÉE
+CIBLE : LISTE DES VILLES EN MENU DÉROULANT DANS LE PANNEAU DE CONSTRUCTION
+Branche cible : NI-10.3
+
+RÔLE
+Tu exécutes une correction UI minimale.
+Tu ne touches pas au pipeline serveur.
+Tu ne refactors pas le système de construction.
+Tu ne dérives pas hors périmètre.
+
+OBJECTIF
+Le panneau de construction affiche actuellement toutes les villes/colonies en même temps.
+Je veux que la sélection de ville passe par un **menu déroulant**, puis que seules les options de construction de la ville sélectionnée soient affichées.
+
+RÈGLE FONCTIONNELLE CIBLE
+- la liste des villes doit être dans un `<select>`
+- une seule ville est affichée à la fois dans la zone de construction
+- le stock, le contexte d’exploitation, la production en cours et les bâtiments constructibles doivent correspondre uniquement à la ville sélectionnée
+- la liste repliable “Colonies fondées” peut rester comme info annexe
+- aucun changement de logique serveur
+- aucun changement des validations métier
+
+INTERDICTIONS ABSOLUES
+- aucun refactor massif
+- aucun changement de routes backend
+- aucun changement de schema
+- aucun changement de règles de construction
+- aucune modification hors ConstructionPanel.tsx sauf nécessité absolue
+- aucune correction bonus non demandée
+
+PRÉ-REQUIS OBLIGATOIRES AVANT TOUTE MODIFICATION
+Avant d’écrire le moindre code, tu dois afficher exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+- objectif précis
+- fichier(s) touché(s)
+- raison pour laquelle chaque fichier est touché
+- ordre d’exécution
+- risques
+- vérifications prévues
+
+TU T’ARRÊTES APRÈS CE PLAN.
+TU N’IMPLÉMENTES PAS AVANT D’AVOIR AFFICHÉ CE PLAN.
+
+PÉRIMÈTRE ATTENDU
+Le périmètre attendu est normalement :
+- client/src/components/game/ConstructionPanel.tsx
+
+Si tu veux toucher un autre fichier, tu dois le justifier explicitement dans le plan.
+Sinon, interdiction de le modifier.
+
+IMPLÉMENTATION ATTENDUE
+Tu dois faire le plus petit passage propre possible.
+
+Je veux cette logique UI :
+
+1. Ajouter un état de sélection de ville
+- exemple : selectedCityId ou équivalent
+- initialisé automatiquement sur la première ville disponible si elle existe
+
+2. Ajouter un menu déroulant visible au-dessus de la zone de construction
+- libellé clair du type :
+  “Ville sélectionnée”
+- chaque option doit contenir au minimum le nom de la ville
+- possible d’ajouter le nombre de cases contrôlées si déjà disponible sans complexifier
+
+3. Remplacer l’affichage multi-cartes actuel
+- ne plus rendre toutes les villes à la fois
+- ne rendre qu’une seule fiche de ville :
+  celle sélectionnée dans le dropdown
+
+4. Conserver pour la ville sélectionnée :
+- nom de la ville
+- contexte d’exploitation
+- stock local
+- message de construction
+- production en cours
+- catégories de bâtiments
+- boutons Construire
+- tooltips
+- messages d’erreur serveur
+
+5. Conserver le comportement admin si possible
+- si le mode admin a un flux distinct, ne le casse pas
+- mais si c’est simple, applique aussi un dropdown côté admin plutôt qu’une liste complète
+- priorité : cohérence d’affichage et faible risque
+
+CONTRAINTE DE STABILITÉ
+Tu ne dois pas modifier :
+- handleBuild
+- apiStartConstruction
+- refreshInventories
+- refreshExploitationContexts
+- règles terrain/ressource
+sauf si c’est strictement nécessaire pour brancher l’UI sur la ville sélectionnée.
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux des preuves réelles.
+
+Après modification, tu dois fournir exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- client/src/components/game/ConstructionPanel.tsx
+
+3. VÉRIFICATIONS
+- le dropdown apparaît
+- la première ville est sélectionnée automatiquement
+- changer de ville met bien à jour :
+  - stock
+  - contexte
+  - production en cours
+  - liste des bâtiments affichés
+- une seule ville est rendue à la fois
+- aucune nouvelle erreur TS
+- aucune casse du flux de construction
+
+4. RISQUES RÉSIDUELS
+- uniquement les vrais
+- sans les corriger hors périmètre
+
+CONTRAINTE FINALE
+Tu corriges uniquement l’ergonomie de sélection de ville dans le panneau de construction.
+Tu ne touches pas au backend.
+Tu ne fais pas de nettoyage bonus.
+Tu fournis des preuves réelles après modification.
