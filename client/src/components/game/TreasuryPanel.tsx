@@ -563,9 +563,25 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
           SECTION 2 — Banque Personnelle + Transferts
       ════════════════════════════════════════════════════════════════════ */}
       <Section title="🏦 Banque Personnelle & Transferts">
-        {bank ? (
+        {/* Gate physique banque — aucun accès sans présence physique */}
+        {bankAccess.loading ? (
+          <p className="text-xs text-amber-500 italic">Vérification présence banque…</p>
+        ) : !bankAccess.allowed ? (
+          <div className="border border-amber-300 bg-amber-100 rounded p-3 text-xs">
+            <p className="font-semibold text-amber-900 mb-1">🔒 Accès refusé</p>
+            <p className="text-amber-700 mb-2">
+              {bankAccess.reason ?? "Vous devez vous trouver physiquement sur une case contenant une Banque pour accéder à ce service."}
+            </p>
+            <button
+              onClick={loadBankAccess}
+              className="px-2 py-0.5 bg-amber-700 text-white rounded text-xs hover:bg-amber-800"
+            >
+              🔄 Vérifier à nouveau
+            </button>
+          </div>
+        ) : bank ? (
           <>
-            {/* Solde — toujours visible, lecture sans gate physique */}
+            {/* Solde — visible uniquement si présence physique confirmée */}
             <div className="grid grid-cols-2 gap-2 mb-2">
               <StatBox icon="🪙" label="Or"        value={bank.gold} />
               <StatBox icon="🌿" label="Nourriture" value={bank.food} />
@@ -582,104 +598,84 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
               Dépôt auto des villes avec banque · Tour {bank.lastProductionTurn}
             </p>
 
-            {/* Gate physique banque pour les transferts */}
-            {bankAccess.loading ? (
-              <p className="text-xs text-amber-500 italic">Vérification présence banque…</p>
-            ) : !bankAccess.allowed ? (
-              <div className="border border-amber-300 bg-amber-100 rounded p-2.5 text-xs">
-                <p className="font-semibold text-amber-900 mb-1">🔒 Transferts non disponibles</p>
-                <p className="text-amber-700 mb-2">
-                  {bankAccess.reason ?? "Vous devez vous trouver physiquement sur une case contenant une Banque pour effectuer des transferts."}
-                </p>
-                <button
-                  onClick={loadBankAccess}
-                  className="px-2 py-0.5 bg-amber-700 text-white rounded text-xs hover:bg-amber-800"
+            {/* Transférer vers une ville */}
+            <div className="border-t border-amber-200 pt-2 mb-2">
+              <p className="text-xs text-amber-600 font-semibold mb-2">Transférer vers une ville</p>
+              <div className="flex flex-wrap gap-1.5 items-end">
+                <select
+                  value={toCity.cityId}
+                  onChange={e => setToCity(prev => ({ ...prev, cityId: e.target.value }))}
+                  className="text-xs border border-amber-300 rounded px-1 py-0.5 text-amber-900 bg-white flex-1 min-w-24"
                 >
-                  🔄 Vérifier à nouveau
+                  <option value="">— Ville —</option>
+                  {cities.map(c => (
+                    <option key={c.id} value={String(c.id)}>{c.name}</option>
+                  ))}
+                </select>
+                <AmountInput label="🪙" value={toCity.gold}   onChange={v => setToCity(p => ({ ...p, gold: v }))}   max={bank.gold} />
+                <AmountInput label="🌿" value={toCity.food}   onChange={v => setToCity(p => ({ ...p, food: v }))}   max={bank.food} />
+                <AmountInput label="🪵" value={toCity.wood}   onChange={v => setToCity(p => ({ ...p, wood: v }))}   max={bank.wood ?? 0} />
+                <AmountInput label="🪨" value={toCity.stone}  onChange={v => setToCity(p => ({ ...p, stone: v }))}  max={bank.stone ?? 0} />
+                <AmountInput label="⚙️" value={toCity.iron}   onChange={v => setToCity(p => ({ ...p, iron: v }))}   max={bank.iron ?? 0} />
+                <AmountInput label="🟤" value={toCity.copper} onChange={v => setToCity(p => ({ ...p, copper: v }))} max={bank.copper ?? 0} />
+                <AmountInput label="🖤" value={toCity.coal}   onChange={v => setToCity(p => ({ ...p, coal: v }))}   max={bank.coal ?? 0} />
+                <AmountInput label="🛢️" value={toCity.oil}    onChange={v => setToCity(p => ({ ...p, oil: v }))}    max={bank.oil ?? 0} />
+                <AmountInput label="🌱" value={toCity.herbs}  onChange={v => setToCity(p => ({ ...p, herbs: v }))}  max={bank.herbs ?? 0} />
+                <AmountInput label="🦊" value={toCity.fur}    onChange={v => setToCity(p => ({ ...p, fur: v }))}    max={bank.fur ?? 0} />
+                <button
+                  onClick={handleTransferToCity}
+                  disabled={toCity.loading || !toCity.cityId}
+                  className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded disabled:opacity-50 shrink-0"
+                >
+                  {toCity.loading ? "…" : "Envoyer"}
                 </button>
               </div>
-            ) : (
-              <>
-                {/* Transférer vers une ville */}
-                <div className="border-t border-amber-200 pt-2 mb-2">
-                  <p className="text-xs text-amber-600 font-semibold mb-2">Transférer vers une ville</p>
-                  <div className="flex flex-wrap gap-1.5 items-end">
-                    <select
-                      value={toCity.cityId}
-                      onChange={e => setToCity(prev => ({ ...prev, cityId: e.target.value }))}
-                      className="text-xs border border-amber-300 rounded px-1 py-0.5 text-amber-900 bg-white flex-1 min-w-24"
-                    >
-                      <option value="">— Ville —</option>
-                      {cities.map(c => (
-                        <option key={c.id} value={String(c.id)}>{c.name}</option>
-                      ))}
-                    </select>
-                    <AmountInput label="🪙" value={toCity.gold}   onChange={v => setToCity(p => ({ ...p, gold: v }))}   max={bank.gold} />
-                    <AmountInput label="🌿" value={toCity.food}   onChange={v => setToCity(p => ({ ...p, food: v }))}   max={bank.food} />
-                    <AmountInput label="🪵" value={toCity.wood}   onChange={v => setToCity(p => ({ ...p, wood: v }))}   max={bank.wood ?? 0} />
-                    <AmountInput label="🪨" value={toCity.stone}  onChange={v => setToCity(p => ({ ...p, stone: v }))}  max={bank.stone ?? 0} />
-                    <AmountInput label="⚙️" value={toCity.iron}   onChange={v => setToCity(p => ({ ...p, iron: v }))}   max={bank.iron ?? 0} />
-                    <AmountInput label="🟤" value={toCity.copper} onChange={v => setToCity(p => ({ ...p, copper: v }))} max={bank.copper ?? 0} />
-                    <AmountInput label="🖤" value={toCity.coal}   onChange={v => setToCity(p => ({ ...p, coal: v }))}   max={bank.coal ?? 0} />
-                    <AmountInput label="🛢️" value={toCity.oil}    onChange={v => setToCity(p => ({ ...p, oil: v }))}    max={bank.oil ?? 0} />
-                    <AmountInput label="🌱" value={toCity.herbs}  onChange={v => setToCity(p => ({ ...p, herbs: v }))}  max={bank.herbs ?? 0} />
-                    <AmountInput label="🦊" value={toCity.fur}    onChange={v => setToCity(p => ({ ...p, fur: v }))}    max={bank.fur ?? 0} />
-                    <button
-                      onClick={handleTransferToCity}
-                      disabled={toCity.loading || !toCity.cityId}
-                      className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded disabled:opacity-50 shrink-0"
-                    >
-                      {toCity.loading ? "…" : "Envoyer"}
-                    </button>
-                  </div>
-                  {toCity.message && (
-                    <p className={[
-                      "text-xs mt-1 font-medium",
-                      toCity.message.startsWith("❌") || toCity.message.startsWith("⚠️")
-                        ? "text-red-600" : "text-green-700"
-                    ].join(" ")}>
-                      {toCity.message}
-                    </p>
-                  )}
-                </div>
+              {toCity.message && (
+                <p className={[
+                  "text-xs mt-1 font-medium",
+                  toCity.message.startsWith("❌") || toCity.message.startsWith("⚠️")
+                    ? "text-red-600" : "text-green-700"
+                ].join(" ")}>
+                  {toCity.message}
+                </p>
+              )}
+            </div>
 
-                {/* Prendre en transport */}
-                <div className="border-t border-amber-200 pt-2">
-                  <p className="text-xs text-amber-600 font-semibold mb-2">
-                    Prendre en transport
-                    {transport && <span className="text-amber-400 font-normal ml-1">(libre : {transport.freeUnits} unités)</span>}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5 items-end">
-                    <AmountInput label="🪙" value={toPlayer.gold}   onChange={v => setToPlayer(p => ({ ...p, gold: v }))}   max={bank.gold} />
-                    <AmountInput label="🌿" value={toPlayer.food}   onChange={v => setToPlayer(p => ({ ...p, food: v }))}   max={bank.food} />
-                    <AmountInput label="🪵" value={toPlayer.wood}   onChange={v => setToPlayer(p => ({ ...p, wood: v }))}   max={bank.wood ?? 0} />
-                    <AmountInput label="🪨" value={toPlayer.stone}  onChange={v => setToPlayer(p => ({ ...p, stone: v }))}  max={bank.stone ?? 0} />
-                    <AmountInput label="⚙️" value={toPlayer.iron}   onChange={v => setToPlayer(p => ({ ...p, iron: v }))}   max={bank.iron ?? 0} />
-                    <AmountInput label="🟤" value={toPlayer.copper} onChange={v => setToPlayer(p => ({ ...p, copper: v }))} max={bank.copper ?? 0} />
-                    <AmountInput label="🖤" value={toPlayer.coal}   onChange={v => setToPlayer(p => ({ ...p, coal: v }))}   max={bank.coal ?? 0} />
-                    <AmountInput label="🛢️" value={toPlayer.oil}    onChange={v => setToPlayer(p => ({ ...p, oil: v }))}    max={bank.oil ?? 0} />
-                    <AmountInput label="🌱" value={toPlayer.herbs}  onChange={v => setToPlayer(p => ({ ...p, herbs: v }))}  max={bank.herbs ?? 0} />
-                    <AmountInput label="🦊" value={toPlayer.fur}    onChange={v => setToPlayer(p => ({ ...p, fur: v }))}    max={bank.fur ?? 0} />
-                    <button
-                      onClick={handleTransferToPlayer}
-                      disabled={toPlayer.loading}
-                      className="text-xs px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded disabled:opacity-50 shrink-0"
-                    >
-                      {toPlayer.loading ? "…" : "Prendre"}
-                    </button>
-                  </div>
-                  {toPlayer.message && (
-                    <p className={[
-                      "text-xs mt-1 font-medium",
-                      toPlayer.message.startsWith("❌") || toPlayer.message.startsWith("⚠️")
-                        ? "text-red-600" : "text-green-700"
-                    ].join(" ")}>
-                      {toPlayer.message}
-                    </p>
-                  )}
-                </div>
-              </>
-            )}
+            {/* Prendre en transport */}
+            <div className="border-t border-amber-200 pt-2">
+              <p className="text-xs text-amber-600 font-semibold mb-2">
+                Prendre en transport
+                {transport && <span className="text-amber-400 font-normal ml-1">(libre : {transport.freeUnits} unités)</span>}
+              </p>
+              <div className="flex flex-wrap gap-1.5 items-end">
+                <AmountInput label="🪙" value={toPlayer.gold}   onChange={v => setToPlayer(p => ({ ...p, gold: v }))}   max={bank.gold} />
+                <AmountInput label="🌿" value={toPlayer.food}   onChange={v => setToPlayer(p => ({ ...p, food: v }))}   max={bank.food} />
+                <AmountInput label="🪵" value={toPlayer.wood}   onChange={v => setToPlayer(p => ({ ...p, wood: v }))}   max={bank.wood ?? 0} />
+                <AmountInput label="🪨" value={toPlayer.stone}  onChange={v => setToPlayer(p => ({ ...p, stone: v }))}  max={bank.stone ?? 0} />
+                <AmountInput label="⚙️" value={toPlayer.iron}   onChange={v => setToPlayer(p => ({ ...p, iron: v }))}   max={bank.iron ?? 0} />
+                <AmountInput label="🟤" value={toPlayer.copper} onChange={v => setToPlayer(p => ({ ...p, copper: v }))} max={bank.copper ?? 0} />
+                <AmountInput label="🖤" value={toPlayer.coal}   onChange={v => setToPlayer(p => ({ ...p, coal: v }))}   max={bank.coal ?? 0} />
+                <AmountInput label="🛢️" value={toPlayer.oil}    onChange={v => setToPlayer(p => ({ ...p, oil: v }))}    max={bank.oil ?? 0} />
+                <AmountInput label="🌱" value={toPlayer.herbs}  onChange={v => setToPlayer(p => ({ ...p, herbs: v }))}  max={bank.herbs ?? 0} />
+                <AmountInput label="🦊" value={toPlayer.fur}    onChange={v => setToPlayer(p => ({ ...p, fur: v }))}    max={bank.fur ?? 0} />
+                <button
+                  onClick={handleTransferToPlayer}
+                  disabled={toPlayer.loading}
+                  className="text-xs px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded disabled:opacity-50 shrink-0"
+                >
+                  {toPlayer.loading ? "…" : "Prendre"}
+                </button>
+              </div>
+              {toPlayer.message && (
+                <p className={[
+                  "text-xs mt-1 font-medium",
+                  toPlayer.message.startsWith("❌") || toPlayer.message.startsWith("⚠️")
+                    ? "text-red-600" : "text-green-700"
+                ].join(" ")}>
+                  {toPlayer.message}
+                </p>
+              )}
+            </div>
           </>
         ) : (
           <p className="text-xs text-amber-400 italic">

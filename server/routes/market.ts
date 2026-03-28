@@ -38,11 +38,19 @@ router.get("/access-check", requireAuth, async (req: AuthRequest, res) => {
 });
 
 // ─── GET /:cityId/guild ────────────────────────────────────────────────────────
-// Info uniquement — pas de gate physique.
+// Gate physique marché pour les non-admins.
+// Retourne 403 si le joueur n'est pas physiquement sur une case contenant la Guilde des Marchands.
 router.get("/:cityId/guild", requireAuth, async (req: AuthRequest, res) => {
   try {
-    const cityId = parseInt(req.params.cityId, 10);
+    const playerId = req.user!.id;
+    const isAdmin  = req.user!.role === "admin";
+    const cityId   = parseInt(req.params.cityId, 10);
     if (isNaN(cityId)) return res.status(400).json({ error: "cityId invalide" });
+
+    if (!isAdmin) {
+      await resolveAccessPoint(playerId, "market");
+    }
+
     const info = await getMarketInfo(cityId);
     res.json(info);
   } catch (err: any) {

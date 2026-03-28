@@ -120,12 +120,21 @@ router.get("/bank-access-check", requireAuth, async (req: AuthRequest, res) => {
 });
 
 // ─── GET /api/economy/player-bank/me ─────────────────────────────────────────
-// Auth requise — retourne la banque personnelle du joueur (lecture sans gate physique).
+// Auth requise + gate physique banque pour les non-admins.
+// Retourne 403 si le joueur n'est pas physiquement sur une case contenant une Banque.
 router.get("/player-bank/me", requireAuth, async (req: AuthRequest, res) => {
   try {
-    const bank = await getOrInitPlayerBank(req.user!.id);
+    const playerId = req.user!.id;
+    const isAdmin  = req.user!.role === "admin";
+
+    if (!isAdmin) {
+      await resolveAccessPoint(playerId, "bank");
+    }
+
+    const bank = await getOrInitPlayerBank(playerId);
     return res.json(bank);
-  } catch (err) {
+  } catch (err: any) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
     console.error("[GET /api/economy/player-bank/me] Erreur:", err);
     return res.status(500).json({ error: "Impossible de lire la banque du joueur" });
   }
