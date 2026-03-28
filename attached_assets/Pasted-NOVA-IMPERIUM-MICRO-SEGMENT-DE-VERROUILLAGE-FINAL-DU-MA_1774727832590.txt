@@ -1,0 +1,170 @@
+NOVA IMPERIUM — MICRO-SEGMENT DE VERROUILLAGE FINAL DU MARCHÉ ACTIF
+Branche cible : NI-10.3
+
+RÔLE
+Tu agis en exécution ciblée, sans dérive de périmètre.
+Tu ne touches pas à d’autres systèmes.
+Tu finalises uniquement la cohérence du marché actif joueur.
+
+CONTEXTE CONFIRMÉ
+Sur la branche NI-10.3 :
+- le flux joueur actif du marketplace n’expose plus que “Marché des Ressources”
+- MAIS le composant PublicMarketplace contient encore :
+  - du code legacy buy/sell
+  - des appels /api/marketplace/*
+  - un header qui parle encore de “Version Hybride: Vente Directe + Enchères”
+
+OBJECTIF
+Verrouiller définitivement le marché actif pour que :
+- l’UI montée ne reflète plus du tout un mode hybride
+- le composant actif ne mélange plus le marché canonique des ressources avec le legacy
+- le parcours joueur soit lisible, stable et cohérent
+
+PRIORITÉ
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+INTERDIT
+- refactor massif
+- changement d’architecture
+- réécriture globale du système de marché
+- suppression backend large sans nécessité
+- ouvrir un nouveau segment hors marché actif
+- toucher aux autres systèmes (territoire, fondation, construction, production) sauf si une dépendance directe bloque le build
+
+MÉTHODE OBLIGATOIRE
+1. Audit local
+2. Implémentation ciblée
+3. Vérification
+4. Bilan
+
+==================================================
+PHASE 1 — AUDIT LOCAL OBLIGATOIRE
+==================================================
+
+Lis d’abord :
+- client/src/components/game/PublicMarketplace.tsx
+- client/src/lib/api/marketApi.ts
+- client/src/components/game/MedievalHUD.tsx
+- server/routes/market.ts
+- server/marketService.ts
+
+Vérifie explicitement :
+- quel composant est réellement monté
+- si PublicMarketplace est bien le panneau actif
+- s’il reste des branches UI actives ou du texte utilisateur orienté legacy
+- s’il existe encore des appels /api/marketplace/* depuis le composant monté
+- si le marché canonique /api/market/* est suffisant à lui seul pour le flux actif
+
+==================================================
+PHASE 2 — CIBLE DE CORRECTION
+==================================================
+
+Tu corriges UNIQUEMENT le composant actif pour qu’il reflète un seul système : le marché canonique des ressources.
+
+À FAIRE
+
+1. NETTOYAGE DE COHÉRENCE UI
+- remplacer le titre “Marché Publique” si nécessaire par un intitulé cohérent avec le marché des ressources
+- supprimer tout texte visible qui laisse croire à une “version hybride”
+- supprimer les libellés, aides ou commentaires utilisateur qui renvoient au vieux système buy/sell
+
+2. NETTOYAGE DU COMPOSANT ACTIF
+- retirer du composant monté tout ce qui n’est plus utilisé par le parcours actif
+- en priorité :
+  - états inutiles
+  - branches JSX mortes
+  - handlers legacy non utilisés
+  - modales legacy non utilisées
+  - appels /api/marketplace/* non utilisés par le flux actif
+- si un retrait complet crée trop de risques, isole proprement le legacy hors du composant monté
+- mais le résultat final doit être :
+  - composant actif lisible
+  - zéro ambiguïté sur le système utilisé
+  - zéro affordance UI vers le legacy
+
+3. CONSERVER LE PIPELINE CANONIQUE
+Le flux actif doit continuer à utiliser :
+- /api/cities/me
+- /api/market/:cityId/guild
+- /api/market/:cityId/orders
+- /api/market/:cityId/trades
+- POST ordre
+- fill ordre
+- cancel ordre
+- update fee
+
+4. NE PAS CASSER LE PARCOURS ACTUEL
+Le joueur doit toujours pouvoir :
+- ouvrir le panneau
+- sélectionner une ville
+- voir si la guilde est requise
+- charger le carnet
+- poster un ordre buy/sell canonique
+- fill un ordre
+- annuler son propre ordre
+- changer la commission
+- voir l’historique
+
+==================================================
+PHASE 3 — CONTRAINTES TECHNIQUES
+==================================================
+
+- touche le moins de fichiers possible
+- idéalement, concentre les changements dans PublicMarketplace.tsx
+- ne modifie marketService.ts ou routes/market.ts que si un vrai bug bloquant apparaît
+- ne réintroduis pas un second panneau
+- ne crée pas un nouveau gros composant si un nettoyage ciblé suffit
+- si tu gardes du code legacy pour compatibilité future, il ne doit plus être dans le flux monté ni dans l’UX active
+
+==================================================
+PHASE 4 — VÉRIFICATION OBLIGATOIRE
+==================================================
+
+Après modification, vérifie explicitement :
+
+1. VISUEL
+- un seul système apparent dans le panneau
+- aucun texte “hybride”
+- aucun onglet buy/sell legacy visible
+- aucun bouton ou modal legacy accessible
+
+2. FONCTIONNEL
+- sélection ville OK
+- ville sans guilde -> message clair
+- ville avec guilde -> carnet chargé
+- création ordre OK
+- fill OK
+- cancel OK
+- changement commission OK
+- historique visible
+
+3. CODE
+- plus aucun appel /api/marketplace/* depuis le composant monté actif
+- plus aucune branche JSX morte liée à buy/sell legacy dans le composant actif
+- build OK
+- pas de nouvelle erreur TS introduite
+
+==================================================
+FORMAT DE RÉPONSE ATTENDU
+==================================================
+
+Je veux exactement ce format :
+
+1. AUDIT FINAL
+- ce qui restait à nettoyer
+- ce qui était encore legacy dans le composant actif
+
+2. MODIFICATIONS FAITES
+- fichier par fichier
+- but précis de chaque changement
+
+3. VÉRIFICATIONS
+- tests effectués
+- résultats
+
+4. ÉTAT FINAL
+- en une phrase claire sur le marché actif joueur
+
+CONTRAINTE FINALE
+Tu ne fais pas autre chose.
+Tu verrouilles uniquement la cohérence finale du marché actif.
