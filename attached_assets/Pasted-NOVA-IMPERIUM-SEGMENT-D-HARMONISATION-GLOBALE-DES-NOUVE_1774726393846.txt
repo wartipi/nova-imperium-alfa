@@ -1,0 +1,381 @@
+NOVA IMPERIUM — SEGMENT D’HARMONISATION GLOBALE DES NOUVELLES FONCTIONS
+Branche cible : NI-10.3
+
+RÔLE
+Tu agis comme système de contrôle technique et d’implémentation ciblée.
+Tu ne dois pas improviser.
+Tu dois d’abord AUDITER le code réel, ensuite corriger le plus petit nombre de points pour rendre le parcours joueur cohérent, stable et testable.
+
+STACK / CONTEXTE
+- Node/TypeScript
+- React/TypeScript
+- PostgreSQL
+- architecture serveur-authoritative
+- priorité : Simplicité > Lisibilité > Stabilité > Compatibilité
+
+INTERDIT
+- refactor massif
+- changement d’architecture
+- abstraction générique inutile
+- nouveau gros système
+- modification de périmètre non demandée
+- supposer qu’un panneau est actif sans vérifier le composant réellement monté
+- supposer qu’une route backend est branchée sans vérifier le flux UI réel
+- supprimer brutalement un ancien système si on peut d’abord le débrancher proprement du parcours actif
+
+OBJECTIF
+Harmoniser les fonctions récentes pour rendre le parcours joueur complet cohérent, stable et réellement testable, avec le plus petit passage propre possible.
+
+IMPORTANT — MÉTHODE OBLIGATOIRE
+Tu dois travailler dans cet ordre exact :
+
+1. Audit
+2. Validation logique
+3. Implémentation ciblée
+4. Vérification
+5. Verrouillage
+
+Tu dois distinguer explicitement :
+- état local actuel
+- état publiquement réconcilié / branché
+- backend réel
+- UI réellement montée
+- flux joueur réellement testable
+
+==================================================
+PHASE 0 — RÉCONCILIATION DE L’ÉTAT
+==================================================
+
+Avant toute modification :
+
+A. Vérifie que tu es bien sur la branche NI-10.3.
+B. Vérifie s’il existe des écarts locaux non poussés.
+C. Si possible, compare l’état local avec origin/NI-10.3.
+D. Ne pars jamais du principe que ce qui a été “validé en conversation” est réellement branché tant que le code actif ne le confirme pas.
+
+Tu dois noter noir sur blanc :
+- ce qui est confirmé dans le code local
+- ce qui est confirmé dans l’UI montée
+- ce qui existe seulement en backend
+- ce qui semble legacy ou stub
+
+==================================================
+PHASE 1 — LECTURE OBLIGATOIRE DES FICHIERS
+==================================================
+
+Lis d’abord ces fichiers, en priorité, avant toute décision :
+
+CLIENT
+- client/src/App.tsx
+- client/src/components/game/MedievalHUD.tsx
+- client/src/components/game/UnifiedTerritoryPanel.tsx
+- client/src/components/game/TreasuryPanel.tsx
+- client/src/components/game/PublicMarketplace.tsx
+- client/src/components/game/TileInfoPanel.tsx
+- client/src/lib/api/territoriesApi.ts
+- client/src/lib/api/marketApi.ts
+- client/src/lib/systems/UnifiedTerritorySystem.ts
+
+SERVER
+- server/index.ts
+- server/routes.ts
+- server/routes/territories.ts
+- server/territoryService.ts
+- server/ownershipService.ts
+- server/routes/cities.ts
+- server/cityService.ts
+- server/routes/market.ts
+- server/marketService.ts
+
+SCHÉMA
+- shared/schema.ts
+
+ENSUITE :
+- cherche tout appel réel à /api/cities/:cityId/start-construction
+- cherche tout composant de construction de ville déjà existant
+- cherche tout code encore branché sur /api/marketplace/*
+- cherche tout affichage UI qui lit encore playerId / factionId legacy à la place de ownerType / ownerPlayerId / ownerFactionId
+
+==================================================
+PHASE 2 — AUDIT À PRODUIRE AVANT MODIFICATION
+==================================================
+
+Avant d’implémenter, tu dois produire un audit structuré avec ce format :
+
+1. ÉTAT RÉEL DU FLUX JOUEUR
+- territoire
+- fondation
+- construction
+- marché
+- ownership
+- quels composants sont réellement montés
+- quels endpoints sont réellement appelés
+
+2. ÉCARTS STRUCTURELS
+- backend présent mais UI absente
+- UI active mais pipeline ambigu
+- legacy encore visible dans le flux actif
+- ownership canonique non respecté côté affichage ou logique
+
+3. BLOCANTS PRIORITAIRES
+- classés du plus bloquant au moins bloquant
+- uniquement les vrais blocants
+
+4. PLAN MINIMAL DE CORRECTION
+- étape 1
+- étape 2
+- étape 3
+- rien de plus
+
+Si des écarts apparaissent entre l’état local et ce qui était supposé, c’est le CODE RÉEL qui gagne.
+
+==================================================
+PHASE 3 — CIBLE D’HARMONISATION À ATTEINDRE
+==================================================
+
+Tu dois corriger uniquement ce qui suit, dans cet ordre.
+
+------------------------------------------
+LOT 1 — FERMER LE PÉRIMÈTRE DU MARCHÉ ACTIF
+------------------------------------------
+
+PROBLÈME À RÉSOUDRE
+Le panneau PublicMarketplace mélange deux systèmes :
+- marché des ressources canonique via /api/market/*
+- marketplace legacy / hybride via /api/marketplace/*
+
+OBJECTIF
+Dans le parcours joueur actif, il ne doit plus y avoir d’ambiguïté.
+
+RÈGLE DE CORRECTION
+Tu dois faire le plus petit passage propre possible :
+- le marché canonique des ressources devient le flux officiel dans l’UI active
+- le legacy /api/marketplace/* ne doit plus polluer le parcours actif joueur
+- ne pas forcément supprimer le vieux code backend
+- privilégier :
+  - masquer / désactiver les tabs legacy dans l’UI active
+  - ou isoler visuellement le legacy hors du parcours joueur principal
+- ne garde PAS dans le même flux actif un mélange de logique canonique et legacy
+
+À VÉRIFIER APRÈS CORRECTION
+- sélection d’une ville
+- gate par guilde_des_marchands
+- chargement du carnet d’ordres
+- création d’ordre
+- fill / cancel
+- commission lisible
+- aucun écran actif ne laisse croire que le vieux marketplace fait partie du flux canonique
+
+------------------------------------------
+LOT 2 — RACCORDER LA CONSTRUCTION DE VILLE AU FLUX ACTIF
+------------------------------------------
+
+PROBLÈME À RÉSOUDRE
+Le backend de construction existe, mais il faut vérifier si le joueur peut réellement démarrer une construction depuis l’UI active.
+
+OBJECTIF
+Le joueur doit avoir un flux clair, minimal et testable pour :
+- choisir une ville accessible
+- voir le stock réel de cette ville
+- voir le contexte d’exploitation si nécessaire
+- lancer une construction via le vrai pipeline serveur
+- voir la file de production / progression
+- voir l’effet après tick
+
+RÈGLE DE CORRECTION
+- ne crée PAS un gros nouveau système
+- réutilise autant que possible les composants et endpoints existants
+- si un composant de construction existe déjà mais n’est pas monté, réutilise-le
+- sinon, ajoute le plus petit point d’entrée possible dans le panneau déjà actif le plus logique
+- le choix par défaut recommandé est :
+  - raccorder la construction depuis TreasuryPanel / vue des villes
+  - pas créer un nouveau panneau principal si ce n’est pas nécessaire
+
+BACKEND À RESPECTER
+- /api/cities/:cityId/start-construction
+- /api/cities/:cityId/inventory
+- /api/cities/:cityId/exploitation-context
+- /api/cities/production-tick
+- city_buildings
+- city_production
+
+RÈGLES IMPORTANTES
+- pas de logique client qui contourne les validations serveur
+- pas de faux catalogue non branché
+- pas de “succès UI” si l’appel serveur échoue
+- pas de double source de vérité pour les coûts / prérequis
+
+À VÉRIFIER APRÈS CORRECTION
+- lancer une construction depuis l’UI active
+- voir refus si inventaire insuffisant
+- voir refus si prérequis terrain/ressource non respectés
+- voir acceptation si tout est valide
+- voir la production avancer au tick
+- voir le bâtiment terminé apparaître après complétion
+- voir les données rehydratées depuis le serveur réel
+
+------------------------------------------
+LOT 3 — ALIGNER TERRITOIRE ET FONDATION
+------------------------------------------
+
+PROBLÈME À RÉSOUDRE
+Le backend peut encore permettre une fondation sans claim préalable, alors que l’UI dit au joueur de claim d’abord.
+
+OBJECTIF
+Une seule règle canonique, cohérente partout.
+
+DÉCISION À APPLIQUER
+Adopte la règle suivante sauf si le code local montre déjà une autre harmonisation validée :
+- une colonie doit être fondée uniquement sur un territoire déjà revendiqué
+- le territoire doit appartenir canoniquement au joueur ou à sa faction
+- le joueur ne doit pas pouvoir fonder sur une case libre non claimée
+
+CORRECTION ATTENDUE
+- backend : foundColony doit exiger le territoire existant et l’ownership canonique correspondant
+- UI : textes, aide, messages d’erreur et affordances doivent refléter exactement cette règle
+- pas de contradiction entre panneau territoire et service backend
+
+À VÉRIFIER APRÈS CORRECTION
+- claim player -> fondation autorisée si joueur propriétaire
+- claim faction -> fondation autorisée si membre de la faction propriétaire
+- case libre sans claim -> fondation refusée
+- territoire d’un autre owner -> fondation refusée
+- message d’erreur clair et cohérent
+
+------------------------------------------
+LOT 4 — NORMALISER L’AFFICHAGE OWNERSHIP
+------------------------------------------
+
+PROBLÈME À RÉSOUDRE
+Le backend possède un ownership canonique, mais certaines lectures UI restent legacy.
+
+OBJECTIF
+L’UI active doit lire d’abord le canonique :
+- ownerType
+- ownerPlayerId / ownerPlayerName
+- ownerFactionId / ownerFactionName
+
+RÈGLE DE CORRECTION
+- ne casse pas la compatibilité legacy si des champs historiques restent stockés
+- mais l’affichage du flux actif doit être basé sur l’ownership canonique
+- les champs legacy playerId / factionId du claim doivent rester de l’historique, pas la vérité principale
+
+CIBLES PRIORITAIRES
+- UnifiedTerritoryPanel
+- TileInfoPanel
+- UnifiedTerritorySystem
+- tout helper réellement utilisé par l’UI active
+
+À VÉRIFIER APRÈS CORRECTION
+- territoire player-owned affiché correctement comme ownership joueur
+- territoire faction-owned affiché correctement comme ownership faction
+- colonie affichée selon ownership canonique
+- les helpers ne filtrent plus le flux actif avec la logique legacy quand le canonique est disponible
+
+------------------------------------------
+LOT 5 — CORRIGER LE TICK DES VILLES PLAYER-OWNED SANS FACTION
+------------------------------------------
+
+PROBLÈME À RÉSOUDRE
+Le modèle ownerType='player' existe, mais la progression de production peut rester bloquée si le joueur n’a pas de faction.
+
+OBJECTIF
+Une ville appartenant canoniquement à un joueur doit continuer à fonctionner même sans faction.
+
+CORRECTION ATTENDUE
+- tickCityProduction ne doit pas dépendre uniquement d’une faction active
+- il doit inclure :
+  - villes ownerFactionId = faction du joueur
+  - ET villes ownerPlayerId = joueur courant
+- sans casser le comportement des villes de faction
+
+À VÉRIFIER APRÈS CORRECTION
+- joueur sans faction mais owner d’une colonie player-owned
+- production qui progresse normalement
+- complétion bâtiment / unité correcte
+- aucun effet de bord sur les villes de faction
+
+==================================================
+PHASE 4 — RÈGLES DE CODAGE
+==================================================
+
+- fais des modifications ciblées
+- touche le moins de fichiers possible
+- réutilise les fonctions existantes avant d’en créer
+- pas de renommage cosmétique
+- pas de refactor “propreté” sans impact direct sur l’objectif
+- garde les commentaires utiles existants
+- ajoute un commentaire uniquement si cela fixe une ambiguïté structurelle réelle
+
+==================================================
+PHASE 5 — VÉRIFICATION OBLIGATOIRE
+==================================================
+
+Après implémentation, tu dois vérifier explicitement :
+
+1. TERRITOIRE
+- claim joueur
+- claim faction
+- affichage ownership correct
+- accès correct dans les panneaux
+
+2. FONDATION
+- impossible sans claim
+- possible avec claim valide
+- refus sur ownership invalide
+
+3. CONSTRUCTION
+- ville visible dans le flux actif
+- démarrage via vrai endpoint serveur
+- validation inventaire
+- validation prérequis
+- progression
+- complétion
+
+4. MARCHÉ
+- une seule lecture claire du flux officiel dans l’UI active
+- sélection ville
+- gate guilde_des_marchands
+- carnet chargé
+- ordre posté
+- ordre rempli / annulé
+- commission cohérente
+
+5. NON-RÉGRESSION
+- pas de casse auth
+- pas de casse hydratation startup
+- pas de casse re-render carte / HUD
+- pas de casse du tick de fin de tour
+
+==================================================
+FORMAT DE RÉPONSE ATTENDU
+==================================================
+
+Je veux une réponse finale structurée exactement ainsi :
+
+1. AUDIT FINAL
+- état réel constaté
+- écarts confirmés
+
+2. MODIFICATIONS FAITES
+- fichier par fichier
+- avec but de chaque modification
+
+3. FLUX JOUEUR FINAL
+- territoire
+- fondation
+- construction
+- marché
+
+4. VÉRIFICATIONS EFFECTUÉES
+- cas testés
+- résultats
+
+5. RISQUES RESTANTS
+- seulement les vrais risques résiduels
+
+CONTRAINTE FINALE
+Ne pars pas en dérive.
+Tu n’ouvres pas un nouveau segment.
+Tu harmonises ce qui existe déjà.
+Tu fais le plus petit passage propre pour rendre le parcours joueur cohérent, stable et réellement testable.

@@ -310,3 +310,16 @@ npm run db:push                   # Synchroniser le schéma Drizzle
 2. `postProductionTick(currentTurn)` — production par-ville (bank / pending)
 3. `processTurn()` — production locale
 4. `endTurn()` — incrément du tour
+
+## Harmonisation Phase 12 (NI-10.3)
+
+### Bugs corrigés
+- **colonies.faction_id NOT NULL** → `ALTER TABLE DROP NOT NULL` + `shared/schema.ts`
+- **ColonyDTO ownerType/ownerPlayerId/ownerFactionId** exposés dans `server/territoryService.ts`
+- **PublicMarketplace legacy tabs** : onglets 'buy'/'sell' masqués (code préservé, non accessibles) — seul `marche_ressources` visible dans le parcours joueur actif
+- **foundColony sans territoire** → `else`-branch converti en 403 — un joueur doit revendiquer avant de fonder
+- **TileInfoPanel ownership** : affiche désormais `ownerType` canonique (Joueur / Faction + nom `ownerPlayerName`/`ownerFactionName`) avec fallback legacy
+- **tickCityProduction** (cityService.ts) : suppression du `if (!factionId) return { applied: false }` — villes `ownerType='player'` progressent même sans faction
+
+### Bug satellite connu (hors LOT 5)
+- `applyProductionTickPerCity` (economyService.ts L329) utilise encore `eq(colonies.factionId, factionId)` legacy → les colonies `ownerType='player'` ne génèrent pas de ressources économiques (or/nourriture/wood etc.) via `POST /api/economy/production-tick` pour les joueurs sans faction. À traiter dans une passe ultérieure d'harmonisation.

@@ -295,20 +295,12 @@ export async function foundColony(
     ownerFactionId   = ter.ownerFactionId   ?? null;
     ownerFactionName = ter.ownerFactionName ?? null;
   } else {
-    // Pas de territoire : ownership dérivé de la présence d'une faction active
-    if (factionId !== null) {
-      ownerType        = 'faction';
-      ownerFactionId   = factionId;
-      ownerFactionName = factionName;
-      ownerPlayerId    = null;
-      ownerPlayerName  = null;
-    } else {
-      ownerType        = 'player';
-      ownerPlayerId    = playerId;
-      ownerPlayerName  = playerName;
-      ownerFactionId   = null;
-      ownerFactionName = null;
-    }
+    // Pas de territoire revendiqué sur cette case — fondation interdite.
+    // Règle : un joueur/faction doit d'abord revendiquer le territoire avant de fonder une colonie.
+    return {
+      error: "Vous devez d'abord revendiquer ce territoire avant d'y fonder une colonie.",
+      status: 403,
+    };
   }
 
   // 7. is_capital : première colonie de cet owner (joueur ou faction)

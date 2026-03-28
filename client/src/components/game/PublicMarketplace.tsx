@@ -642,30 +642,8 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
           </button>
         </div>
 
-        {/* Navigation */}
+        {/* Navigation — seul le marché des ressources canonique est visible dans le parcours joueur actif */}
         <div className="flex border-b-2 border-amber-200">
-          <button
-            onClick={() => setActiveTab('buy')}
-            className={`flex-1 py-4 px-6 font-medium transition-colors ${
-              activeTab === 'buy'
-                ? 'bg-amber-200 text-amber-900 border-b-2 border-amber-600'
-                : 'text-amber-700 hover:bg-amber-100'
-            }`}
-            style={{ userSelect: 'none', pointerEvents: 'auto' }}
-          >
-            🛒 Acheter
-          </button>
-          <button
-            onClick={() => setActiveTab('sell')}
-            className={`flex-1 py-4 px-6 font-medium transition-colors ${
-              activeTab === 'sell'
-                ? 'bg-amber-200 text-amber-900 border-b-2 border-amber-600'
-                : 'text-amber-700 hover:bg-amber-100'
-            }`}
-            style={{ userSelect: 'none', pointerEvents: 'auto' }}
-          >
-            💰 Vendre
-          </button>
           <button
             onClick={() => setActiveTab('marche_ressources')}
             className={`flex-1 py-4 px-6 font-medium transition-colors ${

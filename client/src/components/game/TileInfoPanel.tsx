@@ -347,22 +347,25 @@ function TerritoryInfoSection({ selectedHex }: { selectedHex: HexTile }) {
   console.log(`🏰 Vérification territoire (${intX},${intY}):`, territoryInfo);
   
   if (territoryInfo) {
+    const ownerLabel =
+      territoryInfo.ownerType === 'player'
+        ? (territoryInfo.ownerPlayerName ?? territoryInfo.playerName ?? '—')
+        : (territoryInfo.ownerFactionName ?? territoryInfo.factionName ?? '—');
+    const ownerKind = territoryInfo.ownerType === 'player' ? 'Joueur' : 'Faction';
+
     return (
       <div className="bg-blue-50 border border-blue-700 rounded p-2 mb-3">
         <div className="text-blue-900 font-semibold mb-2">🏰 Territoire Revendiqué</div>
         <div className="space-y-1 text-sm">
           <div className="text-blue-800">
-            <span className="font-medium">Faction:</span> {territoryInfo.factionName}
+            <span className="font-medium">{ownerKind} :</span> {ownerLabel}
           </div>
           <div className="text-blue-800">
-            <span className="font-medium">Revendiqué par:</span> {territoryInfo.playerName}
-          </div>
-          <div className="text-blue-800">
-            <span className="font-medium">Date:</span> {new Date(territoryInfo.claimedDate).toLocaleDateString('fr-FR')}
+            <span className="font-medium">Date :</span> {new Date(territoryInfo.claimedDate).toLocaleDateString('fr-FR')}
           </div>
           {territoryInfo.colonyName && (
             <div className="text-blue-800 font-medium">
-              🏘️ <span className="font-medium">Colonie:</span> {territoryInfo.colonyName}
+              🏘️ <span className="font-medium">Colonie :</span> {territoryInfo.colonyName}
             </div>
           )}
         </div>
@@ -373,7 +376,7 @@ function TerritoryInfoSection({ selectedHex }: { selectedHex: HexTile }) {
       <div className="bg-gray-50 border border-gray-300 rounded p-2 mb-3">
         <div className="text-gray-700 font-semibold mb-1">🌍 Territoire Libre</div>
         <div className="text-gray-600 text-sm">
-          Ce territoire n'est revendiqué par aucune faction
+          Ce territoire n'est revendiqué par aucun joueur ni faction
         </div>
       </div>
     );

@@ -382,14 +382,13 @@ export async function tickCityProduction(playerId: string): Promise<CityProducti
 
   const factionId = memberRows.length > 0 ? memberRows[0].factionId : null;
 
-  if (!factionId) {
-    return { applied: false, progressed: [], completedBuildings: [], completedUnits: [] };
-  }
-
-  const whereClause = or(
-    eq(colonies.ownerFactionId, factionId),
-    eq(colonies.ownerPlayerId, playerId),
-  );
+  // Un joueur sans faction peut quand même avoir des colonies ownerType='player' — ne pas bloquer.
+  const whereClause = factionId !== null
+    ? or(
+        eq(colonies.ownerFactionId, factionId),
+        eq(colonies.ownerPlayerId, playerId),
+      )
+    : eq(colonies.ownerPlayerId, playerId);
 
   const rows = await db
     .select({ city: cities, colony: colonies })
