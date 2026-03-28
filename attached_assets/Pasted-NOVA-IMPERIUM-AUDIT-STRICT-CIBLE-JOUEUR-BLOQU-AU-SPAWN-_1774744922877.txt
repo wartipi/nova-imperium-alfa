@@ -1,0 +1,94 @@
+NOVA IMPERIUM — AUDIT STRICT
+CIBLE : JOUEUR BLOQUÉ AU SPAWN / DÉPLACEMENT
+Branche cible : NI-10.3
+
+RÔLE
+Tu fais un audit technique strict.
+Tu ne modifies rien.
+Tu ne patches rien.
+Tu n’implémentes rien avant validation.
+
+OBJECTIF
+Diagnostiquer pourquoi le joueur est bloqué et ne peut pas se déplacer.
+
+CONTEXTE TECHNIQUE À AUDITER
+Le pipeline réel de déplacement passe par :
+- client/src/components/game/GameCanvas.tsx
+- server/routes/playerActions.ts
+- server/playerActionService.ts
+- server/playerPositionService.ts
+- server/routes/player.ts
+- client/src/lib/stores/usePlayerActions.ts
+
+POINTS À VÉRIFIER
+1. Position serveur réelle du joueur
+2. Existence d’une action active in_progress
+3. Écart éventuel entre position client affichée et position serveur DB
+4. Réponse exacte de POST /api/player/actions/move
+5. Validité du spawn et de la case actuelle
+6. Si le pathfinding serveur échoue depuis la position réelle du joueur
+
+INTERDICTIONS ABSOLUES
+- aucun edit
+- aucun patch
+- aucun refactor
+- aucun "quick fix"
+- aucune migration
+- aucune modification DB
+- aucune correction UI
+
+PRÉ-REQUIS OBLIGATOIRES
+Avant toute analyse, affiche exactement :
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+AUDIT DEMANDÉ
+Je veux des preuves réelles, pas des suppositions.
+
+ÉTAPE 1 — POSITION
+- lire la position réelle du joueur concerné dans player_positions
+- vérifier si elle correspond à une tuile valide / walkable
+- donner worldX, worldY, terrain_type, is_walkable
+
+ÉTAPE 2 — ACTION ACTIVE
+- vérifier s’il existe une entrée player_actions avec :
+  - player_id = joueur concerné
+  - status = in_progress
+- si oui :
+  - id
+  - type
+  - startWorldX/startWorldY
+  - endWorldX/endWorldY
+  - expectedEndTime
+  - est-ce qu’elle aurait déjà dû être terminée ?
+
+ÉTAPE 3 — TEST MOVE MINIMAL
+- depuis la position réelle du joueur, choisir une case adjacente walkable simple
+- tester POST /api/player/actions/move
+- fournir la réponse exacte :
+  - 201
+  - ou erreur précise (ACTION_ALREADY_ACTIVE / PATHFINDING_FAILED / autre)
+
+ÉTAPE 4 — CONCLUSION
+Je veux une conclusion courte avec :
+1. cause la plus probable
+2. cause confirmée si trouvée
+3. plus petit correctif à faire
+4. fichiers exacts à modifier si une correction est nécessaire
+
+FORMAT DE SORTIE OBLIGATOIRE
+1. BRANCHE / ÉTAT GIT
+2. POSITION SERVEUR
+3. ACTION ACTIVE
+4. TEST MOVE
+5. DIAGNOSTIC CONFIRMÉ
+6. PROCHAIN CORRECTIF MINIMAL
+7. STOP VALIDATION
+
+STOP VALIDATION
+Tu t’arrêtes après l’audit.
+Tu n’implémentes rien sans mon accord.
