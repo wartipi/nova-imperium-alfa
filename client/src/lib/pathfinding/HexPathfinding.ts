@@ -27,12 +27,16 @@ export interface TerrainCostMap {
 export class HexPathfinding {
   private static readonly TERRAIN_COSTS: TerrainCostMap = {
     'fertile_land': 1,
+    'plains': 1,
+    'sacred_plains': 1,
+    'enchanted_meadow': 1,
     'forest': 2,
     'hills': 2,
+    'wasteland': 2,
+    'ancient_ruins': 2,
     'mountains': 5,
     'desert': 3,
     'swamp': 4,
-    'wasteland': 2,
     'caves': 3,
     'volcano': 8,
     'tundra': 3,

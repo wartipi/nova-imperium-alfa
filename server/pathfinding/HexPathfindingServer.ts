@@ -74,7 +74,7 @@ function hexDistance(x1: number, y1: number, x2: number, y2: number): number {
 
 // ─── 6 voisins en coordonnées offset (colonnes impaires décalées vers le bas) ─
 function getAdjacentHexes(x: number, y: number): Coord[] {
-  if (x % 2 === 1) {
+  if ((x & 1) !== 0) {
     return [
       { x: x - 1, y },
       { x: x + 1, y },

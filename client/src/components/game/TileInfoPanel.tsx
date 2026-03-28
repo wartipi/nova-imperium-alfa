@@ -13,12 +13,16 @@ import { HexMath } from "../../lib/systems/HexMath";
 function getMovementCostInfo(terrain: string) {
   const terrainCosts = {
     'fertile_land': { cost: 1, name: 'Terres fertiles', color: '#10B981', difficulty: 'Facile' },
+    'plains': { cost: 1, name: 'Plaines', color: '#86EFAC', difficulty: 'Facile' },
+    'sacred_plains': { cost: 1, name: 'Plaine sacrée', color: '#F0E68C', difficulty: 'Facile' },
+    'enchanted_meadow': { cost: 1, name: 'Prairie enchantée', color: '#50C878', difficulty: 'Facile' },
     'forest': { cost: 2, name: 'Forêt', color: '#059669', difficulty: 'Modéré' },
     'hills': { cost: 2, name: 'Collines', color: '#7C3AED', difficulty: 'Modéré' },
+    'wasteland': { cost: 2, name: 'Terres désolées', color: '#6B7280', difficulty: 'Modéré' },
+    'ancient_ruins': { cost: 2, name: 'Ruines anciennes', color: '#8B7355', difficulty: 'Modéré' },
     'mountains': { cost: 5, name: 'Montagnes', color: '#9333EA', difficulty: 'Difficile' },
     'desert': { cost: 3, name: 'Désert', color: '#F59E0B', difficulty: 'Modéré' },
     'swamp': { cost: 4, name: 'Marécages', color: '#059669', difficulty: 'Difficile' },
-    'wasteland': { cost: 2, name: 'Terres désolées', color: '#6B7280', difficulty: 'Modéré' },
     'caves': { cost: 3, name: 'Grottes', color: '#374151', difficulty: 'Modéré' },
     'volcano': { cost: 8, name: 'Volcan', color: '#DC2626', difficulty: 'Extrême' },
     'tundra': { cost: 3, name: 'Toundra', color: '#0EA5E9', difficulty: 'Modéré' },
