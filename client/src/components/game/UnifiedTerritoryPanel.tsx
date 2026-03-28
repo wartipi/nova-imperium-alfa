@@ -228,6 +228,18 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
     }
   };
 
+  // ─── Section A : pré-calcul des villes gérables (non-admin uniquement) ───────
+  // Une entrée = un territoire avec colonie dont canManage === true pour ce joueur.
+  const managedCityEntries = !isAdmin ? territories.flatMap(t => {
+    if (!t.colonyId) return [];
+    const city = currentNovaImperium?.cities.find(c => c.x === t.x && c.y === t.y);
+    if (!city) return [];
+    const canManage = (t.ownerType === 'player' && t.ownerPlayerId === realPlayerId)
+      || (t.ownerType === 'faction' && t.governorUserId === realPlayerId);
+    if (!canManage) return [];
+    return [{ territory: t, city }];
+  }) : [];
+
   return (
     <div className="medieval-text h-full overflow-y-auto">
       {AlertComponent}
@@ -290,7 +302,79 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
         </button>
       </div>
 
-      {/* Liste des territoires */}
+      {/* ═══ SECTION A : Mes villes gérables ═══ */}
+      {!isAdmin && managedCityEntries.length > 0 && (
+        <div className="parchment-section p-4 mb-6">
+          <h4 className="medieval-subtitle mb-4">🏘️ Mes villes gérables ({managedCityEntries.length})</h4>
+          <div className="space-y-3">
+            {managedCityEntries.map(({ territory, city }) => {
+              const colonyNumId = parseInt(territory.colonyId!, 10);
+              const isFactionLeader = myMemberRole === 'leader' && territory.ownerType === 'faction';
+              return (
+                <div
+                  key={`managed-${territory.x}-${territory.y}`}
+                  className="parchment-section p-3 cursor-pointer hover:scale-105 transition-all duration-200"
+                  onClick={() => navigateToTerritory(territory)}
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="medieval-subtitle text-sm">🏘️ {territory.colonyName}</div>
+                      <div className="medieval-text text-xs">
+                        ({territory.x}, {territory.y}) — {territory.ownerType === 'faction' ? `🏰 ${territory.factionName}` : '👤 Personnel'}
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2" onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={() => setManagedCityId(city.id)}
+                        className="text-xs bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded font-medium"
+                      >
+                        🏘️ Gérer la ville
+                      </button>
+                      {isFactionLeader && !isNaN(colonyNumId) && (
+                        governorAssignColonyId === colonyNumId ? (
+                          <div className="flex flex-col gap-1">
+                            <input
+                              type="text"
+                              value={governorInput}
+                              onChange={e => setGovernorInput(e.target.value)}
+                              placeholder="ID du nouveau gouverneur"
+                              className="text-xs border border-amber-600 rounded px-2 py-1 bg-amber-50 w-full"
+                            />
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => handleSetGovernor(colonyNumId)}
+                                disabled={!governorInput.trim() || isLoading}
+                                className="flex-1 text-xs bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-2 py-1 rounded"
+                              >
+                                ✓ Confirmer
+                              </button>
+                              <button
+                                onClick={() => { setGovernorAssignColonyId(null); setGovernorInput(''); }}
+                                className="flex-1 text-xs bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => { setGovernorAssignColonyId(colonyNumId); setGovernorInput(''); }}
+                            className="text-xs bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded font-medium"
+                          >
+                            🔑 Attribuer gouverneur
+                          </button>
+                        )
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ═══ SECTION B : Mes territoires ═══ */}
       <div className="parchment-section p-4">
         <h4 className="medieval-subtitle mb-4">
           📋 {isAdmin ? 'Tous les Territoires' : 'Mes Territoires'} ({territories.length})
@@ -321,91 +405,31 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
                     <div className="medieval-text text-xs">
                       {new Date(territory.claimedDate).toLocaleDateString('fr-FR')}
                     </div>
-                    {territory.colonyName && (
-                      <div className="text-green-800 text-sm font-medium mt-1">
-                        🏘️ {territory.colonyName}
-                      </div>
-                    )}
+                    {/* Badge colonie : vert si gérable, grisé+italique si non gérable */}
+                    {territory.colonyName && (() => {
+                      const isManageable = isAdmin
+                        || (territory.ownerType === 'player' && territory.ownerPlayerId === realPlayerId)
+                        || (territory.ownerType === 'faction' && territory.governorUserId === realPlayerId);
+                      return isManageable
+                        ? <div className="text-green-800 text-sm font-medium mt-1">🏘️ {territory.colonyName}</div>
+                        : <div className="text-gray-400 text-xs italic mt-1">🏛️ Ville de faction</div>;
+                    })()}
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    {/* Phase 13 — Garde gouverneur : admin toujours, joueur si propriétaire personnel ou gouverneur de faction */}
-                    {territory.colonyId && (() => {
+                    {/* Section B : bouton Gérer uniquement pour admin (les non-admins utilisent section A) */}
+                    {isAdmin && territory.colonyId && (() => {
                       const city = currentNovaImperium?.cities.find(
                         c => c.x === territory.x && c.y === territory.y
                       );
                       if (!city) return null;
-
-                      const canManage = isAdmin
-                        || (territory.ownerType === 'player' && territory.ownerPlayerId === realPlayerId)
-                        || (territory.ownerType === 'faction' && territory.governorUserId === realPlayerId);
-
-                      const colonyNumId = parseInt(territory.colonyId, 10);
-                      const isFactionLeader = !isAdmin && myMemberRole === 'leader' && territory.ownerType === 'faction';
-
                       return (
-                        <>
-                          {canManage ? (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setManagedCityId(city.id);
-                              }}
-                              className="text-xs bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded font-medium"
-                            >
-                              🏘️ Gérer la ville
-                            </button>
-                          ) : (
-                            territory.ownerType === 'faction' && (
-                              <div className="text-xs text-gray-500 px-3 py-2 border border-gray-300 rounded font-medium">
-                                🔒 Gestion réservée au gouverneur
-                              </div>
-                            )
-                          )}
-                          {/* Chef de faction — attribution gouverneur (règle canonique : leader uniquement) */}
-                          {isFactionLeader && !isNaN(colonyNumId) && (
-                            governorAssignColonyId === colonyNumId ? (
-                              <div
-                                className="flex flex-col gap-1"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <input
-                                  type="text"
-                                  value={governorInput}
-                                  onChange={(e) => setGovernorInput(e.target.value)}
-                                  placeholder="ID du nouveau gouverneur"
-                                  className="text-xs border border-amber-600 rounded px-2 py-1 bg-amber-50 w-full"
-                                />
-                                <div className="flex gap-1">
-                                  <button
-                                    onClick={() => handleSetGovernor(colonyNumId)}
-                                    disabled={!governorInput.trim() || isLoading}
-                                    className="flex-1 text-xs bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-2 py-1 rounded"
-                                  >
-                                    ✓ Confirmer
-                                  </button>
-                                  <button
-                                    onClick={() => { setGovernorAssignColonyId(null); setGovernorInput(''); }}
-                                    className="flex-1 text-xs bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded"
-                                  >
-                                    ✕
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setGovernorAssignColonyId(colonyNumId);
-                                  setGovernorInput('');
-                                }}
-                                className="text-xs bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded font-medium"
-                              >
-                                🔑 Attribuer gouverneur
-                              </button>
-                            )
-                          )}
-                        </>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setManagedCityId(city.id); }}
+                          className="text-xs bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded font-medium"
+                        >
+                          🏘️ Gérer la ville
+                        </button>
                       );
                     })()}
 

@@ -1,0 +1,129 @@
+NOVA IMPERIUM — CORRECTION UI CIBLÉE
+CIBLE : NE PLUS AFFICHER LES VILLES NON GÉRABLES COMME SI ELLES ÉTAIENT AU JOUEUR
+Branche cible : NI-10.3
+
+CONTEXTE VALIDÉ
+Le gouvernorat est maintenant en place.
+Le droit de gestion est correct.
+Mais l’affichage reste trop large :
+le joueur voit encore des villes qui ne sont pas à lui / qu’il ne gouverne pas.
+
+CAUSE
+UnifiedTerritoryPanel s’appuie encore sur la liste des territoires accessibles,
+puis affiche aussi les villes/colonies attachées à ces territoires.
+Résultat :
+des villes de faction visibles remontent encore dans l’UI,
+même si elles ne sont pas gérables par ce joueur.
+
+OBJECTIF
+Je veux corriger uniquement l’affichage.
+
+RÈGLE UI CIBLE
+1. Section “Mes villes gérables”
+Afficher uniquement :
+- villes personnelles du joueur
+- villes de faction dont governorUserId === joueur courant
+
+2. Section “Mes territoires”
+Peut continuer à afficher les territoires accessibles,
+mais ne doit plus présenter comme “ville du joueur” une ville non gérable.
+
+Conséquence :
+- une ville non gérable ne doit plus apparaître dans la liste principale comme une de “mes villes”
+- le joueur ne doit plus confondre territoire visible et ville gérable
+
+INTERDICTIONS ABSOLUES
+- aucun changement backend
+- aucun refactor massif
+- ne pas retoucher GameCanvas
+- ne pas changer les règles de gouvernorat
+- ne pas changer les routes
+- aucune dérive hors affichage UnifiedTerritoryPanel / helpers UI strictement nécessaires
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+- objectif précis
+- fichiers touchés
+- raison de chaque fichier
+- ordre d’exécution
+- risques
+- vérifications prévues
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE ATTENDU
+Tu dois normalement toucher uniquement :
+- client/src/components/game/UnifiedTerritoryPanel.tsx
+- éventuellement client/src/lib/systems/UnifiedTerritorySystem.ts
+seulement si un helper de filtrage UI est réellement utile
+
+CORRECTION ATTENDUE
+
+OPTION RECOMMANDÉE
+Implémenter deux blocs distincts dans UnifiedTerritoryPanel :
+
+A. “Mes villes gérables”
+- lister uniquement les entrées avec colonie/ville où :
+  - ownerType === 'player' && ownerPlayerId === realPlayerId
+  - OU ownerType === 'faction' && governorUserId === realPlayerId
+- c’est dans cette section qu’on voit :
+  - nom de la ville
+  - bouton “Gérer la ville”
+  - actions liées à la ville
+
+B. “Mes territoires”
+- conserver la liste des territoires accessibles
+- mais pour les territoires avec une ville non gérable :
+  - ne pas les présenter comme une ville du joueur
+  - ne pas mettre en avant colonyName comme si c’était une ville à lui
+  - soit masquer le badge ville
+  - soit afficher un libellé neutre sans confusion
+
+IMPORTANT
+Le but n’est pas de supprimer toute visibilité des territoires de faction.
+Le but est de ne plus montrer les villes non gérables comme si elles appartenaient au joueur.
+
+SI TU PRÉFÈRES UNE VERSION PLUS MINIMALE
+Tu peux aussi :
+- garder une seule liste
+- mais masquer colonyName et toute mise en avant “ville” si la ville n’est pas gérable
+Cependant la version à deux sections est préférée si le diff reste simple.
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- client/src/components/game/UnifiedTerritoryPanel.tsx
+- git diff -- client/src/lib/systems/UnifiedTerritorySystem.ts (uniquement si touché)
+
+3. VÉRIFICATIONS
+- le joueur voit une section “Mes villes gérables”
+- cette section ne contient que :
+  - ses villes personnelles
+  - ou ses villes de faction gouvernées
+- une ville de faction non gouvernée n’apparaît plus comme une “ville à moi”
+- les territoires accessibles restent visibles si prévu
+- aucune nouvelle erreur TS
+
+4. RISQUES RÉSIDUELS
+- uniquement les vrais
+- sans les corriger hors périmètre
+
+CONTRAINTE FINALE
+Tu corriges uniquement la présentation UI.
+Tu ne touches pas au backend.
+Tu ne changes pas la règle métier.
+Tu ne dérives pas.
