@@ -300,8 +300,8 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    {/* Bouton Gérer la ville — si une ville serveur existe pour ce territoire */}
-                    {territory.colonyId && (() => {
+                    {/* Bouton Gérer la ville — admin toujours, joueur seulement si possession personnelle */}
+                    {territory.colonyId && (isAdmin || (territory.ownerType === 'player' && territory.ownerPlayerId === realPlayerId)) && (() => {
                       const city = currentNovaImperium?.cities.find(
                         c => c.x === territory.x && c.y === territory.y
                       );

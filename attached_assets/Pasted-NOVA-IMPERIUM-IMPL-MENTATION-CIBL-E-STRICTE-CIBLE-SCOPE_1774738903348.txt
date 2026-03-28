@@ -1,0 +1,143 @@
+NOVA IMPERIUM — IMPLÉMENTATION CIBLÉE STRICTE
+CIBLE : SCOPER LE PANNEAU DE GESTION AUX SEULES VILLES POSSÉDÉES
+Branche cible : NI-10.3
+
+CONTEXTE VALIDÉ
+Le pipeline de gestion de ville est désormais accessible depuis “GESTION VILLE/TERRITOIRE”.
+Mais il reste trop large :
+- UnifiedTerritoryPanel remonte encore des entrées accessibles trop larges
+- CityManagementPanel ouvre encore des sous-panneaux qui montrent plusieurs villes
+- le joueur peut donc voir plus que la seule ville qu’il possède / gère
+
+RÈGLE MÉTIER À APPLIQUER
+Le joueur doit voir dans son panneau de gestion **seulement les villes qu’il possède personnellement**.
+
+Règle canonique à appliquer pour cette passe :
+- ville visible en gestion joueur seulement si :
+  - ownerType === 'player'
+  - ownerPlayerId === joueur courant
+- les villes de faction ne doivent pas apparaître dans ce panneau joueur
+- l’admin conserve son accès large habituel
+
+IMPORTANT
+Tu appliques cette règle strictement.
+Tu ne la remplaces pas par “villes accessibles”.
+Tu ne la remplaces pas par “villes de faction”.
+Tu ne dérives pas.
+
+OBJECTIF
+Je veux que :
+1. dans “GESTION VILLE/TERRITOIRE”, le bouton “Gérer la ville” n’apparaisse que pour les villes personnellement possédées par le joueur
+2. quand on ouvre une ville, la gestion soit scoped à cette seule ville
+3. le joueur ne voie plus un dropdown de toutes ses colonies depuis le pipeline de gestion d’une ville précise
+4. aucune autre ville ne fuite dans ce flux
+
+INTERDICTIONS ABSOLUES
+- aucun changement backend
+- aucun refactor massif
+- aucun changement de règle marché/banque/territoire/fondation
+- ne pas toucher GameCanvas
+- ne pas rouvrir le clic sur la carte
+- aucune correction bonus hors périmètre
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+- objectif précis
+- fichiers touchés
+- raison de chaque fichier
+- ordre d’exécution
+- risques
+- vérifications prévues
+
+Ensuite seulement tu modifies.
+
+FICHIERS À LIRE EN PRIORITÉ
+- client/src/components/game/UnifiedTerritoryPanel.tsx
+- client/src/components/game/CityManagementPanel.tsx
+- client/src/components/game/ConstructionPanel.tsx
+- client/src/components/game/RecruitmentPanelZustand.tsx
+- client/src/lib/systems/UnifiedTerritorySystem.ts
+
+PÉRIMÈTRE ATTENDU
+Tu dois probablement toucher :
+- UnifiedTerritoryPanel.tsx
+- CityManagementPanel.tsx
+- ConstructionPanel.tsx
+- éventuellement RecruitmentPanelZustand.tsx seulement si un ajustement minimal est nécessaire
+
+Tu ne touches pas d’autres fichiers sans justification explicite.
+
+IMPLÉMENTATION ATTENDUE
+
+1. UnifiedTerritoryPanel.tsx
+- restreindre l’affichage du bouton “🏘️ Gérer la ville”
+- pour un joueur non-admin :
+  - afficher ce bouton seulement si le territoire/ville correspond à une ville possédée personnellement
+  - utiliser ownerType / ownerPlayerId
+- ne pas se contenter de “territoire accessible”
+- conserver navigation / claim / fondation
+
+2. CityManagementPanel.tsx
+- faire en sorte que la ville ouverte soit la seule portée active du panneau
+- si nécessaire, transmettre cityId au sous-panneau de construction
+- ne pas refactorer lourdement le composant
+
+3. ConstructionPanel.tsx
+- si le composant est ouvert depuis CityManagementPanel pour une ville précise :
+  - ne pas afficher le dropdown multi-ville
+  - ne rendre que la ville correspondant au cityId ouvert
+- conserver le comportement actuel ailleurs si nécessaire
+- faire le plus petit passage propre possible
+- ne pas casser le mode admin
+
+4. RecruitmentPanelZustand.tsx
+- seulement si nécessaire :
+  - vérifier qu’il ne laisse pas fuiter une logique multi-ville
+  - faire l’ajustement minimal si le panneau doit être scoped à la ville ouverte
+- ne pas réécrire ce système
+
+CONTRAINTE IMPORTANTE
+Le correctif doit être minimal et déterministe.
+
+Je préfère :
+- un paramètre optionnel de scope comme cityId
+- et un filtrage clair
+plutôt qu’une refonte générale.
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- <chaque fichier modifié>
+
+3. VÉRIFICATIONS
+- ouvrir “GESTION VILLE/TERRITOIRE”
+- confirmer que seules les villes personnellement possédées montrent “Gérer la ville”
+- ouvrir une ville
+- confirmer que le panneau ne montre plus plusieurs villes
+- confirmer que ConstructionPanel est scoped à cette seule ville
+- confirmer que le clic carte n’ouvre toujours pas le menu ville
+- aucune nouvelle erreur TS
+
+4. RISQUES RÉSIDUELS
+- uniquement les vrais
+- sans les corriger hors périmètre
+
+CONTRAINTE FINALE
+Tu corriges uniquement la portée du panneau de gestion de ville :
+- seulement les villes possédées personnellement
+- une seule ville visible quand on la gère
+- aucune dérive

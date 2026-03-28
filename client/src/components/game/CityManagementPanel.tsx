@@ -179,7 +179,7 @@ export function CityManagementPanel({ cityId, onClose }: CityManagementPanelProp
                   ✅ Migration progressive activée - Stats collaboratives en cours
                 </div>
               </div>
-              <ConstructionPanel />
+              <ConstructionPanel cityId={cityId} />
             </div>
           )}
 

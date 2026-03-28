@@ -19,7 +19,11 @@ const EXPLOITATION_BUILDING_IDS = new Set([
   'fishing_post', 'mine', 'advanced_mine', 'oil_camp',
 ]);
 
-export function ConstructionPanel() {
+interface ConstructionPanelProps {
+  cityId?: string;
+}
+
+export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelProps = {}) {
   const { currentNovaImperium, buildInCity, addCity } = useNovaImperium();
   const { actionPoints, spendActionPoints } = usePlayer();
   const { playerFaction, getFactionById } = useFactions();
@@ -105,6 +109,16 @@ export function ConstructionPanel() {
   const currentFaction = playerFaction ? getFactionById(playerFaction) : null;
   const hasColonies = playerColoniesWithTerritories.length > 0;
 
+  // ─── Scope si ouvert depuis CityManagementPanel (cityId fourni) ──────────────
+  const scopedCity = scopedCityId
+    ? (currentNovaImperium.cities.find(c => c.id === scopedCityId) ?? null)
+    : null;
+
+  // Colonies effectives : si scoped, seulement la colonie correspondant à la ville ouverte
+  const effectiveColonies = scopedCity
+    ? playerColoniesWithTerritories.filter(c => c.colony.x === scopedCity.x && c.colony.y === scopedCity.y)
+    : playerColoniesWithTerritories;
+
   // Les MJ peuvent construire des bâtiments sans ville, directement sur le territoire
 
   // Afficher les informations sur les colonies existantes avec leurs terrains
@@ -116,15 +130,17 @@ export function ConstructionPanel() {
   const colonyKey = (c: (typeof playerColoniesWithTerritories)[0]): string =>
     c.colony.colonyId ? String(c.colony.colonyId) : `${c.colony.x},${c.colony.y}`;
 
-  // Sélection effective joueur : validée contre la liste courante, fallback première
-  const effectiveSelected = playerColoniesWithTerritories.some(c => colonyKey(c) === selectedColony)
+  // Sélection effective joueur : validée contre la liste effective, fallback première
+  const effectiveSelected = effectiveColonies.some(c => colonyKey(c) === selectedColony)
     ? selectedColony
-    : playerColoniesWithTerritories.length > 0 ? colonyKey(playerColoniesWithTerritories[0]) : '';
+    : effectiveColonies.length > 0 ? colonyKey(effectiveColonies[0]) : '';
 
-  // Sélection effective admin : city.id, fallback première ville
-  const effectiveAdminCityId = currentNovaImperium.cities.some(c => c.id === selectedColony)
-    ? selectedColony
-    : currentNovaImperium.cities.length > 0 ? currentNovaImperium.cities[0].id : '';
+  // Sélection effective admin : forcée sur scopedCityId si fourni, sinon selectedColony ou première ville
+  const effectiveAdminCityId = scopedCityId
+    ? scopedCityId
+    : currentNovaImperium.cities.some(c => c.id === selectedColony)
+      ? selectedColony
+      : currentNovaImperium.cities.length > 0 ? currentNovaImperium.cities[0].id : '';
 
   const buildings = [
     // === TERRE EN FRICHE (wasteland) ===
@@ -915,8 +931,8 @@ export function ConstructionPanel() {
         )}
       </div>
 
-      {/* Information sur les colonies existantes — repliable */}
-      {hasColonies && (
+      {/* Information sur les colonies existantes — repliable (masqué si scoped à une seule ville) */}
+      {hasColonies && !scopedCityId && (
         <div className="bg-green-50 border border-green-400 rounded mb-4">
           <button
             onClick={() => setShowColonyList(v => !v)}
@@ -966,8 +982,8 @@ export function ConstructionPanel() {
         </div>
       )}
 
-      {/* Menu déroulant — sélection de la ville à afficher */}
-      {hasColonies && (
+      {/* Menu déroulant — sélection de la ville (masqué si scoped à une seule ville) */}
+      {hasColonies && !scopedCityId && effectiveColonies.length > 1 && (
         <div className="mb-3">
           <label className="text-xs font-semibold text-amber-800 mb-1 block">Ville sélectionnée</label>
           <select
@@ -975,7 +991,7 @@ export function ConstructionPanel() {
             onChange={e => setSelectedColony(e.target.value)}
             className="w-full text-sm border border-amber-400 rounded px-2 py-1 text-amber-900 bg-white"
           >
-            {playerColoniesWithTerritories.map(c => (
+            {effectiveColonies.map(c => (
               <option key={colonyKey(c)} value={colonyKey(c)}>
                 {c.colony.colonyName} ({c.controlledTerritories.length} case{c.controlledTerritories.length > 1 ? 's' : ''})
               </option>
@@ -985,7 +1001,7 @@ export function ConstructionPanel() {
       )}
 
       {/* Fiche de la ville sélectionnée */}
-      {hasColonies ? playerColoniesWithTerritories.filter(c => colonyKey(c) === effectiveSelected).map(colonyData => {
+      {hasColonies ? effectiveColonies.filter(c => colonyKey(c) === effectiveSelected).map(colonyData => {
         // Trouver la ville correspondante dans le système Nova Imperium
         const city = currentNovaImperium.cities.find(c => c.x === colonyData.colony.x && c.y === colonyData.colony.y) || {
           id: colonyData.colony.colonyId!,
@@ -1227,7 +1243,7 @@ export function ConstructionPanel() {
         </div>
       ) : (
         <>
-          {currentNovaImperium.cities.length > 1 && (
+          {!scopedCityId && currentNovaImperium.cities.length > 1 && (
             <div className="mb-3">
               <label className="text-xs font-semibold text-amber-800 mb-1 block">Ville sélectionnée</label>
               <select
