@@ -1,0 +1,124 @@
+NOVA IMPERIUM — CORRECTION UI CIBLÉE
+CIBLE : NE PLUS AFFICHER AUCUNE VILLE NON GÉRABLE DANS LE PANNEAU JOUEUR
+Branche cible : NI-10.3
+
+CONTEXTE VALIDÉ
+Le panneau actuel a bien été séparé en :
+- section A : “Mes villes gérables”
+- section B : “Mes territoires”
+
+Mais le comportement reste encore trop large :
+dans la section B, le joueur voit toujours des entrées territoriales qui contiennent des villes non gérables.
+Le badge a été neutralisé (“🏛️ Ville de faction”), mais la ville reste visible dans le panneau.
+
+NOUVEL OBJECTIF
+Je veux une règle plus stricte :
+
+Pour un joueur non-admin :
+- il ne doit voir dans ce panneau AUCUNE ville qu’il ne peut pas gérer
+- les villes non gérables doivent être retirées complètement du panneau
+- il doit rester seulement :
+  1. ses villes gérables dans la section A
+  2. ses territoires sans ville dans la section B
+
+IMPORTANT
+On ne parle plus ici de neutraliser le badge.
+On parle de supprimer complètement du panneau les entrées territoriales avec colonie non gérable.
+
+RÈGLE UI CIBLE
+Non-admin :
+- Section A “Mes villes gérables” :
+  - villes personnelles du joueur
+  - villes de faction où governorUserId === joueur courant
+
+- Section B “Mes territoires” :
+  - territoires accessibles SANS colonie
+  - ne pas afficher les territoires qui ont une colonie non gérable
+  - donc aucune autre ville ne doit apparaître dans le panneau joueur
+
+Admin :
+- conserver le comportement large actuel
+- ne pas réduire sa visibilité
+
+INTERDICTIONS ABSOLUES
+- aucun changement backend
+- aucun refactor massif
+- ne pas toucher GameCanvas
+- ne pas changer la règle de gouvernorat
+- ne pas changer les routes
+- aucune dérive hors UnifiedTerritoryPanel.tsx sauf nécessité absolue
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+- objectif précis
+- fichiers touchés
+- raison de chaque fichier
+- ordre d’exécution
+- risques
+- vérifications prévues
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE ATTENDU
+Tu dois normalement toucher uniquement :
+- client/src/components/game/UnifiedTerritoryPanel.tsx
+
+Ne touche pas d’autre fichier sauf blocage réel.
+
+IMPLÉMENTATION ATTENDUE
+Dans UnifiedTerritoryPanel.tsx :
+
+1. Conserver le pré-calcul managedCityEntries
+2. Ajouter un second pré-calcul pour la section B non-admin, par exemple :
+   - visibleTerritoriesForPanel
+3. Règle pour ce second calcul :
+   - admin : garder territories tel quel
+   - non-admin :
+     - garder les territoires sans colonyId
+     - garder éventuellement les territoires avec colonyId seulement s’ils sont gérables
+       MAIS comme ils sont déjà dans la section A, le plus propre est de ne garder ici que les territoires sans colonie
+4. Résultat visuel attendu :
+   - section A = uniquement mes villes gérables
+   - section B = uniquement mes territoires sans ville
+5. Ne pas changer :
+   - claim
+   - fondation
+   - pipeline de gestion de ville
+   - gouvernorat
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- client/src/components/game/UnifiedTerritoryPanel.tsx
+
+3. VÉRIFICATIONS
+- le joueur voit toujours “Mes villes gérables”
+- cette section contient uniquement ses villes gérables
+- la section “Mes territoires” ne contient plus aucune ville non gérable
+- une ville de faction non gouvernée n’apparaît plus du tout dans le panneau joueur
+- l’admin conserve sa vue large
+- aucune nouvelle erreur TS
+
+4. RISQUES RÉSIDUELS
+- uniquement les vrais
+- sans les corriger hors périmètre
+
+CONTRAINTE FINALE
+Tu fais un correctif d’affichage strict :
+- plus aucune ville non gérable visible dans le panneau joueur
+- aucune dérive
+- UnifiedTerritoryPanel.tsx uniquement si possible

@@ -240,6 +240,14 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
     return [{ territory: t, city }];
   }) : [];
 
+  // ─── Section B : territoires visibles (non-admin = sans colonie uniquement) ──
+  // Admin conserve la vue large (tous territoires).
+  // Non-admin : les villes gérables sont dans section A — section B ne montre
+  // que les territoires sans colonie (fondation possible) pour éviter toute confusion.
+  const visibleTerritoriesForPanel = isAdmin
+    ? territories
+    : territories.filter(t => !t.colonyId);
+
   return (
     <div className="medieval-text h-full overflow-y-auto">
       {AlertComponent}
@@ -377,16 +385,16 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
       {/* ═══ SECTION B : Mes territoires ═══ */}
       <div className="parchment-section p-4">
         <h4 className="medieval-subtitle mb-4">
-          📋 {isAdmin ? 'Tous les Territoires' : 'Mes Territoires'} ({territories.length})
+          📋 {isAdmin ? 'Tous les Territoires' : 'Mes Territoires'} ({visibleTerritoriesForPanel.length})
         </h4>
 
-        {territories.length === 0 ? (
+        {visibleTerritoriesForPanel.length === 0 ? (
           <div className="medieval-text text-center py-6">
             {isAdmin ? 'Aucun territoire revendiqué sur la carte' : 'Vous n\'avez encore revendiqué aucun territoire'}
           </div>
         ) : (
           <div className="space-y-3 max-h-48 overflow-y-auto">
-            {territories.map((territory) => (
+            {visibleTerritoriesForPanel.map((territory) => (
               <div
                 key={`${territory.x}-${territory.y}`}
                 className="parchment-section p-3 hover:transform hover:scale-105 transition-all duration-200 cursor-pointer"
