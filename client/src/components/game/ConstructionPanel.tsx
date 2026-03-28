@@ -28,6 +28,7 @@ export function ConstructionPanel() {
   const [hoveredBuilding, setHoveredBuilding] = useState<string | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const [selectedColony, setSelectedColony] = useState<string>('');
+  const [showColonyList, setShowColonyList] = useState<boolean>(false);
 
   // Inventaires de villes (stock local) : keyed by city.id (string du serveur)
   const [cityInventories, setCityInventories] = useState<Record<string, { gold: number; food: number; wood: number; stone: number; iron: number; copper: number; coal: number; oil: number; herbs: number; fur: number }>>({});
@@ -900,30 +901,38 @@ export function ConstructionPanel() {
         )}
       </div>
 
-      {/* Information sur les colonies existantes */}
+      {/* Information sur les colonies existantes — repliable */}
       {hasColonies && (
-        <div className="bg-green-50 border border-green-400 rounded p-3 mb-4">
-          <div className="font-medium text-sm mb-2 text-green-800">
-            🏘️ Colonies fondées ({playerColoniesWithTerritories.length})
-          </div>
-          <div className="space-y-1">
-            {playerColoniesWithTerritories.map(colonyData => (
-              <div key={colonyData.colony.colonyId} className="text-xs text-green-700">
-                📍 {colonyData.colony.colonyName} en ({colonyData.colony.x}, {colonyData.colony.y})
-                <div className="text-xs text-blue-600 ml-4">
-                  🗺️ {colonyData.controlledTerritories.length} case{colonyData.controlledTerritories.length > 1 ? 's' : ''} contrôlée{colonyData.controlledTerritories.length > 1 ? 's' : ''}
-                </div>
-                {colonyData.availableTerrains.length > 0 && (
-                  <div className="text-xs text-purple-600 ml-4">
-                    🌍 Terrains: {colonyData.availableTerrains.join(', ')}
+        <div className="bg-green-50 border border-green-400 rounded mb-4">
+          <button
+            onClick={() => setShowColonyList(v => !v)}
+            className="w-full flex items-center justify-between p-3 text-left hover:bg-green-100 transition-colors rounded"
+          >
+            <span className="font-medium text-sm text-green-800">
+              🏘️ Colonies fondées ({playerColoniesWithTerritories.length})
+            </span>
+            <span className="text-green-700 text-xs">{showColonyList ? '▲ Réduire' : '▼ Détails'}</span>
+          </button>
+          {showColonyList && (
+            <div className="px-3 pb-3 space-y-1 border-t border-green-200">
+              {playerColoniesWithTerritories.map(colonyData => (
+                <div key={colonyData.colony.colonyId} className="text-xs text-green-700 pt-2">
+                  📍 {colonyData.colony.colonyName} en ({colonyData.colony.x}, {colonyData.colony.y})
+                  <div className="text-xs text-blue-600 ml-4">
+                    🗺️ {colonyData.controlledTerritories.length} case{colonyData.controlledTerritories.length > 1 ? 's' : ''} contrôlée{colonyData.controlledTerritories.length > 1 ? 's' : ''}
                   </div>
-                )}
+                  {colonyData.availableTerrains.length > 0 && (
+                    <div className="text-xs text-purple-600 ml-4">
+                      🌍 Terrains: {colonyData.availableTerrains.join(', ')}
+                    </div>
+                  )}
+                </div>
+              ))}
+              <div className="text-xs text-green-600 pt-2">
+                💡 Utilisez le menu "GESTION DE TERRITOIRE" pour fonder de nouvelles colonies
               </div>
-            ))}
-          </div>
-          <div className="text-xs text-green-600 mt-2">
-            💡 Utilisez le menu "GESTION DE TERRITOIRE" pour fonder de nouvelles colonies
-          </div>
+            </div>
+          )}
         </div>
       )}
 

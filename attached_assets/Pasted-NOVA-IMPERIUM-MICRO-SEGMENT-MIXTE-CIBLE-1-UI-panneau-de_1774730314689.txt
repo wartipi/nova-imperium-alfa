@@ -1,0 +1,142 @@
+NOVA IMPERIUM — MICRO-SEGMENT MIXTE
+CIBLE 1 : UI panneau de construction plus compacte
+CIBLE 2 : AUDIT CANONIQUE du système trade / banque / guilde des marchands
+Branche cible : NI-10.3
+
+RÔLE
+Tu exécutes avec prudence.
+Tu distingues :
+- micro-correction UI immédiate
+- recadrage métier plus profond
+Tu ne mélanges pas les deux sans audit.
+
+CONTEXTE CONFIRMÉ
+Les éléments suivants sont déjà harmonisés et ne doivent pas être rouverts sans raison :
+- fondation exige un territoire revendiqué
+- TileInfoPanel affiche l’ownership canonique
+- tickCityProduction gère les villes player-owned sans faction
+- PublicMarketplace est verrouillé sur le marché canonique visible
+- /api/economy/production-tick suit l’ownership canonique
+
+NOUVEAUX CONSTATS TERRAIN
+1. Le panneau de construction de ville surcharge l’affichage :
+   la liste des villes prend trop de place et doit pouvoir être réduite / repliée.
+
+2. Un accès au trade reste encore possible.
+
+3. Nouvelle clarification canonique importante :
+   le bâtiment guilde_des_marchands ne doit plus être pensé comme “créant un marché local fermé”.
+   Il donne accès à la banque centrale / au réseau commercial global du jeu, peu importe le point d’accès.
+   Ce qui varie selon le bâtiment et son niveau, ce sont les frais d’utilisation.
+
+IMPORTANT
+Cette clarification peut invalider une partie de la logique actuelle de gate.
+Tu ne dois PAS réécrire le backend marché immédiatement sans audit structuré.
+
+==================================================
+PHASE 1 — AUDIT OBLIGATOIRE
+==================================================
+
+Lis d’abord :
+- client/src/components/game/TreasuryPanel.tsx
+- client/src/components/game/MedievalHUD.tsx
+- client/src/components/game/PublicMarketplace.tsx
+- server/routes/market.ts
+- server/marketService.ts
+- shared/schema.ts
+
+Ensuite réponds précisément à ces questions :
+
+A. PANNEAU CONSTRUCTION
+1. Quel composant monté affiche actuellement la liste des villes ?
+2. Où se trouve exactement le bloc de construction ?
+3. Quel est le plus petit point d’entrée pour rendre la liste réductible sans casser le flux ?
+
+B. TRADE / BANQUE / GUILDE
+4. Quels points d’accès au trade sont encore réellement actifs ?
+5. Le trade encore accessible passe-t-il :
+   - par l’UI active,
+   - par un ancien point d’entrée,
+   - ou par la règle backend actuelle elle-même ?
+6. Où la présence de guilde_des_marchands agit-elle comme gate dur aujourd’hui ?
+7. Où les frais sont-ils calculés aujourd’hui ?
+8. Le système actuel représente-t-il :
+   - un marché local par ville
+   - ou un réseau central avec point d’accès local ?
+9. Quelles parties du code doivent être recadrées si la nouvelle règle canonique est appliquée ?
+
+Tu dois produire un audit net avant de toucher à la logique métier.
+
+==================================================
+PHASE 2 — IMPLÉMENTATION IMMÉDIATE AUTORISÉE
+==================================================
+
+Tu peux implémenter tout de suite uniquement la partie UI construction, si elle est indépendante.
+
+OBJECTIF UI
+Le panneau de construction doit rester le même pipeline, mais l’affichage doit être moins chargé.
+
+ATTENDU
+- la liste des villes doit pouvoir être repliée / dépliée
+- la ville sélectionnée doit rester visible clairement
+- le bloc de construction doit rester prioritaire à l’écran
+- pas de nouveau gros panneau
+- pas de refactor massif
+
+RÈGLES
+- plus petit changement possible
+- si un simple accordion / collapse / toggle suffit, prends cette solution
+- ne modifie pas le pipeline serveur
+- ne modifie pas les règles de construction
+- ne casse pas la sélection de ville
+
+==================================================
+PHASE 3 — NE PAS IMPLÉMENTER IMMÉDIATEMENT LE RECADRAGE TRADE/BANQUE
+==================================================
+
+Pour la partie trade / banque / guilde des marchands :
+
+Tu dois t’arrêter à l’audit + proposition de recadrage.
+
+Tu ne modifies pas encore la logique métier profonde tant que le constat n’est pas validé.
+
+Tu dois produire :
+
+1. le comportement actuel réel
+2. pourquoi il n’est plus aligné avec la règle canonique donnée
+3. le plus petit ordre de correction futur
+
+==================================================
+PHASE 4 — FORMAT DE RÉPONSE ATTENDU
+==================================================
+
+Je veux exactement :
+
+1. AUDIT CONSTRUCTION
+- composant monté réel. AUDIT CONSTRUCTION
+- composant monté réel
+- surcharge constatée
+- solution UI retenue
+
+2. MODIFICATIONS FAITES
+- uniquement si la partie UI construction est modifiée
+- fichier par fichier
+- but précis
+
+3. AUDIT TRADE / BANQUE / GUILDE
+- état réel actuel
+- où le trade reste accessible
+- où la guilde agit aujourd’hui comme gate
+- pourquoi cela ne correspond plus à la règle canonique
+
+4. PROPOSITION DE PROCHAIN SEGMENT
+- ordre minimal de correction
+- sans implémentation backend immédiate
+
+5. VÉRIFICATIONS
+- tests UI construction
+- confirmation qu’aucune régression n’a été introduite
+
+CONTRAINTE FINALE
+Tu peux corriger tout de suite le panneau de construction.
+Tu ne recodes pas encore le backend trade/banque avant validation de l’audit canonique.
