@@ -1,0 +1,104 @@
+NOVA IMPERIUM — AUDIT STRICT
+CIBLE : PATHFINDING_FAILED AU DÉPLACEMENT
+Branche cible : NI-10.3
+
+CONTEXTE VALIDÉ
+1. Le cooldown déplacement a déjà été réduit une première fois.
+2. La valeur cible finale validée pour la phase de test est désormais :
+- 5 secondes par PA
+- soit, dans server/playerActionService.ts :
+  HOURS_PER_AP = 5 / 3600
+
+IMPORTANT
+Cette information est figée pour la prochaine correction de timer,
+mais la présente passe reste un AUDIT du pathfinding.
+Tu ne modifies pas encore la constante dans cette passe d’audit.
+Tu l’intègreras seulement dans le prochain correctif si on valide ensuite.
+
+RÔLE
+Tu fais un audit technique strict.
+Tu ne modifies rien.
+Tu n’implémentes rien.
+Tu n’essaies pas de corriger avant diagnostic confirmé.
+
+OBJECTIF
+Diagnostiquer pourquoi un déplacement affiché comme possible côté UI échoue côté serveur avec :
+“Aucun chemin disponible vers la destination”.
+
+FICHIERS À AUDITER
+- client/src/components/game/TileInfoPanel.tsx
+- client/src/lib/pathfinding/HexPathfinding.ts
+- server/routes/playerActions.ts
+- server/pathfinding/HexPathfindingServer.ts
+- server/playerPositionService.ts
+- tout fichier utile pour lire la position réelle joueur
+
+INTERDICTIONS ABSOLUES
+- aucun edit
+- aucun patch
+- aucun refactor
+- aucune migration
+- aucun changement de constante
+- aucune correction UI
+- aucune modification DB
+
+PRÉ-REQUIS OBLIGATOIRES
+Avant toute analyse, affiche exactement :
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+AUDIT DEMANDÉ
+
+ÉTAPE 1 — IDENTIFIER LE MOVE QUI ÉCHOUE
+- lire la position serveur réelle du joueur concerné
+- confirmer la destination qui échoue réellement
+- donner départ et arrivée en coordonnées monde
+
+ÉTAPE 2 — REJOUER LE PATHFINDING SERVEUR
+- exécuter ou instrumenter findPath(startWorldX, startWorldY, endWorldX, endWorldY, tileMap)
+- donner :
+  - start
+  - end
+  - zone chargée
+  - taille du tileMap
+  - terrain départ
+  - terrain arrivée
+  - message d’erreur exact
+
+ÉTAPE 3 — COMPARER AVEC LE CLIENT
+Comparer exactement le même move côté client :
+- coût affiché
+- distance affichée
+- succès/échec local
+- cause précise de l’écart
+
+VÉRIFICATIONS EXPLICITES
+Tu dois vérifier :
+- terrains manquants côté client (ex: plains, sacred_plains, enchanted_meadow, ancient_ruins)
+- différence éventuelle entre coordonnées locales et monde
+- différence éventuelle entre mapData client et tileMap serveur
+- différence éventuelle de voisinage hexagonal
+- différence éventuelle de position actuelle client vs serveur
+
+FORMAT DE SORTIE OBLIGATOIRE
+1. BRANCHE / ÉTAT GIT
+2. POSITION SERVEUR RÉELLE
+3. TEST MOVE ÉCHOUÉ
+4. RÉSULTAT PATHFINDING SERVEUR
+5. RÉSULTAT PATHFINDING CLIENT
+6. ÉCART EXACT IDENTIFIÉ
+7. PLUS PETIT CORRECTIF PROPRE
+8. FICHIERS À MODIFIER
+9. NOTE TIMER
+- rappeler que la prochaine correction timer devra cibler 5 secondes par PA
+- valeur exacte : HOURS_PER_AP = 5 / 3600
+10. STOP VALIDATION
+
+CONTRAINTE FINALE
+Tu ne corriges rien dans cette passe.
+Tu identifies d’abord la cause exacte du mismatch.
+Tu t’arrêtes après l’audit.
