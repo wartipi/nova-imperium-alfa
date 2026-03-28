@@ -28,8 +28,16 @@ export function CityManagementPanel({ cityId, onClose }: CityManagementPanelProp
   if (!city) return null;
 
   // Obtenir les territoires contrôlés par cette ville/colonie
-  const colonyData = UnifiedTerritorySystem.getPlayerColoniesWithTerritories('player')
-    .find(c => c.colony.x === city.x && c.colony.y === city.y);
+  // Lookup direct par position — indépendant du ownership (la garde d'autorisation est dans UnifiedTerritoryPanel)
+  const colonyTerritory = UnifiedTerritorySystem.getAllColonies()
+    .find(c => c.x === city.x && c.y === city.y);
+  const colonyData = colonyTerritory
+    ? {
+        colony: colonyTerritory,
+        controlledTerritories: UnifiedTerritorySystem.getColonyControlledTerritories(colonyTerritory.colonyId!),
+        availableTerrains: UnifiedTerritorySystem.getColonyAvailableTerrains(colonyTerritory.colonyId!),
+      }
+    : undefined;
 
   // Phase 7 : city.colonyId (colonies.id) est utilisé ici, pas city.id (cities.id).
   // UnifiedTerritorySystem indexe les territoires par colonyId (string de colonies.id).
@@ -40,7 +48,7 @@ export function CityManagementPanel({ cityId, onClose }: CityManagementPanelProp
     cityPosition: { x: city.x, y: city.y },
     colonyData,
     availableTerrains,
-    allColonies: UnifiedTerritorySystem.getPlayerColoniesWithTerritories('player')
+    allColonies: UnifiedTerritorySystem.getAllColonies()
   });
 
   return (

@@ -186,6 +186,31 @@ class UnifiedTerritorySystemClass {
       availableTerrains: this.getColonyAvailableTerrains(colony.colonyId!),
     }));
   }
+
+  // ─── Phase 13 : Colonies accessibles (propriétaire personnel OU gouverneur) ──
+  // Remplace getPlayerColoniesWithTerritories pour les vues joueur.
+  getAccessibleColoniesWithTerritories(realPlayerId: string): Array<{
+    colony: Territory;
+    controlledTerritories: Territory[];
+    availableTerrains: string[];
+  }> {
+    const seen = new Set<string>();
+    const accessible: Territory[] = [];
+    for (const t of this.territories.values()) {
+      if (!t.colonyId || seen.has(t.colonyId)) continue;
+      const isOwner   = t.ownerType === 'player'  && t.ownerPlayerId  === realPlayerId;
+      const isGov     = t.ownerType === 'faction' && t.governorUserId === realPlayerId;
+      if (isOwner || isGov) {
+        seen.add(t.colonyId);
+        accessible.push(t);
+      }
+    }
+    return accessible.map(colony => ({
+      colony,
+      controlledTerritories: this.getColonyControlledTerritories(colony.colonyId!),
+      availableTerrains:     this.getColonyAvailableTerrains(colony.colonyId!),
+    }));
+  }
 }
 
 export const UnifiedTerritorySystem = new UnifiedTerritorySystemClass();

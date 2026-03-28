@@ -362,8 +362,8 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
                               </div>
                             )
                           )}
-                          {/* Chef de faction — attribution gouverneur */}
-                          {(isAdmin || isFactionLeader) && !isNaN(colonyNumId) && (
+                          {/* Chef de faction — attribution gouverneur (règle canonique : leader uniquement) */}
+                          {isFactionLeader && !isNaN(colonyNumId) && (
                             governorAssignColonyId === colonyNumId ? (
                               <div
                                 className="flex flex-col gap-1"

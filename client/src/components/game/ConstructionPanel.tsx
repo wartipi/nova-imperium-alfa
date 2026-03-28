@@ -25,9 +25,9 @@ interface ConstructionPanelProps {
 
 export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelProps = {}) {
   const { currentNovaImperium, buildInCity, addCity } = useNovaImperium();
-  const { actionPoints, spendActionPoints } = usePlayer();
+  const { actionPoints, spendActionPoints, playerName: cpPlayerName } = usePlayer();
   const { playerFaction, getFactionById } = useFactions();
-  const { isAdmin } = useAuth();
+  const { isAdmin, currentUser } = useAuth();
   const { selectedHex } = useMap();
   const [hoveredBuilding, setHoveredBuilding] = useState<string | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
@@ -104,8 +104,11 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
 
   if (!currentNovaImperium) return null;
 
-  // Obtenir les colonies du joueur avec leurs territoires contrôlés depuis UnifiedTerritorySystem
-  const playerColoniesWithTerritories = UnifiedTerritorySystem.getPlayerColoniesWithTerritories('player');
+  // Identité réelle du joueur (même pattern que UnifiedTerritoryPanel)
+  const realPlayerId = currentUser ?? cpPlayerName ?? '';
+
+  // Phase 13 — Colonies accessibles : propriétaire personnel OU gouverneur de faction
+  const playerColoniesWithTerritories = UnifiedTerritorySystem.getAccessibleColoniesWithTerritories(realPlayerId);
   const currentFaction = playerFaction ? getFactionById(playerFaction) : null;
   const hasColonies = playerColoniesWithTerritories.length > 0;
 
