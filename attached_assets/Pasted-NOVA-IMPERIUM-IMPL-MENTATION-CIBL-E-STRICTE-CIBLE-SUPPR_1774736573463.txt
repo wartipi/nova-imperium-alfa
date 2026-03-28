@@ -1,0 +1,117 @@
+NOVA IMPERIUM — IMPLÉMENTATION CIBLÉE STRICTE
+CIBLE : SUPPRIMER L’OUVERTURE DU MENU VILLE AU CLIC SUR LA CASE
++ RENOMMER LE MENU EN “GESTION VILLE/TERRITOIRE”
+Branche cible : NI-10.3
+
+CONTEXTE VALIDÉ
+Le diagnostic est déjà confirmé.
+Tu n’as pas à refaire un audit large.
+Tu dois corriger uniquement le flux identifié.
+
+DIAGNOSTIC VALIDÉ
+1. Dans GameCanvas.tsx, le clic sur une case appelle selectCity(hex.x, hex.y).
+2. Si une ville est trouvée, le code fait setSelectedCityId(cityId) puis return.
+3. Cela court-circuite le flux normal de sélection de case / déplacement.
+4. CityManagementPanel est encore monté depuis GameCanvas via selectedCityId.
+5. Dans MedievalHUD.tsx, le menu est encore libellé “GESTION DE TERRITOIRE”.
+6. Dans ConstructionPanel.tsx, des textes parlent encore de “GESTION DE TERRITOIRE”.
+
+OBJECTIF
+Je veux que :
+- cliquer une case de ville n’ouvre plus le menu de ville
+- le clic sur une case de ville reste dans le flux normal :
+  - sélection de case
+  - info contextuelle
+  - offre de déplacement si applicable
+- l’accès à la gestion ville/territoire se fasse depuis le menu latéral
+- le menu latéral soit renommé “GESTION VILLE/TERRITOIRE”
+
+INTERDICTIONS ABSOLUES
+- aucun refactor massif
+- aucun changement backend
+- aucune modification de logique métier territoire
+- aucune correction bonus hors périmètre
+- ne touche pas à UnifiedTerritoryPanel sauf si c’est strictement nécessaire pour un texte ou un wiring mineur
+- ne crée pas de nouveau panneau
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Avant de modifier quoi que ce soit, tu dois afficher exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+- objectif précis
+- fichiers touchés
+- raison de chaque fichier
+- ordre d’exécution
+- risques
+- vérifications prévues
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE ATTENDU
+Tu dois normalement toucher uniquement :
+- client/src/components/game/GameCanvas.tsx
+- client/src/components/game/MedievalHUD.tsx
+- client/src/components/game/ConstructionPanel.tsx
+
+Si tu veux toucher un autre fichier, tu dois le justifier explicitement.
+
+CORRECTION ATTENDUE
+
+1. GameCanvas.tsx
+- supprimer le court-circuit qui ouvre CityManagementPanel au clic sur une ville
+- le clic sur une case de ville doit continuer dans le flux normal de sélection/déplacement
+- si CityManagementPanel n’est plus utilisé, démonte-le du canvas
+- supprimer l’état selectedCityId s’il devient inutile
+- supprimer l’import CityManagementPanel s’il devient inutile
+- supprimer selectCity/useCitySelection si cela devient inutile
+
+2. MedievalHUD.tsx
+- renommer le label du menu :
+  “GESTION DE TERRITOIRE”
+  -> “GESTION VILLE/TERRITOIRE”
+
+3. ConstructionPanel.tsx
+- remplacer les textes utilisateur qui disent encore “GESTION DE TERRITOIRE”
+- utiliser “GESTION VILLE/TERRITOIRE”
+
+IMPORTANT
+Le clic sur une ville ne doit plus ouvrir de panneau de gestion.
+La gestion doit passer par le menu latéral uniquement.
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- client/src/components/game/GameCanvas.tsx
+- git diff -- client/src/components/game/MedievalHUD.tsx
+- git diff -- client/src/components/game/ConstructionPanel.tsx
+
+3. VÉRIFICATIONS
+- clic sur une case de ville
+- confirmer qu’aucun menu de ville ne s’ouvre
+- confirmer que le flux de sélection de case / déplacement reste actif
+- confirmer que le label du menu est bien “GESTION VILLE/TERRITOIRE”
+- confirmer que les textes de ConstructionPanel ont été mis à jour
+- aucune nouvelle erreur TS
+
+4. RISQUES RÉSIDUELS
+- uniquement les vrais
+- sans les corriger hors périmètre
+
+CONTRAINTE FINALE
+Tu corriges uniquement ce flux :
+- plus d’ouverture du menu ville au clic sur une case
+- accès gestion uniquement via menu latéral
+- renommage propre du menu et des textes associés
+- aucune dérive

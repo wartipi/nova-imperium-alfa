@@ -943,7 +943,7 @@ export function ConstructionPanel() {
                 </div>
               ))}
               <div className="text-xs text-green-600 pt-2">
-                💡 Utilisez le menu "GESTION DE TERRITOIRE" pour fonder de nouvelles colonies
+                💡 Utilisez le menu "GESTION VILLE/TERRITOIRE" pour fonder de nouvelles colonies
               </div>
             </div>
           )}
@@ -961,7 +961,7 @@ export function ConstructionPanel() {
             💡 Workflow: Revendiquez un territoire → Fondez une colonie → Construisez des bâtiments
           </div>
           <div className="text-yellow-600 text-xs">
-            📍 Utilisez le menu "GESTION DE TERRITOIRE" pour commencer
+            📍 Utilisez le menu "GESTION VILLE/TERRITOIRE" pour commencer
           </div>
         </div>
       )}
@@ -1222,7 +1222,7 @@ export function ConstructionPanel() {
         <div className="bg-amber-50 border border-amber-700 rounded p-3 opacity-50">
           <div className="font-medium text-sm mb-2">Construction (nécessite une colonie)</div>
           <div className="text-amber-700 text-xs">
-            Fondez d'abord une colonie via "GESTION DE TERRITOIRE"
+            Fondez d'abord une colonie via "GESTION VILLE/TERRITOIRE"
           </div>
         </div>
       ) : (

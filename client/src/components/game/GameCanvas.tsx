@@ -10,7 +10,6 @@ import { AvatarActionMenu } from "./AvatarActionMenu";
 import { MovementConfirmationModal } from "./MovementConfirmationModal";
 import { getTerrainMovementCost } from "../../lib/game/TerrainCosts";
 import { CameraControls } from "./CameraControls";
-import { CityManagementPanel } from "./CityManagementPanel";
 import { UnifiedTerritorySystem } from "../../lib/systems/UnifiedTerritorySystem";
 import { requestMove, fetchCurrentAction } from "../../lib/api/playerActionsApi";
 import { fetchPlayerPosition } from "../../lib/api/playerApi";
@@ -21,7 +20,6 @@ import { usePlayerPresence } from "../../lib/stores/usePlayerPresence";
 import { useGameEngineAccess } from "../../lib/hooks/useGameEngineAccess";
 import { useDoubleClick } from "../../lib/hooks/useDoubleClick";
 import { useAvatarMovement } from "../../lib/hooks/useAvatarMovement";
-import { useCitySelection } from "../../lib/hooks/useCitySelection";
 import { TerrainHelpers } from "../../lib/constants/TerrainTypes";
 
 export function GameCanvas() {
@@ -37,11 +35,8 @@ export function GameCanvas() {
   const [mouseDownPos, setMouseDownPos] = useState<{ x: number; y: number } | null>(null);
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
   const [avatarMenuPosition, setAvatarMenuPosition] = useState({ x: 0, y: 0 });
-  const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
-
   // Custom hooks for improved architecture  
   const { renderEngine, updateEngineStores } = useGameEngineAccess();
-  const { selectCity } = useCitySelection();
 
   // REFACTORISATION : Initialize game engine avec injection des stores
   useEffect(() => {
@@ -116,14 +111,6 @@ export function GameCanvas() {
 
       const hex = gameEngineRef.current.getHexAtPosition(x, y);
       if (hex) {
-        // IMPROVED: Use dedicated city selection hook
-        const { city, cityId } = selectCity(hex.x, hex.y);
-        if (city) {
-          setSelectedCityId(cityId);
-          setMouseDownPos(null);
-          return;
-        }
-
         // Vérifier si la case est explorée avant de permettre la sélection
         const { isHexExplored } = usePlayer.getState();
         const isAccessible = isHexExplored(hex.x, hex.y) || isAdmin;
@@ -160,7 +147,7 @@ export function GameCanvas() {
     }
     
     setMouseDownPos(null);
-  }, [selectedUnit, setSelectedHex, moveUnit, mouseDownPos, selectCity, setPendingMovement]);
+  }, [selectedUnit, setSelectedHex, moveUnit, mouseDownPos, setPendingMovement]);
 
   // Update rendering when game state changes
   useEffect(() => {
@@ -299,12 +286,6 @@ export function GameCanvas() {
         />
       )}
 
-      {selectedCityId && (
-        <CityManagementPanel
-          cityId={selectedCityId}
-          onClose={() => setSelectedCityId(null)}
-        />
-      )}
     </>
   );
 }
