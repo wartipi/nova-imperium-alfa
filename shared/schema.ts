@@ -438,6 +438,9 @@ export const colonies = pgTable("colonies", {
   ownerPlayerName: text("owner_player_name"),
   ownerFactionId:  integer("owner_faction_id"),
   ownerFactionName: text("owner_faction_name"),
+  // Phase 13 — Gouvernorat : joueur responsable de la gestion d'une colonie de faction
+  // Initialisé à founderId lors de la fondation si ownerType='faction', null sinon.
+  governorUserId:   text("governor_user_id"),
 }, (table) => ({
   uniquePos: unique("colonies_world_pos_unique").on(table.worldX, table.worldY),
 }));

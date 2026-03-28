@@ -29,6 +29,8 @@ export interface Territory {
   ownerPlayerName: string | null;
   ownerFactionId:  string | null;
   ownerFactionName: string | null;
+  // Phase 13 — Gouvernorat
+  governorUserId: string | null;
 }
 
 class UnifiedTerritorySystemClass {
@@ -76,6 +78,7 @@ class UnifiedTerritorySystemClass {
         ownerPlayerName:  t.ownerPlayerName ?? null,
         ownerFactionId:   t.ownerFactionId  != null ? String(t.ownerFactionId) : null,
         ownerFactionName: t.ownerFactionName ?? null,
+        governorUserId: colony ? (colony.governorUserId ?? null) : null,
         ...(colony
           ? {
               colonyId: String(colony.id),

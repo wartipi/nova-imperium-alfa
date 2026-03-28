@@ -39,6 +39,8 @@ export interface ColonyDTO {
   ownerPlayerName: string | null;
   ownerFactionId:  number | null;
   ownerFactionName: string | null;
+  // Phase 13 — Gouvernorat
+  governorUserId: string | null;
 }
 
 function mapTerritory(row: typeof territories.$inferSelect): TerritoryDTO {
@@ -106,7 +108,58 @@ function mapColony(row: typeof colonies.$inferSelect): ColonyDTO {
     ownerPlayerName: row.ownerPlayerName ?? null,
     ownerFactionId:  row.ownerFactionId  ?? null,
     ownerFactionName: row.ownerFactionName ?? null,
+    governorUserId:  row.governorUserId  ?? null,
   };
+}
+
+// ─── Phase 13 : Attribution du gouverneur ─────────────────────────────────────
+// Seul le chef (memberRole='leader') de la faction propriétaire peut désigner un gouverneur.
+// Le nouveau gouverneur doit être membre de la même faction.
+export async function setColonyGovernor(
+  colonyId: number,
+  requestingPlayerId: string,
+  newGovernorUserId: string
+): Promise<ColonyDTO | { error: string; status: number }> {
+  // 1. Charger la colonie
+  const colonyRows = await db.select().from(colonies).where(eq(colonies.id, colonyId));
+  if (colonyRows.length === 0) return { error: "Colonie introuvable", status: 404 };
+  const colony = colonyRows[0];
+
+  if (colony.ownerType !== 'faction' || !colony.ownerFactionId) {
+    return { error: "Cette colonie n'appartient pas à une faction", status: 403 };
+  }
+
+  const factionId = colony.ownerFactionId;
+
+  // 2. Vérifier que le requérant est chef (leader) de cette faction
+  const requesterRows = await db
+    .select({ memberRole: factionMembers.memberRole })
+    .from(factionMembers)
+    .where(and(eq(factionMembers.playerId, requestingPlayerId), eq(factionMembers.factionId, factionId)));
+
+  if (requesterRows.length === 0 || requesterRows[0].memberRole !== 'leader') {
+    return { error: "Seul le chef de faction peut attribuer un gouverneur", status: 403 };
+  }
+
+  // 3. Vérifier que le nouveau gouverneur est membre de cette faction
+  const govRows = await db
+    .select({ memberRole: factionMembers.memberRole })
+    .from(factionMembers)
+    .where(and(eq(factionMembers.playerId, newGovernorUserId), eq(factionMembers.factionId, factionId)));
+
+  if (govRows.length === 0) {
+    return { error: "Le nouveau gouverneur doit être membre de cette faction", status: 422 };
+  }
+
+  // 4. Mettre à jour
+  const [updated] = await db
+    .update(colonies)
+    .set({ governorUserId: newGovernorUserId })
+    .where(eq(colonies.id, colonyId))
+    .returning();
+
+  console.log(`[setColonyGovernor] Colonie #${colonyId} → gouverneur = ${newGovernorUserId}`);
+  return mapColony(updated);
 }
 
 export async function getAllTerritories(): Promise<TerritoryDTO[]> {
@@ -330,6 +383,8 @@ export async function foundColony(
         ownerFactionName,
         ownerPlayerId,
         ownerPlayerName,
+        // Phase 13 — Gouvernorat : le fondateur est le premier gouverneur pour les colonies de faction
+        governorUserId: ownerType === 'faction' ? playerId : null,
       })
       .returning();
 

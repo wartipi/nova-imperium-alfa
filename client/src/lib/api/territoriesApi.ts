@@ -41,10 +41,18 @@ export interface ColonyDTO {
   worldY: number;
   founderId: string;
   founderName: string;
-  factionId: number;
-  factionName: string;
+  factionId: number | null;
+  factionName: string | null;
   foundedAt: string;
   isCapital: boolean;
+  // Phase 12 — Ownership canonique
+  ownerType: 'player' | 'faction';
+  ownerPlayerId:   string | null;
+  ownerPlayerName: string | null;
+  ownerFactionId:  number | null;
+  ownerFactionName: string | null;
+  // Phase 13 — Gouvernorat
+  governorUserId: string | null;
 }
 
 export async function fetchAllTerritories(): Promise<TerritoryDTO[]> {
@@ -85,6 +93,20 @@ export async function apiFoundColony(worldX: number, worldY: number, name: strin
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || "Erreur fondation colonie");
+  }
+  return res.json();
+}
+
+// Phase 13 — Attribuer un gouverneur (chef de faction uniquement)
+export async function apiSetGovernor(colonyId: number, newGovernorUserId: string): Promise<ColonyDTO> {
+  const res = await fetch(`/api/territories/colonies/${colonyId}/governor`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    body: JSON.stringify({ newGovernorUserId }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Erreur attribution gouverneur");
   }
   return res.json();
 }

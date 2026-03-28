@@ -6,6 +6,7 @@ import {
   getAllColonies,
   claimTerritory,
   foundColony,
+  setColonyGovernor,
 } from "../territoryService";
 import { transferColonyOwnership } from "../ownershipService";
 
@@ -136,6 +137,36 @@ router.post("/colonies/:colonyId/transfer", requireAuth, async (req: AuthRequest
   } catch (err) {
     console.error("[Territories] transferColonyOwnership error:", err);
     res.status(500).json({ error: "Erreur serveur lors du transfert" });
+  }
+});
+
+// ─── PATCH /api/territories/colonies/:colonyId/governor ───────────────────────
+// Phase 13 — Attribuer un gouverneur à une colonie de faction.
+// Authentifié. Autorisé seulement au chef de la faction propriétaire.
+// Payload : { newGovernorUserId: string }
+router.patch("/colonies/:colonyId/governor", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const colonyId = parseInt(req.params.colonyId, 10);
+    if (isNaN(colonyId)) {
+      return res.status(400).json({ error: "colonyId invalide" });
+    }
+
+    const { newGovernorUserId } = req.body;
+    if (typeof newGovernorUserId !== "string" || !newGovernorUserId.trim()) {
+      return res.status(400).json({ error: "newGovernorUserId est requis" });
+    }
+
+    const requestingPlayerId = req.user!.id;
+    const result = await setColonyGovernor(colonyId, requestingPlayerId, newGovernorUserId.trim());
+
+    if ("error" in result) {
+      return res.status(result.status).json({ error: result.error });
+    }
+
+    return res.status(200).json(result);
+  } catch (err) {
+    console.error("[Territories] setColonyGovernor error:", err);
+    res.status(500).json({ error: "Erreur serveur" });
   }
 });
 

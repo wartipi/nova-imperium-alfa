@@ -6,7 +6,7 @@ import { useNovaImperium } from '../../lib/stores/useNovaImperium';
 import { useFactions } from '../../lib/stores/useFactions';
 import { useMap } from '../../lib/stores/useMap';
 import { useCustomAlert } from '../ui/CustomAlert';
-import { fetchAllTerritories, fetchAllColonies, apiClaimTerritory, apiFoundColony } from '../../lib/api/territoriesApi';
+import { fetchAllTerritories, fetchAllColonies, apiClaimTerritory, apiFoundColony, apiSetGovernor } from '../../lib/api/territoriesApi';
 import { CityManagementPanel } from './CityManagementPanel';
 
 interface UnifiedTerritoryPanelProps {
@@ -21,7 +21,7 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
     playerName = 'Joueur'
   } = usePlayer();
   const { isAdmin, currentUser } = useAuth();
-  const { playerFaction } = useFactions();
+  const { playerFaction, myMemberRole } = useFactions();
   const { showAlert, AlertComponent } = useCustomAlert();
   const { currentNovaImperium } = useNovaImperium();
 
@@ -35,6 +35,9 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
   const [selectedTerritory, setSelectedTerritory] = useState<Territory | null>(null);
   const [colonyName, setColonyName] = useState('');
   const [managedCityId, setManagedCityId] = useState<string | null>(null);
+  // Phase 13 — Attribution gouverneur
+  const [governorAssignColonyId, setGovernorAssignColonyId] = useState<number | null>(null);
+  const [governorInput, setGovernorInput] = useState('');
   // Phase 12 — choix ownership lors du claim
   const [ownerType, setOwnerType] = useState<'player' | 'faction'>(
     playerFaction ? 'faction' : 'player'
@@ -125,6 +128,32 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
       showAlert({
         title: "Revendication Échouée",
         message: err.message || "Erreur lors de la revendication du territoire.",
+        type: "error"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Phase 13 — Attribuer un gouverneur à une colonie de faction
+  const handleSetGovernor = async (colonyId: number) => {
+    const trimmed = governorInput.trim();
+    if (!trimmed) return;
+    setIsLoading(true);
+    try {
+      await apiSetGovernor(colonyId, trimmed);
+      showAlert({
+        title: "Gouverneur attribué",
+        message: `Le gouverneur de la colonie a été mis à jour.`,
+        type: "success"
+      });
+      setGovernorAssignColonyId(null);
+      setGovernorInput('');
+      await reloadFromServer();
+    } catch (err: any) {
+      showAlert({
+        title: "Erreur",
+        message: err.message || "Impossible d'attribuer le gouverneur.",
         type: "error"
       });
     } finally {
@@ -300,22 +329,84 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    {/* Bouton Gérer la ville — admin toujours, joueur seulement si possession personnelle */}
-                    {territory.colonyId && (isAdmin || (territory.ownerType === 'player' && territory.ownerPlayerId === realPlayerId)) && (() => {
+                    {/* Phase 13 — Garde gouverneur : admin toujours, joueur si propriétaire personnel ou gouverneur de faction */}
+                    {territory.colonyId && (() => {
                       const city = currentNovaImperium?.cities.find(
                         c => c.x === territory.x && c.y === territory.y
                       );
-                      return city ? (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setManagedCityId(city.id);
-                          }}
-                          className="text-xs bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded font-medium"
-                        >
-                          🏘️ Gérer la ville
-                        </button>
-                      ) : null;
+                      if (!city) return null;
+
+                      const canManage = isAdmin
+                        || (territory.ownerType === 'player' && territory.ownerPlayerId === realPlayerId)
+                        || (territory.ownerType === 'faction' && territory.governorUserId === realPlayerId);
+
+                      const colonyNumId = parseInt(territory.colonyId, 10);
+                      const isFactionLeader = !isAdmin && myMemberRole === 'leader' && territory.ownerType === 'faction';
+
+                      return (
+                        <>
+                          {canManage ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setManagedCityId(city.id);
+                              }}
+                              className="text-xs bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded font-medium"
+                            >
+                              🏘️ Gérer la ville
+                            </button>
+                          ) : (
+                            territory.ownerType === 'faction' && (
+                              <div className="text-xs text-gray-500 px-3 py-2 border border-gray-300 rounded font-medium">
+                                🔒 Gestion réservée au gouverneur
+                              </div>
+                            )
+                          )}
+                          {/* Chef de faction — attribution gouverneur */}
+                          {(isAdmin || isFactionLeader) && !isNaN(colonyNumId) && (
+                            governorAssignColonyId === colonyNumId ? (
+                              <div
+                                className="flex flex-col gap-1"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <input
+                                  type="text"
+                                  value={governorInput}
+                                  onChange={(e) => setGovernorInput(e.target.value)}
+                                  placeholder="ID du nouveau gouverneur"
+                                  className="text-xs border border-amber-600 rounded px-2 py-1 bg-amber-50 w-full"
+                                />
+                                <div className="flex gap-1">
+                                  <button
+                                    onClick={() => handleSetGovernor(colonyNumId)}
+                                    disabled={!governorInput.trim() || isLoading}
+                                    className="flex-1 text-xs bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-2 py-1 rounded"
+                                  >
+                                    ✓ Confirmer
+                                  </button>
+                                  <button
+                                    onClick={() => { setGovernorAssignColonyId(null); setGovernorInput(''); }}
+                                    className="flex-1 text-xs bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setGovernorAssignColonyId(colonyNumId);
+                                  setGovernorInput('');
+                                }}
+                                className="text-xs bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded font-medium"
+                              >
+                                🔑 Attribuer gouverneur
+                              </button>
+                            )
+                          )}
+                        </>
+                      );
                     })()}
 
                     {/* Bouton Fonder une Colonie — seulement si pas encore de colonie */}

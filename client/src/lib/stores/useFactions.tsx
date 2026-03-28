@@ -79,6 +79,7 @@ function mapDTO(dto: FactionDTO): Faction {
 interface FactionState {
   factions: Faction[];
   playerFaction: string | null;
+  myMemberRole: string | null;
   availableQuests: FactionQuest[];
   isLoading: boolean;
 
@@ -110,6 +111,7 @@ export const useFactions = create<FactionState>()(
   subscribeWithSelector((set, get) => ({
     factions: [],
     playerFaction: null,
+    myMemberRole: null,
     availableQuests: [],
     isLoading: false,
 
@@ -126,8 +128,8 @@ export const useFactions = create<FactionState>()(
 
     loadPlayerFaction: async () => {
       try {
-        const { faction } = await fetchMyFaction();
-        set({ playerFaction: faction ? faction.id : null });
+        const { faction, memberRole } = await fetchMyFaction();
+        set({ playerFaction: faction ? faction.id : null, myMemberRole: memberRole ?? null });
         if (faction) {
           set((state) => {
             const exists = state.factions.find((f) => f.id === faction.id);
