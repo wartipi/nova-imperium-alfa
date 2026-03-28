@@ -1,0 +1,95 @@
+Décision canonique validée.
+
+RÈGLE MÉTIER
+1. Un joueur peut voir :
+- ses villes personnelles
+- les villes de sa faction
+
+2. Une ville est gérable si :
+- ville personnelle : par son propriétaire
+- ville de faction : uniquement par son gouverneur
+
+3. Gouvernorat :
+- seul le chef de faction peut attribuer un poste de gouverneur
+- le gouverneur doit être un joueur membre de cette faction
+
+4. Décision technique :
+- on n’utilise PAS memberRole comme proxy
+- on ajoute une vraie source de vérité : governorUserId
+- ce champ doit être porté par la table colonies
+- pas par cities
+
+5. Valeur initiale :
+- à la fondation d’une colonie de faction :
+  governorUserId = founderId
+
+OBJECTIF DU PROCHAIN SEGMENT
+Implémenter le gouvernorat réel avec le plus petit passage propre.
+
+Je veux maintenant un PLAN STRICT avant toute modification.
+
+Avant toute écriture, affiche exactement :
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+- objectif précis
+- fichiers touchés
+- raison de chaque fichier
+- ordre d’exécution
+- risques
+- vérifications prévues
+
+PÉRIMÈTRE ATTENDU PROBABLE
+- shared/schema.ts
+- serveur : fondation de colonie / lecture DTO / mapping / endpoint attribution gouverneur
+- client/src/components/game/UnifiedTerritoryPanel.tsx
+- éventuellement CityManagementPanel si un contrôle d’accès visible est nécessaire
+- éventuellement types/API territoires si governorUserId doit remonter au front
+
+RÈGLES D’IMPLÉMENTATION
+1. Schema
+- ajouter governorUserId à colonies
+
+2. Fondation
+- si ownerType='faction' :
+  governorUserId = founderId
+- si ownerType='player' :
+  laisser governorUserId null ou cohérent selon le modèle existant, sans créer d’ambiguïté
+
+3. Lecture / DTO
+- exposer governorUserId et si utile governorPlayerName au front
+
+4. UnifiedTerritoryPanel
+- ville personnelle visible
+- ville de faction visible aux membres de la faction
+- bouton “Gérer la ville” actif seulement si :
+  - ownerType='player' && ownerPlayerId = joueur
+  - ou ownerType='faction' && governorUserId = joueur
+- sinon ville visible mais gestion désactivée avec texte clair :
+  “Gestion réservée au gouverneur”
+
+5. Attribution du gouverneur
+- ajouter le plus petit mécanisme propre
+- action autorisée seulement si le joueur courant est chef de faction
+- nouveau gouverneur doit appartenir à la même faction
+- pas de système complexe de permissions au-delà de ça
+
+INTERDICTIONS
+- pas de proxy memberRole pour remplacer governorUserId
+- pas de refactor massif
+- pas de dérive hors gouvernorat
+- ne pas retoucher GameCanvas
+- ne pas rouvrir le clic sur la carte
+
+VÉRIFICATIONS ATTENDUES ENSUITE
+- colonie de faction créée -> governorUserId initialisé au founder
+- membre simple de faction voit la ville mais ne peut pas la gérer
+- gouverneur peut la gérer
+- chef de faction peut changer le gouverneur
+- non-membre ne voit pas la ville de faction comme gérable
+- aucune nouvelle erreur TS
