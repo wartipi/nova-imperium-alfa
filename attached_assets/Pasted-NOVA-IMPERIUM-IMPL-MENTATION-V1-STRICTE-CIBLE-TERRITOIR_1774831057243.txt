@@ -1,0 +1,335 @@
+NOVA IMPERIUM — IMPLÉMENTATION V1 STRICTE
+CIBLE : TERRITOIRE CLAIM → VILLE GESTIONNAIRE + TILE INFO + OVERLAY CLAIM
+Branche cible : NI-10.3
+
+RÔLE
+Tu implémentes une V1 strictement limitée.
+Tu ne touches pas encore à la production des cases.
+Tu ne fais aucun refactor massif.
+Tu ne dérives pas.
+
+CONTEXTE VALIDÉ
+L’audit a confirmé les points suivants :
+
+1. La fondation de ville exige déjà un claim valide sur la case de fondation.
+=> Ce point est déjà implémenté côté serveur.
+=> Ne pas le réécrire.
+
+2. Aucun champ de type managingCityId / managingColonyId n’existe actuellement sur les territoires.
+
+3. Aujourd’hui, un territoire claim n’est pas réellement rattaché à une ville, sauf implicitement la case de fondation elle-même côté client.
+
+4. La production actuelle des villes ne dépend pas encore des cases.
+=> Cette phase NE DOIT PAS brancher les yields de case dans l’économie.
+
+5. Le point d’entrée propre pour un overlay de claim existe déjà dans GameEngine.ts via le rendu territoire / bordures.
+=> La V1 doit seulement ajouter une teinte légère.
+
+DÉCISION VALIDÉE
+Cette V1 doit faire exactement ceci :
+
+A. Ajouter un lien persistant :
+- territory → managingColonyId
+
+B. Attribuer automatiquement chaque territoire claim à la colonie du même owner la plus proche
+- distance hex minimale
+- tie-break déterministe : colony.id croissant si égalité
+
+C. Exposer ce lien côté API / DTO
+
+D. Hydrater ce lien côté client
+
+E. Afficher dans TileInfo :
+- propriétaire
+- statut claim
+- ville gestionnaire (si présente)
+- “Territoire non assigné à une ville” sinon
+
+F. Ajouter une teinte légère sur les cases claim dans le rendu carte
+
+IMPORTANT
+Cette phase NE DOIT PAS :
+- calculer de production de case
+- modifier recalculateCityEconomy
+- modifier cityService pour agréger des yields de tuile
+- ajouter une UI de réassignation manuelle
+- ajouter une logique de “rayon de ville”
+- toucher au pathfinding
+- toucher aux systèmes de déplacement
+- toucher aux routes sans nécessité réelle
+- faire un backfill permanent à chaque démarrage serveur
+
+INTERDIT
+- aucun refactor massif
+- aucune réécriture de l’ownership canonique
+- aucun changement de règle de fondation
+- aucune gestion manuelle des territoires par ville
+- aucun branchage de production des cases dans l’économie
+- aucun changement hors périmètre
+- ne pas toucher au rendu de la carte au-delà de la teinte de claim
+- ne pas introduire un système visuel lourd par ville
+- ne pas faire de gros recalcul global à chaque démarrage serveur si un hook ciblé suffit
+
+PRÉ-REQUIS OBLIGATOIRES AVANT TOUTE MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+Je veux :
+- objectif précis
+- fichiers touchés
+- raison de chaque fichier
+- ordre d’exécution
+- risques
+- vérifications prévues
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement :
+
+- shared/schema.ts
+- server/territoryService.ts
+- client/src/lib/systems/UnifiedTerritorySystem.ts
+- client/src/components/game/TileInfoPanel.tsx
+- client/src/lib/game/GameEngine.ts
+
+Optionnel seulement si absolument nécessaire et justifié :
+- server/index.ts
+
+Tu ne touches à aucun autre fichier sans le signaler explicitement.
+
+IMPLÉMENTATION ATTENDUE
+
+LOT 1 — CHAMP DB
+Fichier :
+- shared/schema.ts
+
+Ajouter dans territories :
+- managingColonyId: integer("managing_colony_id").references(() => colonies.id)
+
+Contraintes :
+- nullable
+- pas d’autre nouveau champ
+- ne pas ajouter managingCityId ET managingColonyId en même temps
+- on standardise sur managingColonyId uniquement
+
+IMPORTANT
+Cette phase gère la COLONIE comme entité de rattachement.
+La ville affichée pourra être déduite via la colonie existante.
+
+LOT 2 — SERVICE DE RECALCUL CANONIQUE
+Fichier :
+- server/territoryService.ts
+
+Créer une logique déterministe de rattachement automatique.
+
+Comportement attendu :
+Pour un owner donné :
+- charger les territoires du même owner
+- charger les colonies du même owner
+- pour chaque territoire :
+  - trouver la colonie du même owner avec la plus petite distance hex
+  - si égalité : choisir la colonie avec le plus petit id
+  - si aucune colonie du même owner : managingColonyId = null
+
+IMPORTANT
+Ownership à respecter strictement :
+- ownerType
+- ownerPlayerId
+- ownerFactionId
+
+Tu ne dois jamais rattacher un territoire à une colonie d’un autre owner.
+
+Tu peux structurer ça avec :
+- une fonction de recalcul pour un owner
+- et éventuellement une fonction ciblée pour un seul territoire
+mais sans sur-ingénierie.
+
+LOT 3 — POINTS DE DÉCLENCHEMENT
+Fichier :
+- server/territoryService.ts
+
+Brancher le recalcul uniquement aux moments utiles :
+
+A. Après un claim réussi
+- recalcul ciblé au minimum pour le territoire concerné
+- ou recalcul pour l’owner si nécessaire
+
+B. Après une fondation de colonie réussie
+- recalcul pour l’ensemble des territoires du même owner
+- car une nouvelle ville peut devenir la plus proche
+
+IMPORTANT
+Ne pas toucher la règle de fondation elle-même.
+Elle est déjà correcte.
+Tu ajoutes seulement le rattachement post-fondation.
+
+LOT 4 — DTO SERVEUR
+Fichier :
+- server/territoryService.ts
+
+Étendre TerritoryDTO pour exposer :
+- managingColonyId: number | null
+- managingColonyName: string | null
+
+IMPORTANT
+Pas besoin de nouvelle route si les routes existantes renvoient déjà les TerritoryDTO.
+Tu enrichis le mapping, pas l’architecture API.
+
+LOT 5 — HYDRATATION CLIENT
+Fichier :
+- client/src/lib/systems/UnifiedTerritorySystem.ts
+
+Étendre l’interface Territory pour inclure :
+- managingColonyId?: number | null
+- managingColonyName?: string | null
+
+Hydrater ces champs dans loadFromServer.
+
+IMPORTANT
+Ne pas casser l’existant.
+Ne pas renommer controlledByColony si ce champ existe encore.
+On ajoute le vrai lien canonique sans refactor massif.
+
+LOT 6 — TILE INFO
+Fichier :
+- client/src/components/game/TileInfoPanel.tsx
+
+Dans la section d’information territoire :
+- conserver owner / claim / colonyName existants
+- ajouter :
+  - “Ville gestionnaire : [nom]” si managingColonyName existe
+  - “Territoire non assigné à une ville” sinon
+
+IMPORTANT
+Ne pas inventer encore de rendement de case.
+Cette phase n’ajoute PAS la production.
+Pas de faux yield.
+Pas de placeholder trompeur.
+
+LOT 7 — OVERLAY CLAIM LÉGER
+Fichier :
+- client/src/lib/game/GameEngine.ts
+
+À l’endroit où les claims sont déjà détectés et où drawTerritoryBorders(...) est déclenché :
+- ajouter une teinte de remplissage légère et semi-transparente sur les cases claim
+
+Règles de rendu :
+- teinte discrète
+- ne pas masquer le terrain
+- ne pas créer un overlay lourd ou coûteux
+- différencier simplement owner joueur / faction si possible
+- pas encore de code couleur par ville
+- pas encore de pattern compliqué
+
+IMPORTANT
+V1 = overlay léger seulement.
+Pas de surbrillance de ville sélectionnée dans cette passe.
+
+LOT 8 — PAS DE PRODUCTION DE CASE
+Tu ne touches pas :
+- recalculateCityEconomy
+- BUILDING_YIELDS
+- buildingEffects
+- food_per_turn / production_per_turn / gold_per_turn
+- woodPerTurn / stonePerTurn / etc.
+
+Cette phase prépare la structure de gestion.
+Elle ne branche pas encore l’économie des tuiles.
+
+ORDRE D’EXÉCUTION OBLIGATOIRE
+1. ajout du champ DB dans schema.ts
+2. logique de recalcul serveur dans territoryService.ts
+3. hooks après claim / fondation
+4. extension du TerritoryDTO
+5. hydratation UnifiedTerritorySystem
+6. affichage TileInfoPanel
+7. overlay léger dans GameEngine.ts
+8. vérifications
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- shared/schema.ts
+- git diff -- server/territoryService.ts
+- git diff -- client/src/lib/systems/UnifiedTerritorySystem.ts
+- git diff -- client/src/components/game/TileInfoPanel.tsx
+- git diff -- client/src/lib/game/GameEngine.ts
+
+3. VÉRIFICATIONS SERVEUR
+A. Fondation
+- confirmer qu’une ville ne se fonde toujours que sur une case claim valide
+- confirmer que la règle existante n’a pas été cassée
+
+B. Claim
+- claim d’un territoire
+- managingColonyId attribué correctement si une colonie du même owner existe
+- null si aucune colonie du même owner
+
+C. Fondation après claims existants
+- fondation d’une nouvelle colonie
+- recalcul des managingColonyId du même owner
+- confirmer qu’un territoire peut changer de ville gestionnaire si la nouvelle ville est plus proche
+
+D. Tie-break
+- cas d’égalité de distance
+- confirmer qu’on prend l’id de colonie le plus petit
+- déterminisme stable
+
+4. VÉRIFICATIONS CLIENT
+A. UnifiedTerritorySystem
+- confirmer que managingColonyId et managingColonyName sont bien hydratés
+
+B. TileInfo
+- sur une case claim avec ville gestionnaire :
+  - owner affiché
+  - ville gestionnaire affichée
+- sur une case claim sans ville gestionnaire :
+  - message “Territoire non assigné à une ville”
+
+C. Overlay
+- les cases claim ont bien une teinte légère
+- terrain toujours lisible
+- aucune surcharge visuelle majeure
+
+5. CONTRÔLE DE PÉRIMÈTRE
+Je veux une preuve explicite que :
+- aucun autre fichier n’a été touché
+- aucune logique de production de case n’a été modifiée
+- aucun fichier cityService / buildingEffects n’a été modifié
+
+6. RISQUES RÉSIDUELS
+- uniquement les vrais
+- classés
+- sans correction bonus hors périmètre
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+2. PREUVES
+3. VÉRIFICATIONS SERVEUR
+4. VÉRIFICATIONS CLIENT
+5. CONTRÔLE DE PÉRIMÈTRE
+6. RISQUES RÉSIDUELS
+7. STOP
+
+CONTRAINTE FINALE
+Tu implémentes strictement cette V1 :
+- rattachement automatique territoire → colonie gestionnaire
+- TileInfo enrichi
+- overlay claim léger
+- aucune production de case
+- aucune dérive

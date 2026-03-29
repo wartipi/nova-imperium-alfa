@@ -372,6 +372,15 @@ function TerritoryInfoSection({ selectedHex }: { selectedHex: HexTile }) {
               🏘️ <span className="font-medium">Colonie :</span> {territoryInfo.colonyName}
             </div>
           )}
+          {territoryInfo.managingColonyName ? (
+            <div className="text-blue-800">
+              🏛️ <span className="font-medium">Ville gestionnaire :</span> {territoryInfo.managingColonyName}
+            </div>
+          ) : (
+            <div className="text-blue-600 italic text-xs">
+              Territoire non assigné à une ville
+            </div>
+          )}
         </div>
       </div>
     );

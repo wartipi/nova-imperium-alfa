@@ -32,6 +32,9 @@ export interface TerritoryDTO {
   ownerPlayerName: string | null;
   ownerFactionId:  number | null;
   ownerFactionName: string | null;
+  // Rattachement V1 — Colonie gestionnaire
+  managingColonyId:   number | null;
+  managingColonyName: string | null;
 }
 
 export interface ColonyDTO {

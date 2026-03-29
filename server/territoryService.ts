@@ -20,6 +20,9 @@ export interface TerritoryDTO {
   ownerPlayerName: string | null;
   ownerFactionId:  number | null;
   ownerFactionName: string | null;
+  // Rattachement V1 — Colonie gestionnaire (recalcul automatique par proximité)
+  managingColonyId:   number | null;
+  managingColonyName: string | null;
 }
 
 export interface ColonyDTO {
@@ -43,7 +46,10 @@ export interface ColonyDTO {
   governorUserId: string | null;
 }
 
-function mapTerritory(row: typeof territories.$inferSelect): TerritoryDTO {
+function mapTerritory(
+  row: typeof territories.$inferSelect,
+  managingColonyName?: string | null,
+): TerritoryDTO {
   return {
     id: row.id,
     worldX: row.worldX,
@@ -58,6 +64,8 @@ function mapTerritory(row: typeof territories.$inferSelect): TerritoryDTO {
     ownerPlayerName: row.ownerPlayerName ?? null,
     ownerFactionId:  row.ownerFactionId  ?? null,
     ownerFactionName: row.ownerFactionName ?? null,
+    managingColonyId:   row.managingColonyId   ?? null,
+    managingColonyName: managingColonyName      ?? null,
   };
 }
 
@@ -163,13 +171,148 @@ export async function setColonyGovernor(
 }
 
 export async function getAllTerritories(): Promise<TerritoryDTO[]> {
-  const rows = await db.select().from(territories);
-  return rows.map(mapTerritory);
+  const rows = await db
+    .select({ ter: territories, colName: colonies.name })
+    .from(territories)
+    .leftJoin(colonies, eq(territories.managingColonyId, colonies.id));
+  return rows.map(r => mapTerritory(r.ter, r.colName ?? null));
 }
 
 export async function getAllColonies(): Promise<ColonyDTO[]> {
   const rows = await db.select().from(colonies);
   return rows.map(mapColony);
+}
+
+// ─── Rattachement V1 — Recalcul déterministe managingColonyId ─────────────────
+
+// Calcule la colonie gestionnaire optimale pour un territoire donné :
+// plus petite distance hex parmi les colonies du même owner.
+// Tie-break : colony.id croissant (stable et déterministe).
+async function findBestManagingColony(
+  terWorldX: number,
+  terWorldY: number,
+  ownerType: 'player' | 'faction',
+  ownerPlayerId: string | null,
+  ownerFactionId: number | null,
+): Promise<number | null> {
+  let ownerColonies: Array<{ id: number; worldX: number; worldY: number }> = [];
+
+  if (ownerType === 'faction' && ownerFactionId !== null) {
+    ownerColonies = await db
+      .select({ id: colonies.id, worldX: colonies.worldX, worldY: colonies.worldY })
+      .from(colonies)
+      .where(eq(colonies.ownerFactionId, ownerFactionId));
+  } else if (ownerType === 'player' && ownerPlayerId !== null) {
+    ownerColonies = await db
+      .select({ id: colonies.id, worldX: colonies.worldX, worldY: colonies.worldY })
+      .from(colonies)
+      .where(eq(colonies.ownerPlayerId, ownerPlayerId));
+  }
+
+  if (ownerColonies.length === 0) return null;
+
+  let bestId: number | null = null;
+  let bestDist = Infinity;
+
+  for (const col of ownerColonies) {
+    const dist = hexDistance(terWorldX, terWorldY, col.worldX, col.worldY);
+    if (dist < bestDist || (dist === bestDist && col.id < (bestId ?? Infinity))) {
+      bestDist = dist;
+      bestId = col.id;
+    }
+  }
+
+  return bestId;
+}
+
+// Recalcule managingColonyId pour un seul territoire (hook post-claim).
+export async function recalculateManagingColonyForTerritory(territoryId: number): Promise<void> {
+  const rows = await db
+    .select({
+      worldX: territories.worldX,
+      worldY: territories.worldY,
+      ownerType: territories.ownerType,
+      ownerPlayerId: territories.ownerPlayerId,
+      ownerFactionId: territories.ownerFactionId,
+    })
+    .from(territories)
+    .where(eq(territories.id, territoryId));
+
+  if (rows.length === 0) return;
+  const ter = rows[0];
+
+  const bestColonyId = await findBestManagingColony(
+    ter.worldX, ter.worldY,
+    (ter.ownerType ?? 'faction') as 'player' | 'faction',
+    ter.ownerPlayerId ?? null,
+    ter.ownerFactionId ?? null,
+  );
+
+  await db
+    .update(territories)
+    .set({ managingColonyId: bestColonyId })
+    .where(eq(territories.id, territoryId));
+}
+
+// Recalcule managingColonyId pour tous les territoires du même owner (hook post-fondation).
+// Appelé après la création d'une nouvelle colonie — une ville plus proche peut prendre le relais.
+export async function recalculateManagingColoniesForOwner(
+  ownerType: 'player' | 'faction',
+  ownerPlayerId: string | null,
+  ownerFactionId: number | null,
+): Promise<void> {
+  let ownerTerritories: Array<{ id: number; worldX: number; worldY: number }> = [];
+
+  if (ownerType === 'faction' && ownerFactionId !== null) {
+    ownerTerritories = await db
+      .select({ id: territories.id, worldX: territories.worldX, worldY: territories.worldY })
+      .from(territories)
+      .where(eq(territories.ownerFactionId, ownerFactionId));
+  } else if (ownerType === 'player' && ownerPlayerId !== null) {
+    ownerTerritories = await db
+      .select({ id: territories.id, worldX: territories.worldX, worldY: territories.worldY })
+      .from(territories)
+      .where(eq(territories.ownerPlayerId, ownerPlayerId));
+  }
+
+  if (ownerTerritories.length === 0) return;
+
+  // Charger les colonies du même owner une seule fois
+  let ownerColonies: Array<{ id: number; worldX: number; worldY: number }> = [];
+  if (ownerType === 'faction' && ownerFactionId !== null) {
+    ownerColonies = await db
+      .select({ id: colonies.id, worldX: colonies.worldX, worldY: colonies.worldY })
+      .from(colonies)
+      .where(eq(colonies.ownerFactionId, ownerFactionId));
+  } else if (ownerType === 'player' && ownerPlayerId !== null) {
+    ownerColonies = await db
+      .select({ id: colonies.id, worldX: colonies.worldX, worldY: colonies.worldY })
+      .from(colonies)
+      .where(eq(colonies.ownerPlayerId, ownerPlayerId));
+  }
+
+  for (const ter of ownerTerritories) {
+    let bestId: number | null = null;
+    let bestDist = Infinity;
+
+    for (const col of ownerColonies) {
+      const dist = hexDistance(ter.worldX, ter.worldY, col.worldX, col.worldY);
+      if (dist < bestDist || (dist === bestDist && col.id < (bestId ?? Infinity))) {
+        bestDist = dist;
+        bestId = col.id;
+      }
+    }
+
+    await db
+      .update(territories)
+      .set({ managingColonyId: bestId })
+      .where(eq(territories.id, ter.id));
+  }
+
+  console.log(
+    `[recalculateManagingColonies] owner=(${ownerType}) ` +
+    `${ownerTerritories.length} territoire(s) → ${ownerColonies.length} colonie(s) candidates`
+  );
 }
 
 export async function claimTerritory(
@@ -237,7 +380,18 @@ export async function claimTerritory(
     .values({ worldX, worldY, playerId, playerName, factionId, factionName, ...ownerFields })
     .returning();
 
-  return { territory: mapTerritory(inserted[0]) };
+  const newTerritory = inserted[0];
+
+  // 7. Rattachement automatique à la colonie gestionnaire la plus proche (V1)
+  await recalculateManagingColonyForTerritory(newTerritory.id);
+
+  // Rechargement post-recalcul pour exposer managingColonyId + managingColonyName à jour
+  const [updated] = await db.select({ ter: territories, colName: colonies.name })
+    .from(territories)
+    .leftJoin(colonies, eq(territories.managingColonyId, colonies.id))
+    .where(eq(territories.id, newTerritory.id));
+
+  return { territory: mapTerritory(updated.ter, updated.colName ?? null) };
 }
 
 export async function foundColony(
@@ -398,6 +552,20 @@ export async function foundColony(
       });
 
     console.log(`[foundColony] Transaction OK: colonie #${insertedColony.id} (${ownerType}) + ville créées (${worldX},${worldY})`);
-    return { colony: mapColony(insertedColony) };
+    return { colony: mapColony(insertedColony), _ownerType: ownerType, _ownerPlayerId: ownerPlayerId, _ownerFactionId: ownerFactionId };
   });
+
+  // Hook post-fondation V1 : recalcul managingColonyId pour tous les territoires du même owner.
+  // Une nouvelle ville peut devenir la plus proche pour certains territoires existants.
+  if ('colony' in result) {
+    const r = result as { colony: ColonyDTO; _ownerType: string; _ownerPlayerId: string | null; _ownerFactionId: number | null };
+    await recalculateManagingColoniesForOwner(
+      r._ownerType as 'player' | 'faction',
+      r._ownerPlayerId,
+      r._ownerFactionId,
+    );
+    return { colony: r.colony };
+  }
+
+  return result;
 }

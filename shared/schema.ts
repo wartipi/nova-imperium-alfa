@@ -417,6 +417,8 @@ export const territories = pgTable("territories", {
   ownerPlayerName: text("owner_player_name"),
   ownerFactionId:  integer("owner_faction_id"),
   ownerFactionName: text("owner_faction_name"),
+  // Phase rattachement V1 — Colonie gestionnaire déterministe (calcul automatique par proximité)
+  managingColonyId: integer("managing_colony_id").references(() => colonies.id),
 }, (table) => ({
   uniquePos: unique("territories_world_pos_unique").on(table.worldX, table.worldY),
 }));

@@ -31,6 +31,9 @@ export interface Territory {
   ownerFactionName: string | null;
   // Phase 13 — Gouvernorat
   governorUserId: string | null;
+  // Rattachement V1 — Colonie gestionnaire
+  managingColonyId?:   number | null;
+  managingColonyName?: string | null;
 }
 
 class UnifiedTerritorySystemClass {
@@ -79,6 +82,9 @@ class UnifiedTerritorySystemClass {
         ownerFactionId:   t.ownerFactionId  != null ? String(t.ownerFactionId) : null,
         ownerFactionName: t.ownerFactionName ?? null,
         governorUserId: colony ? (colony.governorUserId ?? null) : null,
+        // Rattachement V1 — Colonie gestionnaire
+        managingColonyId:   t.managingColonyId   ?? null,
+        managingColonyName: t.managingColonyName ?? null,
         ...(colony
           ? {
               colonyId: String(colony.id),
