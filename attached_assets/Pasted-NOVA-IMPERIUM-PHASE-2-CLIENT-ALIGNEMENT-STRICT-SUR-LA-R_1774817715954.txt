@@ -1,0 +1,253 @@
+NOVA IMPERIUM — PHASE 2 CLIENT — ALIGNEMENT STRICT SUR LA RÈGLE A
+Branche cible : NI-10.3
+
+RÔLE
+Tu implémentes uniquement la PHASE 2 CLIENT.
+Tu ne touches pas au serveur.
+Tu ne fais aucun refactor massif.
+Tu ne dérives pas.
+
+CONTEXTE VALIDÉ
+La Phase 1 serveur est déjà en place et validée :
+- `lastAppliedStep` existe côté serveur
+- `resolveMoveStep(action, now)` existe
+- `resolveEffectivePlayerPosition(playerId, now)` existe
+- `GET /api/player/actions/current` retourne :
+  - `lastAppliedStep`
+  - `effectiveStep`
+  - `effectiveWorldX`
+  - `effectiveWorldY`
+  - `effectiveTerrain`
+- `DELETE /api/player/actions/current` retourne :
+  - `cancelledAtWorldX`
+  - `cancelledAtWorldY`
+  - `cancelledAtStep`
+
+DÉCISION DE DESIGN VALIDÉE
+La règle canonique de déplacement est désormais :
+
+RÈGLE A — DÉPART TEMPORISÉ
+
+Cela signifie :
+- le joueur reste sur `path[0]` pendant tout le premier segment
+- il ne passe à `path[1]` qu’une fois le coût de `path[1]` entièrement consommé
+- il ne doit JAMAIS être affiché sur `path[1]` dès `t = 0`
+
+Cette règle est déjà celle du serveur.
+Le client doit maintenant s’y aligner strictement.
+
+PROBLÈME ACTUEL
+Le serveur applique déjà la Règle A.
+Le client, lui, démarre encore visuellement à `path[1]` dans `GameCanvas.tsx`.
+
+Résultat :
+- mismatch serveur / client sur le premier segment
+- au début du trajet, le serveur considère le joueur sur `path[0]`
+- mais le client l’affiche sur `path[1]`
+
+OBJECTIF DE CETTE PHASE
+Corriger uniquement le client pour qu’il applique exactement la même logique que le serveur sur le premier segment.
+
+BUT EXACT
+Pendant un déplacement :
+- à `t = 0`, l’avatar doit être sur `path[0]`
+- il reste sur `path[0]` pendant toute la durée du premier segment
+- il passe sur `path[1]` seulement une fois ce premier segment écoulé
+- puis même logique pour les segments suivants
+
+IMPORTANT
+Le but de cette phase n’est PAS de refaire l’architecture.
+Le but est uniquement :
+- aligner le tick visuel client sur la logique serveur déjà validée
+
+INTERDIT
+- aucun changement serveur
+- aucun changement de schéma
+- aucun changement de route API
+- ne pas toucher `shared/schema.ts`
+- ne pas toucher `server/playerActionService.ts`
+- ne pas toucher `server/routes/playerActions.ts`
+- ne pas toucher `client/src/App.tsx`
+- ne pas toucher `client/src/lib/api/playerActionsApi.ts`
+- ne pas toucher `client/src/lib/stores/usePlayer.tsx`
+- ne pas toucher `client/src/lib/stores/usePlayerActions.ts`
+- ne pas toucher `client/src/components/game/ActiveActionWidget.tsx`
+- ne pas toucher au pathfinder
+- ne pas corriger de bug annexe
+- ne pas changer la logique du timer serveur
+- ne pas changer la règle métier
+- ne pas introduire d’animation nouvelle ou plus “jolie”
+- ne pas ajouter de nouveau composant
+
+PRÉ-REQUIS OBLIGATOIRES AVANT TOUTE MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+Je veux :
+- objectif précis
+- fichier touché
+- raison
+- ordre d’exécution
+- risques
+- vérifications prévues
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement :
+
+- `client/src/components/game/GameCanvas.tsx`
+
+Aucun autre fichier.
+Si tu juges qu’un autre fichier est absolument nécessaire, tu t’arrêtes et tu le signales.
+Tu ne le modifies pas sans validation.
+
+IMPLÉMENTATION ATTENDUE
+
+LOT UNIQUE — ALIGNEMENT DU TICK VISUEL SUR LA RÈGLE A
+Fichier :
+- `client/src/components/game/GameCanvas.tsx`
+
+Ce que tu dois corriger
+Le tick visuel du déplacement ne doit plus démarrer sur `path[1]` à `t = 0`.
+
+Il doit reproduire la logique métier serveur de `resolveMoveStep`.
+
+RÈGLE À APPLIQUER
+Si une action `move` est en cours :
+
+1. La position visuelle de référence au début du trajet doit être `path[0]`
+2. Le temps du premier segment correspond au coût de `path[1]`
+3. Tant que `elapsedMs < path[1].cost × 5000`, la position visuelle doit rester `path[0]`
+4. Une fois ce seuil franchi, la position visuelle devient `path[1]`
+5. Puis même logique pour `path[2]`, `path[3]`, etc.
+
+IMPORTANT
+Tu dois reproduire la logique métier du serveur, pas inventer une logique purement visuelle.
+
+LOGIQUE ATTENDUE
+Le calcul du `currentHex` dans `GameCanvas.tsx` doit être aligné sur ce principe :
+
+- `effectiveStep = 0`
+- `cumulative = 0`
+- boucle sur `path[1..]`
+  - `stepMs = path[i].cost × 5000`
+  - si `elapsedMs < cumulative + stepMs` :
+    - on s’arrête
+    - la case courante reste celle déjà atteinte
+  - sinon :
+    - `cumulative += stepMs`
+    - `effectiveStep = i`
+
+Puis :
+- `currentHex = path[effectiveStep]`
+
+IMPORTANT
+- à `t = 0`, `effectiveStep` doit rester `0`
+- donc `currentHex = path[0]`
+- pas `path[1]`
+
+CE QUI DOIT RESTER INCHANGÉ
+- `travelVisualHexPosition` comme mécanisme d’affichage temporaire
+- la sync finale existante
+- `moveAvatarToHex(finalHex)` à la fin
+- l’intervalle de tick
+- l’usage de `effectiveStep` serveur comme ancre générale de reprise
+- l’hydratation générale existante, sauf si un micro-ajustement dans `GameCanvas.tsx` est strictement nécessaire pour rester cohérent avec cette règle
+
+CAS À RESPECTER
+Exemple 1 — 3 plaines successives
+Supposons :
+- `path[0]` = départ
+- `path[1]` = plaine, cost 1
+- `path[2]` = plaine, cost 1
+- `path[3]` = plaine, cost 1
+
+Attendu :
+- 0–5 s   → affichage sur `path[0]`
+- 5–10 s  → affichage sur `path[1]`
+- 10–15 s → affichage sur `path[2]`
+- 15–20 s → affichage sur `path[3]` si le trajet continue
+- jamais `path[1]` à `t = 0`
+
+Exemple 2 — premier segment en forêt
+Supposons :
+- `path[1].cost = 2`
+
+Attendu :
+- 0–10 s → affichage sur `path[0]`
+- 10 s+  → passage à `path[1]`
+
+Exemple 3 — reprise en plein trajet
+Si le serveur dit :
+- `effectiveStep = 2`
+
+Alors l’affichage initial doit être cohérent avec la case déjà atteinte côté serveur.
+Mais la logique locale du tick doit rester alignée sur la règle A pour les segments suivants.
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- `git diff --stat`
+- `git diff -- client/src/components/game/GameCanvas.tsx`
+
+3. VÉRIFICATIONS CLIENT
+A. Départ d’un trajet
+- confirmer qu’à `t = 0`, l’avatar est sur `path[0]`
+- confirmer qu’il ne saute plus sur `path[1]` immédiatement
+
+B. Premier segment
+- confirmer que l’avatar reste sur `path[0]` pendant toute la durée du premier segment
+- puis passe à `path[1]` seulement à la fin de ce segment
+
+C. Segments suivants
+- confirmer que la progression continue ensuite correctement case par case
+
+D. Cas simple
+- trajet avec plusieurs plaines successives
+- démontrer noir sur blanc la chronologie d’affichage
+
+E. Cas coût > 1
+- démontrer qu’un premier segment de coût 2 garde l’avatar deux fois plus longtemps sur `path[0]`
+
+F. Régression
+- confirmer que la sync finale reste correcte
+- confirmer que l’annulation n’est pas affectée
+- confirmer qu’aucun autre fichier n’a été touché
+
+4. CONTRÔLE DE PÉRIMÈTRE
+Je veux une preuve explicite que :
+- aucun fichier serveur n’a été modifié
+- aucun autre fichier client n’a été modifié
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+- classés
+- sans correction bonus hors périmètre
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+2. PREUVES
+3. VÉRIFICATIONS CLIENT
+4. CONTRÔLE DE PÉRIMÈTRE
+5. RISQUES RÉSIDUELS
+6. STOP
+
+CONTRAINTE FINALE
+Tu implémentes strictement cette correction client unique :
+- aligner `GameCanvas.tsx` sur la Règle A
+- rien d’autre
+- aucune dérive
