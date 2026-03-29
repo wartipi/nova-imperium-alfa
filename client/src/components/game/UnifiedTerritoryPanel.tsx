@@ -9,6 +9,33 @@ import { useCustomAlert } from '../ui/CustomAlert';
 import { fetchAllTerritories, fetchAllColonies, apiClaimTerritory, apiFoundColony, apiSetGovernor } from '../../lib/api/territoriesApi';
 import { CityManagementPanel } from './CityManagementPanel';
 
+const TERRAIN_LABELS: Record<string, string> = {
+  fertile_land: 'Terres fertiles', plains: 'Plaines', forest: 'Forêt',
+  hills: 'Collines', mountains: 'Montagnes', desert: 'Désert',
+  swamp: 'Marécages', tundra: 'Toundra', wasteland: 'Terres désolées',
+  sacred_plains: 'Plaine sacrée', enchanted_meadow: 'Prairie enchantée',
+  ancient_ruins: 'Ruines anciennes', caves: 'Grottes', volcano: 'Volcan',
+  shallow_water: 'Eau peu profonde', deep_water: 'Eau profonde',
+};
+
+const RESOURCE_LABELS: Record<string, string> = {
+  wheat: '🌾 Blé', cattle: '🐄 Bétail', fish: '🐟 Poisson', deer: '🦌 Cerf',
+  stone: '🪨 Pierre', copper: '🔶 Cuivre', iron: '⚒️ Fer', coal: '⚫ Charbon',
+  gold: '🥇 Or', oil: '🛢️ Pétrole', gems: '💎 Gemmes', herbs: '🌿 Herbes',
+  crystals: '💠 Cristaux', crabs: '🦀 Crabes', whales: '🐋 Baleines',
+  sulfur: '🔥 Soufre', obsidian: '⚫ Obsidienne', ancient_artifacts: '📿 Artefacts',
+  sacred_stones: '🔮 Pierres sacrées', fur: '🧥 Fourrure',
+};
+
+const BUILDING_LABELS: Record<string, string> = {
+  granary: 'Grenier', barracks: 'Caserne', palace: 'Palais', courthouse: 'Tribunal',
+  university: 'Université', port: 'Port', market: 'Marché', road: 'Route',
+  shipyard: 'Chantier naval', farm: 'Ferme', sawmill: 'Scierie', garden: 'Jardin',
+  fortress: 'Forteresse', watchtower: 'Tour de guet', fortifications: 'Fortifications',
+  library: 'Bibliothèque', temple: 'Temple', sanctuary: 'Sanctuaire', obelisk: 'Obélisque',
+  mystic_portal: 'Portail mystique', legendary_forge: 'Forge légendaire', laboratory: 'Laboratoire',
+};
+
 interface UnifiedTerritoryPanelProps {
   onClose: () => void;
 }
@@ -24,6 +51,7 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
   const { playerFaction, myMemberRole } = useFactions();
   const { showAlert, AlertComponent } = useCustomAlert();
   const { currentNovaImperium } = useNovaImperium();
+  const mapData = useMap.getState().mapData;
 
   // Identité réelle du joueur pour getAccessibleTerritories
   const realPlayerId   = currentUser ?? playerName;
@@ -330,6 +358,17 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
                       <div className="medieval-text text-xs">
                         ({territory.x}, {territory.y}) — {territory.ownerType === 'faction' ? `🏰 ${territory.factionName}` : '👤 Personnel'}
                       </div>
+                      {(() => {
+                        const h = mapData?.[territory.y]?.[territory.x];
+                        if (!h) return null;
+                        const terrain = TERRAIN_LABELS[h.terrain] ?? h.terrain;
+                        const resource = h.resource ? (RESOURCE_LABELS[h.resource] ?? h.resource) : null;
+                        return (
+                          <div className="medieval-text text-xs text-amber-700 mt-0.5">
+                            🗻 {terrain}{resource ? ` · ${resource}` : ' · Aucune ressource'}
+                          </div>
+                        );
+                      })()}
                     </div>
                     <div className="flex flex-col gap-2" onClick={e => e.stopPropagation()}>
                       <button
@@ -421,6 +460,31 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
                       return isManageable
                         ? <div className="text-green-800 text-sm font-medium mt-1">🏘️ {territory.colonyName}</div>
                         : <div className="text-gray-400 text-xs italic mt-1">🏛️ Ville de faction</div>;
+                    })()}
+                    {/* ─── Détails terrain / ressource / exploitation ─── */}
+                    {(() => {
+                      const h = mapData?.[territory.y]?.[territory.x];
+                      const terrain = h ? (TERRAIN_LABELS[h.terrain] ?? h.terrain) : '—';
+                      const resource = h?.resource ? (RESOURCE_LABELS[h.resource] ?? h.resource) : 'Aucune ressource';
+                      const cityOnHex = territory.colonyId
+                        ? currentNovaImperium?.cities.find(c => c.x === territory.x && c.y === territory.y)
+                        : null;
+                      const buildings = cityOnHex?.buildings?.length
+                        ? cityOnHex.buildings.map((b: string) => BUILDING_LABELS[b] ?? b).join(', ')
+                        : null;
+                      return (
+                        <div className="mt-2 text-xs text-amber-900 space-y-0.5 border-t border-amber-200 pt-1">
+                          <div>🗻 {terrain}</div>
+                          <div>💎 {resource}</div>
+                          {territory.managingColonyName && (
+                            <div>🏘️ Géré par : <span className="font-medium">{territory.managingColonyName}</span></div>
+                          )}
+                          {buildings && (
+                            <div>🏗️ Bâtiments : {buildings}</div>
+                          )}
+                          <div className="text-gray-400 italic">⚙️ Exploitation : données non disponibles par case</div>
+                        </div>
+                      );
                     })()}
                   </div>
 

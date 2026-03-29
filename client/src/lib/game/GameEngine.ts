@@ -433,14 +433,22 @@ export class GameEngine {
         
         const colors = playerColors[territoryInfo.factionId ?? 'player'] || playerColors['player'];
 
-        // V1 — Teinte légère overlay claim (discrète, ne masque pas le terrain)
+        // Overlay claim — visible, différencié par type d'ownership
         const claimFill = territoryInfo.ownerType === 'player'
-          ? 'rgba(30, 144, 255, 0.12)'   // Bleu doux pour ownership joueur
-          : 'rgba(153, 50, 204, 0.12)';  // Violet doux pour ownership faction
+          ? 'rgba(30, 144, 255, 0.28)'   // Bleu — ownership joueur
+          : 'rgba(34, 139, 34, 0.22)';   // Vert — ownership faction
         this.ctx.fillStyle = claimFill;
         this.ctx.fill();
-        
-        // Dessiner seulement les contours externes des territoires
+
+        // Contour simple autour de la case claim (drawTerritoryBorders désactivé — artefacts)
+        const claimStroke = territoryInfo.ownerType === 'player'
+          ? 'rgba(20, 100, 220, 0.80)'
+          : 'rgba(20, 110, 20, 0.80)';
+        this.ctx.strokeStyle = claimStroke;
+        this.ctx.lineWidth = 1.5;
+        this.ctx.stroke();
+
+        // drawTerritoryBorders désactivé (return immédiat interne — conservé pour référence)
         this.drawTerritoryBorders(hex.x, hex.y, territoryInfo, colors.border, x, y);
         
         // Marquer les colonies avec un symbole spécial

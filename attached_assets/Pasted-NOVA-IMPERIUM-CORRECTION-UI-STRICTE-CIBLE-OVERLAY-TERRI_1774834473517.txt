@@ -1,0 +1,285 @@
+NOVA IMPERIUM — CORRECTION UI STRICTE
+CIBLE : OVERLAY TERRITORIAL VISIBLE + CARTES DE TERRITOIRE ENRICHIES
+Branche cible : NI-10.3
+
+RÔLE
+Tu appliques une correction UI ciblée.
+Tu ne touches pas au serveur.
+Tu ne touches pas à l’économie.
+Tu ne touches pas à managingColonyId.
+Tu ne fais aucun refactor massif.
+Tu ne dérives pas.
+
+CONTEXTE VALIDÉ
+La V1 structurelle des territoires est en place :
+- managingColonyId existe
+- le rattachement auto fonctionne
+- TileInfo peut déjà afficher certaines infos de territoire
+- un overlay claim léger existe dans GameEngine
+- UnifiedTerritoryPanel affiche les territoires accessibles
+
+PROBLÈMES RESTANTS
+1. En jeu, l’overlay territorial n’est pas réellement lisible
+2. Dans UnifiedTerritoryPanel, les cartes de territoires sont trop pauvres :
+   - pas de type de terrain
+   - pas de ressource de la case
+   - pas d’info claire sur bâtiment présent sur la case
+   - pas de statut d’exploitation exploitable pour le joueur
+
+OBJECTIF
+Corriger ces 2 problèmes dans une seule passe UI, sans toucher au serveur :
+
+A. rendre les territoires contrôlés clairement visibles sur la carte
+B. enrichir les cartes du panneau Gestion Ville/Territoire avec les informations de tuile réellement disponibles
+
+IMPORTANT
+Je veux une V1 UI propre, lisible, stable.
+Je ne veux pas de faux système.
+Je ne veux pas d’invention de données inexistantes.
+
+RÈGLE CRITIQUE
+Tu dois distinguer strictement :
+
+1. informations déjà disponibles dans les données client
+2. informations non disponibles proprement
+
+Si une information n’existe pas réellement dans les données actuelles, tu ne l’inventes pas.
+Tu affiches explicitement un statut sobre du type :
+- “Aucune donnée d’exploitation disponible”
+ou
+- “Aucun bâtiment sur cette case”
+
+Mais tu ne fabriques pas une logique fictive.
+
+INTERDIT
+- aucun changement serveur
+- aucun changement de schéma
+- aucun changement à territoryService.ts
+- aucun changement à cityService.ts
+- aucun changement à TileInfoPanel.tsx
+- aucun changement à UnifiedTerritorySystem.ts sauf nécessité absolue de typage minime déjà présentée et justifiée
+- aucun changement à l’économie
+- aucun changement à la production des cases
+- aucun changement au pathfinding
+- aucun refactor massif
+- aucun système visuel complexe
+- pas de logique “par ville sélectionnée” avancée dans cette passe
+
+PRÉ-REQUIS OBLIGATOIRES AVANT TOUTE MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+Je veux :
+- objectif précis
+- fichiers touchés
+- raison
+- ordre d’exécution
+- risques
+- vérifications prévues
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux modifier uniquement :
+
+- client/src/lib/game/GameEngine.ts
+- client/src/components/game/UnifiedTerritoryPanel.tsx
+
+Tu peux lire d’autres fichiers si nécessaire pour confirmer les sources de données, mais tu ne les modifies pas.
+
+Si tu juges qu’un autre fichier est absolument nécessaire, tu t’arrêtes et tu le signales.
+Tu ne le modifies pas sans validation.
+
+PARTIE 1 — OVERLAY TERRITORIAL LISIBLE
+
+Fichier :
+- client/src/lib/game/GameEngine.ts
+
+OBJECTIF
+Faire en sorte que le joueur voie clairement :
+- ses territoires personnels
+- les territoires de sa faction
+- sans masquer le terrain
+
+RÈGLES VISUELLES
+Je veux au minimum :
+
+A. territoire personnel du joueur
+- overlay visible
+- contour simple visible
+- priorité visuelle la plus forte
+
+B. territoire de la faction du joueur
+- overlay visible aussi
+- légèrement différent du personnel
+
+C. territoire claimé par d’autres
+- discret
+- ne pas dominer visuellement la carte
+
+IMPORTANT
+Tu ne dois pas réactiver aveuglément l’ancien système cassé de bordures si sa logique produit encore des artefacts.
+Je veux le plus petit rendu propre possible.
+
+SI drawTerritoryBorders() reste problématique :
+- tu peux laisser sa logique historique désactivée
+- mais tu dois fournir un contour simple et lisible directement dans la branche de rendu du hex claimé
+
+OBJECTIF PRATIQUE
+Même si le terrain est complexe visuellement, je dois voir clairement mes zones.
+
+PARTIE 2 — CARTES DE TERRITOIRE ENRICHIES
+
+Fichier :
+- client/src/components/game/UnifiedTerritoryPanel.tsx
+
+OBJECTIF
+Dans les cartes de territoire du panneau, afficher les informations de tuile réellement utiles.
+
+Je veux au minimum, pour chaque territoire affiché :
+
+1. Coordonnées
+2. Owner / type ownership
+3. Type de terrain
+4. Ressource présente sur la case
+5. Ville / colonie gestionnaire si présente
+6. Bâtiment présent sur la case, si la case correspond réellement à une ville/colonie
+7. Statut d’exploitation lisible
+
+RÈGLES DE DONNÉES
+Tu dois lire les données réellement disponibles depuis :
+- useMap / mapData
+- currentNovaImperium
+- UnifiedTerritorySystem
+- autres stores déjà présents dans le composant si accessibles sans dérive
+
+Tu n’inventes aucune donnée.
+
+DÉTAIL ATTENDU PAR CHAMP
+
+A. Terrain
+- lire le terrain réel de la case depuis mapData
+- afficher un libellé lisible
+
+B. Ressource
+- lire la ressource réelle de la case si présente
+- afficher “Aucune ressource” sinon
+
+C. Ville / colonie gestionnaire
+- utiliser les champs territoire déjà hydratés (colonyName / managingColonyName)
+
+D. Bâtiments sur la case
+- seulement si une ville/colonie réelle est sur cette case
+- afficher la liste des bâtiments connus pour cette ville si accessible dans currentNovaImperium
+- sinon afficher explicitement :
+  - “Aucun bâtiment sur cette case”
+ou
+  - “Pas de ville sur cette case”
+
+IMPORTANT
+Je ne veux pas que tu listes les bâtiments de la ville gestionnaire sur une case distante en faisant croire qu’ils sont construits sur la tuile.
+Tu dois distinguer :
+- bâtiment physiquement sur cette case
+vs
+- ville gestionnaire de cette case
+
+E. Statut d’exploitation
+Tu dois être strict.
+
+Si un vrai statut d’exploitation par case existe déjà et peut être lu proprement :
+- affiche-le
+
+Sinon :
+- n’invente rien
+- affiche un statut honnête du type :
+  - “Aucune donnée d’exploitation par case disponible”
+ou
+  - “Statut d’exploitation non disponible dans les données actuelles”
+
+IMPORTANT
+Je préfère un statut honnête qu’une fausse logique.
+
+UI ATTENDUE
+Je veux des cartes plus informatives mais toujours lisibles.
+Pas de gros panneau complexe.
+Pas de tableau lourd.
+Quelques lignes structurées suffisent.
+
+ORDRE D’EXÉCUTION OBLIGATOIRE
+1. auditer dans le composant les sources de données disponibles pour terrain / ressource / bâtiments / exploitation
+2. corriger l’overlay dans GameEngine.ts
+3. enrichir les cartes de UnifiedTerritoryPanel.tsx
+4. conserver une UI lisible
+5. tester
+6. rapport final
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- client/src/lib/game/GameEngine.ts
+- git diff -- client/src/components/game/UnifiedTerritoryPanel.tsx
+
+3. VÉRIFICATIONS VISUELLES
+A. Overlay
+- confirmer que les territoires personnels sont clairement visibles
+- confirmer que les territoires de faction sont visibles aussi
+- confirmer que le terrain reste lisible
+
+B. Cartes du panneau
+- confirmer qu’elles affichent bien :
+  - terrain
+  - ressource
+  - gestionnaire
+  - bâtiment sur la case si applicable
+  - statut d’exploitation honnête
+
+C. Lisibilité
+- confirmer que la UI reste propre
+- pas de surcharge visuelle majeure
+
+D. Aucune régression
+- villes toujours visibles sur la carte
+- ressources toujours visibles
+- sélection d’hex intacte
+- actions du panneau intactes
+
+4. CONTRÔLE DE PÉRIMÈTRE
+Je veux une preuve explicite que :
+- aucun fichier serveur n’a été modifié
+- aucune logique métier n’a été touchée
+- aucune logique économique n’a été touchée
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+- classés
+- sans correction bonus hors périmètre
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+2. PREUVES
+3. VÉRIFICATIONS VISUELLES
+4. CONTRÔLE DE PÉRIMÈTRE
+5. RISQUES RÉSIDUELS
+6. STOP
+
+CONTRAINTE FINALE
+Tu corriges uniquement :
+- la lisibilité de l’overlay territorial
+- les informations utiles dans les cartes du panneau de gestion ville/territoire
+
+Tu n’inventes pas de donnée d’exploitation si elle n’existe pas réellement.
+Aucune dérive.
