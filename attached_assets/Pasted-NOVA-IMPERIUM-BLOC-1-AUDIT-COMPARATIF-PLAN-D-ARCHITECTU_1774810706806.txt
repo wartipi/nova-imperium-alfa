@@ -1,0 +1,346 @@
+NOVA IMPERIUM — BLOC 1 — AUDIT COMPARATIF + PLAN D’ARCHITECTURE
+CIBLE : DÉPLACEMENT SÉQUENTIEL HYBRIDE SERVEUR-AUTHORITATIVE
+Branche cible : NI-10.3
+
+CONTEXTE
+Je ne veux pas d’implémentation immédiate.
+Je veux un audit d’architecture strict, comparatif, puis une recommandation ferme.
+Tu dois raisonner comme système de contrôle technique.
+Tu lis l’existant réel, tu identifies les contradictions, tu compares les options, puis tu proposes le plus petit passage propre.
+
+CONTEXTE VALIDÉ
+Le modèle actuel semble encore être :
+- une action serveur unique `move`
+- un `path` complet calculé au départ
+- une progression surtout rejouée côté client
+- une position réelle qui n’est effectivement validée côté serveur qu’à la fin de l’action
+
+Ce modèle est insuffisant pour le futur du jeu si le déplacement doit pouvoir :
+- être interrompu
+- être bloqué
+- être affecté par un événement
+- exposer une case courante réelle
+- supporter plus tard des interactions sur une route
+
+DIRECTION CIBLE À ÉVALUER
+Je veux que tu audites en priorité une architecture HYBRIDE :
+
+1. Le pathfinder sert uniquement à calculer la route optimale
+   - il doit chercher le chemin au coût total PA minimal
+   - pas simplement le moins de cases
+
+2. L’exécution du déplacement doit être réellement progressive
+   - case par case
+   - côté serveur
+   - authoritative
+
+3. MAIS
+   - je ne veux pas forcément une action DB totalement indépendante par case
+   - je veux évaluer un modèle hybride plus propre :
+     - une action parent `move`
+     - un `path` complet
+     - une progression interne par étapes / cases
+     - une position réelle serveur mise à jour à chaque case franchie
+     - possibilité d’interruption entre deux cases
+
+AUTRES OPTIONS À COMPARER
+Tu dois comparer explicitement :
+
+OPTION A — modèle actuel
+- une action unique
+- path complet
+- position réelle seulement à la fin
+- client rejoue le trajet
+
+OPTION B — action unique progressive
+- une action parent `move`
+- path complet
+- step courant / progression interne
+- position réelle mise à jour case par case
+- interruptions possibles entre deux cases
+
+OPTION C — une action DB par case
+- le path complet est découpé en micro-actions unitaires
+- une case = une action
+
+IMPORTANT
+Je veux que l’option B (hybride) soit auditée comme option prioritaire,
+mais je veux quand même une vraie comparaison avec A et C.
+
+INTERDIT
+- aucune implémentation
+- aucun patch
+- aucun refactor
+- aucune migration
+- aucun changement de schéma
+- aucune modification UI
+- aucune supposition sans vérification
+- aucun “quick fix”
+- ne pas partir en code
+
+PRÉ-REQUIS OBLIGATOIRES AVANT L’AUDIT
+Avant toute analyse, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PÉRIMÈTRE D’AUDIT
+Tu dois lire au minimum :
+- shared/schema.ts
+- server/playerActionService.ts
+- server/routes/playerActions.ts
+- server/pathfinding/HexPathfindingServer.ts
+- server/playerPositionService.ts
+- client/src/App.tsx
+- client/src/components/game/GameCanvas.tsx
+- client/src/lib/stores/usePlayer.tsx
+- client/src/lib/stores/usePlayerActions.ts
+- client/src/components/game/ActiveActionWidget.tsx
+- tout fichier strictement nécessaire pour confirmer le pipeline réel
+
+OBJECTIF PRÉCIS
+Je veux que tu répondes à cette question :
+
+“Pour Nova Imperium, est-ce que le meilleur modèle est :
+A) garder l’action move monolithique,
+B) passer à une action move progressive hybride,
+ou C) découper en une action par case ?”
+
+Et je veux une réponse argumentée, ferme, basée sur le code réel.
+
+AUDIT DEMANDÉ
+
+1. MODÈLE ACTUEL RÉEL — SERVEUR
+Je veux que tu expliques précisément :
+- comment une action `move` est créée aujourd’hui
+- quels champs sont réellement stockés
+- quand la position du joueur change réellement côté serveur
+- si le serveur connaît une case courante réelle pendant le trajet
+- si le serveur exécute déjà le déplacement case par case ou non
+- si un autre système serveur peut connaître la position réelle d’un joueur en transit
+
+Je veux pour chaque point :
+- fichier
+- fonction
+- bloc logique
+- impact exact
+
+2. MODÈLE ACTUEL RÉEL — CLIENT
+Je veux que tu expliques précisément :
+- comment le client affiche le déplacement aujourd’hui
+- la différence entre position canonique et position visuelle
+- quel composant pilote l’avatar pendant un move
+- quelle logique est purement visuelle
+- quels éléments sont synchronisés depuis le serveur
+- où sont les points de désynchronisation possibles
+
+Je veux une distinction nette :
+- vérité serveur
+- simulation client
+
+3. PATHFINDER — RÔLE ET LIMITES
+Je veux que tu confirmes précisément :
+- ce que le pathfinder optimise aujourd’hui
+- coût PA minimal ou moins de cases
+- si sa sortie (`path`, `cost`) est déjà compatible avec une exécution case par case
+- s’il peut rester inchangé dans un futur modèle hybride
+- si le pathfinder doit être considéré comme :
+  - un calculateur de route uniquement
+  - ou un moteur d’exécution du déplacement
+
+IMPORTANT
+Je veux que tu répondes clairement :
+“le pathfinder doit-il uniquement tracer la route ?”
+et si oui, pourquoi.
+
+4. COMPATIBILITÉ FUTURE DU MODÈLE ACTUEL
+Je veux une analyse explicite de la compatibilité du modèle actuel avec ces besoins futurs :
+
+- interruption par un autre joueur
+- interruption par un événement
+- arrêt intermédiaire sur une case
+- recalcul du chemin restant
+- présence physique réelle sur une case à un instant t
+- résolution de conflits sur une route
+- possibilité d’exposer la case courante
+- possibilité d’exposer la prochaine case
+- affichage visuel du chemin emprunté
+- affichage visuel du chemin restant
+- reprise correcte après reload en plein trajet
+- cohérence avec l’architecture serveur-authoritative
+
+Pour chaque point :
+- compatible
+- partiellement compatible
+- incompatible
+- et pourquoi
+
+5. COMPARAISON STRUCTURÉE DES OPTIONS
+Je veux que tu compares A / B / C de façon ferme et structurée.
+
+### OPTION A — modèle actuel monolithique
+Analyse :
+- avantages
+- inconvénients
+- simplicité
+- limites
+- compatibilité future
+- coût de maintenance
+- robustesse serveur-authoritative
+
+### OPTION B — modèle hybride recommandé
+Modèle attendu à analyser :
+- une seule action parent `move`
+- un `path` complet calculé une fois
+- une progression par étapes/cases
+- un état serveur capable de connaître la case courante
+- une mise à jour réelle de position à chaque case franchie
+- possibilité d’arrêt / interruption entre deux cases
+- client principalement lecteur d’un état serveur progressif
+- affichage du chemin possible sans être source de vérité
+
+Je veux que tu analyses :
+- avantages
+- inconvénients
+- complexité
+- impact schéma
+- impact routes
+- impact client
+- impact sur la reprise après reload
+- impact sur les interruptions futures
+- robustesse long terme
+
+### OPTION C — une action par case
+Je veux que tu analyses :
+- avantages
+- inconvénients
+- bruit DB
+- complexité de chaînage
+- reprise
+- annulation
+- journalisation
+- surcharge du pipeline
+- robustesse réelle
+- si c’est trop lourd ou si c’est acceptable
+
+IMPORTANT
+Je veux que tu expliques clairement pourquoi C est ou n’est pas disproportionné pour Nova Imperium.
+
+6. RECOMMANDATION FERME
+Je veux que tu choisisses UNE option.
+Tu ne restes pas neutre.
+
+Je veux que tu me dises explicitement :
+- quelle option tu retiens
+- pourquoi
+- pourquoi c’est le meilleur choix pour Nova Imperium
+- pourquoi c’est cohérent avec un serveur-authoritative
+- pourquoi c’est le plus petit passage propre
+- pourquoi les autres options sont moins bonnes
+
+Je veux que tu prennes position clairement sur la proposition hybride.
+
+7. SPÉCIFICATION CONCEPTUELLE DE L’OPTION HYBRIDE
+Si tu recommandes l’option B, je veux que tu la décrives très précisément, sans coder.
+
+Je veux savoir conceptuellement :
+
+- que contient l’action parent `move`
+- comment le `path` est stocké
+- comment la progression de step est représentée
+- comment le serveur connaît la case courante
+- comment la position réelle est mise à jour
+- comment une interruption agit
+- comment une annulation agit
+- comment un reload reprend l’action
+- comment le client doit afficher :
+  - la case courante
+  - la prochaine case
+  - le chemin restant
+  - le chemin déjà parcouru
+
+IMPORTANT
+Je veux un modèle de fonctionnement, pas du code.
+
+8. PLUS PETIT ORDRE DE MIGRATION
+Toujours sans coder, je veux le plus petit ordre de migration possible si on valide l’option hybride.
+
+Je veux des étapes très claires, par exemple :
+- étape 1 — lecture/résolveur serveur de position effective
+- étape 2 — adaptation de l’action move
+- étape 3 — adaptation du schéma si nécessaire
+- étape 4 — adaptation des routes
+- étape 5 — adaptation du client
+- étape 6 — ajout rendu du chemin
+- étape 7 — ouverture vers interruptions futures
+
+Je veux du concret, mais sans code.
+
+9. FICHIERS PROBABLEMENT CONCERNÉS
+Je veux une liste précise des fichiers probablement touchés si on implémente ensuite l’option retenue.
+
+10. RISQUES STRUCTURELS
+Je veux les vrais risques structurels, classés du plus important au moins important.
+
+Exemples possibles :
+- race conditions
+- conflit entre position canonique et visuelle
+- explosion des écritures DB
+- coût de recalcul
+- reprise après reload
+- changement de segment pendant un trajet
+- présence multijoueur
+- collisions sur une route
+- dépendance trop forte au polling client
+- logique d’interruption difficile à brancher
+
+Je veux uniquement les vrais risques.
+Pas de remplissage.
+
+FORMAT DE SORTIE OBLIGATOIRE
+Je veux exactement ce format :
+
+1. AUDIT DU MODÈLE ACTUEL
+- serveur
+- client
+- pathfinder
+- contradiction principale
+
+2. COMPATIBILITÉ FUTURE
+- point par point
+- compatible / partiellement compatible / incompatible
+
+3. COMPARAISON DES OPTIONS
+- A
+- B
+- C
+
+4. RECOMMANDATION FERME
+- option retenue
+- justification
+
+5. SPÉCIFICATION CONCEPTUELLE DE L’OPTION RETENUE
+
+6. PLUS PETIT ORDRE DE MIGRATION
+
+7. FICHIERS PROBABLEMENT CONCERNÉS
+
+8. RISQUES STRUCTURELS
+
+9. STOP VALIDATION
+Tu t’arrêtes ici.
+Tu n’implémentes rien avant mon accord.
+
+CONTRAINTE FINALE
+Je veux un audit d’architecture extrêmement précis, orienté décision.
+Tu dois raisonner comme système de contrôle :
+- lecture du réel
+- identification des incohérences
+- comparaison franche
+- recommandation ferme
+- plus petit passage propre
+- zéro dérive
