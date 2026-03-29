@@ -1,0 +1,134 @@
+NOVA IMPERIUM — CORRECTION CIBLÉE STRICTE
+CIBLE : LE JOUEUR DOIT PASSER LE TEMPS SUR CHAQUE CASE DU TRAJET
+Branche cible : NI-10.3
+
+CONTEXTE VALIDÉ
+La séparation entre position canonique et position visuelle est maintenant en place.
+Le problème restant est plus précis :
+
+COMPORTEMENT ACTUEL
+- le joueur reste 5 secondes sur la case de départ
+- puis il avance
+- donc le premier bloc de temps est encore consommé sur path[0]
+
+COMPORTEMENT VOULU
+Le joueur doit passer le temps sur les cases du trajet elles-mêmes.
+
+Exemple :
+trajet de 3 plaines consécutives, coût 1 chacune
+=> 5 secondes sur chaque case traversée
+
+Attendu :
+- 0–5 s  : case 1 du trajet
+- 5–10 s : case 2
+- 10–15 s : case 3
+- fin
+
+IMPORTANT
+La case de départ path[0] ne doit plus consommer le premier bloc de temps visuel.
+
+CAUSE
+Dans GameCanvas.tsx, le tick visuel démarre encore avec :
+- currentHex = path[0]
+puis avance selon le cumul.
+C’est ce point qu’il faut corriger.
+
+INTERDICTIONS ABSOLUES
+- aucun changement backend
+- ne pas toucher au timer total
+- ne pas toucher au pathfinding
+- ne pas toucher à usePlayer.tsx
+- ne pas toucher à App.tsx
+- ne pas toucher à la logique de sync finale
+- aucune dérive hors GameCanvas.tsx sauf blocage réel
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+- objectif précis
+- fichier touché
+- raison
+- ordre d’exécution
+- risques
+- vérifications prévues
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE ATTENDU
+Tu dois toucher uniquement :
+- client/src/components/game/GameCanvas.tsx
+
+CORRECTION ATTENDUE
+Dans le tick de déplacement visuel :
+
+1. path[0] = point de départ, non temporisé visuellement
+2. si path.length >= 2 :
+   - currentHex doit démarrer à path[1]
+3. le découpage temporel doit se faire sur path[1..]
+4. chaque case doit être affichée pendant :
+   step.cost * 5000 ms
+
+LOGIQUE CIBLE
+Remplacer la logique actuelle basée sur path[0] par une logique équivalente à :
+
+- si path.length < 2 : return
+- currentHex = path[1]
+- cumulative = path[1].cost * 5000
+- pour i = 2 jusqu’à path.length - 1 :
+    si elapsedMs < cumulative : break
+    currentHex = path[i]
+    cumulative += path[i].cost * 5000
+
+IMPORTANT
+- ne pas changer totalMs
+- ne pas changer la sync finale
+- ne pas changer clearTravelVisualHexPosition
+- ne pas changer moveAvatarToHex(finalHex)
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- client/src/components/game/GameCanvas.tsx
+
+3. VÉRIFICATIONS RÉELLES
+A. trajet de 3 cases plains
+- confirmer :
+  - 0–5 s : case 1
+  - 5–10 s : case 2
+  - 10–15 s : case 3
+- pas d’attente initiale sur la case de départ
+
+B. trajet avec coût mixte
+Exemple :
+- plains cost 1
+- desert cost 3
+Confirmer :
+- 5 s sur plains
+- 15 s sur desert
+
+C. fin d’action
+- confirmer que la position finale reste correcte
+- confirmer que le timer total reste inchangé
+
+4. RISQUES RÉSIDUELS
+- uniquement les vrais
+- sans correction bonus hors périmètre
+
+CONTRAINTE FINALE
+Tu corriges uniquement le point suivant :
+- le temps visuel doit être passé sur les cases traversées
+- pas sur la case de départ
+Aucune dérive.

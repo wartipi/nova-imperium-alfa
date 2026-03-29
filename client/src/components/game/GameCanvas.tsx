@@ -225,13 +225,14 @@ export function GameCanvas() {
       const { originWorldX, originWorldY } = useMap.getState();
 
       // Déterminer la case courante selon le temps écoulé
-      let currentHex = path[0];
-      let cumulative  = 0;
-      for (let i = 1; i < path.length; i++) {
-        const stepMs = path[i].cost * 5000; // 5 s par PA
-        cumulative  += stepMs;
+      // path[0] = départ, non temporisé visuellement
+      // Le temps est passé sur path[1..] : chaque case affichée step.cost * 5000 ms
+      let currentHex = path[1];
+      let cumulative  = path[1].cost * 5000;
+      for (let i = 2; i < path.length; i++) {
         if (elapsedMs < cumulative) break;
         currentHex = path[i];
+        cumulative += path[i].cost * 5000;
       }
 
       // Mise à jour visuelle uniquement — sans moveAvatarToHex (pas de updateVision, ensureSegment, saveDB)
