@@ -1,0 +1,97 @@
+NOVA IMPERIUM — AUDIT STRICT
+CIBLE : DÉSYNCHRONISATION VISUELLE DU DÉPLACEMENT
+Branche cible : NI-10.3
+
+CONTEXTE VALIDÉ
+Le patch actuel a ajouté dans GameCanvas.tsx :
+- hydratation de activeAction au montage
+- tick 500 ms
+- calcul de case courante depuis activeAction.path
+- sync finale via fetchCurrentAction() puis fetchPlayerPosition()
+
+Le widget timer existe déjà dans MedievalHUD via ActiveActionWidget.
+
+PROBLÈME RÉEL OBSERVÉ EN JEU
+Le comportement obtenu n’est pas correct :
+- le joueur est déplacé immédiatement
+- puis le timer continue ensuite
+- donc le déplacement visuel est désynchronisé
+
+IMPORTANT
+Je ne veux PAS de nouvelle implémentation immédiate.
+Je veux d’abord un audit exact du pipeline réellement exécuté.
+
+INTERDICTIONS ABSOLUES
+- aucun edit
+- aucun patch
+- aucun refactor
+- aucune modification backend
+- aucune correction “best effort”
+- aucune hypothèse non vérifiée
+
+PRÉ-REQUIS OBLIGATOIRES
+Avant toute analyse, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+AUDIT DEMANDÉ
+
+ÉTAPE 1 — INVENTAIRE DES APPELS QUI PEUVENT BOUGER L’AVATAR
+Je veux la liste complète des endroits qui peuvent modifier la position visuelle du joueur local, y compris :
+- moveAvatarToHex(...)
+- toute sync de position serveur
+- tout polling ou effet secondaire lié à la présence / avatar / player store
+- tout appel dans GameCanvas
+- tout appel dans usePlayer ou autre store/hook utile
+
+Pour chaque endroit :
+- fichier
+- fonction
+- condition d’exécution
+- impact exact
+
+ÉTAPE 2 — REJOUER UN CAS RÉEL
+Sur un déplacement réel temporisé :
+- capturer activeAction complet
+- capturer path exact
+- capturer startTime / expectedEndTime
+- journaliser à chaque tick :
+  - elapsedMs
+  - currentHex calculé
+  - appel effectif à moveAvatarToHex(...)
+- confirmer à quel moment précis l’avatar saute à destination
+
+ÉTAPE 3 — IDENTIFIER LE SECOND FLUX
+Je veux savoir précisément :
+- quel morceau de code place l’avatar sur la destination avant la fin
+- est-ce GameCanvas lui-même
+- ou un autre flux/store/sync
+
+ÉTAPE 4 — CONCLUSION
+Je veux une conclusion courte et factuelle :
+1. cause exacte confirmée
+2. fichier(s) exact(s) responsables
+3. plus petit correctif propre
+4. fichiers à modifier
+
+FORMAT DE SORTIE OBLIGATOIRE
+1. BRANCHE / ÉTAT GIT
+2. APPELS QUI MODIFIENT L’AVATAR
+3. CAS RÉEL REJOUÉ
+4. MOMENT EXACT DU SNAP IMMÉDIAT
+5. CAUSE CONFIRMÉE
+6. PLUS PETIT CORRECTIF PROPRE
+7. FICHIERS À MODIFIER
+8. STOP VALIDATION
+
+CONTRAINTE FINALE
+Tu ne corriges rien.
+Tu identifies d’abord exactement pourquoi :
+- le joueur arrive visuellement trop tôt
+- alors que le timer continue encore
+Tu t’arrêtes après l’audit.
