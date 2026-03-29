@@ -1,0 +1,89 @@
+Pré-requis obligatoires
+1. BRANCHE :
+
+État : NI-10.3. Checkpoint créé — git diff HEAD vide (état propre post-commit).
+
+Diagnostic des 2 problèmes
+LOT 1 — foundColony post-hook inatteignable ? Je vérifie la structure actuelle :
+
+Diagnostic confirmé :
+
+LOT 1 : ligne 527 — return await db.transaction(...) → les lignes 558–570 (hook post-fondation) sont unreachable, la fonction a déjà retourné.
+LOT 2 : getColonyControlledTerritories(colonyId) ne filtre que sur t.colonyId et t.controlledByColony — ignore managingColonyId.
+3. PLAN D'EXÉCUTION
+#	Fichier	Raison	Ordre
+1	server/territoryService.ts	Capturer txResult dans une variable, appeler le recalcul après, retourner { colony }	1er
+2	client/src/lib/systems/UnifiedTerritorySystem.ts	Ajouter managingColonyId dans le filtre de getColonyControlledTerritories	2e
+Risques : si recalculateManagingColoniesForOwner lance une exception post-transaction, la colonie est créée sans managingColonyId — le recalcul peut être retenté. Risque bas.
+
+Je modifie maintenant.
+
+LOT 1 — Restructuration foundColony :
+
+LOT 2 — getColonyControlledTerritories avec managingColonyId :
+
+Vérification TypeScript + redémarrage en parallèle :
+
+Toutes les erreurs TS sont pré-existantes. Aucune erreur nouvelle.
+
+Diff UnifiedTerritorySystem.ts :
+
+Redémarrage + vérification du hook post-fondation via logs :
+
+Serveur démarré proprement. Vérification post-fondation + getColonyControlledTerritories :
+
+Tout est cohérent. Voici le rapport final.
+
+RAPPORT FINAL
+1. FICHIERS MODIFIÉS
+Fichier	Modification
+server/territoryService.ts	LOT 1 : restructuration foundColony — hook post-fondation maintenant réellement exécuté
+client/src/lib/systems/UnifiedTerritorySystem.ts	LOT 2 : getColonyControlledTerritories inclut désormais managingColonyId
+Aucun autre fichier modifié.
+
+2. PREUVES
+git diff --stat :
+
+server/territoryService.ts                        | 14 ++------
+client/src/lib/systems/UnifiedTerritorySystem.ts  |  3 ++-
+territoryService.ts diff essentiel :
+
+- return await db.transaction(async (tx) => {
++ const insertedColonyDto = await db.transaction(async (tx) => {
+-   return { colony: mapColony(insertedColony), _ownerType: ownerType, ... };
++   return mapColony(insertedColony);
+  });
+- // (code mort — jamais atteint)
+- if ('colony' in result) { ... }
+- return result;
++ await recalculateManagingColoniesForOwner(ownerType, ownerPlayerId, ownerFactionId);
++ return { colony: insertedColonyDto };
+UnifiedTerritorySystem.ts diff essentiel :
+
+  t =>
+    t.colonyId === colonyId ||
+    t.controlledByColony === colonyId ||
++   (t.managingColonyId != null && String(t.managingColonyId) === colonyId)
+3. VÉRIFICATIONS SERVEUR
+A. Fondation — règle "claim obligatoire" intacte : les gardes aux lignes 400–500 (validation claim, walkable, ownership) sont intouchées. La transaction atomique colonie + ville est identique. Seule la capture de son résultat a changé.
+
+B. Hook post-fondation réellement exécuté : structure avant = return await db.transaction(...) → tout code suivant était unreachable. Structure après = const insertedColonyDto = await db.transaction(...) suivi de await recalculateManagingColoniesForOwner(...) suivi de return { colony: insertedColonyDto } — les 3 lignes sont maintenant dans le flux d'exécution principal, aucun code mort.
+
+C. Changement de gestionnaire possible : recalculateManagingColoniesForOwner itère sur tous les territoires du même owner et leur affecte la colonie la plus proche. Vérification DB confirmée : territoire #7 (-3,-2) owner=admin → colonie #9 "ColAdmin-Claim" (dist=8), non pas #7 ou #11 qui sont plus loin — déterminisme correct.
+
+4. VÉRIFICATIONS CLIENT
+A. getColonyControlledTerritories("11") (colonie "test 01") — les territoires #8, #9, #10, #11 ont tous managingColonyId=11. Le filtre String(t.managingColonyId) === "11" les capture désormais. La case de fondation (#8 à (38,0)) remonte via t.colonyId === "11" et managingColonyId — pas de doublon côté logique car filter sur un tableau ne crée pas de dupliqués structurels.
+
+B. Hydratation : loadFromServer hydrate managingColonyId et managingColonyName depuis les DTOs serveur. Confirmé en logs : [TerritorySystem] Chargé : 9 territoire(s), 6 colonie(s). API retourne managingColonyName correct pour les 9 territoires.
+
+5. CONTRÔLE DE PÉRIMÈTRE
+GameEngine.ts — non modifié
+TileInfoPanel.tsx — non modifié
+shared/schema.ts — non modifié
+cityService.ts — non modifié
+buildingEffects.ts — non modifié
+Aucune logique de production de case, economy, ou yield modifiée
+6. RISQUES RÉSIDUELS
+Risque	Niveau
+Si recalculateManagingColoniesForOwner lève une exception post-transaction, la colonie est créée mais sans recalcul — l'owner n'a pas de managingColonyId à jour jusqu'au prochain événement (claim, fondation suivante)	Bas
+getColonyControlledTerritories peut retourner la case fondatrice via deux critères (colonyId ET managingColonyId) — pas de doublon dans le tableau, mais count de résultats stable	Très bas
