@@ -136,8 +136,12 @@ export function GameCanvas() {
         
         // IMPROVED: Handle avatar movement - simplified for now
         if (!selectedUnit && !showAvatarMenu) {
-          // Temporary direct approach to avoid hook ordering issues
-          if (TerrainHelpers.isWalkable(hex.terrain)) {
+          // LOT 1 — Garde principale : ne pas ouvrir la modale si la case cliquée
+          // est la case actuelle du joueur (clic sur ville/label/overlay sur sa case).
+          const { avatarHexPosition: currentHex } = usePlayer.getState();
+          if (hex.x === currentHex.x && hex.y === currentHex.y) {
+            console.log('[GameCanvas] Déplacement ignoré — case actuelle du joueur');
+          } else if (TerrainHelpers.isWalkable(hex.terrain)) {
             setPendingMovement({ x: hex.x, y: hex.y });
             console.log('Déplacement proposé vers:', hex.x, hex.y, 'terrain:', hex.terrain);
           } else {
@@ -283,6 +287,17 @@ export function GameCanvas() {
       alert('Un déplacement est déjà en cours. Attendez qu\'il se termine.');
       setPendingMovement(null);
       return;
+    }
+
+    // LOT 2 — Garde défensive : annuler si la destination est la case actuelle du joueur.
+    // Filet de sécurité au cas où pendingMovement aurait reçu la case actuelle malgré LOT 1.
+    {
+      const { avatarHexPosition: currentHex } = usePlayer.getState();
+      if (pendingMovement.x === currentHex.x && pendingMovement.y === currentHex.y) {
+        console.log('[GameCanvas] Déplacement défensif annulé — destination = case actuelle');
+        setPendingMovement(null);
+        return;
+      }
     }
 
     // Vérification terrain locale (UX uniquement — le serveur valide aussi)

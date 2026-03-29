@@ -1,0 +1,217 @@
+NOVA IMPERIUM — CORRECTION CIBLÉE STRICTE
+CIBLE : EMPÊCHER LA SOUMISSION D’UN DÉPLACEMENT VERS LA CASE ACTUELLE
+Branche cible : NI-10.3
+
+RÔLE
+Tu implémentes un correctif minimal, strict, sans dérive.
+Tu ne refactors pas.
+Tu ne touches pas au serveur.
+Tu ne modifies pas l’architecture du déplacement.
+Tu corriges uniquement le bug suivant :
+
+BUG VALIDÉ
+Quand le joueur clique sur sa propre case, en particulier lorsqu’une ville, un label ou un overlay visuel occupe cette case, le clic peut :
+- ne pas être intercepté comme clic avatar,
+- mais retourner quand même l’hex actuel du joueur via getHexAtPosition(...),
+- ouvrir la modale de déplacement,
+- puis envoyer une destination identique à la position actuelle,
+- ce qui provoque le retour serveur :
+  “La destination est identique à la position actuelle”.
+
+OBJECTIF
+Empêcher totalement ce chemin de bug côté client.
+
+RÈGLE CIBLE
+Si la case cliquée est la case actuelle du joueur :
+- ne pas ouvrir la modale
+- ne pas remplir pendingMovement
+- ne pas envoyer requestMove(...)
+- ne jamais laisser partir une requête de déplacement vers la case actuelle
+
+IMPORTANT
+Je veux une double protection minimale :
+
+1. GARDE PRINCIPALE
+Dans handleCanvasClick :
+- si l’hex cliqué == avatarHexPosition
+- ne pas faire setPendingMovement(...)
+- sortir proprement
+
+2. GARDE DÉFENSIVE
+Dans handleMovementConfirm :
+- avant requestMove(...)
+- si pendingMovement == avatarHexPosition
+- annuler proprement
+- ne pas appeler requestMove(...)
+
+Cette seconde garde est défensive.
+La première reste la correction principale.
+
+INTERDIT
+- aucun changement serveur
+- ne pas toucher shared/schema.ts
+- ne pas toucher server/routes/playerActions.ts
+- ne pas toucher server/playerActionService.ts
+- ne pas toucher playerPositionService
+- ne pas toucher App.tsx
+- ne pas toucher playerActionsApi.ts
+- ne pas toucher usePlayer.tsx
+- ne pas toucher ActiveActionWidget
+- ne pas toucher MovementConfirmationModal.tsx
+- ne pas changer le pathfinding
+- ne pas modifier la logique de timer
+- ne pas corriger un autre bug en même temps
+- ne pas faire de nettoyage annexe
+- ne pas refactor handleCanvasClick au-delà du strict nécessaire
+
+PRÉ-REQUIS OBLIGATOIRES AVANT TOUTE MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+Je veux :
+- objectif précis
+- fichier touché
+- raison
+- ordre d’exécution
+- risques
+- vérifications prévues
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement :
+
+- client/src/components/game/GameCanvas.tsx
+
+Aucun autre fichier.
+Si tu juges qu’un autre fichier est absolument nécessaire, tu t’arrêtes et tu le signales.
+Tu ne le modifies pas sans validation.
+
+IMPLÉMENTATION ATTENDUE
+
+LOT 1 — GARDE PRINCIPALE AU CLIC
+Fichier :
+- client/src/components/game/GameCanvas.tsx
+
+Endroit :
+- dans handleCanvasClick
+- après récupération du hex par getHexAtPosition(...)
+- avant setPendingMovement(...)
+
+Comportement attendu :
+- comparer hex.x / hex.y à avatarHexPosition.x / avatarHexPosition.y
+- si identiques :
+  - ne pas appeler setPendingMovement(...)
+  - sortir proprement
+  - optionnel : log console explicite du type
+    “[GameCanvas] Déplacement ignoré — case actuelle du joueur”
+- si différents :
+  - comportement existant inchangé
+
+IMPORTANT
+Ne change pas la logique du clic avatar.
+Ne change pas la logique selectedHex.
+Ne change pas la logique sur terrain non walkable.
+Tu ajoutes seulement le garde strict contre la case actuelle.
+
+LOT 2 — GARDE DÉFENSIVE À LA CONFIRMATION
+Fichier :
+- client/src/components/game/GameCanvas.tsx
+
+Endroit :
+- dans handleMovementConfirm
+- avant requestMove(...)
+
+Comportement attendu :
+- comparer pendingMovement à avatarHexPosition
+- si identiques :
+  - annuler proprement
+  - setPendingMovement(null)
+  - ne pas appeler requestMove(...)
+  - optionnel : log console explicite
+- sinon :
+  - comportement existant inchangé
+
+IMPORTANT
+Cette garde ne remplace pas la garde au clic.
+Elle sert uniquement de sécurité supplémentaire.
+
+LOT 3 — AUCUNE AUTRE MODIFICATION
+Tu ne modifies rien d’autre dans GameCanvas.tsx.
+Pas de refactor de l’effet de mouvement.
+Pas de changement des polls.
+Pas de changement du rendu.
+Pas de changement de la logique visuelle.
+Pas de changement du handleMovementConfirm hors cette garde.
+
+ORDRE D’EXÉCUTION OBLIGATOIRE
+1. ajouter la garde principale dans handleCanvasClick
+2. ajouter la garde défensive dans handleMovementConfirm
+3. vérifier qu’aucun autre bloc n’a bougé
+4. tester
+5. rapport final
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- client/src/components/game/GameCanvas.tsx
+
+3. VÉRIFICATIONS CLIENT
+A. Clic sur la case actuelle du joueur
+- confirmer que la modale de déplacement ne s’ouvre plus
+- confirmer que pendingMovement n’est pas rempli
+- confirmer qu’aucune requête requestMove(...) n’est envoyée
+
+B. Clic sur une ville / label / overlay situé sur la case actuelle
+- confirmer que le clic n’ouvre pas un faux déplacement
+- confirmer qu’il n’y a plus de popup serveur :
+  “La destination est identique à la position actuelle”
+
+C. Clic sur une vraie case voisine différente
+- confirmer que le déplacement continue à fonctionner normalement
+- modale OK
+- confirmation OK
+- requestMove(...) OK
+
+D. Garde défensive
+- confirmer que même si pendingMovement recevait par erreur la case actuelle,
+  handleMovementConfirm n’enverrait pas requestMove(...)
+
+4. CONTRÔLE DE PÉRIMÈTRE
+Je veux une preuve explicite que :
+- aucun autre fichier n’a été modifié
+- aucun fichier serveur n’a été touché
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+- classés
+- sans correction bonus hors périmètre
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+2. PREUVES
+3. VÉRIFICATIONS CLIENT
+4. CONTRÔLE DE PÉRIMÈTRE
+5. RISQUES RÉSIDUELS
+6. STOP
+
+CONTRAINTE FINALE
+Tu appliques le plus petit correctif possible.
+Tu corriges uniquement :
+- clic sur case actuelle
+- soumission défensive vers case actuelle
+Aucune dérive.
