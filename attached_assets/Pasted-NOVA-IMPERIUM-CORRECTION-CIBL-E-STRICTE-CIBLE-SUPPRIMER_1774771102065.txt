@@ -1,0 +1,160 @@
+NOVA IMPERIUM — CORRECTION CIBLÉE STRICTE
+CIBLE : SUPPRIMER LE FLIP VISUEL PENDANT LE DÉPLACEMENT
+Branche cible : NI-10.3
+
+CONTEXTE VALIDÉ
+Le correctif précédent a supprimé la contamination DB principale pendant les ticks visuels.
+Mais le symptôme actuel reste :
+
+- le personnage flip d’une case à l’autre pendant le trajet
+- il termine au bon endroit
+- donc le problème n’est plus la position finale
+- le problème est le pipeline visuel du mouvement
+
+CAUSE STRUCTURELLE VALIDÉE
+GameCanvas.tsx utilise encore moveAvatarToHex(...) à chaque tick de déplacement.
+
+Or moveAvatarToHex(...) n’est pas une simple mise à jour visuelle.
+Il déclenche encore :
+- updateVision()
+- ensurePlayerSegmentLoaded(...)
+- et s’inscrit dans le pipeline canonique du joueur
+
+Donc le déplacement visuel utilise encore une fonction canonique trop lourde.
+
+DÉCISION VALIDÉE
+On ne patch plus moveAvatarToHex pour “faire un peu moins”.
+On sépare maintenant :
+1. la position canonique
+2. la position visuelle temporaire de trajet
+
+OBJECTIF
+Pendant un déplacement :
+- l’avatar visible avance case par case
+- sans toucher à la position canonique à chaque tick
+- sans updateVision à chaque tick
+- sans ensurePlayerSegmentLoaded à chaque tick
+- sans savePlayerPosition à chaque tick
+
+Puis :
+- à la fin seulement, on applique moveAvatarToHex(finalHex) une seule fois
+
+INTERDICTIONS ABSOLUES
+- aucun changement backend
+- aucun refactor massif
+- ne pas changer les routes
+- ne pas changer le timer
+- ne pas changer le pathfinding
+- ne pas changer la logique métier d’action
+- ne pas rebrancher de save DB pendant le trajet
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+- objectif précis
+- fichiers touchés
+- raison de chaque fichier
+- ordre d’exécution
+- risques
+- vérifications prévues
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE ATTENDU PROBABLE
+Tu dois probablement toucher uniquement :
+- client/src/lib/stores/usePlayer.tsx
+- client/src/components/game/GameCanvas.tsx
+- éventuellement GameEngine / rendu avatar si une position visuelle séparée doit être lue explicitement
+
+Ne touche pas App.tsx dans cette passe sauf blocage réel.
+Ne touche pas useMap.tsx sauf nécessité absolue.
+
+IMPLÉMENTATION ATTENDUE
+
+A. AJOUTER UNE POSITION VISUELLE TEMPORAIRE
+Dans usePlayer.tsx, ajouter un état léger du type :
+- travelVisualHexPosition: { x: number; y: number } | null
+
+Et deux helpers minimaux :
+- setTravelVisualHexPosition(...)
+- clearTravelVisualHexPosition()
+
+IMPORTANT
+Cette position visuelle :
+- ne doit pas appeler savePlayerPosition
+- ne doit pas appeler updateVision
+- ne doit pas appeler ensurePlayerSegmentLoaded
+- ne doit pas modifier la position canonique du joueur
+
+B. RENDU AVATAR
+Le rendu de l’avatar doit utiliser :
+- travelVisualHexPosition si non null
+- sinon avatarHexPosition
+
+La priorité visuelle doit donc être :
+travelVisualHexPosition ?? avatarHexPosition
+
+C. GAMECANVAS
+Dans le tick de déplacement :
+- ne plus appeler moveAvatarToHex(currentHex)
+- appeler seulement setTravelVisualHexPosition(currentHex)
+
+À la fin :
+- clearTravelVisualHexPosition()
+- puis moveAvatarToHex(finalHex) une seule fois
+- puis sync finale serveur comme aujourd’hui
+
+D. REPRISE DE SESSION
+Si une action move est déjà en cours au montage :
+- calculer l’étape courante
+- positionner travelVisualHexPosition correctement
+- ne pas écrire la position canonique à chaque tick
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- chaque fichier modifié
+
+3. VÉRIFICATIONS RÉELLES
+A. Lancer un déplacement temporisé
+- confirmer que le timer reste visible
+- confirmer que l’avatar avance case par case
+
+B. Pendant le trajet
+- confirmer qu’il n’y a plus de flip / rebond entre tuiles
+- confirmer qu’une seule case est visible à la fois
+- confirmer que la position canonique n’est pas réécrite à chaque tick
+
+C. Fin du trajet
+- confirmer que l’avatar termine sur la bonne case
+- confirmer que moveAvatarToHex(finalHex) n’est appelé qu’à la fin
+- confirmer que la position finale serveur reste correcte
+
+D. Reload en plein trajet
+- confirmer que la reprise visuelle reste cohérente
+- sans snap immédiat
+- sans rebond
+
+4. RISQUES RÉSIDUELS
+- uniquement les vrais
+- sans correction bonus hors périmètre
+
+CONTRAINTE FINALE
+Tu sépares explicitement :
+- affichage temporaire du trajet
+- état canonique du joueur
+C’est cette séparation qui est la correction.
+Aucune dérive.

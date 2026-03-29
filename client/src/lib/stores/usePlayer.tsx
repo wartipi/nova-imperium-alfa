@@ -93,6 +93,11 @@ interface PlayerState {
   setAvatarRotation: (rotation: { x: number; y: number; z: number }) => void;
   setIsMoving: (isMoving: boolean) => void;
   moveAvatarToHex: (hexX: number, hexY: number) => void;
+
+  // Position visuelle temporaire de trajet (n'affecte pas la position canonique)
+  travelVisualHexPosition: { x: number; y: number } | null;
+  setTravelVisualHexPosition: (hex: { x: number; y: number } | null) => void;
+  clearTravelVisualHexPosition: () => void;
   
   // Vision et exploration - système unifié
   getVisionRange: () => number;
@@ -159,6 +164,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
   maxActionPoints: 100,
   avatarPosition: { x: 3 * 1.5, y: 0, z: 3 * Math.sqrt(3) * 0.5 },
   avatarHexPosition: { x: 3, y: 3 },
+  travelVisualHexPosition: null,
   avatarRotation: { x: 0, y: 0, z: 0 },
   isMoving: false,
   movementSpeed: 2,
@@ -348,6 +354,10 @@ export const usePlayer = create<PlayerState>((set, get) => {
       console.log(`[PlayerSave] Chargement en cours — sauvegarde différée au changement de segment`);
     }
   },
+
+  // Position visuelle temporaire de trajet
+  setTravelVisualHexPosition: (hex) => set({ travelVisualHexPosition: hex }),
+  clearTravelVisualHexPosition: () => set({ travelVisualHexPosition: null }),
 
   // Vision system unifié
   getVisionRange: () => {

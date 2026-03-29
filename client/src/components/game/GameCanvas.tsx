@@ -21,6 +21,7 @@ import { useGameEngineAccess } from "../../lib/hooks/useGameEngineAccess";
 import { useDoubleClick } from "../../lib/hooks/useDoubleClick";
 import { useAvatarMovement } from "../../lib/hooks/useAvatarMovement";
 import { TerrainHelpers } from "../../lib/constants/TerrainTypes";
+import { VisionSystem } from "../../lib/systems/VisionSystem";
 
 export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -29,7 +30,7 @@ export function GameCanvas() {
   const { gamePhase } = useGameState();
   const { isAdmin, adminModeEnabled, isAuthenticated } = useAuth();
   const { novaImperiums, selectedUnit, moveUnit } = useNovaImperium();
-  const { avatarPosition, avatarRotation, isMoving, selectedCharacter, moveAvatarToHex, isHexVisible, isHexInCurrentVision, pendingMovement, setPendingMovement } = usePlayer();
+  const { avatarPosition, avatarHexPosition, travelVisualHexPosition, setTravelVisualHexPosition, clearTravelVisualHexPosition, avatarRotation, isMoving, selectedCharacter, moveAvatarToHex, isHexVisible, isHexInCurrentVision, pendingMovement, setPendingMovement } = usePlayer();
   const { activeAction } = usePlayerActions();
 
   // State management - reduced manual state
@@ -155,15 +156,22 @@ export function GameCanvas() {
     if (gameEngineRef.current) {
       // Update vision callbacks with latest state
       gameEngineRef.current.setVisionCallbacks(isHexVisible, isHexInCurrentVision);
-      
+
+      // Position visuelle : travelVisualHexPosition pendant le trajet, avatarPosition sinon
+      let visualAvatarPosition = avatarPosition;
+      if (travelVisualHexPosition !== null) {
+        const wc = VisionSystem.hexToWorld(travelVisualHexPosition.x, travelVisualHexPosition.y);
+        visualAvatarPosition = { x: wc.x, y: 0, z: wc.z };
+      }
+
       gameEngineRef.current.updateCivilizations(novaImperiums);
       gameEngineRef.current.setSelectedHex(selectedHex);
-      gameEngineRef.current.updateAvatar(avatarPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision, pendingMovement);
+      gameEngineRef.current.updateAvatar(visualAvatarPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision, pendingMovement);
       gameEngineRef.current.render();
       
       // Plus de centrage automatique - caméra libre
     }
-  }, [novaImperiums, selectedHex, avatarPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision, pendingMovement]);
+  }, [novaImperiums, selectedHex, avatarPosition, travelVisualHexPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision, pendingMovement]);
 
   // Phase 5 — polling présence multijoueur
   // Dépendance unique : isAuthenticated — l'intervalle n'est pas recréé à chaque rendu
@@ -225,7 +233,10 @@ export function GameCanvas() {
         if (elapsedMs < cumulative) break;
         currentHex = path[i];
       }
-      moveAvatarToHex(currentHex.worldX - originWorldX, currentHex.worldY - originWorldY);
+
+      // Mise à jour visuelle uniquement — sans moveAvatarToHex (pas de updateVision, ensureSegment, saveDB)
+      setTravelVisualHexPosition({ x: currentHex.worldX - originWorldX, y: currentHex.worldY - originWorldY });
+      console.log(`[GameCanvas] Tick visuel → hex=(${currentHex.worldX - originWorldX},${currentHex.worldY - originWorldY})`);
 
       // Sync finale quand le timer est écoulé
       // fetchCurrentAction() déclenche la complétion lazy côté serveur AVANT fetchPlayerPosition
@@ -235,16 +246,20 @@ export function GameCanvas() {
           .then(() => fetchPlayerPosition())
           .then(serverPos => {
             const { originWorldX: ox, originWorldY: oy } = useMap.getState();
+            clearTravelVisualHexPosition();
             moveAvatarToHex(serverPos.worldX - ox, serverPos.worldY - oy);
-            console.log(`[GameCanvas] Sync finale position (${serverPos.worldX},${serverPos.worldY})`);
+            console.log(`[GameCanvas] Sync finale position (${serverPos.worldX},${serverPos.worldY}) — moveAvatarToHex appelé une seule fois`);
           }).catch(() => {});
       }
     };
 
     tick();
     const interval = setInterval(tick, 500);
-    return () => clearInterval(interval);
-  }, [activeAction, moveAvatarToHex]);
+    return () => {
+      clearInterval(interval);
+      clearTravelVisualHexPosition();
+    };
+  }, [activeAction, moveAvatarToHex, setTravelVisualHexPosition, clearTravelVisualHexPosition]);
 
   // IMPROVED: Memoized terrain check using centralized helper
   const isTerrainWalkable = useCallback((terrain: string): boolean => {
