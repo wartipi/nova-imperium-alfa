@@ -1,0 +1,163 @@
+NOVA IMPERIUM — AUDIT + PLAN STRICT
+CIBLE : RATTACHEMENT DES TERRITOIRES CLAIM AUX VILLES + OVERLAY VISUEL
+Branche cible : NI-10.3
+
+RÔLE
+Tu n’implémentes rien tout de suite.
+Tu fais d’abord un audit strict, puis une proposition de plus petit passage propre.
+Aucune dérive.
+Aucun refactor massif.
+
+OBJECTIF PRODUIT
+Je veux mettre en place une logique où :
+
+1. une ville ne peut être fondée que sur une case déjà claim par le même owner
+2. chaque territoire claim est rattaché à une ville gestionnaire
+3. la production de la case est attribuée à cette ville
+4. la carte montre visuellement les territoires claim
+5. les infos de tuile montrent :
+   - owner
+   - statut claim
+   - ville gestionnaire
+   - rendement de la case
+
+DÉCISION DE DESIGN À PRIVILÉGIER
+La piste prioritaire à auditer est :
+
+- ajout d’un champ persistant de type `managedByCityId` / `managingColonyId`
+- recalcul déterministe automatique par owner
+- attribution d’une case claim à la ville du même owner la plus proche
+- tie-break déterministe
+- pas de gestion manuelle dans cette première passe
+
+IMPORTANT
+Je veux quand même que tu compares brièvement :
+- attribution automatique par proximité
+- attribution par rayon de ville
+- attribution manuelle
+- hybride
+
+Mais la recommandation attendue doit rester :
+- automatique déterministe en V1
+- manuel éventuel plus tard
+
+INTERDIT
+- aucune implémentation
+- aucun patch direct
+- aucun refactor
+- aucun changement de schéma immédiat
+- aucune migration
+- aucune modification UI
+- aucune supposition sans lecture réelle du code
+
+PRÉ-REQUIS OBLIGATOIRES
+Avant toute analyse, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PÉRIMÈTRE DE LECTURE
+Tu dois lire au minimum :
+- shared/schema.ts
+- server/territoryService.ts
+- server/cityService.ts
+- server/routes/territories.ts
+- server/routes/cities.ts
+- client/src/components/game/UnifiedTerritoryPanel.tsx
+- client/src/components/game/TileInfoPanel.tsx
+- client/src/components/game/GameCanvas.tsx
+- tout fichier strictement nécessaire pour comprendre :
+  - claim
+  - fondation de ville
+  - économie/production
+  - rendu de tuile
+
+AUDIT DEMANDÉ
+
+1. ÉTAT ACTUEL RÉEL
+Je veux que tu expliques précisément :
+- comment un territoire claim est stocké
+- comment une ville est fondée aujourd’hui
+- si la fondation exige déjà un claim valide
+- où la production des villes est calculée
+- si une case claim est déjà rattachée à une ville ou non
+- où les infos de tuile sont construites
+- où un overlay de claim pourrait être injecté proprement
+
+2. OPTIONS D’IMPLÉMENTATION
+Compare brièvement :
+- A. attribution auto par proximité
+- B. attribution par rayon de ville
+- C. attribution manuelle
+- D. hybride
+
+Pour chaque option :
+- avantages
+- inconvénients
+- complexité
+- stabilité
+- compatibilité avec l’architecture actuelle
+
+3. RECOMMANDATION FERME
+Je veux une recommandation claire.
+Je veux que tu prennes position sur :
+- le meilleur modèle pour V1
+- pourquoi
+- pourquoi c’est le plus petit passage propre
+
+4. PLAN DE DONNÉES RECOMMANDÉ
+Sans coder, je veux savoir :
+- quel champ ajouter
+- sur quelle entité
+- ce qu’il représente exactement
+- quand il est recalculé
+- comment éviter les incohérences
+
+5. RÈGLES MÉTIER RECOMMANDÉES
+Je veux que tu proposes précisément :
+- règle de fondation de ville
+- règle d’attribution automatique des cases
+- règle de production d’une case non assignée
+- règle d’affichage des claims
+- règle d’affichage de la ville gestionnaire
+
+6. PLUS PETIT ORDRE DE MIGRATION
+Sans coder :
+- étape 1
+- étape 2
+- étape 3
+- etc.
+
+7. FICHIERS PROBABLEMENT CONCERNÉS
+Liste précise
+
+8. RISQUES STRUCTURELS
+Seulement les vrais :
+- recalcul massif
+- réassignation imprévue
+- overlays trop lourds
+- incohérence owner / city
+- tile info désynchronisé
+- etc.
+
+FORMAT DE SORTIE OBLIGATOIRE
+Je veux exactement :
+
+1. AUDIT DE L’ÉTAT ACTUEL
+2. OPTIONS D’IMPLÉMENTATION
+3. RECOMMANDATION FERME
+4. PLAN DE DONNÉES RECOMMANDÉ
+5. RÈGLES MÉTIER RECOMMANDÉES
+6. PLUS PETIT ORDRE DE MIGRATION
+7. FICHIERS PROBABLEMENT CONCERNÉS
+8. RISQUES STRUCTURELS
+9. STOP VALIDATION
+
+CONTRAINTE FINALE
+Tu audites d’abord.
+Tu proposes le plus petit passage propre.
+Tu n’implémentes rien avant validation.
