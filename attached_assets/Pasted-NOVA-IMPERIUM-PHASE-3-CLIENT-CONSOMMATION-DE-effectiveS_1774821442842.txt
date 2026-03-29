@@ -1,0 +1,251 @@
+NOVA IMPERIUM — PHASE 3 CLIENT — CONSOMMATION DE effectiveStep SERVEUR
+Branche cible : NI-10.3
+
+RÔLE
+Tu implémentes uniquement la PHASE 3 CLIENT.
+Tu ne touches pas au serveur.
+Tu ne fais aucun refactor massif.
+Tu ne dérives pas.
+
+CONTEXTE VALIDÉ
+La Phase 1 serveur est en place :
+- GET /api/player/actions/current retourne déjà :
+  - effectiveStep
+  - effectiveWorldX
+  - effectiveWorldY
+  - effectiveTerrain
+  - lastAppliedStep
+
+La Phase 2 client a seulement aligné la règle du premier segment (Règle A) dans GameCanvas.tsx.
+
+PROBLÈME ACTUEL
+Le déplacement reste encore insuffisamment authoritative côté client :
+
+1. GameCanvas.tsx recalcule encore le trajet principalement depuis :
+- startTime
+- expectedEndTime
+- path
+- elapsedMs local
+
+2. Pendant le trajet, seul travelVisualHexPosition bouge visuellement.
+
+3. moveAvatarToHex(...) n’est appelé qu’à la sync finale.
+
+Conséquence :
+- la découverte de carte / vision ne suit pas correctement le déplacement
+- la position canonique locale ne progresse pas réellement case par case
+- le trajet reste encore trop “simulé” côté client
+
+OBJECTIF DE CETTE PHASE
+Faire en sorte que le client consomme réellement le step serveur confirmé.
+
+But exact :
+- le serveur confirme la case courante via effectiveStep / effectiveWorldX / effectiveWorldY
+- le client doit utiliser cette case comme position canonique locale
+- la carte doit se découvrir au rythme du déplacement
+- l’avatar doit progresser case par case de façon cohérente
+- travelVisualHexPosition doit rester un outil d’interpolation locale courte, pas la vérité principale
+
+INTERDIT
+- aucun changement serveur
+- aucun changement de schéma
+- aucun changement à shared/schema.ts
+- aucun changement à server/playerActionService.ts
+- aucun changement à server/routes/playerActions.ts
+- ne pas toucher au pathfinder
+- ne pas modifier la règle métier Règle A
+- ne pas corriger des bugs annexes hors périmètre
+- ne pas toucher à ActiveActionWidget dans cette passe
+- ne pas changer le timer serveur
+- ne pas introduire de nouveau gros système
+
+PRÉ-REQUIS OBLIGATOIRES AVANT TOUTE MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+Je veux :
+- objectif précis
+- fichiers touchés
+- raison de chaque fichier
+- ordre d’exécution
+- risques
+- vérifications prévues
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement :
+
+- client/src/App.tsx
+- client/src/components/game/GameCanvas.tsx
+- client/src/lib/api/playerActionsApi.ts
+
+Tu ne touches à aucun autre fichier.
+Si tu juges qu’un autre fichier est absolument nécessaire, tu t’arrêtes et tu le signales.
+Tu ne le modifies pas sans validation.
+
+IMPLÉMENTATION ATTENDUE
+
+LOT 1 — TYPAGE CLIENT
+Fichier :
+- client/src/lib/api/playerActionsApi.ts
+
+Vérifier / compléter le type ActiveAction pour inclure correctement :
+- lastAppliedStep
+- effectiveStep
+- effectiveWorldX
+- effectiveWorldY
+- effectiveTerrain
+
+Aucune autre dérive.
+
+LOT 2 — HYDRATATION AU MONTAGE
+Fichier :
+- client/src/App.tsx
+
+But :
+quand une action move est déjà en cours au chargement/reload, le client ne doit plus repartir du départ brut.
+
+Comportement attendu :
+- fetchCurrentAction()
+- si action move in_progress :
+  - utiliser effectiveWorldX / effectiveWorldY
+  - appeler moveAvatarToHex(...) sur cette position
+  - pas la position de départ brute
+
+IMPORTANT
+- on lit la vérité serveur
+- on ne recalcul pas localement le step ici
+
+LOT 3 — GAMECANVAS : STEP SERVEUR COMME ANCRE
+Fichier :
+- client/src/components/game/GameCanvas.tsx
+
+But :
+le client ne doit plus rejouer tout le trajet comme vérité principale.
+
+Comportement attendu :
+1. Pendant une action move active, GameCanvas doit régulièrement appeler GET /current
+   - fréquence raisonnable : 1000 ms à 2000 ms
+   - pas 500 ms
+   - le but est de récupérer le effectiveStep confirmé par le serveur
+
+2. Si effectiveStep serveur a avancé :
+   - appeler moveAvatarToHex(...) sur effectiveWorldX / effectiveWorldY
+   - cela met à jour la position canonique locale
+   - donc la vision / découverte de carte / segment loading suivent enfin le trajet
+
+IMPORTANT
+moveAvatarToHex(...) est déjà protégé contre la réécriture DB pendant une action active.
+Il est donc acceptable ici pour mettre à jour la position canonique locale sans contaminer la DB.
+
+3. travelVisualHexPosition reste utilisé uniquement pour une interpolation visuelle courte
+   - entre la case canonique actuelle confirmée par le serveur
+   - et la prochaine case du path
+
+4. Le client ne doit plus recalculer l’intégralité du trajet comme seule vérité.
+   - il peut interpoler localement
+   - mais l’ancre réelle doit être le step serveur confirmé
+
+LOT 4 — HYDRATATION DANS GAMECANVAS
+Fichier :
+- client/src/components/game/GameCanvas.tsx
+
+Au moment où une action active est reprise :
+- si effectiveStep > 0
+- initialiser travelVisualHexPosition de façon cohérente à partir de la case serveur confirmée
+- éviter les flashs depuis path[0] si le joueur est déjà plus loin
+
+LOT 5 — SYNCHRONISATION FINALE
+Fichier :
+- client/src/components/game/GameCanvas.tsx
+
+Conserver la sync finale existante autant que possible, mais vérifier :
+- qu’elle reste cohérente avec le nouveau modèle
+- qu’elle n’écrase pas la progression déjà appliquée
+- qu’elle termine proprement à la destination finale
+
+IMPORTANT
+Ne pas ouvrir de refactor global.
+Tu ajustes seulement ce qu’il faut pour que :
+- le step serveur pilote la position canonique
+- l’interpolation locale reste un habillage
+
+ORDRE D’EXÉCUTION OBLIGATOIRE
+1. typage client
+2. App.tsx hydratation depuis effectiveWorldX/Y
+3. GameCanvas polling / récupération step serveur
+4. moveAvatarToHex à chaque step serveur confirmé
+5. travelVisualHexPosition comme interpolation courte
+6. vérifications
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- client/src/lib/api/playerActionsApi.ts
+- git diff -- client/src/App.tsx
+- git diff -- client/src/components/game/GameCanvas.tsx
+
+3. VÉRIFICATIONS CLIENT
+A. Démarrage trajet
+- confirmer que l’avatar ne se téléporte pas à la fin
+- confirmer que la progression démarre depuis la bonne case
+
+B. Progression par step
+- confirmer qu’à chaque effectiveStep confirmé par le serveur :
+  - moveAvatarToHex est appelé
+  - la position canonique locale avance
+  - la carte / vision suivent la progression
+
+C. Reload en plein trajet
+- confirmer qu’au reload :
+  - l’avatar repart de effectiveWorldX / effectiveWorldY
+  - pas du départ brut
+  - pas de flash majeur depuis path[0]
+
+D. Découverte de carte
+- confirmer que la carte se découvre en même temps que le déplacement
+- confirmer que la vision suit la case courante confirmée
+
+E. Fin de trajet
+- confirmer que la position finale reste correcte
+- confirmer que la sync finale reste propre
+
+4. CONTRÔLE DE PÉRIMÈTRE
+Je veux une preuve explicite que :
+- aucun fichier serveur n’a été touché
+- aucun autre fichier client hors périmètre n’a été modifié
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+- classés
+- sans correction bonus hors périmètre
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+2. PREUVES
+3. VÉRIFICATIONS CLIENT
+4. CONTRÔLE DE PÉRIMÈTRE
+5. RISQUES RÉSIDUELS
+6. STOP
+
+CONTRAINTE FINALE
+Tu implémentes strictement cette Phase 3 client :
+- consommer effectiveStep serveur
+- mettre à jour la position canonique locale à chaque step confirmé
+- garder travelVisualHexPosition comme interpolation seulement
+- aucune dérive

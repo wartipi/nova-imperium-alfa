@@ -19,6 +19,11 @@ export interface ActiveAction {
   completedAt: string | null;
   msRemaining: number;
   path: PathStep[];
+  lastAppliedStep: number | null;
+  effectiveStep: number;
+  effectiveWorldX: number;
+  effectiveWorldY: number;
+  effectiveTerrain: string;
 }
 
 export interface MoveActionResponse {

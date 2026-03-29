@@ -81,12 +81,15 @@ function GameApp() {
 
         if (currentAction) {
           if (currentAction.status === "in_progress") {
-            // Action toujours en cours — le joueur est au point de départ
+            // Action toujours en cours — position effective = case serveur confirmée (Phase 1 serveur)
+            // On utilise effectiveWorldX/Y (vérité calculée par le serveur) et non startWorldX/Y
             usePlayerActions.getState().setActiveAction(currentAction);
+            effectiveWorldX = currentAction.effectiveWorldX;
+            effectiveWorldY = currentAction.effectiveWorldY;
             console.log(
               `[Startup] Action active reprise: id=${currentAction.id}` +
-              ` → (${currentAction.endWorldX},${currentAction.endWorldY})` +
-              ` msRestant=${Math.round(currentAction.msRemaining / 60000)}min`
+              ` position effective=(${effectiveWorldX},${effectiveWorldY}) step=${currentAction.effectiveStep}` +
+              ` → (${currentAction.endWorldX},${currentAction.endWorldY})`
             );
           } else if (currentAction.status === "completed") {
             // Action expirée pendant l'absence — position finale = destination de l'action
