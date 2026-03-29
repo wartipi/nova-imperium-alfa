@@ -210,92 +210,65 @@ export function GameCanvas() {
     }).catch(() => {});
   }, [isAuthenticated]);
 
-  // Mouvement case-par-case — step serveur comme ancre canonique, tick visuel comme habillage
+  // Phase 4 — Déplacement serveur-authoritative : le step confirmé est l'unique moteur.
+  // Option A : travelVisualHexPosition non utilisé — avatarPosition / moveAvatarToHex pilotent tout.
+  // Aucun calcul local depuis elapsedMs ne peut décider d'un changement de case.
   useEffect(() => {
     if (!activeAction || activeAction.type !== "move" || activeAction.status !== "in_progress") return;
-    const path = activeAction.path;
-    if (!path || path.length < 2) return;
+    if (!activeAction.path || activeAction.path.length < 2) return;
 
-    const startMs   = new Date(activeAction.startTime).getTime();
-    const totalMs   = new Date(activeAction.expectedEndTime).getTime() - startMs;
-    let finalSynced = false;
-
-    // Dernier step confirmé par le serveur — initialisé depuis effectiveStep de l'action hydratée.
-    // Permet de ne pas régresser si l'action est reprise en plein trajet (reload, montage tardif).
+    let finalSynced  = false;
     let lastServerStep = activeAction.effectiveStep ?? 0;
 
-    // LOT 4 — Hydratation travelVisualHexPosition depuis la case serveur confirmée.
-    // Évite un flash depuis path[0] si le joueur est déjà sur un step > 0 au montage.
-    {
-      const { originWorldX, originWorldY } = useMap.getState();
-      const initStep = Math.min(lastServerStep, path.length - 1);
-      const initHex  = path[initStep];
-      setTravelVisualHexPosition({ x: initHex.worldX - originWorldX, y: initHex.worldY - originWorldY });
-    }
+    // Option A : travelVisualHexPosition = null → rendu utilise avatarPosition directement.
+    // moveAvatarToHex a déjà été appelé dans App.tsx avec effectiveWorldX/Y au chargement.
+    clearTravelVisualHexPosition();
 
-    // LOT 3 — Tick visuel local (500ms) — Règle A, interpolation locale.
-    // Rôle : habillage visuel entre les confirmations serveur. N'appelle pas moveAvatarToHex.
-    const tick = () => {
-      const elapsedMs = Date.now() - startMs;
-      const { originWorldX, originWorldY } = useMap.getState();
-
-      // Règle A — départ temporisé : réplique exacte de resolveMoveStep serveur.
-      // À t=0 : effectiveStep=0 → path[0]. Progression case par case au rythme du coût.
-      let effectiveStep = 0;
-      let cumulative    = 0;
-      for (let i = 1; i < path.length; i++) {
-        const stepMs = path[i].cost * 5000;
-        if (elapsedMs < cumulative + stepMs) break;
-        cumulative   += stepMs;
-        effectiveStep = i;
-      }
-      const currentHex = path[effectiveStep];
-
-      setTravelVisualHexPosition({ x: currentHex.worldX - originWorldX, y: currentHex.worldY - originWorldY });
-      console.log(`[GameCanvas] Tick visuel → hex=(${currentHex.worldX - originWorldX},${currentHex.worldY - originWorldY})`);
-
-      // LOT 5 — Sync finale : déclenche la complétion lazy serveur puis ancre sur la position DB finale.
-      if (elapsedMs >= totalMs && !finalSynced) {
-        finalSynced = true;
-        fetchCurrentAction()
-          .then(() => fetchPlayerPosition())
-          .then(serverPos => {
-            const { originWorldX: ox, originWorldY: oy } = useMap.getState();
-            clearTravelVisualHexPosition();
-            moveAvatarToHex(serverPos.worldX - ox, serverPos.worldY - oy);
-            console.log(`[GameCanvas] Sync finale (${serverPos.worldX},${serverPos.worldY}) — moveAvatarToHex`);
-          }).catch(() => {});
-      }
-    };
-
-    tick();
-    const tickInterval = setInterval(tick, 500);
-
-    // LOT 3 — Polling serveur (1500ms) — step confirmé → moveAvatarToHex (vision + carte).
-    // moveAvatarToHex est protégé contre l'écriture DB pendant une action active.
-    // Seul ce bloc met à jour la position canonique locale ; le tick visuel ci-dessus reste un habillage.
+    // Seul moteur du passage d'une case à l'autre.
+    // Si effectiveStep serveur augmente → moveAvatarToHex → position canonique + vision + carte.
+    // Si action terminée ou annulée → sync finale via player_positions DB.
     const pollServer = async () => {
       try {
         const { action } = await fetchCurrentAction();
-        if (!action || action.status !== "in_progress") return;
-        const serverStep = action.effectiveStep ?? 0;
-        if (serverStep > lastServerStep) {
-          lastServerStep = serverStep;
-          const { originWorldX, originWorldY } = useMap.getState();
-          moveAvatarToHex(action.effectiveWorldX - originWorldX, action.effectiveWorldY - originWorldY);
-          console.log(`[GameCanvas] Step serveur avancé: step=${serverStep} → world=(${action.effectiveWorldX},${action.effectiveWorldY})`);
+
+        if (!action || action.status === "completed" || action.status === "cancelled") {
+          // Action terminée — sync finale sur position DB authoritative
+          if (!finalSynced) {
+            finalSynced = true;
+            const serverPos = await fetchPlayerPosition();
+            const { originWorldX: ox, originWorldY: oy } = useMap.getState();
+            moveAvatarToHex(serverPos.worldX - ox, serverPos.worldY - oy);
+            console.log(`[GameCanvas] Sync finale → world=(${serverPos.worldX},${serverPos.worldY})`);
+          }
+          return;
         }
-      } catch (_e) { /* non bloquant */ }
+
+        if (action.status === "in_progress") {
+          const serverStep = action.effectiveStep ?? 0;
+          if (serverStep > lastServerStep) {
+            lastServerStep = serverStep;
+            const { originWorldX, originWorldY } = useMap.getState();
+            moveAvatarToHex(action.effectiveWorldX - originWorldX, action.effectiveWorldY - originWorldY);
+            console.log(`[GameCanvas] Step confirmé: step=${serverStep} → world=(${action.effectiveWorldX},${action.effectiveWorldY})`);
+          }
+        }
+      } catch (_e) { /* non bloquant — prochain poll dans 1500ms */ }
     };
 
+    // Timer post-expiration : déclenche un poll 300ms après l'heure de fin attendue.
+    // Garantit que la sync finale ne dépend pas d'un interval de 1500ms.
+    const msToEnd = new Date(activeAction.expectedEndTime).getTime() - Date.now();
+    const endTimer: ReturnType<typeof setTimeout> | null =
+      msToEnd > 0 ? setTimeout(pollServer, msToEnd + 300) : null;
+
+    pollServer(); // Poll immédiat : applique effectiveStep courant si reprise en plein trajet
     const pollInterval = setInterval(pollServer, 1500);
 
     return () => {
-      clearInterval(tickInterval);
       clearInterval(pollInterval);
-      clearTravelVisualHexPosition();
+      if (endTimer !== null) clearTimeout(endTimer);
     };
-  }, [activeAction, moveAvatarToHex, setTravelVisualHexPosition, clearTravelVisualHexPosition]);
+  }, [activeAction, moveAvatarToHex, clearTravelVisualHexPosition]);
 
   // IMPROVED: Memoized terrain check using centralized helper
   const isTerrainWalkable = useCallback((terrain: string): boolean => {

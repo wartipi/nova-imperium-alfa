@@ -1,0 +1,223 @@
+NOVA IMPERIUM — PHASE 4 CLIENT — STEP SERVEUR = SEUL MOTEUR DU CHANGEMENT DE CASE
+Branche cible : NI-10.3
+
+RÔLE
+Tu implémentes uniquement la PHASE 4 CLIENT.
+Tu ne touches pas au serveur.
+Tu ne fais aucun refactor massif.
+Tu ne dérives pas.
+
+CONTEXTE VALIDÉ
+La Phase 3 a introduit :
+- les champs serveur effectiveStep / effectiveWorldX / effectiveWorldY côté client
+- l’hydratation depuis effectiveWorldX/Y dans App.tsx
+- un polling serveur dans GameCanvas.tsx
+- des appels à moveAvatarToHex(...) à chaque step confirmé serveur
+
+PROBLÈME ACTUEL
+Le problème n’est plus dans le serveur.
+
+Le problème restant est dans GameCanvas.tsx :
+- le tick local calcule encore un currentHex depuis elapsedMs
+- il met encore travelVisualHexPosition à jour de façon autonome
+- le rendu donne priorité à travelVisualHexPosition si elle existe
+- donc l’avatar visible reste encore piloté par le tick local
+- alors que moveAvatarToHex(...) pilote la position canonique locale et la vision
+
+Conséquence :
+- visuel et position canonique ne sont pas parfaitement synchronisés
+- l’avatar peut paraître avancer “instantanément” ou de façon incohérente
+- la découverte de carte ne suit pas exactement le visuel
+
+OBJECTIF DE CETTE PHASE
+Faire du step serveur confirmé l’unique moteur du passage d’une case à la suivante.
+
+Règle finale voulue :
+- le joueur reste sur la case courante
+- il n’entre sur la case suivante que quand le serveur confirme le step suivant
+- la map / vision / avatar visible doivent rester synchronisés
+- aucune case future ne doit être affichée avant confirmation serveur
+
+IMPORTANT
+Dans cette phase, on privilégie la cohérence serveur-authoritative.
+Je ne veux pas d’animation “jolie”.
+Je veux un comportement correct, déterministe, stable.
+
+INTERDIT
+- aucun changement serveur
+- aucun changement de schéma
+- aucun changement à shared/schema.ts
+- aucun changement à server/playerActionService.ts
+- aucun changement à server/routes/playerActions.ts
+- ne pas toucher App.tsx
+- ne pas toucher playerActionsApi.ts
+- ne pas toucher usePlayer.tsx
+- ne pas toucher ActiveActionWidget
+- ne pas toucher au timer serveur
+- ne pas changer la Règle A
+- ne pas ajouter de nouveau composant
+- ne pas ouvrir de refactor global
+
+PRÉ-REQUIS OBLIGATOIRES AVANT TOUTE MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+Je veux :
+- objectif précis
+- fichier touché
+- raison
+- ordre d’exécution
+- risques
+- vérifications prévues
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement :
+
+- client/src/components/game/GameCanvas.tsx
+
+Aucun autre fichier.
+
+Si tu juges qu’un autre fichier est absolument nécessaire, tu t’arrêtes et tu le signales.
+Tu ne le modifies pas sans validation.
+
+IMPLÉMENTATION ATTENDUE
+
+LOT UNIQUE — SUPPRIMER LE TICK LOCAL COMME MOTEUR DE CHANGEMENT DE CASE
+
+Fichier :
+- client/src/components/game/GameCanvas.tsx
+
+PROBLÈME EXACT À CORRIGER
+Aujourd’hui, le useEffect de déplacement fait encore 2 choses :
+1. un tick local 500ms qui calcule currentHex depuis elapsedMs et path
+2. un polling serveur 1500ms qui appelle moveAvatarToHex(...) quand effectiveStep avance
+
+Je veux maintenant que :
+- le tick local ne décide plus jamais d’un changement de case
+- la transition d’une case à la suivante dépende uniquement du serveur
+
+RÈGLE À APPLIQUER
+Pendant une action move active :
+- la case actuellement affichée doit être la case canonique locale confirmée
+- cette case doit être mise à jour uniquement quand le serveur confirme un nouveau effectiveStep
+- tant que le serveur ne confirme pas, le joueur reste sur la case actuelle
+
+Cela implique :
+- ne plus recalculer currentHex depuis elapsedMs pour choisir une nouvelle case
+- ne plus afficher une case future par travelVisualHexPosition avant confirmation serveur
+
+COMPORTEMENT CIBLE
+1. Au montage / reprise :
+- si activeAction.move in_progress :
+  - initialiser l’affichage sur activeAction.effectiveWorldX / effectiveWorldY
+  - pas sur une case calculée localement plus loin
+
+2. Pendant le trajet :
+- polling serveur régulier (fréquence conservable ou ajustée si justifiée)
+- si effectiveStep serveur augmente :
+  - appeler moveAvatarToHex(...) avec effectiveWorldX / effectiveWorldY
+  - mettre à jour l’affichage pour refléter cette même case
+- si effectiveStep n’augmente pas :
+  - l’avatar reste sur la case actuelle
+  - aucun passage local à la case suivante
+
+3. travelVisualHexPosition
+Tu as 2 options acceptables :
+OPTION A — la plus simple et recommandée :
+- ne plus utiliser travelVisualHexPosition pendant le déplacement case par case
+- laisser avatarPosition / moveAvatarToHex piloter directement le rendu
+
+OPTION B — acceptable si vraiment nécessaire :
+- conserver travelVisualHexPosition
+- mais seulement pour refléter la même case que le serveur a confirmée
+- jamais une case future
+- jamais une progression autonome depuis elapsedMs
+
+Je privilégie OPTION A si possible.
+Le but est d’éliminer la double source de vérité.
+
+4. Fin de trajet
+- conserver la sync finale propre
+- pas de double avance
+- pas d’écrasement incohérent
+
+IMPORTANT
+Le comportement voulu est volontairement simple :
+- le joueur attend sur une case
+- puis “saute” à la suivante quand le serveur confirme le step suivant
+C’est cette logique qui doit être canoniquement respectée.
+
+Ne cherche pas à faire plus “fluide” dans cette phase.
+
+ORDRE D’EXÉCUTION OBLIGATOIRE
+1. identifier le bloc du tick local qui calcule currentHex depuis elapsedMs
+2. retirer son rôle de moteur de changement de case
+3. conserver seulement le mécanisme basé sur effectiveStep confirmé serveur
+4. simplifier le rendu pour qu’il ne soit plus dominé par un état visuel autonome
+5. vérifier la sync finale
+6. vérifier qu’aucun autre fichier n’a été touché
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- client/src/components/game/GameCanvas.tsx
+
+3. VÉRIFICATIONS CLIENT
+A. Début de trajet
+- confirmer que l’avatar reste sur path[0] tant que le serveur ne confirme pas le step 1
+
+B. Transition de case
+- confirmer que le passage à la case suivante se fait uniquement quand effectiveStep serveur augmente
+- prouver cela avec logs horodatés si nécessaire
+
+C. Vision / découverte
+- confirmer que la carte se découvre en même temps que l’avatar change réellement de case
+- plus de décalage visible entre position et découverte
+
+D. Plus de double moteur
+- confirmer qu’il n’existe plus de logique locale autonome qui choisit une future case depuis elapsedMs
+- le step serveur doit être l’unique déclencheur du changement de case
+
+E. Fin de trajet
+- confirmer que la destination finale reste correcte
+- confirmer qu’il n’y a pas de double jump en fin d’action
+
+4. CONTRÔLE DE PÉRIMÈTRE
+Je veux une preuve explicite que :
+- aucun fichier serveur n’a été touché
+- aucun autre fichier client n’a été touché
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+- classés
+- sans correction bonus hors périmètre
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+2. PREUVES
+3. VÉRIFICATIONS CLIENT
+4. CONTRÔLE DE PÉRIMÈTRE
+5. RISQUES RÉSIDUELS
+6. STOP
+
+CONTRAINTE FINALE
+Tu implémentes strictement cette Phase 4 :
+- le step serveur confirmé est le seul moteur du passage d’une case à l’autre
+- aucune case future n’est affichée avant confirmation serveur
+- aucune dérive
