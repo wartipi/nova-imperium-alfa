@@ -3,6 +3,7 @@ import { CharacterOption } from "../../components/game/CharacterSelector";
 import { VisionSystem, type HexCoordinate } from '../systems/VisionSystem';
 import { getLearnCost, getUpgradeCost } from '../competence/CompetenceCosts';
 import { useMap } from './useMap';
+import { usePlayerActions } from './usePlayerActions';
 import { savePlayerPosition } from '../api/playerApi';
 import { savePlayerState } from '../api/playerStateApi';
 
@@ -330,14 +331,19 @@ export const usePlayer = create<PlayerState>((set, get) => {
 
     // Sauvegarde principale — coordonnées monde reconstituées
     // Protégée : ignorée pendant un chargement de bloc (origine instable)
+    // Protégée également si une action de déplacement est en cours — la DB sera mise à jour par completeAction
     const { isLoadingFromDB, originWorldX, originWorldY } = useMap.getState();
     if (!isLoadingFromDB) {
       const worldX = hexX + originWorldX;
       const worldY = hexY + originWorldY;
-      savePlayerPosition(worldX, worldY).catch((err) => {
-        console.warn(`[PlayerSave] Erreur sauvegarde déplacement: ${err}`);
-      });
-      console.log(`[PlayerSave] Déplacement → world=(${worldX},${worldY})`);
+      if (usePlayerActions.getState().isActionActive()) {
+        console.log(`[PlayerSave] Action active — position locale seulement (${worldX},${worldY}), save différé au serveur`);
+      } else {
+        savePlayerPosition(worldX, worldY).catch((err) => {
+          console.warn(`[PlayerSave] Erreur sauvegarde déplacement: ${err}`);
+        });
+        console.log(`[PlayerSave] Déplacement → world=(${worldX},${worldY})`);
+      }
     } else {
       console.log(`[PlayerSave] Chargement en cours — sauvegarde différée au changement de segment`);
     }

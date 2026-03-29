@@ -1,0 +1,123 @@
+NOVA IMPERIUM — CORRECTION CIBLÉE MINIMALE
+CIBLE : DÉSYNCHRONISATION VISUELLE DU DÉPLACEMENT
+Branche cible : NI-10.3
+
+CONTEXTE VALIDÉ
+L’audit a identifié la cause racine :
+
+- GameCanvas.tsx déplace maintenant l’avatar local case par case pendant un move actif
+- ce déplacement visuel passe par moveAvatarToHex(...)
+- mais moveAvatarToHex(...) dans usePlayer.tsx appelle encore savePlayerPosition(...)
+- donc la DB player_positions est réécrite pendant toute l’action avec des positions intermédiaires
+- au reload / remount / hydratation, la position lue depuis la DB peut déjà être celle de destination
+- résultat visible : le joueur “snap” immédiatement, puis le timer continue
+
+DÉCISION VALIDÉE
+Le correctif minimal à faire maintenant est UNIQUEMENT :
+- empêcher savePlayerPosition(...) pendant qu’une action de déplacement est active
+
+IMPORTANT
+On ne touche pas encore à App.tsx.
+On ne touche pas encore à ActiveActionWidget.
+On ne fait pas de refactor large.
+On traite d’abord la cause principale.
+
+INTERDICTIONS ABSOLUES
+- aucun changement backend
+- aucun refactor massif
+- ne pas toucher GameCanvas.tsx sauf nécessité absolue
+- ne pas toucher App.tsx dans cette passe
+- ne pas changer le timer
+- ne pas changer le pathfinding
+- aucune dérive hors usePlayer.tsx
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+- objectif précis
+- fichier touché
+- raison
+- ordre d’exécution
+- risques
+- vérifications prévues
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE ATTENDU
+Tu dois toucher uniquement :
+- client/src/lib/stores/usePlayer.tsx
+
+CORRECTION ATTENDUE
+Dans moveAvatarToHex(...) :
+
+Logique actuelle :
+- met à jour avatarPosition / avatarHexPosition
+- updateVision()
+- ensurePlayerSegmentLoaded(...)
+- puis savePlayerPosition(worldX, worldY)
+
+Nouvelle règle :
+- conserver la mise à jour visuelle locale
+- conserver updateVision()
+- conserver ensurePlayerSegmentLoaded(...)
+- MAIS ne faire savePlayerPosition(worldX, worldY) que si aucune action n’est active
+
+Méthode attendue :
+- utiliser usePlayerActions.getState().isActionActive()
+- si true :
+  - ne pas sauvegarder en DB
+  - log explicite optionnel : position locale seulement, save différé au serveur
+- si false :
+  - conserver savePlayerPosition(...) comme aujourd’hui
+
+IMPORTANT
+Le but est :
+- animation locale pendant le move
+- DB mise à jour uniquement par la complétion serveur de l’action
+- plus de contamination de player_positions pendant le trajet
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- client/src/lib/stores/usePlayer.tsx
+
+3. VÉRIFICATIONS RÉELLES
+A. Lancer un déplacement temporisé
+- confirmer que le timer s’affiche toujours
+- confirmer que l’avatar progresse toujours case par case
+
+B. Pendant le déplacement
+- confirmer que player_positions n’est plus réécrit à chaque tick visuel
+- fournir une preuve réelle si possible (log DB / log réseau / trace ciblée)
+
+C. Fin du déplacement
+- confirmer que la position finale est bien sauvegardée par le pipeline serveur normal
+- confirmer que l’avatar finit sur la bonne case
+
+D. Reload pendant déplacement
+- lancer un move
+- recharger la page en milieu de trajet
+- confirmer que l’avatar ne snap plus immédiatement à destination
+- confirmer que le timer restant reste cohérent
+
+4. RISQUES RÉSIDUELS
+- uniquement les vrais
+- sans correction bonus hors périmètre
+
+CONTRAINTE FINALE
+Tu fais uniquement ce correctif minimal dans usePlayer.tsx :
+- bloquer savePlayerPosition pendant une action active
+- rien d’autre
