@@ -1,0 +1,127 @@
+NOVA IMPERIUM — AUDIT / DÉCISION DE DESIGN
+CIBLE : RÈGLE MÉTIER DU PREMIER SEGMENT DE DÉPLACEMENT
+Branche cible : NI-10.3
+
+RÔLE
+Tu ne codes rien.
+Tu ne modifies rien.
+Tu fais uniquement un audit ciblé de cohérence métier / architecture sur la règle du premier segment.
+
+CONTEXTE VALIDÉ
+La Phase 1 serveur du déplacement progressif est en place :
+- lastAppliedStep existe
+- resolveMoveStep existe
+- resolveEffectivePlayerPosition existe
+- getActiveAction enrichit l’action avec effectiveStep / effectiveWorldX / effectiveWorldY
+- cancelActiveAction annule à la case effectivement atteinte
+
+PROBLÈME À TRANCHER
+Avant la Phase 2 client, il faut verrouiller une règle métier centrale :
+
+Pendant le premier segment d’un trajet, le joueur est-il considéré :
+A. encore sur la case de départ jusqu’à ce que la première tranche de temps soit écoulée
+ou
+B. déjà sur la première case traversée dès t = 0
+
+IMPORTANT
+Je ne veux pas d’implémentation.
+Je veux un audit ciblé + une recommandation ferme.
+Tu dois me dire quelle règle est la plus cohérente pour Nova Imperium.
+
+INTERDIT
+- aucun patch
+- aucune modification de code
+- aucun refactor
+- aucun changement de schéma
+- aucune migration
+- aucune adaptation client
+- aucune dérive hors de cette question précise
+
+PRÉ-REQUIS OBLIGATOIRES
+Avant toute analyse, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PÉRIMÈTRE DE LECTURE
+Tu dois relire au minimum :
+- server/playerActionService.ts
+- server/routes/playerActions.ts
+- client/src/components/game/GameCanvas.tsx
+- tout autre fichier strictement nécessaire pour confirmer la logique du premier segment
+
+AUDIT DEMANDÉ
+
+1. ÉTAT ACTUEL RÉEL
+Je veux que tu confirmes noir sur blanc :
+- quelle est la règle actuellement implémentée
+- à quel moment resolveMoveStep passe de step 0 à step 1
+- ce que cela signifie métier :
+  - où le serveur considère le joueur au début du trajet
+  - où le client devrait logiquement l’afficher si on veut rester cohérent
+
+2. ANALYSE DES DEUX RÈGLES
+Tu compares explicitement :
+
+RÈGLE A — Départ temporisé
+- le joueur reste sur la case de départ pendant le premier segment
+- puis passe à la case suivante après la première tranche de temps
+
+RÈGLE B — Première case immédiate
+- le joueur est considéré sur la première case traversée dès t = 0
+- le temps est passé uniquement sur les cases du trajet, pas sur l’origine
+
+Pour chacune :
+- cohérence métier
+- cohérence serveur-authoritative
+- cohérence avec présence physique sur une case
+- cohérence avec interruption / annulation
+- cohérence avec affichage futur du chemin
+- simplicité mentale pour le joueur
+- effets de bord probables
+
+3. IMPACT ARCHITECTURAL
+Je veux que tu me dises très précisément :
+- ce que changerait la règle A
+- ce que changerait la règle B
+- au niveau de :
+  - resolveMoveStep
+  - lastAppliedStep
+  - cancelActiveAction
+  - resolveEffectivePlayerPosition
+  - GameCanvas / interpolation future
+  - affichage du chemin parcouru / restant
+
+4. RECOMMANDATION FERME
+Tu dois choisir A ou B.
+Tu ne restes pas neutre.
+
+Je veux que tu me dises :
+- quelle règle tu retiens
+- pourquoi c’est la plus cohérente pour Nova Imperium
+- pourquoi l’autre règle est moins bonne
+- si cette décision doit être considérée comme canonique pour toutes les futures actions de déplacement
+
+5. SI LA RÈGLE CHANGE
+Sans coder, je veux uniquement :
+- la liste précise des fonctions/fichiers qui devraient être ajustés ensuite
+- sans implémentation
+
+FORMAT DE SORTIE OBLIGATOIRE
+Je veux exactement :
+
+1. ÉTAT ACTUEL RÉEL
+2. COMPARAISON A / B
+3. IMPACT ARCHITECTURAL
+4. RECOMMANDATION FERME
+5. FICHIERS QUI SERAIENT CONCERNÉS SI ON CHANGE LA RÈGLE
+6. STOP VALIDATION
+
+CONTRAINTE FINALE
+Tu ne codes rien.
+Tu aides à verrouiller une règle métier canonique avant la Phase 2 client.
+Zéro dérive.
