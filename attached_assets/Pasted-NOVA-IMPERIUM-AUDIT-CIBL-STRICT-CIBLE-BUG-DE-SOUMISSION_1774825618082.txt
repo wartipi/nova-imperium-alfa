@@ -1,0 +1,144 @@
+NOVA IMPERIUM — AUDIT CIBLÉ STRICT
+CIBLE : BUG DE SOUMISSION DE DÉPLACEMENT DEPUIS / AUTOUR D’UNE VILLE
+Branche cible : NI-10.3
+
+RÔLE
+Tu n’implémentes rien.
+Tu ne patches rien.
+Tu fais uniquement un audit ciblé, avec preuves, sur le pipeline de soumission de déplacement.
+
+CONTEXTE
+Le système de déplacement a été recadré récemment :
+- Phase 1 serveur : effectiveStep / lastAppliedStep / resolveEffectivePlayerPosition
+- Phase 2 : alignement Règle A
+- Phase 3 : consommation de effectiveStep côté client
+- Phase 4 : suppression du double moteur local
+
+Un nouveau bug apparaît pendant les tests :
+
+SYMPTÔME OBSERVÉ
+Quand le joueur est sur une ville, ou juste à proximité d’une ville, et qu’il lance une action de déplacement vers une case, l’action semble se déclencher / ou la sélection semble correcte visuellement, mais le personnage reste au même endroit, puis un popup serveur apparaît :
+
+« La destination est identique à la position actuelle »
+
+IMPORTANT
+Je ne veux aucune supposition.
+Je veux un audit du pipeline réel.
+
+OBJECTIF DE L’AUDIT
+Déterminer précisément où se produit la contradiction entre :
+- la case affichée / sélectionnée côté client
+- la destination réellement envoyée à `/api/player/actions/move`
+- la position réelle lue côté serveur via `getPlayerPosition(playerId)`
+
+INTERDIT
+- aucune implémentation
+- aucun patch
+- aucun refactor
+- aucune modification serveur
+- aucune modification client
+- aucune migration
+- ne pas “corriger directement”
+- ne pas conclure sans preuves
+
+PRÉ-REQUIS OBLIGATOIRES AVANT L’AUDIT
+Avant toute analyse, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PÉRIMÈTRE DE LECTURE
+Tu dois lire au minimum :
+- client/src/components/game/GameCanvas.tsx
+- client/src/components/game/MovementConfirmationModal.tsx
+- client/src/lib/api/playerActionsApi.ts
+- client/src/lib/stores/usePlayer.tsx
+- client/src/lib/stores/usePlayerActions.ts
+- server/routes/playerActions.ts
+- server/playerActionService.ts
+- server/playerPositionService.ts
+- tout fichier strictement nécessaire pour confirmer le pipeline exact
+
+AUDIT DEMANDÉ
+
+1. PIPELINE CLIENT RÉEL
+Je veux que tu traces précisément :
+- comment une case est sélectionnée
+- comment `pendingMovement` est rempli
+- comment la modale de confirmation lit cette case
+- comment `handleMovementConfirm` calcule :
+  - `destinationWorldX`
+  - `destinationWorldY`
+- comment `requestMove(...)` envoie réellement la requête
+
+Je veux le pipeline exact :
+clic → selectedHex / pendingMovement → conversion locale/monde → body POST
+
+2. PIPELINE SERVEUR RÉEL
+Je veux que tu expliques précisément :
+- ce que lit `/api/player/actions/move`
+- comment `getPlayerPosition(playerId)` est utilisé comme source de vérité
+- à quel moment le serveur renvoie :
+  - « La destination est identique à la position actuelle »
+- quelles valeurs exactes sont comparées
+
+3. CONTRADICTION À EXPLIQUER
+Je veux que tu identifies, avec hypothèses vérifiées par lecture de code, laquelle de ces causes est la plus probable :
+
+A. la case affichée au joueur n’est pas la case réellement envoyée
+B. `pendingMovement` garde une vieille valeur
+C. la conversion locale → monde est fausse dans ce contexte
+D. la position serveur du joueur est déjà sur cette case alors que le visuel client ne suit pas
+E. le clic sur une ville / label / overlay retourne le mauvais hex
+F. l’action en cours / le store d’action perturbe la nouvelle soumission
+
+IMPORTANT
+Je veux que tu prennes position sur la cause la plus probable, mais seulement après avoir vérifié le code.
+
+4. POINTS DE VÉRIFICATION OBLIGATOIRES
+Je veux que tu vérifies explicitement :
+
+- si `handleMovementConfirm` peut être appelé alors qu’une action est encore active
+- si le widget “déplacement en cours” et `isActionActive()` peuvent diverger
+- si `selectedHex` et `pendingMovement` peuvent diverger
+- si une ville / son label / son overlay peut affecter `getHexAtPosition(...)`
+- si le joueur peut visuellement sembler sur une case alors que `player_positions` serveur est déjà ailleurs
+- si `moveAvatarToHex(...)` et la position affichée peuvent être en retard sur la position serveur réelle
+
+5. PREUVES DEMANDÉES
+Je veux des preuves de lecture, pas des suppositions.
+Tu dois citer :
+- les fonctions exactes
+- les blocs exacts
+- les lignes si possible
+- et montrer où naît la contradiction
+
+6. RECOMMANDATION
+Je veux à la fin :
+- la cause la plus probable
+- le plus petit point à corriger ensuite
+- sans coder
+- sans prompt d’implémentation
+- juste la cible précise
+
+FORMAT DE SORTIE OBLIGATOIRE
+Je veux exactement :
+
+1. AUDIT DU PIPELINE CLIENT
+2. AUDIT DU PIPELINE SERVEUR
+3. CONTRADICTION IDENTIFIÉE
+4. CAUSE LA PLUS PROBABLE
+5. PLUS PETIT POINT À CORRIGER ENSUITE
+6. STOP VALIDATION
+
+CONTRAINTE FINALE
+Tu ne corriges rien.
+Tu identifies précisément la contradiction entre :
+- case affichée
+- case envoyée
+- position serveur réelle
+Zéro dérive.

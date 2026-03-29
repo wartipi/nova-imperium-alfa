@@ -1,0 +1,112 @@
+Pré-requis obligatoires
+1. BRANCHE : NI-10.3
+2. ÉTAT GIT : git diff --stat HEAD → vide (Phase 3 committée).
+
+3. PLAN D'EXÉCUTION
+Champ	Détail
+Objectif	Supprimer le tick local (500ms) comme moteur de changement de case. Conserver uniquement le polling serveur (1500ms) + moveAvatarToHex. Activer Option A : travelVisualHexPosition non utilisé, avatarPosition pilote le rendu directement
+Fichier touché	client/src/components/game/GameCanvas.tsx uniquement
+Raison	Le tick local recalcule currentHex depuis elapsedMs et écrase travelVisualHexPosition toutes les 500ms, ce qui garde le rendu piloté localement. L'Option A supprime cette double source de vérité : travelVisualHexPosition = null → le rendu utilise avatarPosition (mis à jour uniquement par moveAvatarToHex sur confirmation serveur)
+Ordre	(1) Effacer le bloc tick local (500ms) — boucle Règle A + setTravelVisualHexPosition + clearInterval(tickInterval) ; (2) clearTravelVisualHexPosition() au montage pour garantir travelVisualHexPosition = null ; (3) Sync finale déplacée dans pollServer + setTimeout post-expiration ; (4) Nettoyer les deps
+Risques	Sync finale : si l'action expire entre deux polls (0–1500ms), le joueur attend jusqu'au prochain poll. Atténué par un setTimeout(pollServer, msToEnd + 300) qui fire 300ms après l'expiration attendue
+Vérifications	Test HTTP chronométré : avatar ne bouge pas entre deux polls, bouge exactement au step confirmé par le serveur
+Implémentation :
+
+Edit correct. Je vérifie le diff et redémarre.
+
+Un seul fichier modifié. Je lance les vérifications.
+
+Tous les tests passent. Rapport final.
+
+RAPPORT FINAL — PHASE 4 CLIENT
+1. FICHIERS MODIFIÉS
+client/src/components/game/GameCanvas.tsx
+Aucun autre fichier.
+
+2. PREUVES
+git diff --stat HEAD
+
+client/src/components/game/GameCanvas.tsx | 109 +++++++++++-------------------
+1 file changed, 41 insertions(+), 68 deletions(-)
+git diff --name-only HEAD
+
+client/src/components/game/GameCanvas.tsx
+Diff fonctionnel :
+
+-  // LOT 3 — Tick visuel local (500ms) — Règle A, interpolation locale.
+-  const tick = () => {
+-    const elapsedMs = Date.now() - startMs;
+-    let effectiveStep = 0, cumulative = 0;
+-    for (let i = 1; i < path.length; i++) {
+-      const stepMs = path[i].cost * 5000;
+-      if (elapsedMs < cumulative + stepMs) break;
+-      cumulative += stepMs; effectiveStep = i;
+-    }
+-    const currentHex = path[effectiveStep];
+-    setTravelVisualHexPosition({ x: currentHex.worldX - originWorldX, ... });
+-    if (elapsedMs >= totalMs && !finalSynced) { /* sync finale */ }
+-  };
+-  tick();
+-  const tickInterval = setInterval(tick, 500);
++  // Option A : travelVisualHexPosition = null → rendu utilise avatarPosition directement.
++  clearTravelVisualHexPosition();
++  // Timer post-expiration : poll 300ms après heure de fin attendue.
++  const msToEnd = new Date(activeAction.expectedEndTime).getTime() - Date.now();
++  const endTimer = msToEnd > 0 ? setTimeout(pollServer, msToEnd + 300) : null;
+-  }, [activeAction, moveAvatarToHex, setTravelVisualHexPosition, clearTravelVisualHexPosition]);
++  }, [activeAction, moveAvatarToHex, clearTravelVisualHexPosition]);
+3. VÉRIFICATIONS CLIENT
+A. Début de trajet — avatar reste sur path[0]
+t=331ms  → serverStep=0 world=(32,18)
+t=937ms  → serverStep=0 world=(32,18)
+t=1844ms → serverStep=0 world=(32,18)
+Avatar resté sur path[0] pendant les 3 premiers polls: OUI ✓
+Aucun mouvement avant confirmation serveur. moveAvatarToHex non déclenché.
+
+B. Transition — uniquement sur step serveur confirmé
+t=2450ms → step=0 (pas encore)
+t=3056ms → step=0 (pas encore)
+t=3661ms → step=0 (pas encore)
+t=4266ms → step=0 (pas encore)
+t=4874ms → step=0 (pas encore)
+→ Step 1 confirmé à t=5491ms world=(33,18)
+Attendu à t>=5000ms — cohérence: OUI ✓
+La transition vers (33,18) s'est produite exactement quand le serveur a confirmé effectiveStep=1, soit à t=5491ms (coût×5000 = 5000ms). Aucun saut prématuré.
+
+C. Vision / découverte
+player_positions DB: (33,18)
+DB == effectiveWorldX/Y du dernier step confirmé: OUI ✓
+player_positions en DB = effectiveWorldX/Y retourné par le serveur = même valeur passée à moveAvatarToHex. Vision et carte se découvrent au même instant que le changement de case visible.
+
+D. Plus de double moteur
+Tick local à t=1800ms aurait calculé effectiveStep=0 — tick local supprimé ✓
+Poll serveur t=1800ms retournait step=0 → aucun moveAvatarToHex déclenché ✓
+Il n'existe plus aucune logique locale qui calcule currentHex depuis elapsedMs. La boucle Règle A a été intégralement supprimée du client. setTravelVisualHexPosition n'est plus appelé pendant le voyage. travelVisualHexPosition reste null → le rendu utilise avatarPosition directement.
+
+E. Fin de trajet / annulation
+player_positions après annulation: (33,18)
+Cohérence avec dernier step confirmé: OUI ✓
+Sync finale intacte. Position de sortie = dernier step confirmé par le serveur. Aucun double jump. Pour une complétion naturelle (non annulée) : le endTimer fire 300ms après expectedEndTime, déclenche pollServer, détecte action === null ou status === completed, appelle fetchPlayerPosition() → moveAvatarToHex.
+
+4. CONTRÔLE DE PÉRIMÈTRE
+git diff --name-only HEAD
+client/src/components/game/GameCanvas.tsx
+Fichiers serveur inchangés : server/playerActionService.ts, server/routes/playerActions.ts, shared/schema.ts — aucune modification.
+
+Autres fichiers client inchangés : App.tsx, playerActionsApi.ts, usePlayer.tsx, ActiveActionWidget, playerApi.ts — aucune modification.
+
+5. RISQUES RÉSIDUELS
+1. Délai de détection fin de trajet : max 1500ms + 300ms buffer
+Si le endTimer fire à msToEnd + 300 et que ce poll échoue (réseau), la détection de fin attend le prochain setInterval (1500ms). Total max : 300 + 1500 = 1800ms après expectedEndTime. Comportement correct — la sync finale finira par se déclencher. Impact : léger délai visuel en fin d'action.
+
+2. Concurrence endTimer + pollInterval
+Si l'endTimer et le pollInterval déclenchent simultanément pollServer, les deux tentent la sync finale. Protégé par finalSynced = true dans le premier qui aboutit. Idempotent.
+
+3. clearTravelVisualHexPosition sans setTravelVisualHexPosition dans les deps
+setTravelVisualHexPosition a été retiré des dépendances (plus utilisé). clearTravelVisualHexPosition reste. Correct. ESLint exhaustive-deps pourrait signaler un warning sur d'autres états lus dans pollServer (useMap.getState() via closure), mais useMap.getState() est une lecture directe du store Zustand sans abonnement React — pas de re-render, pas d'effet de bord.
+
+4. Race condition résiduelle finalSynced
+Si le composant se démonte juste après finalSynced = true mais avant fetchPlayerPosition().then(...), la promesse continue en tâche de fond et appelle moveAvatarToHex sur un composant démonté. Impact : nul sur la DB (déjà correcte), potentiel warning React stale store. Pré-existant depuis Phase 3, non résolu par périmètre.
+
+6. STOP
+Phase 4 complète. 1 fichier modifié (GameCanvas.tsx). Tick local supprimé. travelVisualHexPosition non utilisé pendant le voyage. moveAvatarToHex sur confirmation serveur = unique moteur du changement de case.
