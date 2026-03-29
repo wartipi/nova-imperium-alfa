@@ -1,0 +1,242 @@
+NOVA IMPERIUM — BLOC 1 — AUDIT D’ARCHITECTURE DU DÉPLACEMENT PROGRESSIF
+Branche cible : NI-10.3
+
+CONTEXTE
+Je ne veux pas d’implémentation immédiate.
+Je veux un audit d’architecture strict, précis, factuel, sans code.
+
+Le problème n’est plus seulement visuel.
+Je veux vérifier si le modèle actuel de déplacement est structurellement cohérent avec le futur du jeu.
+
+CONSTATS DÉJÀ VALIDÉS
+Aujourd’hui, le déplacement semble encore modélisé comme :
+- une seule action serveur `move`
+- un `path` complet calculé au départ
+- un `expectedEndTime`
+- puis une mise à jour réelle de position seulement à la fin de l’action
+
+Le client, lui, essaie de rejouer visuellement le trajet case par case avec un tick local et une position visuelle temporaire.
+
+Donc le serveur traite encore le déplacement comme une commande monolithique,
+et le client simule le déplacement progressif.
+
+C’est potentiellement incohérent avec le futur du jeu, car une action de déplacement pourrait plus tard :
+- être interrompue par un autre joueur
+- être stoppée par un événement
+- devoir être recalculée
+- devoir s’arrêter entre deux cases
+- devoir exposer clairement la case courante réellement occupée
+
+OBJECTIF DE L’AUDIT
+Je veux que tu détermines si le modèle actuel doit rester :
+- “une action unique + simulation visuelle client”
+ou si on doit passer à un vrai :
+- déplacement progressif serveur, case par case
+
+IMPORTANT
+Je veux un audit technique et architectural.
+Je ne veux pas que tu codes.
+Je ne veux pas de patch.
+Je veux que tu lises, que tu identifies les blocages structurels, puis que tu recommandes le plus petit modèle propre pour le futur.
+
+INTERDIT
+- aucune implémentation
+- aucun patch
+- aucun refactor
+- aucun changement de schéma
+- aucune migration
+- aucune modification UI
+- aucune supposition sans vérification
+- ne pas proposer immédiatement un “quick fix”
+
+PRÉ-REQUIS OBLIGATOIRES AVANT L’AUDIT
+Avant toute analyse, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PÉRIMÈTRE D’AUDIT
+Tu dois lire au minimum :
+- server/playerActionService.ts
+- server/routes/playerActions.ts
+- server/pathfinding/HexPathfindingServer.ts
+- shared/schema.ts
+- client/src/components/game/GameCanvas.tsx
+- client/src/lib/stores/usePlayer.tsx
+- client/src/components/game/ActiveActionWidget.tsx
+- client/src/App.tsx
+- tout fichier additionnel strictement nécessaire pour confirmer le pipeline
+
+AUDIT DEMANDÉ
+
+1. MODÈLE ACTUEL RÉEL — SERVEUR
+Je veux que tu expliques précisément :
+- comment une action `move` est créée
+- ce qui est stocké dans la DB
+- quand la position du joueur change réellement côté serveur
+- si le serveur connaît une “case courante” pendant le trajet ou seulement départ/fin
+- si le serveur exécute réellement le trajet case par case ou non
+
+Je veux une réponse factuelle avec :
+- fichier
+- fonction
+- bloc logique
+- impact exact
+
+2. MODÈLE ACTUEL RÉEL — CLIENT
+Je veux que tu expliques précisément :
+- comment le client affiche actuellement le déplacement
+- quelle est la différence entre position canonique et position visuelle
+- quel composant/store pilote l’avatar pendant un move
+- si le client est en train de “rejouer” un trajet déjà décidé par le serveur
+- où apparaissent les désynchronisations possibles
+
+Je veux distinguer clairement :
+- état serveur réel
+- état client simulé
+
+3. PATHFINDER — CE QU’IL CHERCHE VRAIMENT
+Je veux que tu confirmes précisément si le pathfinder serveur cherche :
+- le chemin de coût total minimal en PA
+ou
+- le moins de cases
+ou
+- autre chose
+
+Je veux aussi que tu me dises si ce comportement est cohérent avec un futur système de déplacement progressif.
+
+4. COMPATIBILITÉ AVEC LE FUTUR DU JEU
+Je veux que tu analyses explicitement si le modèle actuel est compatible avec ces besoins futurs :
+
+- interruption par un autre joueur
+- interruption par un événement
+- arrêt du trajet à une case intermédiaire
+- recalcul du chemin restant
+- occupation réelle d’une case donnée à un instant t
+- affichage visuel du chemin emprunté
+- possibilité d’exposer “la prochaine case” ou “la case courante”
+- résolution de conflits sur une route
+
+Pour chaque point :
+- compatible
+- partiellement compatible
+- incompatible
+- et pourquoi
+
+5. OPTIONS D’ARCHITECTURE
+Je veux que tu évalues au minimum ces 3 options :
+
+OPTION A — garder le modèle actuel
+- une action move unique
+- position réelle seulement à la fin
+- client simule le trajet
+
+OPTION B — une seule action move progressive
+- path complet stocké
+- progression serveur par étapes
+- position réelle mise à jour à chaque case
+- action toujours unique, mais avec step courant
+
+OPTION C — une action par case
+- le trajet complet est découpé en sous-actions unitaires
+
+Pour chaque option :
+- avantages
+- inconvénients
+- complexité
+- robustesse
+- compatibilité avec interruptions futures
+- impact probable sur schéma / routes / client
+
+6. RECOMMANDATION ARCHITECTURALE
+Je veux que tu choisisses une option recommandée.
+Tu dois prendre position clairement.
+
+Je veux que tu expliques :
+- pourquoi c’est le meilleur choix pour Nova Imperium
+- pourquoi c’est le plus cohérent avec une architecture serveur-authoritative
+- pourquoi c’est le plus petit passage propre possible
+- pourquoi les autres options sont moins bonnes
+
+IMPORTANT
+Ne reste pas neutre.
+Je veux une recommandation ferme.
+
+7. PLUS PETIT ORDRE DE MIGRATION
+Sans coder, je veux l’ordre exact de migration recommandé.
+
+Exemple de niveau de détail attendu :
+- étape 1 : recadrage serveur
+- étape 2 : adaptation schéma si nécessaire
+- étape 3 : adaptation lecture action courante
+- étape 4 : adaptation client
+- étape 5 : rendu visuel du chemin
+- étape 6 : interruptions futures
+
+Je veux du concret, mais toujours sans code.
+
+8. FICHIERS PROBABLEMENT CONCERNÉS
+Je veux une liste précise des fichiers qui seraient probablement touchés si on valide ensuite la refonte.
+
+9. CONTRADICTIONS / RISQUES STRUCTURELS
+Je veux une courte liste des vrais risques structurels à surveiller si on passe à un déplacement progressif.
+
+Exemples possibles :
+- race conditions
+- pollings contradictoires
+- état canonique vs visuel
+- explosion du nombre d’écritures DB
+- complexité de reprise après reload
+- coût de recalcul de chemin
+- collision avec système de segment/map loading
+
+Je veux uniquement les vrais risques, classés du plus important au moins important.
+
+FORMAT DE SORTIE OBLIGATOIRE
+Je veux exactement ce format :
+
+1. AUDIT DU MODÈLE ACTUEL
+- serveur
+- client
+- pathfinder
+- contradiction principale
+
+2. COMPATIBILITÉ FUTURE
+- point par point
+- compatible / partiellement compatible / incompatible
+
+3. OPTIONS D’ARCHITECTURE
+- A
+- B
+- C
+
+4. RECOMMANDATION
+- option retenue
+- justification
+
+5. PLUS PETIT ORDRE DE MIGRATION
+- étape 1
+- étape 2
+- étape 3
+- etc.
+
+6. FICHIERS PROBABLEMENT CONCERNÉS
+
+7. RISQUES STRUCTURELS
+
+8. STOP VALIDATION
+Tu t’arrêtes ici.
+Tu n’implémentes rien avant mon accord.
+
+CONTRAINTE FINALE
+Je veux un audit d’architecture, pas un patch technique.
+Je veux que tu raisonnes comme système de contrôle :
+- lecture du réel
+- identification des incohérences
+- recommandation ferme
+- plus petit passage propre
+- zéro dérive
