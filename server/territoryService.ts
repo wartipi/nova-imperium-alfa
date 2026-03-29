@@ -524,7 +524,7 @@ export async function foundColony(
 
   // 8. Transaction atomique : colonie + ville liée
   // Invariant : pas de colonie sans ville, pas de ville sans colonie.
-  return await db.transaction(async (tx) => {
+  const insertedColonyDto = await db.transaction(async (tx) => {
     const [insertedColony] = await tx
       .insert(colonies)
       .values({
@@ -552,20 +552,12 @@ export async function foundColony(
       });
 
     console.log(`[foundColony] Transaction OK: colonie #${insertedColony.id} (${ownerType}) + ville créées (${worldX},${worldY})`);
-    return { colony: mapColony(insertedColony), _ownerType: ownerType, _ownerPlayerId: ownerPlayerId, _ownerFactionId: ownerFactionId };
+    return mapColony(insertedColony);
   });
 
   // Hook post-fondation V1 : recalcul managingColonyId pour tous les territoires du même owner.
-  // Une nouvelle ville peut devenir la plus proche pour certains territoires existants.
-  if ('colony' in result) {
-    const r = result as { colony: ColonyDTO; _ownerType: string; _ownerPlayerId: string | null; _ownerFactionId: number | null };
-    await recalculateManagingColoniesForOwner(
-      r._ownerType as 'player' | 'faction',
-      r._ownerPlayerId,
-      r._ownerFactionId,
-    );
-    return { colony: r.colony };
-  }
+  // Une nouvelle ville peut devenir gestionnaire de territoires existants si elle est plus proche.
+  await recalculateManagingColoniesForOwner(ownerType, ownerPlayerId, ownerFactionId);
 
-  return result;
+  return { colony: insertedColonyDto };
 }

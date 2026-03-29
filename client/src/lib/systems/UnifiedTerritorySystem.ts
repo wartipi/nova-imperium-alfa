@@ -147,7 +147,10 @@ class UnifiedTerritorySystemClass {
 
   getColonyControlledTerritories(colonyId: string): Territory[] {
     return Array.from(this.territories.values()).filter(
-      t => t.colonyId === colonyId || t.controlledByColony === colonyId
+      t =>
+        t.colonyId === colonyId ||
+        t.controlledByColony === colonyId ||
+        (t.managingColonyId != null && String(t.managingColonyId) === colonyId)
     );
   }
 

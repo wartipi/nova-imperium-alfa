@@ -1,0 +1,166 @@
+NOVA IMPERIUM — CORRECTION CIBLÉE STRICTE
+CIBLE : FINALISER LA V1 managingColonyId
+Branche cible : NI-10.3
+
+RÔLE
+Tu appliques uniquement un correctif ciblé.
+Tu ne refactors pas.
+Tu ne touches pas à l’économie.
+Tu ne dérives pas.
+
+CONTEXTE
+La V1 managingColonyId a été partiellement implémentée :
+- managingColonyId existe dans territories
+- TerritoryDTO expose managingColonyId / managingColonyName
+- TileInfoPanel les affiche
+- overlay léger claim est présent
+
+Mais 2 problèmes visibles restent :
+
+1. dans foundColony(), le recalcul post-fondation semble placé après un return et donc inatteignable
+2. UnifiedTerritorySystem.getColonyControlledTerritories() n’utilise pas managingColonyId, donc les territoires gérés par une ville ne remontent pas correctement côté client
+
+OBJECTIF
+Corriger uniquement ces 2 points pour rendre la V1 cohérente.
+
+INTERDIT
+- aucun changement de production des cases
+- aucun changement de cityService
+- aucun changement de buildingEffects
+- aucun changement de règles de fondation
+- aucun changement de routes hors nécessité stricte
+- aucun refactor massif
+- aucune dérive visuelle
+- ne pas toucher GameEngine.ts
+- ne pas toucher TileInfoPanel.tsx
+- ne pas toucher shared/schema.ts sauf si absolument nécessaire (ce qui ne devrait pas être le cas)
+
+PRÉ-REQUIS OBLIGATOIRES AVANT TOUTE MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+Je veux :
+- objectif précis
+- fichiers touchés
+- raison
+- ordre d’exécution
+- risques
+- vérifications prévues
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement :
+
+- server/territoryService.ts
+- client/src/lib/systems/UnifiedTerritorySystem.ts
+
+Aucun autre fichier.
+Si tu juges qu’un autre fichier est absolument nécessaire, tu t’arrêtes et tu le signales.
+Tu ne le modifies pas sans validation.
+
+IMPLÉMENTATION ATTENDUE
+
+LOT 1 — HOOK POST-FONDATION RÉELLEMENT EXÉCUTÉ
+Fichier :
+- server/territoryService.ts
+
+Problème :
+Le recalcul post-fondation semble placé après un return, donc inatteignable.
+
+Correction attendue :
+- restructurer foundColony() proprement
+- conserver la transaction atomique colonie + ville
+- puis exécuter réellement le recalcul managingColonyId pour l’owner concerné
+- puis retourner la ColonyDTO finale
+
+IMPORTANT
+- ne pas modifier la règle de fondation
+- ne pas modifier la transaction métier de base
+- juste rendre le hook post-fondation réellement vivant
+
+LOT 2 — LECTURE CLIENT DES TERRITOIRES GÉRÉS
+Fichier :
+- client/src/lib/systems/UnifiedTerritorySystem.ts
+
+Problème :
+getColonyControlledTerritories() continue à s’appuyer sur colonyId / controlledByColony et ignore managingColonyId.
+
+Correction attendue :
+- inclure managingColonyId dans la logique de getColonyControlledTerritories(colonyId)
+- de sorte qu’une case gérée par une ville remonte bien dans la liste de cette ville
+- sans casser l’existant pour la case de fondation elle-même
+
+IMPORTANT
+- ne pas renommer les champs existants
+- ne pas refactorer tout le système territoire
+- seulement aligner la lecture sur le nouveau lien canonique
+
+ORDRE D’EXÉCUTION OBLIGATOIRE
+1. corriger foundColony()
+2. corriger getColonyControlledTerritories()
+3. vérifier qu’aucun autre fichier n’a bougé
+4. tester
+5. rapport final
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- server/territoryService.ts
+- git diff -- client/src/lib/systems/UnifiedTerritorySystem.ts
+
+3. VÉRIFICATIONS SERVEUR
+A. Fondation
+- confirmer que la fondation fonctionne toujours
+- confirmer que la règle “claim obligatoire” n’est pas cassée
+
+B. Post-fondation
+- confirmer que le recalcul post-fondation s’exécute réellement
+- prouver qu’un territoire existant peut changer de managingColonyId si la nouvelle ville est plus proche
+
+4. VÉRIFICATIONS CLIENT
+A. getColonyControlledTerritories()
+- confirmer qu’une case avec managingColonyId remonte bien dans la ville correspondante
+
+B. vue territoire / ville
+- confirmer que la ville voit bien ses territoires gérés après hydratation
+
+5. CONTRÔLE DE PÉRIMÈTRE
+Je veux une preuve explicite que :
+- aucun autre fichier n’a été modifié
+- aucune logique de production n’a été touchée
+- aucun fichier visuel autre que UnifiedTerritorySystem n’a été touché
+
+6. RISQUES RÉSIDUELS
+- uniquement les vrais
+- classés
+- sans correction bonus hors périmètre
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+2. PREUVES
+3. VÉRIFICATIONS SERVEUR
+4. VÉRIFICATIONS CLIENT
+5. CONTRÔLE DE PÉRIMÈTRE
+6. RISQUES RÉSIDUELS
+7. STOP
+
+CONTRAINTE FINALE
+Tu corriges uniquement :
+- le hook post-fondation inatteignable
+- la lecture client qui ignore managingColonyId
+Aucune dérive.
