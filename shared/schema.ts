@@ -390,6 +390,7 @@ export const playerActions = pgTable("player_actions", {
   startTime: timestamp("start_time").notNull(),
   expectedEndTime: timestamp("expected_end_time").notNull(),
   completedAt: timestamp("completed_at"),
+  lastAppliedStep: integer("last_applied_step"),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 

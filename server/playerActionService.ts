@@ -1,4 +1,4 @@
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, or, lt, isNull } from "drizzle-orm";
 import { db } from "./db";
 import {
   playerActions,
@@ -9,7 +9,7 @@ import {
   playerTransport,
 } from "../shared/schema";
 import type { PlayerAction, PathStep } from "../shared/schema";
-import { savePlayerPosition } from "./playerPositionService";
+import { savePlayerPosition, getPlayerPosition } from "./playerPositionService";
 import type { ActorContext } from "./types/actorContext";
 
 const HOURS_PER_AP = 5 / 3600; // 5 secondes par PA (phase test)
@@ -17,6 +17,140 @@ const MS_PER_HOUR = 3600 * 1000;
 
 // Capacité max de transport de ressources (or + nourriture cumulés)
 export const TRANSPORT_MAX_UNITS = 50;
+
+// ─── Types enrichis retournés par le service ──────────────────────────────────
+
+export interface ResolvedAction extends PlayerAction {
+  effectiveStep: number;
+  effectiveWorldX: number;
+  effectiveWorldY: number;
+  effectiveTerrain: string;
+}
+
+export interface CancelledAction extends PlayerAction {
+  cancelledAtWorldX: number | null;
+  cancelledAtWorldY: number | null;
+  cancelledAtStep: number | null;
+}
+
+// ─── Résolveur pur — aucun effet de bord, aucune DB ──────────────────────────
+// Calcule le step effectivement atteint à l'instant `now` depuis les données
+// immuables de l'action (path, startTime, expectedEndTime).
+
+export function resolveMoveStep(
+  action: PlayerAction,
+  now: Date
+): {
+  effectiveStep: number;
+  effectiveWorldX: number;
+  effectiveWorldY: number;
+  effectiveTerrain: string;
+  isCompleted: boolean;
+} {
+  const path = action.path as PathStep[];
+
+  if (!path || path.length < 2) {
+    return {
+      effectiveStep: 0,
+      effectiveWorldX: action.startWorldX,
+      effectiveWorldY: action.startWorldY,
+      effectiveTerrain: path?.[0]?.terrain ?? "plains",
+      isCompleted: false,
+    };
+  }
+
+  const totalMs   = action.expectedEndTime.getTime() - action.startTime.getTime();
+  const elapsedMs = now.getTime() - action.startTime.getTime();
+
+  if (elapsedMs >= totalMs) {
+    const last = path[path.length - 1];
+    return {
+      effectiveStep:   path.length - 1,
+      effectiveWorldX: last.worldX,
+      effectiveWorldY: last.worldY,
+      effectiveTerrain: last.terrain,
+      isCompleted: true,
+    };
+  }
+
+  // Parcourir path[1..] en cumulant la durée de chaque step
+  // Durée d'un step i = path[i].cost × HOURS_PER_AP × MS_PER_HOUR
+  let effectiveStep = 0;
+  let cumulative    = 0;
+  for (let i = 1; i < path.length; i++) {
+    const stepMs = path[i].cost * HOURS_PER_AP * MS_PER_HOUR;
+    if (elapsedMs < cumulative + stepMs) break;
+    cumulative   += stepMs;
+    effectiveStep = i;
+  }
+
+  const step = path[effectiveStep];
+  return {
+    effectiveStep,
+    effectiveWorldX:  step.worldX,
+    effectiveWorldY:  step.worldY,
+    effectiveTerrain: step.terrain,
+    isCompleted: false,
+  };
+}
+
+// ─── Point d'entrée central — position effective d'un joueur à un instant t ──
+// Toute règle métier serveur qui a besoin de savoir où est un joueur passe ici.
+// Ne dépend pas de player_positions pendant un transit actif.
+
+export async function resolveEffectivePlayerPosition(
+  playerId: string,
+  now: Date
+): Promise<{
+  worldX: number;
+  worldY: number;
+  isInTransit: boolean;
+  effectiveStep: number | null;
+  actionId: number | null;
+}> {
+  const [action] = await db
+    .select()
+    .from(playerActions)
+    .where(
+      and(
+        eq(playerActions.playerId, playerId),
+        eq(playerActions.status, "in_progress")
+      )
+    )
+    .limit(1);
+
+  // Pas d'action active, ou action non-move → lire player_positions
+  if (!action || action.type !== "move" || (action.path as PathStep[]).length < 2) {
+    const pos = await getPlayerPosition(playerId);
+    return {
+      worldX:        pos?.worldX ?? 0,
+      worldY:        pos?.worldY ?? 0,
+      isInTransit:   false,
+      effectiveStep: null,
+      actionId:      action?.id ?? null,
+    };
+  }
+
+  const resolved = resolveMoveStep(action, now);
+
+  if (resolved.isCompleted) {
+    return {
+      worldX:        action.endWorldX,
+      worldY:        action.endWorldY,
+      isInTransit:   false,
+      effectiveStep: resolved.effectiveStep,
+      actionId:      action.id,
+    };
+  }
+
+  return {
+    worldX:        resolved.effectiveWorldX,
+    worldY:        resolved.effectiveWorldY,
+    isInTransit:   resolved.effectiveStep > 0,
+    effectiveStep: resolved.effectiveStep,
+    actionId:      action.id,
+  };
+}
 
 // ─── Helpers de comportement admin ────────────────────────────────────────────
 function shouldIgnoreActionTimers(context: ActorContext): boolean {
@@ -29,7 +163,7 @@ export function shouldIgnoreActionPointCosts(context: ActorContext): boolean {
 }
 
 // ─── Lecture de l'action active (in_progress) ────────────────────────────────
-export async function getActiveAction(playerId: string): Promise<PlayerAction | null> {
+export async function getActiveAction(playerId: string): Promise<ResolvedAction | null> {
   const [row] = await db
     .select()
     .from(playerActions)
@@ -45,10 +179,61 @@ export async function getActiveAction(playerId: string): Promise<PlayerAction | 
 
   // Complétion lazy : si le délai est écoulé, on finalise maintenant
   if (row.expectedEndTime <= new Date()) {
-    return completeAction(row);
+    const completed = await completeAction(row);
+    const path = row.path as PathStep[];
+    const last  = path[path.length - 1];
+    return {
+      ...completed,
+      effectiveStep:    path.length - 1,
+      effectiveWorldX:  last?.worldX  ?? row.endWorldX,
+      effectiveWorldY:  last?.worldY  ?? row.endWorldY,
+      effectiveTerrain: last?.terrain ?? "plains",
+    };
   }
 
-  return row;
+  // Pour les actions move : résoudre le step effectif et persister si nécessaire
+  const now = new Date();
+  if (row.type === "move" && (row.path as PathStep[]).length >= 2) {
+    const resolved = resolveMoveStep(row, now);
+
+    if (resolved.effectiveStep > (row.lastAppliedStep ?? -1)) {
+      await savePlayerPosition(row.playerId, resolved.effectiveWorldX, resolved.effectiveWorldY);
+      await db
+        .update(playerActions)
+        .set({ lastAppliedStep: resolved.effectiveStep, updatedAt: now })
+        .where(
+          and(
+            eq(playerActions.id, row.id),
+            or(
+              isNull(playerActions.lastAppliedStep),
+              lt(playerActions.lastAppliedStep, resolved.effectiveStep)
+            )
+          )
+        );
+      row.lastAppliedStep = resolved.effectiveStep;
+      console.log(
+        `[PlayerAction] Step ${resolved.effectiveStep} appliqué: player=${row.playerId}` +
+        ` → world=(${resolved.effectiveWorldX},${resolved.effectiveWorldY})`
+      );
+    }
+
+    return {
+      ...row,
+      effectiveStep:    resolved.effectiveStep,
+      effectiveWorldX:  resolved.effectiveWorldX,
+      effectiveWorldY:  resolved.effectiveWorldY,
+      effectiveTerrain: resolved.effectiveTerrain,
+    };
+  }
+
+  // Autres types d'actions : champs effectifs neutres (coords de départ)
+  return {
+    ...row,
+    effectiveStep:    0,
+    effectiveWorldX:  row.startWorldX,
+    effectiveWorldY:  row.startWorldY,
+    effectiveTerrain: "",
+  };
 }
 
 // ─── Création d'une action move ───────────────────────────────────────────────
@@ -278,7 +463,7 @@ async function completeBankToPlayerTransfer(
 }
 
 // ─── Annulation d'une action active ──────────────────────────────────────────
-export async function cancelActiveAction(playerId: string): Promise<PlayerAction | null> {
+export async function cancelActiveAction(playerId: string): Promise<CancelledAction | null> {
   const active = await db
     .select()
     .from(playerActions)
@@ -293,14 +478,38 @@ export async function cancelActiveAction(playerId: string): Promise<PlayerAction
   if (!active[0]) return null;
 
   const now = new Date();
+  const action = active[0];
+
+  // Pour les actions move : sauvegarder la position effective courante avant annulation
+  // Règle : le joueur reste au dernier step entièrement franchi — jamais de position interpolée
+  let cancelledAtWorldX: number | null = null;
+  let cancelledAtWorldY: number | null = null;
+  let cancelledAtStep:   number | null = null;
+
+  if (action.type === "move" && (action.path as PathStep[]).length >= 2) {
+    const resolved = resolveMoveStep(action, now);
+    await savePlayerPosition(action.playerId, resolved.effectiveWorldX, resolved.effectiveWorldY);
+    cancelledAtWorldX = resolved.effectiveWorldX;
+    cancelledAtWorldY = resolved.effectiveWorldY;
+    cancelledAtStep   = resolved.effectiveStep;
+    console.log(
+      `[PlayerAction] Annulation move — position effective: player=${playerId}` +
+      ` step=${resolved.effectiveStep} world=(${resolved.effectiveWorldX},${resolved.effectiveWorldY})`
+    );
+  }
+
   const [cancelled] = await db
     .update(playerActions)
-    .set({ status: "cancelled", updatedAt: now })
-    .where(eq(playerActions.id, active[0].id))
+    .set({
+      status:           "cancelled",
+      lastAppliedStep:  cancelledAtStep ?? action.lastAppliedStep,
+      updatedAt:        now,
+    })
+    .where(eq(playerActions.id, action.id))
     .returning();
 
   console.log(`[PlayerAction] Annulée id=${cancelled.id} player=${playerId}`);
-  return cancelled;
+  return { ...cancelled, cancelledAtWorldX, cancelledAtWorldY, cancelledAtStep };
 }
 
 // ─── createCollectHarvestAction ───────────────────────────────────────────────

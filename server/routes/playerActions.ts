@@ -177,6 +177,11 @@ router.get("/actions/current", requireAuth, async (req: AuthRequest, res) => {
         completedAt: action.completedAt,
         msRemaining: action.status === "in_progress" ? msRemaining(action) : 0,
         path: action.path,
+        lastAppliedStep:  action.lastAppliedStep  ?? null,
+        effectiveStep:    action.effectiveStep,
+        effectiveWorldX:  action.effectiveWorldX,
+        effectiveWorldY:  action.effectiveWorldY,
+        effectiveTerrain: action.effectiveTerrain,
       },
     });
   } catch (err) {
@@ -195,7 +200,16 @@ router.delete("/actions/current", requireAuth, async (req: AuthRequest, res) => 
       return res.status(404).json({ error: "Aucune action active à annuler" });
     }
 
-    return res.json({ ok: true, action: { id: cancelled.id, status: cancelled.status } });
+    return res.json({
+      ok: true,
+      action: {
+        id:               cancelled.id,
+        status:           cancelled.status,
+        cancelledAtWorldX: cancelled.cancelledAtWorldX ?? null,
+        cancelledAtWorldY: cancelled.cancelledAtWorldY ?? null,
+        cancelledAtStep:   cancelled.cancelledAtStep   ?? null,
+      },
+    });
   } catch (err) {
     console.error("[Actions/Cancel] Erreur:", err);
     return res.status(500).json({ error: "Erreur serveur lors de l'annulation" });

@@ -1,0 +1,340 @@
+NOVA IMPERIUM — PHASE 1 — IMPLÉMENTATION SERVEUR UNIQUEMENT
+CIBLE : BASE SERVEUR DU DÉPLACEMENT PROGRESSIF HYBRIDE
+Branche cible : NI-10.3
+
+RÔLE
+Tu implémentes uniquement la PHASE 1 SERVEUR.
+Tu ne touches pas au client.
+Tu ne fais aucun refactor massif.
+Tu ne dérives pas.
+
+CONTEXTE VALIDÉ
+Le modèle actuel de déplacement est trop monolithique :
+- une action `move` unique
+- un `path` complet
+- une position réelle surtout mise à jour à la fin
+- une progression encore trop dépendante du client pour être exploitable proprement
+
+La direction validée est un modèle hybride :
+- une seule action parent `move`
+- le pathfinder reste uniquement calculateur de route
+- la progression devient exploitable par step côté serveur
+- le serveur doit pouvoir répondre à : “où est ce joueur maintenant ?”
+- sans dépendre d’un calcul autonome du client
+
+IMPORTANT
+Dans cette phase, je ne veux PAS encore d’adaptation client.
+Je veux poser uniquement la base serveur propre.
+
+OBJECTIF DE CETTE PHASE
+Implémenter la base serveur suivante :
+
+1. Ajouter un état persisté minimal :
+- `lastAppliedStep`
+
+2. Ajouter un résolveur pur :
+- `resolveMoveStep(action, now)`
+
+3. Ajouter un point d’entrée central serveur :
+- `resolveEffectivePlayerPosition(playerId, now)`
+
+4. Adapter `getActiveAction`
+- pour résoudre le step effectif
+- persister `lastAppliedStep` si nécessaire
+- mettre à jour `player_positions` au step atteint si nécessaire
+- enrichir l’action retournée
+
+5. Adapter `cancelActiveAction`
+- pour annuler à la case effectivement atteinte
+- pas au point de départ
+
+6. Adapter les routes serveur
+- pour exposer les nouveaux champs utiles
+
+IMPORTANT
+Cette phase doit rendre le serveur plus authoritative,
+mais SANS encore modifier :
+- App.tsx
+- GameCanvas.tsx
+- ActiveActionWidget
+- le rendu visuel
+- le tick client
+
+INTERDIT
+- aucun changement client
+- aucun changement UI
+- aucun changement à `client/src/...`
+- ne pas toucher au pathfinder
+- ne pas changer la logique de calcul du chemin
+- ne pas créer une action par case
+- ne pas ajouter de nouveau système complet
+- ne pas corriger des bugs annexes hors périmètre
+- ne pas toucher aux autres types d’actions sauf si nécessaire pour garder les types cohérents
+- ne pas introduire de statut `interrupted`
+- ne pas ajouter `interruptedAtStep`
+- ne pas créer de nouvelle table
+- ne pas toucher à `ActiveActionWidget`
+- ne pas toucher à `App.tsx`
+- ne pas toucher à `GameCanvas.tsx`
+
+PRÉ-REQUIS OBLIGATOIRES AVANT TOUTE MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+Je veux :
+- objectif précis
+- fichiers touchés
+- raison de chaque fichier
+- ordre d’exécution
+- risques
+- vérifications prévues
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement :
+
+- shared/schema.ts
+- server/playerActionService.ts
+- server/routes/playerActions.ts
+
+Aucun autre fichier.
+Si tu juges qu’un autre fichier est absolument nécessaire, tu t’arrêtes et tu le signales.
+Tu ne le modifies pas sans validation.
+
+IMPLÉMENTATION ATTENDUE
+
+LOT 1 — SCHÉMA MINIMAL
+Fichier :
+- shared/schema.ts
+
+Ajout unique autorisé dans `playerActions` :
+- `lastAppliedStep: integer("last_applied_step")`
+
+Contraintes :
+- nullable
+- pas de default explicite
+- pas d’autre colonne
+- pas d’autre modification de schéma
+
+Sémantique :
+- `null` = aucun step intermédiaire encore persisté
+- `0` ou plus = index du dernier step effectivement appliqué à `player_positions`
+- ne peut jamais régresser
+
+Après modification :
+- pousser le schéma proprement
+
+LOT 2 — RÉSOLVEUR PUR
+Fichier :
+- server/playerActionService.ts
+
+Ajouter une fonction pure exportée :
+
+- `resolveMoveStep(action, now)`
+
+Contraintes :
+- aucune lecture DB
+- aucune écriture DB
+- aucun effet de bord
+- purement déterministe depuis `action` + `now`
+
+Retour minimal attendu :
+- `effectiveStep`
+- `effectiveWorldX`
+- `effectiveWorldY`
+- `effectiveTerrain`
+- `isCompleted`
+
+Règles :
+- utiliser `path`
+- utiliser `startTime`
+- utiliser `expectedEndTime`
+- utiliser les coûts des steps
+- `path[0]` = départ
+- si trajet fini = dernier step
+- si path trop court = step 0
+
+LOT 3 — POINT D’ENTRÉE CENTRAL SERVEUR
+Fichier :
+- server/playerActionService.ts
+
+Ajouter une fonction exportée :
+
+- `resolveEffectivePlayerPosition(playerId, now)`
+
+Rôle :
+- si aucune action `move` active :
+  - retourner la position depuis `player_positions`
+- si une action `move` active :
+  - utiliser `resolveMoveStep`
+  - retourner la position effective calculée
+
+IMPORTANT
+Cette fonction est le point d’entrée central métier pour répondre à :
+- “où est ce joueur maintenant ?”
+
+Elle doit exister explicitement dans cette phase.
+Elle ne doit pas être juste implicite dans `getActiveAction`.
+
+LOT 4 — ADAPTATION DE getActiveAction
+Fichier :
+- server/playerActionService.ts
+
+Comportement attendu :
+1. lire l’action active
+2. si expirée :
+   - garder la complétion lazy actuelle
+3. sinon, si `type === "move"` :
+   - appeler `resolveMoveStep(row, now)`
+   - comparer `effectiveStep` à `lastAppliedStep`
+   - si `effectiveStep > (lastAppliedStep ?? -1)` :
+     - `savePlayerPosition(...)` sur la case effective
+     - `UPDATE player_actions SET lastAppliedStep = effectiveStep`
+     - protéger l’UPDATE avec une garde contre régression / concurrence
+4. retourner l’action enrichie avec :
+   - `lastAppliedStep`
+   - `effectiveStep`
+   - `effectiveWorldX`
+   - `effectiveWorldY`
+   - `effectiveTerrain`
+
+IMPORTANT
+- ne pas casser les autres types d’actions
+- ne pas changer `completeAction`
+- ne pas changer la logique admin
+- ne pas toucher au pathfinder
+
+LOT 5 — ADAPTATION DE cancelActiveAction
+Fichier :
+- server/playerActionService.ts
+
+Avant annulation :
+- si action `move` active :
+  - appeler `resolveMoveStep(activeAction, now)`
+  - sauvegarder la position effective courante
+  - écrire `lastAppliedStep` au step courant
+- puis seulement :
+  - `status = cancelled`
+
+Règle métier :
+- si l’annulation tombe entre deux steps, on retient le dernier step entièrement franchi
+- jamais de position interpolée
+
+LOT 6 — ROUTES SERVEUR
+Fichier :
+- server/routes/playerActions.ts
+
+A. GET /api/player/actions/current
+Enrichir la réponse JSON pour exposer :
+
+- `lastAppliedStep`
+- `effectiveStep`
+- `effectiveWorldX`
+- `effectiveWorldY`
+- `effectiveTerrain`
+
+Règles :
+- présents pour les actions `move`
+- ne pas casser l’existant
+- garder réponse propre pour les autres actions
+
+B. DELETE /api/player/actions/current
+Enrichir la réponse avec :
+- `cancelledAtWorldX`
+- `cancelledAtWorldY`
+- `cancelledAtStep`
+
+Le but :
+- permettre plus tard au client de se replacer immédiatement correctement
+- même si cette phase ne touche pas encore le client
+
+ORDRE D’EXÉCUTION OBLIGATOIRE
+1. schéma
+2. résolveur pur `resolveMoveStep`
+3. point d’entrée central `resolveEffectivePlayerPosition`
+4. adaptation `getActiveAction`
+5. adaptation `cancelActiveAction`
+6. adaptation des routes
+7. vérifications
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- shared/schema.ts
+- git diff -- server/playerActionService.ts
+- git diff -- server/routes/playerActions.ts
+
+3. VÉRIFICATIONS SERVEUR
+A. création move
+- POST /move crée toujours correctement l’action
+
+B. lecture immédiate
+- GET /current juste après création
+- renvoie les nouveaux champs
+- `effectiveStep` cohérent
+- `lastAppliedStep` cohérent
+
+C. lecture à mi-trajet
+- GET /current en milieu de trajet
+- position effective correcte
+- `player_positions` mise à jour au step courant
+- `lastAppliedStep` avancé correctement
+
+D. double lecture concurrente
+- pas de régression de `lastAppliedStep`
+- pas d’écriture incohérente
+
+E. annulation
+- DELETE /current en plein trajet
+- position finale = case courante
+- pas retour au départ
+- réponse enrichie correctement
+
+F. complétion
+- fin d’action inchangée
+- destination correcte
+
+G. point d’entrée central
+- prouver que `resolveEffectivePlayerPosition(playerId, now)` retourne la bonne case pour :
+  - joueur statique
+  - joueur en transit
+
+4. CONTRÔLE DE PÉRIMÈTRE
+Je veux une preuve explicite que :
+- aucun fichier client n’a été modifié
+- aucun autre système hors périmètre n’a été touché
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+- classés
+- sans correction bonus hors périmètre
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+2. PREUVES
+3. VÉRIFICATIONS SERVEUR
+4. CONTRÔLE DE PÉRIMÈTRE
+5. RISQUES RÉSIDUELS
+6. STOP
+
+CONTRAINTE FINALE
+Tu implémentes strictement cette PHASE 1 SERVEUR.
+Tu n’ajoutes rien.
+Tu ne touches pas au client.
+Tu ne refactors pas.
+Tu ne dérives pas.
