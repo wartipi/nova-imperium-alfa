@@ -401,16 +401,6 @@ export function TileInfoPanel() {
   const { novaImperiums } = useNovaImperium();
   const { isHexExplored } = usePlayer();
   const { isAdmin, role } = useAuth();
-  const [forceRefresh, setForceRefresh] = React.useState(0);
-  
-  // Force un rafraîchissement toutes les 3 secondes pour détecter les changements de territoire
-  React.useEffect(() => {
-    const interval = setInterval(() => {
-      setForceRefresh(prev => prev + 1);
-    }, 3000);
-    
-    return () => clearInterval(interval);
-  }, []);
 
   if (!selectedHex) return null;
 

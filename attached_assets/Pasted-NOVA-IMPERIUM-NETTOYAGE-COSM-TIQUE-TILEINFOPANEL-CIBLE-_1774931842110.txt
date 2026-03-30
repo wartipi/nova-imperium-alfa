@@ -1,0 +1,94 @@
+NOVA IMPERIUM — NETTOYAGE COSMÉTIQUE TILEINFOPANEL
+CIBLE : SUPPRIMER L’INTERVAL 3S REDONDANT DANS TILEINFOPANEL
+Branche cible : NI-10.3
+
+RÔLE
+Tu agis comme exécutant technique strict.
+Tu réalises un nettoyage cosmétique unique.
+Tu ne corriges aucun bug supplémentaire.
+Tu ne dérives pas.
+
+CONTEXTE VALIDÉ
+- R2a-TILE est déjà validé en runtime
+- TerritoryInfoSection contient déjà un interval 2s (refreshKey) suffisant pour forcer le re-render local
+- TileInfoPanel contient encore un second interval 3s (forceRefresh) devenu redondant
+- Ce nettoyage est cosmétique uniquement, pas fonctionnel
+
+OBJECTIF
+Supprimer uniquement l’interval 3s redondant dans TileInfoPanel, sans modifier le comportement runtime validé.
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Afficher exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. VALIDATION PRÉALABLE
+Confirmer explicitement :
+- que TerritoryInfoSection conserve bien son interval 2s
+- que l’interval 3s supprimé est bien celui de TileInfoPanel parent
+- que le correctif peut rester limité à un seul fichier
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement :
+- client/src/components/game/TileInfoPanel.tsx
+
+Aucun autre fichier.
+
+INTERDIT
+- ne pas modifier TerritoryInfoSection
+- ne pas modifier UnifiedTerritorySystem
+- ne pas modifier GameCanvas
+- ne pas modifier le serveur
+- ne pas ajouter de nouveau mécanisme
+- ne pas toucher à autre chose
+
+MODIFICATION EXACTE
+Dans le composant exporté TileInfoPanel :
+- supprimer :
+  - `const [forceRefresh, setForceRefresh] = React.useState(0);`
+  - le `useEffect` associé qui fait un `setInterval(..., 3000)`
+
+CONSERVER INTACT
+- l’interval 2s dans TerritoryInfoSection
+- tout le reste du fichier
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- client/src/components/game/TileInfoPanel.tsx
+
+3. VÉRIFICATIONS FONCTIONNELLES
+- confirmer qu’il ne reste qu’un seul interval actif dans le fichier
+- confirmer que TerritoryInfoSection garde bien son refresh 2s
+- confirmer qu’aucune erreur de compilation n’apparaît
+
+4. CONTRÔLE DE PÉRIMÈTRE
+- preuve explicite qu’aucun autre fichier n’a été modifié
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+- classés
+- sans ouvrir un autre sujet
+
+RAPPORT FINAL OBLIGATOIRE
+1. FICHIERS MODIFIÉS
+2. PREUVES
+3. VÉRIFICATIONS FONCTIONNELLES
+4. CONTRÔLE DE PÉRIMÈTRE
+5. RISQUES RÉSIDUELS
+6. STOP
+
+CONTRAINTE FINALE
+C’est un nettoyage cosmétique seulement.
+Aucune dérive.
+Aucun autre changement.
