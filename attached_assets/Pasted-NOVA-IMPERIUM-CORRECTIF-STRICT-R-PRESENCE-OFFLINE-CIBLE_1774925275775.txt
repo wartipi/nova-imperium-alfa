@@ -1,0 +1,203 @@
+NOVA IMPERIUM — CORRECTIF STRICT R-PRESENCE-OFFLINE
+CIBLE : JOUEUR EN TRANSIT VISIBLE MÊME SI SON updatedAt SORT DE LA FENÊTRE 10 MIN
+Branche cible : NI-10.3
+
+RÔLE
+Tu agis comme ingénieur serveur strict.
+Tu appliques uniquement le plus petit correctif validé par audit.
+Tu ne fais aucun refactor massif.
+Tu ne touches à rien d’autre.
+Tu ne dérives pas.
+
+CONTEXTE VALIDÉ
+Audit confirmé :
+
+1. getActivePlayerPositions() filtre aujourd’hui d’abord sur player_positions.updatedAt > cutoff
+2. si un joueur ne passe pas ce filtre, il n’entre jamais dans le pipeline de présence
+3. un joueur peut pourtant avoir une action move encore active côté serveur :
+   - status = 'in_progress'
+   - type = 'move'
+   - expectedEndTime > now
+4. dans ce cas, le serveur sait encore que le transit est actif
+5. le joueur ne devrait donc pas disparaître uniquement parce que son updatedAt n’a pas été rafraîchi récemment
+6. la position de transit est déjà calculable côté serveur via resolveMoveStep()
+
+OBJECTIF
+Corriger uniquement ce point :
+- un joueur avec une action move active non expirée doit rester visible dans getActivePlayerPositions()
+- même si son player_positions.updatedAt est hors de la fenêtre 10 minutes
+
+IMPORTANT
+Je veux conserver le filtre standard existant pour les joueurs “présents récemment”.
+Je veux simplement étendre la présence avec le cas :
+- transit actif côté serveur
+
+Je ne veux pas :
+- cron
+- worker
+- hack sur updatedAt
+- nouvelle route
+- nouveau système
+
+PRÉ-REQUIS OBLIGATOIRES AVANT TOUTE MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. VALIDATION PRÉALABLE
+Je veux confirmation explicite :
+- que resolveMoveStep() est déjà disponible dans playerPresenceService.ts
+- que getActivePlayerPositions() fait encore un early return basé uniquement sur presenceRows
+- que le correctif peut rester strictement limité à server/playerPresenceService.ts
+- qu’aucun autre fichier n’est nécessaire
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement :
+- server/playerPresenceService.ts
+
+Aucun autre fichier.
+
+Si tu juges qu’un autre fichier est absolument nécessaire :
+- tu t’arrêtes
+- tu le signales
+- tu ne modifies rien d’autre sans validation
+
+IMPLÉMENTATION ATTENDUE
+
+LOT UNIQUE — ÉTENDRE LE FILTRE DE PRÉSENCE
+Fichier :
+- server/playerPresenceService.ts
+
+But :
+- conserver les joueurs “présents récemment” via player_positions.updatedAt > cutoff
+- ajouter les joueurs “en transit actif” via player_actions
+- fusionner les deux ensembles sans doublons
+- calculer la position finale comme aujourd’hui pour les joueurs en transit
+
+COMPORTEMENT ATTENDU
+
+ÉTAPE 0
+- prendre un seul :
+  const now = new Date();
+- puis calculer cutoff à partir de ce now unique
+
+ÉTAPE 1 — GARDER
+- query existante sur player_positions
+- filtre :
+  - playerId != excludePlayerId
+  - updatedAt > cutoff
+- résultat : presenceRows
+
+ÉTAPE 2 — MODIFIER
+- supprimer le early return immédiat basé uniquement sur presenceRows vide
+
+ÉTAPE 3 — NOUVEAU
+- query sur player_actions avec :
+  - playerId != excludePlayerId
+  - status = 'in_progress'
+  - type = 'move'
+  - expectedEndTime > now
+- résultat : transitActions
+
+ÉTAPE 4 — NOUVEAU
+- si presenceRows vide ET transitActions vide :
+  return []
+
+ÉTAPE 5 — NOUVEAU
+- construire :
+  - const presenceIds = new Set(...)
+  - const transitActionMap = new Map(...)
+
+ÉTAPE 6 — NOUVEAU
+- construire result en deux passages :
+
+PASSAGE A — joueurs de presenceRows
+- si action transit active pour ce joueur :
+  - calculer position via resolveMoveStep(action, now)
+  - retourner la position calculée
+- sinon :
+  - retourner la position issue de player_positions
+
+PASSAGE B — joueurs transit-only
+- pour chaque transitAction non déjà présent dans presenceIds :
+  - si path valide :
+    - calculer position via resolveMoveStep(action, now)
+    - push dans result
+- ne pas faire de query supplémentaire sur player_positions pour eux
+
+IMPORTANT
+Je veux exactement ce plus petit correctif.
+Pas de helper nouveau.
+Pas de refactor d’architecture.
+Pas de changement de signature.
+Pas de logique bonus.
+
+INTERDIT
+- ne pas modifier le client
+- ne pas modifier server/playerActionService.ts
+- ne pas modifier server/routes/players.ts
+- ne pas modifier shared/schema.ts
+- ne pas changer la structure de l’API
+- ne pas changer le cutoff 10 min
+- ne pas ajouter d’écriture DB
+- ne pas ajouter de timer serveur
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- server/playerPresenceService.ts
+
+3. VÉRIFICATIONS FONCTIONNELLES
+A. transit offline > 10 min
+- forcer player_positions.updatedAt d’un joueur à une date hors fenêtre 10 min
+- créer ou conserver une action move active non expirée
+- appeler GET /api/players/positions depuis un autre compte
+- confirmer que le joueur apparaît quand même
+
+B. position correcte
+- confirmer que la position renvoyée correspond à resolveMoveStep(action, now)
+
+C. régressions
+- joueur sans action active + updatedAt récent → visible
+- joueur sans action active + updatedAt hors fenêtre → absent
+- joueur avec transit expiré (expectedEndTime < now) → non inclus comme transit actif
+- annulation → plus de présence transit-only
+
+4. CONTRÔLE DE PÉRIMÈTRE
+Je veux une preuve explicite que :
+- aucun autre fichier n’a été modifié
+- aucune route n’a été touchée
+- aucun code client n’a été touché
+- aucune écriture DB nouvelle n’a été ajoutée
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+- classés
+- sans correction bonus hors périmètre
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+2. PREUVES
+3. VÉRIFICATIONS FONCTIONNELLES
+4. CONTRÔLE DE PÉRIMÈTRE
+5. RISQUES RÉSIDUELS
+6. STOP
+
+CONTRAINTE FINALE
+Tu corriges uniquement la disparition d’un joueur en transit actif due au filtre updatedAt :
+- le serveur doit pouvoir décider qu’un joueur reste visible tant que son transit est réellement actif
+- aucune dérive

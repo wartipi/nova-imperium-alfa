@@ -1,4 +1,4 @@
-import { gt, ne, and, inArray, eq } from "drizzle-orm";
+import { gt, ne, and, eq } from "drizzle-orm";
 import { db } from "./db";
 import { playerPositions, playerActions } from "../shared/schema";
 import type { PathStep } from "../shared/schema";
@@ -22,14 +22,16 @@ export interface ActivePlayerPosition {
 export async function getActivePlayerPositions(
   excludePlayerId: string
 ): Promise<ActivePlayerPosition[]> {
-  // Étape 1 : joueurs actifs dans la fenêtre de présence (filtre 10 min — inchangé)
-  const cutoff = new Date(Date.now() - ACTIVE_PLAYER_WINDOW_MINUTES * 60 * 1000);
+  // Étape 0 : timestamp unique pour toute la résolution
+  const now = new Date();
+  const cutoff = new Date(now.getTime() - ACTIVE_PLAYER_WINDOW_MINUTES * 60 * 1000);
 
-  const rows = await db
+  // Étape 1 : joueurs actifs dans la fenêtre de présence standard (filtre 10 min — conservé)
+  const presenceRows = await db
     .select({
       playerId: playerPositions.playerId,
-      worldX: playerPositions.worldX,
-      worldY: playerPositions.worldY,
+      worldX:   playerPositions.worldX,
+      worldY:   playerPositions.worldY,
     })
     .from(playerPositions)
     .where(
@@ -39,34 +41,36 @@ export async function getActivePlayerPositions(
       )
     );
 
-  // Étape 2 : aucun joueur actif → retour immédiat
-  if (rows.length === 0) return [];
-
-  // Étape 3 : playerIds retenus par le filtre de présence
-  const playerIds = rows.map((r) => r.playerId);
-
-  // Étape 4 : actions move actives pour ces joueurs uniquement — query bulk (0 N+1)
-  const activeActions = await db
+  // Étape 3 : joueurs en transit actif côté serveur (indépendant du updatedAt)
+  // Critère server-authoritative : status='in_progress' + type='move' + expectedEndTime > now
+  const transitActions = await db
     .select()
     .from(playerActions)
     .where(
       and(
-        inArray(playerActions.playerId, playerIds),
+        ne(playerActions.playerId, excludePlayerId),
         eq(playerActions.status, "in_progress"),
-        eq(playerActions.type, "move")
+        eq(playerActions.type, "move"),
+        gt(playerActions.expectedEndTime, now)
       )
     );
 
-  // Étape 5 : map playerId → action pour lookup O(1)
-  const actionMap = new Map(activeActions.map((a) => [a.playerId, a]));
+  // Étape 4 : retour immédiat uniquement si les DEUX sets sont vides
+  if (presenceRows.length === 0 && transitActions.length === 0) return [];
 
-  // Étape 6 : résolution serveur — un seul now pour toute la boucle
-  const now = new Date();
+  // Étape 5 : structures de lookup O(1)
+  const presenceIds      = new Set(presenceRows.map((r) => r.playerId));
+  const transitActionMap = new Map(transitActions.map((a) => [a.playerId, a]));
 
-  return rows.map((r) => {
-    const action = actionMap.get(r.playerId);
-    let worldX = r.worldX;
-    let worldY  = r.worldY;
+  const result: ActivePlayerPosition[] = [];
+
+  // Étape 6 — Passage A : joueurs de presenceRows
+  // Si action move active → position calculée par resolveMoveStep()
+  // Sinon → position issue de player_positions
+  for (const row of presenceRows) {
+    const action = transitActionMap.get(row.playerId);
+    let worldX = row.worldX;
+    let worldY  = row.worldY;
 
     if (action && (action.path as PathStep[]).length >= 2) {
       const resolved = resolveMoveStep(action, now);
@@ -74,11 +78,31 @@ export async function getActivePlayerPositions(
       worldY  = resolved.effectiveWorldY;
     }
 
-    return {
-      userId:   r.playerId,
-      username: r.playerId, // hypothèse Phase 5 : username === player_id
+    result.push({
+      userId:   row.playerId,
+      username: row.playerId, // hypothèse Phase 5 : username === player_id
       worldX,
       worldY,
-    };
-  });
+    });
+  }
+
+  // Étape 6 — Passage B : joueurs transit-only
+  // Présents dans player_actions mais absents de player_positions (updatedAt > 10 min)
+  // Position calculée par resolveMoveStep() uniquement — pas de query player_positions
+  for (const [playerId, action] of transitActionMap) {
+    if (presenceIds.has(playerId)) continue; // déjà traité au Passage A
+
+    const path = action.path as PathStep[];
+    if (path.length < 2) continue;
+
+    const resolved = resolveMoveStep(action, now);
+    result.push({
+      userId:   playerId,
+      username: playerId, // hypothèse Phase 5 : username === player_id
+      worldX:   resolved.effectiveWorldX,
+      worldY:   resolved.effectiveWorldY,
+    });
+  }
+
+  return result;
 }
