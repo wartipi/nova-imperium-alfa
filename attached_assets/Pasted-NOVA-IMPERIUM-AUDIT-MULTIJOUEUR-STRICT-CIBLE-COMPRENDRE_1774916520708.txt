@@ -1,0 +1,173 @@
+NOVA IMPERIUM — AUDIT MULTIJOUEUR STRICT
+CIBLE : COMPRENDRE POURQUOI UN JOUEUR N’APPARAÎT PAS TOUJOURS CHEZ L’AUTRE, MÊME APRÈS DÉPLACEMENT
+Branche cible : NI-10.3
+
+RÔLE
+Tu n’implémentes rien.
+Tu ne modifies aucun fichier.
+Tu ne proposes aucun patch tant que l’audit n’est pas terminé.
+Tu fais uniquement un audit technique précis du pipeline de présence multijoueur.
+
+CONTEXTE VALIDÉ
+Les tests réels à 2 ordinateurs montrent encore un problème :
+- les deux comptes sont bien connectés
+- mais l’affichage de présence reste lent
+- et un joueur n’apparaît pas toujours sur l’autre écran
+- même après déplacement
+
+Faits déjà connus :
+1. la présence des autres joueurs dépend de GET /api/players/positions
+2. la source de vérité est player_positions avec updatedAt comme proxy d’activité
+3. le polling présence côté client est à 5 secondes
+4. pendant un déplacement, player_positions n’est pas mis à jour step-by-step ; la position finale est écrite à la complétion
+
+IMPORTANT
+Je veux comprendre exactement où le pipeline peut casser :
+- absence en DB ?
+- filtre serveur ?
+- polling client ?
+- conversion world → hex local ?
+- rendu GameEngine ?
+- joueur hors zone chargée ?
+- problème de vision / segment / camera ?
+- problème de “touch présence” au login ?
+- autre hypothèse réelle
+
+INTERDIT
+- aucune modification de code
+- aucun patch
+- aucun refactor
+- aucune migration
+- aucun changement de schéma
+- ne pas dériver vers territoires / marché / banque / inventaire
+- ne pas ouvrir encore le chantier R1 complet
+- ne pas proposer de solution avant d’avoir fini l’audit
+
+PRÉ-REQUIS OBLIGATOIRES
+Avant toute analyse, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PÉRIMÈTRE DE LECTURE
+Lis au minimum :
+- client/src/components/game/GameCanvas.tsx
+- client/src/lib/stores/usePlayerPresence.ts
+- client/src/lib/api/playerApi.ts
+- client/src/lib/stores/usePlayer.tsx
+- client/src/lib/game/GameEngine.ts
+- server/routes/players.ts
+- server/playerPresenceService.ts
+- server/playerPositionService.ts
+- server/playerActionService.ts
+- tout fichier strictement nécessaire pour le pipeline de présence
+
+OBJECTIF
+Je veux un audit qui explique précisément pourquoi un joueur peut rester invisible chez l’autre, même après déplacement.
+
+PARTIE 1 — PIPELINE COMPLET DE PRÉSENCE
+Je veux une explication exacte de bout en bout :
+
+A. comment un joueur devient “visible” côté serveur
+- quelle table
+- quelle route
+- quel filtre
+- quel critère d’activité exact
+
+B. comment le client charge cette présence
+- quelle fréquence
+- quel store
+- quelle conversion de coordonnées
+- quel composant déclenche le rendu
+
+C. comment GameEngine rend un autre joueur
+- conditions nécessaires
+- coordonnées attendues
+- limites de rendu éventuelles
+
+PARTIE 2 — HYPOTHÈSES DE PANNE RÉELLES
+Je veux que tu identifies les causes plausibles, classées, avec preuve code à l’appui.
+
+Je veux au minimum que tu vérifies ces hypothèses :
+
+H1. updatedAt n’est pas rafraîchi au bon moment
+- au login ?
+- au montage ?
+- au déplacement court ?
+- seulement à la fin de l’action ?
+- assez pour passer le filtre “actif” ?
+
+H2. le joueur est bien renvoyé par l’API, mais mal converti côté client
+- originWorldX / originWorldY
+- hexX / hexY
+- position hors bloc chargé
+- position convertie dans un mauvais segment
+
+H3. le joueur est bien présent dans le store, mais non rendu
+- GameEngine.renderOtherPlayers
+- filtrage implicite
+- rendu hors écran
+- rendu masqué par vision ou autre règle client
+
+H4. le polling présence fonctionne mais trop lentement / pas toujours
+- intervalle réellement monté ?
+- échec silencieux ?
+- dépendance d’effet incorrecte ?
+- polling annulé / non relancé ?
+
+H5. le déplacement de A ne rafraîchit pas suffisamment sa présence pour B
+- si le mouvement finit mais player_positions ou updatedAt ne donnent pas un état visible à temps
+
+H6. les deux joueurs ne partagent pas réellement les mêmes données monde chargées
+- même zone
+- même bloc
+- même origine de conversion
+
+PARTIE 3 — CE QUE TU PEUX VÉRIFIER DIRECTEMENT
+Je veux que tu distingues clairement :
+- ce qui est vérifiable directement par lecture de code
+- ce qui est vérifiable par appel API / logs / DB
+- ce qui exige encore un vrai test manuel à 2 clients
+
+PARTIE 4 — VÉRIFICATIONS TECHNIQUES ATTENDUES
+Je veux des vérifications concrètes, pas seulement une lecture abstraite.
+
+Tu dois vérifier si possible :
+1. ce que retourne réellement GET /api/players/positions quand 2 joueurs sont connectés
+2. si les deux player_positions existent bien en DB
+3. si updatedAt bouge vraiment pour le joueur testé
+4. si le filtre serveur peut exclure un joueur pourtant connecté
+5. si les coordonnées renvoyées par l’API correspondent à la zone réellement chargée chez l’autre client
+6. si GameCanvas poll bien sans erreur
+7. si updateOtherPlayers reçoit réellement des données non vides
+
+IMPORTANT
+Si tu ne peux pas exécuter un point, tu le dis explicitement.
+Tu ne bluffes pas.
+
+PARTIE 5 — FORMAT DE DIAGNOSTIC ATTENDU
+Je veux une conclusion structurée comme ceci :
+
+1. PIPELINE OBSERVÉ
+2. HYPOTHÈSES CLASSÉES
+3. PREUVES DIRECTES DISPONIBLES
+4. CE QUI RESTE À TESTER MANUELLEMENT
+5. CAUSE LA PLUS PROBABLE
+6. PLUS PETIT CORRECTIF RECOMMANDABLE (SANS CODER)
+7. STOP VALIDATION
+
+PARTIE 6 — CONTRAINTE DE SORTIE
+Je ne veux PAS encore de patch.
+Je veux un audit honnête qui dise clairement :
+- où le pipeline casse probablement
+- pourquoi un joueur peut rester invisible même après déplacement
+- et quel serait le plus petit correctif à faire ensuite
+
+CONTRAINTE FINALE
+Tu n’implémentes rien.
+Tu n’anticipes pas la solution complète.
+Tu identifies précisément le point de rupture du pipeline de présence multijoueur.
