@@ -1,0 +1,183 @@
+NOVA IMPERIUM — CORRECTION UI STRICTE
+CIBLE : AFFICHER UN TEMPS RESTANT ESTIMÉ AU LIEU DE “FINALISATION…”
+Branche cible : NI-10.3
+
+RÔLE
+Tu appliques uniquement une correction UI ciblée.
+Tu ne touches pas au serveur.
+Tu ne fais aucun refactor massif.
+Tu ne dérives pas.
+
+CONTEXTE VALIDÉ
+Dans ActiveActionWidget.tsx :
+- le temps restant est bien calculé avec expectedEndTime - Date.now()
+- mais lorsque msLeft <= 0, l’affichage remplace la durée par :
+  “⏳ Finalisation…”
+
+Le besoin produit est maintenant :
+- toujours afficher un temps restant estimé lisible
+- éviter le simple état textuel “en cours / finalisation”
+- garder un affichage plus concret pour le joueur
+
+OBJECTIF
+Modifier le widget pour afficher :
+- “Temps restant estimé”
+- une durée lisible avant la fin
+- une estimation courte et explicite pendant la phase de sync finale
+
+RÈGLE UI VOULUE
+Je veux ce comportement :
+
+1. Si msLeft > 0
+- afficher normalement la durée formatée
+- exemple : 12s, 1m 08s, 2h 4m
+
+2. Si msLeft <= 0 mais que l’action est encore in_progress
+- ne plus afficher juste “⏳ Finalisation…”
+- afficher à la place une estimation courte de sync finale, par exemple :
+  “< 2s”
+ou
+  “≈ 1–2s”
+ou
+  “0–2s (sync)”
+
+Je veux une formulation courte, propre, lisible.
+Je préfère :
+- “< 2s”
+avec le label :
+- “Temps restant estimé”
+
+3. Si l’action est réellement terminée
+- le widget peut continuer à basculer sur le message de complétion existant
+- ne pas casser ce comportement
+
+IMPORTANT
+Je ne veux pas de faux temps longs inventés.
+Je veux une estimation honnête.
+Comme le widget recheck la complétion avec une boucle 2s quand l’action est expirée mais toujours in_progress, l’estimation de sync finale doit rester courte et cohérente avec cette réalité.
+
+INTERDIT
+- aucun changement serveur
+- aucun changement à GameCanvas.tsx
+- aucun changement aux routes
+- aucun changement au schéma
+- aucun changement aux stores
+- aucun changement à l’économie
+- aucun refactor massif
+- aucun changement de logique métier du déplacement
+- ne pas toucher aux messages de complétion sauf si strictement nécessaire pour cohérence visuelle
+
+PRÉ-REQUIS OBLIGATOIRES AVANT TOUTE MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+Je veux :
+- objectif précis
+- fichier touché
+- raison
+- ordre d’exécution
+- risques
+- vérifications prévues
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement :
+
+- client/src/components/game/ActiveActionWidget.tsx
+
+Aucun autre fichier.
+
+Si tu juges qu’un autre fichier est absolument nécessaire :
+- tu t’arrêtes
+- tu le signales
+- tu ne le modifies pas sans validation
+
+IMPLÉMENTATION ATTENDUE
+
+LOT UNIQUE — ACTIVEACTIONWIDGET
+Fichier :
+- client/src/components/game/ActiveActionWidget.tsx
+
+À faire :
+1. garder le calcul actuel de msLeft basé sur expectedEndTime - Date.now()
+2. changer le libellé affiché de :
+- “Temps restant”
+vers :
+- “Temps restant estimé”
+3. remplacer le rendu actuel :
+- msLeft > 0 ? formatDuration(msLeft) : "⏳ Finalisation…"
+par une logique du type :
+- si msLeft > 0 → formatDuration(msLeft)
+- sinon → "< 2s"
+
+IMPORTANT
+Je veux quelque chose de minimal et propre.
+Pas de sur-ingénierie.
+Pas de nouveau helper complexe si un simple rendu conditionnel suffit.
+
+OPTION ACCEPTABLE
+Tu peux, si tu juges ça plus propre, extraire une petite fonction locale du type :
+- formatEstimatedRemaining(msLeft)
+mais sans refactor inutile.
+
+ORDRE D’EXÉCUTION OBLIGATOIRE
+1. modifier uniquement ActiveActionWidget.tsx
+2. changer le label
+3. changer le rendu de la durée en phase finale
+4. vérifier qu’aucun autre comportement n’a bougé
+5. rapport final
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- client/src/components/game/ActiveActionWidget.tsx
+
+3. VÉRIFICATIONS UI
+A. Pendant l’action normale
+- confirmer que le widget affiche bien “Temps restant estimé”
+- confirmer que la durée décroît normalement
+
+B. Quand msLeft passe sous 0 mais que l’action n’est pas encore clôturée côté client
+- confirmer que le widget n’affiche plus seulement “Finalisation…”
+- confirmer qu’il affiche une estimation courte du type “< 2s”
+
+C. Quand l’action est terminée
+- confirmer que le message de complétion existant reste fonctionnel
+
+4. CONTRÔLE DE PÉRIMÈTRE
+Je veux une preuve explicite que :
+- aucun autre fichier n’a été modifié
+- aucune logique serveur n’a été touchée
+- aucune logique métier n’a été modifiée
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+- classés
+- sans correction bonus hors périmètre
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+2. PREUVES
+3. VÉRIFICATIONS UI
+4. CONTRÔLE DE PÉRIMÈTRE
+5. RISQUES RÉSIDUELS
+6. STOP
+
+CONTRAINTE FINALE
+Tu corriges uniquement l’affichage du temps restant estimé dans ActiveActionWidget.tsx.
+Aucune dérive.
