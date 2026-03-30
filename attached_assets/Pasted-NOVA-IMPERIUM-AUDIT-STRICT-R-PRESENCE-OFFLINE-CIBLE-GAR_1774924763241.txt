@@ -1,0 +1,182 @@
+NOVA IMPERIUM — AUDIT STRICT R-PRESENCE-OFFLINE
+CIBLE : GARDER UN JOUEUR EN TRANSIT VISIBLE MÊME SI SON updatedAt SORT DE LA FENÊTRE 10 MIN
+Branche cible : NI-10.3
+
+RÔLE
+Tu agis comme auditeur technique strict.
+Tu ne codes pas impulsivement.
+Tu ne fais aucun refactor massif.
+Tu ne changes pas l’architecture sans validation.
+Tu identifies d’abord le plus petit correctif propre possible.
+
+MÉTHODE OBLIGATOIRE
+1. Analyse
+2. Validation
+3. Proposition
+4. Implémentation (seulement si explicitement demandée)
+5. Vérification
+
+CONTEXTE VALIDÉ
+Le correctif R1-TRANSIT vient d’être appliqué avec succès :
+- GET /api/players/positions calcule maintenant la position de transit via resolveMoveStep()
+- la position vue par les autres ne dépend plus du polling du client voyageur
+- ce correctif a été fait dans server/playerPresenceService.ts uniquement
+
+RISQUE RÉSIDUEL CONFIRMÉ
+Il reste cependant un défaut précis :
+
+- getActivePlayerPositions() filtre encore d’abord sur player_positions.updatedAt > now - 10 minutes
+- donc si un joueur a une action move encore in_progress
+- mais que son client est offline assez longtemps
+- il peut disparaître de la liste de présence
+- même si le serveur connaît encore son transit et sait calculer sa position
+
+OBJECTIF
+Je veux un audit strict pour répondre à cette question :
+
+“Quel est le plus petit correctif propre pour qu’un joueur avec une action move active reste visible pendant tout son transit, même si son updatedAt dans player_positions dépasse 10 minutes ?”
+
+IMPORTANT
+Je ne veux PAS encore une implémentation directe.
+Je veux d’abord un audit du plus petit correctif propre.
+
+PRIORITÉS
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+INTERDIT
+- aucun refactor massif
+- aucun changement d’architecture prématuré
+- aucun WebSocket
+- aucun heartbeat nouveau
+- aucun cron si une solution plus simple existe
+- aucun chantier parallèle
+- ne pas toucher territoires / marché / banque / inventaire
+- ne pas corriger TileInfoPanel dans ce segment
+
+PRÉ-REQUIS OBLIGATOIRES
+Avant toute conclusion, afficher exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’AUDIT
+Je veux :
+- objectif précis
+- fichiers à lire
+- hypothèses à vérifier
+- options à comparer
+- risque principal si on corrige mal
+
+PÉRIMÈTRE D’AUDIT
+Tu dois auditer au minimum :
+
+BACKEND
+- server/playerPresenceService.ts
+- server/playerActionService.ts
+- server/playerPositionService.ts
+- server/routes/players.ts
+- shared/schema.ts
+
+FRONTEND
+- lecture seulement si nécessaire pour confirmer le rythme de polling actuel
+- ne pas ouvrir un audit UI large
+
+QUESTIONS TECHNIQUES À TRANCHER
+Tu dois répondre précisément à ces questions :
+
+A. POLITIQUE DE PRÉSENCE ACTUELLE
+- quel est aujourd’hui le vrai critère de présence dans getActivePlayerPositions() ?
+- à quel moment exact un joueur en transit offline disparaît-il ?
+- ce comportement est-il causé uniquement par le cutoff sur player_positions.updatedAt ?
+
+B. SOURCE DE VÉRITÉ À RETENIR
+- pour un joueur avec action move in_progress,
+  le serveur a-t-il déjà assez d’information pour le considérer “présent” sans dépendre du updatedAt de player_positions ?
+- si oui, quelle donnée doit faire foi :
+  - player_positions.updatedAt
+  - player_actions.status
+  - player_actions.expectedEndTime
+  - combinaison de plusieurs champs
+
+C. COMPARAISON DES OPTIONS
+Je veux une comparaison stricte d’au moins ces options :
+
+OPTION 1 — ÉTENDRE LE FILTRE DE PRÉSENCE
+- un joueur est visible si :
+  - il passe le cutoff classique sur player_positions.updatedAt
+  - OU il a une action move in_progress non expirée
+- puis la position est calculée comme aujourd’hui
+
+OPTION 2 — TOUCHER updatedAt PENDANT LE TRANSIT
+- rendre la présence encore dépendante de player_positions
+- mais mettre à jour updatedAt autrement pendant le trajet
+
+OPTION 3 — AUTRE PLUS PETIT PASSAGE
+- seulement si c’est réellement plus simple et plus stable que les deux ci-dessus
+
+Pour chaque option, je veux :
+- complexité
+- fichiers touchés
+- risque de régression
+- compatibilité avec l’architecture actuelle
+- respect du principe serveur-authoritative
+
+D. CONTRAINTE FONDAMENTALE
+Je veux éviter un système lourd.
+Je veux que le serveur décide clairement :
+- si un joueur en transit est encore “présent”
+- où il est rendu
+- et quand il cesse de l’être
+
+CE QUE JE VEUX DANS LE RAPPORT FINAL
+Je veux EXACTEMENT cette structure :
+
+1. FICHIERS AUDITÉS
+- liste précise
+- rôle de chaque fichier
+
+2. CARTOGRAPHIE ACTUELLE DE R-PRESENCE-OFFLINE
+- filtre actuel
+- source canonique actuelle
+- moment exact où le joueur disparaît
+- point précis de dépendance au updatedAt
+
+3. CAUSE RACINE CONFIRMÉE
+- explication technique précise
+- preuve code
+- distinction claire entre présence, position calculée, DB persistée et API exposée
+
+4. COMPARAISON DES OPTIONS
+Pour chaque option :
+- principe
+- fichiers probablement touchés
+- avantages
+- risques
+- compatibilité avec l’architecture
+- verdict
+
+5. PLUS PETIT CORRECTIF RECOMMANDÉ
+Je veux UNE seule recommandation finale.
+Pas trois.
+Je veux :
+- la solution à retenir
+- pourquoi c’est le plus petit passage propre
+- pourquoi elle garde bien le serveur comme source de vérité
+
+6. PROMPT D’IMPLÉMENTATION PRÊT À EXÉCUTER
+Tu me rédiges ensuite le prompt ultra détaillé d’implémentation pour la solution retenue.
+
+7. RISQUES SI ON CHOISIT LA MAUVAISE STRATÉGIE
+- uniquement les vrais
+- classés
+
+8. STOP
+
+CONTRAINTE FINALE
+Je ne veux pas de suppositions.
+Je ne veux pas d’infrastructure lourde si une correction de filtre serveur suffit.
+Je veux savoir quel est le plus petit correctif propre pour qu’un joueur en transit reste visible tant que son transit est réellement actif côté serveur.
