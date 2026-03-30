@@ -1,0 +1,120 @@
+NOVA IMPERIUM — VALIDATION RUNTIME STRICTE R2a-TILE
+CIBLE : CONFIRMER À 2 VRAIS CLIENTS QUE TILEINFOPANEL SE RECALe BIEN SANS CHANGEMENT DE selectedHex
+Branche cible : NI-10.3
+
+RÔLE
+Tu agis comme validateur runtime strict.
+Tu ne codes rien impulsivement.
+Tu ne fais aucun refactor.
+Tu ne modifies rien tant qu’un échec runtime n’est pas prouvé.
+
+OBJECTIF
+Valider en runtime réel à 2 clients que R2a-TILE est bien fermé dans le code actuel.
+
+CONTEXTE VALIDÉ
+- Le code courant contient déjà un mécanisme de re-render périodique dans TileInfoPanel.tsx
+- Le singleton UnifiedTerritorySystem est mis à jour par GameCanvas
+- L’audit conclut que R2a-TILE semble déjà corrigé en code
+- Ce qui manque encore : la preuve runtime 2 clients
+
+IMPORTANT
+Je ne veux PAS de nouveau correctif tant qu’un échec n’est pas démontré.
+Je veux d’abord une validation stricte.
+
+INTERDIT
+- aucun refactor
+- aucune feature
+- aucun changement serveur
+- aucun changement client
+- ne pas toucher TileInfoPanel.tsx sauf si le test échoue réellement
+- ne pas ouvrir un autre chantier
+
+PRÉ-REQUIS OBLIGATOIRES
+Avant tout test, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. RAPPEL DE L’HYPOTHÈSE À VALIDER
+Je veux une phrase explicite :
+- “R2a-TILE est considéré partiellement fermé en code, mais non encore validé en runtime 2 clients.”
+
+TEST RUNTIME OBLIGATOIRE — 2 VRAIS CLIENTS
+Utiliser deux vrais clients / deux sessions réelles :
+- client A
+- client B
+
+SCÉNARIO UNIQUE À TESTER
+But :
+vérifier que A garde la même case sélectionnée ouverte dans TileInfoPanel pendant que B modifie cette case, et que le panneau de A se met bien à jour sans nouveau clic sur la case.
+
+PROCÉDURE EXACTE
+1. Ouvrir le jeu sur A
+2. Ouvrir le jeu sur B
+3. Choisir une case cible visible et pertinente pour un changement de territoire
+4. Sur A :
+   - cliquer cette case
+   - laisser TileInfoPanel ouvert
+   - ne plus recliquer cette case
+   - ne pas changer selectedHex
+5. Sur B :
+   - effectuer une action qui change l’état territoire de cette même case
+   - claim si possible, sinon autre mutation pertinente réellement visible dans TileInfoPanel
+6. Sur A :
+   - observer sans recliquer
+   - attendre la fenêtre normale de refresh
+   - vérifier si TileInfoPanel reflète bien le nouvel état
+
+IMPORTANT
+Je veux noter précisément :
+- état initial affiché
+- mutation faite par B
+- délai observé avant mise à jour sur A
+- nécessité ou non d’un clic supplémentaire
+- nécessité ou non de fermer/rouvrir le panneau
+
+PREUVES À FOURNIR
+Je veux :
+- logs utiles si disponibles
+- observation visuelle précise
+- si possible console/browser logs liés au refresh territoire
+- mais la preuve principale doit rester le comportement UI réel
+
+SI LE TEST PASSE
+- ne modifier aucun fichier
+- conclure que R2a-TILE est fermé en runtime
+- dire explicitement qu’aucun correctif n’est requis
+
+SI LE TEST ÉCHOUE
+- ne pas coder tout de suite
+- produire un mini diagnostic précis :
+  - symptôme exact
+  - délai attendu vs observé
+  - re-render manquant ou singleton non relu
+  - plus petit correctif probable
+- puis seulement proposer le prompt suivant
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. PRÉ-REQUIS
+2. PROTOCOLE DE TEST
+3. OBSERVATIONS RUNTIME
+4. VERDICT
+Choisir UNE seule conclusion :
+- R2a-TILE VALIDÉ EN RUNTIME
+ou
+- R2a-TILE NON VALIDÉ EN RUNTIME
+5. MODIFICATIONS EFFECTUÉES
+- soit “aucune”
+- soit liste précise si un échec a forcé une correction ultérieure
+6. PROCHAINE TÂCHE RECOMMANDÉE
+- une seule
+7. STOP
+
+CONTRAINTE FINALE
+Pas de nouveau code tant qu’un échec runtime réel à 2 clients n’est pas prouvé.
