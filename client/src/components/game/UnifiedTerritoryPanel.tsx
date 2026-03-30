@@ -99,6 +99,11 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
     loadTerritories();
   }, [loadTerritories]);
 
+  useEffect(() => {
+    const id = setInterval(loadTerritories, 10000);
+    return () => clearInterval(id);
+  }, [loadTerritories]);
+
   // Revendiquer le territoire à la position de l'avatar
   const handleClaimTerritory = async () => {
     const claimCost = 10;

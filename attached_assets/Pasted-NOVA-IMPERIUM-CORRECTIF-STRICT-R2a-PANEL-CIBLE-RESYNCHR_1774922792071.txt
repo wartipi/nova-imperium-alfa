@@ -1,0 +1,134 @@
+NOVA IMPERIUM — CORRECTIF STRICT R2a-PANEL
+CIBLE : RESYNCHRONISER UnifiedTerritoryPanel SUR LA VÉRITÉ DÉJÀ PRÉSENTE DANS LE SINGLETON
+Branche cible : NI-10.3
+
+RÔLE
+Tu appliques un correctif unique, chirurgical, sans refactor massif.
+Tu ne touches qu’un seul fichier.
+Tu ne dérives pas.
+Tu ne corriges PAS TileInfoPanel.
+Tu ne corriges PAS R1-TRANSIT.
+Tu fermes uniquement R2a-PANEL.
+
+OBJECTIF
+Faire en sorte que UnifiedTerritoryPanel se recale automatiquement sur les mises à jour déjà reçues par GameCanvas dans UnifiedTerritorySystem, sans devoir fermer / rouvrir le panneau.
+
+IMPORTANT
+Je ne veux pas de nouveau système.
+Je ne veux pas de nouvelle source de vérité.
+Je ne veux pas de fetch réseau supplémentaire.
+Je veux seulement que le panneau relise périodiquement le singleton mémoire déjà maintenu par GameCanvas.
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. VALIDATION DE L’HYPOTHÈSE
+Confirmer explicitement avant toute modification :
+- loadTerritories() ne fait PAS de fetch réseau
+- loadTerritories() relit bien uniquement l’état courant du singleton UnifiedTerritorySystem
+- loadTerritories() est bien stable / mémoïsée pour pouvoir être utilisée dans un useEffect d’interval sans boucle instable
+
+Si un de ces 3 points est faux :
+- tu t’arrêtes
+- tu le signales
+- tu ne modifies rien
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement :
+- client/src/components/game/UnifiedTerritoryPanel.tsx
+
+Aucun autre fichier.
+
+INTERDIT
+- ne pas modifier GameCanvas.tsx
+- ne pas modifier UnifiedTerritorySystem.ts
+- ne pas ajouter de store Zustand
+- ne pas ajouter de subscription system
+- ne pas ajouter de fetchAllTerritories / fetchAllColonies supplémentaire
+- ne pas corriger TileInfoPanel
+- ne pas corriger R1-TRANSIT
+- ne pas ouvrir un autre chantier
+
+MODIFICATION ATTENDUE
+Dans UnifiedTerritoryPanel.tsx :
+- conserver le useEffect existant de chargement initial
+- ajouter un second useEffect qui relance périodiquement loadTerritories()
+- interval : 10000 ms
+- cleanup obligatoire avec clearInterval
+
+Forme attendue :
+
+useEffect(() => {
+  const id = setInterval(loadTerritories, 10000);
+  return () => clearInterval(id);
+}, [loadTerritories]);
+
+IMPORTANT
+Tu n’ajoutes rien d’autre.
+Pas de logique bonus.
+Pas de helper nouveau.
+Pas de commentaire inutile.
+Pas de changement de structure.
+
+ORDRE D’EXÉCUTION OBLIGATOIRE
+1. vérifier les 3 hypothèses
+2. modifier uniquement UnifiedTerritoryPanel.tsx
+3. vérifier qu’aucun autre fichier n’a bougé
+4. tester le comportement runtime du panneau
+5. rapport final
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- client/src/components/game/UnifiedTerritoryPanel.tsx
+
+3. VÉRIFICATIONS FONCTIONNELLES
+A. resync panneau
+- A ouvre UnifiedTerritoryPanel
+- B fait un claim / fondation / exploitation depuis un autre client
+- A ne ferme pas le panneau
+- attendre le cycle normal
+- confirmer que le panneau de A se met à jour tout seul
+
+B. aucune requête réseau supplémentaire
+- confirmer que le correctif ne déclenche pas de nouveau fetch périodique
+- confirmer que loadTerritories() relit seulement le singleton mémoire
+
+C. aucune régression locale
+- action locale dans le panneau toujours correcte
+- reloadFromServer() post-mutation locale toujours correct
+- démontage/remontage du panneau sans fuite d’intervalle
+
+4. CONTRÔLE DE PÉRIMÈTRE
+Je veux une preuve explicite que :
+- aucun autre fichier n’a été modifié
+- GameCanvas.tsx n’a pas été touché
+- UnifiedTerritorySystem.ts n’a pas été touché
+- aucun code serveur n’a été touché
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+- classés
+- sans correction bonus hors périmètre
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+2. PREUVES
+3. VÉRIFICATIONS FONCTIONNELLES
+4. CONTRÔLE DE PÉRIMÈTRE
+5. RISQUES RÉSIDUELS
+6. STOP
