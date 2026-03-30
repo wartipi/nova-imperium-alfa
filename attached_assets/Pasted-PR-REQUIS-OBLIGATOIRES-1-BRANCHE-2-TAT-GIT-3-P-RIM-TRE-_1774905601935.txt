@@ -1,0 +1,129 @@
+PRÉ-REQUIS OBLIGATOIRES
+1. BRANCHE + 2. ÉTAT GIT
+
+3. PÉRIMÈTRE DE LECTURE — suite des fichiers clés :
+
+1. AUDIT DU PIPELINE MULTIJOUEUR
+A. PRÉSENCE — autres joueurs chargés
+Élément	Détail
+Source de vérité	Table player_positions (DB) — updatedAt comme proxy d'activité
+Route	GET /api/players/positions → playerPresenceService.getActivePlayerPositions(excludePlayerId)
+Filtre serveur	updatedAt > now - 10min AND playerId ≠ moi
+Fréquence polling	setInterval(poll, 5000) dans GameCanvas.tsx l.216 — toutes les 5 secondes
+Flux complet	poll() → loadPlayers() → fetchPlayerPositions() → updateOtherPlayers(converted) → gameEngine.render()
+Rendu	GameEngine.renderOtherPlayers() : cercle coloré (hue dérivé du userId) + label fond sombre
+Limitation connue	username === player_id (hypothèse Phase 5 documentée dans playerPresenceService.ts l.41)
+B. POSITION — source de vérité et synchronisation
+Moment	Comportement
+Reload page	GET /api/player/position → ensurePlayerPosition() : retourne la position DB valide ou relocate au spawn
+Déplacement sans action active	moveAvatarToHex() appelle savePlayerPosition(worldX, worldY) → POST /api/player/position immédiatement
+Déplacement avec action active	moveAvatarToHex() NE sauvegarde PAS en DB pendant le trajet (guard isActionActive() l.345) — la DB est mise à jour par completeAction() côté serveur à la fin
+Annulation d'action	cancelAction() dans playerActionService.ts appelle savePlayerPosition() avec la position intermédiaire atteinte
+Source unique	player_positions.worldX / worldY — jamais calculée côté client
+C. DÉPLACEMENT OBSERVÉ PAR UN AUTRE JOUEUR
+Phase	Ce que voit B
+Pendant le trajet de A	B effectue son polling 5s — mais player_positions n'est PAS mis à jour step-by-step pendant l'action de A (guard isActionActive)
+Après complétion de l'action de A	completeAction() serveur écrit la position finale dans player_positions → au prochain poll 5s de B, la position finale apparaît
+Résultat visible	B voit un saut de position (dernière position → destination finale) avec jusqu'à 5s de délai
+Pas d'interpolation	Aucune mécanique de position intermédiaire diffusée à B — le serveur ne pousse rien (pas de WebSocket)
+D. TERRITOIRES / CLAIMS / COLONIES
+Élément	Détail
+Claim persisté	Table territories — ownerType, playerId/factionId, claimedAt
+Fondation colonie persistée	Table colonies — fondation atomique via coloniesService
+Rechargement client local (joueur A)	reloadFromServer() dans UnifiedTerritoryPanel.tsx après chaque mutation (l.147, 182, 204, 254)
+Polling territoire automatique	ABSENT — aucun setInterval sur les territoires/colonies dans GameCanvas ou UnifiedTerritorySystem
+Joueur B	Doit ouvrir lui-même le panneau territoire (qui déclenche reloadFromServer) OU recharger la page pour voir les changements de A
+E. EXPLOITATION
+Élément	Détail
+Persisté	Colonnes exploitingColonyId + exploitationBuildingType dans territories
+Route	POST /api/territories/:id/exploit → territoryService.exploitTerritory()
+Remontée client (joueur A)	reloadFromServer() déclenché après succès de handleExploitTerritory
+Joueur B	Identique aux claims — pas de polling automatique → invisible pour B jusqu'à son prochain reloadFromServer manuel
+2. CE QUI EST VÉRIFIABLE DIRECTEMENT (sans 2 vrais clients)
+Point	Méthode de vérification	Résultat
+Route GET /api/players/positions présente et filtrée	Lecture players.ts + playerPresenceService.ts	✅ Code confirmé
+Fenêtre d'activité = 10 min	ACTIVE_PLAYER_WINDOW_MINUTES = 10	✅ Code confirmé
+Polling présence toutes les 5s	setInterval(poll, 5000) l.216	✅ Code confirmé
+Position sauvegardée en DB post-complétion	completeAction() → savePlayerPosition()	✅ Code confirmé
+Guard isActionActive bloque save pendant trajet	usePlayer.tsx l.345	✅ Code confirmé
+Rendu autre joueur = cercle + label	GameEngine.renderOtherPlayers()	✅ Code confirmé
+Absence de polling territoire automatique	Grep setInterval dans UnifiedTerritorySystem / GameCanvas	✅ Confirmé absent
+reloadFromServer déclenché après mutation locale	UnifiedTerritoryPanel.tsx l.147,182,204,254	✅ Code confirmé
+Exploitation persistée en DB	Schema + territoryService.exploitTerritory()	✅ Code confirmé
+3. CE QUI NÉCESSITE 2 VRAIS CLIENTS
+Point	Pourquoi impossible à vérifier seul
+T1 A voit B dans la carte	Besoin d'un B réel avec updatedAt valide en DB
+T2 B voit le saut de position de A après trajet	Besoin du timing réel du polling B vs complétion action A
+T3 B voit le claim de A sans manipulation du panneau	Nécessite observation UI réelle côté B
+T4 B voit la fondation de colonie de A	Idem — absence de polling territoire côté B non perceptible sans vrai test
+T5 B voit l'exploitation de A	Idem
+T6 Permissions effectives (A essaie de claim le territoire de B)	Besoin de 2 comptes avec données réelles
+T7 Délai réel de perception de présence	Mesure du delta time entre action de A et apparition chez B
+4. PROTOCOLE DE TEST MANUEL À DEUX JOUEURS
+Convention : Joueur A = compte admin. Joueur B = second compte réel. Deux navigateurs/machines distincts. Les deux connectés.
+
+T1 — PRÉSENCE
+
+Précondition : A et B connectés, dans la même zone (~même segment)
+Action A : Se déplacer d'une case
+Attendu B : Dans les 5s, un cercle coloré apparaît sur la carte à la position finale de A avec son label
+Attendu A : Rien (A ne voit pas lui-même)
+Bug si : Aucun cercle visible après 10s OU cercle sur une mauvaise case
+T2 — DÉPLACEMENT COURT (1–3 cases)
+
+Précondition : A lance un déplacement court (~3 steps, ~15s)
+Action A : Confirmer le déplacement
+Attendu B : Pendant le trajet, la position de A reste à l'ancienne case. Après complétion (+ max 5s polling), la position de A saute à la destination
+Attendu A : Progression visuelle locale step-by-step
+Bug si : B voit A bouger case-par-case pendant le trajet (ne doit pas arriver) OU B ne voit jamais la position finale
+T3 — DÉPLACEMENT LONG (>10 cases)
+
+Précondition : A lance un déplacement long (~10 steps, ~50s)
+Action A : Confirmer
+Attendu B : Position de A inchangée pendant tout le trajet. Position finale visible dans les 5s après complétion
+Bug si : B voit des positions intermédiaires ou la position ne se met jamais à jour
+T4 — RELOAD PENDANT DÉPLACEMENT
+
+Précondition : A en déplacement (action in_progress)
+Action A : Recharger la page pendant le trajet
+Attendu A : Position reprise depuis DB (position au moment de la sauvegarde précédente, pas celle intermédiaire atteinte au moment du reload)
+Attendu B : Aucun changement visible pendant le reload de A
+Bug si : A spawn au spawn par défaut OU perd sa position DB
+T5 — CLAIM VISIBLE À DISTANCE
+
+Précondition : B a le panneau territoire fermé
+Action A : Claim un territoire
+Attendu B : Le claim N'apparaît PAS automatiquement. B doit ouvrir le panneau territoire pour déclencher reloadFromServer
+Attendu A : Le claim apparaît immédiatement dans son panneau
+Bug si : B voit le claim apparaître sans avoir ouvert le panneau (comportement non implémenté → ne doit pas arriver)
+T6 — FONDATION VISIBLE À DISTANCE
+
+Précondition : B a le panneau territoire fermé
+Action A : Fonder une colonie sur un territoire qu'il possède
+Attendu B : La colonie N'apparaît PAS sur la carte sans que B ne recharge son panneau
+Attendu A : La colonie apparaît dans la Section A de son panneau immédiatement
+Bug si : La carte de B affiche spontanément la colonie de A
+T7 — EXPLOITATION VISIBLE À DISTANCE
+
+Précondition : A possède un territoire rattaché à une ville
+Action A : Exploiter le territoire via le bouton ⛏️
+Attendu B : Exploitation invisible pour B jusqu'à qu'il ouvre son panneau territoire
+Attendu A : Le territoire passe en statut ✅ Exploité dans sa Section A
+Bug si : L'état "exploité" apparaît chez B sans interaction de sa part
+T8 — PERMISSIONS DE BASE
+
+Précondition : A possède un territoire en (worldX=30, worldY=20)
+Action B : Tenter de claim le même territoire
+Attendu B : Refus serveur ownerType/playerId différent → 422
+Attendu A : Aucun changement
+Bug si : B réussit à claim ou exploiter le territoire de A
+5. RISQUES PROBABLES
+#	Risque	Gravité	Source
+R1	Position de A invisible chez B pendant toute la durée d'un trajet : la DB n'est mise à jour qu'à la fin de l'action — B peut voir A "figé" pendant 1–2 min	Élevée — UX multijoueur dégradée	playerActionService.ts guard isActionActive + polling 5s
+R2	Claim/Fondation/Exploitation jamais visibles chez B sans action manuelle : aucun polling territoire automatique	Élevée — état du monde désynchronisé entre joueurs	Absence de setInterval territoire dans GameCanvas
+R3	Fenêtre d'activité 10 min trop large : un joueur déconnecté reste visible jusqu'à 10min après sa déconnexion	Moyenne — cosmétique mais trompeur	ACTIVE_PLAYER_WINDOW_MINUTES = 10
+R4	Saut de position brutal : B voit A apparaître à la destination finale sans transition	Moyenne — UX dégradée, pas de bug fonctionnel	Absence d'interpolation côté B
+R5	username === player_id : les labels d'autres joueurs affichent l'ID brut, pas un vrai username lisible	Faible — cosmétique Phase 5	playerPresenceService.ts l.41, commenté
+R6	Pas de WebSocket : toute synchronisation repose sur du polling — latence minimale = 1.5–5s selon le type de donnée	Faible — acceptable en Phase 5, à surveiller à l'échelle	Architecture polling pure
+6. STOP VALIDATION
+Honnêteté d'audit : les points T1–T8 et R1–R6 ci-dessus sont des déductions de code, non des validations de runtime à deux clients réels. Seul un test manuel à deux sessions distinctes peut confirmer R1 et R2 comme bugs effectifs ou comportements acceptables pour la Phase actuelle.
