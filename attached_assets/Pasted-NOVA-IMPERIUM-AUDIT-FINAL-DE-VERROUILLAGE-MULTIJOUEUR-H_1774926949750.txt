@@ -1,0 +1,151 @@
+NOVA IMPERIUM — AUDIT FINAL DE VERROUILLAGE MULTIJOUEUR / HARMONISATION
+Branche cible : NI-10.3
+
+RÔLE
+Tu agis comme auditeur technique strict.
+Tu ne lances aucune nouvelle feature.
+Tu ne fais aucun refactor massif.
+Tu ne corriges rien par réflexe.
+Tu vérifies ce qui est réellement fermé, ce qui reste ouvert, et ce qui est seulement cosmétique.
+
+MÉTHODE OBLIGATOIRE
+1. Analyse
+2. Validation
+3. Proposition
+4. Implémentation (seulement si explicitement demandée)
+5. Vérification
+
+OBJECTIF
+Je veux un audit final de verrouillage du segment d’harmonisation actuel, pour confirmer :
+
+- ce qui est maintenant réellement serveur-authoritative
+- ce qui est correctement resynchronisé côté client
+- quels résidus sont encore réellement ouverts
+- lesquels sont critiques
+- lesquels sont seulement cosmétiques / optionnels
+
+IMPORTANT
+Je ne veux pas de nouveau chantier tant que cet audit de verrouillage n’est pas fait.
+Je veux une photo claire de l’état réel du segment.
+
+PRIORITÉS
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+INTERDIT
+- aucune nouvelle feature
+- aucun refactor massif
+- aucune proposition de gros système temps réel
+- aucun WebSocket
+- aucun heartbeat nouveau
+- ne pas ouvrir marché / banque / inventaire
+- ne pas corriger un point non prouvé
+
+PRÉ-REQUIS OBLIGATOIRES
+Avant toute conclusion, afficher exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’AUDIT
+Je veux :
+- objectif précis
+- flux à vérifier
+- fichiers à relire si nécessaire
+- validations runtime visées
+- critères de fermeture
+
+PÉRIMÈTRE DE VÉRIFICATION
+Je veux au minimum un audit de verrouillage sur ces flux :
+
+A. PRÉSENCE MULTIJOUEUR
+- visibilité au login / montage
+- visibilité pendant transit
+- visibilité pendant transit offline > 10 min
+- cohérence entre player_positions, player_actions, getActivePlayerPositions()
+
+B. POSITION / DÉPLACEMENT OBSERVÉ PAR LES AUTRES
+- position de transit calculée côté serveur
+- comportement à la fin du trajet
+- comportement à l’annulation
+- cohérence du polling observateur
+
+C. PANNEAUX / UI TERRITOIRES
+- UnifiedTerritoryPanel
+- TileInfoPanel
+- singleton UnifiedTerritorySystem
+- polling GameCanvas
+- confirmer ce qui est réellement corrigé et ce qui reste simplement redondant
+
+D. SOURCE DE VÉRITÉ
+Pour chaque flux, je veux distinguer clairement :
+- vérité DB persistée
+- vérité calculée serveur
+- API exposée
+- singleton mémoire client
+- affichage React
+
+QUESTIONS À TRANCHER
+Je veux que tu répondes précisément :
+
+1. Quels bugs du segment sont réellement fermés ?
+2. Lesquels sont validés :
+   - en code
+   - en runtime
+   - en DB
+   - à 2 clients si applicable
+3. Quels résidus restent encore ouverts ?
+4. Parmi eux, lequel est le prochain vrai bug à traiter ?
+5. Y a-t-il des nettoyages optionnels qui ne doivent PAS être confondus avec des bugs ?
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. FLUX VÉRIFIÉS
+- liste précise
+- fichiers relus si nécessaire
+
+2. POINTS RÉELLEMENT FERMÉS
+Pour chacun :
+- bug initial
+- état actuel
+- type de validation obtenue
+- verdict fermé / partiellement fermé
+
+3. RÉSIDUS ENCORE OUVERTS
+Pour chacun :
+- symptôme
+- gravité
+- cause racine
+- impact réel
+- critique ou cosmétique
+
+4. CE QUI EST MAINTENANT BIEN SERVEUR-AUTHORITATIVE
+Je veux la liste explicite des points solides à ne pas casser.
+
+5. PROCHAINE TÂCHE RECOMMANDÉE
+Je veux UNE seule tâche.
+Pas plusieurs.
+Et tu dois préciser :
+- bug réel ou nettoyage cosmétique
+- pourquoi lui en premier
+- périmètre probable
+
+6. PROMPT SUIVANT PRÊT À EXÉCUTER
+Tu me rédiges le prompt exact correspondant à cette tâche unique.
+
+7. RISQUES SI ON OUVRE LE MAUVAIS CHANTIER MAINTENANT
+- uniquement les vrais
+- classés
+
+8. STOP
+
+CONTRAINTE FINALE
+Je ne veux pas qu’un nettoyage optionnel soit présenté comme un bug critique.
+Je veux une clôture propre du segment, avec distinction stricte entre :
+- correctif nécessaire
+- amélioration optionnelle
+- chantier à ne pas ouvrir maintenant.
