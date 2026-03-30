@@ -1,0 +1,184 @@
+NOVA IMPERIUM — AUDIT STRICT R1-TRANSIT
+CIBLE : RENDRE LA POSITION EN COURS DE TRAJET VRAIMENT SERVEUR-AUTHORITATIVE
+Branche cible : NI-10.3
+
+RÔLE
+Tu agis comme auditeur technique strict.
+Tu ne codes pas impulsivement.
+Tu ne fais aucun refactor massif.
+Tu ne changes pas l’architecture sans validation.
+Tu identifies d’abord le plus petit correctif propre possible.
+
+MÉTHODE OBLIGATOIRE
+1. Analyse
+2. Validation
+3. Proposition
+4. Implémentation (seulement si explicitement demandée)
+5. Vérification
+
+CONTEXTE VALIDÉ
+Le dernier audit a confirmé le point suivant :
+
+- pendant un trajet long, la position intermédiaire de A vue par les autres joueurs dépend encore du polling du client de A
+- l’écriture intermédiaire de position est déclenchée dans la logique d’action active quand A appelle GET /api/player/actions/current
+- si A ferme sa page ou si son onglet est suspendu, la DB peut rester figée sur une ancienne position
+- le serveur détient pourtant déjà les données de trajet (path, timing, step effectif calculable)
+- résultat : la vérité serveur métier existe partiellement, mais sa projection visible pour les autres n’est pas encore totalement indépendante du client voyageur
+
+OBJECTIF
+Je veux un audit strict pour répondre à cette question :
+
+“Quel est le plus petit correctif propre pour que la position visible d’un joueur en trajet long ne dépende plus du polling de sa propre page ?”
+
+IMPORTANT
+Je ne veux PAS encore une implémentation directe.
+Je veux d’abord un audit de correctif minimal.
+
+PRIORITÉS
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+INTERDIT
+- aucun refactor massif
+- aucun changement d’architecture prématuré
+- aucun WebSocket
+- aucun heartbeat nouveau
+- aucun gros système temps réel
+- aucun chantier parallèle
+- ne pas toucher marché / banque / inventaire / territoires
+- ne pas proposer un cron / worker serveur si une solution plus petite existe déjà dans le flux actuel
+
+PRÉ-REQUIS OBLIGATOIRES
+Avant toute conclusion, afficher exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’AUDIT
+Je veux :
+- objectif précis
+- fichiers à lire
+- hypothèses à vérifier
+- options possibles à comparer
+- risque architectural principal
+
+PÉRIMÈTRE D’AUDIT
+Tu dois auditer au minimum :
+
+BACKEND
+- server/playerActionService.ts
+- server/playerPresenceService.ts
+- server/playerPositionService.ts
+- server/routes/playerActions.ts
+- server/routes/players.ts
+- tout autre fichier directement nécessaire si et seulement si tu prouves pourquoi
+
+FRONTEND (lecture seulement si utile pour confirmer le flux)
+- client/src/components/game/GameCanvas.tsx
+- client/src/lib/stores/usePlayerPresence.ts
+- tout autre fichier seulement si nécessaire pour confirmer qui poll quoi et à quel rythme
+
+QUESTIONS TECHNIQUES À TRANCHER
+Tu dois répondre précisément à ces questions :
+
+A. SOURCE DE VÉRITÉ ACTUELLE
+- où le serveur stocke-t-il la position persistée ?
+- où le serveur stocke-t-il l’action de déplacement active ?
+- quelles données permettent de recalculer la position effective à un instant T sans dépendre du client ?
+
+B. CAUSE RACINE EXACTE
+- pourquoi la position de transit vue par les autres dépend-elle encore du polling du client A ?
+- est-ce un problème d’écriture DB ?
+- un problème de lecture API ?
+- un problème de choix de source de vérité dans GET /api/players/positions ?
+- ou autre chose ?
+
+C. PLUS PETIT CORRECTIF POSSIBLE
+Je veux que tu compares explicitement ces approches :
+
+OPTION 1 — CORRECTION EN LECTURE
+- GET /api/players/positions calcule côté serveur la position effective d’un joueur qui a une action move active
+- sans dépendre d’un save intermédiaire déclenché par le client voyageur
+- en utilisant les données déjà présentes côté serveur si possible
+
+OPTION 2 — CORRECTION EN ÉCRITURE
+- le serveur persiste lui-même les steps intermédiaires indépendamment du client
+- par un mécanisme autonome
+
+OPTION 3 — AUTRE PLUS PETIT PASSAGE
+- seulement si c’est réellement plus simple et plus stable que les deux options ci-dessus
+
+IMPORTANT
+Je veux une comparaison stricte :
+- complexité
+- fichiers touchés
+- risque de régression
+- respect de l’architecture existante
+- caractère vraiment serveur-authoritative
+
+D. CONTRAINTE FONDAMENTALE
+Le client ne doit pas devenir la source de vérité de la position de transit.
+Le bon résultat cible est :
+- le serveur décide où A est rendu
+- les autres joueurs voient cette position via une lecture serveur correcte
+- même si A ne poll plus temporairement
+
+CE QUE JE VEUX DANS LE RAPPORT FINAL
+Je veux EXACTEMENT cette structure :
+
+1. FICHIERS AUDITÉS
+- liste précise
+- rôle de chaque fichier
+
+2. CARTOGRAPHIE ACTUELLE DE R1-TRANSIT
+- source canonique actuelle
+- point d’écriture actuel
+- point de lecture actuel
+- endroit exact où la dépendance au client apparaît
+
+3. CAUSE RACINE CONFIRMÉE
+- explication technique précise
+- preuve code
+- distinction claire entre vérité serveur, DB persistée, API exposée, client consommateur
+
+4. COMPARAISON DES OPTIONS
+Pour chaque option :
+- principe
+- fichiers probablement touchés
+- avantages
+- risques
+- compatibilité avec l’architecture actuelle
+- verdict
+
+5. PLUS PETIT CORRECTIF RECOMMANDÉ
+Je veux UNE seule recommandation finale.
+Pas trois.
+Pas une roadmap entière.
+Je veux :
+- la solution à retenir
+- pourquoi c’est le plus petit passage propre
+- pourquoi elle renforce vraiment le serveur comme source de vérité
+
+6. PROMPT D’IMPLÉMENTATION PRÊT À EXÉCUTER
+Tu me rédiges ensuite le prompt ultra détaillé d’implémentation pour la solution retenue.
+Ce prompt doit déjà inclure :
+- périmètre autorisé
+- fichiers autorisés
+- ordre d’exécution
+- vérifications après modification
+- contrôle de périmètre
+- risques résiduels
+
+7. RISQUES SI ON CHOISIT LA MAUVAISE STRATÉGIE
+- uniquement les vrais
+- classés
+
+8. STOP
+
+CONTRAINTE FINALE
+Je ne veux pas de supposition.
+Je ne veux pas de solution lourde si une correction en lecture côté serveur suffit.
+Je veux savoir quel est le plus petit correctif propre pour que la position en transit soit réellement gouvernée par le serveur, et non par le polling du client voyageur.
