@@ -1,0 +1,149 @@
+NOVA IMPERIUM — AUDIT STRICT R2a-TILE
+CIBLE : TILEINFOPANEL RESTE STALE SI LA MÊME CASE RESTE SÉLECTIONNÉE
+Branche cible : NI-10.3
+
+RÔLE
+Tu agis comme auditeur technique strict.
+Tu ne codes pas impulsivement.
+Tu ne fais aucun refactor massif.
+Tu n’ouvres aucun nouveau système.
+Tu identifies d’abord le plus petit correctif propre possible.
+
+MÉTHODE OBLIGATOIRE
+1. Analyse
+2. Validation
+3. Proposition
+4. Implémentation (seulement si explicitement demandée)
+5. Vérification
+
+CONTEXTE VALIDÉ
+Le serveur et le singleton territoire sont maintenant correctement mis à jour.
+Le résiduel connu est côté UI locale :
+
+- TileInfoPanel lit UnifiedTerritorySystem.getTerritory(...) dans le render
+- mais si le joueur garde la même case sélectionnée
+- et qu’un autre joueur modifie l’état du territoire
+- le panneau peut rester stale jusqu’au prochain re-render
+
+OBJECTIF
+Je veux un audit strict pour répondre à cette question :
+
+“Quel est le plus petit correctif propre pour que TileInfoPanel se recale automatiquement sur l’état déjà présent dans UnifiedTerritorySystem, même si selectedHex ne change pas ?”
+
+IMPORTANT
+Je ne veux PAS encore une implémentation directe.
+Je veux d’abord l’audit du plus petit correctif propre.
+
+PRIORITÉS
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+INTERDIT
+- aucun refactor massif
+- aucun changement d’architecture
+- aucun nouveau store global si évitable
+- aucun polling réseau supplémentaire
+- ne pas toucher au backend
+- ne pas ouvrir un chantier plus large sur toute l’UI
+
+PRÉ-REQUIS OBLIGATOIRES
+Avant toute conclusion, afficher exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’AUDIT
+Je veux :
+- objectif précis
+- fichiers à lire
+- hypothèses à vérifier
+- options possibles à comparer
+- risque principal si on corrige mal
+
+PÉRIMÈTRE D’AUDIT
+Tu dois auditer au minimum :
+
+FRONTEND
+- client/src/components/game/TileInfoPanel.tsx
+- client/src/lib/systems/UnifiedTerritorySystem.ts
+- client/src/components/game/GameCanvas.tsx
+
+Lire aussi tout autre fichier strictement nécessaire si tu peux prouver pourquoi.
+
+QUESTIONS TECHNIQUES À TRANCHER
+Tu dois répondre précisément à ces questions :
+
+A. CAUSE RACINE EXACTE
+- pourquoi TileInfoPanel ne se re-render pas quand UnifiedTerritorySystem change ?
+- le problème vient-il uniquement de selectedHex inchangé ?
+- y a-t-il déjà un signal réactif disponible quelque part ?
+
+B. PLUS PETIT CORRECTIF POSSIBLE
+Comparer explicitement ces approches :
+
+OPTION 1 — TIMER LOCAL DANS TILEINFOPANEL
+- relire périodiquement le singleton localement
+- sans fetch réseau
+- seulement si le panneau est ouvert
+
+OPTION 2 — PETIT SIGNAL RÉACTIF EXISTANT
+- réutiliser un state/prop déjà présent qui peut forcer un re-render propre
+- sans refactor large
+
+OPTION 3 — AUTRE PLUS PETIT PASSAGE
+- seulement si réellement plus simple et plus stable
+
+Pour chaque option :
+- complexité
+- fichiers touchés
+- risque de régression
+- coût runtime
+- compatibilité avec l’architecture actuelle
+
+C. CONTRAINTE FONDAMENTALE
+Je ne veux pas créer un système plus complexe que le problème.
+Je veux seulement que TileInfoPanel reflète correctement une vérité déjà présente dans UnifiedTerritorySystem.
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. FICHIERS AUDITÉS
+- liste précise
+- rôle de chaque fichier
+
+2. CARTOGRAPHIE ACTUELLE DE R2a-TILE
+- source de vérité
+- chemin de mise à jour
+- point exact où le panneau devient stale
+
+3. CAUSE RACINE CONFIRMÉE
+- explication technique précise
+- preuve code
+
+4. COMPARAISON DES OPTIONS
+Pour chaque option :
+- principe
+- fichiers probablement touchés
+- avantages
+- risques
+- verdict
+
+5. PLUS PETIT CORRECTIF RECOMMANDÉ
+Je veux UNE seule recommandation finale.
+Pas plusieurs.
+
+6. PROMPT D’IMPLÉMENTATION PRÊT À EXÉCUTER
+Tu me rédiges ensuite le prompt ultra détaillé d’implémentation pour la solution retenue.
+
+7. RISQUES SI ON CHOISIT LA MAUVAISE STRATÉGIE
+- uniquement les vrais
+- classés
+
+8. STOP
+
+CONTRAINTE FINALE
+Je ne veux pas de suppositions.
+Je veux le plus petit correctif propre pour que TileInfoPanel se recale sur la vérité déjà présente côté client, sans ouvrir un nouveau gros système.
