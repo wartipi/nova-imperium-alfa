@@ -13,6 +13,7 @@ import { CameraControls } from "./CameraControls";
 import { UnifiedTerritorySystem } from "../../lib/systems/UnifiedTerritorySystem";
 import { requestMove, fetchCurrentAction } from "../../lib/api/playerActionsApi";
 import { fetchPlayerPosition } from "../../lib/api/playerApi";
+import { fetchAllTerritories, fetchAllColonies } from "../../lib/api/territoriesApi";
 import { usePlayerActions } from "../../lib/stores/usePlayerActions";
 import { usePlayerPresence } from "../../lib/stores/usePlayerPresence";
 
@@ -215,6 +216,31 @@ export function GameCanvas() {
     poll();
     const interval = setInterval(poll, 5000);
     return () => clearInterval(interval);
+  }, [isAuthenticated]);
+
+  // R2 — polling territoire automatique : synchronise claims / fondations / exploitations entre clients
+  // Fréquence : 10s — indépendant du panneau territoire (toujours actif)
+  // Dépendance unique : isAuthenticated — l'intervalle n'est pas recréé à chaque rendu
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const pollTerritories = async () => {
+      try {
+        const [territories, colonies] = await Promise.all([
+          fetchAllTerritories(),
+          fetchAllColonies(),
+        ]);
+        const { originWorldX, originWorldY } = useMap.getState();
+        UnifiedTerritorySystem.loadFromServer(territories, colonies, originWorldX, originWorldY);
+        gameEngineRef.current?.render();
+      } catch {
+        // Échec silencieux — pas de crash si réseau indisponible
+      }
+    };
+
+    pollTerritories();
+    const territoryInterval = setInterval(pollTerritories, 10000);
+    return () => clearInterval(territoryInterval);
   }, [isAuthenticated]);
 
   // Hydratation au montage — reprend une action déjà en cours si rechargement de page
