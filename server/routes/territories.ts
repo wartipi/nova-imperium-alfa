@@ -7,6 +7,7 @@ import {
   claimTerritory,
   foundColony,
   setColonyGovernor,
+  exploitTerritory,
 } from "../territoryService";
 import { transferColonyOwnership } from "../ownershipService";
 
@@ -167,6 +168,42 @@ router.patch("/colonies/:colonyId/governor", requireAuth, async (req: AuthReques
   } catch (err) {
     console.error("[Territories] setColonyGovernor error:", err);
     res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// ─── POST /api/territories/:territoryId/exploit ───────────────────────────────
+// Phase Exploitation V1 — Exploiter un territoire depuis une colonie.
+// Body : { colonyId: number, buildingType: "exploitation_post" }
+// Validation complète côté serveur (Règle A).
+router.post("/:territoryId/exploit", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const territoryId = parseInt(req.params.territoryId, 10);
+    if (isNaN(territoryId)) {
+      return res.status(400).json({ error: "territoryId invalide" });
+    }
+
+    const { colonyId, buildingType } = req.body;
+
+    if (typeof colonyId !== "number" || isNaN(colonyId)) {
+      return res.status(400).json({ error: "colonyId (entier) est requis" });
+    }
+
+    if (typeof buildingType !== "string" || !buildingType.trim()) {
+      return res.status(400).json({ error: "buildingType est requis" });
+    }
+
+    const requestingPlayerId = req.user!.id;
+
+    const result = await exploitTerritory(territoryId, colonyId, buildingType.trim(), requestingPlayerId);
+
+    if ("error" in result) {
+      return res.status(result.status).json({ error: result.error });
+    }
+
+    return res.status(200).json(result.territory);
+  } catch (err) {
+    console.error("[Territories] exploitTerritory error:", err);
+    res.status(500).json({ error: "Erreur serveur lors de l'exploitation" });
   }
 });
 

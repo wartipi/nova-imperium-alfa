@@ -23,6 +23,9 @@ export interface TerritoryDTO {
   // Rattachement V1 — Colonie gestionnaire (recalcul automatique par proximité)
   managingColonyId:   number | null;
   managingColonyName: string | null;
+  // Exploitation V1 — Colonie exploitante + bâtiment d'exploitation
+  exploitingColonyId:       number | null;
+  exploitationBuildingType: string | null;
 }
 
 export interface ColonyDTO {
@@ -66,7 +69,191 @@ function mapTerritory(
     ownerFactionName: row.ownerFactionName ?? null,
     managingColonyId:   row.managingColonyId   ?? null,
     managingColonyName: managingColonyName      ?? null,
+    exploitingColonyId:       row.exploitingColonyId       ?? null,
+    exploitationBuildingType: row.exploitationBuildingType ?? null,
   };
+}
+
+// ─── Phase Exploitation V1 : adjacence hex (offset coords) ────────────────────
+// Calcule les 6 voisins hex d'une case en coordonnées offset (col=worldX, row=worldY).
+// Conversion via coordonnées cubiques, cohérente avec hexDistance() dans hexUtils.ts.
+function getHexNeighbors(col: number, row: number): Array<{ col: number; row: number }> {
+  const x = col;
+  const z = row - (col - (col & 1)) / 2;
+  // 6 directions cubiques
+  const dirs = [
+    { dx:  1, dz:  0 }, { dx: -1, dz:  0 },
+    { dx:  1, dz: -1 }, { dx: -1, dz:  1 },
+    { dx:  0, dz: -1 }, { dx:  0, dz:  1 },
+  ];
+  return dirs.map(({ dx, dz }) => {
+    const nx = x + dx;
+    const nz = z + dz;
+    const nrow = nz + (nx - (nx & 1)) / 2;
+    return { col: nx, row: nrow };
+  });
+}
+
+// ─── Phase Exploitation V1 : règle canonique d'exploitabilité ────────────────
+// Retourne true si le territoire T est exploitable depuis la colonie C.
+// Conditions :
+//   1. même owner (player/faction)
+//   2. T n'est pas une tuile de colonie
+//   3. hexDistance(T, C) <= 6 OU chemin continu de territoires du même owner
+export async function isTerritoryExploitableForColony(
+  territory: { id: number; worldX: number; worldY: number; ownerType: string; ownerPlayerId: string | null; ownerFactionId: number | null },
+  colony: { worldX: number; worldY: number; ownerType: string; ownerPlayerId: string | null; ownerFactionId: number | null },
+): Promise<{ exploitable: boolean; reason: string }> {
+  // 1. Même owner
+  const sameOwner =
+    (territory.ownerType === 'player' && colony.ownerType === 'player' && territory.ownerPlayerId === colony.ownerPlayerId) ||
+    (territory.ownerType === 'faction' && colony.ownerType === 'faction' && territory.ownerFactionId !== null && territory.ownerFactionId === colony.ownerFactionId);
+
+  if (!sameOwner) {
+    return { exploitable: false, reason: "Owner différent entre le territoire et la colonie" };
+  }
+
+  // 2. T n'est pas une tuile de colonie
+  const colonyOnTile = await db
+    .select({ id: colonies.id })
+    .from(colonies)
+    .where(and(eq(colonies.worldX, territory.worldX), eq(colonies.worldY, territory.worldY)));
+
+  if (colonyOnTile.length > 0) {
+    return { exploitable: false, reason: "Ce territoire est une tuile de colonie" };
+  }
+
+  // 3a. Distance <= 6
+  const dist = hexDistance(territory.worldX, territory.worldY, colony.worldX, colony.worldY);
+  if (dist <= 6) {
+    return { exploitable: true, reason: `Distance ${dist} ≤ 6` };
+  }
+
+  // 3b. Connectivité BFS : chaîne continue de territoires du même owner
+  // Charger tous les territoires du même owner comme ensemble de positions
+  let ownerTerritories: Array<{ worldX: number; worldY: number }> = [];
+  if (territory.ownerType === 'faction' && territory.ownerFactionId !== null) {
+    ownerTerritories = await db
+      .select({ worldX: territories.worldX, worldY: territories.worldY })
+      .from(territories)
+      .where(eq(territories.ownerFactionId, territory.ownerFactionId));
+  } else if (territory.ownerType === 'player' && territory.ownerPlayerId !== null) {
+    ownerTerritories = await db
+      .select({ worldX: territories.worldX, worldY: territories.worldY })
+      .from(territories)
+      .where(eq(territories.ownerPlayerId, territory.ownerPlayerId));
+  }
+
+  const ownerSet = new Set(ownerTerritories.map(t => `${t.worldX},${t.worldY}`));
+
+  // BFS depuis la colonie → vérifier si on atteint le territoire T
+  const targetKey = `${territory.worldX},${territory.worldY}`;
+  const startKey  = `${colony.worldX},${colony.worldY}`;
+  const visited   = new Set<string>();
+  const queue: Array<{ col: number; row: number }> = [{ col: colony.worldX, row: colony.worldY }];
+  visited.add(startKey);
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    const neighbors = getHexNeighbors(current.col, current.row);
+
+    for (const nb of neighbors) {
+      const key = `${nb.col},${nb.row}`;
+      if (visited.has(key)) continue;
+      if (!ownerSet.has(key)) continue;
+      visited.add(key);
+      if (key === targetKey) {
+        return { exploitable: true, reason: "Connecté par chaîne continue de territoires" };
+      }
+      queue.push({ col: nb.col, row: nb.row });
+    }
+  }
+
+  return { exploitable: false, reason: `Distance ${dist} > 6 et non connecté` };
+}
+
+// ─── Phase Exploitation V1 : action d'exploitation ────────────────────────────
+// Valide toutes les conditions serveur et marque le territoire comme exploité.
+export async function exploitTerritory(
+  territoryId: number,
+  colonyId: number,
+  buildingType: string,
+  requestingPlayerId: string,
+): Promise<{ territory: TerritoryDTO } | { error: string; status: number }> {
+  // Valider buildingType V1
+  const ALLOWED_BUILDING_TYPES = ['exploitation_post'];
+  if (!ALLOWED_BUILDING_TYPES.includes(buildingType)) {
+    return { error: `Type de bâtiment non autorisé en V1 : ${buildingType}`, status: 400 };
+  }
+
+  // Charger le territoire
+  const terRows = await db
+    .select({ ter: territories, colName: colonies.name })
+    .from(territories)
+    .leftJoin(colonies, eq(territories.managingColonyId, colonies.id))
+    .where(eq(territories.id, territoryId));
+
+  if (terRows.length === 0) {
+    return { error: "Territoire introuvable", status: 404 };
+  }
+  const ter = terRows[0].ter;
+
+  // Pas déjà exploité
+  if (ter.exploitationBuildingType !== null) {
+    return { error: "Ce territoire est déjà exploité", status: 409 };
+  }
+
+  // Charger la colonie
+  const colRows = await db
+    .select().from(colonies).where(eq(colonies.id, colonyId));
+  if (colRows.length === 0) {
+    return { error: "Colonie introuvable", status: 404 };
+  }
+  const colony = colRows[0];
+
+  // Vérifier que le requérant est autorisé (propriétaire ou gouverneur)
+  const ownerOk =
+    (colony.ownerType === 'player' && colony.ownerPlayerId === requestingPlayerId) ||
+    (colony.ownerType === 'faction' && colony.governorUserId === requestingPlayerId);
+  if (!ownerOk) {
+    return { error: "Vous n'êtes pas autorisé à exploiter depuis cette colonie", status: 403 };
+  }
+
+  // Appliquer la règle canonique
+  const eligibility = await isTerritoryExploitableForColony(
+    {
+      id: ter.id, worldX: ter.worldX, worldY: ter.worldY,
+      ownerType: ter.ownerType ?? 'faction',
+      ownerPlayerId: ter.ownerPlayerId ?? null,
+      ownerFactionId: ter.ownerFactionId ?? null,
+    },
+    {
+      worldX: colony.worldX, worldY: colony.worldY,
+      ownerType: colony.ownerType ?? 'faction',
+      ownerPlayerId: colony.ownerPlayerId ?? null,
+      ownerFactionId: colony.ownerFactionId ?? null,
+    },
+  );
+
+  if (!eligibility.exploitable) {
+    return { error: `Ce territoire n'est pas exploitable : ${eligibility.reason}`, status: 422 };
+  }
+
+  // Mettre à jour
+  await db
+    .update(territories)
+    .set({ exploitingColonyId: colonyId, exploitationBuildingType: buildingType })
+    .where(eq(territories.id, territoryId));
+
+  // Rechargement post-update
+  const [updated] = await db
+    .select({ ter: territories, colName: colonies.name })
+    .from(territories)
+    .leftJoin(colonies, eq(territories.managingColonyId, colonies.id))
+    .where(eq(territories.id, territoryId));
+
+  console.log(`[exploitTerritory] Territoire #${territoryId} → exploitingColonyId=${colonyId} buildingType=${buildingType}`);
+  return { territory: mapTerritory(updated.ter, updated.colName ?? null) };
 }
 
 // ─── Backfill idempotent Phase 12 ─────────────────────────────────────────────

@@ -35,6 +35,9 @@ export interface TerritoryDTO {
   // Rattachement V1 — Colonie gestionnaire
   managingColonyId:   number | null;
   managingColonyName: string | null;
+  // Exploitation V1 — Colonie exploitante + bâtiment d'exploitation
+  exploitingColonyId:       number | null;
+  exploitationBuildingType: string | null;
 }
 
 export interface ColonyDTO {
@@ -96,6 +99,24 @@ export async function apiFoundColony(worldX: number, worldY: number, name: strin
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || "Erreur fondation colonie");
+  }
+  return res.json();
+}
+
+// Phase Exploitation V1 — Exploiter un territoire depuis une colonie.
+export async function apiExploitTerritory(
+  territoryId: number,
+  colonyId: number,
+  buildingType: string = "exploitation_post",
+): Promise<TerritoryDTO> {
+  const res = await fetch(`/api/territories/${territoryId}/exploit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    body: JSON.stringify({ colonyId, buildingType }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Erreur exploitation territoire");
   }
   return res.json();
 }

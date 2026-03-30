@@ -9,6 +9,7 @@
 import type { TerritoryDTO, ColonyDTO } from "../api/territoriesApi";
 
 export interface Territory {
+  id: number;
   x: number;
   y: number;
   worldX: number;
@@ -34,6 +35,11 @@ export interface Territory {
   // Rattachement V1 — Colonie gestionnaire
   managingColonyId?:   number | null;
   managingColonyName?: string | null;
+  // Exploitation V1 — Colonie exploitante + bâtiment d'exploitation
+  exploitingColonyId?:       number | null;
+  exploitationBuildingType?: string | null;
+  // Dérivé UI uniquement : vrai si exploitationBuildingType != null
+  isExploited?: boolean;
 }
 
 class UnifiedTerritorySystemClass {
@@ -66,6 +72,7 @@ class UnifiedTerritorySystemClass {
       const colony = colonyByWorldPos.get(this.getKey(t.worldX, t.worldY));
 
       const territory: Territory = {
+        id: t.id,
         x: hexX,
         y: hexY,
         worldX: t.worldX,
@@ -85,6 +92,10 @@ class UnifiedTerritorySystemClass {
         // Rattachement V1 — Colonie gestionnaire
         managingColonyId:   t.managingColonyId   ?? null,
         managingColonyName: t.managingColonyName ?? null,
+        // Exploitation V1
+        exploitingColonyId:       t.exploitingColonyId       ?? null,
+        exploitationBuildingType: t.exploitationBuildingType ?? null,
+        isExploited: t.exploitationBuildingType != null,
         ...(colony
           ? {
               colonyId: String(colony.id),
@@ -156,6 +167,81 @@ class UnifiedTerritorySystemClass {
 
   getTerritoryCount(): number {
     return this.territories.size;
+  }
+
+  // ─── Phase Exploitation V1 : éligibilité client-side (hint UI) ────────────
+  // Miroir de la règle serveur — le serveur reste la source de vérité.
+  // T exploitable pour une colonie C si :
+  //   1. même owner (garantie par contexte appelant)
+  //   2. T n'est pas une tuile de colonie (t.colonyId absent)
+  //   3. hexDistance(T, C) <= 6 OU BFS sur territoires du même owner
+  isTerritoryExploitableClientSide(
+    ter: Territory,
+    colonyWorldX: number,
+    colonyWorldY: number,
+  ): { exploitable: boolean; distance: number; connectedByChain: boolean } {
+    if (ter.isExploited) return { exploitable: false, distance: 0, connectedByChain: false };
+    if (ter.colonyId) return { exploitable: false, distance: 0, connectedByChain: false };
+
+    // Hex distance via cube coords (identique hexUtils.ts serveur)
+    function offsetToCube(col: number, row: number) {
+      const x = col;
+      const z = row - (col - (col & 1)) / 2;
+      return { x, z };
+    }
+    function hexDist(x1: number, y1: number, x2: number, y2: number): number {
+      const c1 = offsetToCube(x1, y1);
+      const c2 = offsetToCube(x2, y2);
+      const dx = Math.abs(c1.x - c2.x);
+      const dz = Math.abs(c1.z - c2.z);
+      const dy = Math.abs((-c1.x - c1.z) - (-c2.x - c2.z));
+      return (dx + dy + dz) / 2;
+    }
+    function getNeighbors(col: number, row: number): Array<{ col: number; row: number }> {
+      const { x, z } = offsetToCube(col, row);
+      const dirs = [
+        { dx: 1, dz: 0 }, { dx: -1, dz: 0 },
+        { dx: 1, dz: -1 }, { dx: -1, dz: 1 },
+        { dx: 0, dz: -1 }, { dx: 0, dz: 1 },
+      ];
+      return dirs.map(({ dx, dz }) => {
+        const nx = x + dx;
+        const nz = z + dz;
+        const nrow = nz + (nx - (nx & 1)) / 2;
+        return { col: nx, row: nrow };
+      });
+    }
+
+    const dist = hexDist(ter.worldX, ter.worldY, colonyWorldX, colonyWorldY);
+    if (dist <= 6) return { exploitable: true, distance: dist, connectedByChain: false };
+
+    // BFS sur les territoires du même owner chargés en mémoire
+    const ownerSet = new Set<string>();
+    for (const t of this.territories.values()) {
+      const sameOwner =
+        (ter.ownerType === 'player' && t.ownerType === 'player' && t.ownerPlayerId === ter.ownerPlayerId) ||
+        (ter.ownerType === 'faction' && t.ownerType === 'faction' && t.ownerFactionId === ter.ownerFactionId && ter.ownerFactionId !== null);
+      if (sameOwner) ownerSet.add(`${t.worldX},${t.worldY}`);
+    }
+
+    const targetKey = `${ter.worldX},${ter.worldY}`;
+    const visited = new Set<string>();
+    const queue: Array<{ col: number; row: number }> = [{ col: colonyWorldX, row: colonyWorldY }];
+    visited.add(`${colonyWorldX},${colonyWorldY}`);
+
+    while (queue.length > 0) {
+      const cur = queue.shift()!;
+      for (const nb of getNeighbors(cur.col, cur.row)) {
+        const key = `${nb.col},${nb.row}`;
+        if (visited.has(key)) continue;
+        if (!ownerSet.has(key)) continue;
+        visited.add(key);
+        if (key === targetKey) return { exploitable: true, distance: dist, connectedByChain: true };
+        queue.push({ col: nb.col, row: nb.row });
+      }
+    }
+
+    return { exploitable: false, distance: dist, connectedByChain: false };
   }
 
   // ─── Terrains disponibles pour une colonie (lit window.gameEngine.mapData) ──

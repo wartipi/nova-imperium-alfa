@@ -419,6 +419,11 @@ export const territories = pgTable("territories", {
   ownerFactionName: text("owner_faction_name"),
   // Phase rattachement V1 — Colonie gestionnaire déterministe (calcul automatique par proximité)
   managingColonyId: integer("managing_colony_id").references(() => colonies.id),
+  // Phase Exploitation V1 — Colonie exploitante + type de bâtiment d'exploitation
+  // Un territoire est "exploité" si exploitationBuildingType != null.
+  // V1 : valeur autorisée = "exploitation_post". Max 1 bâtiment par territoire.
+  exploitingColonyId:      integer("exploiting_colony_id").references(() => colonies.id),
+  exploitationBuildingType: text("exploitation_building_type"),
 }, (table) => ({
   uniquePos: unique("territories_world_pos_unique").on(table.worldX, table.worldY),
 }));
