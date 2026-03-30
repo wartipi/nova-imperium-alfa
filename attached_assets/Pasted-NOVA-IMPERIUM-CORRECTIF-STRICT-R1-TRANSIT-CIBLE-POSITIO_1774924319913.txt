@@ -1,0 +1,176 @@
+NOVA IMPERIUM — CORRECTIF STRICT R1-TRANSIT
+CIBLE : POSITION DE TRANSIT LUE DE FAÇON VRAIMENT SERVEUR-AUTHORITATIVE
+Branche cible : NI-10.3
+
+RÔLE
+Tu agis comme ingénieur serveur strict.
+Tu appliques uniquement le plus petit correctif validé par audit.
+Tu ne fais aucun refactor massif.
+Tu ne touches à rien d’autre.
+Tu ne dérives pas.
+
+CONTEXTE VALIDÉ
+Audit confirmé :
+
+1. GET /api/players/positions passe par server/playerPresenceService.ts
+2. getActivePlayerPositions() lit aujourd’hui uniquement player_positions
+3. Pendant un trajet long, player_positions est rafraîchie de façon lazy par getActiveAction()
+4. Ce lazy write dépend du polling du client voyageur A
+5. Si A cesse de poller, B voit une position figée
+6. Le serveur possède pourtant déjà les données complètes de transit dans player_actions
+7. resolveMoveStep(action, now) est déjà disponible côté serveur pour calculer la position effective à un instant T
+
+OBJECTIF
+Corriger uniquement ce point :
+- quand GET /api/players/positions est appelé,
+- le serveur doit retourner la position calculée de transit pour tout joueur ayant une action move active,
+- même si ce joueur ne poll plus sa propre page.
+
+IMPORTANT
+Je veux une correction en lecture serveur.
+Je ne veux pas de cron.
+Je ne veux pas de worker.
+Je ne veux pas de WebSocket.
+Je ne veux pas de nouveau système.
+
+PRÉ-REQUIS OBLIGATOIRES AVANT TOUTE MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. VALIDATION PRÉALABLE
+Je veux confirmation explicite :
+- que resolveMoveStep est bien exporté et réutilisable
+- que getActivePlayerPositions() lit bien player_positions uniquement aujourd’hui
+- que server/routes/players.ts ne contient pas de logique de fusion supplémentaire
+- que le correctif peut rester limité à server/playerPresenceService.ts
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement :
+- server/playerPresenceService.ts
+
+Aucun autre fichier.
+
+Si tu juges qu’un autre fichier est absolument nécessaire :
+- tu t’arrêtes
+- tu le signales
+- tu ne modifies rien d’autre sans validation
+
+IMPLÉMENTATION ATTENDUE
+
+LOT UNIQUE — CORRIGER getActivePlayerPositions() EN LECTURE
+Fichier :
+- server/playerPresenceService.ts
+
+But :
+- conserver la query existante sur player_positions pour la présence active
+- puis, pour les joueurs déjà retenus par ce filtre, surcharger worldX/worldY avec la position calculée par resolveMoveStep() s’ils ont une action move active
+
+COMPORTEMENT ATTENDU
+Étape 1 :
+- query existante sur player_positions avec cutoff 10 minutes
+
+Étape 2 :
+- si aucun joueur actif, retour immédiat []
+
+Étape 3 :
+- extraire les playerIds trouvés
+
+Étape 4 :
+- query bulk sur player_actions pour ces playerIds uniquement
+- filtre :
+  - status = 'in_progress'
+  - type = 'move'
+
+Étape 5 :
+- construire une map par playerId
+
+Étape 6 :
+- prendre un seul `const now = new Date()` pour toute la résolution
+- pour chaque joueur actif :
+  - si action move active trouvée et path valide
+  - calculer la position avec resolveMoveStep(action, now)
+  - retourner effectiveWorldX / effectiveWorldY
+  - sinon garder worldX / worldY depuis player_positions
+
+IMPORTANT
+Je veux exactement ce plus petit correctif.
+Pas de helper nouveau.
+Pas de refactor d’architecture.
+Pas de changement de contrat API.
+Pas de logique bonus.
+
+INTERDIT
+- ne pas modifier server/playerActionService.ts
+- ne pas modifier server/routes/players.ts
+- ne pas modifier server/playerPositionService.ts
+- ne pas modifier shared/schema.ts
+- ne pas modifier le client
+- ne pas changer le filtre 10 minutes
+- ne pas ajouter d’écriture DB
+- ne pas ajouter de timer serveur
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- server/playerPresenceService.ts
+
+3. VÉRIFICATIONS FONCTIONNELLES
+A. lecture transit
+- lancer un trajet long pour joueur1
+- stopper ou ignorer le polling du client joueur1 si possible
+- appeler GET /api/players/positions depuis un autre compte
+- confirmer que la position renvoyée avance quand même
+
+B. comparaison de sources
+- montrer la différence entre :
+  - player_positions persistée
+  - position calculée par resolveMoveStep()
+  - valeur finale renvoyée par GET /api/players/positions
+- confirmer que l’API renvoie bien la position calculée de transit quand une move active existe
+
+C. aucune régression
+- joueur sans action active → conserve la lecture player_positions
+- joueur en déplacement simple terminé → comportement inchangé
+- annulation → comportement inchangé
+- présence normale hors transit → inchangée
+
+4. CONTRÔLE DE PÉRIMÈTRE
+Je veux une preuve explicite que :
+- aucun autre fichier n’a été modifié
+- aucune route n’a été touchée
+- aucun code client n’a été touché
+- aucune écriture DB nouvelle n’a été ajoutée
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+- classés
+- sans correction bonus hors périmètre
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+2. PREUVES
+3. VÉRIFICATIONS FONCTIONNELLES
+4. CONTRÔLE DE PÉRIMÈTRE
+5. RISQUES RÉSIDUELS
+6. STOP
+
+CONTRAINTE FINALE
+Tu corriges uniquement la lecture stale de la position de transit :
+- le serveur doit calculer la position effective au moment de GET /api/players/positions
+- la position vue par les autres ne doit plus dépendre du polling du client voyageur
+- aucune dérive
