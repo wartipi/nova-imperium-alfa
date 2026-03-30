@@ -1,0 +1,169 @@
+NOVA IMPERIUM — AUDIT / VÉRIFICATION MULTIJOUEUR STRICTE
+Branche cible : NI-10.3
+
+RÔLE
+Tu n’implémentes rien.
+Tu ne modifies aucun fichier.
+Tu ne proposes aucun patch tant que l’audit n’est pas terminé.
+Tu fais uniquement une vérification méthodique de l’état multijoueur actuel.
+
+OBJECTIF
+Je veux vérifier que le multijoueur de base fonctionne correctement avant de passer aux interactions joueur ↔ joueur, marché public, inventaire joueur et banque.
+
+PRIORITÉ DE CETTE PASSE
+Vérifier uniquement :
+1. présence des autres joueurs
+2. synchronisation des positions
+3. déplacements vus par les autres joueurs
+4. claim de territoire visible par les autres joueurs
+5. fondation de colonie visible par les autres joueurs
+6. exploitation de territoire visible par les autres joueurs
+7. permissions de base entre deux joueurs
+
+IMPORTANT
+Je veux une séparation stricte entre :
+- ce que tu peux vérifier directement depuis le code / runtime / API / logs
+- ce qui nécessite un vrai test manuel à deux clients réels
+
+Tu ne dois pas prétendre avoir “validé” un comportement multijoueur réel si tu n’as fait qu’un audit de code.
+
+INTERDIT
+- aucune modification de code
+- aucun patch
+- aucun refactor
+- aucune migration
+- aucun changement de schéma
+- ne pas toucher au marché, à la banque, à l’inventaire joueur dans cette passe
+- ne pas ouvrir d’autres sujets que le multijoueur de base
+
+PRÉ-REQUIS OBLIGATOIRES
+Avant toute analyse, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PÉRIMÈTRE DE LECTURE
+Tu dois lire au minimum les fichiers liés à :
+- présence multijoueur
+- position joueur
+- sync de déplacement
+- territoires / colonies / exploitation
+- rendu autre joueur côté client
+
+Lis au minimum :
+- client/src/components/game/GameCanvas.tsx
+- client/src/lib/stores/usePlayerPresence.ts
+- client/src/lib/stores/usePlayer.tsx
+- client/src/lib/api/playerApi.ts
+- server/routes/player*.ts
+- server/playerPositionService.ts
+- server/playerActionService.ts
+- server/routes/territories.ts
+- server/territoryService.ts
+- tout autre fichier strictement nécessaire pour comprendre le pipeline de sync
+
+MISSION
+Je veux un audit + protocole de vérification, pas une conclusion vague.
+
+PARTIE 1 — AUDIT CODE MULTIJOUEUR
+Tu dois expliquer précisément :
+
+A. PRÉSENCE
+- comment les autres joueurs sont chargés
+- à quelle fréquence
+- quelle source de vérité est utilisée
+- comment ils sont rendus côté client
+
+B. POSITION
+- quelle table / service sert de vérité de position
+- comment la position finale est synchronisée après déplacement
+- comment le reload de page récupère cette position
+
+C. DÉPLACEMENT OBSERVÉ PAR UN AUTRE JOUEUR
+- comment le joueur distant voit le déplacement
+- s’il voit seulement la position finale ou une progression intermédiaire
+- quels délais / pollings influencent cet affichage
+
+D. TERRITOIRES / CLAIMS / COLONIES
+- comment un claim est persisté
+- comment il est rechargé côté client
+- comment une colonie fondée devient visible pour un autre joueur
+
+E. EXPLOITATION
+- comment un territoire exploité est persisté
+- comment cette information remonte au client
+- si un autre joueur peut la voir sans reload, ou seulement après refresh / reload / reloadFromServer
+
+PARTIE 2 — CE QUI EST VÉRIFIABLE SANS 2 VRAIS CLIENTS
+Je veux une liste claire de ce que tu peux réellement vérifier seul depuis l’environnement Replit, par exemple :
+- cohérence code / API / DTO
+- routes présentes
+- rechargement de façade locale
+- polling de présence
+- source de vérité de position
+- invariants serveur
+
+PARTIE 3 — CE QUI NÉCESSITE UN TEST MANUEL À 2 CLIENTS
+Je veux une liste claire de ce qui exige réellement deux sessions distinctes / deux ordinateurs, par exemple :
+- A voit B se déplacer en temps réel
+- B voit le claim de A sans reload
+- A voit la colonie de B apparaître
+- B voit l’exploitation de A après action
+- permissions effectives côté UI + perception côté observateur
+
+PARTIE 4 — PROTOCOLE DE TEST MANUEL
+Je veux un protocole simple, déterministe, à suivre à deux joueurs.
+
+Noms de test :
+T1 Présence
+T2 Déplacement court
+T3 Déplacement long
+T4 Reload pendant déplacement
+T5 Claim visible à distance
+T6 Fondation visible à distance
+T7 Exploitation visible à distance
+T8 Permissions de base
+
+Pour chaque test, donne :
+- Précondition
+- Action Joueur A
+- Observation attendue côté Joueur B
+- Observation attendue côté Joueur A
+- Ce qui constituerait un bug
+
+IMPORTANT
+Fais ce protocole en style compact et exploitable.
+
+PARTIE 5 — RISQUES PROBABLES
+À partir du code, je veux que tu identifies les risques multijoueur les plus probables, classés par gravité, par exemple :
+- présence visible seulement après polling
+- overlay/claim nécessitant refresh
+- exploitation visible seulement après reload local
+- désynchronisation de position après fin d’action
+- rendu d’un autre joueur en retard
+- etc.
+
+Tu ne corriges rien.
+Tu identifies seulement les points à surveiller.
+
+PARTIE 6 — FORMAT DE SORTIE OBLIGATOIRE
+Je veux exactement :
+
+1. AUDIT DU PIPELINE MULTIJOUEUR
+2. CE QUI EST VÉRIFIABLE DIRECTEMENT
+3. CE QUI NÉCESSITE 2 VRAIS CLIENTS
+4. PROTOCOLE DE TEST MANUEL À DEUX JOUEURS
+5. RISQUES PROBABLES
+6. STOP VALIDATION
+
+CONTRAINTE FINALE
+Ne dis pas “tout fonctionne” sans distinguer :
+- code vérifié
+- runtime vérifié
+- test manuel réellement nécessaire
+
+Je veux un audit honnête, exploitable, sans suppositions.
