@@ -1,0 +1,217 @@
+NOVA IMPERIUM — CORRECTION MULTIJOUEUR STRICTE
+CIBLE : POLLING TERRITOIRE AUTOMATIQUE POUR SYNCHRONISER CLAIMS / FONDATIONS / EXPLOITATIONS
+Branche cible : NI-10.3
+
+RÔLE
+Tu appliques uniquement une correction multijoueur ciblée.
+Tu ne touches pas au déplacement.
+Tu ne touches pas au pathfinding.
+Tu ne touches pas au serveur si ce n’est pas strictement nécessaire.
+Tu ne fais aucun refactor massif.
+Tu ne dérives pas.
+
+CONTEXTE VALIDÉ
+Audit confirmé :
+
+- la présence / position des autres joueurs est déjà pollée
+- les territoires / colonies / exploitations ne sont PAS pollés automatiquement
+- un autre joueur ne voit pas les claims, fondations et exploitations tant qu’il ne recharge pas son panneau ou la page
+
+Le risque R2 a été classé élevé :
+- état du monde territorial désynchronisé entre joueurs
+
+OBJECTIF
+Ajouter une synchronisation automatique légère des données de territoires / colonies côté client, afin que :
+- Joueur B voie les claims de A après un délai raisonnable
+- Joueur B voie les fondations de colonie de A après un délai raisonnable
+- Joueur B voie les exploitations de A après un délai raisonnable
+- sans devoir ouvrir manuellement le panneau ou recharger la page
+
+IMPORTANT
+Je veux un correctif minimal, stable, déterministe.
+Je ne veux pas de WebSocket.
+Je ne veux pas de refactor d’architecture.
+Je veux un polling léger.
+
+DIRECTION VALIDÉE
+Implémenter un polling territoire automatique toutes les 10 à 15 secondes côté client.
+Valeur recommandée pour V1 :
+- 10000 ms (10s)
+
+INTERDIT
+- aucun changement à la logique de déplacement
+- aucun changement à GameCanvas sur le rendu du mouvement autre joueur
+- aucun changement à player_positions
+- aucun changement à playerActionService
+- aucun changement au pathfinding
+- aucun changement à ActiveActionWidget
+- aucun changement à l’économie
+- aucun changement au marché / banque / inventaires
+- aucun refactor massif
+- pas de WebSocket
+- ne pas introduire plusieurs pollings concurrents redondants
+
+PRÉ-REQUIS OBLIGATOIRES AVANT TOUTE MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+Je veux :
+- objectif précis
+- fichiers touchés
+- raison
+- ordre d’exécution
+- risques
+- vérifications prévues
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement les fichiers strictement nécessaires parmi :
+
+- client/src/components/game/GameCanvas.tsx
+- client/src/lib/systems/UnifiedTerritorySystem.ts
+- éventuellement un fichier client déjà responsable du refresh territoire si c’est plus propre
+
+Tu ne touches à aucun fichier serveur sans justification explicite.
+Normalement, cette correction doit rester client-side.
+
+OBJECTIF TECHNIQUE
+Le client doit recharger périodiquement :
+- fetchAllTerritories()
+- fetchAllColonies()
+- UnifiedTerritorySystem.loadFromServer(...)
+
+Puis provoquer le rafraîchissement visuel nécessaire, sans casser l’existant.
+
+RÈGLE IMPORTANTE
+Ne pas multiplier les responsabilités :
+- présence joueur reste sur son polling actuel
+- territoires / colonies / exploitations ont leur propre refresh léger
+- ne pas créer de duplication de logique si reloadFromServer existe déjà dans UnifiedTerritoryPanel
+
+Je veux réutiliser au maximum la logique existante, proprement.
+
+IMPLÉMENTATION ATTENDUE
+
+LOT 1 — IDENTIFIER LE BON POINT D’ATTACHE
+Tu dois choisir le point d’attache le plus propre pour ce polling automatique.
+
+Critère :
+- composant durablement monté pendant le jeu
+- déjà lié à l’état monde
+- capable de déclencher un render monde
+- sans dépendre de l’ouverture du panneau territoire
+
+Le candidat naturel est probablement :
+- GameCanvas.tsx
+
+Mais tu dois vérifier proprement avant d’écrire.
+
+LOT 2 — POLLING TERRITOIRE AUTOMATIQUE
+Ajouter un polling toutes les 10 secondes qui :
+1. fetchAllTerritories()
+2. fetchAllColonies()
+3. recharge UnifiedTerritorySystem.loadFromServer(...)
+4. déclenche le render du monde si nécessaire
+
+IMPORTANT
+Le polling ne doit pas :
+- spammer inutilement
+- recréer plusieurs intervalles
+- casser les performances
+- dépendre du panneau territoire ouvert
+
+LOT 3 — PAS DE CASSURE DES RAFRAÎCHISSEMENTS LOCAUX
+Le système actuel a déjà des refresh immédiats après action locale pour le joueur qui agit.
+
+Tu dois préserver cela.
+Le nouveau polling sert uniquement à :
+- faire converger les autres clients automatiquement
+
+Il ne doit pas casser :
+- reloadFromServer existant dans UnifiedTerritoryPanel
+- render local après claim/fondation/exploitation
+
+LOT 4 — NETTOYAGE DU POLLING
+Le polling doit être correctement nettoyé :
+- clearInterval au unmount
+- pas de fuite mémoire
+- pas de double intervalle
+
+LOT 5 — AUCUNE DÉRIVE
+Tu ne touches à rien d’autre.
+
+ORDRE D’EXÉCUTION OBLIGATOIRE
+1. identifier le meilleur point d’attache client
+2. ajouter le polling territoire automatique
+3. brancher le rechargement UnifiedTerritorySystem
+4. déclencher le render si nécessaire
+5. vérifier qu’il n’y a qu’un seul intervalle propre
+6. rapport final
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- chaque fichier modifié
+
+3. VÉRIFICATIONS FONCTIONNELLES
+A. Claim
+- Joueur A claim un territoire
+- Joueur B voit le claim apparaître automatiquement dans un délai ≈ 10s max
+- sans ouvrir le panneau
+
+B. Fondation
+- Joueur A fonde une colonie
+- Joueur B voit la colonie apparaître automatiquement dans un délai ≈ 10s max
+- sans reload manuel
+
+C. Exploitation
+- Joueur A exploite un territoire
+- Joueur B voit l’état exploité automatiquement dans un délai ≈ 10s max
+
+D. Aucune régression
+- le joueur local voit toujours ses changements immédiatement
+- le panneau territoire fonctionne toujours
+- la carte continue à se rendre correctement
+- aucun clignotement ou reset visuel anormal
+
+4. CONTRÔLE DE PÉRIMÈTRE
+Je veux une preuve explicite que :
+- aucun fichier déplacement n’a été touché
+- aucun serveur n’a été touché sauf nécessité absolue
+- aucune logique métier de territoire n’a été modifiée
+- aucune logique économique n’a été touchée
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+- classés
+- sans correction bonus hors périmètre
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+2. PREUVES
+3. VÉRIFICATIONS FONCTIONNELLES
+4. CONTRÔLE DE PÉRIMÈTRE
+5. RISQUES RÉSIDUELS
+6. STOP
+
+CONTRAINTE FINALE
+Tu corriges uniquement R2 :
+- synchronisation automatique des territoires / colonies / exploitations entre clients
+- par polling léger
+- sans WebSocket
+- sans dérive
