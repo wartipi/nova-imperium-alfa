@@ -1,0 +1,215 @@
+NOVA IMPERIUM — AUDIT STRICT DE LA SOURCE DE VÉRITÉ SERVEUR
+SEGMENT D’HARMONISATION : CLIENT VS SERVEUR
+Branche cible : NI-10.3
+
+RÔLE
+Tu agis comme auditeur technique strict.
+Tu ne lances aucune grosse feature.
+Tu ne fais aucun refactor massif.
+Tu ne dérives pas.
+Tu ne corriges rien avant d’avoir prouvé précisément où le client peut encore diverger de la vérité serveur.
+
+CONTEXTE
+Nova Imperium doit rester serveur-authoritative.
+Objectif structurel :
+- le serveur décide
+- la DB porte l’état canonique persistant
+- le client affiche / poll / hydrate / rafraîchit
+- le client ne doit jamais devenir la source de vérité métier
+
+Le fix récent sur la présence joueur va déjà dans ce sens :
+- ensurePlayerPosition() rafraîchit maintenant updatedAt via savePlayerPosition(...)
+- la présence au login / montage a été corrigée
+- DB et API semblent cohérentes sur ce point
+
+Mais il reste des zones à harmoniser où le client pourrait encore afficher un état en retard ou incomplet :
+1. présence / position des autres joueurs selon le contexte exact de déplacement
+2. panneaux déjà ouverts qui peuvent rester stale alors que l’état serveur a changé
+3. toute divergence entre :
+   - vérité DB
+   - réponse API
+   - état React affiché
+   - polling / refresh effectif
+
+OBJECTIF
+Je veux un audit strict pour répondre à cette question :
+
+“Dans quels contextes précis le serveur est déjà la source de vérité correcte, mais le client ne se recale pas encore proprement dessus ?”
+
+IMPORTANT
+Je ne veux pas de solution prématurée.
+Je veux :
+1. audit
+2. preuve
+3. classement des écarts
+4. recommandation du plus petit correctif suivant
+
+INTERDIT
+- aucun refactor massif
+- aucun changement d’architecture
+- aucun WebSocket
+- aucun heartbeat nouveau
+- aucune feature bonus
+- aucun changement marché / banque / inventaire
+- aucun changement hors périmètre sans preuve
+- ne pas corriger pendant l’audit sauf si un bug bloquant trivial est explicitement démontré et validé
+
+PRÉ-REQUIS OBLIGATOIRES
+Avant toute conclusion, afficher exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’AUDIT
+Je veux :
+- objectif
+- zones inspectées
+- fichiers à lire
+- hypothèses à vérifier
+- vérifications runtime prévues
+
+PÉRIMÈTRE D’AUDIT PRIORITAIRE
+Tu dois auditer en priorité les flux suivants :
+
+A. PRÉSENCE / POSITION MULTIJOUEUR
+But :
+vérifier si le serveur détient bien la vérité correcte dans tous les cas, et si le client la reflète proprement.
+
+Vérifier notamment :
+- chargement initial d’un autre joueur
+- joueur immobile visible / invisible
+- déplacement court
+- déplacement long / action active
+- fin de déplacement
+- polling présence
+- exclusions éventuelles côté API
+- mise à jour des positions vues par les autres joueurs
+
+Je veux identifier précisément :
+- où la vérité canonique est calculée
+- quand elle est écrite en DB
+- quand elle est exposée via API
+- quand elle est consommée par le client
+- où peut se produire un retard ou une image stale
+
+B. PANNEAUX / ÉTATS OUVERTS
+But :
+vérifier si un panneau déjà ouvert continue parfois d’afficher un état périmé alors que le serveur a déjà changé la vérité.
+
+Vérifier notamment :
+- TileInfo
+- UnifiedTerritoryPanel
+- sous-menus liés aux villes / territoires / exploitations
+- tout panneau dépendant de données world / territory / colony / claims / exploitations
+
+Je veux savoir :
+- quelles données viennent directement du serveur
+- quelles données sont hydratées une fois puis gardées localement
+- quels panneaux se recalculent automatiquement
+- quels panneaux exigent actuellement fermeture/réouverture
+
+C. FLUX SOURCE DE VÉRITÉ
+Pour chaque cas problématique trouvé, distinguer clairement :
+- vérité DB correcte
+- API correcte
+- client stale
+ou
+- vérité serveur elle-même incomplète
+ou
+- race condition / timing
+ou
+- dépendance à un polling trop lent
+ou
+- cache / state local non réhydraté
+
+LECTURE CODE OBLIGATOIRE
+Lire les fichiers réellement impliqués.
+Tu dois inspecter au minimum tous les fichiers utiles du flux réel, puis lister ceux qui ont été lus.
+
+Je veux voir explicitement :
+- fichiers backend lus
+- fichiers frontend lus
+- pourquoi chacun est pertinent
+
+MÉTHODE ATTENDUE
+Tu travailles dans cet ordre strict :
+
+1. Audit backend
+- source canonique
+- écriture DB
+- lecture API
+- filtres éventuels
+
+2. Audit frontend
+- hooks / polling / hydration
+- composants qui affichent
+- dépendances / refresh
+- endroits où l’état local peut rester stale
+
+3. Vérifications runtime ciblées
+- cas multijoueur
+- cas panneau ouvert
+- cas changement d’état serveur pendant affichage client
+
+4. Conclusion
+- liste des écarts réels confirmés
+- gravité
+- cause racine
+- plus petit correctif recommandé
+
+RÉSULTAT ATTENDU
+Je veux un rapport final EXACTEMENT sous cette forme :
+
+1. FICHIERS AUDITÉS
+- liste précise backend
+- liste précise frontend
+- rôle de chaque fichier
+
+2. CARTOGRAPHIE DE LA SOURCE DE VÉRITÉ
+Pour chaque flux audité :
+- source canonique
+- écriture DB
+- lecture API
+- consommation client
+- point potentiel de dérive
+
+3. ÉCARTS CONFIRMÉS
+Je veux uniquement les écarts réellement prouvés.
+Pour chacun :
+- symptôme
+- contexte exact
+- source de vérité correcte ou non
+- cause racine probable
+- niveau de gravité
+
+4. CE QUI EST DÉJÀ BIEN SERVEUR-AUTHORITATIVE
+Je veux les points réellement solides à ne pas casser.
+
+5. PROCHAIN PLUS PETIT CORRECTIF RECOMMANDÉ
+Un seul.
+Pas trois.
+Pas une roadmap entière.
+Je veux :
+- le bug suivant à fermer
+- pourquoi lui en premier
+- quel fichier serait probablement touché
+- pourquoi c’est le plus petit passage propre
+
+6. PROMPT SUIVANT PRÊT À EXÉCUTER
+Tu me rédiges le prompt d’implémentation ultra détaillé, mais seulement à partir du bug réellement prioritaire confirmé par l’audit.
+
+7. RISQUES SI ON CORRIGE DANS LE MAUVAIS ORDRE
+- uniquement les vrais
+- classés
+
+8. STOP
+
+CONTRAINTE FINALE
+Je ne veux pas de suppositions.
+Je ne veux pas de “probablement” non vérifié.
+Je veux savoir où Nova Imperium est déjà vraiment serveur-authoritative,
+et où il reste encore une divergence concrète entre vérité serveur et affichage client.
