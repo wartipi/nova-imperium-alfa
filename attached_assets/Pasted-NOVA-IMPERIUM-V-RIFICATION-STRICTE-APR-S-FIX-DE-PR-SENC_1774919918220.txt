@@ -1,0 +1,172 @@
+NOVA IMPERIUM — VÉRIFICATION STRICTE APRÈS FIX DE PRÉSENCE
+CIBLE : CONFIRMER EN RUNTIME MULTIJOUEUR QUE LE FIX updatedAt FONCTIONNE VRAIMENT
+Branche cible : NI-10.3
+
+RÔLE
+Tu ne fais AUCUNE nouvelle feature.
+Tu ne fais AUCUN refactor.
+Tu ne touches au code QUE si tu découvres que le correctif annoncé n’est pas réellement présent.
+Sinon : vérification uniquement.
+
+OBJECTIF
+Confirmer que le correctif déjà appliqué dans server/playerPositionService.ts rend bien les joueurs visibles entre eux dès le login / montage, sans devoir bouger d’abord.
+
+IMPORTANT
+Je veux une vérification stricte.
+Je ne veux pas de supposition.
+Je ne veux pas de “ça devrait marcher”.
+Je veux des preuves :
+- code
+- runtime
+- DB
+- 2 vrais clients si possible
+
+INTERDIT
+- aucun refactor
+- aucun nouveau système
+- aucun heartbeat
+- aucun websocket
+- aucun changement client
+- aucun changement à GameCanvas
+- aucun changement à usePlayerPresence
+- aucun changement à l’économie / marché / banque / inventaire
+- aucun changement territoires / colonies / exploitation
+- ne pas ouvrir un nouveau chantier
+
+ÉTAPE 1 — PRÉ-REQUIS OBLIGATOIRES
+Affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PREUVE DU FIX EN CODE
+Je veux :
+- git diff -- server/playerPositionService.ts
+- confirmation explicite que ensurePlayerPosition() fait bien :
+  return savePlayerPosition(playerId, existing.worldX, existing.worldY)
+  quand la position existante est valide
+
+IMPORTANT
+Si ce n’est pas réellement présent dans le code :
+- tu t’arrêtes
+- tu le dis
+- tu ne fais rien d’autre avant de corriger proprement
+
+ÉTAPE 2 — CONTRÔLE DE PÉRIMÈTRE
+Je veux une preuve explicite que :
+- aucun autre fichier n’a été modifié
+- aucun polling client n’a été touché
+- aucune logique de déplacement n’a été touchée
+- aucun territoire / économie / marché / banque n’a été touché
+
+ÉTAPE 3 — VÉRIFICATION DB
+Je veux une vérification DB claire sur au moins 2 comptes joueurs de test :
+- player A
+- player B
+
+Pour chacun, avant login / reload :
+- afficher updatedAt
+- afficher âge en secondes ou minutes
+- afficher s’il passe ou non le filtre 10 minutes
+
+Puis :
+- ouvrir / recharger la page de jeu pour A
+- ouvrir / recharger la page de jeu pour B
+
+Puis réafficher :
+- updatedAt
+- âge
+- passe filtre oui/non
+
+But :
+confirmer qu’un simple login / montage touche bien updatedAt pour chaque joueur.
+
+ÉTAPE 4 — VÉRIFICATION API
+Je veux une preuve directe sur :
+- GET /api/players/positions
+
+Tests attendus :
+A. avant reload des joueurs
+- résultat brut ou résumé précis
+
+B. après reload du joueur A seulement
+- résultat brut ou résumé précis
+
+C. après reload du joueur B aussi
+- résultat brut ou résumé précis
+
+But :
+montrer que l’API commence bien à retourner les joueurs connectés même s’ils n’ont pas encore bougé.
+
+ÉTAPE 5 — VÉRIFICATION RUNTIME À 2 VRAIS CLIENTS
+Je veux impérativement 2 vrais clients joueurs, pas une simple déduction serveur.
+
+TEST 1 — sans bouger
+- client A ouvre le jeu
+- client B ouvre le jeu
+- aucun des deux ne bouge
+- vérifier si A voit B
+- vérifier si B voit A
+
+Je veux le résultat exact :
+- visible / non visible
+- délai observé si applicable
+- nécessité ou non d’un refresh supplémentaire
+
+TEST 2 — déplacement court
+- A effectue un déplacement très court
+- vérifier ce que B voit
+- puis B effectue un déplacement court
+- vérifier ce que A voit
+
+Je veux distinguer :
+- visibilité de présence
+- mise à jour de position
+- latence observée
+- limites actuelles éventuelles
+
+ÉTAPE 6 — AUCUNE CORRECTION BONUS
+Pendant cette vérification :
+- ne corrige rien d’autre
+- ne lance aucun autre chantier
+- si tu observes un autre bug, tu le notes seulement en risque résiduel
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. ÉTAT DU CODE
+- fix réellement présent ou non
+- extrait précis de la logique utile
+
+2. CONTRÔLE DE PÉRIMÈTRE
+- preuve qu’aucun autre fichier n’a été touché
+
+3. PREUVES DB
+- avant / après pour A et B
+
+4. PREUVES API
+- résultat de GET /api/players/positions avant et après reload
+
+5. VÉRIFICATION RUNTIME 2 CLIENTS
+- test sans bouger
+- test déplacement court
+- résultat exact
+
+6. CONCLUSION
+Choisir UNE seule conclusion :
+- FIX VALIDÉ EN RUNTIME
+ou
+- FIX PARTIELLEMENT VALIDÉ
+ou
+- FIX NON VALIDÉ
+
+7. RISQUES RÉSIDUELS
+- uniquement les vrais
+- classés
+- sans correction hors périmètre
+
+8. STOP
