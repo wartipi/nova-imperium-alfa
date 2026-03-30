@@ -306,12 +306,13 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
     return [{ territory: t, city, managed, exploitedCount, exploitableCount }];
   }) : [];
 
-  // ─── Section B : backlog claims non exploités ─────────────────────────────────
+  // ─── Section B : backlog claims non exploités, non rattachés à une ville ────────
   // Admin : vue large (tous territoires).
-  // Non-admin : seulement les territoires non exploités, sans colonie.
+  // Non-admin : seulement les territoires non exploités, sans colonie, sans managingColonyId.
+  // Les territoires avec managingColonyId sont déjà visibles dans le sous-menu de leur ville (section A).
   const visibleTerritoriesForPanel = isAdmin
     ? territories
-    : territories.filter(t => !t.colonyId && !t.isExploited);
+    : territories.filter(t => !t.colonyId && !t.isExploited && t.managingColonyId == null);
 
   return (
     <div className="medieval-text h-full overflow-y-auto">
@@ -533,7 +534,7 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
         </h4>
         {!isAdmin && (
           <p className="medieval-text text-xs text-amber-700 mb-3 italic">
-            Claims revendiqués sans bâtiment d'exploitation — réserve disponible pour fondation ou exploitation future.
+            Claims non exploités et non encore rattachés à une ville — réserve disponible pour fondation.
           </p>
         )}
 

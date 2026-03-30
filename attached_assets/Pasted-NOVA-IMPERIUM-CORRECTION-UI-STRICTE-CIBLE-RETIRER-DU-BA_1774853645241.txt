@@ -1,0 +1,170 @@
+NOVA IMPERIUM — CORRECTION UI STRICTE
+CIBLE : RETIRER DU BACKLOG LES TERRITOIRES DÉJÀ RATTACHÉS À UNE VILLE
+Branche cible : NI-10.3
+
+RÔLE
+Tu appliques uniquement une correction UI ciblée.
+Tu ne touches pas au serveur.
+Tu ne touches pas à la règle d’exploitabilité.
+Tu ne fais aucun refactor massif.
+Tu ne dérives pas.
+
+CONTEXTE VALIDÉ
+Le système actuel fonctionne comme ceci :
+- Section A = villes gérables + sous-bloc de territoires rattachés
+- Section B = “Mes territoires non exploités”
+
+Problème observé :
+les territoires déjà connectés / rattachés à une ville apparaissent encore dans la section B, ce qui crée un doublon inutile.
+
+CAUSE IDENTIFIÉE
+Dans UnifiedTerritoryPanel.tsx, la section B filtre encore seulement sur :
+- !t.colonyId
+- !t.isExploited
+
+Elle n’exclut pas les territoires déjà rattachés à une ville via :
+- managingColonyId
+
+OBJECTIF
+Corriger la section “Mes territoires non exploités” pour qu’elle n’affiche plus les territoires déjà gérés par une ville.
+
+RÈGLE CIBLE
+Section B doit afficher uniquement les territoires :
+1. sans colonie
+2. non exploités
+3. sans managingColonyId
+
+Autrement dit :
+- un claim déjà rattaché à une ville ne doit plus apparaître dans le backlog
+- il doit être visible seulement dans le sous-menu de sa ville
+
+IMPORTANT
+Je ne veux pas changer la logique d’exploitabilité.
+Je ne veux pas changer le serveur.
+Je veux uniquement corriger la définition du backlog.
+
+INTERDIT
+- aucun changement serveur
+- aucun changement de schéma
+- aucun changement à territoryService.ts
+- aucun changement à UnifiedTerritorySystem.ts
+- aucun changement à territoriesApi.ts
+- aucun changement à la règle BFS / distance <= 6
+- aucun changement à l’économie
+- aucun refactor massif
+- aucune dérive
+
+PRÉ-REQUIS OBLIGATOIRES AVANT TOUTE MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+Je veux :
+- objectif précis
+- fichier touché
+- raison
+- ordre d’exécution
+- risques
+- vérifications prévues
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement :
+
+- client/src/components/game/UnifiedTerritoryPanel.tsx
+
+Aucun autre fichier.
+
+IMPLÉMENTATION ATTENDUE
+
+LOT UNIQUE — SECTION B
+Fichier :
+- client/src/components/game/UnifiedTerritoryPanel.tsx
+
+Correction attendue :
+modifier le calcul de visibleTerritoriesForPanel pour les non-admins.
+
+Avant :
+- !t.colonyId
+- !t.isExploited
+
+Après :
+- !t.colonyId
+- !t.isExploited
+- t.managingColonyId == null
+
+IMPORTANT
+Je veux une correction minimale.
+Pas de refactor des autres blocs.
+Pas de changement de la section A.
+Pas de changement des statuts.
+
+OPTION DE TEXTE
+Si nécessaire, adapter légèrement le sous-titre de la section B pour refléter la nouvelle réalité :
+- claims non exploités non encore rattachés à une ville
+Mais seulement si c’est utile et sans dérive.
+
+ORDRE D’EXÉCUTION OBLIGATOIRE
+1. modifier le filtre de visibleTerritoriesForPanel
+2. vérifier que le build passe
+3. vérifier qu’aucun autre bloc n’a changé
+4. rapport final
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- client/src/components/game/UnifiedTerritoryPanel.tsx
+
+3. VÉRIFICATIONS UI
+A. territoire rattaché à une ville
+- n’apparaît plus dans “Mes territoires non exploités”
+- reste visible dans le sous-menu de la ville
+
+B. territoire non exploité sans managingColonyId
+- apparaît toujours dans “Mes territoires non exploités”
+
+C. territoire exploité
+- n’apparaît pas dans la section B
+
+D. aucune régression
+- section A inchangée
+- bouton Exploiter inchangé
+- navigation panneau inchangée
+
+4. CONTRÔLE DE PÉRIMÈTRE
+Je veux une preuve explicite que :
+- aucun autre fichier n’a été modifié
+- aucune logique serveur n’a été touchée
+- aucune logique métier n’a été touchée
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+- classés
+- sans correction bonus hors périmètre
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+2. PREUVES
+3. VÉRIFICATIONS UI
+4. CONTRÔLE DE PÉRIMÈTRE
+5. RISQUES RÉSIDUELS
+6. STOP
+
+CONTRAINTE FINALE
+Tu corriges uniquement le backlog de la section B.
+Je veux que les territoires déjà rattachés à une ville disparaissent de “Mes territoires non exploités”.
+Aucune dérive.
