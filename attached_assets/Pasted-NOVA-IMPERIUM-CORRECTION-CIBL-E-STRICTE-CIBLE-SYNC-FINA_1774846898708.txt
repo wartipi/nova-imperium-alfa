@@ -1,0 +1,203 @@
+NOVA IMPERIUM — CORRECTION CIBLÉE STRICTE
+CIBLE : SYNC FINALE DE DÉPLACEMENT + COMPTE À REBOURS TEMPS RÉEL
+Branche cible : NI-10.3
+
+RÔLE
+Tu appliques uniquement une correction ciblée.
+Tu ne fais aucun refactor massif.
+Tu ne touches pas au serveur.
+Tu ne dérives pas.
+
+CONTEXTE VALIDÉ
+Le symptôme observé est :
+- le déplacement se termine,
+- le message “déplacement terminé” apparaît,
+- mais le personnage ne rentre pas réellement sur la case cible
+- le problème a été remarqué sur désert, mais le désert est bien walkable côté client et coûte 3 PA
+=> le bug probable n’est pas “désert non marchable”, mais une race condition de complétion.
+
+CAUSE PROBABLE À CIBLER
+1. ActiveActionWidget.tsx peut détecter la fin via fetchCurrentAction()
+2. puis appeler setActiveAction(null)
+3. pendant que GameCanvas.tsx dépend encore de activeAction pour exécuter sa sync finale via :
+   - pollInterval
+   - endTimer
+   - fetchPlayerPosition()
+4. si activeAction est vidé trop tôt, l’effet GameCanvas se nettoie et la position finale peut ne jamais être appliquée visuellement
+
+OBJECTIF
+Corriger uniquement ces 2 points :
+
+A. empêcher qu’un déplacement terminé affiche le message de fin sans appliquer la position finale réelle
+B. garantir que le widget “Action en cours” affiche bien le vrai temps restant calculé en temps réel à partir de expectedEndTime
+
+IMPORTANT
+Je veux que la position finale soit toujours authoritative et réellement appliquée.
+Je veux éviter toute double autorité.
+Je ne veux pas de patch sale.
+
+INTERDIT
+- aucun changement serveur
+- aucun changement de schéma
+- aucun changement à playerActionService.ts
+- aucun changement à routes serveur
+- aucun changement à pathfinding
+- aucun changement à TerrainTypes.ts
+- aucun changement à l’économie
+- aucun refactor massif
+- ne pas ouvrir d’autres sujets UI
+- ne pas toucher GameEngine.ts
+- ne pas toucher UnifiedTerritoryPanel.tsx
+
+PRÉ-REQUIS OBLIGATOIRES AVANT TOUTE MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+Je veux :
+- objectif précis
+- fichiers touchés
+- raison
+- ordre d’exécution
+- risques
+- vérifications prévues
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement :
+
+- client/src/components/game/GameCanvas.tsx
+- client/src/components/game/ActiveActionWidget.tsx
+
+Aucun autre fichier.
+
+Si tu juges qu’un autre fichier est absolument nécessaire :
+- tu t’arrêtes
+- tu le signales
+- tu ne le modifies pas sans validation
+
+IMPLÉMENTATION ATTENDUE
+
+LOT 1 — GAMECANVAS = SOURCE DE SYNC FINALE VISUELLE
+Fichier :
+- client/src/components/game/GameCanvas.tsx
+
+Objectif :
+Faire en sorte que la position finale soit toujours appliquée même si le widget de complétion intervient.
+
+Je veux une logique robuste du type :
+- GameCanvas garde la responsabilité finale d’appliquer :
+  - fetchPlayerPosition()
+  - moveAvatarToHex(...)
+- cette sync finale ne doit pas dépendre d’un timing fragile avec setActiveAction(null)
+
+IMPORTANT
+Tu dois corriger la race condition, pas contourner le symptôme.
+
+Résultat attendu :
+- à la fin de l’action, la position finale réelle est toujours appliquée
+- même si le widget détecte la complétion presque en même temps
+
+LOT 2 — ACTIVEACTIONWIDGET = NE PAS CASSER LA SYNC FINALE
+Fichier :
+- client/src/components/game/ActiveActionWidget.tsx
+
+Objectif :
+Éviter que le widget casse la sync finale visuelle de GameCanvas.
+
+Tu dois corriger proprement la coordination entre :
+- le message de complétion
+- setActiveAction(null)
+- la sync finale de GameCanvas
+
+IMPORTANT
+Je ne veux pas supprimer le message de fin.
+Je veux garder l’UX, mais sans casser la position finale.
+
+LOT 3 — TEMPS RESTANT EN TEMPS RÉEL
+Fichier :
+- client/src/components/game/ActiveActionWidget.tsx
+
+Objectif :
+Garantir que l’affichage “Temps restant” est bien le vrai temps restant.
+
+Règle :
+- calcul à partir de expectedEndTime - now
+- mise à jour live
+- format lisible
+- même logique propre pour les actions affichées par ce widget
+
+IMPORTANT
+Ne pas utiliser une valeur figée ou périmée si le code en contient encore ailleurs.
+Le widget doit rester la référence visuelle correcte.
+
+ORDRE D’EXÉCUTION OBLIGATOIRE
+1. auditer précisément la race GameCanvas / ActiveActionWidget
+2. sécuriser la sync finale dans GameCanvas
+3. empêcher ActiveActionWidget de court-circuiter cette sync
+4. vérifier le temps restant temps réel
+5. tester
+6. rapport final
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- client/src/components/game/GameCanvas.tsx
+- git diff -- client/src/components/game/ActiveActionWidget.tsx
+
+3. VÉRIFICATIONS FONCTIONNELLES
+A. Déplacement vers désert
+- confirmer que le personnage entre réellement sur la case finale
+- confirmer que le message de fin ne peut plus apparaître sans position finale correcte
+
+B. Déplacement normal
+- confirmer qu’aucune régression n’a été introduite sur plains / swamp / hills / mountains
+
+C. Complétion
+- confirmer qu’il n’y a plus de race visible entre message de fin et avatar
+
+D. Temps restant
+- confirmer que l’affichage “Temps restant” est bien un vrai countdown temps réel
+- confirmer qu’il est basé sur expectedEndTime
+- confirmer qu’il reste cohérent jusqu’à la fin
+
+4. CONTRÔLE DE PÉRIMÈTRE
+Je veux une preuve explicite que :
+- aucun fichier serveur n’a été modifié
+- aucun autre fichier client n’a été modifié
+- aucune logique métier de terrain n’a été modifiée
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+- classés
+- sans correction bonus hors périmètre
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+2. PREUVES
+3. VÉRIFICATIONS FONCTIONNELLES
+4. CONTRÔLE DE PÉRIMÈTRE
+5. RISQUES RÉSIDUELS
+6. STOP
+
+CONTRAINTE FINALE
+Tu corriges uniquement :
+- la race condition de complétion entre GameCanvas et ActiveActionWidget
+- le compte à rebours temps réel du widget d’action
+
+Tu ne traites pas ça comme un bug spécifique au désert sans preuve.
+Aucune dérive.

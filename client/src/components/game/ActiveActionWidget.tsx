@@ -72,7 +72,11 @@ export function ActiveActionWidget() {
             window.dispatchEvent(new CustomEvent('nova:logistic-refresh'));
             const label = COMPLETION_LABELS[activeAction.type] ?? "✅ Action terminée";
             setCompletedMsg(label);
-            setActiveAction(null);
+            // LOT 2 — Pour les déplacements, différer setActiveAction(null) de 800ms
+            // afin de laisser GameCanvas (finalSyncTimerRef + doFinalSync) appliquer
+            // la position finale avant que l'effet de polling ne soit nettoyé.
+            const delay = activeAction.type === 'move' ? 800 : 0;
+            setTimeout(() => setActiveAction(null), delay);
             setTimeout(() => setCompletedMsg(null), 4000);
           }
         })
@@ -122,7 +126,10 @@ export function ActiveActionWidget() {
     );
   }
 
-  const msLeft  = Math.max(0, new Date(activeAction.expectedEndTime).getTime() - now);
+  // LOT 3 — Temps restant calculé directement à chaque render (pas via le state now
+  // qui peut avoir jusqu'à 1s de retard). Le ticker setNow déclenche toujours le re-render
+  // chaque seconde, mais la valeur affichée est toujours fraîche au moment du rendu.
+  const msLeft  = Math.max(0, new Date(activeAction.expectedEndTime).getTime() - Date.now());
   const meta    = getActionMeta(activeAction.type);
 
   return (

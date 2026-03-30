@@ -33,6 +33,20 @@ export function GameCanvas() {
   const { avatarPosition, avatarHexPosition, travelVisualHexPosition, setTravelVisualHexPosition, clearTravelVisualHexPosition, avatarRotation, isMoving, selectedCharacter, moveAvatarToHex, isHexVisible, isHexInCurrentVision, pendingMovement, setPendingMovement } = usePlayer();
   const { activeAction } = usePlayerActions();
 
+  // ─── Refs pour sync finale de position (résistants au cleanup de l'effet de polling) ──
+  // finalSyncTimerRef : stocke le setTimeout de sync finale — ne doit PAS être annulé
+  //   par le cleanup de l'effet de polling quand activeAction devient null.
+  // finalSyncedRef : flag "sync finale déjà effectuée" — partagé entre pollServer et endTimer.
+  const finalSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const finalSyncedRef    = useRef(false);
+
+  // Nettoyage uniquement au démontage du composant
+  useEffect(() => {
+    return () => {
+      if (finalSyncTimerRef.current !== null) clearTimeout(finalSyncTimerRef.current);
+    };
+  }, []);
+
   // State management - reduced manual state
   const [mouseDownPos, setMouseDownPos] = useState<{ x: number; y: number } | null>(null);
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
@@ -221,29 +235,41 @@ export function GameCanvas() {
     if (!activeAction || activeAction.type !== "move" || activeAction.status !== "in_progress") return;
     if (!activeAction.path || activeAction.path.length < 2) return;
 
-    let finalSynced  = false;
+    // Nouvelle action : réinitialiser le flag et annuler tout timer résiduel d'une action précédente.
+    finalSyncedRef.current = false;
+    if (finalSyncTimerRef.current !== null) {
+      clearTimeout(finalSyncTimerRef.current);
+      finalSyncTimerRef.current = null;
+    }
+
     let lastServerStep = activeAction.effectiveStep ?? 0;
 
     // Option A : travelVisualHexPosition = null → rendu utilise avatarPosition directement.
-    // moveAvatarToHex a déjà été appelé dans App.tsx avec effectiveWorldX/Y au chargement.
     clearTravelVisualHexPosition();
 
+    // ─── Sync finale authoritative ─────────────────────────────────────────────
+    // Stockée dans un ref de composant (finalSyncTimerRef) pour survivre au cleanup
+    // de l'effet de polling. Si ActiveActionWidget appelle setActiveAction(null),
+    // le cleanup annule pollInterval mais pas ce timer — la sync finale a lieu quand même.
+    const doFinalSync = async () => {
+      if (finalSyncedRef.current) return;
+      finalSyncedRef.current = true;
+      try {
+        const serverPos = await fetchPlayerPosition();
+        const { originWorldX: ox, originWorldY: oy } = useMap.getState();
+        moveAvatarToHex(serverPos.worldX - ox, serverPos.worldY - oy);
+        console.log(`[GameCanvas] Sync finale → world=(${serverPos.worldX},${serverPos.worldY})`);
+      } catch (_e) { /* non bloquant */ }
+    };
+
     // Seul moteur du passage d'une case à l'autre.
-    // Si effectiveStep serveur augmente → moveAvatarToHex → position canonique + vision + carte.
-    // Si action terminée ou annulée → sync finale via player_positions DB.
     const pollServer = async () => {
       try {
         const { action } = await fetchCurrentAction();
 
         if (!action || action.status === "completed" || action.status === "cancelled") {
-          // Action terminée — sync finale sur position DB authoritative
-          if (!finalSynced) {
-            finalSynced = true;
-            const serverPos = await fetchPlayerPosition();
-            const { originWorldX: ox, originWorldY: oy } = useMap.getState();
-            moveAvatarToHex(serverPos.worldX - ox, serverPos.worldY - oy);
-            console.log(`[GameCanvas] Sync finale → world=(${serverPos.worldX},${serverPos.worldY})`);
-          }
+          // Action terminée — déléguer à doFinalSync (idempotent via finalSyncedRef)
+          doFinalSync();
           return;
         }
 
@@ -259,18 +285,21 @@ export function GameCanvas() {
       } catch (_e) { /* non bloquant — prochain poll dans 1500ms */ }
     };
 
-    // Timer post-expiration : déclenche un poll 300ms après l'heure de fin attendue.
-    // Garantit que la sync finale ne dépend pas d'un interval de 1500ms.
+    // Timer de sync finale stocké dans finalSyncTimerRef (ref composant).
+    // Ce timer NE sera PAS annulé par le cleanup de cet effet — il survit si
+    // activeAction devient null via setActiveAction(null) du widget de complétion.
     const msToEnd = new Date(activeAction.expectedEndTime).getTime() - Date.now();
-    const endTimer: ReturnType<typeof setTimeout> | null =
-      msToEnd > 0 ? setTimeout(pollServer, msToEnd + 300) : null;
+    if (msToEnd > 0) {
+      finalSyncTimerRef.current = setTimeout(doFinalSync, msToEnd + 300);
+    }
 
     pollServer(); // Poll immédiat : applique effectiveStep courant si reprise en plein trajet
     const pollInterval = setInterval(pollServer, 1500);
 
     return () => {
       clearInterval(pollInterval);
-      if (endTimer !== null) clearTimeout(endTimer);
+      // NE PAS annuler finalSyncTimerRef ici — le timer de sync finale doit survivre
+      // même si activeAction passe à null (cleanup déclenché par setActiveAction(null)).
     };
   }, [activeAction, moveAvatarToHex, clearTravelVisualHexPosition]);
 
