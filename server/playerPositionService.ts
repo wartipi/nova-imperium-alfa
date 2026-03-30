@@ -84,8 +84,10 @@ export async function ensurePlayerPosition(playerId: string): Promise<PlayerPosi
   if (existing) {
     const valid = await isValidPlayerPosition(existing.worldX, existing.worldY);
     if (valid) {
-      console.log(`[PlayerPosition] Position existante valide: player=${playerId} world=(${existing.worldX},${existing.worldY})`);
-      return existing;
+      // Rafraîchir updatedAt pour que le joueur soit immédiatement visible dans le filtre de présence (10 min)
+      // sans attendre son premier déplacement.
+      console.log(`[PlayerPosition] Position existante valide: player=${playerId} world=(${existing.worldX},${existing.worldY}) — touch présence`);
+      return savePlayerPosition(playerId, existing.worldX, existing.worldY);
     }
     const spawn = getActiveSpawnPoint();
     console.log(

@@ -1,0 +1,139 @@
+PRÉ-REQUIS OBLIGATOIRES
+1. BRANCHE + 2. ÉTAT GIT
+
+Preuve DB décisive obtenue — toute l'analyse peut commencer.
+
+1. PIPELINE OBSERVÉ
+A. Comment un joueur devient visible côté serveur
+Route  : GET /api/players/positions
+Service: playerPresenceService.getActivePlayerPositions(excludePlayerId)
+Filtre : WHERE updatedAt > now - 10min AND playerId ≠ moi
+Table  : player_positions (worldX, worldY, updatedAt)
+Critère d'activité unique : updatedAt > now - 10 minutes
+
+updatedAt n'est mis à jour que par savePlayerPosition() — appelé uniquement :
+
+lors d'un déplacement sans action active (moveAvatarToHex())
+à la fin d'une action de déplacement (completeAction())
+en cas d'annulation (cancelAction())
+lors de la création d'une position pour un nouveau joueur
+GET /api/player/position au login → ensurePlayerPosition() → retourne la position existante valide SANS toucher updatedAt (ligne 88 de playerPositionService.ts) :
+
+if (valid) {
+  return existing;  // ← updatedAt inchangé
+}
+B. Comment le client charge cette présence
+useEffect([isAuthenticated]) → setInterval(poll, 5000) dans GameCanvas.tsx
+poll() → loadPlayers() → fetchPlayerPositions() → GET /api/players/positions
+→ usePlayerPresence.getState().players = [...]
+→ converted = players.map(p => ({ hexX: p.worldX - originWorldX, hexY: p.worldY - originWorldY }))
+→ gameEngineRef.current.updateOtherPlayers(converted)
+→ gameEngineRef.current.render()
+C. Comment GameEngine rend un autre joueur
+// GameEngine.ts l.911-940
+for (const player of this.otherPlayers) {
+  const screenX = player.hexX * (this.hexSize * 1.5);
+  const screenY = player.hexY * hexHeight + (player.hexX % 2) * (hexHeight / 2);
+  // Cercle + label — aucune condition de visibilité, aucun filtre de zone
+}
+Pas de filtrage de vision, pas de check de segment — si le tableau est non-vide, le rendu se fait toujours.
+
+2. HYPOTHÈSES CLASSÉES — PREUVES CODE ET DB
+H1 ✅ CONFIRMÉ — CAUSE PRINCIPALE — updatedAt pas rafraîchi au login
+Preuve DB directe (requête exécutée maintenant) :
+
+=== ÉTAT ACTUEL DB ===
+Now:    2026-03-30T19:22:28
+Cutoff: 2026-03-30T19:12:28
+admin   | updated 28.0  min ago | passes_filter: FALSE
+maitre  | updated 62.5  min ago | passes_filter: FALSE
+joueur1 | updated 1545.4 min ago | passes_filter: FALSE
+→ En ce moment, GET /api/players/positions retourne un tableau vide pour tout le monde.
+→ Aucun joueur n'est visible par aucun autre joueur.
+
+Cause code :
+
+// playerPositionService.ts l.84-88
+if (existing) {
+  const valid = await isValidPlayerPosition(existing.worldX, existing.worldY);
+  if (valid) {
+    return existing;  // ← updatedAt PAS touché au login
+  }
+}
+Le GET /api/player/position au montage de GameCanvas n'appelle que ensurePlayerPosition(), qui ne met jamais à jour updatedAt si la position est déjà valide. Un joueur qui se connecte reste invisible jusqu'à son premier mouvement.
+
+Scénario concret du bug :
+
+joueur1 se connecte → ensurePlayerPosition() → updatedAt = hier
+joueur1 ne bouge pas pendant 30s → aucun savePlayerPosition() appelé
+admin poll toutes les 5s → filtre updatedAt > now - 10min → joueur1 exclu
+admin ne voit jamais joueur1
+H2 — Conversion world→hex : faible risque, mais à vérifier
+Preuve DB : tous les joueurs sont en segment 0 (worldX=25–33, worldY=14–18, segment_x=0, segment_y=0).
+
+Conversion dans GameCanvas.tsx :
+
+hexX: p.worldX - originWorldX   // ex: 27 - 0 = 27
+hexY: p.worldY - originWorldY   // ex: 14 - 0 = 14
+Si originWorldX = 0, joueur1 serait rendu à hex(33,18) — case valide dans le bloc segment 0. Pas de bug ici si les deux joueurs sont dans le même segment.
+
+Risque résiduel : si un joueur charge un segment différent (ex. après migration de carte), l'origine diffère et les positions sont converties dans le mauvais repère.
+
+H3 — Rendu GameEngine : non responsable du bug
+renderOtherPlayers() n'a aucune condition de filtre — il rend tout ce qui est dans otherPlayers. Si le tableau est vide (ce qui est le cas à cause de H1), rien n'est rendu. Le GameEngine n'est pas la cause.
+
+H4 — Polling présence fonctionne, mais ne peut pas aider si le filtre serveur exclut tout
+Code : setInterval(poll, 5000) avec [isAuthenticated] — intervalle monté une seule fois, nettoyé au unmount. Pas de double intervalle. Le polling fonctionne, mais il reçoit systématiquement [] si personne ne passe le filtre 10min.
+
+Risque résiduel : si isAuthenticated flip-flop (déconnexion partielle), l'intervalle est recréé. Peu probable.
+
+H5 — Déplacement ne touche updatedAt que si sans action active
+Code usePlayer.tsx l.345 :
+
+if (usePlayerActions.getState().isActionActive()) {
+  // Ne sauvegarde PAS pendant le trajet
+} else {
+  savePlayerPosition(worldX, worldY);  // ← updatedAt mis à jour
+}
+Pendant un déplacement long (action in_progress), updatedAt n'est mis à jour que par completeAction() côté serveur. Si le trajet dure >10min, le joueur peut sortir de la fenêtre pendant son propre déplacement.
+
+H6 — Zone partagée : pas de bug pour les tests actuels
+Tous les joueurs sont en segment 0. Le bloc chargé couvre le même segment. Pas de problème de zone sur les tests actuels.
+
+3. PREUVES DIRECTES DISPONIBLES
+Point	Méthode	Résultat
+updatedAt pas touché au login	Lecture ensurePlayerPosition() l.84-88	✅ Prouvé par code
+Tous les joueurs hors filtre 10min	Requête SQL directe sur DB	✅ passes_filter: false pour les 3 comptes
+API retourne [] en ce moment	Déductible directement du filtre SQL confirmé	✅ Certain
+Polling fonctionne correctement	Lecture GameCanvas.tsx l.196-218	✅ Prouvé par code
+GameEngine rend sans filtre	Lecture renderOtherPlayers() l.911-940	✅ Prouvé par code
+Coordonnées cohérentes (segment 0)	DB : worldX=25-33, worldY=14-18, segment=0	✅ Pas de problème
+4. CE QUI RESTE À TESTER MANUELLEMENT
+Point	Pourquoi impossible à vérifier seul
+Est-ce que joueur1 se voit chez admin immédiatement après un déplacement (qui réinitialise updatedAt) ?	Besoin de deux sessions simultanées
+La fenêtre 10min est-elle suffisante pour un test en conditions réelles ?	Dépend du comportement des joueurs (actifs ou non)
+5. CAUSE LA PLUS PROBABLE
+H1 — updatedAt jamais rafraîchi au login.
+
+Un joueur qui vient de se connecter a son updatedAt de sa dernière session. S'il ne bouge pas dans les 10 minutes (ou s'il était inactif depuis plus de 10 minutes), il est invisible pour tous les autres joueurs dès le premier poll — et le reste jusqu'à son premier mouvement.
+
+Preuve irréfutable : la requête SQL directe montre que les 3 comptes ont passes_filter: false en ce moment, donc GET /api/players/positions retourne [] pour tout le monde actuellement.
+
+6. PLUS PETIT CORRECTIF RECOMMANDABLE (SANS CODER)
+Une seule ligne à modifier dans server/playerPositionService.ts, dans ensurePlayerPosition() :
+
+Remplacer :
+
+if (valid) {
+  return existing;  // updatedAt inchangé
+}
+Par :
+
+if (valid) {
+  return savePlayerPosition(playerId, existing.worldX, existing.worldY);  // touche updatedAt
+}
+Effet : chaque GET /api/player/position au login/montage de page met à jour updatedAt → le joueur devient immédiatement visible pour les autres (fenêtre 10min remise à zéro).
+
+Coût : 1 upsert DB supplémentaire au login — négligeable.
+
+7. STOP VALIDATION

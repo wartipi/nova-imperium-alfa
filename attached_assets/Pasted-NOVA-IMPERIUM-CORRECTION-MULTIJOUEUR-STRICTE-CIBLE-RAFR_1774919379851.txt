@@ -1,0 +1,175 @@
+NOVA IMPERIUM — CORRECTION MULTIJOUEUR STRICTE
+CIBLE : RAFRAÎCHIR updatedAt AU LOGIN / MONTAGE POUR RENDRE LES JOUEURS VISIBLES
+Branche cible : NI-10.3
+
+RÔLE
+Tu appliques uniquement le plus petit correctif confirmé par l’audit.
+Tu ne fais aucun refactor massif.
+Tu ne touches à rien d’autre.
+Tu ne dérives pas.
+
+CONTEXTE VALIDÉ
+Audit confirmé :
+
+1. La présence des autres joueurs dépend de :
+- GET /api/players/positions
+- filtre serveur : updatedAt > now - 10 minutes
+- table source : player_positions
+
+2. Cause principale confirmée :
+- ensurePlayerPosition() retourne la position existante valide
+- mais ne met PAS à jour updatedAt
+- donc un joueur qui se connecte peut rester invisible pour les autres tant qu’il n’a pas bougé
+
+3. Preuve décisive :
+- les comptes testés étaient tous hors filtre 10 minutes
+- donc GET /api/players/positions retournait []
+- même avec deux clients connectés
+
+OBJECTIF
+Corriger uniquement ce point :
+- lorsqu’un joueur ouvre le jeu / recharge la page et que sa position existante est valide,
+- son updatedAt doit être rafraîchi immédiatement,
+- afin qu’il devienne visible pour les autres joueurs sans devoir d’abord se déplacer
+
+IMPORTANT
+Je veux le plus petit correctif propre possible.
+Je ne veux pas de heartbeat.
+Je ne veux pas de WebSocket.
+Je ne veux pas de nouveau système de présence.
+Je veux juste corriger la cause racine identifiée.
+
+INTERDIT
+- aucun refactor massif
+- aucun changement au polling client
+- aucun changement à GameCanvas.tsx
+- aucun changement à usePlayerPresence
+- aucun changement à GameEngine
+- aucun changement aux territoires / colonies / exploitation
+- aucun changement au pathfinding
+- aucun changement au déplacement
+- aucun changement à l’économie / marché / banque / inventaires
+- ne pas ouvrir d’autre sujet
+
+PRÉ-REQUIS OBLIGATOIRES AVANT TOUTE MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+Je veux :
+- objectif précis
+- fichier touché
+- raison
+- ordre d’exécution
+- risques
+- vérifications prévues
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement :
+
+- server/playerPositionService.ts
+
+Aucun autre fichier.
+
+Si tu juges qu’un autre fichier est absolument nécessaire :
+- tu t’arrêtes
+- tu le signales
+- tu ne le modifies pas sans validation
+
+IMPLÉMENTATION ATTENDUE
+
+LOT UNIQUE — TOUCHER updatedAt DANS ensurePlayerPosition()
+Fichier :
+- server/playerPositionService.ts
+
+But :
+quand ensurePlayerPosition() trouve une position existante valide, il doit aussi rafraîchir updatedAt.
+
+Comportement attendu :
+Avant :
+- si la position existe et est valide
+- return existing
+
+Après :
+- si la position existe et est valide
+- return savePlayerPosition(playerId, existing.worldX, existing.worldY)
+
+IMPORTANT
+Je veux exactement ce plus petit correctif.
+Pas d’abstraction supplémentaire.
+Pas de helper nouveau.
+Pas de logique bonus.
+
+JUSTIFICATION ATTENDUE
+Le but est :
+- réutiliser le pipeline existant
+- éviter un nouvel endpoint
+- toucher updatedAt avec la même source de vérité
+- rendre le joueur visible dès le login / montage
+
+ORDRE D’EXÉCUTION OBLIGATOIRE
+1. modifier uniquement server/playerPositionService.ts
+2. vérifier que le build / runtime serveur reste propre
+3. vérifier la logique de présence
+4. rapport final
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- server/playerPositionService.ts
+
+3. VÉRIFICATIONS FONCTIONNELLES
+A. ensurePlayerPosition
+- confirmer qu’une position existante valide met maintenant à jour updatedAt
+
+B. Présence
+- confirmer qu’un joueur qui se connecte redevient immédiatement éligible au filtre 10 minutes
+
+C. API
+- confirmer que GET /api/players/positions peut maintenant retourner un joueur connecté même s’il n’a pas encore bougé après login
+
+D. Aucune régression
+- création de position nouvelle inchangée
+- validation position inchangée
+- déplacement inchangé
+- annulation inchangée
+
+4. CONTRÔLE DE PÉRIMÈTRE
+Je veux une preuve explicite que :
+- aucun autre fichier n’a été modifié
+- aucun polling client n’a été touché
+- aucune logique de déplacement n’a été touchée
+- aucun territoire / économie / marché / banque n’a été touché
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+- classés
+- sans correction bonus hors périmètre
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+2. PREUVES
+3. VÉRIFICATIONS FONCTIONNELLES
+4. CONTRÔLE DE PÉRIMÈTRE
+5. RISQUES RÉSIDUELS
+6. STOP
+
+CONTRAINTE FINALE
+Tu corriges uniquement la cause racine confirmée par l’audit :
+- updatedAt doit être rafraîchi quand ensurePlayerPosition() retourne une position existante valide
+- aucune dérive
