@@ -1,0 +1,271 @@
+NOVA IMPERIUM — AUDIT RUNTIME STRICT
+CIBLE : PA HUD NON RAFRAÎCHIS + TIMER FINAL + PROGRESSION DE TUILE + DÉSYNCHRO CLIENT/SERVEUR
+Branche cible : NI-10.3
+
+RÔLE
+Tu agis comme auditeur runtime strict.
+Tu ne supposes rien.
+Tu ne dis pas “le code est bon donc le runtime est bon”.
+Tu dois prouver ce qui se passe réellement dans l’instance que je teste.
+
+OBJECTIF
+Je veux trancher 4 questions :
+
+1. Est-ce que le client servi par l’instance runtime correspond bien au code actuel de NI-10.3 ?
+2. Pourquoi le panneau PA en haut à droite ne reflète pas correctement la déduction pendant le déplacement ?
+3. Pourquoi le widget déplacement semble encore rester sur "< 2s" / mal finaliser en runtime ?
+4. Pourquoi la progression d’une tuile à l’autre semble encore incorrecte ou décalée ?
+
+IMPORTANT
+Je ne veux PAS de correction immédiate.
+Je veux d’abord un audit runtime strict avec preuves.
+Aucune dérive.
+Aucune “amélioration bonus”.
+
+CONTEXTE VALIDÉ CÔTÉ CODE
+Le code actuel contient déjà :
+- ActiveActionWidget avec :
+  - écoute de nova:step-progress
+  - state isSyncing
+  - affichage "Finalisation…"
+  - fallback serverStep pour Tuile X / N
+- GameCanvas avec :
+  - dispatch nova:step-progress à chaque step confirmé
+  - dispatch nova:ap-refresh à chaque step confirmé
+- MedievalHUD avec :
+  - écoute nova:ap-refresh
+  - fetchPlayerState()
+  - mise à jour usePlayer.setState({ actionPoints, maxActionPoints })
+
+DONC
+Si le runtime ne suit pas :
+- soit le client servi n’est pas celui attendu
+- soit les events ne partent pas réellement
+- soit les listeners ne reçoivent rien
+- soit les données API ne reflètent pas ce qu’on croit
+- soit le store/UI n’est pas la bonne source affichée
+
+PRÉ-REQUIS OBLIGATOIRES
+Avant tout test, afficher exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+- git rev-parse HEAD
+
+3. PREUVE CODE LOCAL
+Afficher exactement :
+- grep -n "nova:step-progress" client/src/components/game/GameCanvas.tsx client/src/components/game/ActiveActionWidget.tsx
+- grep -n "nova:ap-refresh" client/src/components/game/GameCanvas.tsx client/src/components/game/MedievalHUD.tsx client/src/components/game/ActiveActionWidget.tsx
+- grep -n "Finalisation…" client/src/components/game/ActiveActionWidget.tsx
+- grep -n "fetchPlayerState" client/src/components/game/MedievalHUD.tsx
+
+4. PREUVE INSTANCE ACTIVE
+Je veux identifier précisément :
+- quel serveur/processus tourne
+- depuis quel répertoire il tourne
+- quel port il écoute
+- quelle URL exacte est ouverte dans le navigateur/preview
+- si le client a été rebuild/reload après les derniers changements
+
+Je veux des preuves utiles :
+- commande de lancement
+- logs de démarrage
+- toute preuve liant l’instance runtime au repo local actuel
+
+PHASE A — AUDIT DU HUD PA (PANNEAU EN HAUT À DROITE)
+
+BUT
+Déterminer si le problème est :
+- absence de déduction côté serveur
+- absence de refresh API/store
+- ou affichage stale du HUD
+
+TESTS OBLIGATOIRES
+
+A1. ÉTAT INITIAL
+Avant déplacement :
+- noter la valeur HUD PA visible
+- lire la valeur via fetchPlayerState() / API équivalente
+- lire si possible la valeur DB
+- confirmer qu’elles sont identiques au départ
+
+A2. JUSTE APRÈS CRÉATION DU MOVE
+Créer un trajet multi-step coût > 1
+Puis immédiatement :
+- noter HUD PA
+- appeler fetchPlayerState()
+- appeler fetchCurrentAction()
+- lire DB si possible
+
+Attendu :
+- pas de déduction upfront
+- HUD et API doivent rester inchangés immédiatement après création
+
+A3. APRÈS PREMIER STEP CONFIRMÉ
+Au moment du premier step serveur confirmé :
+- prouver si GameCanvas émet nova:ap-refresh
+- prouver si MedievalHUD reçoit nova:ap-refresh
+- prouver si fetchPlayerState() retourne une valeur décrémentée
+- noter la valeur HUD affichée
+
+A4. APRÈS STEP SUIVANT
+Même protocole
+
+A5. FIN DE TRAJET
+- noter HUD final
+- fetchPlayerState() final
+- fetchCurrentAction() final
+- DB si possible
+- confirmer si somme débitée = totalCost
+
+QUESTIONS À TRANCHER
+1. Les PA baissent-elles réellement côté API ?
+2. Les PA baissent-elles réellement en DB ?
+3. Le HUD reste-t-il stale malgré une API correcte ?
+4. L’event nova:ap-refresh part-il vraiment ?
+5. Le listener MedievalHUD s’exécute-t-il vraiment ?
+6. Le store usePlayer.actionPoints est-il bien la valeur affichée par le HUD final ?
+
+PHASE B — AUDIT TIMER FINAL
+
+BUT
+Déterminer pourquoi le widget reste ou semble rester sur "< 2s" au lieu de "Finalisation…"
+
+TESTS OBLIGATOIRES
+
+B1. INSTRUMENTATION MINIMALE TEMPORAIRE
+Sans refactor :
+- log quand msLeft passe <= 0
+- log quand sync() démarre
+- log quand setIsSyncing(true) est appelé
+- log le status renvoyé par fetchCurrentAction()
+- log quand setIsSyncing(false) est appelé
+
+B2. OBSERVATION RUNTIME
+Pendant la fin d’un déplacement :
+- noter ce qui s’affiche visuellement :
+  - Temps restant total
+  - Tuile
+  - Arrivée imminente / Finalisation
+- noter les logs associés au même instant
+
+QUESTIONS À TRANCHER
+1. sync() démarre-t-il réellement au bon moment ?
+2. isSyncing passe-t-il réellement à true ?
+3. Le rendu affiché correspond-il à isSyncing=true ou pas ?
+4. Est-ce une question de build stale / reload incomplet / cache ?
+5. Le serveur reste-t-il trop longtemps in_progress après expectedEndTime ?
+
+PHASE C — AUDIT PROGRESSION DE TUILE
+
+BUT
+Déterminer pourquoi la fenêtre d’info de déplacement ne semble pas refléter correctement le progrès d’une tuile à l’autre
+
+TESTS OBLIGATOIRES
+
+C1. STEP SERVEUR
+À chaque step confirmé :
+- log serverStep dans GameCanvas
+- log l’event nova:step-progress envoyé
+- log l’event reçu dans ActiveActionWidget
+- log la valeur serverStep locale du widget
+- log la valeur affichée Tuile X / N
+
+C2. COHÉRENCE
+Comparer au même instant :
+- effectiveStep de fetchCurrentAction()
+- serverStep reçu par le widget
+- Tuile affichée dans le widget
+- position avatar affichée dans le canvas
+
+QUESTIONS À TRANCHER
+1. L’event nova:step-progress part-il à chaque vrai step ?
+2. Le widget reçoit-il tous les events ?
+3. La valeur affichée Tuile X / N reflète-t-elle serverStep ou un fallback local ?
+4. Le widget est-il parfois rendu avant réception du step confirmé ?
+
+PHASE D — AUDIT DÉSYNCHRONISATION CLIENT/SERVEUR
+
+BUT
+Comparer toutes les vérités au même moment
+
+SOURCES À COMPARER
+Je veux comparer, pour un même déplacement :
+- position avatar affichée dans le canvas
+- fetchPlayerPosition()
+- fetchCurrentAction() :
+  - status
+  - effectiveStep
+  - effectiveWorldX
+  - effectiveWorldY
+  - lastAppliedStep
+- HUD PA
+- fetchPlayerState()
+- DB si possible
+
+SCÉNARIOS À TESTER
+D1. Déplacement normal multi-step
+D2. Dernier step / fin de trajet
+D3. Annulation à mi-chemin
+D4. Cas observé où l’UI semble décalée
+
+INTERDIT
+- aucun refactor massif
+- aucune correction avant diagnostic
+- ne pas toucher le serveur sauf instrumentation minimale temporaire absolument nécessaire
+- ne pas ouvrir d’autre sujet
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. PREUVE INSTANCE ACTIVE
+- quel code tourne réellement
+- quelle URL/preview teste réellement
+
+2. AUDIT HUD PA
+- API
+- DB
+- store
+- HUD
+- verdict exact
+
+3. AUDIT TIMER FINAL
+- logs
+- UI
+- verdict exact
+
+4. AUDIT PROGRESSION DE TUILE
+- event émis
+- event reçu
+- valeur affichée
+- verdict exact
+
+5. AUDIT DÉSYNCHRONISATION
+- sources comparées
+- première divergence observée
+- cause racine probable
+
+6. PROCHAINE TÂCHE UNIQUE RECOMMANDÉE
+- une seule
+- la plus petite
+- justifiée
+
+7. PROMPT D’IMPLÉMENTATION PRÊT À EXÉCUTER
+- uniquement pour cette tâche unique
+
+8. STOP
+
+CONTRAINTE FINALE
+Je ne veux pas confondre :
+- code source
+- bundle client réellement servi
+- événements runtime
+- API
+- DB
+- affichage UI
+
+Je veux la première vraie divergence prouvée.
