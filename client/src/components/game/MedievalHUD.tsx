@@ -292,7 +292,6 @@ export function MedievalHUD() {
   const menuItems = [
     { id: 'territory'  as MenuSection, label: 'GESTION VILLE/TERRITOIRE', icon: '🗺️' },
     { id: 'marshals'   as MenuSection, label: 'GESTION DES ARMÉES',       icon: '⚔️' },
-    { id: 'transport'  as MenuSection, label: 'INVENTAIRE TRANSPORT',      icon: '🎒' },
     { id: 'treaties'   as MenuSection, label: 'TRAITÉS',                   icon: '📜' },
     { id: 'courier'    as MenuSection, label: 'COURRIER',                  icon: '✉️' },
     { id: 'activities' as MenuSection, label: "RAPPORT D'ACTIVITÉS",       icon: '📊' },
@@ -547,6 +546,16 @@ export function MedievalHUD() {
               </div>
               <div className="text-blue-600">{actionPoints}/{maxActionPoints}</div>
               <ActiveActionWidget />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveSection('transport');
+                }}
+                className="mt-2 w-full text-xs bg-amber-700 hover:bg-amber-600 text-amber-100 font-semibold px-2 py-1.5 rounded border border-amber-900 flex items-center justify-center gap-1"
+                title="Inventaire de transport"
+              >
+                🎒 Inventaire du joueur
+              </button>
               <div className="text-xs text-amber-700 mt-1">RÉPUTATION</div>
               <div className="flex items-center justify-between">
                 <div 
