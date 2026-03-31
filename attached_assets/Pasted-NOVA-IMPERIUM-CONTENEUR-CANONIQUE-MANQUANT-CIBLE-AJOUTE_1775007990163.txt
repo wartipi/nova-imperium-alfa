@@ -1,0 +1,322 @@
+NOVA IMPERIUM — CONTENEUR CANONIQUE MANQUANT
+CIBLE : AJOUTER LE PREMIER DÉBIT RÉEL DE player_transport VERS city_inventory
+Branche cible : NI-10.3
+
+RÔLE
+Tu agis comme implémenteur strict sous contraintes.
+Tu respectes l’architecture existante.
+Tu ne fais aucun refactor massif.
+Tu ne dérives pas.
+Tu gardes le serveur comme source de vérité.
+
+CONTEXTE VALIDÉ
+L’audit économique a confirmé 5 conteneurs réels :
+
+1. player_bank
+- réseau bancaire joueur
+- alimenté par les villes avec banque
+- débité par transfer_bank_to_city et transfer_bank_to_player
+
+2. city_pending_harvest
+- production accumulée des villes sans banque
+- débité par collect_harvest
+
+3. city_inventory
+- stock local physique de la ville
+- alimenté par collect_harvest et transfer_bank_to_city
+- débité par les coûts de construction
+
+4. player_transport
+- ressources physiquement portées par le joueur
+- alimenté par transfer_bank_to_player
+- PROBLÈME ACTUEL : aucun débit réel branché
+
+5. faction_economy
+- legacy
+- hors cible pour cette tâche
+
+ÉTAT ACTUEL VALIDÉ
+- TreasuryPanel = réseau bancaire
+- HarvestPanel = inventaires locaux des villes
+- PlayerTransportPanel = inventaire de transport du joueur
+- MAIS player_transport reste un cul-de-sac
+- donc l’économie n’est pas encore fermée proprement
+- et les futurs tests de marché seraient pollués par cette ambiguïté
+
+CONTRAINTE UI IMPORTANTE À RESPECTER
+La section “Récolte des villes / inventaire local des villes” appartient logiquement au panneau :
+- GESTION VILLE / TERRITOIRE
+
+Je ne veux pas renforcer l’idée qu’elle doit vivre durablement comme panneau autonome séparé.
+Donc dans cette tâche :
+- ne pas créer une nouvelle architecture qui éloigne davantage la récolte des villes du panneau territoire
+- si un ajustement UI est nécessaire pour refléter le dépôt vers city_inventory, il doit rester compatible avec cette cible
+- ne pas consolider HarvestPanel comme destination finale de design
+- considérer HarvestPanel comme transitoire / intermédiaire si nécessaire
+
+OBJECTIF DE CETTE TÂCHE
+Je veux ajouter le premier flux canonique de sortie de player_transport.
+
+Je veux :
+player_transport → city_inventory
+
+But exact :
+- le joueur transporte physiquement des ressources
+- il se rend physiquement dans une ville
+- il dépose une quantité choisie de son transport dans l’inventaire local de cette ville
+
+IMPORTANT
+Cette tâche NE porte PAS encore sur le marché.
+Cette tâche prépare la base canonique avant les tests du marché.
+
+RÈGLE MÉTIER CIBLE
+Le dépôt depuis player_transport vers city_inventory doit être possible uniquement si :
+- le joueur est physiquement sur une case de ville valide
+- cette ville est la destination réelle du dépôt
+- les quantités demandées existent réellement dans player_transport
+
+Le résultat attendu :
+- débit atomique de player_transport
+- crédit atomique de city_inventory
+- aucune approximation client
+- aucune écriture directe côté client
+- aucun bypass implicite
+
+IMPORTANT
+Je veux que la règle d’accès soit physique et canonique.
+Pas un select global libre des villes.
+Pas un menu qui montre toutes les villes.
+Pas un dépôt à distance.
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. VALIDATION PRÉALABLE
+Je veux confirmation explicite :
+- du ou des fichiers serveur exacts qui gèrent déjà player_transport
+- du ou des fichiers exacts qui gèrent déjà city_inventory
+- de la règle actuelle la plus proche de “présence physique sur une ville”
+- du plus petit chemin propre pour implémenter player_transport → city_inventory
+- de la liste exacte des fichiers à toucher
+- de la façon dont cette tâche restera compatible avec la cible UI :
+  “récolte / inventaire ville dans Gestion ville/territoire”
+
+Ensuite seulement tu modifies.
+
+MÉTHODE OBLIGATOIRE
+Tu travailles en 5 phases :
+
+PHASE 1 — AUDIT CIBLÉ
+Relire uniquement ce qui est nécessaire pour cette tâche :
+- PlayerTransportPanel.tsx
+- HarvestPanel.tsx
+- UnifiedTerritoryPanel / panneau Gestion ville-territoire si pertinent
+- economyApi.ts
+- server/routes/economy.ts
+- server/economyService.ts
+- accessPointService.ts si pertinent
+- schéma / tables nécessaires
+- tout autre fichier strictement requis
+
+Tu dois identifier :
+- comment player_transport est lu
+- comment city_inventory est lu
+- quel est le meilleur point de validation physique
+- si une fonction existante de résolution d’accès peut être réutilisée
+- comment éviter de renforcer une mauvaise séparation UI entre récolte et territoire
+
+PHASE 2 — DESIGN MINIMAL RETENU
+Je veux le plus petit design cohérent.
+
+Je recommande la logique suivante, sauf si tu prouves qu’un chemin plus petit et plus propre existe déjà :
+
+A. serveur
+- nouveau flux canonique de dépôt :
+  player_transport → city_inventory
+- validation physique sur ville réelle
+- validation des quantités
+- transaction atomique DB
+
+B. client
+- PlayerTransportPanel obtient une petite section :
+  “Déposer dans la ville actuelle”
+- cette section n’apparaît utilement que si le joueur est sur une ville valide
+- elle permet de saisir les quantités à déposer
+- elle déclenche la route serveur
+- elle rafraîchit transport + ville via le flux normal
+
+IMPORTANT
+Je veux une solution petite, lisible, stable.
+Je ne veux pas un gros framework logistique.
+
+IMPORTANT UI
+Pour cette tâche, tu peux utiliser temporairement les panneaux actuels si c’est le plus petit chemin propre,
+mais :
+- ne déplace pas la logique métier vers une UI séparée inutile
+- ne présente pas HarvestPanel comme architecture finale
+- garde le système compatible avec une future absorption claire de la récolte/inventaire ville dans Gestion ville/territoire
+
+PHASE 3 — IMPLÉMENTATION SERVEUR
+Je veux un flux serveur-authoritative clair.
+
+COMPORTEMENT SERVEUR ATTENDU
+Créer le plus petit endpoint cohérent, par exemple dans /api/economy, avec un nom aligné sur les conventions existantes.
+
+Exigences minimales :
+1. identifier le joueur via auth serveur
+2. déterminer la ville réelle de dépôt depuis la position du joueur
+3. refuser si le joueur n’est pas sur une ville valide
+4. refuser si les quantités sont nulles
+5. refuser si les quantités demandées dépassent player_transport
+6. effectuer le mouvement de ressources dans une transaction atomique
+7. retourner un payload simple et lisible
+8. ne pas introduire de bypass admin non validé
+
+IMPORTANT
+Je veux que la ville cible vienne de la source de vérité serveur.
+Je ne veux pas d’un cityId librement choisi par le client si ce n’est pas strictement nécessaire.
+
+Si un cityId est transmis par le client pour l’UI, le serveur doit de toute façon le recouper avec la ville réelle de la position et refuser toute incohérence.
+
+TRANSACTION ATTENDUE
+Dans la transaction :
+- décrémenter player_transport
+- incrémenter city_inventory
+- aucune ressource créée ou perdue
+- aucune écriture partielle
+
+PHASE 4 — IMPLÉMENTATION CLIENT
+Dans PlayerTransportPanel :
+- conserver la vue actuelle de l’inventaire transport
+- ajouter une section minimale de dépôt
+- le panneau doit rester lisible
+
+COMPORTEMENT CLIENT ATTENDU
+A. si le joueur n’est pas sur une ville valide
+- afficher un message clair
+- ne pas afficher un faux formulaire actif
+
+B. si le joueur est sur une ville valide
+- afficher le nom de la ville courante
+- afficher un petit formulaire de dépôt
+- permettre de choisir des quantités par ressource
+- bouton “Déposer”
+- message de succès ou erreur lisible
+- refresh via le flux canonique existant
+
+IMPORTANT
+Je ne veux pas afficher toutes les villes ici.
+Le dépôt doit être local à la ville courante.
+
+IMPORTANT UI TERRITOIRE
+Si tu dois choisir quel panneau reflète le résultat du dépôt côté ville :
+- pense “Gestion ville/territoire” comme destination logique
+- évite toute nouvelle dépendance forte à un panneau autonome récolte
+- si un raccord minimal est nécessaire, fais-le sans ouvrir une refonte UI large
+
+PHASE 5 — RAFRAÎCHISSEMENT / SYNCHRO
+Après succès :
+- PlayerTransportPanel doit se rafraîchir
+- la vue de l’inventaire ville / récolte doit se rafraîchir
+- si possible via le mécanisme déjà en place :
+  nova:logistic-refresh
+- éviter les rafraîchissements bricolés si le bus d’événements existe déjà
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement les fichiers strictement nécessaires, probablement :
+- client/src/components/game/PlayerTransportPanel.tsx
+- client/src/lib/api/economyApi.ts
+- server/routes/economy.ts
+- server/economyService.ts
+- éventuellement accessPointService.ts seulement si une petite aide locale est vraiment nécessaire
+- éventuellement un type/schema si strictement requis
+- et seulement si nécessaire un point de raccord léger côté territoire / inventaire ville
+
+INTERDIT
+- aucun refactor massif
+- aucun changement du marché
+- aucun changement des timers / PA / déplacements
+- aucun changement de TreasuryPanel hors nécessité stricte
+- aucun changement cosmétique large
+- aucune logique client approximative
+- aucun select global de villes pour ce dépôt
+- aucune duplication confuse des règles d’accès
+- ne pas renforcer HarvestPanel comme architecture UI finale
+
+SI TU CONSTATES QU’UNE PARTIE EST DÉJÀ PRÉSENTE
+- tu le signales
+- tu la réutilises
+- tu n’en recrées pas une deuxième version
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- chaque fichier touché
+
+3. VÉRIFICATIONS FONCTIONNELLES
+A. joueur sur une ville valide
+- dépôt possible
+- player_transport débité
+- city_inventory crédité
+
+B. joueur hors ville valide
+- dépôt refusé
+
+C. quantités trop élevées
+- dépôt refusé
+
+D. quantités nulles
+- dépôt refusé
+
+E. UI transport
+- reste lisible
+- montre le nom de la ville courante si dépôt possible
+
+F. UI ville
+- reflète le crédit après refresh
+- reste compatible avec la cible “Gestion ville/territoire”
+
+G. serveur
+- transaction atomique confirmée
+- aucune régression sur bank / harvest / construction
+
+4. CONTRÔLE DE PÉRIMÈTRE
+- preuve qu’aucun chantier marché n’a été ouvert
+- preuve qu’aucun refactor massif n’a été ouvert
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. DIAGNOSTIC FINAL
+2. SOLUTION RETENUE
+3. FICHIERS MODIFIÉS
+4. PREUVES
+5. VÉRIFICATIONS FONCTIONNELLES
+6. CONTRÔLE DE PÉRIMÈTRE
+7. RISQUES RÉSIDUELS
+8. IMPACT SUR LA SUITE (marché)
+9. COMPATIBILITÉ AVEC LA CIBLE UI “Gestion ville/territoire”
+10. STOP
+
+CONTRAINTE FINALE
+Je veux fermer le premier flux canonique manquant :
+player_transport → city_inventory
+
+Je veux une implémentation petite, serveur-authoritative, physiquement cohérente, propre,
+et compatible avec cette direction UI :
+la récolte / l’inventaire local des villes appartient au panneau Gestion ville/territoire.
