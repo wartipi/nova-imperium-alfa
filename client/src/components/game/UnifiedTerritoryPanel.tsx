@@ -8,6 +8,7 @@ import { useMap } from '../../lib/stores/useMap';
 import { useCustomAlert } from '../ui/CustomAlert';
 import { fetchAllTerritories, fetchAllColonies, apiClaimTerritory, apiFoundColony, apiSetGovernor, apiExploitTerritory } from '../../lib/api/territoriesApi';
 import { CityManagementPanel } from './CityManagementPanel';
+import { HarvestPanel } from './HarvestPanel';
 
 const TERRAIN_LABELS: Record<string, string> = {
   fertile_land: 'Terres fertiles', plains: 'Plaines', forest: 'Forêt',
@@ -631,6 +632,11 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
             ))}
           </div>
         )}
+      </div>
+
+      {/* ═══ SECTION : Inventaires locaux des villes ═══ */}
+      <div className="parchment-section p-4 mb-6">
+        <HarvestPanel />
       </div>
 
       {/* Statistiques */}

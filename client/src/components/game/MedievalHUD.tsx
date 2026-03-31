@@ -292,7 +292,6 @@ export function MedievalHUD() {
   const menuItems = [
     { id: 'territory'  as MenuSection, label: 'GESTION VILLE/TERRITOIRE', icon: '🗺️' },
     { id: 'marshals'   as MenuSection, label: 'GESTION DES ARMÉES',       icon: '⚔️' },
-    { id: 'harvest'    as MenuSection, label: 'RÉCOLTE DES VILLES',        icon: '🌾' },
     { id: 'transport'  as MenuSection, label: 'INVENTAIRE TRANSPORT',      icon: '🎒' },
     { id: 'treaties'   as MenuSection, label: 'TRAITÉS',                   icon: '📜' },
     { id: 'courier'    as MenuSection, label: 'COURRIER',                  icon: '✉️' },
