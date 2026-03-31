@@ -2,11 +2,13 @@ import { useState, useEffect, useCallback } from "react";
 import {
   getPlayerBank,
   getCityHarvest,
+  getCityWarehouseInfo,
   postCollectHarvest,
   postTransferBankToCity,
   postTransferBankToPlayer,
   type PlayerBankDTO,
   type CityHarvestDTO,
+  type CityWarehouseInfoDTO,
 } from "../../lib/api/economyApi";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -154,10 +156,11 @@ function AmountInput({
 // ─── TreasuryPanel ────────────────────────────────────────────────────────────
 
 export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
-  const [bank,     setBank]     = useState<PlayerBankDTO | null>(null);
-  const [cities,   setCities]   = useState<CityFull[]>([]);
-  const [harvests, setHarvests] = useState<Record<number, CityHarvestState>>({});
-  const [loading,  setLoading]  = useState(true);
+  const [bank,       setBank]       = useState<PlayerBankDTO | null>(null);
+  const [cities,     setCities]     = useState<CityFull[]>([]);
+  const [harvests,   setHarvests]   = useState<Record<number, CityHarvestState>>({});
+  const [warehouses, setWarehouses] = useState<Record<number, CityWarehouseInfoDTO | null>>({});
+  const [loading,    setLoading]    = useState(true);
 
   // ─── Accès physique banque ─────────────────────────────────────────────────
   const [bankAccess, setBankAccess] = useState<{
@@ -211,17 +214,28 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
         }
         setHarvests(init);
 
-        const results = await Promise.allSettled(cityList.map(c => getCityHarvest(c.id)));
+        const [harvestResults, warehouseResults] = await Promise.all([
+          Promise.allSettled(cityList.map(c => getCityHarvest(c.id))),
+          Promise.allSettled(cityList.map(c => getCityWarehouseInfo(c.id))),
+        ]);
+
         setHarvests(prev => {
           const next = { ...prev };
           cityList.forEach((c, i) => {
-            const r = results[i];
+            const r = harvestResults[i];
             next[c.id] = r.status === "fulfilled"
               ? { ...next[c.id], data: r.value, loading: false }
               : { ...next[c.id], loading: false, error: "Erreur harvest" };
           });
           return next;
         });
+
+        const wh: Record<number, CityWarehouseInfoDTO | null> = {};
+        cityList.forEach((c, i) => {
+          const r = warehouseResults[i];
+          wh[c.id] = r.status === "fulfilled" ? r.value : null;
+        });
+        setWarehouses(wh);
       }
     } catch (err) {
       console.error("[TreasuryPanel] loadAll:", err);
@@ -538,9 +552,23 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
               const h = harvests[city.id];
               return (
                 <div key={city.id} className="bg-white border border-amber-200 rounded p-2.5 text-xs">
-                  <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
                     <span className="font-bold text-amber-900 text-sm">{city.name}</span>
-                    <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-xs">🏦 auto</span>
+                    <div className="flex gap-1 flex-wrap">
+                      <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-xs">🏦 auto</span>
+                      {(() => {
+                        const wh = warehouses[city.id];
+                        if (!wh) return null;
+                        if (!wh.hasWarehouse) return (
+                          <span className="bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded text-xs">⚠️ pas d'entrepôt</span>
+                        );
+                        return (
+                          <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded text-xs">
+                            🏪 Niv.{wh.level} — {wh.currentUnits}/{wh.capacity}
+                          </span>
+                        );
+                      })()}
+                    </div>
                   </div>
                   <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-amber-700 mb-1.5 text-xs">
                     {(() => {

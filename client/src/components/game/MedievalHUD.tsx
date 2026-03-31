@@ -36,7 +36,6 @@ import { LevelUpNotification, useLevelUpNotification } from "./LevelUpNotificati
 import { MarshalPanel } from "../marshal/MarshalPanel";
 import { PublicEventsPanel } from "./PublicEventsPanel";
 import { ActiveActionWidget } from "./ActiveActionWidget";
-import { HarvestPanel } from "./HarvestPanel";
 import { PlayerTransportPanel } from "./PlayerTransportPanel";
 
 type MenuSection = 
@@ -54,7 +53,6 @@ type MenuSection =
   | 'reputation_management'
   | 'marketplace'
   | 'marshals'
-  | 'harvest'
   | 'transport';
 
 export function MedievalHUD() {
@@ -285,7 +283,6 @@ export function MedievalHUD() {
     marketplace: 'MARCHÉ PUBLIC',
     competences: 'COMPÉTENCES',
     factions:    'FACTIONS',
-    harvest:     'RÉCOLTE DES VILLES',
     transport:   'INVENTAIRE DE TRANSPORT',
   };
 
@@ -822,13 +819,6 @@ export function MedievalHUD() {
               {activeSection === 'help' && <HelpPanel />}
               {activeSection === 'competences' && <CompetenceTree />}
               {activeSection === 'factions' && <FactionPanel onClose={() => setActiveSection(null)} />}
-              {activeSection === 'harvest' && (
-                <HarvestPanel
-                  currentUser={currentUser || ''}
-                  role={role}
-                  adminModeEnabled={adminModeEnabled}
-                />
-              )}
               {activeSection === 'transport' && <PlayerTransportPanel />}
             </div>
           </div>

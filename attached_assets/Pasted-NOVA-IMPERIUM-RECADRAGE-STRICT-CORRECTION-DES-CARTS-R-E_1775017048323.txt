@@ -1,0 +1,255 @@
+NOVA IMPERIUM — RECADRAGE STRICT + CORRECTION DES ÉCARTS RÉELS RESTANTS
+Branche cible : NI-10.3
+
+RÔLE
+Tu agis comme implémenteur strict sous contrôle.
+Tu ne supposes rien.
+Tu ne conclus jamais à partir de logs partiels.
+Tu ne présentes jamais comme “terminé” un chantier dont le code poussé ne ferme pas réellement tous les écarts.
+Tu dois être plus vigilant, plus factuel, et plus rigoureux dans tes validations.
+
+RECADRAGE OBLIGATOIRE
+Les derniers messages ont montré un problème de méthode :
+
+- tu as utilisé des logs partiels comme preuve suffisante
+- tu as répondu comme si le chantier était fermé
+- alors que le code poussé montre encore des écarts réels
+
+À partir de maintenant :
+1. les logs runtime ne suffisent jamais à eux seuls
+2. la source de vérité de validation = code poussé + diff réel + comportement vérifié
+3. quand une partie n’est que partiellement intégrée, tu le dis explicitement
+4. quand tu n’as pas vérifié une chose, tu le dis explicitement
+5. tu ne déclares jamais “tout est terminé” si un des objectifs demandés n’est pas effectivement fermé dans le code
+
+CONTEXTE — ÉTAT RÉEL DU CODE À PRENDRE EN COMPTE
+Après relecture directe du code poussé, l’état réel est celui-ci :
+
+✅ Déjà vrai
+- la logique entrepôt existe côté serveur
+- la capacité existe côté serveur
+- la route city-warehouse-info existe
+- le dépôt transport → ville est gardé par entrepôt/capacité
+- TreasuryPanel commence à intégrer les villes bancarisées
+- HarvestPanel n’est plus dans le menu principal visible
+
+❌ Encore faux / incomplet
+1. ConstructionPanel :
+- entrepot n’est toujours pas dans la liste des bâtiments constructibles
+
+2. TreasuryPanel :
+- il affiche bien les villes avec bank
+- MAIS il n’utilise pas encore la logique entrepôt complète pour l’affichage
+- il n’affiche pas encore clairement :
+  - badge entrepôt
+  - niveau
+  - capacité actuelle/max
+  - absence d’entrepôt
+
+3. MedievalHUD :
+- HarvestPanel existe encore comme panneau autonome monté dans le HUD
+- même s’il n’est plus dans le menu visible, il n’a pas été retiré proprement
+
+Donc le chantier n’est pas fermé.
+
+OBJECTIF DE CETTE TÂCHE
+Fermer proprement les écarts restants réels, rien de plus.
+
+Tu dois corriger exactement ceci :
+1. rendre entrepot réellement constructible
+2. intégrer complètement la logique entrepôt dans TreasuryPanel pour les villes bancarisées
+3. retirer proprement HarvestPanel comme panneau autonome du HUD
+
+IMPORTANT
+Je ne veux pas :
+- de refactor massif
+- de dérive vers un chantier marché complet
+- de nouvelles abstractions inutiles
+- de conclusion optimiste non prouvée
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. VALIDATION PRÉALABLE
+Je veux une confirmation explicite, point par point :
+
+A. ConstructionPanel
+- confirmer que entrepot n’est actuellement pas présent dans le tableau buildings
+- montrer le point exact où il faut l’ajouter
+
+B. TreasuryPanel
+- confirmer qu’il filtre déjà les villes avec bank
+- confirmer qu’il n’utilise pas encore getCityWarehouseInfo pour enrichir l’affichage
+- confirmer qu’il manque encore :
+  - badge entrepôt
+  - niveau
+  - capacité actuelle/max
+  - message absence d’entrepôt
+
+C. MedievalHUD
+- confirmer que HarvestPanel est toujours importé
+- confirmer que MenuSection contient encore 'harvest'
+- confirmer que activeSection === 'harvest' le monte encore
+- confirmer qu’il doit être retiré proprement
+
+D. Validation canonique
+- confirmer si entrepot doit aussi être ajouté dans une source de vérité serveur de construction
+- si oui, lister le fichier exact
+- si non, expliquer précisément pourquoi
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement les fichiers strictement nécessaires, probablement :
+
+- client/src/components/game/ConstructionPanel.tsx
+- client/src/components/game/TreasuryPanel.tsx
+- client/src/components/game/MedievalHUD.tsx
+- éventuellement client/src/lib/api/economyApi.ts
+- éventuellement un fichier serveur canonique de validation/définition des bâtiments, seulement si nécessaire et prouvé
+
+INTERDIT
+- aucun refactor massif
+- aucun chantier marché complet
+- aucun changement de logique banque hors ce qui est requis pour l’affichage
+- aucun changement de PA / timers / déplacements
+- aucun faux ajout client-only de entrepot
+- ne pas laisser HarvestPanel comme panneau autonome à la fin
+- ne pas utiliser les logs comme unique preuve de validation finale
+
+LOT A — ENTREPOT CONSTRUCTIBLE
+Je veux que entrepot devienne réellement constructible.
+
+Exigences :
+1. Ajouter entrepot dans ConstructionPanel
+2. Catégorie :
+- Stockage
+3. L’entrée doit inclure au minimum :
+- id: "entrepot"
+- nom lisible
+- coût cohérent
+- temps cohérent
+- terrain cohérent
+- actionPointCost cohérent
+4. Vérifier si une validation serveur/canon existe pour la construction
+5. Si elle existe :
+- ajouter entrepot aussi là-bas
+6. Si elle n’existe pas :
+- le documenter explicitement dans le rapport final
+
+IMPORTANT
+Je ne veux pas d’un bouton client-only non validé.
+
+LOT B — TREASURYPANEL : INTÉGRATION COMPLÈTE DE L’ENTREPÔT
+TreasuryPanel filtre déjà les villes avec bank.
+Je veux maintenant l’intégration complète de l’entrepôt dans cette vue.
+
+Comportement cible :
+1. section inventaires des villes connectées = seulement villes avec bank
+2. pour chaque ville :
+- nom
+- badge banque
+- statut entrepôt issu de la vérité serveur
+3. si entrepôt présent :
+- afficher badge du type :
+  🏪 Niv.X — actuel/capacité
+- afficher le stock local
+4. si entrepôt absent :
+- afficher :
+  ⚠️ pas d’entrepôt
+- ne pas faire croire à un inventaire exploitable normal
+
+IMPORTANT
+TreasuryPanel doit utiliser la vérité serveur existante :
+- getCityWarehouseInfo(cityId)
+et non recalculer localement niveau/capacité.
+
+LOT C — RETRAIT PROPRE DE HARVESTPANEL DU HUD
+Je veux que HarvestPanel cesse d’exister comme panneau autonome.
+
+Exigences :
+1. retirer l’import inutile si la migration TreasuryPanel le remplace
+2. retirer 'harvest' de MenuSection si plus utilisé
+3. retirer le rendu activeSection === 'harvest'
+4. nettoyer PANEL_TITLES si nécessaire
+5. ne casser aucun autre panneau
+
+IMPORTANT
+Je veux un retrait propre, pas une suppression aveugle.
+
+LOT D — NON-RÉGRESSION
+Tu dois conserver :
+- dépôt transport → ville
+- affichage transport
+- logique bancaire
+- filtrage villes avec bank
+- stabilité du HUD
+
+MÉTHODE DE VALIDATION OBLIGATOIRE APRÈS MODIFICATION
+Je veux un rapport final plus rigoureux que d’habitude.
+
+Tu dois produire exactement :
+
+1. DIAGNOSTIC FINAL
+- état initial réel
+- ce qui était faux/incomplet avant modification
+
+2. FICHIERS MODIFIÉS
+- liste précise
+- nombre exact de fichiers
+
+3. PREUVES
+- git diff --stat
+- git diff pour chaque fichier
+- pas seulement un résumé verbal
+
+4. VÉRIFICATIONS FONCTIONNELLES
+A. ConstructionPanel
+- entrepot visible
+- entrepot constructible
+- preuve que le pipeline réel passe
+
+B. TreasuryPanel
+- villes sans bank absentes
+- villes avec bank visibles
+- badge entrepôt présent si entrepôt
+- message absence d’entrepôt si pas d’entrepôt
+- capacité/niveau visibles
+
+C. MedievalHUD
+- HarvestPanel non monté comme panneau autonome
+- preuve directe dans le code
+
+D. Non-régression
+- dépôt transport → ville toujours fonctionnel
+- Trésorerie toujours fonctionnelle
+- aucun autre panneau cassé
+
+5. CONTRÔLE DE PÉRIMÈTRE
+- preuve qu’aucun refactor massif n’a été ouvert
+- preuve qu’aucun chantier marché complet n’a été ouvert
+
+6. RISQUES RÉSIDUELS
+- uniquement les vrais
+- pas de faux “tout est terminé” si un point reste ouvert
+
+7. STOP
+
+CONTRAINTE FINALE
+Tu dois être plus vigilant.
+Tu dois valider sur le code réel, pas sur une impression.
+Tu dois nommer précisément ce qui est fermé et ce qui ne l’est pas.
+Pour cette tâche, je veux fermer exactement ces 3 écarts restants :
+
+- entrepot constructible
+- intégration complète de l’entrepôt dans TreasuryPanel
+- suppression de HarvestPanel comme panneau autonome
+
+Rien de plus.

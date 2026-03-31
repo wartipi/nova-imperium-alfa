@@ -296,6 +296,17 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
       requiredTerrain: ['fertile_land'],
       actionPointCost: 15
     },
+    {
+      id: 'entrepot',
+      name: 'Entrepôt',
+      cost: { wood: 20, stone: 15, action_points: 20 },
+      constructionTime: 5,
+      description: 'Stockage de ressources — capacité inventaire ville (Niv.1: 100, Niv.2: 250, Niv.3: 500)',
+      icon: '🏪',
+      category: 'Stockage',
+      requiredTerrain: ['any'],
+      actionPointCost: 20
+    },
     { 
       id: 'market', 
       name: 'Marché', 
