@@ -10,6 +10,7 @@ import { Card } from "../ui/card";
 import { MiniMap } from "./MiniMap";
 import { TreasuryPanel } from "./TreasuryPanel";
 import { postProductionTick, type ProductionTickResult } from "../../lib/api/economyApi";
+import { fetchPlayerState } from "../../lib/api/playerStateApi";
 import { apiProductionTick } from "../../lib/api/citiesApi";
 import { useDualResourceSync } from "../../hooks/useDualResourceSync";
 
@@ -153,6 +154,18 @@ export function MedievalHUD() {
     };
     window.addEventListener('nova:building-completed', handler);
     return () => window.removeEventListener('nova:building-completed', handler);
+  }, []);
+
+  // ─── Refresh PA depuis le serveur (step confirmé ou complétion de déplacement) ──
+  useEffect(() => {
+    const handler = async () => {
+      try {
+        const data = await fetchPlayerState();
+        usePlayer.setState({ actionPoints: data.actionPoints, maxActionPoints: data.maxActionPoints });
+      } catch (_e) { /* non bloquant */ }
+    };
+    window.addEventListener('nova:ap-refresh', handler);
+    return () => window.removeEventListener('nova:ap-refresh', handler);
   }, []);
 
   // ─── Fin de Tour ──────────────────────────────────────────────────────────

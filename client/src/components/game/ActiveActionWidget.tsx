@@ -42,6 +42,24 @@ export function ActiveActionWidget() {
   const [cancelling,     setCancelling]     = useState(false);
   const [now,            setNow]            = useState(Date.now());
   const [completedMsg,   setCompletedMsg]   = useState<string | null>(null);
+  const [isSyncing,      setIsSyncing]      = useState(false);
+  const [serverStep,     setServerStep]     = useState<number | null>(null);
+
+  // Réinitialiser isSyncing et serverStep à chaque nouvelle action
+  useEffect(() => {
+    setIsSyncing(false);
+    setServerStep(null);
+  }, [activeAction?.id]);
+
+  // Écouter la vérité serveur du step courant (émis par GameCanvas à chaque step confirmé)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { effectiveStep } = (e as CustomEvent<{ effectiveStep: number }>).detail ?? {};
+      if (typeof effectiveStep === 'number') setServerStep(effectiveStep);
+    };
+    window.addEventListener('nova:step-progress', handler);
+    return () => window.removeEventListener('nova:step-progress', handler);
+  }, []);
 
   // Ticker 1s pour le compte à rebours
   useEffect(() => {
@@ -60,6 +78,7 @@ export function ActiveActionWidget() {
 
     const sync = () => {
       if (syncedRef.current) return;
+      setIsSyncing(true);
       fetchCurrentAction()
         .then(({ action }) => {
           const isStillInProgress = action?.status === "in_progress";
@@ -68,8 +87,10 @@ export function ActiveActionWidget() {
             setTimeout(sync, 2000);
           } else {
             syncedRef.current = true;
+            setIsSyncing(false);
             // Complétion détectée : notifier les panneaux et afficher le message
             window.dispatchEvent(new CustomEvent('nova:logistic-refresh'));
+            window.dispatchEvent(new CustomEvent('nova:ap-refresh'));
             const label = COMPLETION_LABELS[activeAction.type] ?? "✅ Action terminée";
             setCompletedMsg(label);
             // LOT 2 — Pour les déplacements, différer setActiveAction(null) de 800ms
@@ -158,13 +179,18 @@ export function ActiveActionWidget() {
       boundaries.push(acc);
     }
 
-    const msElapsed = Date.now() - startMs;
-    let currentStep = 0;
-    for (let i = boundaries.length - 1; i >= 0; i--) {
-      if (msElapsed >= boundaries[i]) { currentStep = i; break; }
-    }
-
     const totalSteps   = path.length - 1; // nombre de tuiles à traverser
+    const msElapsed = Date.now() - startMs;
+    // Utiliser le step confirmé par le serveur (via nova:step-progress) si disponible,
+    // sinon fallback sur l'estimation temporelle locale.
+    let currentStep = 0;
+    if (serverStep !== null) {
+      currentStep = Math.min(serverStep, totalSteps);
+    } else {
+      for (let i = boundaries.length - 1; i >= 0; i--) {
+        if (msElapsed >= boundaries[i]) { currentStep = i; break; }
+      }
+    }
     const isLastStep   = currentStep >= totalSteps;
     const nextStepIdx  = Math.min(currentStep + 1, path.length - 1);
     const msUntilNext  = isLastStep
@@ -241,7 +267,7 @@ export function ActiveActionWidget() {
       <div className="flex justify-between text-amber-700 mb-1">
         <span>Temps restant total</span>
         <span className="font-medium">
-          {msLeft > 0 ? formatDuration(msLeft) : "< 2s"}
+          {msLeft > 0 ? formatDuration(msLeft) : (isSyncing ? "Finalisation…" : "< 2s")}
         </span>
       </div>
 

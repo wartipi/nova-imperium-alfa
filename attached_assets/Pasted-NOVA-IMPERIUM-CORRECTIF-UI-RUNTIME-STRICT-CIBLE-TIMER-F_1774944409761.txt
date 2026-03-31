@@ -1,0 +1,163 @@
+NOVA IMPERIUM — CORRECTIF UI/RUNTIME STRICT
+CIBLE : TIMER FINAL < 2s + PROGRÈS DE TUILE SERVEUR + RAFRAÎCHISSEMENT PA HUD
+Branche cible : NI-10.3
+
+RÔLE
+Tu appliques uniquement le plus petit correctif propre.
+Tu ne fais aucun refactor massif.
+Tu ne changes pas l’architecture.
+Tu ne dérives pas.
+
+CONTEXTE VALIDÉ
+Audit confirmé côté code :
+
+1. ActiveActionWidget est bien le bon composant servi
+   - il affiche déjà Tuile X / N, Prochaine tuile, Temps avant tuile, Arrivée imminente…
+2. MAIS il calcule encore le progrès de tuile localement avec Date.now()
+   - au lieu d’utiliser la vérité serveur effectiveStep
+3. Quand msLeft <= 0 :
+   - le widget affiche "< 2s"
+   - puis recheck fetchCurrentAction() toutes les 2 secondes tant que le serveur dit encore in_progress
+   - ce qui crée un gel visuel sur "< 2s"
+4. GameCanvas, lui, utilise bien la vérité serveur via fetchCurrentAction() et effectiveStep/effectiveWorldX/effectiveWorldY
+5. Le panneau PA en haut à droite semble ne pas se rafraîchir pendant le déplacement
+   - hypothèse forte : le player state n’est pas resynchronisé dans le flux de déplacement courant
+
+OBJECTIF
+Corriger proprement 3 points :
+
+A. Ne plus geler l’affichage sur "< 2s" en fin de déplacement
+B. Afficher la progression de tuile à partir de la vérité serveur, pas du temps local reconstruit
+C. Faire remonter correctement les PA dans le panneau HUD en haut à droite pendant/après le déplacement
+
+IMPORTANT
+Je veux le plus petit passage propre possible.
+Je ne veux pas de refactor global.
+Je ne veux pas de nouveau gros système.
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+Je veux :
+- objectif précis
+- fichiers à lire
+- fichiers à modifier
+- cause racine pour A, B, C
+- comportement attendu après correctif
+- risques
+
+LECTURE OBLIGATOIRE
+Lire au minimum :
+- client/src/components/game/ActiveActionWidget.tsx
+- client/src/components/game/GameCanvas.tsx
+- les fichiers client exacts qui alimentent le panneau en haut à droite pour :
+  - actionPoints
+  - player state
+  - HUD joueur
+
+Si tu dois identifier le composant HUD précis, fais-le avant modification.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement les fichiers strictement nécessaires dans le client.
+
+IMPORTANT
+Ne touche pas au serveur sauf si tu prouves qu’un point est impossible à corriger côté client.
+Si serveur absolument nécessaire :
+- tu t’arrêtes
+- tu l’expliques
+- tu ne modifies rien sans validation
+
+PARTIE A — FIN DE TIMER "< 2s"
+Objectif :
+- ne plus laisser le widget figé sur "< 2s" pendant l’attente finale serveur
+
+Comportement attendu :
+- si l’action est encore in_progress côté serveur après expiration locale du timer,
+  le widget doit afficher un état de synchronisation/terminaison propre
+  et non un "< 2s" figé trompeur
+- exemple acceptable :
+  - "Finalisation..."
+  - "Synchronisation..."
+  - ou équivalent court
+
+IMPORTANT
+Je veux garder la logique de recheck serveur,
+mais corriger l’affichage final pour qu’il ne soit pas mensonger.
+
+PARTIE B — PROGRÈS DE TUILE
+Objectif :
+- ne plus calculer Tuile X / N avec Date.now() comme source principale
+- utiliser la vérité serveur déjà disponible :
+  - effectiveStep
+  - éventuellement lastAppliedStep si utile
+- la fenêtre doit refléter le même step que celui qui pilote le déplacement authoritative
+
+Comportement attendu :
+- Tuile X / N doit suivre effectiveStep côté serveur
+- Prochaine tuile doit être dérivée du step serveur courant
+- Temps avant tuile peut rester estimatif si nécessaire,
+  mais le step courant ne doit plus être purement local
+
+PARTIE C — PA DU PANNEAU HUD
+Objectif :
+- identifier le composant exact qui affiche les PA en haut à droite
+- identifier sa source de données exacte
+- brancher un refresh propre pendant/après déplacement
+
+Je veux une solution minimale :
+- soit un refresh du player state quand un nouveau step serveur est confirmé
+- soit un refresh à la complétion / annulation / progression
+- soit un event déjà existant réutilisé proprement
+Mais pas de système complexe inutile.
+
+IMPORTANT
+Je veux que le HUD PA reflète réellement les déductions pendant le déplacement.
+
+ORDRE D’EXÉCUTION OBLIGATOIRE
+1. identifier le composant HUD PA exact
+2. corriger l’affichage final "< 2s"
+3. recaler Tuile X / N sur effectiveStep serveur
+4. brancher le refresh des PA HUD
+5. vérifier runtime
+6. rapport final
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- chaque fichier touché
+
+3. VÉRIFICATIONS FONCTIONNELLES
+A. Timer final
+- plus de gel trompeur sur "< 2s"
+
+B. Progrès de tuile
+- Tuile X / N cohérent avec effectiveStep serveur
+
+C. PA HUD
+- les PA du panneau haut droit se mettent à jour pendant ou juste après progression réelle
+- preuve avant/après
+
+4. CONTRÔLE DE PÉRIMÈTRE
+- aucun fichier non nécessaire modifié
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+
+6. STOP
+
+CONTRAINTE FINALE
+Je veux corriger le bug d’affichage final, le progrès de tuile désynchronisé, et le HUD PA stale.
+Pas de dérive.

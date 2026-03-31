@@ -306,6 +306,8 @@ export function GameCanvas() {
             const { originWorldX, originWorldY } = useMap.getState();
             moveAvatarToHex(action.effectiveWorldX - originWorldX, action.effectiveWorldY - originWorldY);
             console.log(`[GameCanvas] Step confirmé: step=${serverStep} → world=(${action.effectiveWorldX},${action.effectiveWorldY})`);
+            window.dispatchEvent(new CustomEvent('nova:step-progress', { detail: { effectiveStep: serverStep } }));
+            window.dispatchEvent(new CustomEvent('nova:ap-refresh'));
           }
         }
       } catch (_e) { /* non bloquant — prochain poll dans 1500ms */ }
