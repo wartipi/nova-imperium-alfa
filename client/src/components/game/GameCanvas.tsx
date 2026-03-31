@@ -77,6 +77,7 @@ export function GameCanvas() {
     hasMarket:    boolean;
     hasBank:      boolean;
     locationName: string | null;
+    canMove:      boolean;  // "Se déplacer ici" visible si true
   } | null>(null);
 
   // Custom hooks for improved architecture  
@@ -140,21 +141,15 @@ export function GameCanvas() {
     const hex = gameEngineRef.current.getHexAtPosition(canvasX, canvasY);
     if (!hex) return;
 
-    // ── Résolution des bâtiments réels sur la case (V1 affinage) ──────────────
+    // ── Résolution des services réels sur la case ─────────────────────────────
     //
-    // Priorité 1 : ville du joueur dans novaImperiums (buildings exacts connus)
-    //   → coordonnées locales (x/y) calculées dans hydrateCitiesFromServer
-    //     comme worldX - originWorldX / worldY - originWorldY
-    // Priorité 2 : colonie d'un autre joueur (UnifiedTerritorySystem)
-    //   → fallback conservateur : hasMarket=true, hasBank=true (serveur valide)
-    // Priorité 3 : aucune colonie → hasMarket=false, hasBank=false
-    //
-    // Note : /api/cities/me ne retourne que les villes du joueur courant.
-    // Les bâtiments des villes adverses ne sont donc pas disponibles côté client.
-    // Le fallback conservateur garantit que l'accès réel est toujours server-authoritative.
+    // Priorité 1 : ville du joueur dans novaImperiums — buildings exacts connus
+    //   (coords locales = worldX - originWorldX via hydrateCitiesFromServer)
+    // Priorité 2 : colonie tierce — hasMarket/hasBank viennent du DTO serveur
+    //   (getAllColonies() batch-query city_buildings — aucune approximation)
+    // Priorité 3 : terrain sans colonie → hasMarket=false, hasBank=false
     // ─────────────────────────────────────────────────────────────────────────
 
-    // Toutes les villes de tous les novaImperiums du joueur
     const allOwnCities = novaImperiums.flatMap((ni) => ni.cities);
     const ownCity = allOwnCities.find((c) => c.x === hex.x && c.y === hex.y);
 
@@ -163,7 +158,6 @@ export function GameCanvas() {
     let locationName: string | null = null;
 
     if (ownCity) {
-      // ✅ Ville du joueur : bâtiments exacts
       const buildings = ownCity.buildings as string[];
       hasMarket    = buildings.includes("guilde_des_marchands");
       hasBank      = buildings.includes("bank");
@@ -173,24 +167,38 @@ export function GameCanvas() {
         `buildings=[${buildings.join(",")}] hasMarket=${hasMarket} hasBank=${hasBank}`
       );
     } else {
-      // Colonie tierce ou terrain sans novaImperium propre.
-      // Les bâtiments sont maintenant inclus dans le DTO colonie (hasMarket/hasBank),
-      // propagés depuis city_buildings par getAllColonies() côté serveur.
-      // Aucun fallback optimiste — données canoniques uniquement.
       const territory = UnifiedTerritorySystem.getTerritory(hex.x, hex.y);
       locationName = territory?.colonyName ?? null;
-
       if (territory?.colonyId) {
         hasMarket = territory.hasMarket ?? false;
         hasBank   = territory.hasBank   ?? false;
         console.log(
-          `[GameCanvas] Clic droit → hex(${hex.x},${hex.y}) colonie tierce="${locationName}" ` +
-          `hasMarket=${hasMarket} hasBank=${hasBank} (données canoniques serveur)`
+          `[GameCanvas] Clic droit → hex(${hex.x},${hex.y}) colonie="${locationName}" ` +
+          `hasMarket=${hasMarket} hasBank=${hasBank}`
         );
       } else {
-        console.log(`[GameCanvas] Clic droit → hex(${hex.x},${hex.y}) terrain non colonisé`);
+        console.log(`[GameCanvas] Clic droit → hex(${hex.x},${hex.y}) terrain`);
       }
     }
+
+    // ── "Se déplacer ici" — mêmes gardes que le clic gauche (LOT A/C) ─────────
+    // Réutilise exactement les conditions de handleCanvasClick :
+    //   1. Pas d'unité sélectionnée (le déplacement d'unité a son propre flux)
+    //   2. Terrain walkable
+    //   3. Case ≠ position actuelle du joueur
+    //   4. Case accessible (explorée ou admin)
+    const { isHexExplored: isHexExploredCtx, avatarHexPosition: ctxCurrentHex } = usePlayer.getState();
+    const isAccessibleCtx = isHexExploredCtx(hex.x, hex.y) || isAdmin;
+    const canMove = (
+      !selectedUnit &&
+      TerrainHelpers.isWalkable(hex.terrain) &&
+      !(hex.x === ctxCurrentHex.x && hex.y === ctxCurrentHex.y) &&
+      isAccessibleCtx
+    );
+    console.log(
+      `[GameCanvas] Clic droit → hex(${hex.x},${hex.y}) ` +
+      `canMove=${canMove} terrain=${hex.terrain}`
+    );
 
     setTileContextMenu({
       screenX: event.clientX,
@@ -200,8 +208,9 @@ export function GameCanvas() {
       hasMarket,
       hasBank,
       locationName,
+      canMove,
     });
-  }, [gameEngineRef, novaImperiums]);
+  }, [gameEngineRef, novaImperiums, selectedUnit, isAdmin]);
 
   // Handle canvas clicks (only if not dragging)
   const handleCanvasClick = useCallback((event: React.MouseEvent) => {
@@ -250,7 +259,7 @@ export function GameCanvas() {
           console.log('Case non explorée - aucune action possible');
         }
         
-        // IMPROVED: Handle unit movement with terrain helper
+        // Déplacement d'unité sélectionnée (flux distinct du déplacement avatar)
         if (selectedUnit && (hex.x !== selectedUnit.x || hex.y !== selectedUnit.y)) {
           if (TerrainHelpers.isWalkable(hex.terrain)) {
             moveUnit(selectedUnit.id, hex.x, hex.y);
@@ -258,27 +267,15 @@ export function GameCanvas() {
             console.log('Cannot move unit to water terrain:', hex.terrain);
           }
         }
-        
-        // IMPROVED: Handle avatar movement - simplified for now
-        if (!selectedUnit && !showAvatarMenu) {
-          // LOT 1 — Garde principale : ne pas ouvrir la modale si la case cliquée
-          // est la case actuelle du joueur (clic sur ville/label/overlay sur sa case).
-          const { avatarHexPosition: currentHex } = usePlayer.getState();
-          if (hex.x === currentHex.x && hex.y === currentHex.y) {
-            console.log('[GameCanvas] Déplacement ignoré — case actuelle du joueur');
-          } else if (TerrainHelpers.isWalkable(hex.terrain)) {
-            setPendingMovement({ x: hex.x, y: hex.y });
-            console.log('Déplacement proposé vers:', hex.x, hex.y, 'terrain:', hex.terrain);
-          } else {
-            console.log('Cannot move avatar to water terrain:', hex.terrain);
-            alert('Impossible de se déplacer sur l\'eau sans navire !');
-          }
-        }
+
+        // NOTE: Le déplacement avatar est désormais déclenché uniquement via
+        // le menu contextuel de case (clic droit → "Se déplacer ici").
+        // Ce clic gauche ne lance plus la modale de déplacement.
       }
     }
     
     setMouseDownPos(null);
-  }, [selectedUnit, setSelectedHex, moveUnit, mouseDownPos, setPendingMovement]);
+  }, [selectedUnit, setSelectedHex, moveUnit, mouseDownPos]);
 
   // Update rendering when game state changes
   useEffect(() => {
@@ -558,6 +555,12 @@ export function GameCanvas() {
           hasMarket={tileContextMenu.hasMarket}
           hasBank={tileContextMenu.hasBank}
           locationName={tileContextMenu.locationName}
+          onMove={tileContextMenu.canMove
+            ? () => {
+                setPendingMovement({ x: tileContextMenu.hexX, y: tileContextMenu.hexY });
+                setTileContextMenu(null);
+              }
+            : null}
           onClose={() => setTileContextMenu(null)}
         />
       )}

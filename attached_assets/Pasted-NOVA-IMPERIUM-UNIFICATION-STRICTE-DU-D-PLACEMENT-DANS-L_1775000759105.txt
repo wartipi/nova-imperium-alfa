@@ -1,0 +1,186 @@
+NOVA IMPERIUM — UNIFICATION STRICTE DU DÉPLACEMENT DANS LE SYSTÈME D’ACTIONS DE CASE
+Branche cible : NI-10.3
+
+RÔLE
+Tu appliques uniquement le plus petit correctif propre pour unifier l’amorce du déplacement.
+Tu ne fais aucun refactor massif.
+Tu ne touches pas au moteur métier serveur du déplacement.
+Tu ne dérives pas.
+
+CONTEXTE VALIDÉ
+Le système d’actions contextuelles par case est maintenant en place :
+- clic droit sur une case
+- TileContextMenu
+- actions de service (marché, banque) basées sur les données canoniques
+
+Mais le déplacement est encore déclenché séparément par clic gauche dans GameCanvas.
+
+OBJECTIF
+Je veux unifier le déplacement dans le même système d’actions de case.
+
+RÈGLE CIBLE
+- clic gauche :
+  - sélectionne la case
+  - ouvre éventuellement les infos de case
+  - ne déclenche plus le déplacement
+
+- clic droit :
+  - ouvre le TileContextMenu
+  - inclut une action "Se déplacer ici" si la case est déplaçable
+  - inclut les autres actions contextuelles (marché, banque, etc.) selon le contexte réel
+
+IMPORTANT
+Je veux conserver :
+- le serveur comme source de vérité
+- la modale de confirmation de déplacement existante
+- requestMove()
+- fetchCurrentAction()
+- le flux serveur-authoritative actuel
+- le path preview existant si encore pertinent
+
+Je veux seulement changer la façon d’amorcer le déplacement :
+- plus de clic gauche direct
+- déplacement via action contextuelle de case
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. VALIDATION PRÉALABLE
+Je veux confirmation explicite :
+- du point exact où le clic gauche déclenche encore setPendingMovement(...)
+- du point exact où ajouter l’action "Se déplacer ici" dans TileContextMenu
+- que le correctif peut rester strictement côté client
+- que le moteur serveur de déplacement restera inchangé
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE AUTORISÉ
+Client uniquement.
+
+Tu peux toucher seulement les fichiers strictement nécessaires, typiquement :
+- client/src/components/game/GameCanvas.tsx
+- client/src/components/game/TileContextMenu.tsx
+- et un fichier additionnel seulement si absolument nécessaire
+
+INTERDIT
+- ne pas toucher au serveur
+- ne pas toucher à requestMove
+- ne pas toucher à fetchCurrentAction
+- ne pas toucher à la logique PA
+- ne pas toucher à la logique des timers
+- ne pas toucher au moteur pathfinding
+- ne pas refactorer massivement GameCanvas
+- ne pas casser les actions Marché / Banque déjà en place
+
+COMPORTEMENT ATTENDU
+
+LOT A — RETIRER LE DÉPLACEMENT DU CLIC GAUCHE
+Dans GameCanvas :
+- le clic gauche peut continuer à sélectionner une case
+- mais il ne doit plus appeler setPendingMovement(...) pour lancer un déplacement
+- il ne doit plus ouvrir la modale de déplacement par simple clic gauche
+
+LOT B — AJOUTER "SE DÉPLACER ICI" AU TILE CONTEXT MENU
+Dans TileContextMenu :
+- ajouter une action "Se déplacer ici" quand la case est un déplacement valide
+
+Conditions minimales :
+- la case n’est pas la case actuelle du joueur
+- la case est walkable
+- la case est accessible selon les règles UI déjà en place
+- si tu juges qu’une autre garde locale déjà existante doit être réutilisée, fais-le, sans inventer une nouvelle logique métier
+
+IMPORTANT
+Je ne veux pas de duplication sale.
+Je veux réutiliser les gardes locales déjà présentes dans GameCanvas autant que possible.
+
+LOT C — RÉUTILISER LE FLUX EXISTANT
+Quand "Se déplacer ici" est cliqué :
+- utiliser le flux existant de pendingMovement
+- conserver MovementConfirmationModal
+- conserver handleMovementConfirm
+- conserver handleMovementCancel
+- conserver le pipeline serveur actuel
+
+IMPORTANT
+Je ne veux pas un second système de déplacement.
+Je veux juste changer le point d’entrée.
+
+LOT D — COMPORTEMENT SUR CASE SANS ACTION SPÉCIALE
+Pour une case vide mais walkable :
+- le menu contextuel doit pouvoir afficher "Se déplacer ici"
+même s’il n’y a ni marché ni banque
+
+Pour une case non walkable :
+- ne pas afficher "Se déplacer ici"
+
+Pour la case actuelle du joueur :
+- ne pas afficher "Se déplacer ici"
+
+ORDRE D’EXÉCUTION OBLIGATOIRE
+1. identifier et retirer le déclenchement déplacement par clic gauche
+2. ajouter l’action "Se déplacer ici" dans TileContextMenu
+3. brancher cette action sur pendingMovement + modale existante
+4. vérifier que Marché / Banque restent intactes
+5. vérifier runtime
+6. rapport final
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- chaque fichier touché
+
+3. VÉRIFICATIONS FONCTIONNELLES
+A. clic gauche sur case walkable
+- sélection seulement
+- aucun déplacement amorcé
+
+B. clic droit sur case walkable
+- menu contextuel visible
+- action "Se déplacer ici" visible si valide
+
+C. clic sur "Se déplacer ici"
+- ouvre la modale de confirmation existante
+- déclenche ensuite le flux de déplacement existant si confirmé
+
+D. case non walkable
+- pas d’action "Se déplacer ici"
+
+E. case actuelle du joueur
+- pas d’action "Se déplacer ici"
+
+F. marché / banque
+- toujours disponibles selon les bâtiments réels
+- non régressés
+
+G. serveur
+- aucun fichier serveur modifié
+- aucune logique métier déplacement modifiée
+
+4. CONTRÔLE DE PÉRIMÈTRE
+- preuve qu’aucun fichier serveur n’a été modifié
+- preuve qu’aucun refactor massif n’a été ouvert
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+
+6. STOP
+
+CONTRAINTE FINALE
+Je veux que le déplacement devienne une action contextuelle de case comme les autres.
+Plus de déclenchement direct par clic gauche.
+Même système.
+Même logique.
+Même source de vérité serveur.
