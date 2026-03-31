@@ -207,6 +207,12 @@ export function ActiveActionWidget() {
     }
     // Guard terminal explicite : la branche "dernier step" est interdite tant qu'aucun
     // step n'a été confirmé pour cette action — évite "Arrivée imminente…" au départ.
+    // IMPORTANT : si le guard est actif, on clamp currentStep à totalSteps-1 pour éviter
+    // que path[currentStep+1] soit undefined (crash) quand l'estimation temporelle
+    // dépasse les bornes (ex. client légèrement en avance sur l'horloge serveur).
+    if (!hasConfirmedStepForThisAction) {
+      currentStep = Math.min(currentStep, totalSteps - 1);
+    }
     const isLastStep = hasConfirmedStepForThisAction ? currentStep >= totalSteps : false;
     const nextStepIdx  = Math.min(currentStep + 1, path.length - 1);
 
