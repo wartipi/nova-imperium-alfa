@@ -1,0 +1,152 @@
+NOVA IMPERIUM — MASQUAGE STRICT DE LA TRÉSORERIE DU MENU GAUCHE
+CIBLE : LA TRÉSORERIE DOIT S’OUVRIR UNIQUEMENT VIA UNE BANQUE
+Branche cible : NI-10.3
+
+RÔLE
+Tu appliques uniquement le plus petit correctif UI propre.
+Tu ne fais aucun refactor massif.
+Tu ne touches pas au serveur.
+Tu ne dérives pas.
+
+CONTEXTE VALIDÉ
+État actuel confirmé :
+
+1. MedievalHUD.tsx
+- contient encore 'treasury' dans MenuSection
+- contient encore l’entrée TRÉSORERIE dans menuItems du menu de gauche
+- rend encore TreasuryPanel quand activeSection === 'treasury'
+- écoute déjà nova:open-panel pour ouvrir des panneaux depuis les actions contextuelles
+
+2. TileContextMenu.tsx
+- ouvre déjà la banque via handleAction("treasury")
+
+OBJECTIF
+Je veux que :
+- le panneau Trésorerie n’apparaisse plus dans le menu de gauche
+- mais qu’il continue à s’ouvrir quand on utilise une banque
+- donc uniquement via l’action contextuelle de case "Accéder à la banque"
+
+IMPORTANT
+Je ne veux PAS supprimer TreasuryPanel.
+Je ne veux PAS supprimer activeSection === 'treasury'.
+Je ne veux PAS casser l’ouverture via nova:open-panel.
+Je veux seulement retirer son accès global du menu de gauche.
+
+POINT D’ATTENTION IMPORTANT
+Le titre de la modale active est actuellement dérivé de menuItems.find(item => item.id === activeSection)?.label.
+Donc si on retire simplement treasury de menuItems, le titre du panneau risque de devenir vide.
+
+Je veux que tu corriges ça proprement.
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. VALIDATION PRÉALABLE
+Je veux confirmation explicite :
+- que TreasuryPanel restera bien accessible via nova:open-panel / panel='treasury'
+- que l’entrée menu gauche peut être retirée sans toucher au panneau lui-même
+- du point exact à corriger pour que le titre du panneau reste correct sans dépendre de menuItems
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE AUTORISÉ
+Client uniquement.
+
+Tu peux toucher uniquement les fichiers strictement nécessaires,
+avec priorité absolue à :
+- client/src/components/game/MedievalHUD.tsx
+
+Ne touche TileContextMenu.tsx que si tu prouves qu’il y a un ajustement réellement nécessaire.
+En principe, il ne devrait pas être nécessaire.
+
+INTERDIT
+- ne pas toucher au serveur
+- ne pas toucher à TreasuryPanel
+- ne pas toucher à la logique banque
+- ne pas toucher aux routes
+- ne pas toucher au moteur métier
+- ne pas faire de refactor massif du HUD
+
+MODIFICATION EXACTE ATTENDUE
+
+LOT A — RETIRER LA TRÉSORERIE DU MENU DE GAUCHE
+Dans MedievalHUD.tsx :
+- retirer l’entrée TRÉSORERIE de menuItems
+- elle ne doit plus être visible dans le panneau de gauche
+
+LOT B — CONSERVER L’OUVERTURE VIA LA BANQUE
+Le panneau doit continuer à s’ouvrir quand :
+- une action contextuelle déclenche nova:open-panel avec panel='treasury'
+
+IMPORTANT
+Je veux garder ce flux intact.
+
+LOT C — TITRE DU PANNEAU
+Je veux que le titre du panneau reste correct même si treasury n’est plus dans menuItems.
+
+Solution attendue :
+- soit une map dédiée des titres de panneaux
+- soit un resolver propre indépendant de la liste visible du menu
+- mais je veux la solution la plus petite, la plus lisible, la plus stable
+
+Je ne veux plus que le titre dépende uniquement de la présence dans le menu gauche.
+
+COMPORTEMENT ATTENDU APRÈS CORRECTIF
+- menu gauche : plus aucune entrée Trésorerie
+- clic sur banque via menu de case : ouvre toujours TreasuryPanel
+- le panneau affiche toujours un titre correct
+- aucun autre panneau régressé
+
+ORDRE D’EXÉCUTION OBLIGATOIRE
+1. modifier uniquement MedievalHUD.tsx si possible
+2. retirer l’entrée Trésorerie du menu gauche
+3. corriger le resolver du titre de panneau
+4. conserver l’ouverture via nova:open-panel
+5. vérifier runtime
+6. rapport final
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- chaque fichier touché
+
+3. VÉRIFICATIONS FONCTIONNELLES
+A. menu gauche
+- Trésorerie absente
+
+B. banque
+- l’action contextuelle "Accéder à la banque" ouvre toujours TreasuryPanel
+
+C. panneau
+- titre correct
+- contenu inchangé
+
+D. non-régression
+- marché inchangé
+- autres panneaux inchangés
+- aucun fichier serveur modifié
+
+4. CONTRÔLE DE PÉRIMÈTRE
+- preuve qu’aucun refactor massif n’a été ouvert
+- preuve qu’aucun moteur métier n’a été touché
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+
+6. STOP
+
+CONTRAINTE FINALE
+Je veux que la Trésorerie soit un panneau contextuel de banque uniquement.
+Plus d’accès global depuis le menu de gauche.

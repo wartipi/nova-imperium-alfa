@@ -274,8 +274,16 @@ export function MedievalHUD() {
 
   if (gamePhase !== "playing") return null;
 
+  // Titres des panneaux qui ne figurent pas dans menuItems (accès contextuel uniquement).
+  // Utilisé par le resolver de titre ci-dessous — indépendant de la liste visible du menu.
+  const PANEL_TITLES: Partial<Record<MenuSection, string>> = {
+    treasury:    'TRÉSORERIE',
+    marketplace: 'MARCHÉ PUBLIC',
+    competences: 'COMPÉTENCES',
+    factions:    'FACTIONS',
+  };
+
   const menuItems = [
-    { id: 'treasury' as MenuSection, label: 'TRÉSORERIE', icon: '💰' },
     { id: 'territory' as MenuSection, label: 'GESTION VILLE/TERRITOIRE', icon: '🗺️' },
     { id: 'marshals' as MenuSection, label: 'GESTION DES ARMÉES', icon: '⚔️' },
     { id: 'treaties' as MenuSection, label: 'TRAITÉS', icon: '📜' },
@@ -285,7 +293,6 @@ export function MedievalHUD() {
     { id: 'announcements' as MenuSection, label: 'ANNONCE PUBLIQUE', icon: '📢' },
     { id: 'guide' as MenuSection, label: 'GUIDE DE JEUX', icon: '📖' },
     { id: 'help' as MenuSection, label: 'AIDE', icon: '❓' },
-
   ];
 
   const handleCharacterSelect = (character: CharacterOption) => {
@@ -755,7 +762,7 @@ export function MedievalHUD() {
           >
             <div className="flex justify-between items-center mb-6">
               <h3 className="font-bold text-xl text-amber-900">
-                {menuItems.find(item => item.id === activeSection)?.label}
+                {PANEL_TITLES[activeSection!] ?? menuItems.find(item => item.id === activeSection)?.label}
               </h3>
               <button
                 onClick={(e) => {
