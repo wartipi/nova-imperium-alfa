@@ -1,0 +1,162 @@
+NOVA IMPERIUM — CORRECTIF STRICT DU WIDGET DE DÉPLACEMENT
+CIBLE : EMPÊCHER L’ÉTAT “FIN DE TRAJET” AU DÉPART D’UNE NOUVELLE ACTION
+Branche cible : NI-10.3
+
+RÔLE
+Tu appliques uniquement le plus petit correctif propre dans le widget.
+Tu ne touches pas au serveur.
+Tu ne modifies pas GameCanvas.
+Tu ne modifies pas MedievalHUD.
+Tu ne refactors rien massivement.
+Tu ne dérives pas.
+
+CONTEXTE VALIDÉ
+Le code actuel a déjà :
+- stepStartedAt
+- serverStep
+- journeyRemainingMs
+- isStartingPhase
+- libellé "Départ en cours…"
+
+Mais en runtime, au début d’un nouveau trajet, le widget affiche encore :
+- Tuile N / N
+- Arrivée imminente…
+- Finalisation…
+
+Donc le vrai problème n’est pas uniquement le libellé.
+Le widget entre trop tôt dans la branche “dernier step / fin de trajet”.
+
+OBJECTIF
+Empêcher qu’au début d’une nouvelle action de déplacement,
+le widget puisse se comporter comme s’il était déjà au dernier step.
+
+COMPORTEMENT ATTENDU
+Au départ d’une nouvelle action move :
+- le widget doit être dans un état de début de trajet
+- pas dans un état de fin de trajet
+- il ne doit pas afficher :
+  - Arrivée imminente…
+  - Finalisation…
+- il doit afficher à la place un état cohérent de départ :
+  - Départ en cours…
+  - et/ou les timers normaux du premier step si disponibles
+
+IMPORTANT
+Je veux corriger la logique d’entrée dans la branche UI de fin,
+pas seulement remplacer un texte.
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. DIAGNOSTIC PRÉALABLE
+Je veux une confirmation explicite :
+- du point exact qui permet au widget d’entrer trop tôt dans la branche isLastStep / Finalisation
+- du plus petit correctif possible limité à ActiveActionWidget.tsx
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement :
+- client/src/components/game/ActiveActionWidget.tsx
+
+Aucun autre fichier.
+
+MODIFICATION EXACTE ATTENDUE
+Je veux une correction locale, limitée au widget, avec cette règle :
+
+A. DÉPART D’ACTION
+Quand une nouvelle action move commence :
+- initialiser explicitement un état de départ cohérent
+- ne pas laisser un ancien état visuel ou un step terminal contaminer le premier rendu utile
+
+B. GARDE DE DÉBUT DE TRAJET
+Tant qu’on est dans la phase de départ d’une nouvelle action :
+- le widget ne doit PAS entrer dans la branche UI “dernier step”
+- donc il ne doit pas afficher :
+  - Arrivée imminente…
+  - Finalisation…
+
+Même si une valeur locale transitoire donnerait currentStep >= totalSteps.
+
+C. BRANCHE DE FIN
+Arrivée imminente… et Finalisation… doivent être réservés uniquement au vrai dernier moment cohérent,
+pas au début de l’action.
+
+IMPORTANT
+Je ne veux pas un correctif flou.
+Je veux une garde explicite et lisible pour le cas :
+- “nouvelle action en phase de départ”
+
+PISTES ACCEPTABLES
+Tu peux utiliser l’une des approches suivantes si elle reste limitée au widget :
+
+1. Forcer un currentStep UI de départ cohérent pendant la phase initiale
+ou
+2. Introduire un booléen clair du type :
+- isActionJustStarted
+- isUiStartGuard
+et empêcher la branche isLastStep UI tant que ce guard est actif
+ou
+3. Réinitialiser correctement les états locaux pour qu’aucune branche terminale ne puisse s’afficher au départ
+
+Mais :
+- pas de refactor massif
+- pas de changement serveur
+- pas de changement d’event
+- pas de changement dans GameCanvas
+
+ORDRE D’EXÉCUTION OBLIGATOIRE
+1. modifier uniquement ActiveActionWidget.tsx
+2. corriger l’entrée prématurée dans la branche de fin
+3. vérifier que le départ affiche bien un état cohérent
+4. rapport final
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- client/src/components/game/ActiveActionWidget.tsx
+
+3. VÉRIFICATIONS FONCTIONNELLES
+A. Départ d’un nouveau trajet
+- ne doit plus afficher Tuile N / N au départ
+- ne doit plus afficher Arrivée imminente… au départ
+- ne doit plus afficher Finalisation… au départ
+- doit afficher un état de départ cohérent
+
+B. Milieu de trajet
+- la progression step par step reste correcte
+
+C. Fin réelle
+- Arrivée imminente… et Finalisation… restent présentes au vrai bon moment
+
+4. CONTRÔLE DE PÉRIMÈTRE
+- preuve qu’aucun autre fichier n’a été modifié
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+- sans ouvrir un autre sujet
+
+RAPPORT FINAL OBLIGATOIRE
+1. DIAGNOSTIC
+2. FICHIERS MODIFIÉS
+3. PREUVES
+4. VÉRIFICATIONS FONCTIONNELLES
+5. CONTRÔLE DE PÉRIMÈTRE
+6. RISQUES RÉSIDUELS
+7. STOP
+
+CONTRAINTE FINALE
+Je veux corriger l’entrée prématurée dans l’état “fin de trajet”.
+Pas juste renommer un texte.

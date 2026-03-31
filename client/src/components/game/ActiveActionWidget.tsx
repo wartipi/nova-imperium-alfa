@@ -188,17 +188,21 @@ export function ActiveActionWidget() {
 
     const totalSteps   = path.length - 1; // nombre de tuiles à traverser
     const msElapsed = Date.now() - startMs;
-    // Utiliser le step confirmé par le serveur (via nova:step-progress) si disponible,
-    // sinon fallback sur l'estimation temporelle locale.
+    // Guard de début d'action : pendant isStartingPhase, serverStep peut être stale
+    // (l'ancien step terminal d'une action précédente — le useEffect de reset est async).
+    // On n'utilise serverStep que s'il a été confirmé pour cette action (hors phase de départ).
+    // Cela empêche le widget d'entrer dans la branche "fin de trajet" dès le premier render.
+    const isServerStepReliable = serverStep !== null && !isStartingPhase;
     let currentStep = 0;
-    if (serverStep !== null) {
+    if (isServerStepReliable) {
       currentStep = Math.min(serverStep, totalSteps);
     } else {
       for (let i = boundaries.length - 1; i >= 0; i--) {
         if (msElapsed >= boundaries[i]) { currentStep = i; break; }
       }
     }
-    const isLastStep   = currentStep >= totalSteps;
+    // Guard explicite : la branche "dernier step" est interdite pendant la phase de départ.
+    const isLastStep = isStartingPhase ? false : currentStep >= totalSteps;
     const nextStepIdx  = Math.min(currentStep + 1, path.length - 1);
 
     // msUntilNext : basé sur le début réel du step confirmé (stepStartedAt)
