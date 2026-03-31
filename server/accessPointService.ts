@@ -3,6 +3,14 @@ import { db } from "./db";
 import { playerPositions, cities, colonies, cityBuildings } from "../shared/schema";
 import { resolveMarketContext } from "./marketService";
 
+// ─── PlayerCityResult ────────────────────────────────────────────────────────
+export interface PlayerCityResult {
+  cityId:   number;
+  cityName: string;
+  worldX:   number;
+  worldY:   number;
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type ServiceType = "market" | "bank";
@@ -92,5 +100,57 @@ export async function checkAccessPoint(
     return { allowed: true, ...result };
   } catch (e: any) {
     return { allowed: false, reason: e.message ?? "Accès refusé" };
+  }
+}
+
+// ─── resolvePlayerCity ────────────────────────────────────────────────────────
+// Vérifie que le joueur est physiquement sur une case de ville.
+// Lit la position DB du joueur et cherche une colonie+ville à cette position.
+// Retourne PlayerCityResult ou throw 403 si absent/hors ville.
+export async function resolvePlayerCity(playerId: string): Promise<PlayerCityResult> {
+  // 1. Position réelle du joueur (source de vérité : DB)
+  const [pos] = await db
+    .select({ worldX: playerPositions.worldX, worldY: playerPositions.worldY })
+    .from(playerPositions)
+    .where(eq(playerPositions.playerId, playerId))
+    .limit(1);
+
+  if (!pos) {
+    throw Object.assign(
+      new Error("Position introuvable — déplacez votre avatar avant de déposer"),
+      { status: 403 },
+    );
+  }
+
+  // 2. Chercher une colonie à cette position exacte, avec sa ville liée.
+  const rows = await db
+    .select({ cityId: cities.id, cityName: cities.name, worldX: colonies.worldX, worldY: colonies.worldY })
+    .from(cities)
+    .innerJoin(colonies, eq(cities.colonyId, colonies.id))
+    .where(and(eq(colonies.worldX, pos.worldX), eq(colonies.worldY, pos.worldY)))
+    .limit(1);
+
+  if (rows.length === 0) {
+    throw Object.assign(
+      new Error(
+        `Dépôt impossible — votre position (${pos.worldX}, ${pos.worldY}) n'est pas une ville`,
+      ),
+      { status: 403 },
+    );
+  }
+
+  return rows[0];
+}
+
+// ─── checkPlayerCity ──────────────────────────────────────────────────────────
+// Version non-throwing de resolvePlayerCity.
+export async function checkPlayerCity(
+  playerId: string,
+): Promise<{ allowed: true; city: PlayerCityResult } | { allowed: false; reason: string }> {
+  try {
+    const city = await resolvePlayerCity(playerId);
+    return { allowed: true, city };
+  } catch (e: any) {
+    return { allowed: false, reason: e.message ?? "Hors ville" };
   }
 }

@@ -184,6 +184,59 @@ export async function getPlayerTransport(): Promise<PlayerTransportDTO> {
   return res.json();
 }
 
+// ─── Ville courante du joueur (physique) ─────────────────────────────────────
+
+export interface PlayerCurrentCityDTO {
+  cityId:   number | null;
+  cityName: string | null;
+  worldX:   number | null;
+  worldY:   number | null;
+  reason?:  string;
+}
+
+export async function getPlayerCurrentCity(): Promise<PlayerCurrentCityDTO> {
+  const res = await fetch("/api/economy/player-current-city", {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(`getPlayerCurrentCity: ${res.status} ${res.statusText}`);
+  return res.json();
+}
+
+// ─── Dépôt transport → inventaire ville ──────────────────────────────────────
+
+export interface T1Mats {
+  gold?:   number;
+  food?:   number;
+  wood?:   number;
+  stone?:  number;
+  iron?:   number;
+  copper?: number;
+  coal?:   number;
+  oil?:    number;
+  herbs?:  number;
+  fur?:    number;
+}
+
+export interface DepositResult {
+  ok:        boolean;
+  cityId:    number;
+  cityName:  string;
+  deposited: Required<T1Mats>;
+}
+
+export async function postDepositTransportToCity(mats: T1Mats): Promise<DepositResult> {
+  const res = await fetch("/api/economy/deposit-transport-to-city", {
+    method:  "POST",
+    headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+    body:    JSON.stringify(mats),
+  });
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    throw new Error(json.error ?? `deposit-transport-to-city: ${res.status}`);
+  }
+  return res.json();
+}
+
 // ─── Transferts depuis la banque ──────────────────────────────────────────────
 
 export interface TransferResult {

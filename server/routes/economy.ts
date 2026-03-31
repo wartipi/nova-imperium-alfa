@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { requireAuth } from "../middleware/auth";
 import type { AuthRequest } from "../middleware/auth";
 import { db } from "../db";
-import { factionMembers } from "../../shared/schema";
+import { factionMembers, playerTransport, cityInventory } from "../../shared/schema";
 import {
   getFactionEconomy,
   aggregateFactionIncome,
@@ -19,7 +19,7 @@ import {
   TRANSPORT_MAX_UNITS,
 } from "../playerActionService";
 import { checkCityAccess } from "../cityService";
-import { checkAccessPoint, resolveAccessPoint } from "../accessPointService";
+import { checkAccessPoint, resolveAccessPoint, checkPlayerCity, resolvePlayerCity } from "../accessPointService";
 
 const router = Router();
 
@@ -318,6 +318,152 @@ router.post("/transfer-bank-to-player", requireAuth, async (req: AuthRequest, re
     if (msg.startsWith("INVALID_AMOUNT"))                return res.status(400).json({ error: msg });
     console.error("[POST /api/economy/transfer-bank-to-player] Erreur:", err);
     return res.status(500).json({ error: "Impossible de créer le transfert" });
+  }
+});
+
+// ─── GET /api/economy/player-current-city ────────────────────────────────────
+// Auth requise — indique si le joueur est physiquement sur une ville.
+// Retourne { cityId, cityName, worldX, worldY } ou { cityId: null }.
+// Pas de filtre bâtiment — toute ville à la position du joueur est acceptée.
+router.get("/player-current-city", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const result = await checkPlayerCity(req.user!.id);
+    if (result.allowed) {
+      return res.json({
+        cityId:   result.city.cityId,
+        cityName: result.city.cityName,
+        worldX:   result.city.worldX,
+        worldY:   result.city.worldY,
+      });
+    }
+    return res.json({ cityId: null, cityName: null, worldX: null, worldY: null, reason: result.reason });
+  } catch (err) {
+    console.error("[GET /api/economy/player-current-city] Erreur:", err);
+    return res.status(500).json({ error: "Impossible de déterminer la ville courante" });
+  }
+});
+
+// ─── POST /api/economy/deposit-transport-to-city ──────────────────────────────
+// Auth requise — dépôt atomique depuis player_transport vers city_inventory.
+// La ville cible est déterminée depuis la position DB du joueur — pas de cityId client.
+// Body : { gold?, food?, wood?, stone?, iron?, copper?, coal?, oil?, herbs?, fur? }
+// Règles :
+//   1. Le joueur doit être physiquement sur une ville valide.
+//   2. Au moins un matériau doit être > 0.
+//   3. Les quantités demandées doivent exister dans player_transport.
+//   4. Transaction atomique : décrémenter transport + incrémenter city_inventory.
+router.post("/deposit-transport-to-city", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const playerId = req.user!.id;
+    const {
+      gold = 0, food = 0, wood = 0, stone = 0, iron = 0,
+      copper = 0, coal = 0, oil = 0, herbs = 0, fur = 0,
+    } = req.body;
+
+    // Validation des types
+    const matList: Array<[string, number]> = [
+      ["gold",gold],["food",food],["wood",wood],["stone",stone],["iron",iron],
+      ["copper",copper],["coal",coal],["oil",oil],["herbs",herbs],["fur",fur],
+    ];
+    for (const [k, v] of matList) {
+      if (!Number.isInteger(v) || v < 0) {
+        return res.status(400).json({ error: `${k} doit être un entier >= 0` });
+      }
+    }
+    if (matList.every(([, v]) => v === 0)) {
+      return res.status(400).json({ error: "Montant nul — spécifiez au moins un matériau" });
+    }
+
+    // Résolution physique de la ville — source de vérité serveur
+    const cityInfo = await resolvePlayerCity(playerId);
+    const { cityId, cityName } = cityInfo;
+
+    // Lecture du transport courant du joueur
+    const transport = await getOrInitPlayerTransport(playerId);
+
+    // Vérification des stocks
+    const insufficiant: string[] = [];
+    if (gold   > transport.gold)   insufficiant.push(`or (dispo: ${transport.gold})`);
+    if (food   > transport.food)   insufficiant.push(`nourriture (dispo: ${transport.food})`);
+    if (wood   > transport.wood)   insufficiant.push(`bois (dispo: ${transport.wood})`);
+    if (stone  > transport.stone)  insufficiant.push(`pierre (dispo: ${transport.stone})`);
+    if (iron   > transport.iron)   insufficiant.push(`fer (dispo: ${transport.iron})`);
+    if (copper > transport.copper) insufficiant.push(`cuivre (dispo: ${transport.copper})`);
+    if (coal   > transport.coal)   insufficiant.push(`charbon (dispo: ${transport.coal})`);
+    if (oil    > transport.oil)    insufficiant.push(`pétrole (dispo: ${transport.oil})`);
+    if (herbs  > transport.herbs)  insufficiant.push(`herbes (dispo: ${transport.herbs})`);
+    if (fur    > transport.fur)    insufficiant.push(`fourrure (dispo: ${transport.fur})`);
+
+    if (insufficiant.length > 0) {
+      return res.status(422).json({
+        error: `INSUFFICIENT_TRANSPORT: stocks insuffisants — ${insufficiant.join(", ")}`,
+      });
+    }
+
+    const now = new Date();
+
+    // Transaction atomique : débit transport + crédit city_inventory
+    await db.transaction(async (tx) => {
+      // 1. Décrémenter player_transport
+      await tx
+        .update(playerTransport)
+        .set({
+          gold:      sql`${playerTransport.gold}   - ${gold}`,
+          food:      sql`${playerTransport.food}   - ${food}`,
+          wood:      sql`${playerTransport.wood}   - ${wood}`,
+          stone:     sql`${playerTransport.stone}  - ${stone}`,
+          iron:      sql`${playerTransport.iron}   - ${iron}`,
+          copper:    sql`${playerTransport.copper} - ${copper}`,
+          coal:      sql`${playerTransport.coal}   - ${coal}`,
+          oil:       sql`${playerTransport.oil}    - ${oil}`,
+          herbs:     sql`${playerTransport.herbs}  - ${herbs}`,
+          fur:       sql`${playerTransport.fur}    - ${fur}`,
+          updatedAt: now,
+        })
+        .where(eq(playerTransport.playerId, playerId));
+
+      // 2. Créditer city_inventory (UPSERT)
+      await tx
+        .insert(cityInventory)
+        .values({ cityId, gold, food, wood, stone, iron, copper, coal, oil, herbs, fur, updatedAt: now })
+        .onConflictDoUpdate({
+          target: cityInventory.cityId,
+          set: {
+            gold:      sql`${cityInventory.gold}   + ${gold}`,
+            food:      sql`${cityInventory.food}   + ${food}`,
+            wood:      sql`${cityInventory.wood}   + ${wood}`,
+            stone:     sql`${cityInventory.stone}  + ${stone}`,
+            iron:      sql`${cityInventory.iron}   + ${iron}`,
+            copper:    sql`${cityInventory.copper} + ${copper}`,
+            coal:      sql`${cityInventory.coal}   + ${coal}`,
+            oil:       sql`${cityInventory.oil}    + ${oil}`,
+            herbs:     sql`${cityInventory.herbs}  + ${herbs}`,
+            fur:       sql`${cityInventory.fur}    + ${fur}`,
+            updatedAt: now,
+          },
+        });
+    });
+
+    const matLog =
+      `${gold}g ${food}f ${wood}w ${stone}s ${iron}ir` +
+      ` ${copper}cu ${coal}co ${oil}oil ${herbs}herbs ${fur}fur`;
+    console.log(
+      `[Deposit] player=${playerId} transport→city${cityId}(${cityName}) ${matLog}`
+    );
+
+    return res.json({
+      ok:        true,
+      cityId,
+      cityName,
+      deposited: { gold, food, wood, stone, iron, copper, coal, oil, herbs, fur },
+    });
+
+  } catch (err: any) {
+    const msg = err.message ?? "";
+    if (err.status === 403) return res.status(403).json({ error: msg });
+    if (msg.startsWith("INSUFFICIENT_TRANSPORT")) return res.status(422).json({ error: msg });
+    console.error("[POST /api/economy/deposit-transport-to-city] Erreur:", err);
+    return res.status(500).json({ error: "Impossible d'effectuer le dépôt" });
   }
 });
 
