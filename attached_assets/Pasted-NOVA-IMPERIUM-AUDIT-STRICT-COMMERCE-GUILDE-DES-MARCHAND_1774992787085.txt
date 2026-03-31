@@ -1,0 +1,236 @@
+NOVA IMPERIUM — AUDIT STRICT COMMERCE / GUILDE DES MARCHANDS
+Branche cible : NI-10.3
+
+RÔLE
+Tu agis comme auditeur technique strict.
+Tu ne fais encore aucune implémentation.
+Tu ne modifies rien.
+Tu ne refactors rien.
+Tu ne supposes rien.
+Tu dois d’abord prouver l’état réel du système commerce et du panneau d’accès à la Guilde des marchands.
+
+CONTEXTE
+Nous fermons le segment déplacement.
+Nous ouvrons maintenant un nouveau segment centré uniquement sur :
+
+1. les échanges commerciaux
+2. le panneau d’accès à la Guilde des marchands
+
+Le projet reste :
+- serveur autoritaire
+- Node/TypeScript
+- React/TypeScript
+- PostgreSQL
+- priorité absolue : simplicité, lisibilité, stabilité, compatibilité
+
+OBJECTIF
+Je veux un audit complet, strict et concret sur deux axes :
+
+AXE A — GUILDE DES MARCHANDS
+Je veux savoir exactement :
+- comment le panneau d’accès est censé apparaître
+- quelles conditions d’accès existent réellement
+- si l’accès dépend :
+  - d’un bâtiment
+  - d’une ville
+  - d’un claim territoire
+  - d’une faction
+  - d’une compétence
+  - d’un rôle
+  - d’une proximité
+  - ou d’aucune règle réelle
+- si le panneau est purement client
+- ou réellement protégé par le serveur
+
+AXE B — ÉCHANGES COMMERCIAUX
+Je veux savoir exactement :
+- quelles opérations commerciales existent réellement aujourd’hui
+- lesquelles sont seulement affichées
+- lesquelles sont réellement persistées
+- quelles tables / services / routes sont impliqués
+- quelles validations serveur existent
+- quelles sécurités manquent encore
+- quels flux sont réellement terminés de bout en bout
+
+IMPORTANT
+Je ne veux PAS encore de correction.
+Je veux d’abord une cartographie technique fiable.
+
+PRÉ-REQUIS OBLIGATOIRES
+Avant tout, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’AUDIT
+Je veux :
+- périmètre exact
+- fichiers à lire
+- ordre d’audit
+- hypothèses à vérifier
+- risques de dérive
+- critères pour dire qu’un flux commerce est “réellement branché”
+
+LECTURE OBLIGATOIRE
+Tu dois lire tous les fichiers nécessaires, côté client + serveur, pour tracer le flux complet.
+
+Sans te limiter à cette liste si d’autres fichiers sont réellement impliqués, commence au minimum par :
+
+CLIENT
+- le ou les composants du panneau Guilde des marchands
+- les composants du marché / commerce / trésorerie / banque si liés
+- les hooks / stores / APIs client utilisés par ces panneaux
+- tout composant qui affiche ou conditionne l’accès au panneau
+
+SERVEUR
+- routes commerce / banque / marché / ville / inventaire si liées
+- services commerce / marché / city / player / bank / treasury si liés
+- validation d’accès serveur
+- schéma / tables réellement utilisées
+
+SCHÉMA / DB
+- tables inventaires ville
+- banque joueur
+- transport joueur
+- pending harvest
+- toute table liée au commerce ou à la Guilde des marchands
+
+IMPORTANT
+Si un flux commerce traverse plusieurs couches, tu dois le suivre jusqu’au bout :
+UI → API client → route serveur → service → DB → retour UI
+
+MÉTHODE D’AUDIT OBLIGATOIRE
+
+PHASE 1 — INVENTAIRE FONCTIONNEL
+Je veux une liste claire des fonctionnalités réelles actuellement présentes :
+
+A. Guilde des marchands
+- panneau présent ou non
+- bouton / entrée d’accès présente ou non
+- condition d’ouverture réelle
+- condition d’utilisation réelle
+
+B. Commerce
+- achat
+- vente
+- transfert
+- dépôt
+- retrait
+- banque → ville
+- banque → joueur
+- ville → banque
+- ville → joueur
+- joueur → ville
+- marché public
+- tarifs / frais / taxes
+- toute autre opération réelle détectée
+
+Pour chaque fonction :
+- UI présente ?
+- serveur branché ?
+- persistance DB ?
+- validation d’accès ?
+- validation ressource ?
+- état : complet / partiel / cosmétique / mort
+
+PHASE 2 — AXE GUILDE DES MARCHANDS
+Je veux répondre précisément :
+
+1. Quel composant ouvre le panneau ?
+2. Qu’est-ce qui déclenche sa visibilité ?
+3. Le bâtiment “guilde des marchands” est-il réellement consulté ?
+4. La ville courante est-elle réellement consultée ?
+5. Le serveur vérifie-t-il l’accès ?
+6. Peut-on appeler les opérations sans avoir le bon accès UI ?
+7. Le panneau peut-il être ouvert alors qu’il ne devrait pas ?
+8. Le panneau peut-il être refusé alors qu’il devrait être accessible ?
+
+PHASE 3 — AXE ÉCHANGES COMMERCIAUX
+Je veux répondre précisément pour chaque flux réel :
+
+1. Quelle ressource part d’où ?
+2. Où arrive-t-elle ?
+3. Quelle route serveur traite l’opération ?
+4. Quelle validation protège l’opération ?
+5. Quelle table est débitée ?
+6. Quelle table est créditée ?
+7. Quelle transaction est réellement persistée ?
+8. Quel retour UI reflète l’opération ?
+9. Le flux est-il serveur-authoritative de bout en bout ?
+10. Le flux peut-il être abusé / bypassé / dupliqué ?
+
+PHASE 4 — CONTRÔLE SOURCE DE VÉRITÉ
+Je veux une section spécifique :
+- quelles décisions sont réellement prises côté serveur
+- quelles décisions sont encore seulement prises côté client
+- quels accès sont fiables
+- quels accès sont seulement cosmétiques
+
+PHASE 5 — TESTS LOGIQUES À EFFECTUER
+Sans modifier le code, je veux que tu identifies les tests réels à faire ensuite, par priorité :
+
+A. tests accès Guilde des marchands
+B. tests opérations commerce
+C. tests refus d’accès
+D. tests ressources insuffisantes
+E. tests rafraîchissement UI
+F. tests de persistance DB
+G. tests anti-bypass
+
+IMPORTANT
+Tu ne lances pas encore un gros chantier de correction.
+Tu dresses le plan de test réel.
+
+INTERDIT
+- aucun refactor massif
+- aucune implémentation maintenant
+- aucun changement de structure
+- aucune supposition non prouvée
+- ne pas déclarer “fonctionnel” un flux seulement parce qu’un bouton existe
+- ne pas confondre UI visible et backend réellement branché
+
+FORMAT DU RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. PÉRIMÈTRE AUDITÉ
+- fichiers réellement lus
+- couches réellement inspectées
+
+2. ÉTAT DE LA GUILDE DES MARCHANDS
+- accès UI
+- accès serveur
+- condition réelle
+- verdict
+
+3. ÉTAT DES ÉCHANGES COMMERCIAUX
+- liste des flux réels
+- statut de chacun
+- source de vérité de chacun
+
+4. FAUSSES IMPRESSIONS / ZONES COSMÉTIQUES
+- ce qui semble exister mais n’est pas vraiment branché
+
+5. RISQUES ET FAILLES
+- accès non protégés
+- validations manquantes
+- incohérences client/serveur
+- persistance incomplète
+
+6. PROCHAINE TÂCHE UNIQUE RECOMMANDÉE
+- une seule
+- la plus prioritaire
+- la plus petite utile
+- justifiée
+
+7. PROMPT D’IMPLÉMENTATION PRÊT À EXÉCUTER
+- uniquement pour cette tâche unique
+
+8. STOP
+
+CONTRAINTE FINALE
+Je veux d’abord savoir ce qui est réellement branché, réellement autorisé, réellement persistant, et réellement protégé.
+Aucune correction avant audit complet.
