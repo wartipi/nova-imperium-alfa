@@ -1,0 +1,138 @@
+NOVA IMPERIUM — AUDIT + REFOCUS STRICT DU PANNEAU BANQUE
+Branche cible : NI-10.3
+
+RÔLE
+Tu agis d’abord comme auditeur technique strict.
+Tu ne modifies rien avant d’avoir prouvé l’état réel du panneau Banque.
+Tu ne fais aucun refactor massif.
+Tu ne dérives pas.
+
+OBJECTIF FONCTIONNEL VALIDÉ
+Je veux changer la logique du panneau Banque.
+
+Je ne veux plus :
+- une vue globale qui mélange ou affiche toutes les villes sans distinction claire
+
+Je veux désormais :
+- Banque = vue du réseau bancaire
+- le panneau n’affiche que les villes réellement connectées au réseau
+- chaque ville connectée sert de point d’accès
+- depuis ce point d’accès, on peut consulter l’inventaire local de cette ville
+
+Autrement dit :
+- toutes les villes ne doivent plus apparaître
+- seules les villes réellement reliées au réseau bancaire doivent être listées
+- et chacune doit ouvrir un accès clair vers son inventaire local
+
+PRINCIPE D’ARCHITECTURE
+Je veux que cette logique repose sur une source de vérité canonique.
+Je ne veux pas d’approximation client.
+Je ne veux pas de faux positifs UI.
+
+PRÉ-REQUIS OBLIGATOIRES
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’AUDIT
+Je veux :
+- fichiers à lire
+- flux actuel du panneau Banque
+- source actuelle des villes affichées
+- source actuelle des inventaires locaux
+- source actuelle du statut “connecté au réseau”
+- plus petit chemin propre pour arriver au comportement cible
+
+LECTURE OBLIGATOIRE
+Lire au minimum :
+- client/src/components/game/TreasuryPanel.tsx
+- tous les fichiers client/API utilisés par TreasuryPanel
+- les services/DTO/routes serveur qui alimentent ce panneau
+- les structures liées aux villes, city buildings, bank, inventory, treasury
+- tout fichier réellement nécessaire pour tracer le flux complet
+
+AUDIT OBLIGATOIRE
+Avant toute implémentation, je veux une réponse claire aux questions suivantes :
+
+1. Quelles villes le panneau Banque affiche-t-il aujourd’hui exactement ?
+2. Selon quelle donnée ?
+3. Quelle est aujourd’hui la règle réelle pour considérer une ville comme “connectée au réseau bancaire” ?
+4. Cette règle est-elle déjà canonique côté serveur ou seulement implicite côté client ?
+5. Comment l’inventaire local d’une ville est-il actuellement consulté ou non consulté ?
+6. Le panneau mélange-t-il actuellement :
+- banque réseau
+- inventaire local ville
+- pending harvest
+- trésorerie joueur
+de manière confuse ?
+7. Quel est le plus petit chemin propre pour obtenir :
+- liste filtrée des villes connectées
+- entrée par ville connectée
+- ouverture/consultation de l’inventaire local de cette ville
+
+IMPORTANT
+Je ne veux PAS encore une grosse refonte floue.
+Je veux un diagnostic strict, puis une implémentation ciblée.
+
+COMPORTEMENT CIBLE À LIVRER APRÈS VALIDATION
+Je veux aboutir à ceci :
+
+1. Le panneau Banque affiche uniquement les villes connectées au réseau bancaire
+2. Une ville non connectée n’apparaît pas
+3. Chaque ville connectée est affichée comme point d’accès distinct
+4. Cliquer une ville connectée permet de consulter son inventaire local
+5. La séparation visuelle et logique entre :
+- réseau bancaire
+- inventaire local de la ville
+doit être claire
+
+IMPORTANT
+Je veux garder une logique simple et lisible.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher les fichiers strictement nécessaires côté :
+- serveur DTO / routes / mapping
+- client API / panel / composants liés à la banque
+mais uniquement après audit et justification
+
+INTERDIT
+- aucun refactor massif
+- aucun changement de moteur métier inutile
+- aucune supposition non prouvée
+- ne pas inventer une notion “réseau bancaire” si une règle canonique existe déjà ailleurs
+- ne pas coder une logique client approximative
+
+ORDRE D’EXÉCUTION OBLIGATOIRE
+1. audit complet du flux Banque
+2. diagnostic clair
+3. proposition du plus petit correctif propre
+4. implémentation ciblée
+5. vérification
+6. rapport final
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. PÉRIMÈTRE AUDITÉ
+2. ÉTAT ACTUEL DU PANNEAU BANQUE
+3. SOURCE DE VÉRITÉ IDENTIFIÉE
+4. PROBLÈMES ACTUELS
+5. SOLUTION MINIMALE RETENUE
+6. FICHIERS MODIFIÉS
+7. PREUVES
+8. VÉRIFICATIONS FONCTIONNELLES
+9. RISQUES RÉSIDUELS
+10. PROCHAINE TÂCHE UNIQUE RECOMMANDÉE
+11. STOP
+
+CONTRAINTE FINALE
+Je veux que le panneau Banque devienne une vraie vue réseau :
+- seulement les villes connectées
+- chaque ville connectée = point d’accès
+- accès clair à l’inventaire local
+- tout branché sur une source de vérité canonique

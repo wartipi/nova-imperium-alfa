@@ -1,16 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import { Package, Sparkles, Scroll, Shield, Gem, Sword } from "lucide-react";
 import {
-  fetchMyEconomy,
   getPlayerBank,
-  getPlayerTransport,
   getCityHarvest,
   postCollectHarvest,
   postTransferBankToCity,
   postTransferBankToPlayer,
-  type EconomyDTO,
   type PlayerBankDTO,
-  type PlayerTransportDTO,
   type CityHarvestDTO,
 } from "../../lib/api/economyApi";
 
@@ -41,16 +36,6 @@ interface CityHarvestState {
   message:    string | null;
 }
 
-interface UniqueItem {
-  id:          string;
-  name:        string;
-  type:        string;
-  rarity:      string;
-  description: string;
-  value:       number;
-  tradeable:   boolean;
-}
-
 interface TransferState {
   gold:    string;
   food:    string;
@@ -72,23 +57,6 @@ interface Props {
   role?:             string | null;
   adminModeEnabled?: boolean;
 }
-
-// ─── Slot cost par type d'objet ─────────────────────────────────────────────
-
-const SLOT_COSTS: Record<string, number> = {
-  carte:                 1,
-  document:              1,
-  objet_magique:         1,
-  artefact:              2,
-  relique:               2,
-  equipement_legendaire: 2,
-};
-
-function slotCost(item: UniqueItem): number {
-  return SLOT_COSTS[item.type] ?? 1;
-}
-
-const MAX_SLOTS = 5;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -162,29 +130,6 @@ function BuildingsTooltip({ buildings }: { buildings: string[] }) {
   );
 }
 
-// ─── Item icon ────────────────────────────────────────────────────────────────
-
-function ItemIcon({ type }: { type: string }) {
-  const cls = "w-3 h-3 shrink-0";
-  switch (type) {
-    case "carte":                 return <Scroll className={cls} />;
-    case "objet_magique":         return <Sparkles className={cls} />;
-    case "artefact":              return <Gem className={cls} />;
-    case "relique":               return <Shield className={cls} />;
-    case "document":              return <Scroll className={cls} />;
-    case "equipement_legendaire": return <Sword className={cls} />;
-    default:                      return <Package className={cls} />;
-  }
-}
-
-const RARITY_COLOR: Record<string, string> = {
-  commun:     "text-gray-500",
-  rare:       "text-blue-500",
-  epique:     "text-purple-500",
-  legendaire: "text-orange-500",
-  mythique:   "text-red-500",
-};
-
 // ─── Formulaire de transfert ──────────────────────────────────────────────────
 
 function AmountInput({
@@ -209,13 +154,10 @@ function AmountInput({
 // ─── TreasuryPanel ────────────────────────────────────────────────────────────
 
 export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
-  const [economy,   setEconomy]   = useState<EconomyDTO | null>(null);
-  const [bank,      setBank]      = useState<PlayerBankDTO | null>(null);
-  const [transport, setTransport] = useState<PlayerTransportDTO | null>(null);
-  const [cities,    setCities]    = useState<CityFull[]>([]);
-  const [harvests,  setHarvests]  = useState<Record<number, CityHarvestState>>({});
-  const [items,     setItems]     = useState<UniqueItem[]>([]);
-  const [loading,   setLoading]   = useState(true);
+  const [bank,     setBank]     = useState<PlayerBankDTO | null>(null);
+  const [cities,   setCities]   = useState<CityFull[]>([]);
+  const [harvests, setHarvests] = useState<Record<number, CityHarvestState>>({});
+  const [loading,  setLoading]  = useState(true);
 
   // ─── Accès physique banque ─────────────────────────────────────────────────
   const [bankAccess, setBankAccess] = useState<{
@@ -252,18 +194,12 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
     try {
       const headers = getAuthHeaders();
 
-      const [ecoRes, bankRes, transportRes, citiesRes, itemsRes] = await Promise.allSettled([
-        fetchMyEconomy(),
+      const [bankRes, citiesRes] = await Promise.allSettled([
         getPlayerBank(),
-        getPlayerTransport(),
         fetch("/api/cities/me", { headers }).then(r => r.ok ? r.json() : []),
-        fetch("/api/unique-items/me", { headers }).then(r => r.ok ? r.json() : []),
       ]);
 
-      if (ecoRes.status       === "fulfilled") setEconomy(ecoRes.value);
-      if (bankRes.status      === "fulfilled") setBank(bankRes.value);
-      if (transportRes.status === "fulfilled") setTransport(transportRes.value);
-      if (itemsRes.status     === "fulfilled") setItems(itemsRes.value);
+      if (bankRes.status === "fulfilled") setBank(bankRes.value);
 
       const cityList: CityFull[] = citiesRes.status === "fulfilled" ? citiesRes.value : [];
       setCities(cityList);
@@ -296,7 +232,7 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
 
   useEffect(() => { loadAll(); loadBankAccess(); }, [loadAll, loadBankAccess]);
 
-  // Resynchronisation globale — écoute l'événement logistique déclenché par n'importe quel panneau
+  // Resynchronisation globale
   useEffect(() => {
     const handler = () => { loadAll(); loadBankAccess(); };
     window.addEventListener('nova:logistic-refresh', handler);
@@ -415,7 +351,6 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
         copper: "", coal: "", oil: "", herbs: "", fur: "" }));
       setTimeout(() => {
         getPlayerBank().then(b => setBank(b)).catch(() => {});
-        getPlayerTransport().then(t => setTransport(t)).catch(() => {});
         window.dispatchEvent(new CustomEvent('nova:logistic-refresh'));
       }, 300);
     } catch (err: any) {
@@ -437,10 +372,10 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
     }
   };
 
-  // ─── Calcul slots objets uniques ─────────────────────────────────────────
+  // ─── Réseau bancaire — villes connectées ──────────────────────────────────
+  // Source de vérité : city.buildings (retourné par /api/cities/me, données serveur)
 
-  const usedSlots = items.reduce((sum, item) => sum + slotCost(item), 0);
-  const remainingSlots = Math.max(0, MAX_SLOTS - usedSlots);
+  const bankCities = cities.filter(c => c.buildings?.includes('bank'));
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
@@ -449,7 +384,7 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
 
       {/* Titre + rafraîchir */}
       <div className="flex items-center justify-between">
-        <h4 className="font-bold text-base text-amber-900">💰 Trésorerie</h4>
+        <h4 className="font-bold text-base text-amber-900">🏦 Réseau Bancaire</h4>
         <button
           onClick={loadAll}
           disabled={loading}
@@ -460,110 +395,9 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
       </div>
 
       {/* ════════════════════════════════════════════════════════════════════
-          SECTION 1 — Inventaire de transport
+          SECTION 1 — Solde Banque + Transferts
       ════════════════════════════════════════════════════════════════════ */}
-      <Section title="🎒 Inventaire de Transport">
-
-        {/* Transport de ressources */}
-        {transport && (
-          <div className="mb-3">
-            <div className="flex items-center justify-between text-xs mb-1">
-              <span className="text-amber-700 font-medium">Ressources portées</span>
-              <span className={[
-                "font-bold text-xs",
-                transport.usedUnits >= transport.maxUnits ? "text-red-600" : "text-green-700"
-              ].join(" ")}>
-                {transport.usedUnits} / {transport.maxUnits} unités · {transport.freeUnits} libres
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-amber-700">
-              {transport.gold   > 0 && <span>🪙 {transport.gold} or</span>}
-              {transport.food   > 0 && <span>🌿 {transport.food} nourriture</span>}
-              {transport.wood   > 0 && <span>🪵 {transport.wood} bois</span>}
-              {transport.stone  > 0 && <span>🪨 {transport.stone} pierre</span>}
-              {transport.iron   > 0 && <span>⚙️ {transport.iron} fer</span>}
-              {(transport.copper ?? 0) > 0 && <span>🟤 {transport.copper} cuivre</span>}
-              {(transport.coal   ?? 0) > 0 && <span>🖤 {transport.coal} charbon</span>}
-              {(transport.oil    ?? 0) > 0 && <span>🛢️ {transport.oil} pétrole</span>}
-              {(transport.herbs  ?? 0) > 0 && <span>🌿 {transport.herbs} herbes</span>}
-              {(transport.fur    ?? 0) > 0 && <span>🦊 {transport.fur} fourrure</span>}
-              {transport.usedUnits === 0 && <span className="text-amber-400 italic">Sac vide</span>}
-            </div>
-            {transport.usedUnits >= transport.maxUnits && (
-              <p className="text-xs text-red-600 font-semibold mt-0.5">⚠️ Sac plein</p>
-            )}
-          </div>
-        )}
-
-        {/* Objets uniques */}
-        <div className="mb-2">
-          <div className="flex items-center justify-between text-xs mb-1">
-            <span className="text-amber-700 font-medium">Objets uniques</span>
-            <span className={[
-              "font-bold",
-              usedSlots >= MAX_SLOTS ? "text-red-600" : usedSlots > MAX_SLOTS * 0.6 ? "text-orange-600" : "text-green-700"
-            ].join(" ")}>
-              {usedSlots} / {MAX_SLOTS} slots · {remainingSlots} libres
-            </span>
-          </div>
-          <div className="flex gap-1 mb-1">
-            {Array.from({ length: MAX_SLOTS }).map((_, i) => (
-              <div
-                key={i}
-                className={[
-                  "h-3 flex-1 rounded-sm border transition-colors",
-                  i < usedSlots
-                    ? usedSlots >= MAX_SLOTS ? "bg-red-400 border-red-500" : "bg-amber-500 border-amber-600"
-                    : "bg-amber-100 border-amber-300",
-                ].join(" ")}
-              />
-            ))}
-          </div>
-        </div>
-
-        {items.length === 0 ? (
-          <p className="text-xs text-amber-400 italic">Aucun objet porté.</p>
-        ) : (
-          <div className="space-y-1 max-h-36 overflow-y-auto">
-            {items.map(item => {
-              const cost = slotCost(item);
-              return (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between text-xs bg-amber-50 border border-amber-200 rounded p-1.5"
-                  title={item.description}
-                >
-                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                    <span className={RARITY_COLOR[item.rarity] ?? "text-gray-500"}>
-                      <ItemIcon type={item.type} />
-                    </span>
-                    <span className="text-amber-900 truncate">{item.name}</span>
-                    <span className="text-amber-400 shrink-0">({item.rarity})</span>
-                  </div>
-                  <span className={[
-                    "font-semibold text-xs px-1 rounded shrink-0",
-                    cost > 1 ? "bg-orange-100 text-orange-700" : "bg-amber-100 text-amber-700"
-                  ].join(" ")}>
-                    {cost} slot{cost > 1 ? "s" : ""}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        <p className="text-xs text-amber-400 italic mt-1">
-          Capacité transport : 50 unités totales (10 matériaux Tier 1).
-        </p>
-        {currentUser && currentUser !== 'player' && (
-          <p className="text-xs text-amber-400 mt-1">Joueur : {currentUser}</p>
-        )}
-      </Section>
-
-      {/* ════════════════════════════════════════════════════════════════════
-          SECTION 2 — Banque Personnelle + Transferts
-      ════════════════════════════════════════════════════════════════════ */}
-      <Section title="🏦 Banque Personnelle & Transferts">
-        {/* Gate physique banque — aucun accès sans présence physique */}
+      <Section title="💰 Solde & Transferts">
         {bankAccess.loading ? (
           <p className="text-xs text-amber-500 italic">Vérification présence banque…</p>
         ) : !bankAccess.allowed ? (
@@ -595,41 +429,45 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
               <StatBox icon="🦊" label="Fourrure"   value={bank.fur ?? 0} />
             </div>
             <p className="text-xs text-amber-500 italic mb-3">
-              Dépôt auto des villes avec banque · Tour {bank.lastProductionTurn}
+              Dépôt auto des villes connectées · Tour {bank.lastProductionTurn}
             </p>
 
-            {/* Transférer vers une ville */}
+            {/* Transférer vers une ville du réseau */}
             <div className="border-t border-amber-200 pt-2 mb-2">
-              <p className="text-xs text-amber-600 font-semibold mb-2">Transférer vers une ville</p>
-              <div className="flex flex-wrap gap-1.5 items-end">
-                <select
-                  value={toCity.cityId}
-                  onChange={e => setToCity(prev => ({ ...prev, cityId: e.target.value }))}
-                  className="text-xs border border-amber-300 rounded px-1 py-0.5 text-amber-900 bg-white flex-1 min-w-24"
-                >
-                  <option value="">— Ville —</option>
-                  {cities.map(c => (
-                    <option key={c.id} value={String(c.id)}>{c.name}</option>
-                  ))}
-                </select>
-                <AmountInput label="🪙" value={toCity.gold}   onChange={v => setToCity(p => ({ ...p, gold: v }))}   max={bank.gold} />
-                <AmountInput label="🌿" value={toCity.food}   onChange={v => setToCity(p => ({ ...p, food: v }))}   max={bank.food} />
-                <AmountInput label="🪵" value={toCity.wood}   onChange={v => setToCity(p => ({ ...p, wood: v }))}   max={bank.wood ?? 0} />
-                <AmountInput label="🪨" value={toCity.stone}  onChange={v => setToCity(p => ({ ...p, stone: v }))}  max={bank.stone ?? 0} />
-                <AmountInput label="⚙️" value={toCity.iron}   onChange={v => setToCity(p => ({ ...p, iron: v }))}   max={bank.iron ?? 0} />
-                <AmountInput label="🟤" value={toCity.copper} onChange={v => setToCity(p => ({ ...p, copper: v }))} max={bank.copper ?? 0} />
-                <AmountInput label="🖤" value={toCity.coal}   onChange={v => setToCity(p => ({ ...p, coal: v }))}   max={bank.coal ?? 0} />
-                <AmountInput label="🛢️" value={toCity.oil}    onChange={v => setToCity(p => ({ ...p, oil: v }))}    max={bank.oil ?? 0} />
-                <AmountInput label="🌱" value={toCity.herbs}  onChange={v => setToCity(p => ({ ...p, herbs: v }))}  max={bank.herbs ?? 0} />
-                <AmountInput label="🦊" value={toCity.fur}    onChange={v => setToCity(p => ({ ...p, fur: v }))}    max={bank.fur ?? 0} />
-                <button
-                  onClick={handleTransferToCity}
-                  disabled={toCity.loading || !toCity.cityId}
-                  className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded disabled:opacity-50 shrink-0"
-                >
-                  {toCity.loading ? "…" : "Envoyer"}
-                </button>
-              </div>
+              <p className="text-xs text-amber-600 font-semibold mb-2">Transférer vers une ville du réseau</p>
+              {bankCities.length === 0 ? (
+                <p className="text-xs text-amber-400 italic">Aucune ville connectée au réseau bancaire.</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5 items-end">
+                  <select
+                    value={toCity.cityId}
+                    onChange={e => setToCity(prev => ({ ...prev, cityId: e.target.value }))}
+                    className="text-xs border border-amber-300 rounded px-1 py-0.5 text-amber-900 bg-white flex-1 min-w-24"
+                  >
+                    <option value="">— Ville —</option>
+                    {bankCities.map(c => (
+                      <option key={c.id} value={String(c.id)}>{c.name}</option>
+                    ))}
+                  </select>
+                  <AmountInput label="🪙" value={toCity.gold}   onChange={v => setToCity(p => ({ ...p, gold: v }))}   max={bank.gold} />
+                  <AmountInput label="🌿" value={toCity.food}   onChange={v => setToCity(p => ({ ...p, food: v }))}   max={bank.food} />
+                  <AmountInput label="🪵" value={toCity.wood}   onChange={v => setToCity(p => ({ ...p, wood: v }))}   max={bank.wood ?? 0} />
+                  <AmountInput label="🪨" value={toCity.stone}  onChange={v => setToCity(p => ({ ...p, stone: v }))}  max={bank.stone ?? 0} />
+                  <AmountInput label="⚙️" value={toCity.iron}   onChange={v => setToCity(p => ({ ...p, iron: v }))}   max={bank.iron ?? 0} />
+                  <AmountInput label="🟤" value={toCity.copper} onChange={v => setToCity(p => ({ ...p, copper: v }))} max={bank.copper ?? 0} />
+                  <AmountInput label="🖤" value={toCity.coal}   onChange={v => setToCity(p => ({ ...p, coal: v }))}   max={bank.coal ?? 0} />
+                  <AmountInput label="🛢️" value={toCity.oil}    onChange={v => setToCity(p => ({ ...p, oil: v }))}    max={bank.oil ?? 0} />
+                  <AmountInput label="🌱" value={toCity.herbs}  onChange={v => setToCity(p => ({ ...p, herbs: v }))}  max={bank.herbs ?? 0} />
+                  <AmountInput label="🦊" value={toCity.fur}    onChange={v => setToCity(p => ({ ...p, fur: v }))}    max={bank.fur ?? 0} />
+                  <button
+                    onClick={handleTransferToCity}
+                    disabled={toCity.loading || !toCity.cityId}
+                    className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded disabled:opacity-50 shrink-0"
+                  >
+                    {toCity.loading ? "…" : "Envoyer"}
+                  </button>
+                </div>
+              )}
               {toCity.message && (
                 <p className={[
                   "text-xs mt-1 font-medium",
@@ -643,10 +481,7 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
 
             {/* Prendre en transport */}
             <div className="border-t border-amber-200 pt-2">
-              <p className="text-xs text-amber-600 font-semibold mb-2">
-                Prendre en transport
-                {transport && <span className="text-amber-400 font-normal ml-1">(libre : {transport.freeUnits} unités)</span>}
-              </p>
+              <p className="text-xs text-amber-600 font-semibold mb-2">Prendre en transport</p>
               <div className="flex flex-wrap gap-1.5 items-end">
                 <AmountInput label="🪙" value={toPlayer.gold}   onChange={v => setToPlayer(p => ({ ...p, gold: v }))}   max={bank.gold} />
                 <AmountInput label="🌿" value={toPlayer.food}   onChange={v => setToPlayer(p => ({ ...p, food: v }))}   max={bank.food} />
@@ -685,24 +520,27 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
       </Section>
 
       {/* ════════════════════════════════════════════════════════════════════
-          SECTION 3 — Villes (production + harvest + collecte)
+          SECTION 2 — Villes connectées au réseau bancaire
+          Filtrées par city.buildings.includes('bank') — source canonique serveur
       ════════════════════════════════════════════════════════════════════ */}
-      <Section title={`🏘️ Villes (${cities.length})`}>
+      <Section title={`🏦 Villes connectées (${loading ? "…" : bankCities.length})`}>
         {loading && cities.length === 0 ? (
           <p className="text-xs text-amber-500">Chargement…</p>
-        ) : cities.length === 0 ? (
-          <p className="text-xs text-amber-400 italic">Aucune ville dans votre faction.</p>
+        ) : bankCities.length === 0 ? (
+          <p className="text-xs text-amber-400 italic">
+            {cities.length === 0
+              ? "Aucune ville dans votre faction."
+              : "Aucune ville connectée au réseau bancaire. Construisez une Banque dans une ville pour l'y connecter."}
+          </p>
         ) : (
           <div className="space-y-2.5">
-            {cities.map(city => {
+            {bankCities.map(city => {
               const h = harvests[city.id];
               return (
                 <div key={city.id} className="bg-white border border-amber-200 rounded p-2.5 text-xs">
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="font-bold text-amber-900 text-sm">{city.name}</span>
-                    {h?.data?.hasBank && (
-                      <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-xs">🏦 auto</span>
-                    )}
+                    <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-xs">🏦 auto</span>
                   </div>
                   <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-amber-700 mb-1.5 text-xs">
                     {(() => {
@@ -730,27 +568,12 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
                   {h && !h.loading && !h.error && h.data && (
                     <div className="space-y-1 border-t border-amber-100 pt-1.5">
                       <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-amber-600">
-                        <span>⏳ {formatMats(h.data.pending)} (pending)</span>
+                        <span>⏳ {formatMats(h.data.pending)} (en attente)</span>
                         <span>📦 {formatMats(h.data.inventory)} (stock)</span>
                       </div>
-                      {!h.data.hasBank && (
-                        <button
-                          onClick={() => handleCollect(city.id)}
-                          disabled={h.collecting || isMatsEmpty(h.data.pending)}
-                          className={[
-                            "px-2 py-0.5 rounded text-xs font-semibold transition",
-                            h.collecting || isMatsEmpty(h.data.pending)
-                              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                              : "bg-amber-500 hover:bg-amber-600 text-white",
-                          ].join(" ")}
-                        >
-                          {h.collecting ? "⏳…" : "🚜 Collecter"}
-                        </button>
-                      )}
-                      {h.message && <p className="text-amber-700 font-medium">{h.message}</p>}
                     </div>
                   )}
-                  {h?.loading && <p className="text-amber-400 text-xs">Chargement harvest…</p>}
+                  {h?.loading && <p className="text-amber-400 text-xs">Chargement…</p>}
                   {h?.error && <p className="text-red-400 text-xs">{h.error}</p>}
                 </div>
               );
@@ -758,25 +581,6 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
           </div>
         )}
       </Section>
-
-      {/* ════════════════════════════════════════════════════════════════════
-          SECTION 4 — Réserves de faction (données legacy — non alimentées automatiquement)
-          La production des villes alimente désormais player_bank ou city_pending_harvest.
-          Cette section est conservée pour compatibilité future (gouvernements de faction).
-      ════════════════════════════════════════════════════════════════════ */}
-      {economy && (
-        <Section title="📊 Réserves de Faction (inactif)">
-          <p className="text-xs text-amber-500 italic mb-2">
-            Non alimenté par la production des villes — réservé au futur système de gouvernement.
-          </p>
-          <div className="grid grid-cols-2 gap-2 mb-1 opacity-50">
-            <StatBox icon="💰" label="Or faction"    value={economy.gold} />
-            <StatBox icon="🌾" label="Nour. faction" value={economy.food} />
-            <StatBox icon="📈" label="+Or/tour"      value={`+${economy.goldPerTurn}`} />
-            <StatBox icon="📈" label="+Nour./tour"   value={`+${economy.foodPerTurn}`} />
-          </div>
-        </Section>
-      )}
 
     </div>
   );
