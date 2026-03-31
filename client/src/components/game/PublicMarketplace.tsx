@@ -252,19 +252,22 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                     </div>
                   </div>
                 ) : (
+                  // Cette branche n'est accessible qu'aux admins (cityId=0, hasGuild=false).
+                  // Un joueur normal ne peut jamais atteindre status=allowed sans guilde :
+                  // resolveAccessPoint() exige guilde_des_marchands à sa position, sinon 403.
                   <div className="bg-amber-50 border border-amber-300 rounded-lg p-2.5 flex flex-wrap gap-4 items-center text-sm">
-                    <span className="font-semibold text-amber-900">🌐 Terminal d'accès réseau</span>
+                    <span className="font-semibold text-amber-900">⚙️ Vue administrateur</span>
                     <span className="text-amber-800">
-                      Frais réseau : <strong>500 bps</strong> (5%)
+                      Frais réseau par défaut : <strong>500 bps</strong> (5%) — aucune guilde active à ce point d'accès
                     </span>
                     <span className="text-amber-600 text-xs ml-auto">
-                      {access.isAdmin ? "Mode admin — accès global" : "Construisez la Guilde des Marchands pour réduire les frais"}
+                      Mode admin — accès global sans contrainte de position
                     </span>
                     <button
                       onClick={checkAccess}
                       className="px-2 py-0.5 bg-amber-200 hover:bg-amber-300 text-amber-900 rounded text-xs"
                       style={{ pointerEvents: "auto" }}
-                      title="Vérifier à nouveau la position"
+                      title="Vérifier à nouveau"
                     >
                       🔄
                     </button>

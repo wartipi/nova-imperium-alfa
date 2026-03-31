@@ -20,8 +20,10 @@ const TIER_CAPS: Record<number, number> = { 1: 600, 2: 1200, 3: 2000, 4: 2500 };
 const COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 h en ms
 
 // ─── resolveMarketContext ─────────────────────────────────────────────────────
-// Résout le contexte de marché pour une ville donnée.
-// Ne throw JAMAIS 403 — toute ville peut servir de point d'accès au réseau.
+// Résout le contexte fee/guilde pour une ville donnée (helper interne).
+// NE constitue PAS le gate d'accès au marché — c'est resolveAccessPoint()
+// (accessPointService.ts) qui applique la règle réelle : présence physique du
+// joueur sur une ville équipée de guilde_des_marchands, sinon 403.
 // Sans guilde : feeBps = 500 (5%). Avec guilde : feeBps = market_guilds.activeFeeBps.
 export interface MarketContext {
   hasGuild:    boolean;

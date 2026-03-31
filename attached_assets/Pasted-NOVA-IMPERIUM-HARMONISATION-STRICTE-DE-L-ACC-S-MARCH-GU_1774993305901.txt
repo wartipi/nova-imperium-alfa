@@ -1,0 +1,123 @@
+NOVA IMPERIUM — HARMONISATION STRICTE DE L’ACCÈS MARCHÉ / GUILDE DES MARCHANDS
+Branche cible : NI-10.3
+
+RÔLE
+Tu appliques uniquement le plus petit correctif d’harmonisation.
+Tu ne touches pas au cœur transactionnel du marché.
+Tu ne refactors rien massivement.
+Tu ne dérives pas.
+
+CONTEXTE VALIDÉ
+L’audit a confirmé :
+
+1. Le gate réel d’accès marché est resolveAccessPoint()
+- position réelle du joueur
+- ville à cette position
+- bâtiment guilde_des_marchands requis
+- sinon 403
+
+2. Mais marketService.ts contient encore un commentaire trompeur disant :
+- “toute ville peut servir de point d’accès au réseau”
+- “sans guilde : feeBps = 500”
+
+3. PublicMarketplace.tsx contient encore une branche UI allowed qui peut afficher :
+- “Terminal d’accès réseau”
+- “Construisez la Guilde des Marchands pour réduire les frais”
+
+OBJECTIF
+Harmoniser la sémantique réelle du marché :
+- le commentaire serveur
+- la présentation UI
+- la règle d’accès réelle
+
+IMPORTANT
+Je ne veux PAS toucher :
+- placeOrder
+- fillOrder
+- cancelOrder
+- updateFee
+- la transaction DB
+- l’escrow
+- les routes métier
+- le schéma
+
+Je veux uniquement corriger les incohérences de compréhension et d’affichage.
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. VALIDATION PRÉALABLE
+Je veux confirmation explicite :
+- que resolveAccessPoint est bien la règle réelle d’accès
+- que le commentaire de marketService.ts est incohérent avec cette règle
+- que la branche “Terminal d’accès réseau” de PublicMarketplace.tsx doit être clarifiée
+- que le correctif peut rester léger
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement les fichiers strictement nécessaires parmi :
+- server/marketService.ts
+- client/src/components/game/PublicMarketplace.tsx
+- éventuellement la route access-check si et seulement si tu prouves qu’un libellé admin dépend d’elle
+
+Aucun autre fichier sans justification explicite.
+
+MODIFICATION EXACTE ATTENDUE
+
+LOT A — COMMENTAIRE SERVEUR
+Dans marketService.ts :
+- corriger le commentaire de resolveMarketContext()
+- il doit refléter la réalité actuelle :
+  - ce helper résout le contexte fee/guild pour une ville donnée
+  - mais l’accès externe au marché est gardé ailleurs par resolveAccessPoint()
+
+LOT B — UI D’ACCÈS
+Dans PublicMarketplace.tsx :
+- clarifier la branche “Terminal d’accès réseau”
+- elle ne doit pas laisser entendre à un joueur normal qu’il peut accéder au marché sans guilde si le gate réel l’interdit
+- si cette branche est réellement admin-only, l’indiquer clairement
+- sinon la supprimer ou la remplacer par un état cohérent
+
+IMPORTANT
+Je veux une UI alignée avec la règle réelle.
+Pas de faux message “construisez la guilde pour réduire les frais” si l’accès sans guilde n’existe pas réellement pour les joueurs normaux.
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- chaque fichier touché
+
+3. VÉRIFICATIONS FONCTIONNELLES
+A. règle d’accès affichée
+- cohérente avec le gate serveur réel
+
+B. commentaire serveur
+- non trompeur
+
+C. UI marché
+- ne suggère plus une règle fausse
+
+4. CONTRÔLE DE PÉRIMÈTRE
+- preuve qu’aucune logique transactionnelle du marché n’a été modifiée
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+
+6. STOP
+
+CONTRAINTE FINALE
+Je veux harmoniser la compréhension du système d’accès marché.
+Pas toucher au moteur métier du commerce.
