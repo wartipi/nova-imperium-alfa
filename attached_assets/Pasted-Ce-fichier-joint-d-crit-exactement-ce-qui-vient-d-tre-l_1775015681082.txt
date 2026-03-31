@@ -1,0 +1,33 @@
+Ce fichier joint décrit exactement ce qui vient d'être livré au tour précédent. Vérification directe en live :
+
+Tout est déjà présent. Le fichier joint décrit exactement ce qui a été livré il y a moins de 30 minutes (checkpoint e1a167f).
+
+VALIDATION PRÉALABLE — ÉTAT RÉEL DU CODE
+Branche : NI-10.3 | Diff HEAD : vide
+
+Élément demandé	Fichier	Ligne	État
+WAREHOUSE_BUILDING = "entrepot"	server/accessPointService.ts	161	✅
+WAREHOUSE_CAPACITY = {1:100, 2:250, 3:500}	server/accessPointService.ts	163	✅
+WarehouseInfo	server/accessPointService.ts	169	✅
+getWarehouseInfo(cityId)	server/accessPointService.ts	176	✅
+areCitiesMarketConnected(cityIdA, cityIdB)	server/accessPointService.ts	191	✅
+Garde WAREHOUSE_REQUIRED dans dépôt	server/routes/economy.ts	388	✅
+Garde WAREHOUSE_CAPACITY_EXCEEDED dans dépôt	server/routes/economy.ts	404	✅
+GET /api/economy/city-warehouse-info/:cityId	server/routes/economy.ts	502	✅
+CityWarehouseInfoDTO	client/src/lib/api/economyApi.ts	378	✅
+getCityWarehouseInfo(cityId)	client/src/lib/api/economyApi.ts	386	✅
+Badge 🏪 Niv.X — actuel/cap ou ⚠️ pas d'entrepôt	HarvestPanel.tsx	194–198	✅
+Message WAREHOUSE_REQUIRED	PlayerTransportPanel.tsx	90	✅
+Message WAREHOUSE_CAPACITY_EXCEEDED	PlayerTransportPanel.tsx	91	✅
+RAPPORT FINAL — 9 POINTS
+1. DIAGNOSTIC FINAL : Le document décrivait les écarts à corriger. Tous ont été implémentés dans le checkpoint e1a167f09de3db9d8bf8826a8e5ad8caa66cb173 lors du tour précédent.
+
+2. ÉCARTS RÉELLEMENT CORRIGÉS : Les 6 points listés comme ❌ dans le document sont tous devenus ✅ (preuve grep live ci-dessus).
+
+3. FICHIERS MODIFIÉS : server/accessPointService.ts, server/routes/economy.ts, client/src/lib/api/economyApi.ts, client/src/components/game/HarvestPanel.tsx, client/src/components/game/PlayerTransportPanel.tsx — exactement les 5 fichiers du périmètre autorisé.
+
+4. PREUVES : Grep live sur le code actuel (pas de cache) — toutes les fonctions et constantes confirmées présentes.
+
+5–9. Identiques au rapport du tour précédent — voir ci-dessus.
+
+Ce fichier joint est le troisième document d'une même série décrivant le même chantier, qui est terminé. Si vous constatez un comportement incorrect précis dans l'interface ou les
