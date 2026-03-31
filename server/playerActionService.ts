@@ -153,14 +153,6 @@ export async function resolveEffectivePlayerPosition(
   };
 }
 
-// ─── Helpers de comportement admin ────────────────────────────────────────────
-function shouldIgnoreActionTimers(_context: ActorContext): boolean {
-  return false;
-}
-
-export function shouldIgnoreActionPointCosts(context: ActorContext): boolean {
-  return context.role === 'admin';
-}
 
 // ─── Helper interne : applique progress + débit PA par step ───────────────────
 // Appliquer les steps de (lastAppliedStep+1) jusqu'à targetStep inclus.
@@ -313,24 +305,17 @@ export async function createMoveAction(
     throw new Error(`ACTION_ALREADY_ACTIVE: joueur ${playerId} a déjà une action en cours (id=${existing.id})`);
   }
 
-  // ─── Vérification PA (ignorée pour admin) ────────────────────────────────────
-  const stateSnapshot = !shouldIgnoreActionPointCosts(context)
-    ? await getPlayerState(playerId)
-    : null;
-
-  if (!shouldIgnoreActionPointCosts(context)) {
-    const available = stateSnapshot?.actionPoints ?? 0;
-    if (available < totalCost) {
-      throw new Error(
-        `INSUFFICIENT_ACTION_POINTS: requis=${totalCost} disponibles=${available}`
-      );
-    }
+  // ─── Vérification PA ─────────────────────────────────────────────────────────
+  const stateSnapshot = await getPlayerState(playerId);
+  const available = stateSnapshot?.actionPoints ?? 0;
+  if (available < totalCost) {
+    throw new Error(
+      `INSUFFICIENT_ACTION_POINTS: requis=${totalCost} disponibles=${available}`
+    );
   }
 
   const now = new Date();
-  const durationMs = shouldIgnoreActionTimers(context)
-    ? 0
-    : totalCost * HOURS_PER_AP * MS_PER_HOUR;
+  const durationMs = totalCost * HOURS_PER_AP * MS_PER_HOUR;
   const expectedEndTime = new Date(now.getTime() + durationMs);
 
   const [action] = await db
@@ -354,12 +339,11 @@ export async function createMoveAction(
   // PA : aucune déduction upfront. Les PA seront débités step par step
   // via applyMoveProgressAndCosts() depuis getActiveAction / cancelActiveAction / completeAction.
 
-  const gmTag = shouldIgnoreActionTimers(context) ? ' [Admin — durée=0]' : '';
   console.log(
     `[PlayerAction] Créée id=${action.id} player=${playerId}` +
     ` (${startWorldX},${startWorldY}) → (${endWorldX},${endWorldY})` +
     ` coût=${totalCost} AP durée=${durationMs / MS_PER_HOUR}h` +
-    ` fin=${expectedEndTime.toISOString()}${gmTag}`
+    ` fin=${expectedEndTime.toISOString()}`
   );
 
   return action;
@@ -621,9 +605,7 @@ export async function createCollectHarvestAction(
 
   const totalUnits = pendingGold + pendingFood + pendingWood + pendingStone + pendingIron
                    + pendingCopper + pendingCoal + pendingOil + pendingHerbs + pendingFur;
-  const durationMinutes = shouldIgnoreActionTimers(context)
-    ? 0
-    : Math.max(5, 5 + Math.ceil(totalUnits / 10));
+  const durationMinutes = Math.max(5, 5 + Math.ceil(totalUnits / 10));
   const durationMs = durationMinutes * 60 * 1000;
 
   const now = new Date();
@@ -647,11 +629,10 @@ export async function createCollectHarvestAction(
     })
     .returning();
 
-  const gmTag = shouldIgnoreActionTimers(context) ? ' [Admin — durée=0]' : '';
   console.log(
     `[PlayerAction] Récolte créée id=${action.id} player=${playerId}` +
     ` cityId=${cityId} pending=${pendingGold}g+${pendingFood}f+${pendingWood}w+${pendingStone}s+${pendingIron}i` +
-    ` durée=${durationMinutes}min${gmTag}`
+    ` durée=${durationMinutes}min`
   );
 
   return action;
@@ -723,9 +704,7 @@ export async function createTransferBankToCityAction(
     .where(eq(playerBank.playerId, playerId));
 
   const totalUnits = gold + food + wood + stone + iron + copper + coal + oil + herbs + fur;
-  const durationMinutes = shouldIgnoreActionTimers(context)
-    ? 0
-    : Math.max(5, 5 + Math.ceil(totalUnits / 10));
+  const durationMinutes = Math.max(5, 5 + Math.ceil(totalUnits / 10));
   const durationMs = durationMinutes * 60 * 1000;
   const expectedEndTime = new Date(now.getTime() + durationMs);
 
@@ -747,11 +726,10 @@ export async function createTransferBankToCityAction(
     })
     .returning();
 
-  const gmTag = shouldIgnoreActionTimers(context) ? ' [Admin — durée=0]' : '';
   console.log(
     `[PlayerAction] Transfert banque→ville créé id=${action.id} player=${playerId}` +
     ` cityId=${cityId} ${gold}g+${food}f+${wood}w+${stone}s+${iron}i` +
-    `+${copper}cu+${coal}co+${oil}oil+${herbs}herbs+${fur}fur durée=${durationMinutes}min${gmTag}`
+    `+${copper}cu+${coal}co+${oil}oil+${herbs}herbs+${fur}fur durée=${durationMinutes}min`
   );
 
   return action;
@@ -840,9 +818,7 @@ export async function createTransferBankToPlayerAction(
     .where(eq(playerBank.playerId, playerId));
 
   const totalUnits = gold + food + wood + stone + iron + copper + coal + oil + herbs + fur;
-  const durationMinutes = shouldIgnoreActionTimers(context)
-    ? 0
-    : Math.max(5, 5 + Math.ceil(totalUnits / 10));
+  const durationMinutes = Math.max(5, 5 + Math.ceil(totalUnits / 10));
   const durationMs = durationMinutes * 60 * 1000;
   const expectedEndTime = new Date(now.getTime() + durationMs);
 
@@ -864,10 +840,9 @@ export async function createTransferBankToPlayerAction(
     })
     .returning();
 
-  const gmTag = shouldIgnoreActionTimers(context) ? ' [Admin — durée=0]' : '';
   console.log(
     `[PlayerAction] Transfert banque→joueur créé id=${action.id} player=${playerId}` +
-    ` ${gold}g+${food}f+${wood}w+${stone}s+${iron}i+${copper}cu+${coal}co+${oil}oil+${herbs}herbs+${fur}fur durée=${durationMinutes}min${gmTag}`
+    ` ${gold}g+${food}f+${wood}w+${stone}s+${iron}i+${copper}cu+${coal}co+${oil}oil+${herbs}herbs+${fur}fur durée=${durationMinutes}min`
   );
 
   return action;

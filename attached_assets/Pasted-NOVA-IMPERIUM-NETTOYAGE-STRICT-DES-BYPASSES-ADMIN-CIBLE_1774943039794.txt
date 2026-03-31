@@ -1,0 +1,147 @@
+NOVA IMPERIUM — NETTOYAGE STRICT DES BYPASSES ADMIN
+CIBLE : SUPPRIMER COMPLÈTEMENT LES BYPASSES TIMER + PA, PAS JUSTE LES DÉSACTIVER
+Branche cible : NI-10.3
+
+RÔLE
+Tu appliques uniquement le plus petit correctif propre.
+Tu ne fais aucun refactor massif.
+Tu ne touches à rien d’autre.
+Tu ne dérives pas.
+
+CONTEXTE VALIDÉ
+État actuel confirmé dans server/playerActionService.ts :
+
+1. shouldIgnoreActionTimers(_context) existe encore mais retourne false
+2. shouldIgnoreActionPointCosts(context) existe encore et retourne context.role === 'admin'
+
+Je ne veux plus de bypass admin du tout.
+Et je ne veux pas garder des fonctions mortes juste “désactivées”.
+
+OBJECTIF
+Supprimer complètement du code les bypasses admin liés :
+- aux timers d’action
+- aux coûts / déductions PA
+
+IMPORTANT
+Je ne veux PAS juste :
+- return false
+- laisser un helper inutilisé
+- laisser une branche morte
+- laisser un mécanisme admin dormant
+
+Je veux que le comportement normal soit maintenant le seul comportement existant dans ce fichier.
+
+RÈGLE ATTENDUE APRÈS CORRECTIF
+1. Les admins subissent les durées normales
+2. Les admins paient aussi les PA normalement
+3. Les helpers de bypass admin ne doivent plus exister dans le fichier
+4. Les branches qui dépendaient de ces helpers doivent être remplacées par la logique normale directe
+5. Aucun autre système ne doit être modifié
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. VALIDATION PRÉALABLE
+Je veux confirmation explicite :
+- que shouldIgnoreActionTimers existe encore
+- que shouldIgnoreActionPointCosts existe encore
+- que leurs usages sont tous localisés dans server/playerActionService.ts
+- que le correctif peut rester limité à un seul fichier
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement :
+- server/playerActionService.ts
+
+Aucun autre fichier.
+
+Si tu juges qu’un autre fichier est absolument nécessaire :
+- tu t’arrêtes
+- tu le signales
+- tu ne modifies rien d’autre sans validation
+
+MODIFICATION EXACTE ATTENDUE
+Dans server/playerActionService.ts :
+
+A. SUPPRESSION DES HELPERS
+- supprimer complètement shouldIgnoreActionTimers
+- supprimer complètement shouldIgnoreActionPointCosts
+
+B. REMPLACEMENT DES USAGES TIMER
+- remplacer toute logique conditionnelle liée aux timers admin par le comportement normal direct
+- les durées doivent être calculées normalement, sans bypass
+
+C. REMPLACEMENT DES USAGES PA
+- remplacer toute logique conditionnelle liée aux coûts PA admin par le comportement normal direct
+- la vérification de PA doit toujours s’appliquer
+- la déduction progressive par step doit toujours s’appliquer
+- ne laisser aucune branche “sauf admin”
+
+IMPORTANT
+Je veux le plus petit nettoyage propre possible.
+Pas de refactor large.
+Pas de changement d’architecture.
+Pas de nouveau helper.
+Pas de logique bonus.
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- server/playerActionService.ts
+- grep -n "shouldIgnoreActionTimers\\|shouldIgnoreActionPointCosts" server/playerActionService.ts
+Je veux que ce grep retourne 0 occurrence utile / aucune définition restante.
+
+3. VÉRIFICATIONS FONCTIONNELLES
+A. Admin move
+- confirmer qu’un admin n’a plus de déplacement instantané
+- confirmer qu’un admin dépense aussi ses PA normalement
+
+B. Joueur normal
+- confirmer qu’aucun comportement normal joueur n’a changé
+
+C. Déduction progressive
+- confirmer que la déduction par step reste intacte
+- confirmer qu’elle s’applique maintenant aussi aux admins
+
+4. CONTRÔLE DE PÉRIMÈTRE
+Je veux une preuve explicite que :
+- aucun autre fichier n’a été modifié
+- aucune route n’a été touchée
+- aucun client n’a été touché
+- aucune UI n’a été touchée
+- aucune autre logique que la suppression des bypasses n’a été modifiée
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+- classés
+- sans ouvrir un autre sujet
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+2. PREUVES
+3. VÉRIFICATIONS FONCTIONNELLES
+4. CONTRÔLE DE PÉRIMÈTRE
+5. RISQUES RÉSIDUELS
+6. STOP
+
+CONTRAINTE FINALE
+Je veux que les bypasses admin n’existent plus du tout dans le code.
+Pas désactivés.
+Pas dormants.
+Pas conservés.
+Supprimés.
