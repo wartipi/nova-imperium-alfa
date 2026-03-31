@@ -158,9 +158,83 @@ function shouldIgnoreActionTimers(context: ActorContext): boolean {
   return context.role === 'admin' && context.adminModeEnabled === true;
 }
 
-// Non branché : les PA ne sont pas déduits côté serveur pour les actions de déplacement.
 export function shouldIgnoreActionPointCosts(context: ActorContext): boolean {
   return context.role === 'admin';
+}
+
+// ─── Helper interne : applique progress + débit PA par step ───────────────────
+// Appliquer les steps de (lastAppliedStep+1) jusqu'à targetStep inclus.
+// Débite les PA du delta de coût de ces steps, sauf si skipCostDeduction=true.
+// Sauvegarde la position, met à jour lastAppliedStep. No-op si targetStep <= lastAppliedStep.
+async function applyMoveProgressAndCosts(
+  action: PlayerAction,
+  targetStep: number,
+  now: Date,
+  options: { skipCostDeduction?: boolean } = {}
+): Promise<{ stepsApplied: number; costDebited: number; worldX: number; worldY: number }> {
+  const path = action.path as PathStep[];
+  const prevStep = action.lastAppliedStep ?? -1;
+  const clampedTarget = Math.min(targetStep, path.length - 1);
+
+  if (clampedTarget <= prevStep) {
+    const cur = path[Math.max(0, prevStep)] ?? path[0];
+    return { stepsApplied: 0, costDebited: 0, worldX: cur.worldX, worldY: cur.worldY };
+  }
+
+  // Sommer le coût des steps nouvellement franchis : path[prevStep+1 .. clampedTarget]
+  let costDelta = 0;
+  const firstNew = Math.max(1, prevStep + 1);
+  for (let i = firstNew; i <= clampedTarget; i++) {
+    costDelta += path[i].cost;
+  }
+
+  const targetTile = path[clampedTarget];
+
+  // Persister la position
+  await savePlayerPosition(action.playerId, targetTile.worldX, targetTile.worldY);
+
+  // Débiter les PA (sauf admin/instant)
+  if (!options.skipCostDeduction && costDelta > 0) {
+    const state = await getPlayerState(action.playerId);
+    if (state) {
+      const newAP = Math.max(0, state.actionPoints - costDelta);
+      await savePlayerState(action.playerId, {
+        level:            state.level,
+        experience:       state.experience,
+        totalExperience:  state.totalExperience,
+        actionPoints:     newAP,
+        maxActionPoints:  state.maxActionPoints,
+        competencePoints: state.competencePoints ?? 0,
+        competences:      (state.competences as { competence: string; level: number }[]) ?? [],
+      });
+      console.log(
+        `[PlayerAction] PA step debit: player=${action.playerId}` +
+        ` steps ${prevStep + 1}→${clampedTarget} -${costDelta} AP → reste ${newAP}/${state.maxActionPoints}`
+      );
+    }
+  }
+
+  // Mettre à jour lastAppliedStep (optimistic lock : seulement si on avance)
+  await db
+    .update(playerActions)
+    .set({ lastAppliedStep: clampedTarget, updatedAt: now })
+    .where(
+      and(
+        eq(playerActions.id, action.id),
+        or(
+          isNull(playerActions.lastAppliedStep),
+          lt(playerActions.lastAppliedStep, clampedTarget)
+        )
+      )
+    );
+  action.lastAppliedStep = clampedTarget;
+
+  return {
+    stepsApplied: clampedTarget - prevStep,
+    costDebited: costDelta,
+    worldX: targetTile.worldX,
+    worldY: targetTile.worldY,
+  };
 }
 
 // ─── Lecture de l'action active (in_progress) ────────────────────────────────
@@ -198,24 +272,9 @@ export async function getActiveAction(playerId: string): Promise<ResolvedAction 
     const resolved = resolveMoveStep(row, now);
 
     if (resolved.effectiveStep > (row.lastAppliedStep ?? -1)) {
-      await savePlayerPosition(row.playerId, resolved.effectiveWorldX, resolved.effectiveWorldY);
-      await db
-        .update(playerActions)
-        .set({ lastAppliedStep: resolved.effectiveStep, updatedAt: now })
-        .where(
-          and(
-            eq(playerActions.id, row.id),
-            or(
-              isNull(playerActions.lastAppliedStep),
-              lt(playerActions.lastAppliedStep, resolved.effectiveStep)
-            )
-          )
-        );
-      row.lastAppliedStep = resolved.effectiveStep;
-      console.log(
-        `[PlayerAction] Step ${resolved.effectiveStep} appliqué: player=${row.playerId}` +
-        ` → world=(${resolved.effectiveWorldX},${resolved.effectiveWorldY})`
-      );
+      const totalDur  = row.expectedEndTime.getTime() - row.startTime.getTime();
+      const isInstant = totalDur === 0;
+      await applyMoveProgressAndCosts(row, resolved.effectiveStep, now, { skipCostDeduction: isInstant });
     }
 
     return {
@@ -292,22 +351,8 @@ export async function createMoveAction(
     })
     .returning();
 
-  // ─── Déduction PA (après insertion réussie, ignorée pour admin) ──────────────
-  if (!shouldIgnoreActionPointCosts(context) && stateSnapshot) {
-    await savePlayerState(playerId, {
-      level:            stateSnapshot.level,
-      experience:       stateSnapshot.experience,
-      totalExperience:  stateSnapshot.totalExperience,
-      actionPoints:     stateSnapshot.actionPoints - totalCost,
-      maxActionPoints:  stateSnapshot.maxActionPoints,
-      competencePoints: stateSnapshot.competencePoints ?? 0,
-      competences:      (stateSnapshot.competences as { competence: string; level: number }[]) ?? [],
-    });
-    console.log(
-      `[PlayerAction] PA déduits: player=${playerId} -${totalCost} AP` +
-      ` → reste ${stateSnapshot.actionPoints - totalCost} / ${stateSnapshot.maxActionPoints}`
-    );
-  }
+  // PA : aucune déduction upfront. Les PA seront débités step par step
+  // via applyMoveProgressAndCosts() depuis getActiveAction / cancelActiveAction / completeAction.
 
   const gmTag = shouldIgnoreActionTimers(context) ? ' [Admin — durée=0]' : '';
   console.log(
@@ -331,10 +376,14 @@ async function completeAction(action: PlayerAction): Promise<PlayerAction> {
     .returning();
 
   if (action.type === "move") {
-    await savePlayerPosition(action.playerId, action.endWorldX, action.endWorldY);
+    const path      = action.path as PathStep[];
+    const finalStep = path.length - 1;
+    const totalDur  = action.expectedEndTime.getTime() - action.startTime.getTime();
+    const isInstant = totalDur === 0;
+    const applied   = await applyMoveProgressAndCosts(action, finalStep, now, { skipCostDeduction: isInstant });
     console.log(
       `[PlayerAction] Complétée id=${action.id} player=${action.playerId}` +
-      ` → position (${action.endWorldX},${action.endWorldY})`
+      ` → position (${applied.worldX},${applied.worldY}) costDebited=${applied.costDebited} AP`
     );
   } else if (action.type === "collect_harvest") {
     const pathData = action.path as Array<{ cityId?: number }>;
@@ -519,14 +568,17 @@ export async function cancelActiveAction(playerId: string): Promise<CancelledAct
   let cancelledAtStep:   number | null = null;
 
   if (action.type === "move" && (action.path as PathStep[]).length >= 2) {
-    const resolved = resolveMoveStep(action, now);
-    await savePlayerPosition(action.playerId, resolved.effectiveWorldX, resolved.effectiveWorldY);
-    cancelledAtWorldX = resolved.effectiveWorldX;
-    cancelledAtWorldY = resolved.effectiveWorldY;
+    const resolved  = resolveMoveStep(action, now);
+    const totalDur  = action.expectedEndTime.getTime() - action.startTime.getTime();
+    const isInstant = totalDur === 0;
+    const applied   = await applyMoveProgressAndCosts(action, resolved.effectiveStep, now, { skipCostDeduction: isInstant });
+    cancelledAtWorldX = applied.worldX;
+    cancelledAtWorldY = applied.worldY;
     cancelledAtStep   = resolved.effectiveStep;
     console.log(
-      `[PlayerAction] Annulation move — position effective: player=${playerId}` +
-      ` step=${resolved.effectiveStep} world=(${resolved.effectiveWorldX},${resolved.effectiveWorldY})`
+      `[PlayerAction] Annulation move — player=${playerId}` +
+      ` step=${resolved.effectiveStep} world=(${applied.worldX},${applied.worldY})` +
+      ` costDebited=${applied.costDebited} AP`
     );
   }
 

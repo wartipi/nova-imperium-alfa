@@ -1,0 +1,226 @@
+NOVA IMPERIUM — CORRECTIF STRICT DÉPLACEMENT
+CIBLE : DÉDUCTION DES PA PAR CASE FRANCHIE + TIMER DÉTAILLÉ PAR STEP
+Branche cible : NI-10.3
+
+RÔLE
+Tu appliques uniquement le plus petit correctif propre validé par audit.
+Tu ne fais aucun refactor massif.
+Tu ne changes pas l’architecture.
+Tu distingues clairement :
+1. règle métier serveur
+2. affichage client
+3. validations runtime
+
+CONTEXTE VALIDÉ
+Audit confirmé :
+
+1. Les PA ne sont actuellement pas déduits côté serveur pour les actions de déplacement.
+2. player_state est la source canonique des PA, avec getPlayerState() / savePlayerState() déjà disponibles.
+3. Le déplacement serveur utilise déjà :
+   - path[i].cost
+   - resolveMoveStep()
+   - lastAppliedStep
+4. getActiveAction() applique déjà les steps atteints via :
+   - resolveMoveStep()
+   - comparaison effectiveStep > lastAppliedStep
+5. cancelActiveAction() calcule déjà la position effective courante avant annulation.
+6. ActiveActionWidget affiche encore seulement un temps global restant, pas un détail step par step.
+
+NOUVELLE RÈGLE MÉTIER À RESPECTER
+Je NE veux PAS une déduction complète des PA à la création du trajet.
+
+Je veux cette règle exacte :
+- le trajet peut être créé seulement si le joueur a assez de PA pour le coût total du trajet
+- MAIS les PA ne sont réellement débités qu’au fur et à mesure, à chaque case / step effectivement franchi
+- si le joueur est interrompu / annulé / intercepté avant la fin,
+  il ne paie pas les cases futures non atteintes
+- aucun remboursement n’est nécessaire, car les steps futurs n’auront jamais été débités
+
+IMPORTANT
+Cette règle remplace explicitement toute logique de “déduction upfront complète”.
+
+PRÉ-REQUIS OBLIGATOIRES
+Avant toute modification, afficher exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+Je veux :
+- objectif précis
+- fichiers à modifier
+- points d’insertion exacts
+- comportement attendu pour :
+  - création trajet
+  - progression normale
+  - annulation
+  - complétion
+  - admin mode
+  - PA insuffisants
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement :
+- server/playerActionService.ts
+- server/routes/playerActions.ts
+- client/src/components/game/ActiveActionWidget.tsx
+
+Lecture autorisée sans modification :
+- server/playerStateService.ts
+- shared/schema.ts
+
+Aucun autre fichier sans validation explicite.
+
+PARTIE A — RÈGLE SERVEUR PA PAR STEP
+
+OBJECTIF
+Implémenter la déduction des PA par step réellement franchi, pas à la création.
+
+RÈGLE EXACTE
+1. À la création du trajet :
+   - vérifier que le joueur a assez de PA pour totalCost
+   - refuser sinon avec erreur explicite INSUFFICIENT_ACTION_POINTS
+   - ne PAS débiter les PA à ce moment-là
+2. Pendant le trajet :
+   - à chaque progression effectiveStep > lastAppliedStep
+   - calculer le delta de coût entre lastAppliedStep + 1 et effectiveStep
+   - débiter ce delta dans player_state.actionPoints
+   - puis mettre à jour player_positions + player_actions.lastAppliedStep
+3. À l’annulation :
+   - d’abord appliquer les steps réellement atteints à l’instant now
+   - puis annuler l’action
+   - aucun remboursement
+4. À la complétion :
+   - avant de marquer completed, appliquer tous les steps restants non encore débités
+   - puis finaliser la position de fin
+5. Admin mode :
+   - conserver le bypass coût
+   - ne jamais débiter les PA pour un move admin/instantané
+
+IMPORTANT
+Je veux un petit helper interne propre dans playerActionService.ts si nécessaire,
+mais pas de refactor massif.
+
+RECOMMANDATION DE STRUCTURE
+Créer un helper interne unique du style :
+- applyMoveProgressAndCosts(action, targetStep, now, options?)
+ou équivalent
+
+Responsabilités du helper :
+- si targetStep <= lastAppliedStep → no-op
+- sommer path[i].cost pour les steps nouvellement franchis
+- débiter player_state.actionPoints si nécessaire
+- sauvegarder la position atteinte
+- mettre à jour player_actions.lastAppliedStep et updatedAt
+- retourner les infos utiles
+
+Ce helper doit être appelé au minimum depuis :
+- getActiveAction()
+- cancelActiveAction()
+- completeAction() pour les moves
+
+PARTIE B — ERREUR PA INSUFFISANTS
+Dans routes/playerActions.ts :
+- attraper explicitement INSUFFICIENT_ACTION_POINTS
+- retourner HTTP 400
+- corps JSON structuré avec au moins :
+  - error
+  - message
+  - required
+  - available
+si ces valeurs sont disponibles
+
+PARTIE C — TIMER DÉTAILLÉ PAR STEP
+
+OBJECTIF
+Dans ActiveActionWidget, conserver le timer global
+ET ajouter un affichage détaillé du trajet.
+
+AFFICHAGE DEMANDÉ
+Pour un move en cours, afficher :
+- Tuile X / N
+- Prochaine tuile : coordonnées + terrain si dispo
+- Temps avant prochaine tuile
+- Temps total restant
+- Arrivée imminente… au dernier step
+
+IMPORTANT
+Je ne veux pas un calcul arbitraire.
+Je veux un calcul dérivé des données serveur existantes :
+- activeAction.path
+- activeAction.totalCost
+- activeAction.startTime
+- activeAction.expectedEndTime
+
+RÈGLE DE CALCUL CLIENT
+Ne pas dupliquer brutalement la constante “5 secondes par AP” si ce n’est pas nécessaire.
+Calculer la durée de chaque step proportionnellement :
+- totalMs = expectedEndTime - startTime
+- stepMs(i) = totalMs * (path[i].cost / totalCost)
+Puis :
+- retrouver le step courant
+- retrouver le temps avant la prochaine tuile
+- retrouver le rang courant X / N
+
+ORDRE D’EXÉCUTION OBLIGATOIRE
+1. implémenter la vérification de totalCost à la création
+2. implémenter le débit progressif par step
+3. brancher annulation et complétion sur la même logique
+4. brancher HTTP 400 INSUFFICIENT_ACTION_POINTS
+5. enrichir ActiveActionWidget
+6. redémarrer / vérifier compilation
+7. valider runtime
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat HEAD
+- git diff -- server/playerActionService.ts
+- git diff -- server/routes/playerActions.ts
+- git diff -- client/src/components/game/ActiveActionWidget.tsx
+
+3. VÉRIFICATIONS FONCTIONNELLES
+A. PA
+- trajet coût 1+ step : les PA diminuent à chaque step franchi
+- trajet multi-step : débit progressif confirmé
+- annulation à mi-chemin : seuls les steps atteints sont débités
+- complétion : somme finale débitée = totalCost
+- PA insuffisants au départ : HTTP 400
+- admin move : aucun débit
+
+B. Timer
+- temps global restant correct
+- Tuile X / N visible
+- prochaine tuile correcte
+- temps avant prochaine tuile cohérent
+- fin de trajet : “Arrivée imminente…” ou équivalent cohérent
+
+4. CONTRÔLE DE PÉRIMÈTRE
+- preuve qu’aucun autre fichier n’a été modifié
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+- classés
+- sans ouvrir un autre sujet
+
+RAPPORT FINAL OBLIGATOIRE
+1. DIAGNOSTIC
+2. FICHIERS MODIFIÉS
+3. PREUVES
+4. VÉRIFICATIONS FONCTIONNELLES
+5. CONTRÔLE DE PÉRIMÈTRE
+6. RISQUES RÉSIDUELS
+7. STOP
+
+CONTRAINTE FINALE
+La déduction des PA doit se produire par step réellement franchi.
+Pas de débit complet upfront.
+Pas de remboursement des steps futurs, car ils ne doivent jamais être débités.
+Aucune dérive.

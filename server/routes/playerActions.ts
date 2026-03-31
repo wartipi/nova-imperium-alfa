@@ -148,10 +148,14 @@ router.post("/actions/move", requireAuth, async (req: AuthRequest, res) => {
       return res.status(409).json({ error: msg });
     }
     if (msg.startsWith("INSUFFICIENT_ACTION_POINTS")) {
+      // Extraire requis= et disponibles= du message si présents
+      const reqMatch  = msg.match(/requis=(\d+)/);
+      const availMatch = msg.match(/disponibles=(\d+)/);
       return res.status(400).json({
-        error: "INSUFFICIENT_ACTION_POINTS",
-        message: "Points d'action insuffisants pour ce déplacement.",
-        details: msg,
+        error:     "INSUFFICIENT_ACTION_POINTS",
+        message:   "Points d'action insuffisants pour ce déplacement.",
+        required:  reqMatch  ? Number(reqMatch[1])  : undefined,
+        available: availMatch ? Number(availMatch[1]) : undefined,
       });
     }
     console.error("[Actions/Move] Erreur:", err);
