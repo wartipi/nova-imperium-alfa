@@ -1,0 +1,119 @@
+NOVA IMPERIUM — CONTRÔLE LOCAL BRUT SANS NARRATION
+CIBLE : PROUVER L’ÉTAT RÉEL DES FICHIERS PA / ROUTE / WIDGET
+Branche attendue : NI-10.3
+
+RÔLE
+Tu agis comme exécuteur de diagnostic brut.
+Tu ne modifies rien.
+Tu ne codes rien.
+Tu ne push rien.
+Tu n’expliques rien.
+Tu n’ajoutes aucun commentaire libre.
+Tu affiches uniquement les commandes demandées et leurs sorties.
+
+INTERDIT
+- aucune modification de fichier
+- aucun commit
+- aucun push
+- aucune explication libre
+- aucun résumé
+- aucune phrase non demandée
+- aucun mélange avec un autre sujet
+- aucun texte hors format
+
+FORMAT DE SORTIE OBLIGATOIRE
+Tu dois répondre UNIQUEMENT sous cette structure exacte :
+
+1. GIT
+<sorties>
+
+2. PLAYER_ACTION_SERVICE_GREP
+<sorties>
+
+3. PLAYER_ACTION_SERVICE_SED
+<sorties>
+
+4. PLAYER_ACTIONS_ROUTE_GREP
+<sorties>
+
+5. PLAYER_ACTIONS_ROUTE_SED
+<sorties>
+
+6. ACTIVE_ACTION_WIDGET_GREP
+<sorties>
+
+7. ACTIVE_ACTION_WIDGET_SED
+<sorties>
+
+8. CONCLUSION
+<UNE seule ligne parmi les 4 cas autorisés>
+
+COMMANDES À EXÉCUTER EXACTEMENT
+
+SECTION 1 — GIT
+- git branch --show-current
+- git status --short
+- git diff --stat HEAD
+- git log --oneline --decorate -n 5
+- git show --stat HEAD
+- git rev-parse HEAD
+- git fetch origin
+- git rev-parse origin/NI-10.3
+- git log --oneline --decorate origin/NI-10.3..HEAD
+- git log --oneline --decorate HEAD..origin/NI-10.3
+
+SECTION 2 — PLAYER_ACTION_SERVICE_GREP
+- grep -n "Non branché : les PA ne sont pas déduits" server/playerActionService.ts || true
+- grep -n "applyMoveProgressAndCosts" server/playerActionService.ts || true
+- grep -n "getPlayerState\|savePlayerState" server/playerActionService.ts || true
+- grep -n "PA step debit\|PA déduits" server/playerActionService.ts || true
+- grep -n "lastAppliedStep" server/playerActionService.ts || true
+- grep -n "createMoveAction" server/playerActionService.ts || true
+- grep -n "getActiveAction" server/playerActionService.ts || true
+- grep -n "cancelActiveAction" server/playerActionService.ts || true
+- grep -n "completeAction" server/playerActionService.ts || true
+
+SECTION 3 — PLAYER_ACTION_SERVICE_SED
+- sed -n '1,260p' server/playerActionService.ts
+- sed -n '261,520p' server/playerActionService.ts
+- sed -n '521,760p' server/playerActionService.ts
+
+SECTION 4 — PLAYER_ACTIONS_ROUTE_GREP
+- grep -n "INSUFFICIENT_ACTION_POINTS" server/routes/playerActions.ts || true
+- grep -n "required" server/routes/playerActions.ts || true
+- grep -n "available" server/routes/playerActions.ts || true
+- grep -n "details" server/routes/playerActions.ts || true
+- grep -n "ACTION_ALREADY_ACTIVE" server/routes/playerActions.ts || true
+
+SECTION 5 — PLAYER_ACTIONS_ROUTE_SED
+- sed -n '1,240p' server/routes/playerActions.ts
+
+SECTION 6 — ACTIVE_ACTION_WIDGET_GREP
+- grep -n "Tuile " client/src/components/game/ActiveActionWidget.tsx || true
+- grep -n "Prochaine tuile" client/src/components/game/ActiveActionWidget.tsx || true
+- grep -n "Temps avant tuile" client/src/components/game/ActiveActionWidget.tsx || true
+- grep -n "Arrivée imminente" client/src/components/game/ActiveActionWidget.tsx || true
+- grep -n "Temps restant total" client/src/components/game/ActiveActionWidget.tsx || true
+- grep -n "Temps restant estimé" client/src/components/game/ActiveActionWidget.tsx || true
+- grep -n "< 2s" client/src/components/game/ActiveActionWidget.tsx || true
+- grep -n "msPerAP" client/src/components/game/ActiveActionWidget.tsx || true
+- grep -n "totalDur" client/src/components/game/ActiveActionWidget.tsx || true
+- grep -n "totalCost" client/src/components/game/ActiveActionWidget.tsx || true
+- grep -n "path" client/src/components/game/ActiveActionWidget.tsx || true
+
+SECTION 7 — ACTIVE_ACTION_WIDGET_SED
+- sed -n '1,280p' client/src/components/game/ActiveActionWidget.tsx
+
+SECTION 8 — CONCLUSION
+Tu dois écrire UNE seule ligne, et rien d’autre, en choisissant exactement un de ces 4 cas :
+
+- CAS 1 — Les 3 changements sont réellement présents en local
+- CAS 2 — Les changements PA ne sont pas présents en local
+- CAS 3 — Le widget est à jour localement, mais le débit progressif des PA ne l’est pas
+- CAS 4 — Les fichiers locaux ne correspondent pas à ce qui a été annoncé
+
+CONTRAINTE FINALE
+Aucun texte hors structure.
+Aucune narration.
+Aucune explication.
+Aucune modification.
