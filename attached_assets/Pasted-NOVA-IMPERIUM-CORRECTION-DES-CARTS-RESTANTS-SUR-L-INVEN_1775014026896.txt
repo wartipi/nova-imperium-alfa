@@ -1,0 +1,297 @@
+NOVA IMPERIUM — CORRECTION DES ÉCARTS RESTANTS SUR L’INVENTAIRE DE VILLE
+Branche cible : NI-10.3
+
+RÔLE
+Tu agis comme implémenteur strict sous contraintes.
+Tu ne fais aucun refactor massif.
+Tu ne dérives pas.
+Tu gardes le serveur comme source de vérité.
+Tu corriges uniquement les écarts réellement restants entre le design validé et le code poussé.
+
+CONTEXTE VALIDÉ — ÉTAT RÉEL DU CODE
+Après vérification directe du code poussé, voici ce qui est réellement en place :
+
+✅ Déjà présent
+1. cityBuildings.level existe dans shared/schema.ts
+2. resolvePlayerCity() et checkPlayerCity() existent dans server/accessPointService.ts
+3. GET /api/economy/player-current-city existe
+4. POST /api/economy/deposit-transport-to-city existe
+5. economyApi.ts expose getPlayerCurrentCity() et postDepositTransportToCity()
+6. PlayerTransportPanel permet déjà le dépôt player_transport → city_inventory
+
+❌ Manque encore réellement dans le code poussé
+1. Aucun vrai concept serveur d’entrepôt exploitable :
+   - pas de WAREHOUSE_BUILDING
+   - pas de WAREHOUSE_CAPACITY
+   - pas de getWarehouseInfo()
+2. Aucune garde serveur dans le dépôt :
+   - pas de WAREHOUSE_REQUIRED
+   - pas de WAREHOUSE_CAPACITY_EXCEEDED
+3. Aucune route info entrepôt :
+   - pas de GET /api/economy/city-warehouse-info/:cityId
+4. Aucune connexion marché↔marché réellement implémentée côté inventaire :
+   - pas de areCitiesMarketConnected()
+5. HarvestPanel n’affiche pas encore :
+   - statut entrepôt
+   - niveau entrepôt
+   - capacité actuelle / max
+6. PlayerTransportPanel n’affiche pas encore clairement :
+   - les erreurs métier liées à l’entrepôt/capacité
+
+OBJECTIF
+Je veux corriger uniquement ces erreurs restantes.
+
+RÈGLE MÉTIER CIBLE
+L’inventaire de ville doit suivre cette logique :
+
+1. Une ville n’a un inventaire exploitable que si elle possède un bâtiment :
+- entrepot
+
+2. La capacité de l’inventaire dépend du niveau de l’entrepôt
+- niveau 1 → capacité 100
+- niveau 2 → capacité 250
+- niveau 3 → capacité 500
+
+3. Dépôt player_transport → city_inventory
+- autorisé uniquement si la ville courante possède un entrepôt
+- refusé si la capacité serait dépassée
+
+4. Connexion marché↔marché
+- doit être implémentée côté serveur comme base canonique
+- même si elle n’est pas encore totalement branchée dans toute l’UI
+- elle doit exister maintenant comme primitive serveur réelle
+
+IMPORTANT
+Cette tâche ne doit PAS ouvrir un gros chantier marché complet.
+Je veux d’abord verrouiller la logique serveur canonique de l’entrepôt et de la capacité.
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. VALIDATION PRÉALABLE
+Confirme explicitement :
+- que cityBuildings.level existe déjà
+- que la route de dépôt existe déjà
+- que les gardes entrepôt/capacité manquent encore réellement
+- que HarvestPanel et PlayerTransportPanel ne reflètent pas encore l’entrepôt
+- que le correctif peut rester ciblé et sans refactor massif
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement les fichiers strictement nécessaires, probablement :
+
+- server/accessPointService.ts
+- server/routes/economy.ts
+- client/src/lib/api/economyApi.ts
+- client/src/components/game/HarvestPanel.tsx
+- client/src/components/game/PlayerTransportPanel.tsx
+
+Évite de toucher d’autres fichiers sauf nécessité prouvée.
+
+INTERDIT
+- ne pas refactorer massivement les routes economy
+- ne pas changer le moteur banque
+- ne pas changer TreasuryPanel
+- ne pas changer le moteur déplacement / PA / timers
+- ne pas ouvrir le chantier marché complet
+- ne pas bricoler une logique client approximative
+- ne pas dupliquer les règles de capacité entre client et serveur comme source de vérité
+- le client peut afficher, mais le serveur doit décider
+
+IMPLÉMENTATION ATTENDUE
+
+PHASE 1 — SERVEUR : PRIMITIVES CANONIQUES
+Dans server/accessPointService.ts, ajouter les primitives manquantes :
+
+A. Constantes
+- WAREHOUSE_BUILDING = "entrepot"
+- WAREHOUSE_CAPACITY = { 1: 100, 2: 250, 3: 500 }
+
+B. Type
+- WarehouseInfo avec au minimum :
+  - cityId
+  - hasWarehouse
+  - level
+  - capacity
+  - currentUnits
+  - freeUnits
+
+C. Fonction getWarehouseInfo(cityId)
+Elle doit :
+- vérifier si la ville a un entrepôt
+- lire son niveau depuis cityBuildings.level
+- calculer la capacité
+- lire city_inventory
+- calculer le total actuel stocké
+- retourner un objet canonique lisible
+
+IMPORTANT
+Si la ville n’a pas d’entrepôt :
+- hasWarehouse = false
+- capacity = 0
+- le reste cohérent
+
+D. Fonction areCitiesMarketConnected(cityIdA, cityIdB)
+Elle doit retourner true seulement si :
+- la ville A a guilde_des_marchands
+- la ville B a guilde_des_marchands
+
+Pas de logique client.
+Pas de raccourci implicite.
+
+PHASE 2 — ROUTES ECONOMY
+Dans server/routes/economy.ts :
+
+A. Ajouter une route GET
+GET /api/economy/city-warehouse-info/:cityId
+
+Elle doit retourner le résultat de getWarehouseInfo(cityId)
+
+B. Renforcer POST /api/economy/deposit-transport-to-city
+Avant la transaction :
+1. résoudre la ville courante via resolvePlayerCity()
+2. charger getWarehouseInfo(cityId)
+3. refuser si pas d’entrepôt
+   - 403 WAREHOUSE_REQUIRED
+4. calculer le total à déposer
+5. refuser si capacité dépassée
+   - 422 WAREHOUSE_CAPACITY_EXCEEDED
+6. ensuite seulement continuer le débit/crédit atomique existant
+
+IMPORTANT
+Je veux conserver le flux existant.
+Je ne veux pas une deuxième route de dépôt.
+Je veux renforcer la route déjà présente.
+
+PHASE 3 — API CLIENT
+Dans client/src/lib/api/economyApi.ts :
+
+A. Ajouter le type DTO
+CityWarehouseInfoDTO
+
+B. Ajouter
+getCityWarehouseInfo(cityId)
+
+C. Ne pas casser les fonctions déjà existantes
+
+PHASE 4 — HARVEST PANEL
+Dans client/src/components/game/HarvestPanel.tsx :
+
+Je veux que chaque ville affiche maintenant clairement son statut entrepôt.
+
+Pour chaque ville :
+- si entrepôt absent :
+  - afficher un badge clair du type : ⚠️ pas d’entrepôt
+- si entrepôt présent :
+  - afficher : 🏪 Entrepôt Niv.X
+  - afficher : actuel / capacité
+
+IMPORTANT
+Je veux que ça reste lisible et compact.
+Pas de redesign large.
+Pas de nouvelle architecture UI.
+
+PHASE 5 — PLAYER TRANSPORT PANEL
+Dans client/src/components/game/PlayerTransportPanel.tsx :
+
+A. Quand la ville courante n’a pas d’entrepôt
+- afficher un message clair
+- désactiver de fait le dépôt
+
+B. Quand la capacité serait dépassée
+- afficher un message clair côté erreur
+
+C. Si utile, tu peux charger l’info entrepôt de la ville courante
+- mais sans surcomplexifier
+- et sans créer une logique parallèle au serveur
+
+IMPORTANT
+Le panneau transport reste le point d’action du joueur.
+Mais il doit mieux refléter les refus métier de la ville cible.
+
+PHASE 6 — CONNEXION MARCHÉ
+Je veux que areCitiesMarketConnected() soit réellement codée côté serveur dans cette tâche,
+même si son usage complet dans l’accès distant sera peut-être la tâche suivante.
+
+IMPORTANT
+Je veux que cette primitive existe maintenant pour éviter qu’elle reste théorique.
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- chaque fichier touché
+
+3. VÉRIFICATIONS FONCTIONNELLES
+A. ville sans entrepôt
+- GET city-warehouse-info retourne hasWarehouse=false
+- dépôt refusé avec WAREHOUSE_REQUIRED
+
+B. ville avec entrepôt niveau 1
+- capacité = 100
+
+C. ville avec entrepôt niveau 2
+- capacité = 250
+
+D. ville avec entrepôt niveau 3
+- capacité = 500
+
+E. dépôt dépassant la capacité
+- refusé avec WAREHOUSE_CAPACITY_EXCEEDED
+
+F. dépôt valide
+- player_transport débité
+- city_inventory crédité
+
+G. HarvestPanel
+- affiche le statut entrepôt correctement
+
+H. PlayerTransportPanel
+- affiche clairement les erreurs entrepôt/capacité
+
+I. areCitiesMarketConnected
+- existe réellement côté serveur
+- vérifie bien marché↔marché
+
+4. CONTRÔLE DE PÉRIMÈTRE
+- preuve qu’aucun gros chantier marché n’a été ouvert
+- preuve qu’aucun refactor massif n’a été ouvert
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. DIAGNOSTIC FINAL
+2. ÉCARTS RÉELLEMENT CORRIGÉS
+3. FICHIERS MODIFIÉS
+4. PREUVES
+5. VÉRIFICATIONS FONCTIONNELLES
+6. CONTRÔLE DE PÉRIMÈTRE
+7. RISQUES RÉSIDUELS
+8. IMPACT SUR LA SUITE (lecture distante / marché)
+9. STOP
+
+CONTRAINTE FINALE
+Je veux corriger uniquement les erreurs restantes réellement non implémentées :
+- entrepôt canonique
+- capacité canonique
+- garde dépôt
+- info entrepôt
+- affichage entrepôt
+- primitive marché↔marché
+
+Rien de plus.
