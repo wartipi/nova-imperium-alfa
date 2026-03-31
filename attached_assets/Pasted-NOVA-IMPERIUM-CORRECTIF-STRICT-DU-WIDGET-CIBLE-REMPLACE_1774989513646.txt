@@ -1,0 +1,146 @@
+NOVA IMPERIUM — CORRECTIF STRICT DU WIDGET
+CIBLE : REMPLACER LA GARDE TEMPORELLE PAR UNE GARDE DE STEP CONFIRMÉ
+Branche cible : NI-10.3
+
+RÔLE
+Tu appliques uniquement le plus petit correctif propre dans ActiveActionWidget.tsx.
+Tu ne touches pas au serveur.
+Tu ne touches pas à GameCanvas.
+Tu ne touches pas à MedievalHUD.
+Tu ne fais aucun refactor massif.
+Tu ne dérives pas.
+
+CONTEXTE VALIDÉ
+Le correctif actuel utilise :
+- isStartingPhase = msSinceStart < 3000
+- isServerStepReliable = serverStep !== null && !isStartingPhase
+- isLastStep = isStartingPhase ? false : currentStep >= totalSteps
+
+Ce correctif est insuffisant.
+Le bug observé en runtime persiste :
+au début d’un nouveau trajet, le widget peut encore afficher :
+- Tuile N / N
+- Arrivée imminente…
+- Finalisation…
+
+CAUSE RACINE VALIDÉE
+Le vrai problème n’est pas “3 secondes”.
+Le vrai problème est :
+au départ d’une nouvelle action, aucun nova:step-progress n’a encore été reçu pour cette action.
+
+Donc :
+- serverStep ne doit pas être considéré fiable
+- la branche terminale ne doit pas être accessible
+tant qu’aucun step confirmé de l’action courante n’a été reçu
+
+OBJECTIF
+Remplacer la logique de garde basée sur le temps
+par une logique de garde basée sur la confirmation réelle d’un step.
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. VALIDATION PRÉALABLE
+Je veux confirmation explicite :
+- que le fichier touché est uniquement client/src/components/game/ActiveActionWidget.tsx
+- que stepStartedAt existe déjà
+- que la vraie source de fiabilité doit être “a-t-on reçu un step confirmé pour cette action ?”
+- que tu vas remplacer la garde temporelle comme source principale
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement :
+- client/src/components/game/ActiveActionWidget.tsx
+
+Aucun autre fichier.
+
+MODIFICATION EXACTE ATTENDUE
+
+A. Ajouter une notion explicite :
+- hasConfirmedStepForThisAction = stepStartedAt !== null
+
+B. Remplacer la garde actuelle :
+- ne plus utiliser isStartingPhase comme garde principale de fiabilité
+- utiliser :
+  const isServerStepReliable = serverStep !== null && hasConfirmedStepForThisAction;
+
+C. Remplacer la garde terminale :
+- tant que hasConfirmedStepForThisAction === false
+  le widget ne doit pas entrer dans la branche isLastStep
+- donc :
+  const isLastStep = hasConfirmedStepForThisAction ? currentStep >= totalSteps : false;
+
+D. État de départ
+- tant que hasConfirmedStepForThisAction === false
+  le widget doit afficher un état cohérent de départ
+- pas :
+  - Tuile N/N
+  - Arrivée imminente…
+  - Finalisation…
+- mais un état de départ du type :
+  - Départ en cours…
+  - ou timers normaux de départ si calculables proprement
+
+IMPORTANT
+Je veux que la logique d’entrée dans la branche terminale
+dépende d’un vrai step confirmé,
+pas d’une heuristique temporelle.
+
+JE NE VEUX PAS
+- de refactor massif
+- de changement serveur
+- de changement d’events
+- de changement dans GameCanvas
+- de nouvelle abstraction inutile
+
+ORDRE D’EXÉCUTION OBLIGATOIRE
+1. modifier uniquement ActiveActionWidget.tsx
+2. remplacer la garde temporelle comme source principale
+3. verrouiller la branche terminale tant qu’aucun step confirmé n’a été reçu
+4. vérifier le départ de trajet
+5. rapport final
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- client/src/components/game/ActiveActionWidget.tsx
+
+3. VÉRIFICATIONS FONCTIONNELLES
+A. Départ d’un nouveau trajet
+- ne doit plus afficher Tuile N / N
+- ne doit plus afficher Arrivée imminente…
+- ne doit plus afficher Finalisation…
+- doit afficher un état de départ cohérent
+
+B. Après premier step confirmé
+- la progression normale reprend
+- serverStep redevient utilisable
+
+C. Fin réelle
+- Arrivée imminente… et Finalisation… restent présentes au vrai bon moment
+
+4. CONTRÔLE DE PÉRIMÈTRE
+- aucun autre fichier modifié
+
+5. PUSH
+- push vers origin NI-10.3
+- puis afficher la preuve du push
+
+6. STOP
+
+CONTRAINTE FINALE
+Je veux corriger la logique de départ avec une garde basée sur le premier step confirmé réel.
+Pas avec une simple fenêtre de temps.

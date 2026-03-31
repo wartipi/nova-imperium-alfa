@@ -157,7 +157,10 @@ export function ActiveActionWidget() {
   // chaque seconde, mais la valeur affichée est toujours fraîche au moment du rendu.
   const msLeft  = Math.max(0, new Date(activeAction.expectedEndTime).getTime() - Date.now());
   const msSinceStart   = Date.now() - new Date(activeAction.startTime).getTime();
-  const isStartingPhase = msSinceStart < 3000; // < 3s depuis le lancement → "Départ en cours…"
+  const isStartingPhase = msSinceStart < 3000; // conservé pour usage secondaire (libellés)
+  // Garde basée sur la confirmation réelle d'un step : true uniquement si nova:step-progress
+  // a déjà été reçu pour cette action (stepStartedAt est reset à null à chaque nouvelle action).
+  const hasConfirmedStepForThisAction = stepStartedAt !== null;
   const meta    = getActionMeta(activeAction.type);
 
   // ─── Calcul step par step (move uniquement) ──────────────────────────────────
@@ -188,11 +191,12 @@ export function ActiveActionWidget() {
 
     const totalSteps   = path.length - 1; // nombre de tuiles à traverser
     const msElapsed = Date.now() - startMs;
-    // Guard de début d'action : pendant isStartingPhase, serverStep peut être stale
-    // (l'ancien step terminal d'une action précédente — le useEffect de reset est async).
-    // On n'utilise serverStep que s'il a été confirmé pour cette action (hors phase de départ).
-    // Cela empêche le widget d'entrer dans la branche "fin de trajet" dès le premier render.
-    const isServerStepReliable = serverStep !== null && !isStartingPhase;
+    // Guard basé sur la confirmation réelle d'un step pour cette action.
+    // serverStep peut être stale (valeur terminale d'une action précédente) : le useEffect
+    // de reset est asynchrone et ne s'exécute qu'après le premier render de la nouvelle action.
+    // On ne considère serverStep fiable que si un nova:step-progress a déjà été reçu
+    // pour l'action courante, ce qui est attesté par stepStartedAt !== null.
+    const isServerStepReliable = serverStep !== null && hasConfirmedStepForThisAction;
     let currentStep = 0;
     if (isServerStepReliable) {
       currentStep = Math.min(serverStep, totalSteps);
@@ -201,8 +205,9 @@ export function ActiveActionWidget() {
         if (msElapsed >= boundaries[i]) { currentStep = i; break; }
       }
     }
-    // Guard explicite : la branche "dernier step" est interdite pendant la phase de départ.
-    const isLastStep = isStartingPhase ? false : currentStep >= totalSteps;
+    // Guard terminal explicite : la branche "dernier step" est interdite tant qu'aucun
+    // step n'a été confirmé pour cette action — évite "Arrivée imminente…" au départ.
+    const isLastStep = hasConfirmedStepForThisAction ? currentStep >= totalSteps : false;
     const nextStepIdx  = Math.min(currentStep + 1, path.length - 1);
 
     // msUntilNext : basé sur le début réel du step confirmé (stepStartedAt)
@@ -299,8 +304,8 @@ export function ActiveActionWidget() {
           {stepDetail
             ? (stepDetail.journeyRemainingMs > 0
                 ? formatDuration(stepDetail.journeyRemainingMs)
-                : (isSyncing ? (isStartingPhase ? "Départ en cours…" : "Finalisation…") : "< 2s"))
-            : (msLeft > 0 ? formatDuration(msLeft) : (isSyncing ? (isStartingPhase ? "Départ en cours…" : "Finalisation…") : "< 2s"))
+                : (isSyncing ? (!hasConfirmedStepForThisAction ? "Départ en cours…" : "Finalisation…") : "< 2s"))
+            : (msLeft > 0 ? formatDuration(msLeft) : (isSyncing ? (!hasConfirmedStepForThisAction ? "Départ en cours…" : "Finalisation…") : "< 2s"))
           }
         </span>
       </div>
