@@ -8,6 +8,7 @@ import { GameEngine } from "../../lib/game/GameEngine";
 import { useGameEngine } from "../../lib/contexts/GameEngineContext";
 import { AvatarActionMenu } from "./AvatarActionMenu";
 import { MovementConfirmationModal } from "./MovementConfirmationModal";
+import { TileContextMenu } from "./TileContextMenu";
 import { MovementSystem } from "../../lib/movement/MovementSystem";
 import { getTerrainMovementCost } from "../../lib/game/TerrainCosts";
 import { CameraControls } from "./CameraControls";
@@ -66,6 +67,17 @@ export function GameCanvas() {
   const [mouseDownPos, setMouseDownPos] = useState<{ x: number; y: number } | null>(null);
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
   const [avatarMenuPosition, setAvatarMenuPosition] = useState({ x: 0, y: 0 });
+
+  // ─── Menu contextuel de case (clic droit) ─────────────────────────────────
+  const [tileContextMenu, setTileContextMenu] = useState<{
+    screenX:    number;
+    screenY:    number;
+    hexX:       number;
+    hexY:       number;
+    hasColony:  boolean;
+    colonyName: string | null;
+  } | null>(null);
+
   // Custom hooks for improved architecture  
   const { renderEngine, updateEngineStores } = useGameEngineAccess();
 
@@ -110,12 +122,48 @@ export function GameCanvas() {
     }
   }, []);
 
+  // ─── Clic droit — menu contextuel de case ─────────────────────────────────
+  const handleCanvasContextMenu = useCallback((event: React.MouseEvent) => {
+    if (event.target !== canvasRef.current) return;
+    event.preventDefault();
+
+    // Fermer d'éventuels menus déjà ouverts
+    setShowAvatarMenu(false);
+    setTileContextMenu(null);
+
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect || !gameEngineRef.current) return;
+
+    const canvasX = event.clientX - rect.left;
+    const canvasY = event.clientY - rect.top;
+    const hex = gameEngineRef.current.getHexAtPosition(canvasX, canvasY);
+    if (!hex) return;
+
+    // Détection de colonie à cette case via UnifiedTerritorySystem (données locales)
+    const territory = UnifiedTerritorySystem.getTerritory(hex.x, hex.y);
+    const hasColony  = Boolean(territory?.colonyId);
+    const colonyName = territory?.colonyName ?? null;
+
+    setTileContextMenu({
+      screenX:    event.clientX,
+      screenY:    event.clientY,
+      hexX:       hex.x,
+      hexY:       hex.y,
+      hasColony,
+      colonyName,
+    });
+    console.log(`[GameCanvas] Clic droit → hex(${hex.x},${hex.y}) hasColony=${hasColony}`);
+  }, [gameEngineRef]);
+
   // Handle canvas clicks (only if not dragging)
   const handleCanvasClick = useCallback((event: React.MouseEvent) => {
     if (!gameEngineRef.current || !mouseDownPos) return;
     
     // Only handle clicks if they're actually on the canvas (not on HUD elements)
     if (event.target !== canvasRef.current) return;
+
+    // Fermer le menu contextuel de case si ouvert
+    setTileContextMenu(null);
 
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -430,6 +478,7 @@ export function GameCanvas() {
         height={window.innerHeight}
         onMouseDown={handleMouseDown}
         onClick={handleCanvasClick}
+        onContextMenu={handleCanvasContextMenu}
         className="block cursor-pointer"
         style={{ touchAction: 'none', pointerEvents: 'auto' }}
       />
@@ -449,6 +498,18 @@ export function GameCanvas() {
           targetHex={pendingMovement}
           onConfirm={handleMovementConfirm}
           onCancel={handleMovementCancel}
+        />
+      )}
+
+      {tileContextMenu && (
+        <TileContextMenu
+          screenX={tileContextMenu.screenX}
+          screenY={tileContextMenu.screenY}
+          hexX={tileContextMenu.hexX}
+          hexY={tileContextMenu.hexY}
+          hasColony={tileContextMenu.hasColony}
+          colonyName={tileContextMenu.colonyName}
+          onClose={() => setTileContextMenu(null)}
         />
       )}
 

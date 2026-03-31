@@ -261,11 +261,21 @@ export function MedievalHUD() {
     };
   }, []);
 
+  // ─── Listener nova:open-panel — déclenché depuis TileContextMenu ──────────
+  // Ouvre le panneau demandé (marketplace, treasury, etc.) via le menu contextuel de case.
+  React.useEffect(() => {
+    const handleOpenPanel = (e: Event) => {
+      const panel = (e as CustomEvent<{ panel: MenuSection }>).detail?.panel;
+      if (panel) setActiveSection(panel);
+    };
+    window.addEventListener('nova:open-panel', handleOpenPanel);
+    return () => window.removeEventListener('nova:open-panel', handleOpenPanel);
+  }, []);
+
   if (gamePhase !== "playing") return null;
 
   const menuItems = [
     { id: 'treasury' as MenuSection, label: 'TRÉSORERIE', icon: '💰' },
-    { id: 'marketplace' as MenuSection, label: 'MARCHÉ PUBLIQUE', icon: '⚖️' },
     { id: 'territory' as MenuSection, label: 'GESTION VILLE/TERRITOIRE', icon: '🗺️' },
     { id: 'marshals' as MenuSection, label: 'GESTION DES ARMÉES', icon: '⚔️' },
     { id: 'treaties' as MenuSection, label: 'TRAITÉS', icon: '📜' },

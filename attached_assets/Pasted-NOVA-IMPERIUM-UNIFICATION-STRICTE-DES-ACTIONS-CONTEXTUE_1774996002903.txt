@@ -1,0 +1,185 @@
+NOVA IMPERIUM — UNIFICATION STRICTE DES ACTIONS CONTEXTUELLES PAR CASE
+Branche cible : NI-10.3
+
+RÔLE
+Tu mets en place la première version propre d’un système unifié d’actions contextuelles par case.
+Tu ne fais pas de refactor massif.
+Tu ne touches pas au moteur métier serveur.
+Tu ne dérives pas.
+
+OBJECTIF
+Je veux unifier l’amorce des actions du jeu autour d’un principe simple :
+
+CASE → BÂTIMENTS / CONTEXTE → ACTIONS DISPONIBLES
+
+Le déclenchement doit se faire par clic droit sur une case.
+
+Exemples immédiats à supporter :
+- case avec bank → action "Accéder à la banque"
+- case avec guilde_des_marchands → action "Accéder au marché"
+- ce système doit devenir la base logique pour l’ensemble du jeu
+
+IMPORTANT
+Je ne veux PAS encore un gros système générique complet pour tout le jeu.
+Je veux une V1 minimale, propre, stable, extensible.
+
+CONTEXTE VALIDÉ
+Aujourd’hui :
+- GameCanvas gère déjà les clics sur la carte
+- AvatarActionMenu est centré avatar, pas case
+- PublicMarketplace existe comme panneau séparé
+- le serveur du marché est maintenant protégé par resolveAccessPoint
+- la banque / le marché doivent devenir des actions contextuelles de case
+
+OBJECTIF TECHNIQUE
+Créer un petit système unifié de type :
+- TileContextMenu
+- ouvert par clic droit sur une case
+- calcule les actions disponibles selon la case cliquée
+- déclenche ensuite les panneaux/services déjà existants
+
+VERSION MINIMALE À LIVRER
+Je veux seulement :
+
+1. clic droit sur une case dans GameCanvas
+2. ouverture d’un menu contextuel de case
+3. détection minimale des bâtiments / points de service présents sur cette case
+4. affichage de ces actions :
+   - Accéder au marché
+   - Accéder à la banque
+5. retrait de l’ouverture libre du marché si elle existe encore
+6. garder le système assez propre pour ajouter plus tard :
+   - ville
+   - territoire
+   - garnison
+   - récolte
+   - etc.
+
+IMPORTANT
+Je ne veux pas que les actions soient codées “en dur partout”.
+Je veux une logique lisible du type :
+- collecter le contexte de case
+- produire une liste d’actions disponibles
+- afficher cette liste
+
+Mais :
+- pas de framework énorme
+- pas d’abstraction prématurée
+- pas de refactor général du jeu
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+Je veux :
+- point exact dans GameCanvas pour brancher le clic droit
+- composant(s) à créer ou modifier
+- comment identifier les bâtiments d’une case
+- comment ouvrir marché / banque depuis ce menu
+- ce qui sera explicitement hors périmètre de cette V1
+
+LECTURE OBLIGATOIRE
+Lire au minimum :
+- client/src/components/game/GameCanvas.tsx
+- client/src/components/game/PublicMarketplace.tsx
+- le composant banque s’il existe
+- le système actuel de sélection de case
+- les données client disponibles pour savoir quels bâtiments sont présents sur une case
+- les composants / stores nécessaires à l’ouverture des panneaux
+
+RÈGLES D’ARCHITECTURE
+1. Le menu est contextuel à la case, pas à l’avatar
+2. Le client n’est qu’un déclencheur d’action
+3. Le serveur reste source de vérité
+4. Le menu ne doit montrer que les actions réellement pertinentes pour la case
+5. Le système doit être extensible sans être sur-abstrait
+
+MODIFICATION EXACTE ATTENDUE
+LOT A — CLIC DROIT SUR CASE
+- ajouter la gestion du clic droit dans GameCanvas
+- déterminer la case cliquée
+- ouvrir un menu contextuel ancré à la souris ou à la case
+
+LOT B — TILE CONTEXT MENU
+- créer un composant dédié de type TileContextMenu
+- lui passer :
+  - position écran
+  - case ciblée
+  - liste d’actions disponibles
+  - callbacks d’ouverture
+
+LOT C — ACTIONS DISPONIBLES V1
+Pour cette V1, supporter au minimum :
+- Accéder au marché si la case contient guilde_des_marchands
+- Accéder à la banque si la case contient bank
+
+IMPORTANT
+Si une case ne contient aucune action spéciale :
+- soit ne pas ouvrir le menu
+- soit ouvrir un menu minimal avec infos uniquement
+Choisir l’option la plus simple et stable, puis l’expliquer.
+
+LOT D — RETRAIT DE L’OUVERTURE LIBRE DU MARCHÉ
+- retirer le chemin d’ouverture libre si encore présent
+- PublicMarketplace ne doit plus s’ouvrir que depuis une action contextuelle de case valide
+
+IMPORTANT
+Ne pas casser PublicMarketplace lui-même.
+Je veux seulement changer la façon propre de l’ouvrir.
+
+INTERDIT
+- ne pas toucher au serveur
+- ne pas toucher aux routes métier
+- ne pas toucher à l’escrow
+- ne pas ouvrir un gros système universel d’actions pour tout le jeu
+- ne pas mélanger TileContextMenu et AvatarActionMenu si cela crée de la confusion
+- ne pas refactorer massivement GameCanvas
+
+ORDRE D’EXÉCUTION OBLIGATOIRE
+1. audit ciblé du point d’ouverture actuel du marché
+2. ajout du clic droit sur case
+3. création du TileContextMenu
+4. branchement des actions Marché / Banque
+5. retrait de l’ouverture libre du marché
+6. vérification runtime
+7. rapport final
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- chaque fichier touché
+
+3. VÉRIFICATIONS FONCTIONNELLES
+A. clic droit sur case avec guilde → action Marché visible
+B. clic droit sur case avec banque → action Banque visible
+C. clic droit sur case sans service → comportement minimal cohérent
+D. le marché ne s’ouvre plus librement hors contexte
+E. aucun changement serveur
+
+4. CONTRÔLE DE PÉRIMÈTRE
+- preuve qu’aucun fichier serveur n’a été modifié
+- preuve qu’aucun gros refactor n’a été ouvert
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+
+6. STOP
+
+CONTRAINTE FINALE
+Je veux poser la base unifiée du système d’actions par case.
+Version minimale.
+Propre.
+Stable.
+Extensible.
