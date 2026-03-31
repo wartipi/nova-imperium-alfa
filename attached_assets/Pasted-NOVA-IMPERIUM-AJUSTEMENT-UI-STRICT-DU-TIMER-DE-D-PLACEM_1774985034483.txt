@@ -1,0 +1,154 @@
+NOVA IMPERIUM — AJUSTEMENT UI STRICT DU TIMER DE DÉPLACEMENT
+CIBLE : 2 TEMPS UNIQUEMENT — PROCHAINE CASE + RESTANT GLOBAL DE L’ORDRE
+Branche cible : NI-10.3
+
+RÔLE
+Tu appliques uniquement le plus petit ajustement UI demandé.
+Tu ne modifies pas la logique serveur.
+Tu ne modifies pas le calcul métier.
+Tu ne fais aucun refactor.
+Tu ne dérives pas.
+
+CONTEXTE VALIDÉ
+Le widget ActiveActionWidget.tsx possède déjà :
+- un temps avant la prochaine case : stepDetail.msUntilNext
+- un temps restant global : expectedEndTime - Date.now()
+
+Je veux verrouiller la présentation pour qu’il n’y ait plus d’ambiguïté.
+
+OBJECTIF
+Je veux exactement 2 temps utiles pendant un déplacement :
+
+1. Temps avant la prochaine case
+   = timer de la tuile/step courant jusqu’au passage à la prochaine case
+
+2. Temps restant estimé pour l’ordre complet
+   = temps restant total pour finir tout le trajet
+   si le déplacement n’est pas interrompu
+
+IMPORTANT
+Je ne veux PAS :
+- une durée totale initiale du trajet
+- un deuxième calcul redondant sur la tuile en cours
+- une ambiguïté de libellé
+
+Je veux :
+- un timer local de step
+- un timer global restant pour l’ordre entier
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. VALIDATION PRÉALABLE
+Je veux confirmation explicite :
+- que le fichier à modifier est uniquement client/src/components/game/ActiveActionWidget.tsx
+- que la ligne 1 utilise bien stepDetail.msUntilNext
+- que la ligne 2 utilise bien expectedEndTime - Date.now() / msLeft
+- que le correctif est purement UI / libellé / présentation
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement :
+- client/src/components/game/ActiveActionWidget.tsx
+
+Aucun autre fichier.
+
+MODIFICATION EXACTE ATTENDUE
+Dans ActiveActionWidget.tsx :
+
+1. Conserver la première ligne de timer :
+- libellé clair :
+  "Avant prochaine case"
+- valeur :
+  formatDuration(stepDetail.msUntilNext)
+
+2. Remplacer le libellé de la deuxième ligne pour qu’il soit non ambigu :
+- au lieu de "Temps restant total"
+- afficher quelque chose de clair du type :
+  "Ordre complet restant"
+  ou
+  "Trajet complet restant"
+  ou
+  "Restant estimé ordre"
+Choisir le libellé le plus clair et court.
+
+3. IMPORTANT
+La valeur de cette deuxième ligne doit continuer à être :
+- le temps global restant de l’ordre complet
+- donc msLeft = expectedEndTime - Date.now()
+- PAS la durée totale initiale
+- PAS un deuxième timer de case
+
+4. Ne pas modifier :
+- stepDetail
+- serverStep
+- isSyncing
+- fetchCurrentAction
+- GameCanvas
+- MedievalHUD
+- le serveur
+
+5. En fin de trajet :
+- conserver Arrivée imminente…
+- conserver Finalisation…
+- conserver une structure cohérente
+
+ORDRE D’EXÉCUTION OBLIGATOIRE
+1. modifier uniquement ActiveActionWidget.tsx
+2. vérifier que les 2 temps affichés ont bien des significations différentes
+3. vérifier que la deuxième ligne exprime bien le restant global de l’ordre
+4. rapport final
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- client/src/components/game/ActiveActionWidget.tsx
+
+3. VÉRIFICATIONS FONCTIONNELLES
+A. Déplacement en cours
+- ligne 1 = avant prochaine case
+- ligne 2 = restant global de l’ordre complet
+
+B. Non-régression
+- aucun calcul step modifié
+- aucun calcul serveur modifié
+- aucune logique sync finale modifiée
+
+C. Fin de trajet
+- Arrivée imminente / Finalisation restent cohérents
+
+4. CONTRÔLE DE PÉRIMÈTRE
+- preuve qu’aucun autre fichier n’a été modifié
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+- sans ouvrir un autre sujet
+
+RAPPORT FINAL OBLIGATOIRE
+1. FICHIERS MODIFIÉS
+2. PREUVES
+3. VÉRIFICATIONS FONCTIONNELLES
+4. CONTRÔLE DE PÉRIMÈTRE
+5. RISQUES RÉSIDUELS
+6. STOP
+
+CONTRAINTE FINALE
+Je veux exactement 2 temps :
+- un temps de step courant
+- un temps global restant pour l’ordre complet
+Pas de doublon.
+Pas de durée totale initiale.
+Pas d’ambiguïté.

@@ -268,7 +268,7 @@ export function ActiveActionWidget() {
       )}
 
       <div className="flex justify-between text-amber-700 mb-1">
-        <span>Temps restant total</span>
+        <span>Trajet complet restant</span>
         <span className="font-medium">
           {msLeft > 0 ? formatDuration(msLeft) : (isSyncing ? "Finalisation…" : "< 2s")}
         </span>
