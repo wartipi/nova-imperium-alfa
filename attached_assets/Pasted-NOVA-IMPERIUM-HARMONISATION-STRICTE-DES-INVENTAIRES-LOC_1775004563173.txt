@@ -1,0 +1,221 @@
+NOVA IMPERIUM — HARMONISATION STRICTE DES INVENTAIRES LOCAUX
+CIBLE : POSER LA BASE CANONIQUE DE L’ÉCONOMIE AVANT TESTS DE MARCHÉ
+Branche cible : NI-10.3
+
+RÔLE
+Tu agis d’abord comme auditeur et architecte technique strict.
+Tu ne fais aucun refactor massif.
+Tu ne dérives pas.
+Tu gardes le serveur comme source de vérité.
+
+CONTEXTE VALIDÉ
+Nous avons déjà commencé à clarifier :
+- le réseau bancaire
+- les villes connectées
+- les accès contextuels par case
+- la séparation des panneaux
+
+La prochaine étape est maintenant de concevoir proprement :
+1. l’inventaire local des villes
+2. l’inventaire du joueur
+
+OBJECTIF STRATÉGIQUE
+Je veux une économie complètement harmonisée avant de tester les échanges sur le marché.
+
+Je veux que toute ressource appartienne clairement à un conteneur canonique.
+
+CONTENEURS CIBLES À CLARIFIER
+Je veux distinguer explicitement :
+
+1. INVENTAIRE LOCAL DE VILLE
+- ressources physiquement présentes dans une ville
+- utilisées par cette ville pour ses opérations locales
+
+2. INVENTAIRE DU JOUEUR
+- ressources physiquement transportées par le joueur
+- limitées par la capacité de transport si cette règle existe déjà
+
+3. RÉSEAU BANCAIRE
+- ressources déposées dans le réseau bancaire
+- séparées du stockage local de ville
+
+4. RESSOURCES EN ATTENTE
+- pending harvest
+- production non encore déplacée
+- tout état intermédiaire non encore intégré dans un conteneur final
+
+IMPORTANT
+Je veux une logique lisible :
+- origine
+- destination
+- conteneur canonique
+- règle de transition
+
+Je ne veux plus de mélange flou entre :
+- stock ville
+- stock joueur
+- banque
+- pending
+- récolte
+- transport
+
+PRÉ-REQUIS OBLIGATOIRES
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’AUDIT
+Je veux :
+- fichiers à lire
+- flux inventaire à tracer
+- tables / DTO / routes concernées
+- zones actuellement ambiguës
+- plus petit chemin pour harmoniser le système
+
+LECTURE OBLIGATOIRE
+Lire au minimum :
+- TreasuryPanel.tsx
+- les panneaux ou composants liés à l’inventaire joueur
+- les composants liés aux villes / récoltes / pending harvest
+- economyApi.ts
+- player transport API / services si existants
+- routes serveur économie / inventaire / villes
+- economyService.ts
+- tout service serveur lié au stockage des ressources
+- schéma DB lié à :
+  - player_bank
+  - city_pending_harvest
+  - inventaire ville
+  - inventaire joueur
+  - transport joueur
+  - objets uniques si encore présents
+  - tout autre conteneur réel de ressources
+
+AUDIT OBLIGATOIRE
+Avant toute implémentation, je veux une réponse claire aux questions suivantes :
+
+1. Quels conteneurs de ressources existent réellement aujourd’hui ?
+2. Pour chacun :
+- que stocke-t-il exactement ?
+- qui l’utilise ?
+- quelles routes l’alimentent ?
+- quelles routes le débitent ?
+
+3. Quelle est aujourd’hui la différence réelle entre :
+- inventaire local de ville
+- pending harvest
+- banque
+- transport joueur
+
+4. Où y a-t-il actuellement des chevauchements, doublons ou ambiguïtés ?
+
+5. Quelle est la source de vérité canonique de chaque conteneur ?
+- serveur ?
+- client ?
+- mix confus ?
+
+6. Quelles opérations économiques existent déjà entre ces conteneurs ?
+Exemples à vérifier :
+- ville → banque
+- banque → ville
+- banque → joueur
+- joueur → ville
+- récolte → ville
+- récolte → banque
+- ville → marché
+- joueur → marché
+- toute autre opération réelle détectée
+
+7. Quel est le plus petit modèle harmonisé possible pour préparer proprement les tests de marché ?
+
+ARCHITECTURE CIBLE À DÉFINIR
+Je veux que tu proposes un modèle canonique simple du type :
+
+- CityLocalInventory
+- PlayerTransportInventory
+- PlayerBankNetworkInventory
+- PendingHarvest
+
+Pour chacun, je veux :
+- rôle exact
+- ce qui peut y entrer
+- ce qui peut en sortir
+- depuis/vers quels autres conteneurs
+- qui a le droit de l’utiliser
+
+IMPORTANT
+Je veux un système simple.
+Je ne veux pas une usine à gaz.
+
+RÈGLES DE DESIGN À RESPECTER
+1. serveur source de vérité
+2. pas de duplication floue
+3. chaque ressource a un emplacement canonique
+4. chaque transfert a une origine et une destination explicites
+5. les panneaux UI doivent refléter cette structure
+6. les futurs tests de marché doivent pouvoir s’appuyer dessus sans ambiguïté
+
+OBJECTIF DE CETTE TÂCHE
+Je veux arriver à un premier livrable qui :
+- clarifie les inventaires ville / joueur
+- harmonise leur affichage et leur rôle
+- prépare proprement les tests d’échange sur le marché ensuite
+
+IMPORTANT
+Le marché viendra après.
+Dans cette tâche, on prépare le terrain.
+On ne dérive pas encore sur les tests de marché eux-mêmes sauf pour expliquer les dépendances.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher les fichiers strictement nécessaires côté :
+- serveur
+- client
+- DTO
+- routes
+- mapping
+- panneaux d’inventaire
+mais uniquement après audit et justification
+
+INTERDIT
+- aucun refactor massif
+- aucune supposition non prouvée
+- ne pas bricoler une UI sans modèle clair
+- ne pas mélanger banque et inventaire local
+- ne pas ouvrir un gros chantier marché avant d’avoir harmonisé les inventaires
+
+ORDRE D’EXÉCUTION OBLIGATOIRE
+1. audit complet des conteneurs économiques
+2. diagnostic des ambiguïtés
+3. proposition d’un modèle canonique minimal
+4. implémentation ciblée
+5. vérification
+6. rapport final
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. PÉRIMÈTRE AUDITÉ
+2. CONTENEURS RÉELS IDENTIFIÉS
+3. FLUX ÉCONOMIQUES ACTUELS
+4. AMBIGUÏTÉS / PROBLÈMES
+5. MODÈLE CANONIQUE RETENU
+6. FICHIERS MODIFIÉS
+7. PREUVES
+8. VÉRIFICATIONS FONCTIONNELLES
+9. RISQUES RÉSIDUELS
+10. IMPACT SUR LES FUTURS TESTS DE MARCHÉ
+11. PROCHAINE TÂCHE UNIQUE RECOMMANDÉE
+12. STOP
+
+CONTRAINTE FINALE
+Je veux une économie harmonisée autour de conteneurs canoniques clairs :
+- ville locale
+- joueur transport
+- banque réseau
+- pending
+afin que les futurs tests d’échange sur le marché reposent sur une base propre et non ambiguë.
