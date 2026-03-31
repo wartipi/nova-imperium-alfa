@@ -1,0 +1,106 @@
+NOVA IMPERIUM — AFFINAGE STRICT DU TILE CONTEXT MENU
+CIBLE : PASSER DE “CASE COLONISÉE” À “BÂTIMENTS RÉELS DE LA CASE”
+Branche cible : NI-10.3
+
+RÔLE
+Tu affines le système contextuel de case déjà en place.
+Tu ne fais aucun refactor massif.
+Tu ne touches pas au serveur sauf nécessité prouvée.
+Tu ne dérives pas.
+
+CONTEXTE VALIDÉ
+La V1 actuelle est bien en place :
+- clic droit sur case
+- TileContextMenu
+- ouverture du marché / banque via nova:open-panel
+- retrait du bouton libre marché
+
+Mais la logique actuelle est encore trop grossière :
+- hasColony = true → affiche Marché + Banque
+- elle ne dépend pas encore des bâtiments réels présents sur la case
+
+OBJECTIF
+Je veux passer de :
+- case colonisée → services génériques
+
+à :
+- bâtiments réels sur la case → actions réellement disponibles
+
+RÈGLE CIBLE
+- si la case contient bank → afficher “Accéder à la banque”
+- si la case contient guilde_des_marchands → afficher “Accéder au marché”
+- si elle contient les deux → afficher les deux
+- si elle ne contient ni l’un ni l’autre → ne pas afficher ces actions
+
+IMPORTANT
+Je veux que ce soit basé sur les vrais bâtiments de la case,
+pas simplement sur la présence d’une colonie.
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. VALIDATION PRÉALABLE
+Je veux confirmation explicite :
+- d’où viennent actuellement les données de bâtiments disponibles côté client
+- si elles suffisent déjà pour distinguer bank vs guilde_des_marchands
+- sinon, le plus petit chemin propre pour les rendre disponibles au menu contextuel
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE AUTORISÉ
+Priorité au client uniquement.
+Tu ne touches le serveur que si tu prouves que les données de bâtiments ne sont pas accessibles autrement.
+
+OBJECTIF TECHNIQUE
+Je veux une logique lisible du type :
+- collecter le contexte de case
+- extraire les bâtiments réels
+- construire la liste des actions disponibles
+
+IMPORTANT
+Je ne veux pas un gros framework d’actions.
+Je veux simplement rendre la V1 correcte.
+
+ORDRE D’EXÉCUTION OBLIGATOIRE
+1. identifier la source réelle des bâtiments de la case
+2. remplacer hasColony par une logique par bâtiment
+3. adapter TileContextMenu
+4. vérifier Marché / Banque
+5. rapport final
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- chaque fichier touché
+
+3. VÉRIFICATIONS FONCTIONNELLES
+A. case avec bank seule → Banque uniquement
+B. case avec guilde_des_marchands seule → Marché uniquement
+C. case avec les deux → les deux
+D. case colonisée sans ces bâtiments → aucun de ces deux services
+
+4. CONTRÔLE DE PÉRIMÈTRE
+- preuve qu’aucun gros refactor n’a été ouvert
+- preuve qu’aucune logique serveur marché n’a été modifiée sans nécessité
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+
+6. STOP
+
+CONTRAINTE FINALE
+Je veux faire passer le système contextuel de case
+de “présence d’une colonie”
+à “présence des bâtiments réels”.

@@ -70,12 +70,13 @@ export function GameCanvas() {
 
   // ─── Menu contextuel de case (clic droit) ─────────────────────────────────
   const [tileContextMenu, setTileContextMenu] = useState<{
-    screenX:    number;
-    screenY:    number;
-    hexX:       number;
-    hexY:       number;
-    hasColony:  boolean;
-    colonyName: string | null;
+    screenX:      number;
+    screenY:      number;
+    hexX:         number;
+    hexY:         number;
+    hasMarket:    boolean;
+    hasBank:      boolean;
+    locationName: string | null;
   } | null>(null);
 
   // Custom hooks for improved architecture  
@@ -139,21 +140,67 @@ export function GameCanvas() {
     const hex = gameEngineRef.current.getHexAtPosition(canvasX, canvasY);
     if (!hex) return;
 
-    // Détection de colonie à cette case via UnifiedTerritorySystem (données locales)
-    const territory = UnifiedTerritorySystem.getTerritory(hex.x, hex.y);
-    const hasColony  = Boolean(territory?.colonyId);
-    const colonyName = territory?.colonyName ?? null;
+    // ── Résolution des bâtiments réels sur la case (V1 affinage) ──────────────
+    //
+    // Priorité 1 : ville du joueur dans novaImperiums (buildings exacts connus)
+    //   → coordonnées locales (x/y) calculées dans hydrateCitiesFromServer
+    //     comme worldX - originWorldX / worldY - originWorldY
+    // Priorité 2 : colonie d'un autre joueur (UnifiedTerritorySystem)
+    //   → fallback conservateur : hasMarket=true, hasBank=true (serveur valide)
+    // Priorité 3 : aucune colonie → hasMarket=false, hasBank=false
+    //
+    // Note : /api/cities/me ne retourne que les villes du joueur courant.
+    // Les bâtiments des villes adverses ne sont donc pas disponibles côté client.
+    // Le fallback conservateur garantit que l'accès réel est toujours server-authoritative.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // Toutes les villes de tous les novaImperiums du joueur
+    const allOwnCities = novaImperiums.flatMap((ni) => ni.cities);
+    const ownCity = allOwnCities.find((c) => c.x === hex.x && c.y === hex.y);
+
+    let hasMarket    = false;
+    let hasBank      = false;
+    let locationName: string | null = null;
+
+    if (ownCity) {
+      // ✅ Ville du joueur : bâtiments exacts
+      const buildings = ownCity.buildings as string[];
+      hasMarket    = buildings.includes("guilde_des_marchands");
+      hasBank      = buildings.includes("bank");
+      locationName = ownCity.name ?? null;
+      console.log(
+        `[GameCanvas] Clic droit → hex(${hex.x},${hex.y}) ownCity="${ownCity.name}" ` +
+        `buildings=[${buildings.join(",")}] hasMarket=${hasMarket} hasBank=${hasBank}`
+      );
+    } else {
+      // Fallback : colonie d'un autre joueur ? (bâtiments non connus côté client)
+      const territory = UnifiedTerritorySystem.getTerritory(hex.x, hex.y);
+      const hasColony  = Boolean(territory?.colonyId);
+      locationName     = territory?.colonyName ?? null;
+
+      if (hasColony) {
+        // Conservateur : serveur validera l'accès réel
+        hasMarket    = true;
+        hasBank      = true;
+        console.log(
+          `[GameCanvas] Clic droit → hex(${hex.x},${hex.y}) colonie tierce="${locationName}" ` +
+          `(bâtiments inconnus côté client → fallback conservateur)`
+        );
+      } else {
+        console.log(`[GameCanvas] Clic droit → hex(${hex.x},${hex.y}) terrain non colonisé`);
+      }
+    }
 
     setTileContextMenu({
-      screenX:    event.clientX,
-      screenY:    event.clientY,
-      hexX:       hex.x,
-      hexY:       hex.y,
-      hasColony,
-      colonyName,
+      screenX: event.clientX,
+      screenY: event.clientY,
+      hexX:    hex.x,
+      hexY:    hex.y,
+      hasMarket,
+      hasBank,
+      locationName,
     });
-    console.log(`[GameCanvas] Clic droit → hex(${hex.x},${hex.y}) hasColony=${hasColony}`);
-  }, [gameEngineRef]);
+  }, [gameEngineRef, novaImperiums]);
 
   // Handle canvas clicks (only if not dragging)
   const handleCanvasClick = useCallback((event: React.MouseEvent) => {
@@ -507,8 +554,9 @@ export function GameCanvas() {
           screenY={tileContextMenu.screenY}
           hexX={tileContextMenu.hexX}
           hexY={tileContextMenu.hexY}
-          hasColony={tileContextMenu.hasColony}
-          colonyName={tileContextMenu.colonyName}
+          hasMarket={tileContextMenu.hasMarket}
+          hasBank={tileContextMenu.hasBank}
+          locationName={tileContextMenu.locationName}
           onClose={() => setTileContextMenu(null)}
         />
       )}

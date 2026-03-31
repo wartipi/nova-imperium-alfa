@@ -1,50 +1,39 @@
 import { useEffect, useRef } from "react";
 
 // ─── TileContextMenu ──────────────────────────────────────────────────────────
-// Menu contextuel de case (V1 minimale).
+// Menu contextuel de case (V1 — affinage bâtiments réels).
 // Ouvert par clic droit depuis GameCanvas sur une tuile hexagonale.
-// Calcule les actions disponibles selon le contexte de la case :
-//   - case avec colonie → Marché + Banque (le serveur valide via resolveAccessPoint)
-//   - case sans colonie → info seulement, aucune action de service
 //
-// Les actions dispatche nova:open-panel { panel } — écouté par MedievalHUD.
-// Extensibilité : ajouter de nouvelles entrées dans COLONY_ACTIONS ou créer
-// un tableau NO_COLONY_ACTIONS pour les futures actions terrain.
+// Logique de résolution des actions disponibles (dans GameCanvas, pas ici) :
+//   1. Lookup prioritaire dans novaImperiums (villes du joueur) :
+//      → buildings exacts → hasMarket / hasBank déterminés précisément
+//   2. Fallback si colonie d'un autre joueur :
+//      → hasMarket = true, hasBank = true (conservative ; le serveur valide)
+//   3. Aucune colonie → hasMarket = false, hasBank = false
+//
+// Ce composant reçoit hasMarket/hasBank déjà résolus et les affiche.
+// Extensibilité : ajouter d'autres actions en ajoutant des props booléens + entrées dans ACTIONS.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface TileContextMenuProps {
-  screenX:    number;
-  screenY:    number;
-  hexX:       number;
-  hexY:       number;
-  hasColony:  boolean;
-  colonyName: string | null;
-  onClose:    () => void;
+  screenX:       number;
+  screenY:       number;
+  hexX:          number;
+  hexY:          number;
+  hasMarket:     boolean;
+  hasBank:       boolean;
+  locationName:  string | null;
+  onClose:       () => void;
 }
-
-// Actions disponibles pour les cases avec colonie (V1)
-const COLONY_ACTIONS = [
-  {
-    panel:   "marketplace",
-    icon:    "🏪",
-    label:   "Accéder au marché",
-    detail:  "Requiert Guilde des Marchands",
-  },
-  {
-    panel:   "treasury",
-    icon:    "🏦",
-    label:   "Accéder à la banque",
-    detail:  "Requiert Banque",
-  },
-] as const;
 
 export function TileContextMenu({
   screenX,
   screenY,
   hexX,
   hexY,
-  hasColony,
-  colonyName,
+  hasMarket,
+  hasBank,
+  locationName,
   onClose,
 }: TileContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -65,9 +54,14 @@ export function TileContextMenu({
     };
   }, [onClose]);
 
+  const hasAnyAction = hasMarket || hasBank;
+
   // Clamping pour rester dans le viewport
-  const menuW = 220;
-  const menuH = hasColony ? 160 : 90;
+  const menuW  = 230;
+  const baseH  = 56; // en-tête
+  const rowH   = 52; // par action
+  const noActH = 44; // message "aucun service"
+  const menuH  = baseH + (hasAnyAction ? [hasMarket, hasBank].filter(Boolean).length * rowH : noActH);
   const clampedX = Math.min(screenX, window.innerWidth  - menuW - 8);
   const clampedY = Math.min(screenY, window.innerHeight - menuH - 8);
 
@@ -81,10 +75,10 @@ export function TileContextMenu({
       ref={menuRef}
       className="fixed bg-stone-900 border border-amber-700 rounded-lg shadow-2xl text-white select-none"
       style={{
-        left:       clampedX,
-        top:        clampedY,
-        width:      menuW,
-        zIndex:     10000,
+        left:          clampedX,
+        top:           clampedY,
+        width:         menuW,
+        zIndex:        10000,
         pointerEvents: "auto",
       }}
       onContextMenu={(e) => e.preventDefault()}
@@ -93,7 +87,7 @@ export function TileContextMenu({
       <div className="px-3 py-2 border-b border-amber-800/60 flex items-center justify-between">
         <div>
           <p className="text-xs font-bold text-amber-400">
-            {hasColony ? (colonyName ?? "Colonie") : "Terrain"}
+            {locationName ?? (hasAnyAction ? "Colonie" : "Terrain")}
           </p>
           <p className="text-xs text-stone-400">
             case ({hexX}, {hexY})
@@ -108,24 +102,37 @@ export function TileContextMenu({
         </button>
       </div>
 
-      {/* Corps */}
+      {/* Corps — actions par bâtiment réel */}
       <div className="py-1">
-        {hasColony ? (
-          COLONY_ACTIONS.map((action) => (
-            <button
-              key={action.panel}
-              onClick={() => handleAction(action.panel)}
-              className="w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-amber-800/40 transition-colors"
-              style={{ pointerEvents: "auto" }}
-            >
-              <span className="text-base mt-0.5">{action.icon}</span>
-              <span className="flex flex-col">
-                <span className="text-sm font-medium text-amber-100">{action.label}</span>
-                <span className="text-xs text-stone-400">{action.detail}</span>
-              </span>
-            </button>
-          ))
-        ) : (
+        {hasMarket && (
+          <button
+            onClick={() => handleAction("marketplace")}
+            className="w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-amber-800/40 transition-colors"
+            style={{ pointerEvents: "auto" }}
+          >
+            <span className="text-base mt-0.5">🏪</span>
+            <span className="flex flex-col">
+              <span className="text-sm font-medium text-amber-100">Accéder au marché</span>
+              <span className="text-xs text-stone-400">Guilde des Marchands</span>
+            </span>
+          </button>
+        )}
+
+        {hasBank && (
+          <button
+            onClick={() => handleAction("treasury")}
+            className="w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-amber-800/40 transition-colors"
+            style={{ pointerEvents: "auto" }}
+          >
+            <span className="text-base mt-0.5">🏦</span>
+            <span className="flex flex-col">
+              <span className="text-sm font-medium text-amber-100">Accéder à la banque</span>
+              <span className="text-xs text-stone-400">Banque</span>
+            </span>
+          </button>
+        )}
+
+        {!hasAnyAction && (
           <div className="px-3 py-2 text-xs text-stone-400 italic">
             Aucun service disponible sur ce terrain.
           </div>
