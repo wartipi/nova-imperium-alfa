@@ -1,0 +1,114 @@
+NOVA IMPERIUM — CORRECTIF STRICT DU WIDGET
+CIBLE : BLOQUER L’ÉTAT TERMINAL AU DÉPART D’UNE NOUVELLE ACTION
+Branche cible : NI-10.3
+
+RÔLE
+Tu appliques uniquement le plus petit correctif propre.
+Tu ne touches qu’au widget.
+Tu ne modifies pas le serveur.
+Tu ne modifies pas GameCanvas.
+Tu ne modifies pas MedievalHUD.
+Tu ne dérives pas.
+
+CONTEXTE VALIDÉ
+Le bug observé en runtime est :
+- au début d’un nouveau trajet
+- le widget affiche encore
+  - Tuile N / N
+  - Arrivée imminente…
+  - Finalisation…
+
+Cause racine déjà identifiée :
+le reset de serverStep par useEffect est asynchrone.
+Au premier render de la nouvelle action, serverStep peut encore contenir la valeur terminale de l’action précédente.
+
+Le rapport précédent disait avoir ajouté le correctif,
+mais ce correctif n’est pas visible dans le code actuellement vérifié sur NI-10.3.
+
+OBJECTIF
+Appliquer réellement ce correctif exact dans ActiveActionWidget.tsx :
+
+1. Pendant isStartingPhase
+- ne pas utiliser serverStep comme source fiable
+- donc ne pas entrer dans la branche terminale
+
+2. Pendant isStartingPhase
+- interdire explicitement isLastStep = true
+
+CORRECTIF EXACT ATTENDU
+Dans stepDetail :
+
+A. Ajouter un guard explicite
+const isServerStepReliable = serverStep !== null && !isStartingPhase;
+
+B. Utiliser ce guard :
+- si isServerStepReliable → currentStep = Math.min(serverStep, totalSteps)
+- sinon → fallback estimation temporelle
+
+C. Ajouter un second guard explicite :
+const isLastStep = isStartingPhase ? false : currentStep >= totalSteps;
+
+IMPORTANT
+Je veux exactement ce correctif.
+Pas de refactor.
+Pas de logique bonus.
+Pas d’autre chantier.
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. VALIDATION PRÉALABLE
+Je veux confirmation explicite :
+- que le fichier touché est uniquement client/src/components/game/ActiveActionWidget.tsx
+- que le code actuel n’a pas encore ces deux guards
+- que tu vas appliquer exactement ces deux guards
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement :
+- client/src/components/game/ActiveActionWidget.tsx
+
+Aucun autre fichier.
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- client/src/components/game/ActiveActionWidget.tsx
+
+3. VÉRIFICATIONS FONCTIONNELLES
+A. Départ de trajet
+- ne doit plus afficher Tuile N / N au départ
+- ne doit plus afficher Arrivée imminente… au départ
+- ne doit plus afficher Finalisation… au départ
+
+B. Milieu de trajet
+- progression inchangée
+
+C. Fin réelle
+- Arrivée imminente… et Finalisation… restent présentes au vrai bon moment
+
+4. CONTRÔLE DE PÉRIMÈTRE
+- aucun autre fichier modifié
+
+5. PUSH
+- push vers origin NI-10.3
+- puis afficher la preuve du push
+
+6. STOP
+
+CONTRAINTE FINALE
+Je veux ce correctif exact, réellement appliqué et réellement poussé.
+Pas juste rapporté.
