@@ -44,18 +44,23 @@ export function ActiveActionWidget() {
   const [completedMsg,   setCompletedMsg]   = useState<string | null>(null);
   const [isSyncing,      setIsSyncing]      = useState(false);
   const [serverStep,     setServerStep]     = useState<number | null>(null);
+  const [stepStartedAt,  setStepStartedAt]  = useState<number | null>(null);
 
-  // Réinitialiser isSyncing et serverStep à chaque nouvelle action
+  // Réinitialiser isSyncing, serverStep et stepStartedAt à chaque nouvelle action
   useEffect(() => {
     setIsSyncing(false);
     setServerStep(null);
+    setStepStartedAt(null);
   }, [activeAction?.id]);
 
   // Écouter la vérité serveur du step courant (émis par GameCanvas à chaque step confirmé)
   useEffect(() => {
     const handler = (e: Event) => {
       const { effectiveStep } = (e as CustomEvent<{ effectiveStep: number }>).detail ?? {};
-      if (typeof effectiveStep === 'number') setServerStep(effectiveStep);
+      if (typeof effectiveStep === 'number') {
+        setServerStep(effectiveStep);
+        setStepStartedAt(Date.now()); // début réel du step confirmé
+      }
     };
     window.addEventListener('nova:step-progress', handler);
     return () => window.removeEventListener('nova:step-progress', handler);
@@ -193,9 +198,23 @@ export function ActiveActionWidget() {
     }
     const isLastStep   = currentStep >= totalSteps;
     const nextStepIdx  = Math.min(currentStep + 1, path.length - 1);
-    const msUntilNext  = isLastStep
+
+    // msUntilNext : basé sur le début réel du step confirmé (stepStartedAt)
+    // Si le step vient d'être confirmé par le serveur, on calcule depuis cet instant.
+    // Sinon, fallback estimatif depuis les bornes temporelles globales.
+    const currentStepCost = isLastStep ? 0 : path[currentStep + 1].cost;
+    const elapsedInStep = stepStartedAt !== null
+      ? Math.max(0, Date.now() - stepStartedAt)
+      : Math.max(0, msElapsed - (boundaries[currentStep] ?? 0));
+    const msUntilNext = isLastStep
       ? 0
-      : Math.max(0, boundaries[nextStepIdx] - msElapsed);
+      : Math.max(0, currentStepCost * msPerAP - elapsedInStep);
+
+    // journeyRemainingMs : timer du step courant + coût de tous les steps ultérieurs
+    const remainingCostAfterNext = isLastStep
+      ? 0
+      : (path.slice(currentStep + 2) as { cost: number }[]).reduce((s, p) => s + p.cost, 0);
+    const journeyRemainingMs = msUntilNext + remainingCostAfterNext * msPerAP;
 
     return {
       currentStep,
@@ -203,6 +222,7 @@ export function ActiveActionWidget() {
       nextTile: isLastStep ? null : path[nextStepIdx],
       msUntilNext,
       isLastStep,
+      journeyRemainingMs,
     };
   })();
 
@@ -270,7 +290,12 @@ export function ActiveActionWidget() {
       <div className="flex justify-between text-amber-700 mb-1">
         <span>Trajet complet restant</span>
         <span className="font-medium">
-          {msLeft > 0 ? formatDuration(msLeft) : (isSyncing ? "Finalisation…" : "< 2s")}
+          {stepDetail
+            ? (stepDetail.journeyRemainingMs > 0
+                ? formatDuration(stepDetail.journeyRemainingMs)
+                : (isSyncing ? "Finalisation…" : "< 2s"))
+            : (msLeft > 0 ? formatDuration(msLeft) : (isSyncing ? "Finalisation…" : "< 2s"))
+          }
         </span>
       </div>
 

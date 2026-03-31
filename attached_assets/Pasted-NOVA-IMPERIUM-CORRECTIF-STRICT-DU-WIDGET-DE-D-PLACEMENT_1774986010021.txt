@@ -1,0 +1,196 @@
+NOVA IMPERIUM — CORRECTIF STRICT DU WIDGET DE DÉPLACEMENT
+CIBLE : TIMER DE LA CASE COURANTE + RESTANT GLOBAL DU TRAJET
+Branche cible : NI-10.3
+
+RÔLE
+Tu appliques uniquement le plus petit correctif UI/logique locale nécessaire.
+Tu ne modifies pas le serveur.
+Tu ne refactors rien massivement.
+Tu ne dérives pas.
+
+CONTEXTE VALIDÉ
+Le comportement actuel du widget est encore incorrect en fin de trajet :
+
+Exemple observé :
+- Tuile 3 / 4
+- Prochaine tuile encore affichée
+- Avant prochaine case = 0s
+- Trajet complet restant = Finalisation…
+
+Ce comportement est faux pour l’utilisateur :
+tant qu’une prochaine case reste à franchir, le timer "Avant prochaine case" ne doit pas déjà être à 0,
+et "Trajet complet restant" ne doit pas déjà être en Finalisation si le trajet n’est pas encore entièrement consommé.
+
+RÈGLE MÉTIER UI ATTENDUE
+Je veux exactement ceci :
+
+1. "Avant prochaine case"
+= le temps restant du step/case actuellement confirmé
+jusqu’au passage à la prochaine case
+
+2. "Trajet complet restant"
+= le temps estimé restant pour l’ordre complet si le trajet n’est pas interrompu
+= temps du step courant restant
++ temps de tous les steps restants après celui-ci
+
+IMPORTANT
+Je ne veux plus que l’affichage principal repose directement sur msLeft seul
+quand cela crée un 0s / Finalisation prématuré alors que le serveur confirme encore une case courante non terminée.
+
+INTERPRÉTATION ATTENDUE
+Aujourd’hui, côté serveur :
+- 1 AP = 5 secondes
+- le path contient un cost par step
+
+Donc côté widget :
+- durée d’un step = path[i].cost * msPerAP
+- restant global = somme des coûts restants * msPerAP,
+avec prise en compte du temps déjà écoulé dans le step courant confirmé
+
+IMPORTANT
+Tu peux dériver msPerAP depuis :
+- totalDur / totalCost
+pour rester aligné sur le serveur
+mais le résultat attendu correspond bien à “PA restants x 5 secondes” dans la configuration actuelle.
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. VALIDATION PRÉALABLE
+Je veux confirmation explicite :
+- que le fichier à modifier est uniquement client/src/components/game/ActiveActionWidget.tsx
+- que le bug vient du fait que le widget s’appuie encore trop sur msLeft / Date.now() global
+- que le correctif peut être limité au widget
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement :
+- client/src/components/game/ActiveActionWidget.tsx
+
+Aucun autre fichier.
+
+Si tu juges qu’un autre fichier est absolument nécessaire :
+- tu t’arrêtes
+- tu le signales
+- tu ne modifies rien d’autre sans validation
+
+MODIFICATION EXACTE ATTENDUE
+
+OBJECTIF TECHNIQUE
+Introduire une notion locale de "début du step confirmé courant" dans le widget.
+
+COMPORTEMENT ATTENDU
+A. Quand une nouvelle action move commence :
+- initialiser le step courant confirmé
+- initialiser le timestamp de début du step courant
+
+B. Quand le widget reçoit nova:step-progress avec un effectiveStep plus grand :
+- mettre à jour serverStep
+- réinitialiser le timestamp de début du nouveau step confirmé
+
+C. Calculer ensuite :
+1. currentStepCost
+   = coût du prochain passage depuis la case courante confirmée
+   = path[currentStep + 1].cost si une prochaine case existe
+
+2. msUntilNext
+   = currentStepCost * msPerAP - temps écoulé depuis le début du step courant
+   clampé à >= 0
+
+3. remainingCostAfterNext
+   = somme des coûts path[i].cost pour les steps après le prochain
+
+4. journeyRemainingMs
+   = msUntilNext + remainingCostAfterNext * msPerAP
+
+IMPORTANT
+Je veux que la ligne :
+- "Avant prochaine case"
+utilise msUntilNext
+
+Et que la ligne :
+- "Trajet complet restant"
+utilise journeyRemainingMs
+
+JE NE VEUX PAS
+- que "Trajet complet restant" soit basé directement sur msLeft si cela contredit encore le step confirmé
+- que "Avant prochaine case" tombe à 0s tant que le step confirmé n’a pas réellement changé, sauf tout dernier instant réel
+
+ÉTAT FINAL / FINALISATION
+Je veux "Finalisation…"
+uniquement quand :
+- il n’y a plus de coût restant à parcourir côté widget
+- mais que le serveur n’a pas encore confirmé la clôture finale
+
+Autrement dit :
+- s’il reste encore une case confirmée non franchie, on montre encore un vrai timer de step
+- pas "Finalisation…" trop tôt
+
+NE PAS MODIFIER
+- GameCanvas.tsx
+- MedievalHUD.tsx
+- le serveur
+- les events existants
+- la logique de fetchCurrentAction
+- la structure générale du widget
+- la logique d’annulation
+
+ORDRE D’EXÉCUTION OBLIGATOIRE
+1. modifier uniquement ActiveActionWidget.tsx
+2. recalculer les 2 lignes de temps selon le step confirmé courant
+3. vérifier le cas observé :
+   - Tuile 3/4 ne doit plus montrer 0s + Finalisation prématurée
+4. rapport final
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- client/src/components/game/ActiveActionWidget.tsx
+
+3. VÉRIFICATIONS FONCTIONNELLES
+A. Cas normal
+- Avant prochaine case décrémente sur le step courant
+- Trajet complet restant décrémente sur l’ordre complet
+
+B. Cas observé de fin de trajet
+- si Tuile 3 / 4 et une prochaine case existe encore,
+  Avant prochaine case ne doit plus être 0s prématurément
+- Trajet complet restant ne doit plus être Finalisation prématurément
+
+C. Fin réelle
+- Finalisation… n’apparaît qu’au vrai dernier moment cohérent
+
+4. CONTRÔLE DE PÉRIMÈTRE
+- preuve qu’aucun autre fichier n’a été modifié
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+- sans ouvrir un autre sujet
+
+RAPPORT FINAL OBLIGATOIRE
+1. FICHIERS MODIFIÉS
+2. PREUVES
+3. VÉRIFICATIONS FONCTIONNELLES
+4. CONTRÔLE DE PÉRIMÈTRE
+5. RISQUES RÉSIDUELS
+6. STOP
+
+CONTRAINTE FINALE
+Je veux :
+- un timer de la case/step courant confirmé
+- un timer restant global du trajet complet
+- aucune Finalisation prématurée
+- aucun 0s prématuré si une case reste encore à franchir
