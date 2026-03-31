@@ -156,6 +156,8 @@ export function ActiveActionWidget() {
   // qui peut avoir jusqu'à 1s de retard). Le ticker setNow déclenche toujours le re-render
   // chaque seconde, mais la valeur affichée est toujours fraîche au moment du rendu.
   const msLeft  = Math.max(0, new Date(activeAction.expectedEndTime).getTime() - Date.now());
+  const msSinceStart   = Date.now() - new Date(activeAction.startTime).getTime();
+  const isStartingPhase = msSinceStart < 3000; // < 3s depuis le lancement → "Départ en cours…"
   const meta    = getActionMeta(activeAction.type);
 
   // ─── Calcul step par step (move uniquement) ──────────────────────────────────
@@ -293,8 +295,8 @@ export function ActiveActionWidget() {
           {stepDetail
             ? (stepDetail.journeyRemainingMs > 0
                 ? formatDuration(stepDetail.journeyRemainingMs)
-                : (isSyncing ? "Finalisation…" : "< 2s"))
-            : (msLeft > 0 ? formatDuration(msLeft) : (isSyncing ? "Finalisation…" : "< 2s"))
+                : (isSyncing ? (isStartingPhase ? "Départ en cours…" : "Finalisation…") : "< 2s"))
+            : (msLeft > 0 ? formatDuration(msLeft) : (isSyncing ? (isStartingPhase ? "Départ en cours…" : "Finalisation…") : "< 2s"))
           }
         </span>
       </div>

@@ -8,6 +8,7 @@ import { GameEngine } from "../../lib/game/GameEngine";
 import { useGameEngine } from "../../lib/contexts/GameEngineContext";
 import { AvatarActionMenu } from "./AvatarActionMenu";
 import { MovementConfirmationModal } from "./MovementConfirmationModal";
+import { MovementSystem } from "../../lib/movement/MovementSystem";
 import { getTerrainMovementCost } from "../../lib/game/TerrainCosts";
 import { CameraControls } from "./CameraControls";
 import { UnifiedTerritorySystem } from "../../lib/systems/UnifiedTerritorySystem";
@@ -33,6 +34,19 @@ export function GameCanvas() {
   const { novaImperiums, selectedUnit, moveUnit } = useNovaImperium();
   const { avatarPosition, avatarHexPosition, travelVisualHexPosition, setTravelVisualHexPosition, clearTravelVisualHexPosition, avatarRotation, isMoving, selectedCharacter, moveAvatarToHex, isHexVisible, isHexInCurrentVision, pendingMovement, setPendingMovement } = usePlayer();
   const { activeAction } = usePlayerActions();
+
+  // ─── Preview visuelle du pathfinder — tuiles intermédiaires du trajet prévu ───
+  const [previewPathHexes, setPreviewPathHexes] = useState<{ x: number; y: number }[]>([]);
+  useEffect(() => {
+    if (!pendingMovement || !mapData) { setPreviewPathHexes([]); return; }
+    const result = MovementSystem.previewMovement(pendingMovement.x, pendingMovement.y, mapData);
+    if (result.success && result.path.length > 2) {
+      // Tuiles intermédiaires seulement : exclude le départ (index 0) et la destination (dernier)
+      setPreviewPathHexes(result.path.slice(1, result.path.length - 1).map(h => ({ x: h.x, y: h.y })));
+    } else {
+      setPreviewPathHexes([]);
+    }
+  }, [pendingMovement, mapData]);
 
   // ─── Refs pour sync finale de position (résistants au cleanup de l'effet de polling) ──
   // finalSyncTimerRef : stocke le setTimeout de sync finale — ne doit PAS être annulé
@@ -185,12 +199,12 @@ export function GameCanvas() {
 
       gameEngineRef.current.updateCivilizations(novaImperiums);
       gameEngineRef.current.setSelectedHex(selectedHex);
-      gameEngineRef.current.updateAvatar(visualAvatarPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision, pendingMovement);
+      gameEngineRef.current.updateAvatar(visualAvatarPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision, pendingMovement, previewPathHexes);
       gameEngineRef.current.render();
       
       // Plus de centrage automatique - caméra libre
     }
-  }, [novaImperiums, selectedHex, avatarPosition, travelVisualHexPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision, pendingMovement]);
+  }, [novaImperiums, selectedHex, avatarPosition, travelVisualHexPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision, pendingMovement, previewPathHexes]);
 
   // Phase 5 — polling présence multijoueur
   // Dépendance unique : isAuthenticated — l'intervalle n'est pas recréé à chaque rendu

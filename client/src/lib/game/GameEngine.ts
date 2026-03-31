@@ -36,6 +36,7 @@ export class GameEngine {
   private isAvatarMoving = false;
   private selectedCharacter: any = null;
   private pendingMovement: { x: number; y: number } | null = null;
+  private previewPath: Set<string> = new Set();
   public hasInitialCentered: boolean = false;
   private isAdminMode: boolean = false;
   private otherPlayers: Array<{ userId: string; username: string; hexX: number; hexY: number }> = [];
@@ -472,6 +473,16 @@ export class GameEngine {
         this.ctx.stroke();
       }
       
+      // Highlight preview path hexes (tuiles intermédiaires du trajet prévu)
+      const isPreviewPath = this.previewPath.size > 0 && this.previewPath.has(`${hex.x},${hex.y}`);
+      if (isPreviewPath) {
+        this.ctx.strokeStyle = 'rgba(255, 180, 0, 0.9)';
+        this.ctx.lineWidth = 2.5;
+        this.ctx.stroke();
+        this.ctx.fillStyle = 'rgba(255, 200, 50, 0.2)';
+        this.ctx.fill();
+      }
+
       // Highlight pending movement destination
       if (isPendingDestination) {
         this.ctx.strokeStyle = '#00FF00';
@@ -772,7 +783,7 @@ export class GameEngine {
   }
 
   // Avatar methods
-  updateAvatar(position: { x: number; y: number; z: number }, rotation: { x: number; y: number; z: number }, isMoving: boolean, selectedCharacter: any, isHexVisible?: (x: number, y: number) => boolean, isHexInCurrentVision?: (x: number, y: number) => boolean, pendingMovement?: { x: number; y: number } | null) {
+  updateAvatar(position: { x: number; y: number; z: number }, rotation: { x: number; y: number; z: number }, isMoving: boolean, selectedCharacter: any, isHexVisible?: (x: number, y: number) => boolean, isHexInCurrentVision?: (x: number, y: number) => boolean, pendingMovement?: { x: number; y: number } | null, previewPath?: { x: number; y: number }[]) {
     this.avatarPosition = position;
     this.avatarRotation = rotation;
     this.isAvatarMoving = isMoving;
@@ -784,6 +795,9 @@ export class GameEngine {
       this.isHexInCurrentVision = isHexInCurrentVision;
     }
     this.pendingMovement = pendingMovement || null;
+    this.previewPath = previewPath && previewPath.length > 0
+      ? new Set(previewPath.map(h => `${h.x},${h.y}`))
+      : new Set();
   }
 
   private renderAvatar() {

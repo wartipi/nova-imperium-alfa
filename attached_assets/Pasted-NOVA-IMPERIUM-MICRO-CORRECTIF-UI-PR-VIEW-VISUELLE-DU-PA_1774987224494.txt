@@ -1,0 +1,199 @@
+NOVA IMPERIUM — MICRO-CORRECTIF UI + PRÉVIEW VISUELLE DU PATHFINDER
+CIBLE :
+A) remplacer "Finalisation…" affiché au départ par "Départ en cours…"
+B) ajouter un rendu visuel léger de la prévision du pathfinder si cela reste simple
+Branche cible : NI-10.3
+
+RÔLE
+Tu appliques uniquement le plus petit correctif propre possible.
+Tu ne fais aucun refactor massif.
+Tu ne touches pas au serveur.
+Tu ne dérives pas.
+
+CONTEXTE VALIDÉ
+1. Le widget ActiveActionWidget.tsx gère déjà :
+- serverStep
+- stepStartedAt
+- journeyRemainingMs
+- les états "Finalisation…" / "< 2s"
+
+2. Au début du trajet, il peut encore afficher "Finalisation…" alors que le joueur est en phase de départ.
+Je veux remplacer ce ressenti visuel par :
+- "Départ en cours…"
+
+3. La modale de confirmation calcule déjà un chemin :
+- MovementSystem.previewMovement(...)
+- pathResult.path
+- et affiche déjà les étapes textuellement
+
+Donc une preview visuelle du pathfinder est potentiellement faisable côté client,
+mais seulement si ça reste léger et propre.
+
+OBJECTIF
+Faire 2 lots :
+
+LOT A — MICRO-CORRECTIF UI
+Quand on est en tout début de trajet et que le widget tomberait visuellement sur "Finalisation…",
+je veux afficher à la place :
+- "Départ en cours…"
+
+IMPORTANT
+Je veux que ce remplacement soit limité au cas de départ du trajet.
+Je ne veux pas casser la vraie "Finalisation…" de fin de trajet.
+
+LOT B — PRÉVIEW VISUELLE DU PATHFINDER
+Je veux un rendu visuel léger du chemin prévu avant confirmation du déplacement,
+si cela peut être ajouté sans chantier lourd.
+
+Le rendu attendu peut être quelque chose de simple :
+- surbrillance des hex du chemin
+- ou points/anneaux/contours sur les cases du trajet
+- ou ligne visuelle simple
+Mais il faut que ce soit :
+- lisible
+- temporaire
+- uniquement pendant la prévisualisation / confirmation
+- retiré dès annulation ou validation
+
+IMPORTANT
+Si cette preview exige un refactor lourd du moteur de rendu,
+tu t’arrêtes après l’audit du LOT B et tu le dis explicitement.
+Tu n’improvises pas un gros chantier.
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+Je veux :
+- fichiers à lire
+- fichiers à modifier
+- cause racine du message "Finalisation…" au départ
+- verdict sur la preview visuelle :
+  - légère et faisable maintenant
+  - ou trop lourde pour ce segment
+
+LECTURE OBLIGATOIRE
+Lire au minimum :
+- client/src/components/game/ActiveActionWidget.tsx
+- client/src/components/game/MovementConfirmationModal.tsx
+- client/src/components/game/GameCanvas.tsx
+- les fichiers client exacts nécessaires pour savoir comment dessiner temporairement le chemin
+  (par exemple moteur de rendu / hooks associés si réellement nécessaire)
+
+IMPORTANT
+Avant d’implémenter LOT B, je veux une mini-validation explicite :
+- "La preview visuelle peut rester légère"
+ou
+- "La preview visuelle ouvrirait un chantier trop lourd"
+
+PÉRIMÈTRE AUTORISÉ
+Client uniquement.
+
+Tu peux toucher seulement les fichiers strictement nécessaires côté client.
+
+INTERDIT
+- ne pas toucher le serveur
+- ne pas toucher aux règles métier de déplacement
+- ne pas toucher à la logique PA
+- ne pas ouvrir un gros système de rendu générique
+- ne pas ajouter une abstraction inutile
+
+LOT A — DÉPART EN COURS
+Objectif :
+corriger uniquement le message de début de trajet.
+
+Comportement attendu :
+- si le trajet est au tout début et que l’UI tomberait sur l’état visuel "Finalisation…",
+  afficher à la place :
+  "Départ en cours…"
+- la vraie fin de trajet doit continuer à utiliser :
+  "Finalisation…"
+
+IMPORTANT
+Je veux une détection simple et fiable du cas "début de trajet",
+pas une heuristique confuse.
+
+LOT B — PRÉVIEW VISUELLE DU PATHFINDER
+Objectif :
+afficher le chemin prévu avant confirmation.
+
+Comportement attendu :
+- quand pendingMovement / preview de déplacement est actif :
+  afficher visuellement le chemin calculé
+- quand on annule :
+  la preview disparaît
+- quand on confirme :
+  la preview disparaît
+- pas de persistance résiduelle
+- pas de pollution du rendu normal
+
+IMPORTANT
+Réutiliser autant que possible le path déjà calculé.
+Je ne veux pas de double système inutile.
+
+SI LOT B EST LÉGER
+Implémenter le plus petit rendu possible, lisible, temporaire.
+
+SI LOT B N’EST PAS LÉGER
+Tu ne l’implémentes pas.
+Tu termines LOT A, puis tu fournis :
+- cause du blocage
+- plus petit chantier futur recommandé
+
+ORDRE D’EXÉCUTION OBLIGATOIRE
+1. audit LOT A et LOT B
+2. implémenter LOT A
+3. implémenter LOT B seulement si léger
+4. vérifier runtime
+5. rapport final
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- chaque fichier touché
+
+3. VÉRIFICATIONS FONCTIONNELLES
+A. Début de trajet
+- "Départ en cours…" s’affiche bien au début si le cas se produit
+- "Finalisation…" reste réservé à la vraie fin
+
+B. Preview pathfinder
+- visible avant confirmation
+- retirée à l’annulation
+- retirée à la confirmation
+- pas de rémanence
+
+4. CONTRÔLE DE PÉRIMÈTRE
+- preuve qu’aucun fichier serveur n’a été modifié
+- preuve qu’aucun gros refactor n’a été ouvert
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+- sans ouvrir d’autre sujet
+
+RAPPORT FINAL OBLIGATOIRE
+1. DIAGNOSTIC
+2. FICHIERS MODIFIÉS
+3. PREUVES
+4. VÉRIFICATIONS FONCTIONNELLES
+5. CONTRÔLE DE PÉRIMÈTRE
+6. RISQUES RÉSIDUELS
+7. STOP
+
+CONTRAINTE FINALE
+Je veux :
+- un petit correctif du message de départ
+- une preview visuelle du pathfinder seulement si elle peut être ajoutée proprement maintenant
+- aucun gros chantier caché
