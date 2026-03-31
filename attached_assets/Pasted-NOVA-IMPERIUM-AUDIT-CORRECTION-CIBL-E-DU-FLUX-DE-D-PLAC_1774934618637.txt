@@ -1,0 +1,171 @@
+NOVA IMPERIUM — AUDIT + CORRECTION CIBLÉE DU FLUX DE DÉPLACEMENT
+CIBLE : PA RÉELLEMENT DÉPENSÉS + TIMER DE DÉPLACEMENT DÉTAILLÉ
+Branche cible : NI-10.3
+
+RÔLE
+Tu agis comme auditeur / implémenteur strict sur le flux de déplacement.
+Tu ne fais aucun refactor massif.
+Tu ne changes pas l’architecture.
+Tu distingues clairement :
+1. bug métier confirmé
+2. amélioration d’affichage demandée
+3. validation runtime à faire
+
+CONTEXTE VALIDÉ
+Audit confirmé côté code :
+
+A. POINTS D’ACTION
+- shared/schema.ts contient bien player_state.actionPoints et maxActionPoints
+- POST /api/player/actions/move calcule totalCost et crée l’action
+- mais le flux de déplacement ne lit ni ne met à jour player_state
+- server/playerActionService.ts contient même le commentaire :
+  "les PA ne sont pas déduits côté serveur pour les actions de déplacement"
+
+B. TIMER DE DÉPLACEMENT
+- ActiveActionWidget affiche actuellement un compte à rebours global basé sur expectedEndTime
+- il n’affiche pas un détail par tuile / par step
+- le code actuel montre seulement :
+  - coût total
+  - destination
+  - temps restant global
+- le joueur veut maintenant un vrai compteur qui reflète le trajet tuile par tuile
+
+OBJECTIF
+Je veux traiter proprement ces 2 points, sans dérive :
+
+1. BUG CONFIRMÉ
+Les PA doivent être réellement dépensés côté serveur lors de la création d’une action de déplacement.
+
+2. AMÉLIORATION DEMANDÉE
+Le widget d’action active doit afficher un vrai timer de trajet basé sur les steps du path, pas seulement un temps global brut.
+
+IMPORTANT
+Je ne veux pas de déduction côté client.
+Je ne veux pas de hack visuel.
+Je veux :
+- source de vérité serveur pour les PA
+- affichage client dérivé des données serveur existantes
+
+PRÉ-REQUIS OBLIGATOIRES
+Avant toute modification, afficher exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. PLAN D’EXÉCUTION
+Je veux :
+- objectif précis
+- fichiers à lire
+- fichiers à modifier
+- risques
+- comportement attendu pour :
+  - déplacement normal
+  - PA insuffisants
+  - annulation
+  - admin mode
+
+PÉRIMÈTRE À AUDITER / MODIFIER
+Lire au minimum :
+- shared/schema.ts
+- server/playerActionService.ts
+- server/routes/playerActions.ts
+- client/src/components/game/ActiveActionWidget.tsx
+- client/src/lib/api/playerActionsApi.ts
+- tout autre fichier strictement nécessaire si tu expliques pourquoi
+
+PARTIE A — CORRECTION PA
+Je veux d’abord confirmer et brancher proprement la consommation de PA.
+
+Questions à trancher avant modification :
+1. Quelle est la vraie source canonique des PA joueur ?
+2. Existe-t-il déjà un service/helper pour lire/écrire player_state ?
+3. Quel comportement retenir si PA insuffisants ?
+4. Quel comportement retenir à l’annulation :
+   - remboursement complet
+   - pas de remboursement
+   - autre
+Je veux une recommandation claire avant code.
+
+IMPLÉMENTATION ATTENDUE — PA
+Objectif minimal :
+- au moment de la création d’une action move côté serveur,
+- vérifier que le joueur a assez de PA,
+- refuser sinon,
+- déduire les PA serveur si l’action est créée avec succès,
+- ne rien déduire côté client
+
+IMPORTANT
+Je veux que ce soit :
+- atomique autant que possible
+- cohérent avec admin mode
+- sans casser le reste du flux
+
+PARTIE B — TIMER DÉTAILLÉ
+Je veux ensuite améliorer l’affichage dans ActiveActionWidget.
+
+Comportement demandé :
+- conserver le temps total restant
+- afficher aussi un détail basé sur le path :
+  - tuile/step courant
+  - prochain step
+  - temps avant prochaine tuile
+  - progression step par step
+- utiliser les coûts déjà présents dans path[].cost
+- utiliser startTime / expectedEndTime comme base de synchronisation
+- ne pas inventer une logique contradictoire avec le serveur
+
+IMPORTANT
+Je ne veux pas de calcul arbitraire.
+Le calcul doit être dérivé des mêmes règles que resolveMoveStep :
+- 5 secondes par AP actuellement
+- coût par step = path[i].cost
+
+VALIDATION RUNTIME OBLIGATOIRE
+Je veux ensuite tester :
+1. déplacement coût 1 AP
+2. déplacement coût multiple AP
+3. PA insuffisants
+4. annulation
+5. admin mode
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. DIAGNOSTIC
+- bug PA confirmé
+- état actuel du timer
+- distinction bug vs amélioration
+
+2. FICHIERS MODIFIÉS
+- liste précise
+
+3. PREUVES
+- git diff --stat
+- diffs exacts des fichiers touchés
+
+4. VÉRIFICATIONS FONCTIONNELLES
+A. PA
+- déduction correcte
+- refus si insuffisant
+- comportement à l’annulation
+- comportement admin
+B. Timer
+- total restant correct
+- détail par step correct
+- cohérence avec path et totalCost
+
+5. CONTRÔLE DE PÉRIMÈTRE
+- aucun fichier hors périmètre touché sans justification
+
+6. RISQUES RÉSIDUELS
+- uniquement les vrais
+
+7. STOP
+
+CONTRAINTE FINALE
+Je veux un correctif propre du bug PA côté serveur, puis un affichage de timer détaillé cohérent avec les steps du trajet.
+Pas de dérive.

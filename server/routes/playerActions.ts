@@ -147,6 +147,13 @@ router.post("/actions/move", requireAuth, async (req: AuthRequest, res) => {
     if (msg.startsWith("ACTION_ALREADY_ACTIVE")) {
       return res.status(409).json({ error: msg });
     }
+    if (msg.startsWith("INSUFFICIENT_ACTION_POINTS")) {
+      return res.status(400).json({
+        error: "INSUFFICIENT_ACTION_POINTS",
+        message: "Points d'action insuffisants pour ce déplacement.",
+        details: msg,
+      });
+    }
     console.error("[Actions/Move] Erreur:", err);
     return res.status(500).json({ error: "Erreur serveur lors de la création de l'action" });
   }

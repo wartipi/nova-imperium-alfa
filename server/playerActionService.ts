@@ -10,6 +10,7 @@ import {
 } from "../shared/schema";
 import type { PlayerAction, PathStep } from "../shared/schema";
 import { savePlayerPosition, getPlayerPosition } from "./playerPositionService";
+import { getPlayerState, savePlayerState } from "./playerStateService";
 import type { ActorContext } from "./types/actorContext";
 
 const HOURS_PER_AP = 5 / 3600; // 5 secondes par PA (phase test)
@@ -253,6 +254,20 @@ export async function createMoveAction(
     throw new Error(`ACTION_ALREADY_ACTIVE: joueur ${playerId} a déjà une action en cours (id=${existing.id})`);
   }
 
+  // ─── Vérification PA (ignorée pour admin) ────────────────────────────────────
+  const stateSnapshot = !shouldIgnoreActionPointCosts(context)
+    ? await getPlayerState(playerId)
+    : null;
+
+  if (!shouldIgnoreActionPointCosts(context)) {
+    const available = stateSnapshot?.actionPoints ?? 0;
+    if (available < totalCost) {
+      throw new Error(
+        `INSUFFICIENT_ACTION_POINTS: requis=${totalCost} disponibles=${available}`
+      );
+    }
+  }
+
   const now = new Date();
   const durationMs = shouldIgnoreActionTimers(context)
     ? 0
@@ -276,6 +291,23 @@ export async function createMoveAction(
       updatedAt: now,
     })
     .returning();
+
+  // ─── Déduction PA (après insertion réussie, ignorée pour admin) ──────────────
+  if (!shouldIgnoreActionPointCosts(context) && stateSnapshot) {
+    await savePlayerState(playerId, {
+      level:            stateSnapshot.level,
+      experience:       stateSnapshot.experience,
+      totalExperience:  stateSnapshot.totalExperience,
+      actionPoints:     stateSnapshot.actionPoints - totalCost,
+      maxActionPoints:  stateSnapshot.maxActionPoints,
+      competencePoints: stateSnapshot.competencePoints ?? 0,
+      competences:      (stateSnapshot.competences as { competence: string; level: number }[]) ?? [],
+    });
+    console.log(
+      `[PlayerAction] PA déduits: player=${playerId} -${totalCost} AP` +
+      ` → reste ${stateSnapshot.actionPoints - totalCost} / ${stateSnapshot.maxActionPoints}`
+    );
+  }
 
   const gmTag = shouldIgnoreActionTimers(context) ? ' [Admin — durée=0]' : '';
   console.log(

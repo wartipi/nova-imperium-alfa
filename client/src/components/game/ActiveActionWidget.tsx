@@ -132,6 +132,54 @@ export function ActiveActionWidget() {
   const msLeft  = Math.max(0, new Date(activeAction.expectedEndTime).getTime() - Date.now());
   const meta    = getActionMeta(activeAction.type);
 
+  // ─── Calcul step par step (move uniquement) ──────────────────────────────────
+  // Déduit msPerAP de startTime/expectedEndTime/totalCost — miroir de resolveMoveStep serveur.
+  // Pas de constante codée en dur : dérivé des données action réelles.
+  const stepDetail = (() => {
+    if (activeAction.type !== "move") return null;
+    const path = activeAction.path ?? [];
+    if (path.length < 2) return null;
+
+    const startMs  = new Date(activeAction.startTime).getTime();
+    const endMs    = new Date(activeAction.expectedEndTime).getTime();
+    const totalDur = endMs - startMs;
+    const isAdminInstant = totalDur === 0;
+
+    if (isAdminInstant) return null; // admin : déplacement immédiat, pas de détail
+
+    const msPerAP = activeAction.totalCost > 0 ? totalDur / activeAction.totalCost : 0;
+
+    // Bornes cumulées par step : boundaries[i] = ms depuis startTime pour entrer en étape i
+    // path[0] = départ (coût ignoré), path[1..n-1] = étapes
+    const boundaries: number[] = [0];
+    let acc = 0;
+    for (let i = 1; i < path.length; i++) {
+      acc += path[i].cost * msPerAP;
+      boundaries.push(acc);
+    }
+
+    const msElapsed = Date.now() - startMs;
+    let currentStep = 0;
+    for (let i = boundaries.length - 1; i >= 0; i--) {
+      if (msElapsed >= boundaries[i]) { currentStep = i; break; }
+    }
+
+    const totalSteps   = path.length - 1; // nombre de tuiles à traverser
+    const isLastStep   = currentStep >= totalSteps;
+    const nextStepIdx  = Math.min(currentStep + 1, path.length - 1);
+    const msUntilNext  = isLastStep
+      ? 0
+      : Math.max(0, boundaries[nextStepIdx] - msElapsed);
+
+    return {
+      currentStep,
+      totalSteps,
+      nextTile: isLastStep ? null : path[nextStepIdx],
+      msUntilNext,
+      isLastStep,
+    };
+  })();
+
   return (
     <div className="mt-2 border border-amber-400 rounded bg-amber-50 p-2 text-xs">
       <div className="text-amber-800 font-semibold mb-1.5 flex items-center gap-1">
@@ -161,8 +209,37 @@ export function ActiveActionWidget() {
         </div>
       )}
 
+      {/* Détail step par step — uniquement pour les déplacements non-instantanés */}
+      {stepDetail && (
+        <div className="border-t border-amber-200 pt-1 mt-1 mb-1 space-y-0.5">
+          <div className="flex justify-between text-amber-700">
+            <span>Tuile</span>
+            <span className="font-medium">
+              {stepDetail.currentStep} / {stepDetail.totalSteps}
+            </span>
+          </div>
+          {stepDetail.isLastStep ? (
+            <div className="text-amber-600 italic text-center">Arrivée imminente…</div>
+          ) : (
+            <>
+              <div className="flex justify-between text-amber-700">
+                <span>Prochaine tuile</span>
+                <span className="font-medium">
+                  ({stepDetail.nextTile!.worldX}, {stepDetail.nextTile!.worldY})
+                  {" "}<span className="text-amber-500 font-normal">{stepDetail.nextTile!.terrain}</span>
+                </span>
+              </div>
+              <div className="flex justify-between text-amber-700">
+                <span>Temps avant tuile</span>
+                <span className="font-medium">{formatDuration(stepDetail.msUntilNext)}</span>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       <div className="flex justify-between text-amber-700 mb-1">
-        <span>Temps restant estimé</span>
+        <span>Temps restant total</span>
         <span className="font-medium">
           {msLeft > 0 ? formatDuration(msLeft) : "< 2s"}
         </span>
