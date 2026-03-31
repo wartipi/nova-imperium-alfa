@@ -1,0 +1,130 @@
+NOVA IMPERIUM — CORRECTIF STRICT
+CIBLE : RETIRER UNIQUEMENT LE BYPASS DES TIMERS ADMIN
+Branche cible : NI-10.3
+
+RÔLE
+Tu appliques uniquement le plus petit correctif demandé.
+Tu ne fais aucun refactor massif.
+Tu ne touches à rien d’autre.
+Tu ne dérives pas.
+
+CONTEXTE VALIDÉ
+Le code courant contient deux helpers distincts dans server/playerActionService.ts :
+
+1. shouldIgnoreActionTimers(context)
+2. shouldIgnoreActionPointCosts(context)
+
+Je veux modifier uniquement la logique des timers.
+
+OBJECTIF
+Retirer uniquement le bypass des timers pour les admins.
+
+RÈGLE ATTENDUE APRÈS CORRECTIF
+- Les admins doivent maintenant subir les durées normales des actions
+- Les timers ne doivent plus être ignorés pour les admins
+- Le bypass des coûts PA admin doit rester inchangé
+- Aucun autre comportement ne doit être modifié
+
+IMPORTANT
+Je ne veux PAS toucher :
+- au bypass des coûts PA
+- à la logique de déduction progressive par step
+- au widget de timer
+- aux routes
+- au client
+- au parsing du header x-admin-mode
+- à l’architecture générale
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. VALIDATION PRÉALABLE
+Je veux confirmation explicite :
+- que shouldIgnoreActionTimers(context) est bien défini dans server/playerActionService.ts
+- que shouldIgnoreActionPointCosts(context) est bien distinct et séparé
+- que le correctif peut rester limité à un seul fichier
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement :
+- server/playerActionService.ts
+
+Aucun autre fichier.
+
+Si tu juges qu’un autre fichier est absolument nécessaire :
+- tu t’arrêtes
+- tu le signales
+- tu ne modifies rien d’autre sans validation
+
+MODIFICATION EXACTE ATTENDUE
+Dans server/playerActionService.ts :
+
+Avant :
+- shouldIgnoreActionTimers(context) retourne un booléen qui permet encore un bypass admin
+
+Après :
+- shouldIgnoreActionTimers(context) doit toujours retourner false
+
+IMPORTANT
+Je veux le plus petit changement possible.
+Pas de helper nouveau.
+Pas de renommage.
+Pas de nettoyage bonus.
+Pas de refactor.
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- server/playerActionService.ts
+
+3. VÉRIFICATIONS FONCTIONNELLES
+A. Admin move
+- confirmer qu’un déplacement admin n’est plus instantané
+- confirmer qu’il reçoit maintenant une durée normale
+
+B. Coûts PA admin
+- confirmer que shouldIgnoreActionPointCosts(context) reste inchangé
+- confirmer qu’aucune logique de coût PA admin n’a été modifiée
+
+C. Joueur normal
+- confirmer qu’aucun comportement normal joueur n’a changé
+
+4. CONTRÔLE DE PÉRIMÈTRE
+Je veux une preuve explicite que :
+- aucun autre fichier n’a été modifié
+- aucune route n’a été touchée
+- aucun client n’a été touché
+- aucun timer widget n’a été touché
+- aucune logique PA n’a été touchée
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+- classés
+- sans ouvrir un autre sujet
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+2. PREUVES
+3. VÉRIFICATIONS FONCTIONNELLES
+4. CONTRÔLE DE PÉRIMÈTRE
+5. RISQUES RÉSIDUELS
+6. STOP
+
+CONTRAINTE FINALE
+Retirer uniquement le bypass des timers admin.
+Ne rien changer d’autre.

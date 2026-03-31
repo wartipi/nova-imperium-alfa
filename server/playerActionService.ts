@@ -154,8 +154,8 @@ export async function resolveEffectivePlayerPosition(
 }
 
 // ─── Helpers de comportement admin ────────────────────────────────────────────
-function shouldIgnoreActionTimers(context: ActorContext): boolean {
-  return context.role === 'admin' && context.adminModeEnabled === true;
+function shouldIgnoreActionTimers(_context: ActorContext): boolean {
+  return false;
 }
 
 export function shouldIgnoreActionPointCosts(context: ActorContext): boolean {
