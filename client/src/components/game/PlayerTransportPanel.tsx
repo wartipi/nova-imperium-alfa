@@ -85,7 +85,12 @@ export function PlayerTransportPanel() {
       // Rafraîchit transport + inventaire ville via bus d'événements
       window.dispatchEvent(new CustomEvent('nova:logistic-refresh'));
     } catch (err: any) {
-      setDepositMsg(`❌ ${err.message ?? "Erreur de dépôt"}`);
+      const raw = err.message ?? "Erreur de dépôt";
+      let msg = `❌ ${raw}`;
+      if (raw.includes("WAREHOUSE_REQUIRED"))          msg = "❌ Cette ville n'a pas d'entrepôt — construisez-en un d'abord";
+      if (raw.includes("WAREHOUSE_CAPACITY_EXCEEDED")) msg = "❌ Capacité de l'entrepôt dépassée — libérez de l'espace";
+      if (raw.includes("INSUFFICIENT_TRANSPORT"))      msg = "❌ Stock de transport insuffisant";
+      setDepositMsg(msg);
     } finally {
       setDepositing(false);
     }

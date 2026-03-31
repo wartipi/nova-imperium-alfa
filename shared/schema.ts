@@ -492,6 +492,7 @@ export const cityBuildings = pgTable("city_buildings", {
   id:       serial("id").primaryKey(),
   cityId:   integer("city_id").notNull().references(() => cities.id, { onDelete: "cascade" }),
   building: text("building").notNull(),
+  level:    integer("level").notNull().default(1),
   builtAt:  timestamp("built_at").notNull().defaultNow(),
 }, (table) => ({
   uniq: unique("city_buildings_city_id_building_key").on(table.cityId, table.building),

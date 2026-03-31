@@ -19,7 +19,10 @@ import {
   TRANSPORT_MAX_UNITS,
 } from "../playerActionService";
 import { checkCityAccess } from "../cityService";
-import { checkAccessPoint, resolveAccessPoint, checkPlayerCity, resolvePlayerCity } from "../accessPointService";
+import {
+  checkAccessPoint, resolveAccessPoint, checkPlayerCity, resolvePlayerCity,
+  getWarehouseInfo,
+} from "../accessPointService";
 
 const router = Router();
 
@@ -378,6 +381,30 @@ router.post("/deposit-transport-to-city", requireAuth, async (req: AuthRequest, 
     const cityInfo = await resolvePlayerCity(playerId);
     const { cityId, cityName } = cityInfo;
 
+    // ── Vérification entrepôt ────────────────────────────────────────────────
+    const wh = await getWarehouseInfo(cityId);
+    if (!wh.hasWarehouse) {
+      return res.status(403).json({
+        error: `WAREHOUSE_REQUIRED: la ville "${cityName}" n'a pas d'entrepôt — construisez-en un avant de déposer des ressources`,
+      });
+    }
+
+    // ── Vérification capacité entrepôt ───────────────────────────────────────
+    const [inv] = await db
+      .select()
+      .from(cityInventory)
+      .where(eq(cityInventory.cityId, cityId))
+      .limit(1);
+    const currentTotal = inv
+      ? (inv.gold + inv.food + inv.wood + inv.stone + inv.iron + inv.copper + inv.coal + inv.oil + inv.herbs + inv.fur)
+      : 0;
+    const depositTotal = gold + food + wood + stone + iron + copper + coal + oil + herbs + fur;
+    if (currentTotal + depositTotal > wh.capacity) {
+      return res.status(422).json({
+        error: `WAREHOUSE_CAPACITY_EXCEEDED: capacité entrepôt ${wh.capacity} dépassée — stock actuel ${currentTotal}, dépôt demandé ${depositTotal}`,
+      });
+    }
+
     // Lecture du transport courant du joueur
     const transport = await getOrInitPlayerTransport(playerId);
 
@@ -461,9 +488,44 @@ router.post("/deposit-transport-to-city", requireAuth, async (req: AuthRequest, 
   } catch (err: any) {
     const msg = err.message ?? "";
     if (err.status === 403) return res.status(403).json({ error: msg });
-    if (msg.startsWith("INSUFFICIENT_TRANSPORT")) return res.status(422).json({ error: msg });
+    if (msg.startsWith("INSUFFICIENT_TRANSPORT"))    return res.status(422).json({ error: msg });
+    if (msg.startsWith("WAREHOUSE_CAPACITY_EXCEEDED")) return res.status(422).json({ error: msg });
+    if (msg.startsWith("WAREHOUSE_REQUIRED"))        return res.status(403).json({ error: msg });
     console.error("[POST /api/economy/deposit-transport-to-city] Erreur:", err);
     return res.status(500).json({ error: "Impossible d'effectuer le dépôt" });
+  }
+});
+
+// ─── GET /api/economy/city-warehouse-info/:cityId ──────────────────────────
+// Retourne le statut entrepôt d'une ville + total actuel city_inventory.
+// Auth requise. Utilisé par l'UI pour afficher capacité / état entrepôt.
+router.get("/city-warehouse-info/:cityId", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const cityId = parseInt(req.params.cityId, 10);
+    if (isNaN(cityId)) return res.status(400).json({ error: "cityId invalide" });
+
+    const wh = await getWarehouseInfo(cityId);
+
+    const [inv] = await db
+      .select()
+      .from(cityInventory)
+      .where(eq(cityInventory.cityId, cityId))
+      .limit(1);
+
+    const currentTotal = inv
+      ? (inv.gold + inv.food + inv.wood + inv.stone + inv.iron + inv.copper + inv.coal + inv.oil + inv.herbs + inv.fur)
+      : 0;
+
+    return res.json({
+      cityId,
+      hasWarehouse: wh.hasWarehouse,
+      level:        wh.level,
+      capacity:     wh.capacity,
+      currentTotal,
+    });
+  } catch (err: any) {
+    console.error("[GET /api/economy/city-warehouse-info] Erreur:", err);
+    return res.status(500).json({ error: "Impossible de lire l'état de l'entrepôt" });
   }
 });
 

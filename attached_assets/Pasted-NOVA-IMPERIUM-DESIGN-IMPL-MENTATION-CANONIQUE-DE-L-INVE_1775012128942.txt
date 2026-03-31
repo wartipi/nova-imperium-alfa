@@ -1,0 +1,268 @@
+NOVA IMPERIUM — DESIGN + IMPLÉMENTATION CANONIQUE DE L’INVENTAIRE DE VILLE
+Branche cible : NI-10.3
+
+RÔLE
+Tu agis comme auditeur + implémenteur strict.
+Tu respectes l’architecture existante.
+Tu ne fais aucun refactor massif.
+Tu ne dérives pas.
+Tu gardes le serveur comme source de vérité.
+
+CONTEXTE VALIDÉ
+Nous avons déjà clarifié plusieurs conteneurs :
+
+- player_bank = réseau bancaire
+- player_transport = ressources physiquement portées
+- city_pending_harvest = production en attente
+- city_inventory = stock local de ville
+- premier flux canonique déjà fermé :
+  player_transport → city_inventory
+
+MAINTENANT
+Nous devons clarifier la logique structurelle de city_inventory.
+
+NOUVELLE RÈGLE MÉTIER VALIDÉE
+L’inventaire d’une ville dépend du bâtiment :
+- entrepôt
+
+Je veux la logique suivante :
+
+1. Une ville n’a un inventaire exploitable que si elle possède un entrepôt
+2. Le nombre d’espaces / capacité dépend du niveau de l’entrepôt
+3. L’évolution de l’entrepôt suit la logique normale des bâtiments
+4. L’inventaire de ville est accessible :
+   A. directement depuis la ville elle-même
+   B. ou via une autre ville si les deux villes sont connectées à un marché
+5. Pas d’accès global libre à tous les inventaires de ville
+6. Pas d’approximation client
+
+OBJECTIF
+Je veux poser la logique canonique de l’inventaire des villes :
+- capacité
+- condition d’existence
+- condition d’accès
+- règle de connexion réseau via marché
+
+IMPORTANT
+Je ne veux pas encore un gros chantier marché complet.
+Je veux d’abord verrouiller la logique d’inventaire de ville sur une base propre.
+
+PRÉ-REQUIS OBLIGATOIRES
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. VALIDATION PRÉALABLE
+Je veux confirmation explicite :
+- de l’état actuel exact de city_inventory
+- de l’état actuel du bâtiment entrepôt s’il existe déjà ou non
+- de la façon dont les niveaux de bâtiments sont gérés aujourd’hui
+- de l’état actuel des connexions marché
+- du plus petit chemin propre pour implémenter cette logique
+- des fichiers exacts à modifier
+
+Ensuite seulement tu modifies.
+
+PHASE 1 — AUDIT OBLIGATOIRE
+Lire au minimum :
+- HarvestPanel.tsx
+- UnifiedTerritoryPanel.tsx
+- TreasuryPanel.tsx si pertinent
+- les composants ville / territoire réellement impliqués
+- server/economyService.ts
+- server/routes/economy.ts
+- server/accessPointService.ts
+- services/routes liés aux villes
+- schéma DB sur :
+  - city_inventory
+  - city_buildings
+  - cities
+  - colonies
+  - market access / guild / network si existant
+- tout fichier strictement requis pour :
+  - entrepôt
+  - niveaux bâtiment
+  - connexion marché
+  - accès inventaire ville
+
+QUESTIONS D’AUDIT AUXQUELLES TU DOIS RÉPONDRE
+1. Est-ce que le bâtiment entrepôt existe déjà réellement dans le code ?
+2. A-t-il déjà un niveau ?
+3. Si oui, où ce niveau est-il stocké ?
+4. Si non, quel est le plus petit chemin cohérent pour l’ajouter sans casser l’existant ?
+5. Quelle est aujourd’hui la capacité réelle de city_inventory ?
+6. Est-elle illimitée, implicite, ou non gérée ?
+7. Quelle est aujourd’hui la règle réelle d’accès à city_inventory ?
+8. Existe-t-il déjà une notion exploitable de connexion via marché ?
+9. Le réseau marchand peut-il déjà servir de base canonique pour l’accès à distance ?
+10. Quel est le plus petit modèle propre pour atteindre la règle cible ?
+
+PHASE 2 — MODÈLE CANONIQUE RETENU
+Je veux que tu proposes un modèle simple.
+
+RÈGLES CIBLES À IMPLÉMENTER
+A. EXISTENCE / CAPACITÉ
+- entrepôt absent → pas d’accès inventaire ville exploitable
+- entrepôt présent → inventaire disponible
+- capacité / slots dépend du niveau de l’entrepôt
+
+B. ACCÈS
+- accès local : joueur physiquement sur la ville
+- accès distant : depuis une autre ville seulement si :
+  - ville source connectée à un marché
+  - ville cible connectée à un marché
+- sinon refus
+
+C. SOURCE DE VÉRITÉ
+- le serveur décide
+- le client affiche seulement ce qui est autorisé
+
+IMPORTANT
+Je préfère une capacité exprimée clairement :
+- slots
+ou
+- capacité totale
+mais je veux quelque chose de simple, stable, lisible
+
+Si les autres bâtiments ont déjà une logique de niveau canonique :
+- réutilise-la
+- ne crée pas un deuxième système parallèle
+
+PHASE 3 — IMPLÉMENTATION SERVEUR
+Je veux la plus petite implémentation serveur cohérente pour verrouiller :
+1. la capacité liée à l’entrepôt
+2. la règle d’accès local
+3. la règle d’accès distant via marché↔marché
+4. le refus si la ville n’a pas d’entrepôt
+
+IMPORTANT
+Je ne veux pas encore un gros système de routes inutiles.
+Je veux seulement les endpoints strictement nécessaires.
+
+Exigences serveur minimales :
+- la règle d’accès doit être canonique
+- la règle de capacité doit être canonique
+- l’entrepôt doit être la condition d’existence logique de l’inventaire exploitable
+- l’accès distant doit être vérifié côté serveur
+- pas de confiance au client pour dire “ces villes sont connectées”
+
+PHASE 4 — IMPLÉMENTATION CLIENT
+Je veux que l’UI reflète cette logique proprement.
+
+Règle cible UI :
+- l’inventaire de ville appartient logiquement à Gestion ville / territoire
+- ne pas renforcer une mauvaise séparation UI
+- ne pas créer un nouveau panneau inutile si un raccord léger suffit
+
+COMPORTEMENT CLIENT ATTENDU
+1. si la ville n’a pas d’entrepôt
+- afficher clairement que l’inventaire n’est pas disponible
+
+2. si la ville a un entrepôt
+- afficher l’inventaire
+- afficher la capacité / slots disponibles
+- afficher le niveau de l’entrepôt si pertinent
+
+3. si accès distant autorisé via marché↔marché
+- l’UI peut permettre la consultation
+- mais seulement si le serveur l’autorise réellement
+
+IMPORTANT
+Je veux une UI simple.
+Pas une refonte graphique large.
+Pas une abstraction prématurée.
+
+PHASE 5 — LIMITES DE CETTE TÂCHE
+Je ne veux PAS encore :
+- le marché complet
+- les tests finaux d’échange marchands
+- une grande réécriture du système économique
+- une grande réécriture du panneau territoire
+
+Cette tâche sert à verrouiller :
+- entrepôt
+- capacité
+- accès local
+- accès distant via marché
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement les fichiers strictement nécessaires côté :
+- schéma / DB si nécessaire
+- services serveur
+- routes serveur
+- panneaux UI ville/territoire
+- composants ou API strictement nécessaires
+
+INTERDIT
+- aucun refactor massif
+- aucune duplication de logique bâtiment
+- aucun bypass client
+- aucune approximation de connexion marché
+- ne pas renforcer HarvestPanel comme architecture finale si ce n’est pas nécessaire
+- ne pas lancer le chantier marché complet dans cette tâche
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- chaque fichier touché
+
+3. VÉRIFICATIONS FONCTIONNELLES
+A. ville sans entrepôt
+- inventaire indisponible
+
+B. ville avec entrepôt
+- inventaire disponible
+
+C. niveau d’entrepôt
+- capacité/slots cohérents avec le niveau
+
+D. accès local
+- fonctionne seulement depuis la ville
+
+E. accès distant
+- fonctionne seulement si ville source et ville cible sont toutes deux connectées à un marché
+
+F. accès non autorisé
+- refus serveur explicite
+
+G. UI
+- reste cohérente avec la cible “Gestion ville/territoire”
+
+4. CONTRÔLE DE PÉRIMÈTRE
+- preuve qu’aucun gros chantier marché n’a été ouvert
+- preuve qu’aucun refactor massif n’a été ouvert
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. DIAGNOSTIC FINAL
+2. MODÈLE CANONIQUE RETENU
+3. FICHIERS MODIFIÉS
+4. PREUVES
+5. VÉRIFICATIONS FONCTIONNELLES
+6. CONTRÔLE DE PÉRIMÈTRE
+7. RISQUES RÉSIDUELS
+8. IMPACT SUR LA SUITE (tests de marché)
+9. STOP
+
+CONTRAINTE FINALE
+Je veux que l’inventaire de ville soit une vraie structure canonique :
+- conditionnée par l’entrepôt
+- capacité liée au niveau
+- accès local direct
+- accès distant seulement via connexion marché↔marché
+- tout validé par le serveur
+- UI compatible avec Gestion ville/territoire

@@ -371,3 +371,22 @@ export async function postCollectHarvest(
   }
   return res.json();
 }
+
+// ─── Entrepôt de ville ────────────────────────────────────────────────────────
+// Capacité canonique par niveau : 1→100, 2→250, 3→500 unités totales.
+
+export interface CityWarehouseInfoDTO {
+  cityId:       number;
+  hasWarehouse: boolean;
+  level:        number;
+  capacity:     number;
+  currentTotal: number;
+}
+
+export async function getCityWarehouseInfo(cityId: number): Promise<CityWarehouseInfoDTO> {
+  const res = await fetch(`/api/economy/city-warehouse-info/${cityId}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(`getCityWarehouseInfo: ${res.status} ${res.statusText}`);
+  return res.json();
+}

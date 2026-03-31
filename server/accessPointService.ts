@@ -154,3 +154,55 @@ export async function checkPlayerCity(
     return { allowed: false, reason: e.message ?? "Hors ville" };
   }
 }
+
+// ─── Entrepôt — capacité canonique ───────────────────────────────────────────
+// Le bâtiment "entrepot" (niveau 1-3) conditionne l'existence et la capacité
+// de l'inventaire exploitable d'une ville.
+export const WAREHOUSE_BUILDING = "entrepot" as const;
+
+export const WAREHOUSE_CAPACITY: Record<number, number> = {
+  1: 100,
+  2: 250,
+  3: 500,
+};
+
+export interface WarehouseInfo {
+  hasWarehouse: boolean;
+  level:        number;
+  capacity:     number;
+}
+
+// Retourne les infos entrepôt d'une ville (non-throwing).
+export async function getWarehouseInfo(cityId: number): Promise<WarehouseInfo> {
+  const [row] = await db
+    .select({ level: cityBuildings.level })
+    .from(cityBuildings)
+    .where(and(eq(cityBuildings.cityId, cityId), eq(cityBuildings.building, WAREHOUSE_BUILDING)))
+    .limit(1);
+
+  if (!row) return { hasWarehouse: false, level: 0, capacity: 0 };
+  const capacity = WAREHOUSE_CAPACITY[row.level] ?? WAREHOUSE_CAPACITY[1];
+  return { hasWarehouse: true, level: row.level, capacity };
+}
+
+// ─── Connexion marché↔marché ──────────────────────────────────────────────────
+// Deux villes sont "connectées" si elles possèdent toutes deux le bâtiment
+// guilde_des_marchands. Validation côté serveur — le client ne décide pas.
+export async function areCitiesMarketConnected(
+  cityIdA: number,
+  cityIdB: number,
+): Promise<boolean> {
+  const MARKET = "guilde_des_marchands";
+  const [rA] = await db
+    .select({ id: cityBuildings.id })
+    .from(cityBuildings)
+    .where(and(eq(cityBuildings.cityId, cityIdA), eq(cityBuildings.building, MARKET)))
+    .limit(1);
+  if (!rA) return false;
+  const [rB] = await db
+    .select({ id: cityBuildings.id })
+    .from(cityBuildings)
+    .where(and(eq(cityBuildings.cityId, cityIdB), eq(cityBuildings.building, MARKET)))
+    .limit(1);
+  return !!rB;
+}

@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback } from "react";
 import {
   getCityHarvest,
   postCollectHarvest,
+  getCityWarehouseInfo,
   type CityHarvestDTO,
+  type CityWarehouseInfoDTO,
 } from "../../lib/api/economyApi";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -62,9 +64,10 @@ function MatLine({ label, mats }: { label: string; mats: Record<MatKey, number> 
 // ─── HarvestPanel ──────────────────────────────────────────────────────────
 
 export function HarvestPanel({ currentUser, role, adminModeEnabled }: Props) {
-  const [cities,   setCities]   = useState<CityMeta[]>([]);
-  const [harvests, setHarvests] = useState<Record<number, CityHarvestState>>({});
-  const [loading,  setLoading]  = useState(true);
+  const [cities,     setCities]     = useState<CityMeta[]>([]);
+  const [harvests,   setHarvests]   = useState<Record<number, CityHarvestState>>({});
+  const [warehouses, setWarehouses] = useState<Record<number, CityWarehouseInfoDTO>>({});
+  const [loading,    setLoading]    = useState(true);
 
   // ─── Chargement ─────────────────────────────────────────────────────────
   const loadAll = useCallback(async () => {
@@ -85,17 +88,30 @@ export function HarvestPanel({ currentUser, role, adminModeEnabled }: Props) {
       }
       setHarvests(initial);
 
-      const results = await Promise.allSettled(data.map(c => getCityHarvest(c.id)));
+      // Chargement parallèle : harvest + warehouse par ville
+      const [harvestResults, warehouseResults] = await Promise.all([
+        Promise.allSettled(data.map(c => getCityHarvest(c.id))),
+        Promise.allSettled(data.map(c => getCityWarehouseInfo(c.id))),
+      ]);
+
       setHarvests(prev => {
         const next = { ...prev };
         data.forEach((c, i) => {
-          const r = results[i];
+          const r = harvestResults[i];
           next[c.id] = r.status === "fulfilled"
             ? { ...next[c.id], data: r.value, loading: false, error: null }
             : { ...next[c.id], loading: false, error: (r.reason as Error)?.message ?? "Erreur" };
         });
         return next;
       });
+
+      const whMap: Record<number, CityWarehouseInfoDTO> = {};
+      data.forEach((c, i) => {
+        const r = warehouseResults[i];
+        if (r.status === "fulfilled") whMap[c.id] = r.value;
+      });
+      setWarehouses(whMap);
+
     } catch (err: any) {
       console.error("[HarvestPanel] loadAll:", err);
     } finally {
@@ -162,16 +178,26 @@ export function HarvestPanel({ currentUser, role, adminModeEnabled }: Props) {
         <div className="space-y-2.5">
           {cities.map(city => {
             const h = harvests[city.id];
+            const wh = warehouses[city.id];
             const hasBank = city.buildings?.includes('bank') ?? false;
             return (
               <div key={city.id} className="bg-white border border-amber-200 rounded p-2.5">
                 {/* En-tête ville */}
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="font-bold text-amber-900 text-sm">{city.name}</span>
-                  {hasBank
-                    ? <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-xs">🏦 banque</span>
-                    : <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded text-xs">🌾 collecte</span>
-                  }
+                  <div className="flex gap-1 flex-wrap justify-end">
+                    {hasBank
+                      ? <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-xs">🏦 banque</span>
+                      : <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded text-xs">🌾 collecte</span>
+                    }
+                    {wh ? (
+                      wh.hasWarehouse
+                        ? <span className="bg-green-100 text-green-800 px-1.5 py-0.5 rounded text-xs" title={`Capacité ${wh.capacity} unités`}>
+                            🏪 Niv.{wh.level} — {wh.currentTotal}/{wh.capacity}
+                          </span>
+                        : <span className="bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded text-xs">⚠️ pas d'entrepôt</span>
+                    ) : null}
+                  </div>
                 </div>
 
                 {h?.loading && <p className="text-amber-400 text-xs">Chargement…</p>}
