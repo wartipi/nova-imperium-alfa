@@ -255,12 +255,15 @@ export function ActiveActionWidget() {
                   {" "}<span className="text-amber-500 font-normal">{stepDetail.nextTile!.terrain}</span>
                 </span>
               </div>
-              <div className="flex justify-between text-amber-700">
-                <span>Temps avant tuile</span>
-                <span className="font-medium">{formatDuration(stepDetail.msUntilNext)}</span>
-              </div>
             </>
           )}
+        </div>
+      )}
+
+      {stepDetail && !stepDetail.isLastStep && (
+        <div className="flex justify-between text-amber-700 mb-1">
+          <span>Avant prochaine case</span>
+          <span className="font-medium">{formatDuration(stepDetail.msUntilNext)}</span>
         </div>
       )}
 
