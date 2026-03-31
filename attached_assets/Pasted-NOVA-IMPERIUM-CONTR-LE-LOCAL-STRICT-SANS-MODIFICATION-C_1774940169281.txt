@@ -1,0 +1,84 @@
+NOVA IMPERIUM — CONTRÔLE LOCAL STRICT SANS MODIFICATION
+CIBLE : VÉRIFIER L’ÉTAT RÉEL DES 3 FICHIERS DU FLUX DÉPLACEMENT
+Branche attendue : NI-10.3
+
+RÔLE
+Tu agis comme validateur technique strict.
+Tu ne modifies aucun fichier.
+Tu ne codes rien.
+Tu ne push rien.
+Tu ne supposes rien.
+Tu dois uniquement prouver l’état local réel du code sur 3 fichiers précis.
+
+OBJECTIF
+Je veux savoir, sans aucune zone grise, si les changements annoncés existent réellement en local dans ces 3 fichiers :
+
+- server/playerActionService.ts
+- server/routes/playerActions.ts
+- client/src/components/game/ActiveActionWidget.tsx
+
+IMPORTANT
+Aucune modification autorisée.
+Aucun commit.
+Aucun push.
+Aucun “je vais corriger”.
+Je veux uniquement un contrôle local et une conclusion factuelle.
+
+PRÉ-REQUIS OBLIGATOIRES — AFFICHER EXACTEMENT CES COMMANDES ET LEURS SORTIES
+
+1. IDENTITÉ GIT
+- git branch --show-current
+- git status --short
+- git diff --stat HEAD
+- git log --oneline --decorate -n 5
+- git show --stat HEAD
+
+2. PREUVE SUR playerActionService.ts
+Afficher exactement :
+- grep -n "Non branché : les PA ne sont pas déduits" server/playerActionService.ts
+- grep -n "applyMoveProgressAndCosts" server/playerActionService.ts
+- grep -n "getPlayerState\|savePlayerState" server/playerActionService.ts
+- grep -n "PA step debit\|PA déduits" server/playerActionService.ts
+- grep -n "lastAppliedStep" server/playerActionService.ts
+
+3. PREUVE SUR routes/playerActions.ts
+Afficher exactement :
+- grep -n "INSUFFICIENT_ACTION_POINTS" server/routes/playerActions.ts
+- grep -n "required\|available\|details" server/routes/playerActions.ts
+- grep -n "ACTION_ALREADY_ACTIVE" server/routes/playerActions.ts
+
+4. PREUVE SUR ActiveActionWidget.tsx
+Afficher exactement :
+- grep -n "Tuile \|Prochaine tuile\|Temps avant tuile\|Arrivée imminente" client/src/components/game/ActiveActionWidget.tsx
+- grep -n "Temps restant estimé\|Temps restant total\|< 2s\|Coût" client/src/components/game/ActiveActionWidget.tsx
+- grep -n "msPerAP\|totalDur\|totalCost\|path" client/src/components/game/ActiveActionWidget.tsx
+
+5. EXTRAITS CIBLÉS À MONTRER
+Afficher ensuite les extraits utiles complets :
+
+- sed -n '1,260p' server/playerActionService.ts
+- sed -n '1,220p' server/routes/playerActions.ts
+- sed -n '1,260p' client/src/components/game/ActiveActionWidget.tsx
+
+CONCLUSION OBLIGATOIRE
+Après les preuves ci-dessus, tu dois écrire exactement une seule de ces conclusions :
+
+- CAS 1 — Les 3 changements sont réellement présents en local
+- CAS 2 — Les changements PA ne sont pas présents en local
+- CAS 3 — Le widget est à jour localement, mais le débit progressif des PA ne l’est pas
+- CAS 4 — Les fichiers locaux ne correspondent pas à ce qui a été annoncé
+
+RAPPORT FINAL OBLIGATOIRE
+Je veux exactement :
+
+1. ÉTAT GIT LOCAL
+2. PREUVE playerActionService.ts
+3. PREUVE routes/playerActions.ts
+4. PREUVE ActiveActionWidget.tsx
+5. CONCLUSION
+6. STOP
+
+CONTRAINTE FINALE
+Tu ne modifies rien.
+Tu ne proposes pas encore de correctif.
+Tu prouves seulement l’état local réel des 3 fichiers.
