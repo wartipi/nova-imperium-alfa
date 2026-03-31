@@ -59,6 +59,9 @@ export interface ColonyDTO {
   ownerFactionName: string | null;
   // Phase 13 — Gouvernorat
   governorUserId: string | null;
+  // Services disponibles — calculés depuis city_buildings côté serveur (bâtiments réels)
+  hasMarket: boolean;
+  hasBank:   boolean;
 }
 
 export async function fetchAllTerritories(): Promise<TerritoryDTO[]> {

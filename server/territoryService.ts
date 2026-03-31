@@ -1,6 +1,6 @@
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, inArray } from "drizzle-orm";
 import { db } from "./db";
-import { territories, colonies, cities, factionMembers, factions, mapTiles } from "../shared/schema";
+import { territories, colonies, cities, cityBuildings, factionMembers, factions, mapTiles } from "../shared/schema";
 import { hexDistance } from "./hexUtils";
 
 export interface TerritoryDTO {
@@ -47,6 +47,9 @@ export interface ColonyDTO {
   ownerFactionName: string | null;
   // Phase 13 — Gouvernorat
   governorUserId: string | null;
+  // Services disponibles — calculés depuis city_buildings (bâtiments réels)
+  hasMarket: boolean;
+  hasBank:   boolean;
 }
 
 function mapTerritory(
@@ -286,7 +289,10 @@ export async function backfillTerritoryOwnership(): Promise<void> {
   console.log(`[backfillTerritoryOwnership] Backfill terminé : ${rows.length} territoire(s) mis à jour`);
 }
 
-function mapColony(row: typeof colonies.$inferSelect): ColonyDTO {
+function mapColony(
+  row: typeof colonies.$inferSelect,
+  extras?: { hasMarket: boolean; hasBank: boolean }
+): ColonyDTO {
   return {
     id: row.id,
     name: row.name,
@@ -304,6 +310,8 @@ function mapColony(row: typeof colonies.$inferSelect): ColonyDTO {
     ownerFactionId:  row.ownerFactionId  ?? null,
     ownerFactionName: row.ownerFactionName ?? null,
     governorUserId:  row.governorUserId  ?? null,
+    hasMarket: extras?.hasMarket ?? false,
+    hasBank:   extras?.hasBank   ?? false,
   };
 }
 
@@ -367,7 +375,34 @@ export async function getAllTerritories(): Promise<TerritoryDTO[]> {
 
 export async function getAllColonies(): Promise<ColonyDTO[]> {
   const rows = await db.select().from(colonies);
-  return rows.map(mapColony);
+  if (rows.length === 0) return [];
+
+  // Batch query : bâtiments de service pour toutes les colonies en une seule requête.
+  // Chemin : cityBuildings → cities (cityId) → colonies (colonyId).
+  // Seuls bank et guilde_des_marchands sont pertinents pour le menu contextuel de case.
+  const SERVICE_BUILDINGS = ["bank", "guilde_des_marchands"];
+  const buildingRows = await db
+    .select({ colonyId: cities.colonyId, building: cityBuildings.building })
+    .from(cityBuildings)
+    .innerJoin(cities, eq(cityBuildings.cityId, cities.id))
+    .where(inArray(cityBuildings.building, SERVICE_BUILDINGS));
+
+  // Index colonyId → Set<building> pour lookup O(1)
+  const buildingsByColony = new Map<number, Set<string>>();
+  for (const row of buildingRows) {
+    if (row.colonyId == null) continue;
+    let set = buildingsByColony.get(row.colonyId);
+    if (!set) { set = new Set(); buildingsByColony.set(row.colonyId, set); }
+    set.add(row.building);
+  }
+
+  return rows.map(row => {
+    const bldgs = buildingsByColony.get(row.id) ?? new Set<string>();
+    return mapColony(row, {
+      hasMarket: bldgs.has("guilde_des_marchands"),
+      hasBank:   bldgs.has("bank"),
+    });
+  });
 }
 
 // ─── Rattachement V1 — Recalcul déterministe managingColonyId ─────────────────

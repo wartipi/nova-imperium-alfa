@@ -173,18 +173,19 @@ export function GameCanvas() {
         `buildings=[${buildings.join(",")}] hasMarket=${hasMarket} hasBank=${hasBank}`
       );
     } else {
-      // Fallback : colonie d'un autre joueur ? (bâtiments non connus côté client)
+      // Colonie tierce ou terrain sans novaImperium propre.
+      // Les bâtiments sont maintenant inclus dans le DTO colonie (hasMarket/hasBank),
+      // propagés depuis city_buildings par getAllColonies() côté serveur.
+      // Aucun fallback optimiste — données canoniques uniquement.
       const territory = UnifiedTerritorySystem.getTerritory(hex.x, hex.y);
-      const hasColony  = Boolean(territory?.colonyId);
-      locationName     = territory?.colonyName ?? null;
+      locationName = territory?.colonyName ?? null;
 
-      if (hasColony) {
-        // Conservateur : serveur validera l'accès réel
-        hasMarket    = true;
-        hasBank      = true;
+      if (territory?.colonyId) {
+        hasMarket = territory.hasMarket ?? false;
+        hasBank   = territory.hasBank   ?? false;
         console.log(
           `[GameCanvas] Clic droit → hex(${hex.x},${hex.y}) colonie tierce="${locationName}" ` +
-          `(bâtiments inconnus côté client → fallback conservateur)`
+          `hasMarket=${hasMarket} hasBank=${hasBank} (données canoniques serveur)`
         );
       } else {
         console.log(`[GameCanvas] Clic droit → hex(${hex.x},${hex.y}) terrain non colonisé`);

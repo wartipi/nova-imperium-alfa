@@ -24,6 +24,9 @@ export interface Territory {
   colonyId?: string;
   colonyName?: string;
   controlledByColony?: string;
+  // Services réels disponibles sur la case — issus de city_buildings via le DTO serveur
+  hasMarket?: boolean;
+  hasBank?:   boolean;
   // Phase 12 — Ownership canonique
   ownerType: 'player' | 'faction';
   ownerPlayerId:   string | null;
@@ -98,9 +101,11 @@ class UnifiedTerritorySystemClass {
         isExploited: t.exploitationBuildingType != null,
         ...(colony
           ? {
-              colonyId: String(colony.id),
-              colonyName: colony.name,
+              colonyId:           String(colony.id),
+              colonyName:         colony.name,
               controlledByColony: String(colony.id),
+              hasMarket:          colony.hasMarket ?? false,
+              hasBank:            colony.hasBank   ?? false,
             }
           : {}),
       };
