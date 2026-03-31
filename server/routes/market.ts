@@ -19,37 +19,26 @@ const router = Router();
 
 // ─── GET /access-check ────────────────────────────────────────────────────────
 // Route info : retourne l'état d'accès physique du joueur au marché.
-// Pas de gate — utilisée par l'UI au montage pour afficher marché ou blocage.
+// Règle uniforme — admin et joueur normal passent par checkAccessPoint.
 router.get("/access-check", requireAuth, async (req: AuthRequest, res) => {
   try {
     const playerId = req.user!.id;
-    const isAdmin  = req.user!.role === "admin";
-
-    if (isAdmin) {
-      // Admin : toujours accès, cityId = 0 (placeholder, requêtes globales)
-      return res.json({ allowed: true, cityId: 0, hasGuild: false, feeBps: 0, isAdmin: true });
-    }
-
     const result = await checkAccessPoint(playerId, "market");
-    return res.json({ ...result, isAdmin: false });
+    return res.json({ ...result, isAdmin: req.user!.role === "admin" });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
 });
 
 // ─── GET /:cityId/guild ────────────────────────────────────────────────────────
-// Gate physique marché pour les non-admins.
-// Retourne 403 si le joueur n'est pas physiquement sur une case contenant la Guilde des Marchands.
+// Gate physique pour tous — retourne 403 si pas de guilde_des_marchands à la position.
 router.get("/:cityId/guild", requireAuth, async (req: AuthRequest, res) => {
   try {
     const playerId = req.user!.id;
-    const isAdmin  = req.user!.role === "admin";
     const cityId   = parseInt(req.params.cityId, 10);
     if (isNaN(cityId)) return res.status(400).json({ error: "cityId invalide" });
 
-    if (!isAdmin) {
-      await resolveAccessPoint(playerId, "market");
-    }
+    await resolveAccessPoint(playerId, "market");
 
     const info = await getMarketInfo(cityId);
     res.json(info);
@@ -59,15 +48,12 @@ router.get("/:cityId/guild", requireAuth, async (req: AuthRequest, res) => {
 });
 
 // ─── GET /:cityId/orders ───────────────────────────────────────────────────────
-// Gate physique pour les non-admins — carnet global.
+// Gate physique pour tous — carnet global.
 router.get("/:cityId/orders", requireAuth, async (req: AuthRequest, res) => {
   try {
-    const cityId  = parseInt(req.params.cityId, 10);
-    const isAdmin = req.user!.role === "admin";
+    const cityId = parseInt(req.params.cityId, 10);
 
-    if (!isAdmin) {
-      await resolveAccessPoint(req.user!.id, "market");
-    }
+    await resolveAccessPoint(req.user!.id, "market");
 
     const orders = await getOpenOrders(isNaN(cityId) ? 0 : cityId);
     res.json(orders);
@@ -77,15 +63,12 @@ router.get("/:cityId/orders", requireAuth, async (req: AuthRequest, res) => {
 });
 
 // ─── GET /:cityId/trades ──────────────────────────────────────────────────────
-// Gate physique pour les non-admins — historique global.
+// Gate physique pour tous — historique global.
 router.get("/:cityId/trades", requireAuth, async (req: AuthRequest, res) => {
   try {
-    const cityId  = parseInt(req.params.cityId, 10);
-    const isAdmin = req.user!.role === "admin";
+    const cityId = parseInt(req.params.cityId, 10);
 
-    if (!isAdmin) {
-      await resolveAccessPoint(req.user!.id, "market");
-    }
+    await resolveAccessPoint(req.user!.id, "market");
 
     const trades = await getTradeHistory(isNaN(cityId) ? 0 : cityId);
     res.json(trades);
@@ -95,27 +78,18 @@ router.get("/:cityId/trades", requireAuth, async (req: AuthRequest, res) => {
 });
 
 // ─── POST /:cityId/orders ──────────────────────────────────────────────────────
-// Gate physique — cityId de la route ignoré pour les non-admins (remplacé par position réelle).
+// Gate physique pour tous — cityId résolu depuis la position réelle du joueur.
 router.post("/:cityId/orders", requireAuth, async (req: AuthRequest, res) => {
   try {
-    const urlCityId = parseInt(req.params.cityId, 10);
-    const isAdmin   = req.user!.role === "admin";
-    const playerId  = req.user!.id;
+    const playerId   = req.user!.id;
     const playerName = req.user!.username;
 
     const { side, resourceType, pricePerUnit, quantity } = req.body;
     if (!side || !resourceType || pricePerUnit == null || quantity == null)
       return res.status(400).json({ error: "Champs requis : side, resourceType, pricePerUnit, quantity" });
 
-    // Résolution du cityId réel — position physique pour non-admin.
-    let cityId: number;
-    if (isAdmin) {
-      if (isNaN(urlCityId)) return res.status(400).json({ error: "cityId invalide" });
-      cityId = urlCityId;
-    } else {
-      const access = await resolveAccessPoint(playerId, "market");
-      cityId = access.cityId;
-    }
+    const access = await resolveAccessPoint(playerId, "market");
+    const cityId = access.cityId;
 
     const result = await placeOrder(
       cityId, playerId, playerName, side, resourceType,
@@ -128,7 +102,7 @@ router.post("/:cityId/orders", requireAuth, async (req: AuthRequest, res) => {
 });
 
 // ─── DELETE /:cityId/orders/:orderId ──────────────────────────────────────────
-// Gate physique pour les non-admins.
+// Gate physique pour tous. Annulation propriétaire ou admin (métier inchangé).
 router.delete("/:cityId/orders/:orderId", requireAuth, async (req: AuthRequest, res) => {
   try {
     const orderId = parseInt(req.params.orderId, 10);
@@ -137,9 +111,7 @@ router.delete("/:cityId/orders/:orderId", requireAuth, async (req: AuthRequest, 
     const isAdmin  = req.user!.role === "admin";
     const playerId = req.user!.id;
 
-    if (!isAdmin) {
-      await resolveAccessPoint(playerId, "market");
-    }
+    await resolveAccessPoint(playerId, "market");
 
     await cancelOrder(orderId, playerId, isAdmin);
     res.json({ success: true });
@@ -149,7 +121,7 @@ router.delete("/:cityId/orders/:orderId", requireAuth, async (req: AuthRequest, 
 });
 
 // ─── POST /:cityId/orders/:orderId/fill ───────────────────────────────────────
-// Gate physique pour les non-admins.
+// Gate physique pour tous.
 router.post("/:cityId/orders/:orderId/fill", requireAuth, async (req: AuthRequest, res) => {
   try {
     const orderId = parseInt(req.params.orderId, 10);
@@ -158,13 +130,10 @@ router.post("/:cityId/orders/:orderId/fill", requireAuth, async (req: AuthReques
     const { quantity } = req.body;
     if (quantity == null) return res.status(400).json({ error: "quantity requis" });
 
-    const isAdmin    = req.user!.role === "admin";
     const fillerId   = req.user!.id;
     const fillerName = req.user!.username;
 
-    if (!isAdmin) {
-      await resolveAccessPoint(fillerId, "market");
-    }
+    await resolveAccessPoint(fillerId, "market");
 
     const result = await fillOrder(orderId, fillerId, fillerName, Number(quantity));
     res.json(result);
@@ -174,34 +143,24 @@ router.post("/:cityId/orders/:orderId/fill", requireAuth, async (req: AuthReques
 });
 
 // ─── PATCH /:cityId/guild/fee ─────────────────────────────────────────────────
-// Gate physique pour les non-admins + guilde requise dans marketService.
+// Gate physique pour tous. Ownership et cooldown vérifiés dans updateFee (métier inchangé).
 router.patch("/:cityId/guild/fee", requireAuth, async (req: AuthRequest, res) => {
   try {
-    const urlCityId = parseInt(req.params.cityId, 10);
     const isAdmin   = req.user!.role === "admin";
     const playerId  = req.user!.id;
 
     const { feeBps } = req.body;
     if (feeBps == null) return res.status(400).json({ error: "feeBps requis" });
 
-    let cityId: number;
-    if (isAdmin) {
-      if (isNaN(urlCityId)) return res.status(400).json({ error: "cityId invalide" });
-      cityId = urlCityId;
-    } else {
-      const access = await resolveAccessPoint(playerId, "market");
-      cityId = access.cityId;
-    }
+    const access = await resolveAccessPoint(playerId, "market");
+    const cityId = access.cityId;
 
-    let requesterFactionId: number | undefined;
-    if (!isAdmin) {
-      const [mem] = await db
-        .select({ factionId: factionMembers.factionId })
-        .from(factionMembers)
-        .where(eq(factionMembers.playerId, playerId))
-        .limit(1);
-      requesterFactionId = mem?.factionId;
-    }
+    const [mem] = await db
+      .select({ factionId: factionMembers.factionId })
+      .from(factionMembers)
+      .where(eq(factionMembers.playerId, playerId))
+      .limit(1);
+    const requesterFactionId = mem?.factionId;
 
     await updateFee(cityId, Number(feeBps), playerId, isAdmin, requesterFactionId);
     res.json({ success: true });

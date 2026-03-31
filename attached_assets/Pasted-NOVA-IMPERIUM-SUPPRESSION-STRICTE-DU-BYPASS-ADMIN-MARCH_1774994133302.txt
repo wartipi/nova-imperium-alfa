@@ -1,0 +1,123 @@
+NOVA IMPERIUM — SUPPRESSION STRICTE DU BYPASS ADMIN MARCHÉ
+Branche cible : NI-10.3
+
+RÔLE
+Tu appliques uniquement le plus petit correctif propre.
+Tu ne touches pas au moteur métier du marché.
+Tu ne refactors rien massivement.
+Tu ne dérives pas.
+
+CONTEXTE VALIDÉ
+Le code actuel contient encore un bypass admin complet pour le marché :
+
+1. GET /api/market/access-check
+- si req.user.role === "admin"
+- retourne allowed: true, cityId: 0, hasGuild: false, isAdmin: true
+
+2. Toutes les autres routes marché
+- utilisent le pattern :
+  if (!isAdmin) await resolveAccessPoint(...)
+- donc les admins contournent complètement :
+  - la position réelle
+  - la ville
+  - le bâtiment guilde_des_marchands
+
+OBJECTIF
+Supprimer complètement le bypass admin pour l’accès marché.
+
+RÈGLE ATTENDUE APRÈS CORRECTIF
+- admin et joueur normal doivent passer par la même règle d’accès physique
+- accès marché uniquement si :
+  - position réelle du joueur
+  - ville présente à cette position
+  - bâtiment guilde_des_marchands présent
+- plus aucun accès global admin au marché
+
+IMPORTANT
+Je ne veux PAS toucher :
+- placeOrder
+- fillOrder
+- cancelOrder
+- updateFee
+- la transaction DB
+- l’escrow
+- les tables
+- le schéma
+
+Je veux uniquement supprimer le bypass admin d’accès.
+
+PRÉ-REQUIS OBLIGATOIRES AVANT MODIFICATION
+Avant toute modification, affiche exactement :
+
+1. BRANCHE
+- git branch --show-current
+
+2. ÉTAT GIT
+- git status --short
+- git diff --stat HEAD
+
+3. VALIDATION PRÉALABLE
+Je veux confirmation explicite :
+- que le bypass admin marché est bien dans server/routes/market.ts
+- que resolveAccessPoint() est la règle canonique à réutiliser pour tous
+- que le correctif peut rester limité à cette route
+
+Ensuite seulement tu modifies.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux toucher uniquement :
+- server/routes/market.ts
+
+Aucun autre fichier.
+
+MODIFICATION EXACTE ATTENDUE
+
+A. access-check
+- supprimer le bloc spécial admin qui retourne allowed: true automatiquement
+- utiliser checkAccessPoint(playerId, "market") pour tout le monde
+
+B. guild / orders / trades / orders POST / cancel / fill / fee
+- supprimer tous les patterns :
+  if (!isAdmin) { ... }
+- appliquer resolveAccessPoint(...) pour tout le monde
+- garder les validations métier existantes inchangées
+
+IMPORTANT
+Je veux retirer le bypass d’accès.
+Je ne veux pas changer le comportement métier interne des opérations.
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Je veux exactement :
+
+1. FICHIERS MODIFIÉS
+- liste précise
+
+2. PREUVES
+- git diff --stat
+- git diff -- server/routes/market.ts
+
+3. VÉRIFICATIONS FONCTIONNELLES
+A. Admin hors case valide
+- accès refusé
+
+B. Joueur normal hors case valide
+- accès refusé
+
+C. Admin sur case valide avec guilde
+- accès autorisé
+
+D. Joueur normal sur case valide avec guilde
+- accès autorisé
+
+4. CONTRÔLE DE PÉRIMÈTRE
+- aucune logique transactionnelle du marché modifiée
+- aucun autre fichier modifié
+
+5. RISQUES RÉSIDUELS
+- uniquement les vrais
+
+6. STOP
+
+CONTRAINTE FINALE
+Je veux supprimer uniquement le bypass admin d’accès marché.
+Pas toucher au moteur métier du commerce.
