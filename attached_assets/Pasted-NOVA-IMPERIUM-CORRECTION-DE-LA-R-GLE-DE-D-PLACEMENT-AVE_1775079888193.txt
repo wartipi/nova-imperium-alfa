@@ -1,0 +1,154 @@
+NOVA IMPERIUM — CORRECTION DE LA RÈGLE DE DÉPLACEMENT AVEC FOG RING
+Branche : NI-10.3
+
+IMPORTANT
+La règle actuelle implémentée est mauvaise.
+
+RÈGLE CANONIQUE VALIDÉE
+Le fog ring DOIT être traversable.
+Les seules cases qui ne doivent PAS offrir l’action de déplacement sont les cases totalement non découvertes.
+
+Cela veut dire :
+
+AUTORISÉ
+- currentVision
+- fogRing
+- exploredHexes
+- admin bypass
+
+INTERDIT
+- case totalement inconnue (ni vision directe, ni fog ring, ni découverte persistée)
+
+PERSISTANCE
+- seules les tuiles réellement découvertes restent persistées
+- le fog ring NE DOIT PAS être persisté
+- le fog ring reste calculé dynamiquement depuis la position actuelle du joueur
+
+OBJECTIF
+Corriger le système pour que :
+1. le joueur puisse cliquer / demander un déplacement vers une case du fog ring
+2. le preview path fonctionne aussi dans ce cas
+3. le serveur accepte ces déplacements
+4. seules les cases totalement inconnues refusent l’action
+
+PÉRIMÈTRE
+Modifier uniquement ce qui est nécessaire parmi :
+- `client/src/components/game/GameCanvas.tsx`
+- `client/src/lib/movement/MovementSystem.ts`
+- `client/src/lib/pathfinding/HexPathfinding.ts`
+- `server/routes/playerActions.ts`
+
+Ne touche pas à :
+- la persistance `player_discovered_tiles`
+- `VisionSystem.ts` sauf bug critique imprévu
+- `GameEngine.ts` sauf si le preview visuel a encore besoin d’un petit ajustement
+- aucun refactor massif
+
+RÈGLE CLIENT À APPLIQUER
+Créer une règle commune de case “déplaçable” :
+- true si `isHexInCurrentVision(...)`
+- ou `isHexInFogRing(...)`
+- ou `isHexExplored(...)`
+- ou admin
+
+Cette règle doit remplacer les usages actuels en mode “explored only” pour :
+A. afficher l’action “Se déplacer ici”
+B. autoriser `handleMovementConfirm`
+C. autoriser le preview path
+
+RÈGLE PATHFINDING CLIENT
+Le pathfinding ne doit pas être bloqué sur fog ring.
+Il doit refuser seulement les chemins qui passent par des cases totalement inconnues.
+
+Donc :
+- une case traversable côté connaissance = currentVision OR fogRing OR exploredHexes
+- une case inconnue totale = refus
+
+Si tu gardes un filtre dans `MovementSystem.previewMovement()` ou dans `HexPathfinding`, il doit utiliser cette règle exacte.
+
+RÈGLE SERVEUR
+Le serveur doit refléter exactement la même logique métier.
+
+IMPORTANT :
+Comme le fog ring n’est pas persisté, le serveur doit le recalculer dynamiquement à partir :
+- de la position actuelle du joueur
+- du niveau d’exploration actuel
+
+Le serveur doit donc considérer comme “connue et déplaçable” une case qui est :
+- soit persistée dans `player_discovered_tiles`
+- soit dans la vision directe actuelle calculée serveur
+- soit dans le fog ring actuel calculé serveur
+- soit admin bypass
+
+VALIDATION SERVEUR ATTENDUE
+Dans `POST /api/player/actions/move` :
+- la destination est autorisée si elle est découverte OU dans vision/fog courant
+- chaque case du chemin est autorisée selon cette même règle
+- une case totalement inconnue dans le chemin => refus
+
+ERREURS ATTENDUES
+Conserver si possible les erreurs déjà ajoutées, mais les appliquer à la bonne règle :
+- `DESTINATION_NOT_DISCOVERED` = en pratique “destination totalement inconnue”
+- `PATH_NOT_DISCOVERED` = en pratique “chemin traverse une case totalement inconnue”
+
+Tu peux garder ces noms pour éviter de casser le front, mais la logique métier doit être corrigée.
+
+POINT CRITIQUE
+Ne transforme PAS le fog ring en découverte persistée.
+Le fog ring est une zone tampon dynamique, pas une mémoire permanente.
+
+VÉRIFICATIONS OBLIGATOIRES
+Après correction, vérifier explicitement :
+
+1. Case totalement inconnue
+- pas d’action “Se déplacer ici”
+- pas de preview
+- refus serveur
+
+2. Case dans le fog ring
+- action “Se déplacer ici” visible
+- preview visible
+- déplacement accepté
+
+3. Case en vision directe
+- action visible
+- preview visible
+- déplacement accepté
+
+4. Case déjà découverte hors vision
+- action visible
+- preview visible
+- déplacement accepté
+
+5. Persistance
+- reload :
+  - les tuiles découvertes persistent
+  - le fog ring est recalculé dynamiquement
+  - il n’est pas stocké en DB
+
+FORMAT DE RAPPORT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC
+- rappeler que la mauvaise règle était “explored only”
+- rappeler la bonne règle : “tout sauf inconnu total”
+
+2. FICHIERS MODIFIÉS
+- lister uniquement les fichiers réellement touchés
+
+3. MODIFICATIONS APPLIQUÉES
+- expliquer :
+  - où la règle de déplaçabilité a été corrigée côté client
+  - où elle a été corrigée côté serveur
+  - comment le fog ring est autorisé sans être persisté
+
+4. PREUVE DIRECTE
+- coller :
+  - la condition client corrigée pour autoriser le move
+  - la condition côté confirmation
+  - la validation serveur du chemin
+  - confirmer que le fog ring n’est pas écrit en DB
+
+5. VÉRIFICATION
+- confirmer les 4 cas de test
+
+6. STOP
