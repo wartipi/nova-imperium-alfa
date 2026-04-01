@@ -158,13 +158,12 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
         }
       }
       try {
-        const gameEngine = (window as any).gameEngine;
-        const avatarPos = gameEngine?.getAvatarPosition() || { x: 25, y: 15 };
+        const avatarPos = usePlayer.getState().avatarHexPosition;
         const { originWorldX, originWorldY } = useMap.getState();
         const worldX = avatarPos.x + originWorldX;
         const worldY = avatarPos.y + originWorldY;
         const effectiveOwnerType: 'player' | 'faction' = playerFaction ? 'faction' : 'player';
-        console.log(`[AvatarActionMenu] Claim → world=(${worldX},${worldY}) ownerType=${effectiveOwnerType}`);
+        console.log(`[AvatarActionMenu] Claim → avatarHex=(${avatarPos.x},${avatarPos.y}) world=(${worldX},${worldY}) ownerType=${effectiveOwnerType}`);
         await apiClaimTerritory(worldX, worldY, effectiveOwnerType);
         window.dispatchEvent(new CustomEvent('nova:logistic-refresh'));
         onClose();

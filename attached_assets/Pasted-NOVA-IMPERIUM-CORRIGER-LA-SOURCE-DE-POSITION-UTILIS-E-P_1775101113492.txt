@@ -1,0 +1,76 @@
+NOVA IMPERIUM — CORRIGER LA SOURCE DE POSITION UTILISÉE POUR LE CLAIM
+Branche : NI-10.3
+
+RÔLE
+Tu exécutes un micro-correctif ciblé.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucune dérive.
+Objectif : unifier la source de position utilisée pour revendiquer un territoire.
+
+DIAGNOSTIC VALIDÉ
+Le bug restant est probablement causé par une divergence entre :
+1. la position lue par l’UI joueur (`usePlayer().avatarHexPosition`)
+2. la position utilisée par le claim dans `AvatarActionMenu.tsx` via `gameEngine.getAvatarPosition()`
+
+Le panneau de tuile, le déplacement, et la logique joueur s’appuient sur le store `usePlayer`.
+Le claim, lui, utilise encore `gameEngine.getAvatarPosition()`.
+
+Vu les conversions hex ↔ monde et le système de colonnes décalées, cela peut faire partir le claim sur une case différente de celle affichée comme “position actuelle”.
+
+OBJECTIF
+Faire du store joueur (`avatarHexPosition`) la source canonique pour le claim.
+
+PÉRIMÈTRE STRICT
+Modifier uniquement :
+`client/src/components/game/AvatarActionMenu.tsx`
+
+INTERDIT
+- ne pas modifier le serveur
+- ne pas modifier `UnifiedTerritoryPanel.tsx`
+- ne pas modifier `TileInfoPanel.tsx`
+- ne pas modifier `HexMath.ts`
+- ne pas modifier `GameEngine.ts`
+- aucun refactor global
+
+MODIFICATION ATTENDUE
+Dans le bloc `action.id === 'claim_territory'` :
+
+REMPLACER la récupération actuelle via :
+- `gameEngine?.getAvatarPosition()`
+
+PAR une récupération depuis :
+- `usePlayer.getState().avatarHexPosition`
+
+Puis construire les coordonnées monde avec :
+- `worldX = avatarHexPosition.x + originWorldX`
+- `worldY = avatarHexPosition.y + originWorldY`
+
+IMPORTANT
+Le claim doit maintenant utiliser exactement la même case logique que :
+- le TileInfoPanel
+- le déplacement
+- le panneau territoire
+
+NE CHANGE RIEN D’AUTRE
+- conserver `effectiveOwnerType`
+- conserver le remboursement PA sur erreur
+- conserver `nova:logistic-refresh`
+- conserver le reste du handler
+
+VÉRIFICATIONS OBLIGATOIRES
+Après modification, vérifier explicitement :
+
+1. Le claim utilise bien `avatarHexPosition` du store
+2. `gameEngine.getAvatarPosition()` n’est plus utilisé dans le claim
+3. Les coordonnées monde envoyées à `apiClaimTerritory(...)` viennent du store + origin
+4. Un seul fichier modifié
+5. Build / HMR OK
+
+FORMAT DE RAPPORT FINAL OBLIGATOIRE
+1. DIAGNOSTIC
+2. FICHIER MODIFIÉ
+3. MODIFICATION APPLIQUÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
