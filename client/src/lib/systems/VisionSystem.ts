@@ -116,4 +116,41 @@ export class VisionSystem {
   static isHexVisible(hexX: number, hexY: number, currentVision: Set<string>, exploredHexes: Set<string>): boolean {
     return this.isHexInCurrentVision(hexX, hexY, currentVision) || this.isHexExplored(hexX, hexY, exploredHexes);
   }
+
+  /**
+   * Calcule l'anneau de brouillard entourant la vision directe.
+   * Ce sont les tuiles à rayon+1 — visibles dans le brouillard léger (terrain révélé, couleurs atténuées).
+   * Ces tuiles sont traversables visuellement mais PAS encore découvertes (non accessibles sans exploration).
+   *
+   * @param avatarX  coordonnée locale X de l'avatar
+   * @param avatarY  coordonnée locale Y de l'avatar
+   * @param explorationLevel  niveau de compétence exploration du joueur
+   * @returns Set<"x,y"> en coordonnées locales
+   */
+  static calculateFogRing(avatarX: number, avatarY: number, explorationLevel: number): Set<string> {
+    const directRadius = this.getVisionRange(explorationLevel);
+    const fogRadius = directRadius + 1;
+
+    const fogHexes = this.getVisibleHexes(avatarX, avatarY, fogRadius);
+    const directHexes = this.getVisibleHexes(avatarX, avatarY, directRadius);
+
+    const directSet = new Set<string>(directHexes.map(h => `${h.x},${h.y}`));
+    const fogRingSet = new Set<string>();
+
+    for (const hex of fogHexes) {
+      const key = `${hex.x},${hex.y}`;
+      if (!directSet.has(key)) {
+        fogRingSet.add(key);
+      }
+    }
+
+    return fogRingSet;
+  }
+
+  /**
+   * Vérifie si un hexagone est dans l'anneau de brouillard
+   */
+  static isHexInFogRing(hexX: number, hexY: number, fogRing: Set<string>): boolean {
+    return fogRing.has(`${hexX},${hexY}`);
+  }
 }

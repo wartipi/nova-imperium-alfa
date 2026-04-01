@@ -33,7 +33,7 @@ export function GameCanvas() {
   const { gamePhase } = useGameState();
   const { isAdmin, adminModeEnabled, isAuthenticated } = useAuth();
   const { novaImperiums, selectedUnit, moveUnit } = useNovaImperium();
-  const { avatarPosition, avatarHexPosition, travelVisualHexPosition, setTravelVisualHexPosition, clearTravelVisualHexPosition, avatarRotation, isMoving, selectedCharacter, moveAvatarToHex, isHexVisible, isHexInCurrentVision, pendingMovement, setPendingMovement } = usePlayer();
+  const { avatarPosition, avatarHexPosition, travelVisualHexPosition, setTravelVisualHexPosition, clearTravelVisualHexPosition, avatarRotation, isMoving, selectedCharacter, moveAvatarToHex, isHexVisible, isHexInCurrentVision, isHexInFogRing, pendingMovement, setPendingMovement } = usePlayer();
   const { activeAction } = usePlayerActions();
 
   // ─── Preview visuelle du pathfinder — tuiles intermédiaires du trajet prévu ───
@@ -98,14 +98,21 @@ export function GameCanvas() {
       );
       
       // Set vision callbacks immediately
-      const { isHexVisible, isHexInCurrentVision } = usePlayer.getState();
-      gameEngineRef.current.setVisionCallbacks(isHexVisible, isHexInCurrentVision);
+      const { isHexVisible, isHexInCurrentVision, isHexInFogRing, loadDiscoveredTiles } = usePlayer.getState();
+      gameEngineRef.current.setVisionCallbacks(isHexVisible, isHexInCurrentVision, isHexInFogRing);
       
       gameEngineRef.current.render();
 
       // Phase 6 : hydratation des villes depuis le serveur.
       // Appelée ici car l'origine (originWorldX/Y) est disponible après le chargement de la carte.
       useNovaImperium.getState().hydrateCitiesFromServer();
+
+      // Fog of war — chargement des tuiles découvertes depuis le serveur
+      // (exécuté après hydratation car originWorldX/Y est requis pour la conversion coords)
+      loadDiscoveredTiles().then(() => {
+        // Recalculer la vision après chargement pour inclure les tuiles persistées
+        usePlayer.getState().updateVision();
+      });
     }
   }, [mapData]);
 
@@ -281,7 +288,7 @@ export function GameCanvas() {
   useEffect(() => {
     if (gameEngineRef.current) {
       // Update vision callbacks with latest state
-      gameEngineRef.current.setVisionCallbacks(isHexVisible, isHexInCurrentVision);
+      gameEngineRef.current.setVisionCallbacks(isHexVisible, isHexInCurrentVision, isHexInFogRing);
 
       // Position visuelle : travelVisualHexPosition pendant le trajet, avatarPosition sinon
       let visualAvatarPosition = avatarPosition;
@@ -292,12 +299,12 @@ export function GameCanvas() {
 
       gameEngineRef.current.updateCivilizations(novaImperiums);
       gameEngineRef.current.setSelectedHex(selectedHex);
-      gameEngineRef.current.updateAvatar(visualAvatarPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision, pendingMovement, previewPathHexes);
+      gameEngineRef.current.updateAvatar(visualAvatarPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision, pendingMovement, previewPathHexes, isHexInFogRing);
       gameEngineRef.current.render();
       
       // Plus de centrage automatique - caméra libre
     }
-  }, [novaImperiums, selectedHex, avatarPosition, travelVisualHexPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision, pendingMovement, previewPathHexes]);
+  }, [novaImperiums, selectedHex, avatarPosition, travelVisualHexPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision, isHexInFogRing, pendingMovement, previewPathHexes]);
 
   // Phase 5 — polling présence multijoueur
   // Dépendance unique : isAuthenticated — l'intervalle n'est pas recréé à chaque rendu
@@ -470,6 +477,16 @@ export function GameCanvas() {
       alert('Impossible de se déplacer sur l\'eau sans navire !');
       setPendingMovement(null);
       return;
+    }
+
+    // Garde fog-of-war — la destination doit être découverte (bypass admin)
+    if (!adminModeEnabled) {
+      const { isHexExplored: isExplored } = usePlayer.getState();
+      if (!isExplored(pendingMovement.x, pendingMovement.y)) {
+        alert('Impossible de se déplacer vers une case non découverte. Explorez d\'abord cette zone !');
+        setPendingMovement(null);
+        return;
+      }
     }
 
     // Conversion coordonnées locales → monde

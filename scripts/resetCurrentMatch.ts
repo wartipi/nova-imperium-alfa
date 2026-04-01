@@ -145,6 +145,9 @@ async function main() {
     await step('player_bank',      async () => { await client.query('DELETE FROM player_bank'); });
     await step('player_transport', async () => { await client.query('DELETE FROM player_transport'); });
 
+    // ── 12b. fog-of-war découvertes ──
+    await step('player_discovered_tiles', async () => { await client.query('DELETE FROM player_discovered_tiles'); });
+
     // ── 13. positions joueurs → spawn canonique via shared/runtimeDefaults ──
     await step(`player_positions → spawn canonique (${CANONICAL_SPAWN.worldX},${CANONICAL_SPAWN.worldY})`,
       async () => {

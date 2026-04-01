@@ -18,6 +18,7 @@ import mapRoutes from "./routes/map";
 import playerRoutes from "./routes/player";
 import playerStateRoutes from "./routes/playerState";
 import playerActionsRoutes from "./routes/playerActions";
+import discoveredTilesRoutes from "./routes/discoveredTiles";
 import playersRoutes from "./routes/players";
 import citiesRoutes from "./routes/cities";
 import unitsRoutes from "./routes/units";
@@ -908,6 +909,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/player', playerRoutes);
   app.use('/api/player', playerStateRoutes);
   app.use('/api/player', playerActionsRoutes);
+  app.use('/api/player', discoveredTilesRoutes);
   app.use('/api/players', playersRoutes);
   app.use('/api/cities', citiesRoutes);
   app.use('/api/units', unitsRoutes);

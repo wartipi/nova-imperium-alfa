@@ -1,0 +1,277 @@
+NOVA IMPERIUM — VISION / FOG / DÉCOUVERTE PERSISTANTE / PATHFINDER
+Branche de travail : NI-10.3
+
+RÔLE
+Tu exécutes un chantier technique sensible.
+Tu dois respecter :
+- architecture existante
+- simplicité
+- déterminisme
+- stabilité
+- compatibilité serveur-authoritative
+
+INTERDIT
+- refactor massif
+- changement d’architecture
+- système générique inutile
+- coder avant audit réel
+- supposer où vit la vérité du déplacement ou de la vision
+
+OBJECTIF
+Corriger 3 problèmes liés :
+
+1. Le pathfinder ne doit pas calculer de chemin vers une case non découverte
+2. Les tuiles découvertes doivent être persistées par joueur
+3. Le champ de vision doit avoir 3 couches réelles :
+   - vision directe
+   - anneau de fog of war autour de la vision directe
+   - terrain découvert ancien (hors vision actuelle)
+
+IMPORTANT
+On ne veut PAS un simple cache local.
+On veut une persistance réelle par joueur pour la partie en cours.
+
+MÉTHODE OBLIGATOIRE
+1. Audit
+2. Validation
+3. Implémentation minimale
+4. Vérification réelle
+5. Rapport final
+
+==================================================
+PHASE 1 — AUDIT OBLIGATOIRE AVANT MODIFICATION
+==================================================
+
+Tu dois auditer et confirmer noir sur blanc :
+
+A. PATHFINDING
+- où est calculé le chemin côté client
+- où est validé le déplacement côté serveur
+- si le serveur autorise encore une destination non découverte
+- quel format de coordonnées est utilisé localement vs monde
+
+B. VISION
+- où vivent `currentVision`
+- où vivent `exploredHexes`
+- comment la vision est recalculée après déplacement
+- comment le rendu différencie actuellement :
+  - case visible
+  - case explorée
+  - case inconnue
+
+C. PERSISTANCE
+- quel schéma est déjà disponible pour stocker une découverte par joueur
+- s’il n’existe rien, proposer la plus petite table propre possible
+- comment hydrater ces données au login / chargement de carte / changement de segment
+
+D. CONTRAINTE SEGMENTS
+- vérifier comment `originWorldX` / `originWorldY` sont utilisés
+- toute persistance doit être faite en coordonnées MONDE, jamais en coordonnées locales tableau
+
+NE RIEN MODIFIER avant d’avoir fini cet audit.
+
+==================================================
+PHASE 2 — CIBLE TECHNIQUE MINIMALE
+==================================================
+
+Tu dois viser cette architecture minimale :
+
+A. PERSISTANCE DES TUILES DÉCOUVERTES
+Créer la plus petite solution canonique possible.
+
+Solution préférée :
+nouvelle table dédiée, par exemple :
+- `player_discovered_tiles`
+
+Structure minimale attendue :
+- `player_id`
+- `world_x`
+- `world_y`
+- `discovered_at`
+- contrainte d’unicité sur (`player_id`, `world_x`, `world_y`)
+
+Règles :
+- une tuile découverte reste découverte
+- stockage en coordonnées monde
+- pas de duplication locale inutile
+- pas de blob JSON géant dans player_state
+- pas de stockage navigateur comme vérité principale
+
+B. API / SERVICE MINIMAL
+Installer la plus petite surface serveur propre pour :
+1. charger les tuiles découvertes du joueur courant
+2. enregistrer par lot les nouvelles tuiles découvertes
+
+Préférence :
+- endpoints ciblés simples
+- ou réutilisation d’un service joueur existant si vraiment cohérent
+Mais pas de nouveau gros sous-système.
+
+C. HYDRATATION CLIENT
+Le store joueur doit :
+- charger les tuiles découvertes depuis le serveur
+- convertir monde → local selon `originWorldX/Y`
+- conserver une vérité exploitable côté rendu
+- continuer à recalculer `currentVision` localement
+- fusionner les nouvelles découvertes quand la vision avance
+
+IMPORTANT
+La persistance canonique = monde.
+Le store peut maintenir une vue locale dérivée si nécessaire.
+
+D. PATHFINDER
+Le pathfinder ne doit plus :
+- accepter une destination non découverte
+- traverser des cases non découvertes
+sauf admin si c’est déjà la règle canonique
+
+Donc :
+- ajouter un garde dans le calcul de chemin client
+- ajouter la validation équivalente côté serveur pour `requestMove`
+
+RÈGLE
+La validation serveur est obligatoire.
+Un garde UI seul est insuffisant.
+
+E. VISION 3 COUCHES
+Tu dois passer d’un système binaire à un système 3 couches :
+
+1. `currentDirectVision`
+   - cases actuellement vues directement
+   - rendu normal
+
+2. `currentFogRing`
+   - anneau autour de la vision directe
+   - visible en brouillard léger
+   - ne donne pas les mêmes détails que la vision directe
+
+3. `exploredHexes`
+   - découvert ancien
+   - rendu assombri / mémoire terrain
+   - plus sombre que le fog ring actuel
+
+F. RAYONS
+Ne change pas brutalement l’équilibrage sans justification.
+Proposition minimale attendue :
+- conserver le rayon direct actuel comme base canonique de gameplay
+- ajouter un anneau fog = rayon direct + 1
+Exemple :
+- direct = 1 → fog = 2
+- direct = 2 → fog = 3
+- direct = 3 → fog = 4
+Mais valide ce choix à partir du code réel avant de l’appliquer.
+
+G. RÈGLES DE DÉTAIL DANS LE FOG
+Règle simple et stable :
+- vision directe : terrain + ressources visibles selon les règles existantes
+- fog ring : terrain visible, pas de détails équivalents à la vision directe
+- explored ancien : terrain mémoire fortement assombri
+- undiscovered : noir total
+
+Ne crée pas de logique trop complexe sur les ressources dans le fog ring.
+Rester simple.
+
+==================================================
+PHASE 3 — IMPLÉMENTATION MINIMALE
+==================================================
+
+Implémenter dans cet ordre :
+
+1. Schéma DB pour tuiles découvertes
+2. Lecture/écriture serveur
+3. Hydratation client
+4. Mise à jour des découvertes lors des déplacements / updateVision
+5. Blocage pathfinder client
+6. Blocage validation déplacement serveur
+7. Extension VisionSystem :
+   - directVision
+   - fogRing
+   - explored
+8. Adaptation GameEngine render
+
+==================================================
+PHASE 4 — CONTRAINTES DE CODE
+==================================================
+
+Tu dois réutiliser au maximum :
+- `VisionSystem`
+- `usePlayer`
+- `GameEngine`
+- la pipeline serveur existante du déplacement
+
+Éviter :
+- nouveau gros moteur de vision
+- duplication des conversions local/world
+- logique cachée dans le composant canvas
+- logique fog directement codée en dur à plusieurs endroits
+
+Le bon endroit attendu :
+- calcul vision/fog dans `VisionSystem`
+- état joueur dans `usePlayer`
+- rendu dans `GameEngine`
+- validation mouvement dans la route/service serveur du déplacement
+
+==================================================
+PHASE 5 — VÉRIFICATIONS OBLIGATOIRES
+==================================================
+
+Après implémentation, vérifier explicitement :
+
+A. PERSISTANCE
+- un joueur découvre des tuiles
+- reload page
+- les tuiles restent découvertes
+- changement de segment : pas de corruption
+- coordonnées stockées en monde
+
+B. PATHFINDER
+- clic / demande de déplacement vers case non découverte → refus
+- chemin traversant une zone non découverte → refus
+- déplacement vers case découverte → OK
+
+C. VISION
+- vision directe visible normalement
+- anneau fog visible autour
+- ancienne découverte visible plus sombre
+- inconnue totalement noire
+
+D. ADMIN
+- confirmer clairement si admin bypass ou non
+- rester cohérent avec les règles existantes
+
+E. NON-RÉGRESSION
+- aucun changement d’architecture
+- aucun refactor massif
+- aucune casse des systèmes existants territoire / déplacement / rendu
+
+==================================================
+FORMAT DE RAPPORT FINAL OBLIGATOIRE
+==================================================
+
+1. DIAGNOSTIC
+- résumer les 3 problèmes réels confirmés par le code
+
+2. FICHIERS MODIFIÉS
+- lister exactement les fichiers touchés
+
+3. MODIFICATIONS APPLIQUÉES
+- expliquer :
+  - persistance des tuiles découvertes
+  - blocage pathfinder client
+  - validation serveur
+  - nouvelle logique directVision / fogRing / explored
+  - rendu visuel
+
+4. SCHÉMA / API
+- montrer la table créée ou modifiée
+- montrer les endpoints / services ajoutés ou modifiés
+
+5. VÉRIFICATION
+- reload OK
+- persistance OK
+- pathfinder bloqué sur case non découverte
+- fog ring visible
+- map stable
+- aucune régression majeure
+
+6. STOP

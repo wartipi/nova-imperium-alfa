@@ -733,3 +733,19 @@ export const marketTrades = pgTable("market_trades", {
 });
 
 export type MarketTradeRecord = typeof marketTrades.$inferSelect;
+
+// ─── player_discovered_tiles ──────────────────────────────────────────────────
+// Persistance des tuiles découvertes par joueur, en coordonnées MONDE.
+// Une tuile découverte reste découverte (immuable après insertion).
+// Contrainte d'unicité sur (player_id, world_x, world_y).
+export const playerDiscoveredTiles = pgTable("player_discovered_tiles", {
+  id:           serial("id").primaryKey(),
+  playerId:     text("player_id").notNull(),
+  worldX:       integer("world_x").notNull(),
+  worldY:       integer("world_y").notNull(),
+  discoveredAt: timestamp("discovered_at").notNull().defaultNow(),
+}, (table) => ({
+  uniq: unique("player_discovered_tiles_uniq").on(table.playerId, table.worldX, table.worldY),
+}));
+
+export type PlayerDiscoveredTileRecord = typeof playerDiscoveredTiles.$inferSelect;

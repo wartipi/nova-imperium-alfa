@@ -323,3 +323,41 @@ npm run db:push                   # Synchroniser le schéma Drizzle
 
 ### Bug satellite connu (hors LOT 5)
 - `applyProductionTickPerCity` (economyService.ts L329) utilise encore `eq(colonies.factionId, factionId)` legacy → les colonies `ownerType='player'` ne génèrent pas de ressources économiques (or/nourriture/wood etc.) via `POST /api/economy/production-tick` pour les joueurs sans faction. À traiter dans une passe ultérieure d'harmonisation.
+
+## Fog of War / Découverte persistante (NI-10.3)
+
+### Vue d'ensemble
+Système de brouillard de guerre complet avec persistance base de données. Les tuiles découvertes survivent aux rechargements de page.
+
+### Table DB
+`player_discovered_tiles(id, player_id, world_x, world_y, discovered_at)` — contrainte UNIQUE sur `(player_id, world_x, world_y)`. Coordonnées MONDE (invariantes entre segments).
+
+### Routes API
+| Méthode | Route | Description |
+|---|---|---|
+| GET | `/api/player/discovered-tiles` | Toutes les tuiles découvertes du joueur |
+| POST | `/api/player/discovered-tiles` | Batch insert nouvelles tuiles (`{tiles:[{worldX,worldY}]}`) |
+
+### Rendu 3 couches (GameEngine.ts)
+1. **Vision directe** — couleurs normales (rayon 1–3 selon compétence exploration)
+2. **Anneau de brouillard** (fog ring) — terrain révélé à 70 % de luminosité + voile bleuté semi-transparent (rayon+1, hexagones à la périphérie)
+3. **Mémoire explorée** — 40 % de luminosité + overlay foncé (tuiles visitées hors vision)
+4. **Inconnu total** — `#1a1a1a` (noir quasi-complet)
+
+### Flux de synchronisation
+- **Chargement** : `loadDiscoveredTiles()` appelé à chaque changement de `mapData`. Convertit coords monde → locales via `originWorldX/Y`.
+- **Écriture** : `updateVision()` calcule le delta (nouvelles tuiles) et appelle `syncDiscoveredTiles()` en background. Les tuiles de l'anneau de brouillard ne sont PAS persistées — seule la vision directe est découverte.
+- **Changement de segment** : mapData change → hydratation automatique depuis le serveur avec recalcul des coordonnées locales.
+
+### Gardes fog-of-war
+- **Client** (`handleMovementConfirm`, GameCanvas.tsx) : vérifie `isHexExplored(x,y)` avant `requestMove`. Bypass pour admin.
+- **Serveur** (`POST /api/player/actions/move`, playerActions.ts) : charge les tiles découvertes dans la bounding box, vérifie destination et chemin complet. Retourne `403 DESTINATION_NOT_DISCOVERED` ou `PATH_NOT_DISCOVERED`. Bypass pour admin.
+
+### Fichiers clés
+- `shared/schema.ts` — table `playerDiscoveredTiles`
+- `server/routes/discoveredTiles.ts` — routes GET/POST
+- `client/src/lib/api/discoveredTilesApi.ts` — `fetchDiscoveredTiles`, `syncDiscoveredTiles`
+- `client/src/lib/systems/VisionSystem.ts` — `calculateFogRing`, `isHexInFogRing`
+- `client/src/lib/stores/usePlayer.tsx` — `fogRing`, `loadDiscoveredTiles`, `isHexInFogRing`, `updateVision` (sync delta)
+- `client/src/lib/game/GameEngine.ts` — `isHexInFogRing` callback, `applyLightFog`, rendu 3 couches
+- `client/src/components/game/GameCanvas.tsx` — passage callbacks, garde client, hydratation au chargement

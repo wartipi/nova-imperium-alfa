@@ -6,6 +6,7 @@ import { useMap } from './useMap';
 import { usePlayerActions } from './usePlayerActions';
 import { savePlayerPosition } from '../api/playerApi';
 import { savePlayerState } from '../api/playerStateApi';
+import { fetchDiscoveredTiles, syncDiscoveredTiles } from '../api/discoveredTilesApi';
 
 interface CompetenceLevel {
   competence: string;
@@ -57,6 +58,7 @@ interface PlayerState {
   // Vision system unifié
   currentVision: Set<string>;
   exploredHexes: Set<string>;
+  fogRing: Set<string>;          // Anneau de brouillard entourant la vision directe (rayon+1)
   resourcesDiscovered: Set<string>; // Ressources découvertes par action "Explorer la Zone"
 
   // Movement system
@@ -104,11 +106,14 @@ interface PlayerState {
   updateVision: () => void;
   isHexVisible: (hexX: number, hexY: number) => boolean;
   isHexInCurrentVision: (hexX: number, hexY: number) => boolean;
+  isHexInFogRing: (hexX: number, hexY: number) => boolean;
   isHexExplored: (hexX: number, hexY: number) => boolean;
   addExploredHex: (hexX: number, hexY: number) => void;
   exploreCurrentLocation: () => boolean;
   isResourceDiscovered: (hexX: number, hexY: number) => boolean;
   discoverResourcesInVision: () => boolean;
+  /** Charge les tuiles découvertes depuis le serveur et repeuple exploredHexes. */
+  loadDiscoveredTiles: () => Promise<void>;
   
   // Movement system
   setPendingMovement: (movement: { x: number; y: number } | null) => void;
@@ -170,6 +175,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
   movementSpeed: 2,
   currentVision: new Set(),
   exploredHexes: new Set(),
+  fogRing: new Set(),
   resourcesDiscovered: new Set(),
 
   pendingMovement: null,
@@ -370,31 +376,54 @@ export const usePlayer = create<PlayerState>((set, get) => {
     const state = get();
     const avatarHex = state.avatarHexPosition;
     const explorationLevel = state.getCompetenceLevel('exploration');
-    
-    // Calculate current vision
+
+    // Vision directe
     const newCurrentVision = VisionSystem.calculateCurrentVision(
-      avatarHex.x, 
-      avatarHex.y, 
+      avatarHex.x,
+      avatarHex.y,
       explorationLevel
     );
-    
-    // Update explored hexes with current vision
-    const newExploredHexes = VisionSystem.updateExploredHexes(
-      newCurrentVision, 
-      state.exploredHexes
+
+    // Anneau de brouillard (rayon+1 hors vision directe)
+    const newFogRing = VisionSystem.calculateFogRing(
+      avatarHex.x,
+      avatarHex.y,
+      explorationLevel
     );
-    
+
+    // Exploration permanente — ne découvre QUE les tuiles de vision directe
+    const prevExplored = state.exploredHexes;
+    const newExploredHexes = VisionSystem.updateExploredHexes(newCurrentVision, prevExplored);
+
+    // Synchroniser avec le serveur les tuiles nouvellement découvertes (delta)
+    const { originWorldX, originWorldY } = useMap.getState();
+    const newTiles: { worldX: number; worldY: number }[] = [];
+    for (const key of newCurrentVision) {
+      if (!prevExplored.has(key)) {
+        const [lx, ly] = key.split(',').map(Number);
+        newTiles.push({ worldX: lx + originWorldX, worldY: ly + originWorldY });
+      }
+    }
+    if (newTiles.length > 0) {
+      syncDiscoveredTiles(newTiles).catch(err =>
+        console.warn('[updateVision] syncDiscoveredTiles échoué:', err)
+      );
+    }
+
     console.log('Vision updated:', {
       avatarHex,
       explorationLevel,
       visionRange: VisionSystem.getVisionRange(explorationLevel),
       currentVisionCount: newCurrentVision.size,
-      exploredCount: newExploredHexes.size
+      fogRingCount: newFogRing.size,
+      exploredCount: newExploredHexes.size,
+      newTilesCount: newTiles.length,
     });
-    
-    set({ 
+
+    set({
       currentVision: newCurrentVision,
-      exploredHexes: newExploredHexes
+      fogRing: newFogRing,
+      exploredHexes: newExploredHexes,
     });
   },
 
@@ -406,6 +435,35 @@ export const usePlayer = create<PlayerState>((set, get) => {
   isHexInCurrentVision: (hexX, hexY) => {
     const state = get();
     return VisionSystem.isHexInCurrentVision(hexX, hexY, state.currentVision);
+  },
+
+  isHexInFogRing: (hexX, hexY) => {
+    const state = get();
+    return VisionSystem.isHexInFogRing(hexX, hexY, state.fogRing);
+  },
+
+  loadDiscoveredTiles: async () => {
+    try {
+      const tiles = await fetchDiscoveredTiles();
+      if (tiles.length === 0) return;
+
+      const { originWorldX, originWorldY } = useMap.getState();
+      const newExploredHexes = new Set<string>(get().exploredHexes);
+
+      for (const t of tiles) {
+        const localX = t.worldX - originWorldX;
+        const localY = t.worldY - originWorldY;
+        newExploredHexes.add(`${localX},${localY}`);
+      }
+
+      set({ exploredHexes: newExploredHexes });
+      console.log(
+        `[loadDiscoveredTiles] ${tiles.length} tuiles chargées depuis le serveur` +
+        ` → ${newExploredHexes.size} tuiles explorées (locales)`
+      );
+    } catch (err) {
+      console.warn('[loadDiscoveredTiles] Échec chargement:', err);
+    }
   },
 
   isHexExplored: (hexX, hexY) => {

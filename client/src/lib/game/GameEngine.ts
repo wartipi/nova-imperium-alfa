@@ -31,6 +31,7 @@ export class GameEngine {
   private lastMouseY = 0;
   private isHexVisible: ((x: number, y: number) => boolean) | null = null;
   private isHexInCurrentVision: ((x: number, y: number) => boolean) | null = null;
+  private isHexInFogRing: ((x: number, y: number) => boolean) | null = null;
   private avatarPosition: { x: number; y: number; z: number } = { x: 5, y: 0, z: 5 };
   private avatarRotation: { x: number; y: number; z: number } = { x: 0, y: 0, z: 0 };
   private isAvatarMoving = false;
@@ -44,9 +45,14 @@ export class GameEngine {
   // REFACTORISATION : Injection explicite des stores au lieu de window
   private getGameState: GameStateAccessor;
   private getPlayerState: PlayerStateAccessor;
-  setVisionCallbacks(isHexVisible: (x: number, y: number) => boolean, isHexInCurrentVision: (x: number, y: number) => boolean) {
+  setVisionCallbacks(
+    isHexVisible: (x: number, y: number) => boolean,
+    isHexInCurrentVision: (x: number, y: number) => boolean,
+    isHexInFogRing?: (x: number, y: number) => boolean
+  ) {
     this.isHexVisible = isHexVisible;
     this.isHexInCurrentVision = isHexInCurrentVision;
+    if (isHexInFogRing) this.isHexInFogRing = isHexInFogRing;
   }
 
   setAdminMode(value: boolean): void {
@@ -375,12 +381,13 @@ export class GameEngine {
         // Check if hex is visible (use vision system, but ignore if admin mode)
         const isVisible = this.isAdminMode || (this.isHexVisible ? this.isHexVisible(x, y) : true);
         const isInCurrentVision = this.isAdminMode || (this.isHexInCurrentVision ? this.isHexInCurrentVision(x, y) : true);
+        const isInFogRing = !this.isAdminMode && (this.isHexInFogRing ? this.isHexInFogRing(x, y) : false);
         
         // Check if this hex is the pending movement destination
         const isPendingDestination = this.pendingMovement && this.pendingMovement.x === x && this.pendingMovement.y === y;
         
-        // Draw hex with vision state
-        this.drawHex(screenX, screenY, hex, isVisible ?? false, isInCurrentVision ?? false, isPendingDestination);
+        // Draw hex with vision state (3 layers: direct / fog ring / explored-old / unknown)
+        this.drawHex(screenX, screenY, hex, isVisible ?? false, isInCurrentVision ?? false, isInFogRing, isPendingDestination ?? false);
         
         // Draw hex outline - different style for visible vs invisible
         if (isVisible) {
@@ -396,7 +403,7 @@ export class GameEngine {
     }
   }
 
-  private drawHex(x: number, y: number, hex: HexTile, isVisible: boolean = true, isInCurrentVision: boolean = true, isPendingDestination: boolean = false) {
+  private drawHex(x: number, y: number, hex: HexTile, isVisible: boolean = true, isInCurrentVision: boolean = true, isInFogRing: boolean = false, isPendingDestination: boolean = false) {
     const hexHeight = this.hexSize * Math.sqrt(3);
     
     this.ctx.beginPath();
@@ -413,10 +420,26 @@ export class GameEngine {
     }
     this.ctx.closePath();
     
-    if (!isVisible) {
-      // Not explored - completely dark fog of war
+    if (!isVisible && !isInFogRing) {
+      // Complètement inconnu — brouillard noir total
       this.ctx.fillStyle = '#1a1a1a';
       this.ctx.fill();
+    } else if (isInFogRing && !isInCurrentVision && !isVisible) {
+      // Anneau de brouillard — terrain révélé, léger voile bleuté (non explorable sans s'y rendre)
+      const baseColor = this.getTerrainColor(hex.terrain);
+      const lightFogColor = this.applyLightFog(baseColor);
+      this.ctx.fillStyle = lightFogColor;
+      this.ctx.fill();
+      this.ctx.fillStyle = 'rgba(80, 110, 160, 0.40)';
+      this.ctx.fill();
+      if (hex.hasRiver) {
+        this.ctx.strokeStyle = 'rgba(0, 102, 204, 0.5)';
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.moveTo(x - this.hexSize / 2, y);
+        this.ctx.lineTo(x + this.hexSize / 2, y);
+        this.ctx.stroke();
+      }
     } else if (isInCurrentVision) {
       // In current vision - normal colors
       this.ctx.fillStyle = this.getTerrainColor(hex.terrain);
@@ -653,6 +676,15 @@ export class GameEngine {
     return `rgb(${fogR}, ${fogG}, ${fogB})`;
   }
 
+  /** Atténuation légère pour l'anneau de brouillard (70 % de la luminosité d'origine). */
+  private applyLightFog(color: string): string {
+    const hex = color.replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    return `rgb(${Math.floor(r * 0.70)}, ${Math.floor(g * 0.70)}, ${Math.floor(b * 0.70)})`;
+  }
+
   private getTerrainColor(terrain: string): string {
     const colors = {
       wasteland: '#F5F5DC',        // Beige pâle
@@ -783,7 +815,17 @@ export class GameEngine {
   }
 
   // Avatar methods
-  updateAvatar(position: { x: number; y: number; z: number }, rotation: { x: number; y: number; z: number }, isMoving: boolean, selectedCharacter: any, isHexVisible?: (x: number, y: number) => boolean, isHexInCurrentVision?: (x: number, y: number) => boolean, pendingMovement?: { x: number; y: number } | null, previewPath?: { x: number; y: number }[]) {
+  updateAvatar(
+    position: { x: number; y: number; z: number },
+    rotation: { x: number; y: number; z: number },
+    isMoving: boolean,
+    selectedCharacter: any,
+    isHexVisible?: (x: number, y: number) => boolean,
+    isHexInCurrentVision?: (x: number, y: number) => boolean,
+    pendingMovement?: { x: number; y: number } | null,
+    previewPath?: { x: number; y: number }[],
+    isHexInFogRingCb?: (x: number, y: number) => boolean
+  ) {
     this.avatarPosition = position;
     this.avatarRotation = rotation;
     this.isAvatarMoving = isMoving;
@@ -793,6 +835,9 @@ export class GameEngine {
     }
     if (isHexInCurrentVision) {
       this.isHexInCurrentVision = isHexInCurrentVision;
+    }
+    if (isHexInFogRingCb) {
+      this.isHexInFogRing = isHexInFogRingCb;
     }
     this.pendingMovement = pendingMovement || null;
     this.previewPath = previewPath && previewPath.length > 0

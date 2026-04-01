@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { and, between } from "drizzle-orm";
+import { and, between, eq, sql } from "drizzle-orm";
 import { requireAuth } from "../middleware/auth";
 import type { AuthRequest } from "../middleware/auth";
 import { db } from "../db";
-import { mapTiles } from "../../shared/schema";
+import { mapTiles, playerDiscoveredTiles } from "../../shared/schema";
 import { getPlayerPosition } from "../playerPositionService";
 import { createMoveAction, getActiveAction, cancelActiveAction, msRemaining } from "../playerActionService";
 import { findPath } from "../pathfinding/HexPathfindingServer";
@@ -100,6 +100,53 @@ router.post("/actions/move", requireAuth, async (req: AuthRequest, res) => {
         error: "PATHFINDING_FAILED",
         message: result.error ?? "Aucun chemin disponible vers la destination",
       });
+    }
+
+    // ─── Garde fog-of-war : destination et chemin doivent être découverts ────
+    // Bypass pour admin (adminModeEnabled déterminé plus bas, on doit d'abord le calculer).
+    const rawHeaderFow = req.headers['x-admin-mode'];
+    const headerValueFow = Array.isArray(rawHeaderFow) ? rawHeaderFow[0] : rawHeaderFow;
+    const roleFow = req.user!.role;
+    const adminBypass =
+      roleFow === 'admin' && (headerValueFow === undefined || headerValueFow === 'true');
+
+    if (!adminBypass) {
+      // Charger les tuiles découvertes dans la bounding box du trajet
+      const discoveredRows = await db
+        .select({
+          worldX: playerDiscoveredTiles.worldX,
+          worldY: playerDiscoveredTiles.worldY,
+        })
+        .from(playerDiscoveredTiles)
+        .where(
+          and(
+            eq(playerDiscoveredTiles.playerId, playerId),
+            between(playerDiscoveredTiles.worldX, minX, maxX),
+            between(playerDiscoveredTiles.worldY, minY, maxY)
+          )
+        );
+
+      const discoveredSet = new Set<string>(
+        discoveredRows.map(r => `${r.worldX},${r.worldY}`)
+      );
+
+      // Vérifier la destination
+      if (!discoveredSet.has(`${destX},${destY}`)) {
+        return res.status(403).json({
+          error:   "DESTINATION_NOT_DISCOVERED",
+          message: "Impossible de se déplacer vers une case non découverte.",
+        });
+      }
+
+      // Vérifier chaque étape du chemin
+      for (const step of result.path) {
+        if (!discoveredSet.has(`${step.worldX},${step.worldY}`)) {
+          return res.status(403).json({
+            error:   "PATH_NOT_DISCOVERED",
+            message: "Le chemin emprunte une case non découverte.",
+          });
+        }
+      }
     }
 
     // Création de l'action persistante
