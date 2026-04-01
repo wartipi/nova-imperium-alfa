@@ -1,0 +1,236 @@
+NOVA IMPERIUM — RESET CONTRÔLÉ DE L’ÉTAT PERSISTANT DE LA PARTIE
+Branche de travail : NI-10.3
+
+RÔLE
+Tu exécutes un chantier destructif contrôlé.
+Aucune supposition.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucune improvisation.
+
+PRIORITÉS
+1. Sécurité des données
+2. Exactitude du reset
+3. Simplicité
+4. Vérification réelle
+5. Compatibilité avec l’architecture existante
+
+OBJECTIF
+Remettre la partie persistante en état neuf pour recommencer des tests sur une carte propre :
+- aucune ville
+- aucune colonie
+- aucun territoire revendiqué
+- aucun bâtiment
+- aucune production en cours
+- aucun inventaire de ville / pending harvest / banque de partie conservé
+- aucune action active restante
+- aucune unité persistante de la partie restante
+- aucun état gameplay ancien qui pourrait polluer les tests
+
+IMPORTANT
+Je veux un reset de la PARTIE PERSISTANTE EN COURS.
+Je ne veux pas casser :
+- l’authentification
+- les comptes utilisateurs
+- les rôles admin / maître de jeu
+- le code du projet
+- l’architecture serveur-authoritative
+- la génération déterministe
+
+RÈGLE CRITIQUE SUR LA CARTE
+Ne change pas le système de génération.
+Ne change pas le seed.
+Ne randomise rien.
+Tu dois conserver la logique canonique déterministe existante.
+
+INTERPRÉTATION ATTENDUE
+“Map à neuf” signifie :
+- état gameplay remis à zéro
+- carte persistante régénérée proprement SI des données dynamiques y sont stockées
+- sinon, conserver les tuiles statiques et reset uniquement les tables / colonnes de gameplay
+
+MÉTHODE OBLIGATOIRE
+
+PHASE 1 — AUDIT AVANT TOUTE MODIFICATION
+Tu dois auditer le schéma réel et identifier précisément :
+A. les tables purement gameplay à vider / reset
+B. les tables à préserver absolument
+C. les tables mixtes (statiques + dynamiques)
+D. les dépendances FK et l’ordre correct d’effacement / reset
+E. la logique canonique actuelle de spawn / position joueur
+F. si `map_tiles` ou équivalent contient de l’état gameplay modifié pendant les tests
+
+TU NE DOIS RIEN SUPPOSER.
+Si une table ou une colonne est ambiguë, tu la lis avant d’agir.
+
+EXEMPLES DE DONNÉES À AUDITER
+Sans supposer la liste finale, auditer notamment tout ce qui ressemble à :
+- territoires / claims
+- colonies
+- villes
+- bâtiments de ville
+- production de ville
+- city_inventory
+- city_pending_harvest
+- player_bank
+- player_actions
+- positions joueur
+- unités / armées / marshal / couriers / transports si persistants
+- relations faction / gouvernance / ownership si elles font partie de l’état de partie
+- map tiles si des métadonnées de partie y sont stockées
+
+PHASE 2 — PLAN DE RESET EXACT
+Avant exécution, établir un plan exact :
+1. quelles tables seront TRUNCATE / DELETE / UPDATE
+2. quelles tables seront préservées
+3. dans quel ordre
+4. si un rerun de génération de carte est requis ou non
+5. comment les joueurs seront remis dans un état valide après reset
+
+RÈGLE JOUEURS / COMPTES
+Préserver :
+- comptes
+- auth
+- rôles
+
+Reset gameplay attendu pour les joueurs :
+- plus aucune action active
+- plus aucun état gameplay ancien lié à la partie
+- position remise dans un état cohérent avec la logique canonique actuelle
+- ne pas hardcoder un spawn arbitraire si le projet a déjà une logique de spawn sûre
+- réutiliser la logique canonique existante si elle existe
+- si aucune logique canonique n’existe, choisir un point sûr uniquement après audit réel
+
+RÈGLE FACTIONS
+Ne fais pas de supposition.
+Après audit, applique cette règle :
+- si les factions / memberships / ownership font partie du “match state” courant et polluent les tests, reset-les
+- si elles sont structurelles et doivent être conservées, préserve-les
+Mais tu dois justifier ce choix dans le rapport final à partir du schéma réel et de l’usage réel du code.
+
+PHASE 3 — BACKUP OBLIGATOIRE AVANT EXÉCUTION
+Avant toute suppression :
+- faire un backup exploitable de la base de dev / test concernée
+OU
+- à défaut minimum acceptable : exporter un snapshot clair des tables impactées + compter les lignes avant reset
+Mais préférence forte : vrai backup de la base ciblée
+
+Tu dois afficher clairement :
+- environnement ciblé
+- nom de la base ciblée
+- confirmation qu’il s’agit bien de l’environnement de test/dev et non d’un environnement à risque
+
+Si tu n’es pas certain de la cible DB :
+STOP
+
+PHASE 4 — IMPLÉMENTATION
+Implémenter le reset de la manière la plus propre et la plus simple.
+
+IMPLÉMENTATION PRÉFÉRÉE
+Créer un script one-shot dédié, par exemple :
+- `scripts/resetCurrentMatch.ts`
+ou équivalent cohérent avec le projet
+
+Je ne veux PAS :
+- un hack caché dans le runtime
+- une route publique permanente ajoutée juste pour ça
+- un refactor de services
+
+Le script doit :
+1. auditer / logger les comptes avant
+2. exécuter le reset dans le bon ordre
+3. régénérer la carte seulement si nécessaire
+4. remettre les joueurs dans un état valide
+5. logger les comptes après
+6. s’arrêter avec erreur claire si une étape échoue
+
+PRÉFÉRENCE TRANSACTIONNELLE
+Quand c’est possible et cohérent avec le schéma :
+- utiliser une transaction
+- ou plusieurs étapes sûres et clairement journalisées si certaines opérations ne peuvent pas être enveloppées proprement
+
+PHASE 5 — EXÉCUTION RÉELLE
+Tu exécutes le script sur l’environnement de test/dev ciblé APRÈS backup.
+
+PHASE 6 — VÉRIFICATION OBLIGATOIRE APRÈS RESET
+Après exécution, vérifier noir sur blanc :
+
+A. ÉTAT MONDE
+- 0 territoire revendiqué
+- 0 colonie
+- 0 ville
+- 0 bâtiment de ville
+- 0 production de ville en cours
+- 0 inventaire de ville résiduel
+- 0 pending harvest résiduel
+- 0 action active résiduelle
+- 0 unité persistante de la partie si elles devaient être reset
+
+B. ÉTAT CARTE
+- carte cohérente
+- génération déterministe intacte
+- aucun changement de seed
+- aucune corruption de tiles
+
+C. ÉTAT JOUEURS
+- comptes toujours présents
+- rôles toujours présents
+- état gameplay remis à zéro
+- positions cohérentes / valides pour relancer les tests
+
+D. NON-RÉGRESSION
+- aucune modification d’architecture
+- aucun autre chantier ouvert
+- seulement le nécessaire pour le reset
+
+INTERDIT
+- pas de changement d’architecture
+- pas de nouveau système générique complexe
+- pas de refactor massif
+- pas de seed aléatoire
+- pas de reset approximatif
+- pas de “je pense que cette table est inutile”
+- pas de suppression des comptes / auth / rôles
+- pas d’exécution sans backup
+- pas d’exécution si la DB cible n’est pas clairement identifiée
+
+FORMAT DE RAPPORT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC
+- résumer ce qui constitue réellement l’état persistant de la partie dans ce projet
+
+2. TABLES / DONNÉES AUDITÉES
+- lister précisément :
+  - données reset
+  - données préservées
+  - données ambiguës et décision prise
+
+3. PLAN APPLIQUÉ
+- expliquer l’ordre exact du reset
+- préciser si la carte a été régénérée ou conservée
+- expliquer comment l’état joueur a été remis à zéro
+
+4. BACKUP
+- indiquer ce qui a été sauvegardé
+- confirmer la DB cible
+
+5. FICHIERS MODIFIÉS
+- lister uniquement les fichiers réellement touchés
+
+6. EXÉCUTION
+- confirmer que le reset a réellement été exécuté
+
+7. VÉRIFICATION APRÈS RESET
+- donner les comptes avant / après pour les entités gameplay principales
+- confirmer :
+  - 0 claim
+  - 0 colonie
+  - 0 ville
+  - 0 bâtiment
+  - 0 action active
+  - etc.
+
+8. RISQUES / POINTS OUVERTS
+- signaler seulement les vrais points restants
+
+9. STOP
