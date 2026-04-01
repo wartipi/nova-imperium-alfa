@@ -8,6 +8,7 @@ import { ResourceRevealSystem } from "../../lib/systems/ResourceRevealSystem";
 import { UnifiedTerritorySystem } from "../../lib/systems/UnifiedTerritorySystem";
 import { HexPathfinding } from "../../lib/pathfinding/HexPathfinding";
 import { HexMath } from "../../lib/systems/HexMath";
+import { fetchAllTerritories, fetchAllColonies } from "../../lib/api/territoriesApi";
 
 // Fonction pour obtenir les informations de coût de déplacement
 function getMovementCostInfo(terrain: string) {
@@ -341,6 +342,25 @@ function TerritoryInfoSection({ selectedHex }: { selectedHex: HexTile }) {
     }, 2000);
     
     return () => clearInterval(interval);
+  }, []);
+
+  // Listener nova:logistic-refresh → recharge la façade locale depuis le serveur
+  React.useEffect(() => {
+    const handler = async () => {
+      try {
+        const { originWorldX, originWorldY } = useMap.getState();
+        const [serverTerritories, serverColonies] = await Promise.all([
+          fetchAllTerritories(),
+          fetchAllColonies(),
+        ]);
+        UnifiedTerritorySystem.loadFromServer(serverTerritories, serverColonies, originWorldX, originWorldY);
+        setRefreshKey(prev => prev + 1);
+      } catch (e) {
+        // silencieux — le polling 2s prendra le relais
+      }
+    };
+    window.addEventListener('nova:logistic-refresh', handler);
+    return () => window.removeEventListener('nova:logistic-refresh', handler);
   }, []);
   
   // S'assurer que les coordonnées sont des entiers pour la vérification

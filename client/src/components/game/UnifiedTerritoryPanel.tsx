@@ -101,6 +101,13 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
     return () => clearInterval(id);
   }, [loadTerritories]);
 
+  // Listener nova:logistic-refresh → reload immédiat depuis le serveur après claim
+  useEffect(() => {
+    const handler = () => { reloadFromServer(); };
+    window.addEventListener('nova:logistic-refresh', handler);
+    return () => window.removeEventListener('nova:logistic-refresh', handler);
+  }, [reloadFromServer]);
+
   // Phase 13 — Attribuer un gouverneur à une colonie de faction
   const handleSetGovernor = async (colonyId: number) => {
     const trimmed = governorInput.trim();

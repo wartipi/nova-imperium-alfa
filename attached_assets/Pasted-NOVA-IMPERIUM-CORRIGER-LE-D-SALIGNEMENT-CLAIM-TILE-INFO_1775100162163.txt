@@ -1,0 +1,100 @@
+NOVA IMPERIUM — CORRIGER LE DÉSALIGNEMENT CLAIM / TILE INFO / GESTION TERRITOIRE
+Branche : NI-10.3
+
+RÔLE
+Tu exécutes un micro-correctif ciblé.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucune dérive.
+Objectif : corriger un bug de synchronisation UI autour des territoires revendiqués.
+
+DIAGNOSTIC VALIDÉ
+Le serveur connaît correctement l’état réel d’un territoire.
+Preuve : après tentative de claim, le serveur renvoie “Ce territoire est déjà revendiqué”.
+
+Mais l’UI locale peut encore afficher “Territoire Libre” et ne pas montrer l’accès à “Fonder une Colonie”.
+
+CAUSE PROBABLE VALIDÉE
+`TileInfoPanel.tsx` lit l’état via `UnifiedTerritorySystem.getTerritory(...)`, mais son refresh toutes les 2 secondes ne fait que relire la façade locale, sans reload serveur.
+
+`UnifiedTerritoryPanel.tsx` lit aussi la façade locale, et recharge surtout :
+- au montage
+- via intervalle
+- via certaines actions internes
+mais pas immédiatement après un claim lancé depuis `AvatarActionMenu.tsx`.
+
+`AvatarActionMenu.tsx` envoie bien `window.dispatchEvent(new CustomEvent('nova:logistic-refresh'))` après claim réussi, mais ce flux n’est pas utilisé correctement pour forcer la resynchronisation des territoires affichés.
+
+OBJECTIF
+Faire en sorte que :
+1. après claim réussi, l’état territoire dans l’UI soit immédiatement correct
+2. `TileInfoPanel` n’affiche plus “Territoire Libre” si le serveur connaît déjà le claim
+3. `UnifiedTerritoryPanel` affiche immédiatement le territoire revendiqué
+4. le bouton “Fonder une Colonie” puisse apparaître dès que les conditions sont remplies
+
+PÉRIMÈTRE STRICT
+Modifier uniquement ce qui est nécessaire parmi :
+- `client/src/components/game/AvatarActionMenu.tsx`
+- `client/src/components/game/UnifiedTerritoryPanel.tsx`
+- `client/src/components/game/TileInfoPanel.tsx`
+
+INTERDIT
+- ne pas modifier le serveur
+- ne pas modifier les règles de claim
+- ne pas modifier les règles de fondation de colonie
+- ne pas ouvrir un refactor de `UnifiedTerritorySystem`
+- aucun changement d’architecture
+
+IMPLÉMENTATION ATTENDUE
+
+1. `AvatarActionMenu.tsx`
+Vérifier que le succès du claim déclenche bien l’événement de refresh.
+Ne pas changer le comportement métier si déjà correct.
+
+2. `UnifiedTerritoryPanel.tsx`
+Ajouter un listener sur :
+- `nova:logistic-refresh`
+qui appelle `reloadFromServer()` immédiatement.
+
+Important :
+- nettoyer le listener au unmount
+- ne pas casser le polling existant
+- garder `reloadFromServer()` comme source de vérité
+
+3. `TileInfoPanel.tsx`
+Corriger la logique pour que l’info territoire ne se contente plus de relire une façade potentiellement stale.
+
+Solution minimale acceptable :
+- écouter `nova:logistic-refresh`
+- maintenir un petit state local de refresh
+- forcer la relecture après que la façade a été rechargée
+OU
+- appeler le mécanisme minimal nécessaire pour que l’info territoire se base sur la façade fraîchement rechargée
+
+IMPORTANT
+Le but n’est pas de faire un nouveau système.
+Le but est que le panneau tuile et le panneau territoire se remettent à jour immédiatement après claim.
+
+VÉRIFICATIONS OBLIGATOIRES
+Après correction, vérifier explicitement :
+
+1. Claim réussi
+- le TileInfoPanel n’affiche plus “Territoire Libre”
+- il affiche “Territoire Revendiqué”
+
+2. UnifiedTerritoryPanel
+- le territoire apparaît immédiatement sans attendre le prochain polling
+
+3. Fondation de colonie
+- si l’avatar est sur la case et qu’il n’y a pas encore de colonie, le bouton peut apparaître immédiatement
+
+4. Périmètre
+- nombre minimal de fichiers modifiés
+
+FORMAT DE RAPPORT FINAL OBLIGATOIRE
+1. DIAGNOSTIC
+2. FICHIERS MODIFIÉS
+3. MODIFICATIONS APPLIQUÉES
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
