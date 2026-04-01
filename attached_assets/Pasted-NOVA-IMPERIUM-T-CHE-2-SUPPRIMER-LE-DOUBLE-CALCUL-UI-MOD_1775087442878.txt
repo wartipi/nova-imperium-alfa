@@ -1,0 +1,164 @@
+NOVA IMPERIUM — TÂCHE 2 : SUPPRIMER LE DOUBLE CALCUL UI MODALE / CARTE
+Branche : NI-10.3
+
+RÔLE
+Tu exécutes un micro-chantier ciblé.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucune dérive.
+Tu ne traites QUE la Tâche 2.
+
+CONTEXTE VALIDÉ
+Tâche 1 et Tâche 1B sont déjà en place dans le code poussé :
+
+- `GameCanvas.tsx` a une source unifiée du trajet affiché
+- avant confirmation : `pendingMovement`
+- pendant action active : `activeAction.path`
+- destination visuelle active : `visualPendingMovement`
+
+Le prochain problème réel est maintenant :
+
+DIAGNOSTIC VÉRIFIÉ
+Le preview avant confirmation est encore calculé à deux endroits :
+
+1. `GameCanvas.tsx`
+- calcule `previewPathHexes` via `MovementSystem.previewMovement(...)`
+
+2. `MovementConfirmationModal.tsx`
+- recalcule aussi `pathResult` via `MovementSystem.previewMovement(...)`
+
+Conséquence :
+- la carte et la modale ont encore deux calculs UI séparés du même preview
+- cela maintient une duplication inutile
+- cela ouvre la porte à des écarts futurs entre coût / trajet / étapes affichées
+
+OBJECTIF
+Faire de `GameCanvas.tsx` la seule source de calcul du preview avant confirmation.
+
+RÈGLE CIBLE
+- `GameCanvas.tsx` calcule le preview UNE FOIS
+- `MovementConfirmationModal.tsx` reçoit ce résultat déjà calculé en props
+- la modale n’appelle plus `MovementSystem.previewMovement(...)`
+
+PÉRIMÈTRE STRICT
+Modifier uniquement :
+- `client/src/components/game/GameCanvas.tsx`
+- `client/src/components/game/MovementConfirmationModal.tsx`
+
+INTERDIT
+- ne pas modifier `GameEngine.ts`
+- ne pas modifier `MovementSystem.ts`
+- ne pas modifier `HexPathfinding.ts`
+- ne pas modifier le serveur
+- ne pas toucher à la logique du déplacement actif
+- ne pas ouvrir la Tâche 3
+- aucun refactor global
+
+IMPLÉMENTATION ATTENDUE
+
+1. Dans `MovementConfirmationModal.tsx`
+Supprimer le calcul local du path :
+- retirer le `useEffect` qui appelle `MovementSystem.previewMovement(...)`
+- retirer la dépendance locale à ce calcul
+
+La modale doit recevoir en props un objet déjà calculé, par exemple :
+- `pathResult: PathfindingResult | null`
+
+La modale doit continuer à afficher exactement :
+- destination
+- coût
+- distance
+- étapes du trajet
+- état succès / échec
+- boutons confirmer / annuler
+- mode compact
+
+2. Dans `GameCanvas.tsx`
+Ajouter une source de preview complète pour la modale, distincte de `previewPathHexes`.
+
+Important :
+- `previewPathHexes` sert au rendu carte
+- la modale a besoin du `PathfindingResult` complet
+
+Donc dans `GameCanvas.tsx`, créer par exemple :
+- `pendingPathResult`
+
+Règle :
+- si `pendingMovement && mapData` → calculer `pendingPathResult = MovementSystem.previewMovement(...)`
+- sinon `pendingPathResult = null`
+
+Puis :
+- utiliser `pendingPathResult` pour alimenter la modale
+- utiliser `pendingPathResult.path` pour fabriquer `previewPathHexes` avant confirmation
+- pendant action active, continuer à utiliser `activeAction.path` comme déjà validé
+
+3. Ne pas casser la Tâche 1 / 1B
+Le comportement validé doit rester :
+
+A. Avant confirmation
+- trajet visible sur la carte
+- destination visuelle visible
+- modale cohérente
+
+B. Pendant action active
+- trajet restant visible
+- destination finale visible
+
+4. Propagation vers la modale
+L’appel à `MovementConfirmationModal` doit maintenant inclure :
+- `pathResult={pendingPathResult}`
+
+Et le composant doit consommer cette prop au lieu de recalculer.
+
+IMPORTANT
+La modale ne doit plus être une source autonome de vérité.
+Elle devient une vue.
+
+VÉRIFICATIONS OBLIGATOIRES
+Après modification, vérifier explicitement :
+
+1. Avant confirmation
+- la carte affiche le preview
+- la modale affiche le même coût / même trajet / mêmes étapes
+- aucun recalcul local dans la modale
+
+2. Pendant action active
+- le comportement validé Tâche 1 / 1B reste inchangé
+
+3. Aucun pendingMovement
+- la modale ne s’ouvre pas
+- pas de preview modal
+
+4. Périmètre
+- exactement 2 fichiers modifiés
+
+FORMAT DE RAPPORT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC
+- rappeler que le double calcul UI a été supprimé
+
+2. FICHIERS MODIFIÉS
+- lister uniquement les fichiers touchés
+
+3. MODIFICATIONS APPLIQUÉES
+- expliquer :
+  - comment `GameCanvas` calcule maintenant `pendingPathResult`
+  - comment `previewPathHexes` en dérive
+  - comment `MovementConfirmationModal` consomme la prop
+
+4. PREUVE DIRECTE
+- coller :
+  - la définition de `pendingPathResult`
+  - l’appel à `MovementConfirmationModal` avec la prop
+  - la nouvelle signature / consommation dans `MovementConfirmationModal`
+
+5. VÉRIFICATION
+- confirmer :
+  - même trajet carte/modale
+  - même coût carte/modale
+  - aucun recalcul local dans la modale
+  - Tâche 1 / 1B non cassées
+
+6. STOP
+- t’arrêter
+- ne pas passer à la Tâche 3

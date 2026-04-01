@@ -1,30 +1,21 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Button } from '../ui/button';
 import { usePlayer } from '../../lib/stores/usePlayer';
 import { useMap } from '../../lib/stores/useMap';
-import { getTerrainMovementCost, getTerrainCostDescription, getTerrainDifficultyEmoji } from '../../lib/game/TerrainCosts';
-import { MovementSystem } from '../../lib/movement/MovementSystem';
+import { getTerrainCostDescription, getTerrainDifficultyEmoji } from '../../lib/game/TerrainCosts';
 import type { PathfindingResult } from '../../lib/pathfinding/HexPathfinding';
 
 interface MovementConfirmationModalProps {
   targetHex: { x: number; y: number } | null;
+  pathResult: PathfindingResult | null;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
-export function MovementConfirmationModal({ targetHex, onConfirm, onCancel }: MovementConfirmationModalProps) {
-  const { avatarPosition, actionPoints, gainExperience } = usePlayer();
+export function MovementConfirmationModal({ targetHex, pathResult, onConfirm, onCancel }: MovementConfirmationModalProps) {
+  const { avatarPosition, actionPoints } = usePlayer();
   const { mapData } = useMap();
-  const [pathResult, setPathResult] = useState<PathfindingResult | null>(null);
   const [isCompact, setIsCompact] = useState(false);
-
-  // Calculer le chemin et le coût total
-  useEffect(() => {
-    if (targetHex && mapData) {
-      const result = MovementSystem.previewMovement(targetHex.x, targetHex.y, mapData);
-      setPathResult(result);
-    }
-  }, [targetHex, mapData]);
 
   if (!targetHex || !mapData || !pathResult) return null;
 

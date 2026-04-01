@@ -10,6 +10,7 @@ import { AvatarActionMenu } from "./AvatarActionMenu";
 import { MovementConfirmationModal } from "./MovementConfirmationModal";
 import { TileContextMenu } from "./TileContextMenu";
 import { MovementSystem } from "../../lib/movement/MovementSystem";
+import type { PathfindingResult } from "../../lib/pathfinding/HexPathfinding";
 import { getTerrainMovementCost } from "../../lib/game/TerrainCosts";
 import { CameraControls } from "./CameraControls";
 import { UnifiedTerritorySystem } from "../../lib/systems/UnifiedTerritorySystem";
@@ -36,15 +37,19 @@ export function GameCanvas() {
   const { avatarPosition, avatarHexPosition, travelVisualHexPosition, setTravelVisualHexPosition, clearTravelVisualHexPosition, avatarRotation, isMoving, selectedCharacter, moveAvatarToHex, isHexVisible, isHexInCurrentVision, isHexInFogRing, pendingMovement, setPendingMovement } = usePlayer();
   const { activeAction } = usePlayerActions();
 
-  // ─── Source unifiée du trajet à afficher sur la carte (pathHexesToRender) ───
+  // ─── Source unifiée du trajet à afficher sur la carte + prop modale ─────────
+  // pendingPathResult : PathfindingResult complet pour la modale (calculé une seule fois ici)
+  // previewPathHexes : tuiles intermédiaires dérivées pour le rendu carte
   // Priorité 1 : pendingMovement → preview pathfinder avant confirmation
   // Priorité 2 : activeAction move in_progress → trajet restant côté serveur
   // Priorité 3 : rien
+  const [pendingPathResult, setPendingPathResult] = useState<PathfindingResult | null>(null);
   const [previewPathHexes, setPreviewPathHexes] = useState<{ x: number; y: number }[]>([]);
   useEffect(() => {
-    // Priorité 1 — preview avant confirmation
+    // Priorité 1 — preview avant confirmation (source unique pour carte ET modale)
     if (pendingMovement && mapData) {
       const result = MovementSystem.previewMovement(pendingMovement.x, pendingMovement.y, mapData);
+      setPendingPathResult(result);
       if (result.success && result.path.length > 2) {
         setPreviewPathHexes(result.path.slice(1, result.path.length - 1).map(h => ({ x: h.x, y: h.y })));
       } else {
@@ -52,6 +57,8 @@ export function GameCanvas() {
       }
       return;
     }
+    // Pas de pendingMovement → pas de résultat pour la modale
+    setPendingPathResult(null);
     // Priorité 2 — action move in_progress : trajet restant depuis activeAction.path
     if (activeAction && activeAction.type === 'move' && activeAction.status === 'in_progress' && activeAction.path.length > 1) {
       const remaining = activeAction.path.slice(activeAction.effectiveStep + 1, activeAction.path.length - 1);
@@ -585,6 +592,7 @@ export function GameCanvas() {
       {pendingMovement && (
         <MovementConfirmationModal
           targetHex={pendingMovement}
+          pathResult={pendingPathResult}
           onConfirm={handleMovementConfirm}
           onCancel={handleMovementCancel}
         />
