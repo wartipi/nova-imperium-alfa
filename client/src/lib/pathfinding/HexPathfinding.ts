@@ -184,7 +184,7 @@ export class HexPathfinding {
     }
 
     const terrain = mapData[y][x].terrain;
-    const baseCost = TERRAIN_COSTS[terrain] || 2;
+    const baseCost = TERRAIN_COSTS[terrain] ?? IMPASSABLE;
     
     // Appliquer les réductions d'exploration par type de terrain
     return this.applyExplorationReduction(baseCost, explorationLevel);
