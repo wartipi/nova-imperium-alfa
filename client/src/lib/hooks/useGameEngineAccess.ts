@@ -31,7 +31,11 @@ export const useGameEngineAccess = () => {
       
       // Update vision callbacks if they exist
       if (gameEngineRef.current.setVisionCallbacks && playerState.isHexVisible && playerState.isHexInCurrentVision) {
-        gameEngineRef.current.setVisionCallbacks(playerState.isHexVisible, playerState.isHexInCurrentVision);
+        gameEngineRef.current.setVisionCallbacks(
+          playerState.isHexVisible,
+          playerState.isHexInCurrentVision,
+          playerState.isHexInFogRing
+        );
       }
 
       return { gameState, playerState };
