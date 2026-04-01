@@ -105,6 +105,7 @@ const BUILDING_LABELS: Record<string, string> = {
   library:    "📚 Bibliothèque", temple: "🕍 Temple", wall:    "🧱 Rempart",
   tower:      "🗼 Tour de guet", harbor: "⚓ Port",   stable:  "🐎 Écurie",
   blacksmith: "⚒️ Forgeron", sawmill: "🪓 Scierie",  granary: "🏚️ Grenier",
+  entrepot:   "🏪 Entrepôt",
 };
 function buildingLabel(b: string) { return BUILDING_LABELS[b] ?? `🏗️ ${b}`; }
 

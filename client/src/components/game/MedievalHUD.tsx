@@ -138,6 +138,7 @@ export function MedievalHUD() {
     stable:           { name: 'Écurie',                    icon: '🐎' },
     blacksmith:       { name: 'Forgeron',                  icon: '⚒️' },
     barracks:         { name: 'Caserne',                   icon: '⚔️' },
+    entrepot:         { name: 'Entrepôt',                  icon: '🏪' },
   };
 
   // Toast complétion de construction

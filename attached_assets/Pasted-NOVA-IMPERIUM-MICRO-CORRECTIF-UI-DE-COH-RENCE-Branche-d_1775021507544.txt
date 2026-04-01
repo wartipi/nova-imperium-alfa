@@ -1,0 +1,112 @@
+NOVA IMPERIUM — MICRO-CORRECTIF UI DE COHÉRENCE
+Branche de travail : NI-10.3
+
+RÔLE
+Tu agis en exécution stricte.
+Tu ne dois faire qu’un micro-correctif ciblé, sans dérive, sans refactor, sans toucher au comportement métier.
+
+OBJECTIF
+Fermer proprement la micro-correction UI restante pour le bâtiment `entrepot`.
+
+CONTEXTE VÉRIFIÉ
+Le code poussé contient déjà :
+- `entrepot` dans `client/src/components/game/ConstructionPanel.tsx`
+- intégration de l’état entrepôt dans `client/src/components/game/TreasuryPanel.tsx`
+- retrait du panneau `harvest` du `MedievalHUD`
+
+MAIS il reste une incohérence UI :
+1. dans `TreasuryPanel.tsx`, `BUILDING_LABELS` ne contient pas `entrepot`
+2. dans `MedievalHUD.tsx`, `BUILDING_NAMES` ne contient pas `entrepot`
+
+CONSÉQUENCE ACTUELLE
+- les tooltips/listes de bâtiments dans TreasuryPanel tombent sur le fallback générique `🏗️ entrepot`
+- les toasts de complétion dans MedievalHUD tombent sur le fallback brut `entrepot`
+
+BUT
+Faire afficher partout le vrai nom et la vraie icône :
+- nom : `Entrepôt`
+- icône : `🏪`
+
+PÉRIMÈTRE STRICT
+Tu ne modifies QUE ces 2 fichiers :
+1. `client/src/components/game/TreasuryPanel.tsx`
+2. `client/src/components/game/MedievalHUD.tsx`
+
+INTERDIT
+- aucun refactor
+- aucun renommage global
+- aucune modification serveur
+- aucune modification des routes
+- aucune modification de `ConstructionPanel`
+- aucune modification de `buildingEffects.ts`
+- aucune modification de `accessPointService.ts`
+- aucune autre “amélioration”
+- ne pas toucher aux catégories, coûts, timers, logique bancaire ou logique entrepôt
+
+MODIFICATION 1 — TreasuryPanel.tsx
+Trouver la constante :
+
+`const BUILDING_LABELS: Record<string, string> = { ... }`
+
+Ajouter l’entrée suivante dans la map :
+
+`entrepot: "🏪 Entrepôt",`
+
+But :
+- si `city.buildings` contient `entrepot`, alors le tooltip / label bâtiment doit afficher `🏪 Entrepôt`
+- ne rien changer d’autre dans cette map
+
+MODIFICATION 2 — MedievalHUD.tsx
+Trouver la constante :
+
+`const BUILDING_NAMES: Record<string, { name: string; icon: string; bankEffect?: boolean }> = { ... }`
+
+Ajouter l’entrée suivante :
+
+`entrepot: { name: 'Entrepôt', icon: '🏪' },`
+
+But :
+- quand un événement `nova:building-completed` arrive avec `buildingId = "entrepot"`,
+  le toast doit afficher :
+  - icône `🏪`
+  - nom `Entrepôt`
+- ne rien changer d’autre dans la logique des toasts
+
+IMPORTANT
+Ne change pas le fallback actuel.
+Le fallback doit rester en place pour les autres ids inconnus.
+On ajoute seulement la donnée manquante pour `entrepot`.
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Tu dois vérifier explicitement :
+
+A. TreasuryPanel
+- `BUILDING_LABELS` contient bien `entrepot: "🏪 Entrepôt"`
+- aucun autre label n’a été modifié par erreur
+
+B. MedievalHUD
+- `BUILDING_NAMES` contient bien `entrepot: { name: 'Entrepôt', icon: '🏪' }`
+- aucun autre mapping n’a été modifié par erreur
+
+C. Contrôle de périmètre
+Confirmer qu’aucun autre fichier n’a été modifié
+
+FORMAT DE RAPPORT FINAL OBLIGATOIRE
+Répondre avec ce format exact :
+
+1. DIAGNOSTIC
+- rappeler brièvement le problème corrigé
+
+2. FICHIERS MODIFIÉS
+- lister uniquement les fichiers réellement touchés
+
+3. MODIFICATIONS APPLIQUÉES
+- montrer précisément les deux entrées ajoutées
+
+4. VÉRIFICATION
+- confirmer que :
+  - TreasuryPanel affiche désormais `🏪 Entrepôt`
+  - MedievalHUD utilise désormais `🏪 Entrepôt` dans les toasts
+  - aucun autre fichier n’a été touché
+
+5. STOP
