@@ -318,14 +318,20 @@ export function GameCanvas() {
         visualAvatarPosition = { x: wc.x, y: 0, z: wc.z };
       }
 
+      // Destination visuelle : pendingMovement en priorité, sinon destination de l'action active
+      const visualPendingMovement = pendingMovement
+        ?? (activeAction?.type === 'move' && activeAction.status === 'in_progress'
+          ? { x: activeAction.endWorldX - originWorldX, y: activeAction.endWorldY - originWorldY }
+          : null);
+
       gameEngineRef.current.updateCivilizations(novaImperiums);
       gameEngineRef.current.setSelectedHex(selectedHex);
-      gameEngineRef.current.updateAvatar(visualAvatarPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision, pendingMovement, previewPathHexes, isHexInFogRing);
+      gameEngineRef.current.updateAvatar(visualAvatarPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision, visualPendingMovement, previewPathHexes, isHexInFogRing);
       gameEngineRef.current.render();
       
       // Plus de centrage automatique - caméra libre
     }
-  }, [novaImperiums, selectedHex, avatarPosition, travelVisualHexPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision, isHexInFogRing, pendingMovement, previewPathHexes]);
+  }, [novaImperiums, selectedHex, avatarPosition, travelVisualHexPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision, isHexInFogRing, pendingMovement, previewPathHexes, activeAction, originWorldX, originWorldY]);
 
   // Phase 5 — polling présence multijoueur
   // Dépendance unique : isAuthenticated — l'intervalle n'est pas recréé à chaque rendu
