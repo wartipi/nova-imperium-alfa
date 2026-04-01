@@ -1,0 +1,120 @@
+NOVA IMPERIUM — RETRAIT CIBLÉ DU CLAIM DEPUIS LE PANNEAU DE GESTION
+Branche de travail : NI-10.3
+
+RÔLE
+Tu exécutes un micro-chantier d’harmonisation UI.
+Tu ne dois faire aucun refactor massif, aucun changement d’architecture, aucune amélioration annexe.
+Tu dois travailler en contrôle strict :
+1. Audit
+2. Validation
+3. Modification minimale
+4. Vérification réelle
+5. Rapport final
+
+OBJECTIF
+Enlever l’action de revendication de territoire du panneau `UnifiedTerritoryPanel`, car cette action doit passer par le menu d’action de case et non par le tableau de gestion.
+
+IMPORTANT — GATE DE VALIDATION AVANT MODIFICATION
+Avant toute modification, tu dois vérifier si la revendication est déjà réellement accessible ailleurs dans l’UI via le menu d’action / menu contextuel / action menu.
+
+RÈGLE
+- si le claim est déjà disponible ailleurs dans l’UI : tu peux retirer le bloc claim du panneau de gestion
+- si le claim n’est PAS déjà disponible ailleurs : STOP, ne fais aucun retrait, et rends un rapport expliquant que supprimer ce bloc rendrait la feature inaccessible
+
+CONTEXTE DÉJÀ AUDITÉ
+Dans `client/src/components/game/UnifiedTerritoryPanel.tsx`, il existe actuellement :
+- l’import `apiClaimTerritory`
+- l’état `ownerType`
+- la fonction `handleClaimTerritory`
+- un texte d’aide qui dit encore : “revendiquez d'abord un territoire (bouton ci-dessous)”
+- une section UI :
+  - titre `🗺️ Revendiquer un Territoire`
+  - choix “Pour ma faction / Pour moi”
+  - bouton `🚩 Revendiquer`
+
+Le menu contextuel déjà audité côté case (`TileContextMenu.tsx`) n’expose actuellement que :
+- déplacement
+- marché
+- banque
+
+Donc tu dois revérifier avant suppression et ne rien supposer.
+
+PÉRIMÈTRE SI VALIDATION POSITIVE
+Tu modifies uniquement :
+`client/src/components/game/UnifiedTerritoryPanel.tsx`
+
+SI LE CLAIM EST DÉJÀ ACCESSIBLE VIA LE MENU D’ACTION
+Faire les modifications minimales suivantes dans `UnifiedTerritoryPanel.tsx` :
+
+1. Supprimer la section UI de revendication :
+- le bloc titre `🗺️ Revendiquer un Territoire`
+- le texte “Placez votre avatar sur une case libre et cliquez sur le bouton ci-dessous.”
+- le sélecteur ownerType “Pour ma faction / Pour moi”
+- le bouton `🚩 Revendiquer (...)`
+
+2. Mettre à jour le texte d’aide en haut du panneau
+Remplacer la mention :
+- “revendiquez d'abord un territoire (bouton ci-dessous)”
+par une formulation cohérente du type :
+- “revendiquez d'abord un territoire via le menu d’action de la case”
+
+3. Supprimer le code mort devenu inutile dans ce fichier seulement, si et seulement si plus aucune référence n’existe après le retrait UI :
+- import `apiClaimTerritory`
+- état `ownerType`
+- fonction `handleClaimTerritory`
+- variables uniquement utilisées par cette logique de claim
+ATTENTION :
+- ne supprime pas `getAvatarPosition` s’il reste utilisé ailleurs dans le fichier
+- ne supprime pas d’autres imports ou états encore utilisés
+- ne touche pas aux autres actions : fondation, exploitation, gouverneur, gestion ville
+
+INTERDIT
+- aucun changement dans `TileContextMenu.tsx`
+- aucun changement serveur
+- aucun changement API
+- aucun changement dans `territoriesApi.ts`
+- aucun changement dans `CityManagementPanel`
+- aucun refactor de structure du panneau
+- aucune modification d’un autre flux territoire
+- ne pas ajouter de nouvelle feature
+
+SORTIE ATTENDUE SI VALIDATION NÉGATIVE
+Si tu constates que le claim n’est pas déjà accessible ailleurs via le menu d’action :
+- ne modifie rien
+- fais un rapport final disant explicitement :
+  - que le claim est encore uniquement présent dans `UnifiedTerritoryPanel`
+  - que le retrait rendrait la revendication inaccessible
+  - STOP
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+Si modification effectuée, vérifier explicitement :
+A. le bloc “Revendiquer un Territoire” a disparu de `UnifiedTerritoryPanel`
+B. le texte d’aide ne parle plus de “bouton ci-dessous”
+C. aucun autre comportement du panneau n’a été touché :
+- gestion ville
+- fondation de colonie
+- exploitation
+- gouverneur
+- HarvestPanel
+D. aucun autre fichier n’a été modifié
+
+FORMAT DE RAPPORT FINAL OBLIGATOIRE
+Réponds avec ce format exact :
+
+1. DIAGNOSTIC
+- dire si le claim était déjà accessible via le menu d’action ailleurs ou non
+
+2. DÉCISION
+- “Retrait effectué” ou “Retrait bloqué”
+
+3. FICHIERS MODIFIÉS
+- lister uniquement les fichiers réellement modifiés
+- si aucun, écrire “Aucun”
+
+4. MODIFICATIONS APPLIQUÉES
+- décrire précisément ce qui a été retiré ou ajusté
+
+5. VÉRIFICATION
+- confirmer l’état réel final
+
+6. STOP
