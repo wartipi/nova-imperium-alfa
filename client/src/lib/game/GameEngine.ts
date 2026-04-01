@@ -425,12 +425,12 @@ export class GameEngine {
       this.ctx.fillStyle = '#1a1a1a';
       this.ctx.fill();
     } else if (isInFogRing && !isInCurrentVision) {
-      // Anneau de brouillard — terrain révélé, léger voile bleuté (non explorable sans s'y rendre)
+      // Anneau de brouillard — même rendu que le fog of war mémoire
       const baseColor = this.getTerrainColor(hex.terrain);
-      const lightFogColor = this.applyLightFog(baseColor);
-      this.ctx.fillStyle = lightFogColor;
+      const fogColor = this.applyFogOfWar(baseColor);
+      this.ctx.fillStyle = fogColor;
       this.ctx.fill();
-      this.ctx.fillStyle = 'rgba(80, 110, 160, 0.40)';
+      this.ctx.fillStyle = 'rgba(50, 50, 50, 0.6)';
       this.ctx.fill();
       if (hex.hasRiver) {
         this.ctx.strokeStyle = 'rgba(0, 102, 204, 0.5)';
