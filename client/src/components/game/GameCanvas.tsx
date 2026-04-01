@@ -29,25 +29,41 @@ import { VisionSystem } from "../../lib/systems/VisionSystem";
 export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { gameEngineRef } = useGameEngine();
-  const { mapData, selectedHex, setSelectedHex } = useMap();
+  const { mapData, selectedHex, setSelectedHex, originWorldX, originWorldY } = useMap();
   const { gamePhase } = useGameState();
   const { isAdmin, adminModeEnabled, isAuthenticated } = useAuth();
   const { novaImperiums, selectedUnit, moveUnit } = useNovaImperium();
   const { avatarPosition, avatarHexPosition, travelVisualHexPosition, setTravelVisualHexPosition, clearTravelVisualHexPosition, avatarRotation, isMoving, selectedCharacter, moveAvatarToHex, isHexVisible, isHexInCurrentVision, isHexInFogRing, pendingMovement, setPendingMovement } = usePlayer();
   const { activeAction } = usePlayerActions();
 
-  // ─── Preview visuelle du pathfinder — tuiles intermédiaires du trajet prévu ───
+  // ─── Source unifiée du trajet à afficher sur la carte (pathHexesToRender) ───
+  // Priorité 1 : pendingMovement → preview pathfinder avant confirmation
+  // Priorité 2 : activeAction move in_progress → trajet restant côté serveur
+  // Priorité 3 : rien
   const [previewPathHexes, setPreviewPathHexes] = useState<{ x: number; y: number }[]>([]);
   useEffect(() => {
-    if (!pendingMovement || !mapData) { setPreviewPathHexes([]); return; }
-    const result = MovementSystem.previewMovement(pendingMovement.x, pendingMovement.y, mapData);
-    if (result.success && result.path.length > 2) {
-      // Tuiles intermédiaires seulement : exclude le départ (index 0) et la destination (dernier)
-      setPreviewPathHexes(result.path.slice(1, result.path.length - 1).map(h => ({ x: h.x, y: h.y })));
-    } else {
-      setPreviewPathHexes([]);
+    // Priorité 1 — preview avant confirmation
+    if (pendingMovement && mapData) {
+      const result = MovementSystem.previewMovement(pendingMovement.x, pendingMovement.y, mapData);
+      if (result.success && result.path.length > 2) {
+        setPreviewPathHexes(result.path.slice(1, result.path.length - 1).map(h => ({ x: h.x, y: h.y })));
+      } else {
+        setPreviewPathHexes([]);
+      }
+      return;
     }
-  }, [pendingMovement, mapData]);
+    // Priorité 2 — action move in_progress : trajet restant depuis activeAction.path
+    if (activeAction && activeAction.type === 'move' && activeAction.status === 'in_progress' && activeAction.path.length > 1) {
+      const remaining = activeAction.path.slice(activeAction.effectiveStep + 1, activeAction.path.length - 1);
+      setPreviewPathHexes(remaining.map(step => ({
+        x: step.worldX - originWorldX,
+        y: step.worldY - originWorldY,
+      })));
+      return;
+    }
+    // Priorité 3 — aucun trajet
+    setPreviewPathHexes([]);
+  }, [pendingMovement, mapData, activeAction, originWorldX, originWorldY]);
 
   // ─── Refs pour sync finale de position (résistants au cleanup de l'effet de polling) ──
   // finalSyncTimerRef : stocke le setTimeout de sync finale — ne doit PAS être annulé

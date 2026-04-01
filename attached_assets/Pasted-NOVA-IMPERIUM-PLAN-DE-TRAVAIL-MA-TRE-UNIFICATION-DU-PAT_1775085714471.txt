@@ -1,0 +1,215 @@
+NOVA IMPERIUM — PLAN DE TRAVAIL MAÎTRE : UNIFICATION DU PATHFINDING ET DE L’AFFICHAGE DES TRAJETS
+Branche de travail : NI-10.3
+
+RÔLE
+Tu agis comme exécutant technique sous contrôle strict.
+Tu ne dois pas improviser.
+Tu ne dois pas ouvrir un gros chantier parallèle.
+Tu dois respecter :
+1. Audit
+2. Validation
+3. Implémentation minimale
+4. Vérification réelle
+5. Rapport final
+
+PRIORITÉS
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+INTERDIT
+- aucun refactor massif
+- aucun changement d’architecture non validé
+- aucune “amélioration” annexe
+- ne pas déclarer une tâche terminée sans que le code poussé le reflète
+- ne pas traiter plusieurs tâches à la fois sans validation explicite
+
+OBJECTIF GLOBAL
+Unifier le système de pathfinding, d’affichage du trajet, et de confirmation de déplacement pour qu’il soit cohérent entre :
+- preview carte
+- preview modale
+- déplacement serveur autoritaire
+- affichage pendant action active
+
+DIAGNOSTIC DE DÉPART — À CONSIDÉRER COMME BASE DE TRAVAIL
+Le projet a actuellement plusieurs couches pathfinding / trajet :
+
+1. Preview client modale
+- `MovementConfirmationModal.tsx` recalcule un chemin avec `MovementSystem.previewMovement(...)`
+
+2. Preview client carte
+- `GameCanvas.tsx` recalcule aussi un preview via `MovementSystem.previewMovement(...)`
+- puis construit `previewPathHexes`
+
+3. Path serveur autoritaire
+- `GameCanvas.tsx` soumet le déplacement avec `requestMove(...)`
+- `server/routes/playerActions.ts` recalcule le chemin via `HexPathfindingServer.findPath(...)`
+
+4. Ancien système local encore présent
+- `MovementSystem.planAndExecuteMovement()`
+- `executeAnimatedMovement()`
+
+PROBLÈME
+Le système n’est pas totalement unifié :
+- plusieurs calculs de preview
+- plusieurs sources de vérité selon le moment
+- code legacy encore présent
+- risque de divergence entre preview client et chemin serveur final
+
+RÈGLE DE TRAVAIL IMPORTANTE
+Tu dois traiter les tâches ci-dessous UNE PAR UNE.
+Après chaque tâche :
+- tu t’arrêtes
+- tu fais un rapport final
+- tu n’avances pas à la tâche suivante sans validation explicite
+
+==================================================
+LISTE DES TÂCHES — ORDRE OBLIGATOIRE
+==================================================
+
+TÂCHE 1 — Unifier la source du trajet affiché dans `GameCanvas.tsx`
+OBJECTIF
+Faire en sorte que la carte affiche une seule source de trajet :
+- avant confirmation : trajet basé sur `pendingMovement`
+- après confirmation / pendant action active : trajet basé sur `activeAction.path`
+- sinon : aucun trajet
+
+BUT CONCRET
+Créer une source unifiée du type :
+- `pathHexesToRender`
+
+Priorité :
+1. si `pendingMovement` existe → afficher le preview
+2. sinon si `activeAction.type === "move"` et `status === "in_progress"` → afficher le trajet restant basé sur `activeAction.path`
+3. sinon → tableau vide
+
+IMPORTANT
+- convertir `activeAction.path` en coordonnées locales
+- afficher le trajet restant, pas les cases déjà parcourues
+- ne pas modifier `GameEngine.ts` dans cette tâche sauf bug bloquant imprévu
+- le but ici est d’unifier la source envoyée au moteur
+
+PÉRIMÈTRE ATTENDU TÂCHE 1
+Modifier uniquement :
+- `client/src/components/game/GameCanvas.tsx`
+
+STOP APRÈS LA TÂCHE 1
+
+--------------------------------------------------
+
+TÂCHE 2 — Supprimer le double calcul UI modale / carte
+OBJECTIF
+Éviter que la modale et la carte recalculent chacune leur propre preview indépendamment.
+
+BUT CONCRET
+- `GameCanvas.tsx` devient la seule source de calcul du preview avant confirmation
+- `MovementConfirmationModal.tsx` reçoit le résultat déjà calculé :
+  - path
+  - totalCost
+  - success
+- la modale ne doit plus appeler `MovementSystem.previewMovement(...)` elle-même
+
+PÉRIMÈTRE ATTENDU TÂCHE 2
+Modifier uniquement si nécessaire :
+- `client/src/components/game/GameCanvas.tsx`
+- `client/src/components/game/MovementConfirmationModal.tsx`
+
+STOP APRÈS LA TÂCHE 2
+
+--------------------------------------------------
+
+TÂCHE 3 — Aligner le preview client sur les mêmes règles métier que le serveur
+OBJECTIF
+Faire en sorte que le preview affiché au joueur respecte déjà les règles serveur.
+
+RÈGLE
+Le preview client ne doit pas proposer :
+- une destination non découverte
+- un chemin passant par du non découvert
+- un chemin invalide selon les règles canoniques actuelles
+
+ATTENTION
+Ne change pas ici le serveur si ce n’est pas nécessaire.
+Le but est d’aligner le preview client sur les règles déjà validées côté serveur.
+
+PÉRIMÈTRE ATTENDU TÂCHE 3
+Modifier uniquement si nécessaire :
+- `client/src/lib/movement/MovementSystem.ts`
+- `client/src/lib/pathfinding/HexPathfinding.ts`
+- éventuellement `client/src/components/game/GameCanvas.tsx` si un petit branchement est nécessaire
+
+STOP APRÈS LA TÂCHE 3
+
+--------------------------------------------------
+
+TÂCHE 4 — Auditer et isoler / supprimer le système local legacy
+OBJECTIF
+Clarifier si `planAndExecuteMovement()` et `executeAnimatedMovement()` sont encore utilisés.
+
+RÈGLE
+Avant toute suppression :
+- vérifier les usages réels
+- si non utilisés :
+  - soit les supprimer
+  - soit les marquer explicitement comme legacy avec commentaire clair
+- choisir la plus petite solution propre
+
+PÉRIMÈTRE ATTENDU TÂCHE 4
+Modifier uniquement si nécessaire :
+- `client/src/lib/movement/MovementSystem.ts`
+- éventuellement les fichiers qui l’utilisent encore, s’il y en a
+
+STOP APRÈS LA TÂCHE 4
+
+--------------------------------------------------
+
+TÂCHE 5 — Proposition de vraie unification canonique client / serveur
+OBJECTIF
+Ne PAS coder immédiatement.
+Faire un audit et proposer la stratégie la plus propre pour réduire la duplication entre :
+- `client/src/lib/pathfinding/HexPathfinding.ts`
+- `server/pathfinding/HexPathfindingServer.ts`
+
+SORTIE ATTENDUE
+Uniquement :
+- diagnostic
+- points de duplication
+- stratégie minimale recommandée
+- fichiers à toucher
+- risques
+Aucune implémentation à cette étape sans validation explicite.
+
+STOP APRÈS LA TÂCHE 5
+
+==================================================
+RÈGLE DE RAPPORT APRÈS CHAQUE TÂCHE
+==================================================
+
+FORMAT OBLIGATOIRE
+
+1. DIAGNOSTIC
+- rappeler le problème ciblé par la tâche
+
+2. FICHIERS MODIFIÉS
+- lister uniquement les fichiers réellement touchés
+
+3. MODIFICATIONS APPLIQUÉES
+- décrire précisément ce qui a changé
+
+4. PREUVE DIRECTE
+- coller les extraits les plus importants du code modifié
+
+5. VÉRIFICATION
+- confirmer le comportement attendu après la tâche
+
+6. STOP
+- t’arrêter
+- ne pas avancer à la tâche suivante
+
+==================================================
+IMPORTANT — DÉMARRAGE
+==================================================
+
+Tu dois commencer MAINTENANT par :
+- auditer rapidement l’état actuel
+- confirmer que la tâche 1 est toujours pertinente dans le code poussé
+- puis exécuter UNIQUEMENT LA TÂCHE 1
+- puis STOP
