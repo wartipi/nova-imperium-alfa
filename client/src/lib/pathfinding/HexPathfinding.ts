@@ -4,6 +4,7 @@
  */
 
 import { HexMath, type HexCoord } from '../systems/HexMath';
+import { TERRAIN_COSTS, IMPASSABLE } from '../../../../shared/hexTerrainConfig';
 
 export interface PathNode {
   x: number;
@@ -25,24 +26,6 @@ export interface TerrainCostMap {
 }
 
 export class HexPathfinding {
-  private static readonly TERRAIN_COSTS: TerrainCostMap = {
-    'fertile_land': 1,
-    'plains': 1,
-    'sacred_plains': 1,
-    'enchanted_meadow': 1,
-    'forest': 2,
-    'hills': 2,
-    'wasteland': 2,
-    'ancient_ruins': 2,
-    'mountains': 5,
-    'desert': 3,
-    'swamp': 4,
-    'caves': 3,
-    'volcano': 8,
-    'tundra': 3,
-    'shallow_water': 999, // Bloqué
-    'deep_water': 999,    // Bloqué
-  };
 
   /**
    * Trouve le chemin le plus court entre deux hexagones
@@ -118,7 +101,7 @@ export class HexPathfinding {
         const terrainCost = this.getTerrainCost(neighbor.x, neighbor.y, mapData, explorationLevel);
         
         // Terrain bloqué (eau)
-        if (terrainCost >= 999) {
+        if (terrainCost >= IMPASSABLE) {
           continue;
         }
 
@@ -197,11 +180,11 @@ export class HexPathfinding {
    */
   static getTerrainCost(x: number, y: number, mapData: any[][], explorationLevel: number = 0): number {
     if (!this.isValidHex(x, y, mapData)) {
-      return 999;
+      return IMPASSABLE;
     }
 
     const terrain = mapData[y][x].terrain;
-    const baseCost = this.TERRAIN_COSTS[terrain] || 2;
+    const baseCost = TERRAIN_COSTS[terrain] || 2;
     
     // Appliquer les réductions d'exploration par type de terrain
     return this.applyExplorationReduction(baseCost, explorationLevel);
@@ -212,7 +195,7 @@ export class HexPathfinding {
    */
   private static applyExplorationReduction(baseCost: number, explorationLevel: number): number {
     // Pas de réduction pour l'eau (999) ou niveau 0-1
-    if (baseCost >= 999 || explorationLevel <= 1) {
+    if (baseCost >= IMPASSABLE || explorationLevel <= 1) {
       return baseCost;
     }
 
@@ -254,7 +237,7 @@ export class HexPathfinding {
   static isPathValid(path: HexCoord[], mapData: any[][]): boolean {
     for (const hex of path) {
       if (!this.isValidHex(hex.x, hex.y, mapData) || 
-          this.getTerrainCost(hex.x, hex.y, mapData) >= 999) {
+          this.getTerrainCost(hex.x, hex.y, mapData) >= IMPASSABLE) {
         return false;
       }
     }

@@ -10,28 +10,7 @@
  */
 
 import type { PathStep } from "../../shared/schema";
-
-// ─── Coûts terrain (source unique, miroir de HexPathfinding.ts côté client) ───
-const TERRAIN_COSTS: Record<string, number> = {
-  fertile_land: 1,
-  plains: 1,
-  sacred_plains: 1,
-  enchanted_meadow: 1,
-  forest: 2,
-  hills: 2,
-  wasteland: 2,
-  ancient_ruins: 2,
-  desert: 3,
-  caves: 3,
-  tundra: 3,
-  swamp: 4,
-  mountains: 5,
-  volcano: 8,
-  shallow_water: 999,
-  deep_water: 999,
-};
-
-const IMPASSABLE = 999;
+import { TERRAIN_COSTS, IMPASSABLE } from "../../shared/hexTerrainConfig";
 
 export interface ServerPathResult {
   success: boolean;
