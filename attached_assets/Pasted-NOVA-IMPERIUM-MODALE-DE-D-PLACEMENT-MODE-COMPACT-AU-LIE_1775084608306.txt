@@ -1,0 +1,119 @@
+NOVA IMPERIUM — MODALE DE DÉPLACEMENT : MODE COMPACT AU LIEU DE FENÊTRE AMOVIBLE
+Branche : NI-10.3
+
+RÔLE
+Tu exécutes un micro-correctif UX ciblé.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucune dérive gameplay.
+
+DÉCISION VALIDÉE
+Nous ne voulons PAS rendre la fenêtre de confirmation draggable.
+Nous voulons une solution plus simple et plus stable :
+
+Ajouter un mode compact / réduit à `MovementConfirmationModal`
+pour permettre au joueur de voir la carte et le trajet choisi par le pathfinder.
+
+DIAGNOSTIC VÉRIFIÉ
+Le composant `MovementConfirmationModal.tsx` :
+- est actuellement une modale fixe centrée avec overlay plein écran
+- calcule déjà `pathResult`
+- affiche déjà les étapes du trajet en texte
+
+Donc le problème n’est pas le calcul du trajet.
+Le problème est que la modale masque la carte.
+
+OBJECTIF
+Permettre au joueur de réduire temporairement la modale
+pour voir le trajet affiché sur la carte,
+sans perdre :
+- la destination
+- le coût
+- les boutons confirmer / annuler
+
+PÉRIMÈTRE STRICT
+Modifier uniquement :
+`client/src/components/game/MovementConfirmationModal.tsx`
+
+INTERDIT
+- ne pas modifier `GameCanvas.tsx`
+- ne pas modifier `GameEngine.ts`
+- ne pas modifier `MovementSystem.ts`
+- ne pas modifier `HexPathfinding.ts`
+- ne pas modifier les règles de déplacement
+- ne pas ajouter de drag-and-drop
+- ne pas rendre la fenêtre amovible
+- aucun refactor global
+
+SOLUTION ATTENDUE
+Ajouter un état local simple, par exemple :
+- `isCompact`
+
+Mode normal :
+- garde la modale actuelle centrée
+
+Mode compact :
+- remplace la grosse modale par un petit panneau fixe
+- position recommandée : coin inférieur droit ou supérieur droit
+- fond parchemin identique / cohérent
+- contient au minimum :
+  - destination
+  - coût
+  - bouton confirmer
+  - bouton annuler
+  - bouton “Agrandir”
+
+Ajouter un bouton en mode normal :
+- “Voir la carte”
+ou
+- “Réduire”
+
+Ce bouton passe `isCompact = true`
+
+En mode compact :
+- afficher un bouton :
+  - “Agrandir”
+pour revenir à la modale complète
+
+IMPORTANT
+- `targetHex`, `pathResult`, `movementCost`, `actionPoints`, `onConfirm`, `onCancel`
+  doivent continuer à fonctionner exactement comme avant
+- ne change pas le calcul du trajet
+- ne change pas la validation
+- ne change pas le coût
+- ne change pas l’overlay logique du déplacement
+- objectif purement UX
+
+COMPORTEMENT ATTENDU
+Mode normal :
+- joueur lit les infos détaillées
+- peut cliquer “Voir la carte / Réduire”
+
+Mode compact :
+- la carte redevient largement visible
+- le trajet affiché sur la carte reste visible
+- le joueur peut toujours confirmer ou annuler
+- peut réouvrir en “Agrandir”
+
+VÉRIFICATIONS OBLIGATOIRES
+Après modification, vérifier explicitement :
+
+1. La modale normale continue de fonctionner comme avant
+2. Le bouton “Réduire / Voir la carte” passe bien en mode compact
+3. Le mode compact laisse voir la carte
+4. Le bouton Confirmer fonctionne aussi en mode compact
+5. Le bouton Annuler fonctionne aussi en mode compact
+6. Le bouton “Agrandir” restaure la modale complète
+7. Un seul fichier modifié
+
+FORMAT DE RAPPORT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC
+2. FICHIER MODIFIÉ
+3. MODIFICATIONS APPLIQUÉES
+4. PREUVE DIRECTE
+- coller l’état `isCompact`
+- coller le bouton “Réduire / Voir la carte”
+- coller le rendu compact
+5. VÉRIFICATION
+6. STOP

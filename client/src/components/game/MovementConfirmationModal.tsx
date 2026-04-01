@@ -16,6 +16,7 @@ export function MovementConfirmationModal({ targetHex, onConfirm, onCancel }: Mo
   const { avatarPosition, actionPoints, gainExperience } = usePlayer();
   const { mapData } = useMap();
   const [pathResult, setPathResult] = useState<PathfindingResult | null>(null);
+  const [isCompact, setIsCompact] = useState(false);
 
   // Calculer le chemin et le coût total
   useEffect(() => {
@@ -57,12 +58,64 @@ export function MovementConfirmationModal({ targetHex, onConfirm, onCancel }: Mo
     return terrainEmojis[terrain as keyof typeof terrainEmojis] || '🗺️';
   };
 
+  // ── Mode compact ────────────────────────────────────────────────────────────
+  if (isCompact) {
+    return (
+      <div className="fixed bottom-4 right-4 z-50 w-64">
+        <div className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-2xl p-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-amber-900 font-bold text-sm">Déplacement</span>
+            <button
+              onClick={() => setIsCompact(false)}
+              className="text-amber-700 hover:text-amber-900 text-xs underline"
+            >
+              Agrandir
+            </button>
+          </div>
+          <div className="text-amber-800 text-sm mb-1">
+            🎯 {getTerrainEmoji(targetTile.terrain)} Hex ({targetHex.x}, {targetHex.y})
+          </div>
+          <div className={`text-sm mb-3 font-medium ${!pathResult.success ? 'text-red-700' : actionPoints >= movementCost ? 'text-blue-700' : 'text-red-700'}`}>
+            {!pathResult.success
+              ? '🚫 Aucun chemin'
+              : `⚡ ${movementCost} PA — ${actionPoints} disponibles`}
+          </div>
+          <div className="flex gap-2">
+            <Button
+              onClick={onCancel}
+              variant="outline"
+              className="flex-1 text-xs py-1 bg-gray-100 border-gray-400 text-gray-800 hover:bg-gray-200"
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={onConfirm}
+              disabled={!pathResult.success || actionPoints < movementCost}
+              className="flex-1 text-xs py-1 bg-green-600 hover:bg-green-700 text-white disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {!pathResult.success ? 'Impossible' : actionPoints >= movementCost ? 'Confirmer' : 'PA insuf.'}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Mode normal (modale complète) ────────────────────────────────────────────
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-2xl p-6 max-w-md w-full mx-4">
-        <h3 className="text-amber-900 font-bold text-xl mb-4 text-center">
-          Confirmer le Déplacement
-        </h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-amber-900 font-bold text-xl">
+            Confirmer le Déplacement
+          </h3>
+          <button
+            onClick={() => setIsCompact(true)}
+            className="text-amber-700 hover:text-amber-900 text-xs border border-amber-600 rounded px-2 py-1"
+          >
+            🗺️ Voir la carte
+          </button>
+        </div>
         
         <div className="space-y-4">
           {/* Position actuelle */}
