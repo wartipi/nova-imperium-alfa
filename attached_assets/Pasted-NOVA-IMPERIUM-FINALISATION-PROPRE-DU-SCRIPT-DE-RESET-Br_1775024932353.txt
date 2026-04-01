@@ -1,0 +1,225 @@
+NOVA IMPERIUM — FINALISATION PROPRE DU SCRIPT DE RESET
+Branche de travail : NI-10.3
+
+RÔLE
+Tu exécutes un micro-chantier de finition technique.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucune supposition.
+Aucun changement fonctionnel annexe.
+
+CONTEXTE VALIDÉ
+Le fichier `scripts/resetCurrentMatch.ts` existe déjà et exécute déjà l’essentiel du reset.
+Le script :
+- wipe bien la majorité des tables gameplay
+- préserve `map_tiles` et `map_segments`
+- réinsère `player_positions` et `player_state`
+- remet actuellement les joueurs au spawn `(25,15)`
+
+Mais il reste 3 problèmes de finition :
+
+1. BACKUP NON INTÉGRÉ
+Le script ne génère pas lui-même le backup avant reset.
+Le rapport disait qu’un backup avait été fait, mais ce n’est pas assuré par le code du script.
+
+2. SPAWN DUPLIQUÉ
+Le script hardcode `(25,15)` localement.
+Or le spawn canonique existe déjà dans `server/playerPositionService.ts` via `getActiveSpawnPoint()`.
+Aujourd’hui c’est cohérent, mais ce n’est pas propre : duplication de vérité.
+
+3. RESET INCOMPLET
+Le schéma contient aussi des tables de cartographie / exploration persistantes qui ne sont pas reset actuellement :
+- `map_regions`
+- `map_documents`
+- `cartography_projects`
+
+OBJECTIF
+Finir le travail proprement pour que le reset soit :
+- reproductible
+- auditable
+- aligné sur la source canonique du spawn
+- complet pour l’état persistant de test
+- toujours sans toucher à la carte statique ni à l’auth
+
+PÉRIMÈTRE
+Tu peux modifier uniquement ce qui est nécessaire parmi :
+- `scripts/resetCurrentMatch.ts`
+- un nouveau très petit fichier partagé de constantes canon si nécessaire
+- `server/playerPositionService.ts` si requis pour utiliser ce petit fichier partagé
+- `.gitignore` seulement si nécessaire pour ignorer les backups générés
+
+PRIORITÉ DE SOLUTION
+Je veux la plus petite solution propre.
+PRÉFÉRENCE FORTE :
+Créer une minuscule source partagée de vérité pour le spawn, au lieu de laisser la duplication actuelle.
+
+SOLUTION PRÉFÉRÉE
+A. Créer un tout petit fichier partagé, sans dépendances lourdes, par exemple :
+- `shared/runtimeDefaults.ts`
+ou nom équivalent sobre
+
+Ce fichier doit contenir uniquement les constantes minimales nécessaires, par exemple :
+- le spawn canonique actif
+Éventuellement aussi les défauts player_state si tu juges cela vraiment utile, mais ne grossis pas inutilement ce fichier.
+
+B. Mettre à jour `server/playerPositionService.ts`
+- remplacer la duplication locale du spawn par l’import de cette constante canonique
+- conserver strictement le comportement actuel
+
+C. Mettre à jour `scripts/resetCurrentMatch.ts`
+- utiliser cette même source canonique pour `player_positions`
+- ne plus hardcoder `(25,15)` directement dans le script
+
+RÈGLE IMPORTANTE
+N’importe PAS directement `server/playerPositionService.ts` dans le script de reset si cela traîne des dépendances serveur inutiles.
+Je veux une solution propre, légère et déterministe.
+Le bon chemin est une petite constante partagée, pas un import lourd de service.
+
+BACKUP OBLIGATOIRE DANS LE SCRIPT
+Le script doit maintenant générer lui-même un backup avant le `BEGIN`.
+
+Exigences :
+1. Le backup doit être exécuté AVANT toute suppression
+2. Il doit contenir :
+   - timestamp
+   - DB cible masquée dans les logs
+   - counts avant reset
+   - snapshot JSON des tables reset
+3. Le fichier doit être écrit dans un emplacement clair, par exemple :
+   - `scripts/backups/backup_before_reset_<timestamp>.json`
+
+IMPORTANT
+- ne commit pas de backup généré
+- si nécessaire, ajoute une règle `.gitignore` minimale pour ignorer :
+  - `scripts/backups/*.json`
+- si tu crées le dossier, fais-le proprement
+- pas de pollution du repo avec des backups trackés
+
+RESET À COMPLÉTER
+En plus des tables déjà couvertes, intégrer explicitement dans le reset et dans le backup :
+- `map_regions`
+- `map_documents`
+- `cartography_projects`
+
+ATTENTION
+Ne touche PAS à :
+- `map_tiles`
+- `map_segments`
+- auth hardcodée
+- comptes / rôles hardcodés
+- code client / runtime de gameplay
+
+TABLES À PRÉSERVER ABSOLUMENT
+- `map_tiles`
+- `map_segments`
+- `users` (même si vide / inutilisée)
+- tout mécanisme d’auth
+
+TABLES DE RESET À CONSERVER DANS LE SCRIPT
+Conserver le reset déjà présent pour :
+- `territories`
+- `colonies`
+- `cities`
+- `city_buildings`
+- `city_production`
+- `city_inventory`
+- `city_pending_harvest`
+- `units`
+- `market_guilds`
+- `market_orders`
+- `market_trades`
+- `factions`
+- `faction_members`
+- `faction_economy`
+- `treaties`
+- `treaty_factions`
+- `treaty_signatures`
+- `player_actions`
+- `player_bank`
+- `player_transport`
+- `player_positions`
+- `player_state`
+- `marketplace_items`
+- `public_events`
+- `armies`
+- `marshal_contracts`
+- `campaigns`
+- `battle_events`
+ET ajouter :
+- `map_regions`
+- `map_documents`
+- `cartography_projects`
+
+ORDRE
+Garder un ordre FK-safe, simple, lisible, explicite.
+
+JOUEURS
+Conserver le comportement de fin de reset :
+- `admin`
+- `joueur1`
+- `maitre`
+doivent exister en `player_positions`
+et être replacés au spawn canonique
+et `player_state` doit être remis aux valeurs par défaut actuelles
+
+NE CHANGE PAS LE COMPORTEMENT MÉTIER
+- pas de nouvelle route
+- pas de nouveau service
+- pas de mécanisme générique
+- pas de refactor SQL sophistiqué inutile
+- pas de changement de seed
+- pas de régénération de la carte
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+A. Le script génère réellement un backup avant reset
+B. Le spawn utilisé par le script n’est plus dupliqué en dur
+C. `playerPositionService.ts` utilise la même source canonique de spawn
+D. `map_regions`, `map_documents`, `cartography_projects` sont bien inclus dans le reset
+E. `map_tiles` et `map_segments` restent intacts
+F. aucun changement d’architecture
+G. le script s’exécute réellement
+H. les counts après reset sont corrects
+
+EXÉCUTION OBLIGATOIRE
+Après modification :
+1. exécuter réellement le script
+2. montrer les logs utiles
+3. confirmer le chemin du backup généré
+4. confirmer les comptes finaux des tables critiques
+
+FORMAT DE RAPPORT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC
+- rappeler brièvement les 3 problèmes corrigés
+
+2. FICHIERS MODIFIÉS
+- lister uniquement les fichiers réellement touchés
+
+3. MODIFICATIONS APPLIQUÉES
+- expliquer :
+  - comment le backup a été intégré
+  - comment la source canonique du spawn a été unifiée
+  - comment les tables de cartographie ont été ajoutées au reset
+
+4. EXÉCUTION
+- confirmer que le script a été relancé
+- donner le chemin exact du backup généré
+
+5. VÉRIFICATION
+- confirmer :
+  - backup généré avant reset
+  - plus de duplication du spawn
+  - `map_regions = 0`
+  - `map_documents = 0`
+  - `cartography_projects = 0`
+  - `territories = 0`
+  - `colonies = 0`
+  - `cities = 0`
+  - `city_buildings = 0`
+  - `player_actions = 0`
+  - `player_positions = 3` au spawn canonique
+  - `player_state = 3`
+  - `map_tiles` intactes
+  - `map_segments` intactes
+
+6. STOP

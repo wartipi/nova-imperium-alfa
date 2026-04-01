@@ -2,17 +2,13 @@ import { eq, and } from "drizzle-orm";
 import { db } from "./db";
 import { playerPositions, mapTiles } from "../shared/schema";
 import type { PlayerPosition } from "../shared/schema";
+import { CANONICAL_SPAWN } from "../shared/runtimeDefaults";
 
 const SEGMENT_WIDTH = 50;
 const SEGMENT_HEIGHT = 30;
 
-// ─── Point de spawn prototype — source unique, modifiable ici uniquement ──────
-const SPAWN_POINTS = {
-  prototypeDefault: { worldX: 25, worldY: 15 },
-} as const;
-
 export function getActiveSpawnPoint(): { worldX: number; worldY: number } {
-  return SPAWN_POINTS.prototypeDefault;
+  return CANONICAL_SPAWN;
 }
 
 // ─── Règle de validité de position (prototype) ────────────────────────────────
