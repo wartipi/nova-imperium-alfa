@@ -1,0 +1,126 @@
+NOVA IMPERIUM — AUDIT CIBLÉ DES RÉSIDUS DE POSITION LEGACY ET HELPERS TERRITOIRE LEGACY
+Branche : NI-10.3
+
+RÔLE
+Tu exécutes un audit ciblé.
+Aucune implémentation lourde.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucune dérive.
+Tu ne fais PAS de correction globale dans cette étape.
+Tu identifies précisément les résidus cachés qui pourraient recréer des incohérences de position ou d’accès territoire.
+
+CONTEXTE VALIDÉ
+Le flux principal claim → synchro UI → fondation de colonie a été corrigé.
+Le bug principal venait de l’utilisation d’une mauvaise source de position pour le claim.
+Le claim utilise maintenant `usePlayer.getState().avatarHexPosition`.
+
+Mais il reste probablement des résidus legacy ailleurs dans le client.
+
+OBJECTIF
+Trouver précisément tous les endroits où :
+1. une feature utilise encore `gameEngine.getAvatarPosition()` comme source canonique
+2. une feature utilise encore des helpers territory legacy au lieu de l’ownership canonique
+3. une incohérence locale/monde pourrait encore exister en silence
+
+PÉRIMÈTRE D’AUDIT
+Tu dois auditer explicitement :
+
+A. Position joueur / coordonnées
+- tous les usages de `gameEngine.getAvatarPosition()`
+- tous les usages de `avatarHexPosition`
+- tous les usages de `originWorldX` / `originWorldY`
+- tous les endroits où on construit `worldX/worldY` depuis une position locale
+- tous les endroits où on lit une position joueur pour une action métier
+
+B. Territoires / ownership
+- tous les usages de `UnifiedTerritorySystem.getAccessibleTerritories(...)`
+- tous les usages de `getPlayerTerritories(...)`
+- tous les usages de `getFactionTerritories(...)`
+- tous les usages des champs legacy :
+  - `playerId`
+  - `playerName`
+  - `factionId`
+  - `factionName`
+- vérifier si une UI importante filtre encore sur ces champs legacy au lieu de :
+  - `ownerType`
+  - `ownerPlayerId`
+  - `ownerFactionId`
+
+C. Flux sensibles à contrôler
+- claim territoire
+- fondation de colonie
+- cartographie
+- déplacement
+- toute action d’avatar qui dépend d’une position
+- tout panneau UI qui dépend de l’ownership
+
+INTERDIT
+- ne pas modifier les fichiers dans cette étape sauf micro-fix absolument trivial ET seulement si tu tombes sur une faute évidente bloquante
+- ne pas ouvrir un gros chantier
+- ne pas “nettoyer” sans preuve
+- ne pas proposer une refonte générale
+
+MÉTHODE OBLIGATOIRE
+
+PHASE 1 — INVENTAIRE
+Tu dois lister précisément :
+- chaque fichier qui utilise encore `gameEngine.getAvatarPosition()`
+- chaque fichier qui utilise encore `getPlayerTerritories()` ou `getFactionTerritories()`
+- chaque fichier qui filtre encore avec les champs legacy d’ownership
+
+PHASE 2 — CLASSIFICATION
+Pour chaque occurrence trouvée, classer en 3 catégories :
+
+CATÉGORIE A — acceptable
+Exemple : usage purement visuel ou debug, sans impact métier
+
+CATÉGORIE B — résidu à surveiller
+Exemple : usage non critique aujourd’hui mais susceptible de recréer une incohérence plus tard
+
+CATÉGORIE C — correctif recommandé
+Exemple : usage métier qui devrait être réaligné rapidement
+
+PHASE 3 — PROPOSITION
+À la fin, proposer seulement :
+- la liste ordonnée des correctifs minimaux recommandés
+- un ordre de traitement
+- le périmètre de chaque futur mini-chantier
+
+AUCUNE GROSSE IMPLÉMENTATION DANS CETTE ÉTAPE
+
+SORTIE ATTENDUE
+Je veux un vrai rapport d’audit, pas un résumé vague.
+
+FORMAT DE RAPPORT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC GÉNÉRAL
+- dire s’il reste ou non des résidus cachés
+- dire s’ils sont critiques ou non
+
+2. INVENTAIRE — POSITION
+Pour chaque occurrence de `gameEngine.getAvatarPosition()` :
+- fichier
+- fonction / bloc
+- usage exact
+- impact
+- catégorie A / B / C
+
+3. INVENTAIRE — TERRITOIRES / OWNERSHIP
+Pour chaque occurrence de helper ou champ legacy :
+- fichier
+- usage exact
+- impact
+- catégorie A / B / C
+
+4. RISQUES RÉELS
+- lister uniquement les vrais risques encore ouverts
+
+5. RECOMMANDATIONS ORDONNÉES
+- mini-chantier 1
+- mini-chantier 2
+- mini-chantier 3
+avec justification courte pour chacun
+
+6. STOP
+- ne rien implémenter
