@@ -1,0 +1,161 @@
+NOVA IMPERIUM — TÂCHE 5 : AUDIT ET STRATÉGIE DE RÉDUCTION DE DUPLICATION CLIENT / SERVEUR
+Branche : NI-10.3
+
+RÔLE
+Tu exécutes un audit stratégique ciblé.
+Aucune implémentation immédiate.
+Aucun refactor massif.
+Aucun changement d’architecture non validé.
+Aucune dérive.
+Tu ne traites QUE la Tâche 5.
+
+CONTEXTE VALIDÉ
+Tâche 1 validée :
+- `GameCanvas.tsx` a une source unifiée du trajet affiché
+- avant confirmation : `pendingMovement`
+- pendant action active : `activeAction.path`
+- destination visuelle active : `visualPendingMovement`
+
+Tâche 2 validée :
+- `GameCanvas.tsx` calcule `pendingPathResult`
+- `MovementConfirmationModal.tsx` consomme `pathResult` en prop
+- la modale ne recalcule plus le path
+
+Tâche 3 validée :
+- `MovementSystem.previewMovement()` refuse :
+  - destination non découverte
+  - chemin traversant une case non découverte
+- le preview client est aligné sur la règle serveur
+
+Tâche 4 validée :
+- `MovementSystem.ts` a été réduit au preview uniquement
+- le legacy local de déplacement a été retiré
+- `useAvatarMovement.ts` a été désaccouplé du faux lien avec `MovementSystem.isMoving()`
+
+PROBLÈME RÉEL À AUDITER MAINTENANT
+Il existe encore une duplication structurelle entre :
+- `client/src/lib/pathfinding/HexPathfinding.ts`
+- `server/pathfinding/HexPathfindingServer.ts`
+
+Le système fonctionne, mais la logique est encore dupliquée à deux endroits :
+- coûts terrain
+- voisinage hexagonal
+- heuristique / reconstruction de chemin
+- conventions d’impassabilité
+
+OBJECTIF
+Faire un audit précis de cette duplication et proposer la plus petite stratégie propre pour réduire le risque de divergence future.
+
+IMPORTANT
+Tu ne codes PAS la solution dans cette tâche.
+Tu fais uniquement :
+- audit
+- analyse de risque
+- proposition de stratégie minimale
+- proposition de périmètre
+
+PÉRIMÈTRE DE L’AUDIT
+Tu dois lire et comparer explicitement :
+- `client/src/lib/pathfinding/HexPathfinding.ts`
+- `server/pathfinding/HexPathfindingServer.ts`
+
+Et si nécessaire, lire aussi :
+- les appels côté client
+- les appels côté serveur
+- les types partagés concernés
+
+INTERDIT
+- ne pas modifier les fichiers
+- ne pas ouvrir un chantier d’implémentation
+- ne pas proposer un gros refactor théorique
+- ne pas proposer de fusion magique client/serveur si elle casse les contraintes runtime
+- ne pas faire de changement maintenant
+
+CE QUE TU DOIS AUDITER PRÉCISÉMENT
+
+1. COÛTS TERRAIN
+Comparer :
+- liste des terrains
+- coûts affectés
+- convention “eau / bloqué / impassable”
+
+2. VOISINAGE HEXAGONAL
+Comparer :
+- règles de voisins
+- convention de colonnes paires/impaires
+- compatibilité des coordonnées client vs serveur
+
+3. HEURISTIQUE / A*
+Comparer :
+- structure de l’algorithme
+- tie-break éventuel
+- reconstruction du chemin
+- calcul du coût total
+
+4. COORDONNÉES
+Comparer :
+- local vs monde
+- offset / cube / axial
+- points où une divergence pourrait apparaître
+
+5. RÈGLES MÉTIER AJOUTÉES AUTOUR DU PATH
+Comparer :
+- ce qui relève du pathfinding pur
+- ce qui relève des gardes métier (tuiles découvertes, action active, etc.)
+- ce qui doit rester hors du pathfinder
+
+6. RISQUE DE DÉRIVE
+Identifier clairement :
+- ce qui est aujourd’hui identique
+- ce qui est déjà légèrement divergent
+- ce qui risque de diverger à l’avenir si on ne touche à rien
+
+LIVRABLE ATTENDU
+À la fin, tu dois proposer UNE stratégie minimale recommandée parmi des options du type :
+
+OPTION A
+Ne rien fusionner, mais extraire seulement les constantes partagées
+(ex. coûts terrain, conventions impassables, helpers simples)
+
+OPTION B
+Extraire un noyau algorithmique partagé minimal compatible client + serveur
+
+OPTION C
+Garder deux implémentations séparées mais verrouiller la cohérence par une source unique de configuration
+
+Tu dois choisir la plus petite stratégie réaliste et justifier ton choix.
+
+IMPORTANT
+Tu dois aussi dire explicitement :
+- ce qui NE doit PAS être mutualisé
+- ce qui PEUT être mutualisé sans risque
+- ce qui serait trop coûteux / trop fragile à mutualiser maintenant
+
+FORMAT DE RAPPORT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC
+- résumer la duplication réelle restante
+
+2. COMPARAISON DÉTAILLÉE
+- coûts terrain
+- voisinage
+- heuristique
+- reconstruction
+- coordonnées
+- règles métier autour
+
+3. RISQUES
+- ce qui peut diverger
+- ce qui est déjà fragile
+
+4. STRATÉGIE MINIMALE RECOMMANDÉE
+- une seule option recommandée
+- pourquoi c’est la plus propre maintenant
+
+5. FICHIERS QUI SERAIENT TOUCHÉS PLUS TARD
+- lister seulement les fichiers à modifier dans une future implémentation
+- sans coder maintenant
+
+6. STOP
+- t’arrêter
+- ne rien implémenter
