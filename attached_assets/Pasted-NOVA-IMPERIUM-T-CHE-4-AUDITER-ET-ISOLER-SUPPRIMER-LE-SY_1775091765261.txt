@@ -1,0 +1,148 @@
+NOVA IMPERIUM — TÂCHE 4 : AUDITER ET ISOLER / SUPPRIMER LE SYSTÈME LOCAL LEGACY
+Branche : NI-10.3
+
+RÔLE
+Tu exécutes un micro-chantier de clarification technique.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucune dérive.
+Tu ne traites QUE la Tâche 4.
+
+CONTEXTE VALIDÉ
+Tâche 1 validée :
+- `GameCanvas.tsx` a une source unifiée du trajet affiché
+- avant confirmation : `pendingMovement`
+- pendant action active : `activeAction.path`
+- destination visuelle active : `visualPendingMovement`
+
+Tâche 2 validée :
+- `GameCanvas.tsx` calcule `pendingPathResult`
+- `MovementConfirmationModal.tsx` consomme `pathResult` en prop
+- la modale ne recalcule plus le path
+
+Tâche 3 validée :
+- `MovementSystem.previewMovement()` refuse :
+  - destination non découverte
+  - chemin traversant une case non découverte
+- le preview client est aligné sur la règle serveur
+
+PROBLÈME RÉEL À TRAITER MAINTENANT
+`client/src/lib/movement/MovementSystem.ts` contient encore un ancien système local de déplacement :
+- `planAndExecuteMovement()`
+- `executeAnimatedMovement()`
+- gestion locale des PA
+- animation locale case par case
+
+Or le flux canonique actuel est serveur-authoritative via :
+- `requestMove(...)`
+- `activeAction`
+- `fetchCurrentAction()`
+- `playerActions.ts`
+
+OBJECTIF
+Auditer précisément ce système legacy, confirmer s’il est encore utilisé ou non, puis appliquer la plus petite solution propre :
+
+- s’il n’est plus utilisé :
+  - soit le supprimer
+  - soit le marquer explicitement comme legacy / non canonique
+- s’il est encore utilisé quelque part :
+  - identifier exactement où
+  - ne pas casser ce flux sans validation
+
+IMPORTANT
+Avant toute suppression :
+- tu dois prouver les usages réels ou leur absence
+- tu ne supposes rien
+
+PÉRIMÈTRE STRICT
+Tu peux lire autant de fichiers que nécessaire pour l’audit.
+Tu ne modifies que ce qui est strictement nécessaire parmi :
+- `client/src/lib/movement/MovementSystem.ts`
+- éventuellement un ou deux fichiers qui référencent encore ce système, si un mini-désengagement est nécessaire
+
+INTERDIT
+- ne pas toucher au serveur
+- ne pas modifier `GameCanvas.tsx` sauf si un usage legacy réel y est trouvé
+- ne pas toucher `MovementConfirmationModal.tsx`
+- ne pas toucher `GameEngine.ts`
+- ne pas ouvrir la Tâche 5
+- aucun refactor global
+
+MÉTHODE OBLIGATOIRE
+
+PHASE 1 — AUDIT
+Tu dois vérifier explicitement :
+1. si `planAndExecuteMovement()` est encore appelé quelque part
+2. si `executeAnimatedMovement()` est encore appelé indirectement ailleurs
+3. si `isMoving()`, `getAnimationState()`, `stopAnimation()` sont encore utilisés
+4. si ce système local legacy a encore une utilité réelle
+5. si le flux canonique actuel l’a entièrement remplacé
+
+PHASE 2 — DÉCISION
+Après audit :
+- si aucune utilisation réelle → appliquer la plus petite correction propre
+- si usage réel trouvé → ne pas supprimer, rapporter précisément
+
+PHASE 3 — IMPLÉMENTATION MINIMALE
+Choisir UNE des deux options selon l’audit :
+
+OPTION A — préférée si le code legacy n’est plus utilisé
+- garder `previewMovement()` comme API utile
+- retirer ou isoler clairement :
+  - `planAndExecuteMovement()`
+  - `executeAnimatedMovement()`
+  - `animationState`
+  - `isMoving()`
+  - `getAnimationState()`
+  - `stopAnimation()`
+si vraiment inutiles
+
+OPTION B — acceptable si tu veux minimiser encore plus le risque
+- ne pas supprimer
+- ajouter un commentaire explicite en tête de bloc :
+  - “legacy non canonique — flux serveur-authoritative utilisé à la place”
+- et éventuellement renommer / regrouper le bloc pour qu’il ne soit plus ambigu
+
+PRÉFÉRENCE
+Je préfère la plus petite solution propre qui élimine l’ambiguïté sans casser le projet.
+Si tu peux supprimer proprement sans usage réel, fais-le.
+Sinon, isole et documente clairement.
+
+VÉRIFICATIONS OBLIGATOIRES
+Après modification, vérifier explicitement :
+
+1. `previewMovement()` continue de fonctionner
+2. Tâche 1 / 2 / 3 restent intactes
+3. aucun flux actif ne dépend du système legacy supprimé / isolé
+4. le build / HMR ne casse pas
+5. périmètre minimal
+
+FORMAT DE RAPPORT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC
+- expliquer ce qui était legacy
+- dire s’il était encore utilisé ou non
+
+2. FICHIERS MODIFIÉS
+- lister uniquement les fichiers réellement touchés
+
+3. MODIFICATIONS APPLIQUÉES
+- expliquer :
+  - ce qui a été supprimé, ou
+  - ce qui a été marqué legacy, et pourquoi
+
+4. PREUVE DIRECTE
+- coller :
+  - les usages trouvés ou l’absence d’usage
+  - le bloc supprimé ou le commentaire legacy ajouté
+  - l’état final de `previewMovement()`
+
+5. VÉRIFICATION
+- confirmer :
+  - `previewMovement()` intact
+  - aucun appel cassé
+  - build / HMR OK
+
+6. STOP
+- t’arrêter
+- ne pas passer à la Tâche 5
