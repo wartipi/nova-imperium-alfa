@@ -1,0 +1,164 @@
+NOVA IMPERIUM — RÉINTÉGRER LE CLAIM DANS LE MENU D’ACTION AVATAR
+Branche de travail : NI-10.3
+
+RÔLE
+Tu exécutes un micro-chantier strict d’harmonisation UI.
+Tu ne fais aucun refactor massif, aucun changement d’architecture, aucune amélioration annexe.
+Méthode obligatoire :
+1. Audit
+2. Validation
+3. Implémentation minimale
+4. Vérification réelle
+5. Rapport final
+
+OBJECTIF
+Le claim territoire ne doit plus dépendre du panneau `UnifiedTerritoryPanel`.
+Il doit redevenir accessible via le **menu d’action avatar**.
+
+IMPORTANT
+Ne retire PAS encore le bloc claim de `UnifiedTerritoryPanel` dans ce chantier.
+Ce chantier sert uniquement à **réactiver proprement l’accès claim dans `AvatarActionMenu.tsx`**.
+Le retrait du panneau viendra dans un second micro-chantier seulement après validation réelle.
+
+CONTEXTE VÉRIFIÉ
+État actuel du code poussé :
+- `UnifiedTerritoryPanel.tsx` contient encore :
+  - import `apiClaimTerritory`
+  - état `ownerType`
+  - fonction `handleClaimTerritory`
+  - bloc UI de revendication
+- `AvatarActionMenu.tsx` contient explicitement les commentaires :
+  - `Action claim_territory supprimée - utiliser le menu GESTION DE TERRITOIRE`
+  - `filteredTerritoryActions supprimées - utiliser menu GESTION DE TERRITOIRE`
+- `TileContextMenu.tsx` n’expose pas le claim
+
+Donc le plus petit chantier correct est :
+- remettre claim dans `AvatarActionMenu.tsx`
+- ne toucher à rien d’autre
+
+PÉRIMÈTRE STRICT
+Tu modifies uniquement :
+1. `client/src/components/game/AvatarActionMenu.tsx`
+
+Tu peux lire d’autres fichiers si nécessaire pour t’aligner, mais tu ne modifies qu’un seul fichier.
+
+INTERDIT
+- ne pas modifier `UnifiedTerritoryPanel.tsx`
+- ne pas modifier `TileContextMenu.tsx`
+- ne pas modifier le serveur
+- ne pas modifier les routes
+- ne pas modifier `territoriesApi.ts`
+- aucun refactor
+- ne pas toucher aux autres actions avatar existantes
+- ne pas changer les coûts d’autres actions
+- ne pas changer le comportement du claim serveur
+
+SOURCE DE VÉRITÉ FONCTIONNELLE
+La logique métier existante dans `UnifiedTerritoryPanel.tsx` définit le claim actuel :
+- coût joueur normal : 10 PA
+- admin : bypass PA
+- ownerType effectif :
+  - sans faction → toujours `player`
+  - avec faction → choix entre `player` et `faction`
+- case revendiquée :
+  - la case actuelle de l’avatar
+  - worldX/worldY calculés à partir de la position avatar + originWorldX/originWorldY
+- appel serveur :
+  - `apiClaimTerritory(worldX, worldY, effectiveOwnerType)`
+
+Tu dois répliquer ce comportement dans `AvatarActionMenu.tsx`, de manière minimale.
+
+IMPLÉMENTATION ATTENDUE
+
+A. Ajouter une action claim dans le menu avatar
+Réintroduire une action dans la liste des actions disponibles, par exemple :
+
+- id: `claim_territory`
+- name: `Revendiquer le territoire`
+- description claire indiquant que cela revendique la case actuelle de l’avatar
+- cost: `10`
+- icon: `🚩`
+- category: `territory`
+
+B. Gérer cette action dans `handleActionClick`
+Quand `action.id === 'claim_territory'` :
+
+1. En mode admin :
+- ne pas dépenser de PA
+
+2. En mode joueur :
+- vérifier PA >= 10
+- dépenser 10 PA avec `spendActionPoints`
+- si échec, ne rien faire de plus
+
+3. Déterminer `ownerType`
+- si le joueur n’a pas de faction : `player`
+- si le joueur a une faction : pour ce premier micro-chantier, utiliser une règle SIMPLE ET DÉTERMINISTE :
+  - `faction` par défaut si une faction existe
+- ne pas ouvrir de sélecteur complexe dans ce chantier
+- ne pas ajouter de gros modal
+- on veut un plus petit retour propre possible
+
+4. Calculer la case réelle à revendiquer
+- récupérer la position avatar
+- récupérer `originWorldX` / `originWorldY`
+- calculer `worldX` et `worldY` exactement comme dans `UnifiedTerritoryPanel`
+
+5. Appeler `apiClaimTerritory(worldX, worldY, effectiveOwnerType)`
+
+6. Sur succès
+- afficher un feedback cohérent minimal (alert existante ou console + fermeture menu)
+- fermer le menu
+- idéalement déclencher le rafraîchissement existant de l’UI si un mécanisme simple existe déjà
+- ne pas inventer un nouveau système
+
+7. Sur erreur serveur
+- rembourser les PA si déjà dépensés côté client
+- afficher une erreur minimale cohérente
+- fermer ou garder ouvert selon le pattern existant du composant, mais rester simple
+
+C. Règle de simplicité
+Pour ce premier chantier :
+- PAS de choix player/faction dans l’UI du menu avatar
+- PAS de modal supplémentaire
+- PAS de refonte du composant
+- objectif = remettre le claim dans le menu d’action avec comportement simple et stable
+
+VÉRIFICATIONS OBLIGATOIRES APRÈS MODIFICATION
+
+A. `AvatarActionMenu.tsx`
+- l’action `claim_territory` est bien de retour dans la liste des actions
+- elle apparaît dans le rendu du menu
+
+B. `handleActionClick`
+- le cas `claim_territory` existe réellement
+- il appelle bien `apiClaimTerritory(...)`
+
+C. Périmètre
+- seul `AvatarActionMenu.tsx` a été modifié
+
+D. Non-régression
+- les autres actions existantes du menu avatar restent présentes
+- aucun autre flux territoire n’a été touché
+
+FORMAT DE RAPPORT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC
+- rappeler le problème de départ
+
+2. FICHIER MODIFIÉ
+- lister uniquement le fichier réellement touché
+
+3. MODIFICATIONS APPLIQUÉES
+- décrire :
+  - l’action ajoutée
+  - le branch `handleActionClick` ajouté
+  - la règle ownerType utilisée
+
+4. VÉRIFICATION
+- confirmer :
+  - `claim_territory` réapparaît dans AvatarActionMenu
+  - `apiClaimTerritory(...)` est bien appelé
+  - aucun autre fichier n’a été modifié
+
+5. STOP

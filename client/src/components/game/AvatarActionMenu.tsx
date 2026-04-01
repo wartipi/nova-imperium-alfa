@@ -6,6 +6,7 @@ import { useFactions } from "../../lib/stores/useFactions";
 import { useMap } from "../../lib/stores/useMap";
 // import { useMapState } from "../../lib/stores/useMapState"; // Pas utilisé ici
 import { Card } from "../ui/card";
+import { apiClaimTerritory } from "../../lib/api/territoriesApi";
 
 interface AvatarActionMenuProps {
   position: { x: number; y: number };
@@ -56,6 +57,18 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       category: 'cartography',
       requiredCompetence: 'cartography',
       requiredLevel: 1
+    }
+  ];
+
+  // Action de revendication de territoire
+  const territoryActions = [
+    {
+      id: 'claim_territory',
+      name: 'Revendiquer le territoire',
+      description: 'Revendiquer la case actuelle de votre avatar comme territoire',
+      cost: 10,
+      icon: '🚩',
+      category: 'territory',
     }
   ];
 
@@ -135,8 +148,32 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
   const handleActionClick = async (action: any) => {
     if (!isActionAvailable(action)) return;
 
-    // Action claim_territory supprimée - utiliser le menu GESTION DE TERRITOIRE
-
+    if (action.id === 'claim_territory') {
+      const claimCost = 10;
+      if (!isAdmin) {
+        const success = spendActionPoints(claimCost);
+        if (!success) {
+          alert(`${claimCost} PA requis pour revendiquer un territoire.`);
+          return;
+        }
+      }
+      try {
+        const gameEngine = (window as any).gameEngine;
+        const avatarPos = gameEngine?.getAvatarPosition() || { x: 25, y: 15 };
+        const { originWorldX, originWorldY } = useMap.getState();
+        const worldX = avatarPos.x + originWorldX;
+        const worldY = avatarPos.y + originWorldY;
+        const effectiveOwnerType: 'player' | 'faction' = playerFaction ? 'faction' : 'player';
+        console.log(`[AvatarActionMenu] Claim → world=(${worldX},${worldY}) ownerType=${effectiveOwnerType}`);
+        await apiClaimTerritory(worldX, worldY, effectiveOwnerType);
+        window.dispatchEvent(new CustomEvent('nova:logistic-refresh'));
+        onClose();
+      } catch (err: any) {
+        if (!isAdmin) usePlayer.getState().addActionPoints(claimCost);
+        alert(err.message || 'Erreur lors de la revendication du territoire.');
+      }
+      return;
+    }
 
 
     if (action.id === 'found_colony') {
@@ -350,11 +387,10 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       return true;
     });
 
-    // filteredTerritoryActions supprimées - utiliser menu GESTION DE TERRITOIRE
-    
     const allActions = [
       ...filteredExplorationActions,
       ...filteredCompetenceActions,
+      ...territoryActions,
       ...getAdvancedActions(),
       ...reputationActions.filter(action => 
         reputation === action.requiredReputation
