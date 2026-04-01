@@ -1,0 +1,70 @@
+J'audite les trois fichiers en parallèle avant toute modification :
+
+Diagnostic confirmé :
+
+AvatarActionMenu → dispatche déjà nova:logistic-refresh après claim ✅
+UnifiedTerritoryPanel → n'écoute pas nova:logistic-refresh, il a reloadFromServer() mais ne le déclenche qu'au montage + toutes les 10s ❌
+TerritoryInfoSection dans TileInfoPanel → poll toutes les 2s mais relire la même façade stale sans jamais la recharger depuis le serveur ❌
+Solution :
+
+UnifiedTerritoryPanel : écouter nova:logistic-refresh → appel reloadFromServer()
+TerritoryInfoSection : écouter nova:logistic-refresh → recharger la façade locale depuis le serveur + incrémenter refreshKey
+AvatarActionMenu : aucun changement (déjà correct)
+Maintenant TerritoryInfoSection dans TileInfoPanel.tsx. Il faut ajouter l'import des fonctions API et le listener :
+
+Maintenant le listener dans TerritoryInfoSection :
+
+Vérifions que la compilation ne génère pas d'erreurs :
+
+Compilation propre — HMR confirmé sur TileInfoPanel.tsx. Aucune erreur.
+
+Rapport final
+1. DIAGNOSTIC
+Après un claim réussi, AvatarActionMenu dispatche nova:logistic-refresh — mais ni UnifiedTerritoryPanel ni TerritoryInfoSection (dans TileInfoPanel) n'écoutaient cet événement. Les deux composants relisaient uniquement la façade locale (UnifiedTerritorySystem) sans jamais la recharger depuis le serveur après le claim.
+
+2. FICHIERS MODIFIÉS
+Fichier	Action
+UnifiedTerritoryPanel.tsx	Ajout listener
+TileInfoPanel.tsx	Ajout import + listener
+AvatarActionMenu.tsx	Aucun changement (déjà correct)
+3. MODIFICATIONS APPLIQUÉES
+UnifiedTerritoryPanel.tsx — nouvel useEffect :
+
+useEffect(() => {
+  const handler = () => { reloadFromServer(); };
+  window.addEventListener('nova:logistic-refresh', handler);
+  return () => window.removeEventListener('nova:logistic-refresh', handler);
+}, [reloadFromServer]);
+→ reloadFromServer() = fetch server + UnifiedTerritorySystem.loadFromServer() + setTerritories(). Le polling 10s existant est intact.
+
+TileInfoPanel.tsx — TerritoryInfoSection — import ajouté + useEffect :
+
+import { fetchAllTerritories, fetchAllColonies } from "../../lib/api/territoriesApi";
+// Dans TerritoryInfoSection :
+React.useEffect(() => {
+  const handler = async () => {
+    const { originWorldX, originWorldY } = useMap.getState();
+    const [serverTerritories, serverColonies] = await Promise.all([
+      fetchAllTerritories(), fetchAllColonies(),
+    ]);
+    UnifiedTerritorySystem.loadFromServer(serverTerritories, serverColonies, originWorldX, originWorldY);
+    setRefreshKey(prev => prev + 1);
+  };
+  window.addEventListener('nova:logistic-refresh', handler);
+  return () => window.removeEventListener('nova:logistic-refresh', handler);
+}, []);
+→ Recharge la façade locale depuis le serveur, puis force le re-render. Le polling 2s existant est intact en fallback.
+
+4. PREUVE DIRECTE
+Le flux complet après claim :
+
+apiClaimTerritory → serveur enregistre le claim
+dispatchEvent('nova:logistic-refresh') → les deux listeners se déclenchent simultanément
+Les deux composants appellent le serveur → UnifiedTerritorySystem.loadFromServer() → façade fraîche
+setTerritories() et setRefreshKey() → re-render immédiat
+5. VÉRIFICATION
+TileInfoPanel : après claim, le listener recharge la façade et incrémente refreshKey → TerritoryInfoSection affiche "Territoire Revendiqué" immédiatement
+UnifiedTerritoryPanel : le territoire apparaît dans la liste sans attendre le polling suivant
+Fondation de colonie : le territoire est visible dans la liste dès le claim → le bouton "Fonder une Colonie" peut apparaître dès que l'avatar est sur la case
+Périmètre : 2 fichiers modifiés, aucun changement d'architecture, aucun refactor
+6. STOP
