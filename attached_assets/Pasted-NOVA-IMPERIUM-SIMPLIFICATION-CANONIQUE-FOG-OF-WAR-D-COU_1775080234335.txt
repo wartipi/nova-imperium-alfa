@@ -1,0 +1,202 @@
+NOVA IMPERIUM — SIMPLIFICATION CANONIQUE FOG OF WAR / DÉCOUVERTE
+Branche : NI-10.3
+
+RÔLE
+Tu exécutes une simplification structurelle ciblée.
+Objectif : réduire la complexité, éliminer les états temporaires ambigus, stabiliser la règle de déplacement.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucune dérive annexe.
+
+DÉCISION VALIDÉE
+Le modèle actuel avec :
+- currentVision
+- fogRing
+- exploredHexes
+comme états métier distincts
+est trop complexe pour les règles de déplacement.
+
+NOUVELLE RÈGLE CANONIQUE
+Le fog ring ne doit plus être un état de permission spécial.
+
+À partir de maintenant :
+1. Une tuile est soit DÉCOUVERTE, soit NON DÉCOUVERTE
+2. Le déplacement est autorisé uniquement sur les tuiles découvertes
+3. Le rendu garde plusieurs intensités visuelles, mais la logique métier ne dépend plus du fogRing
+
+OBJECTIF
+Transformer le système pour que :
+- la découverte persistée soit : vision directe + 1 anneau
+- le déplacement soit “discovered only”
+- le fog ring reste un effet visuel local, pas une règle métier spéciale
+
+RÈGLE MÉTIER FINALE
+A. PERSISTANCE
+Quand la vision du joueur est recalculée :
+- persister non seulement la vision directe
+- mais aussi l’anneau autour (`visionRange + 1`)
+
+Donc :
+- `player_discovered_tiles` devient la seule vérité de navigation
+- le fog ring n’a plus besoin d’être validé côté serveur comme état temporaire
+
+B. DÉPLACEMENT
+Autorisé :
+- toute tuile découverte
+- admin bypass si déjà voulu
+
+Interdit :
+- toute tuile non découverte
+
+C. RENDU
+Conserver un rendu visuel riche :
+- vision directe → normal
+- anneau proche autour du joueur → fog léger
+- découvert ancien → fog sombre
+- inconnu total → noir
+
+IMPORTANT
+Le fog ring visuel peut continuer à être calculé dynamiquement pour le rendu,
+mais il ne doit plus être traité comme une permission spéciale de gameplay.
+
+PÉRIMÈTRE
+Modifier uniquement ce qui est nécessaire parmi :
+- `client/src/lib/stores/usePlayer.tsx`
+- `client/src/lib/systems/VisionSystem.ts`
+- `client/src/lib/game/GameEngine.ts`
+- `client/src/components/game/GameCanvas.tsx`
+- `client/src/lib/movement/MovementSystem.ts`
+- `client/src/lib/pathfinding/HexPathfinding.ts`
+- `server/routes/playerActions.ts`
+
+et si nécessaire :
+- les helpers API déjà existants liés aux discovered tiles
+
+Ne touche pas à autre chose.
+
+PLAN ATTENDU
+
+1. STORE / VISION
+Dans `usePlayer.tsx` :
+- quand `updateVision()` recalcule la vision,
+  la découverte persistée doit devenir :
+  - `currentVision + anneau radius+1`
+- synchroniser ce delta vers `player_discovered_tiles`
+
+Dans `VisionSystem.ts` :
+- garder le calcul de vision directe
+- garder si utile un calcul d’anneau pour le rendu
+- mais ne plus faire dépendre les permissions de gameplay d’un fogRing spécial
+
+2. CLIENT — RÈGLE DE DÉPLACEMENT
+Dans `GameCanvas.tsx` :
+- l’action “Se déplacer ici” doit dépendre uniquement de :
+  - `isHexExplored(...)`
+  - ou admin
+- enlever toute règle spéciale qui autorise par fogRing seul
+
+Dans `handleMovementConfirm()` :
+- même règle
+- destination découverte = OK
+- destination non découverte = refus
+
+3. PATHFINDER CLIENT
+Dans `MovementSystem.ts` / `HexPathfinding.ts` :
+- le preview path doit accepter uniquement des tuiles découvertes
+- refuser une destination non découverte
+- refuser un chemin passant sur non découvert
+- plus aucune exception spéciale “fogRing traversable”
+
+4. SERVEUR
+Dans `server/routes/playerActions.ts` :
+- la validation serveur doit aussi devenir simple :
+  - destination dans `player_discovered_tiles` = OK
+  - chemin complet dans `player_discovered_tiles` = OK
+  - sinon refus
+- plus besoin de recalculer un fogRing serveur pour autoriser le déplacement
+
+CODES D’ERREUR
+Conserver si possible :
+- `DESTINATION_NOT_DISCOVERED`
+- `PATH_NOT_DISCOVERED`
+
+mais cette fois avec une vraie logique simple et cohérente :
+- “not discovered” = pas présent dans la persistance découverte
+
+5. RENDU VISUEL
+Dans `GameEngine.ts` :
+- conserver 4 états visuels si possible :
+  - direct vision
+  - anneau proche léger
+  - mémoire sombre
+  - inconnu total
+- MAIS ces états sont désormais uniquement visuels
+- pas des permissions gameplay distinctes
+
+SUGGESTION VISUELLE SIMPLE
+Pour l’anneau léger :
+- calculer côté client les tuiles découvertes dont la distance à l’avatar est `visionRange + 1`
+- les rendre plus claires que la mémoire ancienne
+- sans que cela change leur statut métier
+
+IMPORTANT
+Le rendu peut garder un “fog ring”, mais ce ring doit être :
+- dérivé de tuiles déjà découvertes
+- pas un état temporaire autorisé/non persisté
+
+VÉRIFICATIONS OBLIGATOIRES
+
+1. Découverte
+- après déplacement, la découverte persistée inclut bien la vision directe + 1 anneau
+
+2. Reload
+- reload page
+- les tuiles déjà découvertes restent découvertes
+
+3. Déplacement
+- case découverte = action visible + preview + move OK
+- case non découverte = pas d’action + pas de preview + refus serveur
+
+4. Serveur
+- validation simple basée sur `player_discovered_tiles`
+
+5. Rendu
+- vision directe normale
+- anneau proche plus clair
+- mémoire ancienne plus sombre
+- inconnu noir total
+
+6. Stabilité
+- aucun autre système cassé
+- aucun refactor massif
+
+FORMAT DE RAPPORT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC
+- expliquer pourquoi le modèle précédent était trop complexe
+
+2. FICHIERS MODIFIÉS
+- lister uniquement les fichiers réellement touchés
+
+3. MODIFICATIONS APPLIQUÉES
+- expliquer :
+  - comment la découverte persistée a été étendue à `vision + 1 anneau`
+  - comment la règle de déplacement a été simplifiée
+  - comment le rendu garde un anneau visuel sans état métier spécial
+
+4. PREUVE DIRECTE
+- coller :
+  - l’extrait de `updateVision()` montrant la découverte élargie
+  - la condition client de déplacement
+  - la validation serveur
+  - l’extrait du rendu visuel de l’anneau
+
+5. VÉRIFICATION
+- confirmer :
+  - persistance OK
+  - reload OK
+  - move découvert OK
+  - move non découvert refusé
+  - rendu anneau visuel OK
+
+6. STOP
