@@ -424,7 +424,7 @@ export class GameEngine {
       // Complètement inconnu — brouillard noir total
       this.ctx.fillStyle = '#1a1a1a';
       this.ctx.fill();
-    } else if (isInFogRing && !isInCurrentVision && !isVisible) {
+    } else if (isInFogRing && !isInCurrentVision) {
       // Anneau de brouillard — terrain révélé, léger voile bleuté (non explorable sans s'y rendre)
       const baseColor = this.getTerrainColor(hex.terrain);
       const lightFogColor = this.applyLightFog(baseColor);

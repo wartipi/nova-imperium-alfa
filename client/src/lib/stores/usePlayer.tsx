@@ -241,14 +241,24 @@ export const usePlayer = create<PlayerState>((set, get) => {
             avatarHex.y, 
             newExplorationLevel
           );
+
+          const newFogRingUpgrade = VisionSystem.calculateFogRing(
+            avatarHex.x,
+            avatarHex.y,
+            newExplorationLevel
+          );
+
+          const discoveredUpgrade = new Set<string>(newCurrentVision);
+          for (const key of newFogRingUpgrade) discoveredUpgrade.add(key);
           
           const newExploredHexes = VisionSystem.updateExploredHexes(
-            newCurrentVision, 
+            discoveredUpgrade, 
             newState.exploredHexes
           );
           
           set({ 
             currentVision: newCurrentVision,
+            fogRing: newFogRingUpgrade,
             exploredHexes: newExploredHexes
           });
           
@@ -391,14 +401,16 @@ export const usePlayer = create<PlayerState>((set, get) => {
       explorationLevel
     );
 
-    // Exploration permanente — ne découvre QUE les tuiles de vision directe
+    // Exploration permanente — découverte = vision directe + anneau (visionRange+1)
     const prevExplored = state.exploredHexes;
-    const newExploredHexes = VisionSystem.updateExploredHexes(newCurrentVision, prevExplored);
+    const discoveredThisTurn = new Set<string>(newCurrentVision);
+    for (const key of newFogRing) discoveredThisTurn.add(key);
+    const newExploredHexes = VisionSystem.updateExploredHexes(discoveredThisTurn, prevExplored);
 
     // Synchroniser avec le serveur les tuiles nouvellement découvertes (delta)
     const { originWorldX, originWorldY } = useMap.getState();
     const newTiles: { worldX: number; worldY: number }[] = [];
-    for (const key of newCurrentVision) {
+    for (const key of discoveredThisTurn) {
       if (!prevExplored.has(key)) {
         const [lx, ly] = key.split(',').map(Number);
         newTiles.push({ worldX: lx + originWorldX, worldY: ly + originWorldY });

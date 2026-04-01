@@ -37,7 +37,7 @@ const TABLES_TO_BACKUP = [
   'treaties', 'treaty_factions', 'treaty_signatures',
   'faction_members', 'factions',
   'player_actions', 'player_bank', 'player_transport',
-  'player_positions', 'player_state',
+  'player_positions', 'player_state', 'player_discovered_tiles',
   'marketplace_items', 'public_events',
   'armies', 'marshal_contracts', 'campaigns', 'battle_events',
 ];
