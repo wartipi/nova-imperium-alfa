@@ -6,7 +6,7 @@ import { useNovaImperium } from '../../lib/stores/useNovaImperium';
 import { useFactions } from '../../lib/stores/useFactions';
 import { useMap } from '../../lib/stores/useMap';
 import { useCustomAlert } from '../ui/CustomAlert';
-import { fetchAllTerritories, fetchAllColonies, apiClaimTerritory, apiFoundColony, apiSetGovernor, apiExploitTerritory } from '../../lib/api/territoriesApi';
+import { fetchAllTerritories, fetchAllColonies, apiFoundColony, apiSetGovernor, apiExploitTerritory } from '../../lib/api/territoriesApi';
 import { CityManagementPanel } from './CityManagementPanel';
 import { HarvestPanel } from './HarvestPanel';
 
@@ -67,10 +67,6 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
   // Phase 13 — Attribution gouverneur
   const [governorAssignColonyId, setGovernorAssignColonyId] = useState<number | null>(null);
   const [governorInput, setGovernorInput] = useState('');
-  // Phase 12 — choix ownership lors du claim
-  const [ownerType, setOwnerType] = useState<'player' | 'faction'>(
-    playerFaction ? 'faction' : 'player'
-  );
   // Exploitation V1 — sous-bloc de gestion territoire par ville
   const [openCityId, setOpenCityId] = useState<string | null>(null);
 
@@ -104,72 +100,6 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
     const id = setInterval(loadTerritories, 10000);
     return () => clearInterval(id);
   }, [loadTerritories]);
-
-  // Revendiquer le territoire à la position de l'avatar
-  const handleClaimTerritory = async () => {
-    const claimCost = 10;
-    if (!isAdmin && actionPoints < claimCost) {
-      showAlert({
-        title: "Points d'Action insuffisants",
-        message: `${claimCost} PA requis pour revendiquer un territoire.`,
-        type: "error"
-      });
-      return;
-    }
-
-    if (!isAdmin) {
-      const success = spendActionPoints(claimCost);
-      if (!success) {
-        showAlert({ title: "Erreur", message: "Impossible de dépenser les Points d'Action.", type: "error" });
-        return;
-      }
-    }
-
-    // Choisir l'ownerType effectif :
-    // sans faction → toujours 'player' ; avec faction → selon le choix de l'UI
-    const effectiveOwnerType: 'player' | 'faction' = playerFaction ? ownerType : 'player';
-
-    setIsLoading(true);
-    try {
-      const avatarPos = getAvatarPosition();
-      const { originWorldX, originWorldY } = useMap.getState();
-      const worldX = avatarPos.x + originWorldX;
-      const worldY = avatarPos.y + originWorldY;
-
-      console.log(`[Claim] hex=(${avatarPos.x},${avatarPos.y}) → world=(${worldX},${worldY}) ownerType=${effectiveOwnerType}`);
-
-      await apiClaimTerritory(worldX, worldY, effectiveOwnerType);
-
-      const ownerLabel = effectiveOwnerType === 'faction'
-        ? `pour ${playerFaction?.name}`
-        : 'pour vous personnellement';
-
-      showAlert({
-        title: "Territoire Revendiqué",
-        message: `Territoire revendiqué en (${avatarPos.x}, ${avatarPos.y}) ${ownerLabel} !`,
-        type: "success"
-      });
-
-      await reloadFromServer();
-
-      const gameEngine = (window as any).gameEngine;
-      if (gameEngine) gameEngine.render();
-
-    } catch (err: any) {
-      // Rembourser les PA en cas d'échec serveur
-      if (!isAdmin) {
-        const { addActionPoints } = usePlayer.getState();
-        addActionPoints(claimCost);
-      }
-      showAlert({
-        title: "Revendication Échouée",
-        message: err.message || "Erreur lors de la revendication du territoire.",
-        type: "error"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   // Phase 13 — Attribuer un gouverneur à une colonie de faction
   const handleSetGovernor = async (colonyId: number) => {
@@ -335,52 +265,10 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
       {!isAdmin && (
         <div className="parchment-section p-3 mb-4 border-l-4 border-amber-600 bg-amber-50">
           <p className="medieval-text text-xs text-amber-900">
-            <span className="font-semibold">Pour fonder une colonie :</span> revendiquez d'abord un territoire (bouton ci-dessous), puis déplacez votre avatar dessus — le bouton de fondation apparaîtra dans la liste.
+            <span className="font-semibold">Pour fonder une colonie :</span> revendiquez d'abord un territoire via le menu d'action de l'avatar (clic droit sur votre avatar), puis déplacez votre avatar dessus — le bouton de fondation apparaîtra dans la liste.
           </p>
         </div>
       )}
-
-      {/* Section de revendication */}
-      <div className="parchment-section p-4 mb-6">
-        <h4 className="medieval-subtitle mb-3">🗺️ Revendiquer un Territoire</h4>
-        <p className="medieval-text text-sm mb-4">
-          Placez votre avatar sur une case libre et cliquez sur le bouton ci-dessous.
-        </p>
-
-        {/* Mini-choix owner — affiché uniquement si le joueur a une faction */}
-        {!isAdmin && playerFaction && (
-          <div className="flex gap-2 mb-3">
-            <button
-              onClick={() => setOwnerType('faction')}
-              className={`flex-1 text-sm py-2 px-3 rounded border font-medium transition-colors ${
-                ownerType === 'faction'
-                  ? 'bg-amber-700 text-white border-amber-800'
-                  : 'bg-amber-50 text-amber-900 border-amber-400 hover:bg-amber-100'
-              }`}
-            >
-              🏰 Pour ma faction
-            </button>
-            <button
-              onClick={() => setOwnerType('player')}
-              className={`flex-1 text-sm py-2 px-3 rounded border font-medium transition-colors ${
-                ownerType === 'player'
-                  ? 'bg-blue-700 text-white border-blue-800'
-                  : 'bg-blue-50 text-blue-900 border-blue-400 hover:bg-blue-100'
-              }`}
-            >
-              👤 Pour moi
-            </button>
-          </div>
-        )}
-
-        <button
-          onClick={handleClaimTerritory}
-          disabled={isLoading}
-          className="w-full medieval-button medieval-button-success py-3 px-4 disabled:opacity-50 disabled:cursor-not-allowed mb-3"
-        >
-          {isLoading ? 'Revendication...' : `🚩 Revendiquer (${isAdmin ? '0' : '10'} PA)`}
-        </button>
-      </div>
 
       {/* ═══ SECTION A : Mes villes gérables ═══ */}
       {!isAdmin && managedCityEntries.length > 0 && (

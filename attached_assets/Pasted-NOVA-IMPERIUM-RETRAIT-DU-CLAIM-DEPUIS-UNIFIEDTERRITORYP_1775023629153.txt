@@ -1,0 +1,76 @@
+NOVA IMPERIUM — RETRAIT DU CLAIM DEPUIS UNIFIEDTERRITORYPANEL
+Branche de travail : NI-10.3
+
+RÔLE
+Tu exécutes un micro-correctif d’harmonisation UI.
+Pas de refactor massif, pas de changement d’architecture, pas d’amélioration annexe.
+
+CONTEXTE VALIDÉ
+Le claim est maintenant de nouveau accessible via `AvatarActionMenu.tsx`.
+Le bloc de revendication dans `UnifiedTerritoryPanel.tsx` est donc redondant et doit être retiré.
+
+OBJECTIF
+Supprimer l’action de claim du panneau `UnifiedTerritoryPanel`, pour que cette action passe uniquement par le menu d’action avatar.
+
+PÉRIMÈTRE STRICT
+Modifier uniquement :
+`client/src/components/game/UnifiedTerritoryPanel.tsx`
+
+INTERDIT
+- ne pas modifier `AvatarActionMenu.tsx`
+- ne pas modifier `TileContextMenu.tsx`
+- ne pas modifier le serveur
+- ne pas modifier `territoriesApi.ts`
+- aucun refactor
+- ne pas toucher aux flux fondation / exploitation / gouverneur / gestion ville / HarvestPanel
+
+MODIFICATIONS ATTENDUES
+
+1. Supprimer la section UI de revendication
+Retirer entièrement le bloc :
+- titre `🗺️ Revendiquer un Territoire`
+- texte “Placez votre avatar sur une case libre et cliquez sur le bouton ci-dessous.”
+- sélecteur ownerType “Pour ma faction / Pour moi”
+- bouton `🚩 Revendiquer (...)`
+
+2. Mettre à jour le texte d’aide
+Dans le bloc d’aide en haut, remplacer la logique texte :
+- “revendiquez d'abord un territoire (bouton ci-dessous)”
+par une formulation cohérente du type :
+- “revendiquez d'abord un territoire via le menu d’action de l’avatar”
+
+3. Supprimer le code mort devenu inutile dans ce fichier seulement
+Supprimer si plus utilisé après retrait UI :
+- import `apiClaimTerritory`
+- état `ownerType`
+- fonction `handleClaimTerritory`
+- variables utilisées uniquement par ce flux
+
+ATTENTION
+- ne supprime pas `getAvatarPosition` s’il reste utilisé ailleurs
+- ne supprime pas d’autres imports encore utilisés
+- ne modifie pas la structure générale du panneau
+
+VÉRIFICATIONS OBLIGATOIRES
+A. Le bloc “Revendiquer un Territoire” n’existe plus dans `UnifiedTerritoryPanel.tsx`
+B. Le texte d’aide ne parle plus du “bouton ci-dessous”
+C. Les autres sections restent intactes :
+- Mes villes gérables
+- Mes territoires non exploités
+- fondation de colonie
+- exploitation
+- gouverneur
+- HarvestPanel
+D. Un seul fichier modifié
+
+FORMAT DE RAPPORT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC
+2. FICHIER MODIFIÉ
+3. MODIFICATIONS APPLIQUÉES
+4. PREUVE DIRECTE
+- coller le nouveau texte d’aide
+- confirmer la suppression du bloc claim
+- confirmer la suppression du code mort lié au claim
+5. CONTRÔLE DE PÉRIMÈTRE
+6. STOP
