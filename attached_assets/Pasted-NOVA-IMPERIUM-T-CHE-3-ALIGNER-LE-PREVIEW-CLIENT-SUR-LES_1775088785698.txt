@@ -1,0 +1,167 @@
+NOVA IMPERIUM — TÂCHE 3 : ALIGNER LE PREVIEW CLIENT SUR LES RÈGLES MÉTIER SERVEUR
+Branche : NI-10.3
+
+RÔLE
+Tu exécutes un micro-chantier ciblé.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucune dérive.
+Tu ne traites QUE la Tâche 3.
+
+CONTEXTE VALIDÉ
+Tâche 1 validée :
+- `GameCanvas.tsx` a une source unifiée du trajet affiché
+- avant confirmation : `pendingMovement`
+- pendant action active : `activeAction.path`
+- destination visuelle active : `visualPendingMovement`
+
+Tâche 2 validée :
+- `GameCanvas.tsx` calcule `pendingPathResult`
+- `MovementConfirmationModal.tsx` consomme `pathResult` en prop
+- la modale ne calcule plus son propre path
+
+PROBLÈME RÉEL À TRAITER MAINTENANT
+Le preview client doit respecter les mêmes règles métier que le serveur.
+
+ÉTAT MÉTIER SERVEUR DÉJÀ EN PLACE
+Dans `server/routes/playerActions.ts`, la route move :
+- refuse une destination non découverte
+- refuse un chemin qui traverse une case non découverte
+- utilise `player_discovered_tiles` comme vérité serveur
+
+PROBLÈME CÔTÉ CLIENT
+Le preview client ne doit pas afficher un trajet valide si :
+- la destination n’est pas découverte
+- une étape du chemin traverse une case non découverte
+
+OBJECTIF
+Faire en sorte que le preview client respecte déjà la même règle que le serveur :
+
+AUTORISÉ :
+- chemin entièrement sur cases découvertes
+
+INTERDIT :
+- destination non découverte
+- chemin qui traverse une case non découverte
+
+IMPORTANT
+Le but n’est PAS de refaire le serveur.
+Le but est d’aligner le preview client sur la règle serveur déjà validée.
+
+PÉRIMÈTRE STRICT
+Modifier uniquement si nécessaire parmi :
+- `client/src/lib/movement/MovementSystem.ts`
+- `client/src/lib/pathfinding/HexPathfinding.ts`
+- éventuellement `client/src/components/game/GameCanvas.tsx` si un branchement léger est absolument nécessaire
+
+INTERDIT
+- ne pas modifier le serveur
+- ne pas modifier `MovementConfirmationModal.tsx`
+- ne pas modifier `GameEngine.ts`
+- ne pas ouvrir la Tâche 4
+- aucun refactor global
+- ne pas changer les règles de terrain
+- ne pas changer le système activeAction
+
+MÉTHODE OBLIGATOIRE
+1. Audit rapide du code poussé
+2. Confirmation de l’écart exact
+3. Implémentation minimale
+4. Vérification réelle
+5. STOP
+
+CIBLE TECHNIQUE ATTENDUE
+Le preview client doit utiliser la règle suivante :
+
+Une destination est previewable si :
+- `isHexExplored(targetX, targetY)` est vrai
+
+Un chemin est previewable si :
+- chaque case du path calculé (hors départ) est découverte
+
+SOLUTION ATTENDUE
+Tu choisis la plus petite solution propre entre :
+
+OPTION A — préférée si minimale
+Dans `MovementSystem.previewMovement()` :
+- calculer le path via `HexPathfinding.findPath(...)`
+- puis filtrer / invalider le résultat si :
+  - destination non découverte
+  - ou une étape du path n’est pas découverte
+- renvoyer alors :
+  - `success: false`
+  - `path: []`
+  - `totalCost: 0`
+
+OPTION B — acceptable si plus propre
+Ajouter un contrôle optionnel dans `HexPathfinding.findPath(...)`
+pour ignorer les cases non découvertes,
+à condition que cela reste petit, lisible, et ne casse pas les autres usages.
+
+PRÉFÉRENCE
+Je préfère la plus petite correction lisible.
+Ne complexifie pas `HexPathfinding.ts` inutilement si `MovementSystem.previewMovement()` suffit.
+
+COMPORTEMENT ATTENDU APRÈS CORRECTION
+
+1. Case découverte + chemin découvert
+- preview affiché
+- coût affiché
+- modale cohérente
+
+2. Destination non découverte
+- pas de preview
+- modale en état “aucun chemin” / impossible
+- cohérent avec le refus futur du serveur
+
+3. Chemin traverse du non découvert
+- pas de preview
+- modale en état “aucun chemin”
+
+4. Tâche 1 / 2 intactes
+- `pendingPathResult` continue de venir de `GameCanvas`
+- action active inchangée
+
+VÉRIFICATIONS OBLIGATOIRES
+Après modification, vérifier explicitement :
+
+A. Destination découverte
+- `previewMovement()` retourne success=true si le chemin est découvert
+
+B. Destination non découverte
+- `previewMovement()` retourne success=false
+
+C. Chemin traverse du non découvert
+- `previewMovement()` retourne success=false
+
+D. GameCanvas / modale
+- continuent de fonctionner sans changement d’API cassant
+- `pendingPathResult` alimente toujours la modale
+- `previewPathHexes` continue d’être dérivé
+
+E. Périmètre
+- le plus petit nombre de fichiers modifiés
+
+FORMAT DE RAPPORT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC
+- rappeler l’écart exact entre preview client et validation serveur
+
+2. FICHIERS MODIFIÉS
+- lister uniquement les fichiers réellement touchés
+
+3. MODIFICATIONS APPLIQUÉES
+- expliquer où le garde découverte a été ajouté
+
+4. PREUVE DIRECTE
+- coller :
+  - le bloc de validation destination non découverte
+  - le bloc de validation chemin non découvert
+  - la forme du résultat renvoyé en cas d’échec
+
+5. VÉRIFICATION
+- confirmer les 4 cas de test
+
+6. STOP
+- t’arrêter
+- ne pas passer à la Tâche 4
