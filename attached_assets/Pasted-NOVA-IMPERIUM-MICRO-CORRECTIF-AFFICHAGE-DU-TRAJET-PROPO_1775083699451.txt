@@ -1,0 +1,161 @@
+NOVA IMPERIUM — MICRO-CORRECTIF AFFICHAGE DU TRAJET PROPOSÉ
+Branche : NI-10.3
+
+RÔLE
+Tu exécutes un micro-correctif UI ciblé.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucune modification gameplay.
+Aucune dérive.
+
+OBJECTIF
+Afficher correctement le trajet proposé par le pathfinder quand le joueur clique pour un déplacement.
+
+IMPORTANT
+Le calcul du preview existe déjà.
+Je ne veux PAS que tu recrées un nouveau système de path preview.
+Je veux que tu répares / finalises l’affichage du trajet déjà calculé.
+
+ÉTAT RÉEL VÉRIFIÉ
+1. Dans `client/src/components/game/GameCanvas.tsx`
+- `previewPathHexes` existe déjà
+- il est calculé via `MovementSystem.previewMovement(...)`
+- il est injecté dans `gameEngine.updateAvatar(...)`
+
+2. Dans `client/src/lib/movement/MovementSystem.ts`
+- `previewMovement()` existe déjà
+- il retourne `HexPathfinding.findPath(...)`
+
+3. Dans `client/src/lib/game/GameEngine.ts`
+- `previewPath` existe déjà dans l’état du moteur
+- `pendingMovement` existe déjà
+- `updateAvatar(...)` reçoit déjà `previewPath`
+- `drawHex()` sait déjà dessiner :
+  - les tuiles intermédiaires du path (`isPreviewPath`)
+  - la destination (`isPendingDestination`)
+
+PROBLÈME VÉRIFIÉ
+Dans `GameEngine.drawHex()`, le rendu de :
+- `isPreviewPath`
+- `isPendingDestination`
+est encore placé dans la branche `isInCurrentVision`.
+
+Conséquence :
+- le trajet peut être calculé
+- mais il n’est visible que sur les cases en vision directe
+- il ne s’affiche pas correctement sur :
+  - les cases du fog ring
+  - les cases découvertes hors vision directe
+
+RÈGLE ATTENDUE
+Le trajet proposé doit être visible sur toute case NON totalement inconnue.
+Donc visible si la case est :
+- en vision directe
+- ou dans le fog ring
+- ou déjà découverte (mémoire)
+
+Le trajet NE doit PAS être visible sur une case totalement inconnue.
+
+PÉRIMÈTRE STRICT
+Modifier uniquement :
+`client/src/lib/game/GameEngine.ts`
+
+INTERDIT
+- ne pas modifier `GameCanvas.tsx`
+- ne pas modifier `MovementSystem.ts`
+- ne pas modifier `HexPathfinding.ts`
+- ne pas modifier `VisionSystem.ts`
+- ne pas modifier les règles de déplacement
+- ne pas modifier les règles de découverte
+- ne pas modifier le serveur
+- aucun refactor global
+
+CORRECTION ATTENDUE
+Dans `drawHex()` :
+
+1. Conserver les états visuels actuels :
+- inconnu total
+- fog ring
+- vision directe
+- mémoire ancienne
+
+2. Mais sortir le rendu de :
+- `isPreviewPath`
+- `isPendingDestination`
+
+de la branche `isInCurrentVision`,
+et le placer dans une section commune exécutée APRÈS le rendu de base de la case.
+
+3. Condition de rendu attendue
+Créer une condition claire du type :
+- case visible au sens large = `isInCurrentVision || isInFogRing || isVisible`
+
+Ou toute variante équivalente, tant qu’elle respecte cette règle :
+- preview visible sur vision directe
+- preview visible sur fog ring
+- preview visible sur découvert ancien
+- preview absent sur inconnu total
+
+IMPORTANT
+- conserver le style visuel actuel du preview autant que possible
+- ne pas dessiner le preview sous le noir total
+- ne pas casser le rendu des claims
+- ne pas casser le rendu des ressources
+- ne pas casser le rendu des rivières
+- ne pas casser le rendu de la sélection
+
+IMPLÉMENTATION MINIMALE ATTENDUE
+Approche attendue :
+A. laisser le rendu terrain/fog dans les branches actuelles
+B. calculer ensuite en bas de `drawHex()` :
+- `const isPreviewPath = ...`
+- `const canRenderMovementOverlay = ...`
+C. si `canRenderMovementOverlay` :
+- dessiner `isPreviewPath`
+- dessiner `isPendingDestination`
+
+NE PAS refaire toute la fonction.
+Je veux le plus petit déplacement propre du bloc de rendu.
+
+VÉRIFICATIONS OBLIGATOIRES
+Après modification, vérifier explicitement :
+
+1. Vision directe
+- le trajet proposé s’affiche
+
+2. Fog ring
+- le trajet proposé s’affiche
+
+3. Découvert ancien hors vision
+- le trajet proposé s’affiche
+
+4. Inconnu total
+- aucun trajet proposé ne s’affiche
+
+5. Destination pending
+- elle s’affiche aussi dans les mêmes cas autorisés
+
+6. Périmètre
+- un seul fichier modifié
+
+FORMAT DE RAPPORT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC
+- rappeler brièvement que le calcul existait déjà mais que le rendu était limité à `isInCurrentVision`
+
+2. FICHIER MODIFIÉ
+- lister uniquement le fichier touché
+
+3. MODIFICATIONS APPLIQUÉES
+- expliquer où le bloc de rendu du preview et de la destination a été déplacé
+
+4. PREUVE DIRECTE
+- coller le nouveau bloc commun de rendu :
+  - `isPreviewPath`
+  - `canRenderMovementOverlay`
+  - rendu preview + destination
+
+5. VÉRIFICATION
+- confirmer les 4 cas de test
+
+6. STOP

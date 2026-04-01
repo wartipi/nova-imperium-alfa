@@ -496,33 +496,6 @@ export class GameEngine {
         this.ctx.stroke();
       }
       
-      // Highlight preview path hexes (tuiles intermédiaires du trajet prévu)
-      const isPreviewPath = this.previewPath.size > 0 && this.previewPath.has(`${hex.x},${hex.y}`);
-      if (isPreviewPath) {
-        this.ctx.strokeStyle = 'rgba(255, 180, 0, 0.9)';
-        this.ctx.lineWidth = 2.5;
-        this.ctx.stroke();
-        this.ctx.fillStyle = 'rgba(255, 200, 50, 0.2)';
-        this.ctx.fill();
-      }
-
-      // Highlight pending movement destination
-      if (isPendingDestination) {
-        this.ctx.strokeStyle = '#00FF00';
-        this.ctx.lineWidth = 4;
-        this.ctx.stroke();
-        
-        // Add a moving indicator
-        this.ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
-        this.ctx.fill();
-        
-        // Add arrow pointing to destination
-        this.ctx.fillStyle = '#00FF00';
-        this.ctx.font = '20px Arial';
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText('➤', x, y + 7);
-      }
-      
       // REFACTORISATION : Système unifié de rendu des ressources avec injection
       if (hex.resource) {
         // NOUVEAU : Accès via les callbacks injectés au lieu de window
@@ -657,6 +630,44 @@ export class GameEngine {
         this.ctx.moveTo(x - this.hexSize / 2, y);
         this.ctx.lineTo(x + this.hexSize / 2, y);
         this.ctx.stroke();
+      }
+    }
+
+    // ── Overlay trajet proposé — visible sur toute case non totalement inconnue ──
+    const canRenderMovementOverlay = isInCurrentVision || isInFogRing || isVisible;
+    if (canRenderMovementOverlay) {
+      const isPreviewPath = this.previewPath.size > 0 && this.previewPath.has(`${hex.x},${hex.y}`);
+      if (isPreviewPath || isPendingDestination) {
+        // Recréer le chemin hex (les branches précédentes peuvent l'avoir remplacé via beginPath)
+        this.ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const angle = (i * Math.PI) / 3;
+          const hx = x + this.hexSize * Math.cos(angle);
+          const hy = y + this.hexSize * Math.sin(angle);
+          if (i === 0) this.ctx.moveTo(hx, hy);
+          else this.ctx.lineTo(hx, hy);
+        }
+        this.ctx.closePath();
+
+        if (isPreviewPath) {
+          this.ctx.strokeStyle = 'rgba(255, 180, 0, 0.9)';
+          this.ctx.lineWidth = 2.5;
+          this.ctx.stroke();
+          this.ctx.fillStyle = 'rgba(255, 200, 50, 0.2)';
+          this.ctx.fill();
+        }
+
+        if (isPendingDestination) {
+          this.ctx.strokeStyle = '#00FF00';
+          this.ctx.lineWidth = 4;
+          this.ctx.stroke();
+          this.ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+          this.ctx.fill();
+          this.ctx.fillStyle = '#00FF00';
+          this.ctx.font = '20px Arial';
+          this.ctx.textAlign = 'center';
+          this.ctx.fillText('➤', x, y + 7);
+        }
       }
     }
   }
