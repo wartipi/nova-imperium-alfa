@@ -222,8 +222,8 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
         try {
           // Récupérer le champ de vision actuel du joueur (qui s'adapte au niveau d'exploration)
           const { currentVision } = usePlayer.getState();
+          const avatarPosition = usePlayer.getState().avatarHexPosition;
           const gameEngine = (window as any).gameEngine;
-          const avatarPosition = gameEngine?.getAvatarPosition() || { x: 25, y: 15 };
           
           // NOUVELLE APPROCHE: Récupérer les données directement des stores
           const { mapData } = useMap.getState(); // Utiliser useMap au lieu de useMapState
