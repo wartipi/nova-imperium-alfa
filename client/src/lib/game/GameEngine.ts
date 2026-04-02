@@ -401,6 +401,27 @@ export class GameEngine {
         }
       }
     }
+
+    // --- Seconde passe : frontières de territoire ---
+    // Dessinées APRÈS toutes les tuiles pour ne pas être recouvertes par les fills voisins
+    for (let y = 0; y < this.mapData.length; y++) {
+      for (let x = 0; x < this.mapData[y].length; x++) {
+        const hex = this.mapData[y][x];
+        const isInCurrentVision = this.isAdminMode || (this.isHexInCurrentVision ? this.isHexInCurrentVision(x, y) : true);
+        if (!isInCurrentVision) continue;
+
+        const territoryInfo = UnifiedTerritorySystem.getTerritory(hex.x, hex.y);
+        if (!territoryInfo) continue;
+
+        const screenX = x * (this.hexSize * 1.5);
+        const screenY = y * hexHeight + (x % 2) * (hexHeight / 2);
+        const borderColor = territoryInfo.ownerType === 'player'
+          ? 'rgba(20, 100, 220, 0.90)'
+          : 'rgba(20, 110, 20, 0.90)';
+
+        this.drawTerritoryBorders(hex.x, hex.y, territoryInfo, borderColor, screenX, screenY);
+      }
+    }
   }
 
   private drawHex(x: number, y: number, hex: HexTile, isVisible: boolean = true, isInCurrentVision: boolean = true, isInFogRing: boolean = false, isPendingDestination: boolean = false) {
@@ -445,28 +466,17 @@ export class GameEngine {
       this.ctx.fillStyle = this.getTerrainColor(hex.terrain);
       this.ctx.fill();
       
-      // Check and render territory claims using UnifiedTerritorySystem
+      // Colonies uniquement — les frontières territoire sont dessinées dans la seconde passe de renderMap
       const territoryInfo = UnifiedTerritorySystem.getTerritory(hex.x, hex.y);
-      if (territoryInfo) {
-        // Couleur de bordure selon l'ownership canonique
-        const borderColor = territoryInfo.ownerType === 'player'
-          ? 'rgba(20, 100, 220, 0.90)'
-          : 'rgba(20, 110, 20, 0.90)';
-
-        // Contours externes uniquement — pas d'overlay fill par case
-        this.drawTerritoryBorders(hex.x, hex.y, territoryInfo, borderColor, x, y);
-
-        // Marquer les colonies avec un symbole spécial
-        if (territoryInfo.colonyId) {
-          const textColor = territoryInfo.ownerType === 'player' ? '#1E90FF' : '#228B22';
-          this.ctx.fillStyle = textColor;
-          this.ctx.font = 'bold 20px Arial';
-          this.ctx.textAlign = 'center';
-          this.ctx.fillText('🏘️', x, y + 5);
-          this.ctx.strokeStyle = '#FFFFFF';
-          this.ctx.lineWidth = 2;
-          this.ctx.strokeText('🏘️', x, y + 5);
-        }
+      if (territoryInfo?.colonyId) {
+        const textColor = territoryInfo.ownerType === 'player' ? '#1E90FF' : '#228B22';
+        this.ctx.fillStyle = textColor;
+        this.ctx.font = 'bold 20px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('🏘️', x, y + 5);
+        this.ctx.strokeStyle = '#FFFFFF';
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeText('🏘️', x, y + 5);
       }
 
       // Highlight selected hex

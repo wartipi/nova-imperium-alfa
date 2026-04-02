@@ -1,0 +1,187 @@
+NOVA IMPERIUM — CORRECTIF RENDU TERRITOIRE — SECONDE PASSE POUR LES FRONTIÈRES
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu interviens sur un correctif ciblé de rendu client.
+Tu dois agir avec discipline :
+audit → diagnostic → correctif minimal → vérification.
+Tu ne dois pas refactorer massivement.
+Tu ne dois pas changer l’architecture.
+Tu ne dois pas toucher au serveur.
+Tu ne dois pas ouvrir un autre chantier.
+
+CONTEXTE
+Projet Nova Imperium.
+Contraintes absolues :
+- serveur autoritaire
+- carte hex persistante
+- génération déterministe
+- Node/TypeScript, React/TypeScript, PostgreSQL
+- priorité : stabilité, simplicité, déterminisme
+- aucun refactor massif
+- aucun changement d’architecture inutile
+
+PROBLÈME À CORRIGER
+Le rendu des frontières de territoire n’est pas correct visuellement.
+Le but était d’afficher uniquement le contour externe des tuiles claimées connectées.
+Mais le résultat actuel n’est pas propre :
+- certaines portions de bordure apparaissent
+- d’autres semblent manquer
+- le contour externe n’est pas proprement continu
+
+DIAGNOSTIC ATTENDU
+Tu dois partir de l’hypothèse suivante :
+le problème principal n’est probablement pas la règle “même owner” elle-même,
+mais le fait que les bordures territoire soient dessinées au mauvais moment dans le pipeline de rendu.
+
+Le rendu actuel de la carte fonctionne tuile par tuile.
+Si les frontières de territoire sont dessinées pendant le rendu individuel d’une tuile,
+elles peuvent ensuite être recouvertes par :
+- le fill d’une tuile voisine dessinée plus tard
+- le contour gris standard de la grille
+- d’autres strokes ou overlays du cycle normal
+
+OBJECTIF PRÉCIS
+Faire en sorte que les frontières de territoire soient dessinées dans une passe séparée,
+après que toutes les tuiles aient déjà été rendues.
+
+Résultat attendu :
+- contour externe propre
+- pas de lignes internes entre cases du même owner
+- pas de segments de frontière “mangés” ou recouverts par le rendu des voisins
+
+PÉRIMÈTRE AUTORISÉ
+Fichier principal :
+- client/src/lib/game/GameEngine.ts
+
+Lecture support uniquement si nécessaire :
+- client/src/lib/systems/UnifiedTerritorySystem.ts
+
+IMPORTANT
+Tu ne modifies pas l’architecture du jeu.
+Tu ne crées pas un nouveau système.
+Tu ne touches pas au backend.
+Tu ne touches pas aux DTO.
+Tu ne touches pas au stockage.
+Tu fais le plus petit correctif stable possible dans GameEngine.ts.
+
+ÉTAPE 1 — AUDIT DU CODE RÉEL
+Lis GameEngine.ts et confirme explicitement :
+1. comment renderMap() boucle actuellement sur les hex
+2. où drawHex(...) est appelé
+3. où le stroke générique de grille est appliqué
+4. si le rendu territoire est actuellement fait depuis drawHex(...)
+5. si les frontières territoire sont donc dessinées trop tôt dans l’ordre global de peinture
+
+ÉTAPE 2 — CORRECTIF MINIMAL À APPLIQUER
+
+A. Conserver la première passe existante pour le rendu normal des tuiles
+Dans renderMap(), la première boucle doit continuer à gérer :
+- terrain
+- fog of war
+- rivières
+- ressources
+- sélection
+- preview path
+- pending destination
+- contour standard de la grille
+
+B. Retirer le dessin des frontières territoire depuis drawHex(...)
+Dans drawHex(...), le bloc territory doit cesser de dessiner directement les frontières externes.
+Si un appel à drawTerritoryBorders(...) s’y trouve, il doit être retiré de cette phase.
+
+Important :
+- ne remets pas de fill massif des claims si ce n’est pas déjà voulu
+- ne redessine pas un contour complet par case claimée
+- ne fais pas de hack visuel local tuile par tuile
+
+C. Ajouter une seconde passe dédiée après la première boucle de renderMap()
+Une fois que toutes les tuiles ont été rendues,
+ajoute une seconde boucle dans renderMap() qui :
+1. reparcourt toutes les hex
+2. vérifie la visibilité de la case de la même manière cohérente que la première passe
+3. récupère le territoire via UnifiedTerritorySystem.getTerritory(hex.x, hex.y)
+4. si la case a un territoire visible, dessine uniquement ses côtés externes
+
+D. Le dessin des frontières doit se faire après le rendu complet des tuiles
+C’est le cœur du correctif.
+Le but est que les frontières territoire soient peintes en dernier,
+pour qu’aucune tuile voisine ne puisse les recouvrir ensuite.
+
+ÉTAPE 3 — LOGIQUE DE DRAWTERRITORYBORDERS
+Conserver la logique de voisin hex existante si elle est déjà correcte pour la grille offset utilisée.
+Ne refais pas toute la topologie si ce n’est pas nécessaire.
+
+Mais vérifie impérativement :
+- que le voisin est récupéré avec UnifiedTerritorySystem.getTerritory(...)
+- pas avec isTerritoryClaimed(...) si cela retourne un booléen
+- que la comparaison “même owner” repose sur les champs canoniques :
+  - ownerType === 'player' + ownerPlayerId identique
+  - ownerType === 'faction' + ownerFactionId identique
+
+Si deux cases ont le même owner :
+- ne pas dessiner le côté partagé
+
+Si le voisin n’existe pas ou a un owner différent :
+- dessiner ce côté
+
+ÉTAPE 4 — CONTOUR STANDARD DE GRILLE
+Le contour gris standard de chaque hex ne doit pas casser le rendu territoire.
+Vérifie que l’ordre final est bien :
+1. rendu des tuiles
+2. contour standard de grille
+3. puis frontières territoire en dernier
+
+Si nécessaire, reconstruis explicitement le path hex pour le contour standard,
+au lieu de dépendre d’un path laissé par drawHex(...),
+mais uniquement si c’est requis pour stabiliser le rendu.
+Pas de refactor de confort.
+
+ÉTAPE 5 — NE PAS CASSER
+Le correctif ne doit pas casser :
+- fog of war
+- sélection de case
+- preview path
+- pending destination
+- affichage colonie
+- rendu avatar
+- rendu autres joueurs
+- clic carte
+- rendu ressources
+- rendu rivière
+
+ÉTAPE 6 — RAPPORT FINAL OBLIGATOIRE
+Après modification, donne une réponse strictement au format :
+
+1. DIAGNOSTIC
+- où était l’erreur exacte dans le pipeline de rendu
+
+2. FICHIERS CONCERNÉS
+- liste exacte des fichiers touchés
+
+3. MODIFICATION MINIMALE PROPOSÉE
+- ce que tu as déplacé
+- ce que tu as retiré de drawHex(...)
+- où la seconde passe a été ajoutée dans renderMap(...)
+- comment drawTerritoryBorders(...) est désormais utilisé
+
+4. PREUVE DIRECTE
+- explique pourquoi les frontières ne peuvent plus être recouvertes par les tuiles voisines
+- cite les zones réellement modifiées
+
+5. VÉRIFICATION
+Confirme les cas suivants :
+- 1 case seule → contour complet
+- 2 cases adjacentes même owner → pas de ligne interne
+- bloc de plusieurs cases → périmètre propre
+- deux owners différents → frontière visible
+- colonie sur case claimée → toujours visible
+- contour toujours visible après déplacement caméra / rerender
+
+6. STOP
+
+CONTRAINTE FINALE
+Ne transforme pas ce correctif en refonte du moteur de rendu.
+Tu fais uniquement le plus petit correctif stable pour que les frontières de territoire soient dessinées dans la bonne passe, au bon moment.
