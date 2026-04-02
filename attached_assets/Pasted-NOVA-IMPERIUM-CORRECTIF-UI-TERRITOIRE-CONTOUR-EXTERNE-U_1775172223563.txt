@@ -1,0 +1,215 @@
+NOVA IMPERIUM — CORRECTIF UI TERRITOIRE — CONTOUR EXTERNE UNIQUEMENT
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu interviens comme auditeur/exécutant technique sur un chantier ciblé.
+Tu ne dois pas refactorer.
+Tu ne dois pas changer l’architecture.
+Tu dois faire un correctif minimal, déterministe, localisé, propre.
+
+RÈGLES OBLIGATOIRES
+- ne touche qu’au plus petit périmètre nécessaire
+- aucun refactor massif
+- aucun changement serveur
+- aucune modification DB
+- aucune supposition
+- lire le code réel avant de modifier
+- préserver tout le reste du rendu carte non concerné
+- ne pas casser :
+  - sélection de case
+  - preview path
+  - pending destination
+  - fog of war
+  - affichage colonie
+  - autres overlays déjà en place
+
+OBJECTIF
+Corriger le rendu visuel des territoires claimés pour que :
+- l’intérieur des groupes de cases adjacentes ne soit plus surligné
+- seules les bordures externes du territoire soient visibles
+- les lignes internes entre cases du même owner disparaissent
+
+SYMPTÔME ACTUEL
+Dans le rendu actuel des claims, chaque case claimée est dessinée individuellement avec :
+- un fill
+- un contour propre
+
+Résultat :
+- si plusieurs cases claimées se touchent, les bordures internes restent visibles
+- le territoire ressemble à un assemblage de cases indépendantes au lieu d’un contour de frontière
+
+COMPORTEMENT ATTENDU
+Pour un territoire formé de plusieurs cases adjacentes appartenant au même owner :
+- ne pas afficher les frontières internes
+- afficher uniquement les côtés exposés vers :
+  - une case non claimée
+  - une case claimée par un owner différent
+  - l’extérieur de la carte si applicable
+
+Exemples attendus :
+1. une seule case claimée
+- les 6 côtés sont visibles
+
+2. deux cases adjacentes du même owner
+- le segment partagé entre les deux disparaît
+- seul le contour externe reste visible
+
+3. un bloc de plusieurs cases connectées
+- seul le périmètre extérieur est dessiné
+
+4. deux territoires voisins mais ownership différent
+- la frontière entre eux reste visible
+
+PÉRIMÈTRE AUTORISÉ
+Fichier principal à modifier :
+- client/src/lib/game/GameEngine.ts
+
+Fichier support à lire seulement si nécessaire :
+- client/src/lib/systems/UnifiedTerritorySystem.ts
+
+IMPORTANT
+Sauf nécessité absolue, ne modifie pas UnifiedTerritorySystem.ts.
+Le correctif doit rester dans GameEngine.ts si possible.
+
+ÉTAT RÉEL DU CODE À PRENDRE EN COMPTE
+Dans GameEngine.ts, dans drawHex(...), le rendu des claims fait actuellement :
+- un fill par case claimée
+- un stroke par case claimée
+- puis appelle drawTerritoryBorders(...)
+
+Mais drawTerritoryBorders(...) est actuellement neutralisé par un return immédiat.
+
+De plus, drawTerritoryBorders(...) utilise une logique incorrecte :
+- il appelle UnifiedTerritorySystem.isTerritoryClaimed(neighborX, neighborY)
+- cette méthode retourne un booléen
+- ensuite le code traite le résultat comme un objet territoire
+- cette logique doit être corrigée
+
+OWNERSHIP CANONIQUE À UTILISER
+Ne pas baser la comparaison sur factionId legacy.
+La notion de “même owner” doit être calculée avec les champs canoniques du territoire :
+
+Cas 1 — owner personnel :
+- ownerType === 'player'
+- même owner si ownerPlayerId identique
+
+Cas 2 — owner faction :
+- ownerType === 'faction'
+- même owner si ownerFactionId identique
+
+Sinon :
+- owner différent
+
+TRAVAIL DEMANDÉ
+
+ÉTAPE 1 — AUDIT RAPIDE
+Lis GameEngine.ts et confirme :
+- où est dessiné le fill des claims
+- où est dessiné le contour individuel des claims
+- où est la fonction drawTerritoryBorders(...)
+- que drawTerritoryBorders(...) est bien désactivée par un return
+- que la logique de voisin actuelle est erronée
+
+ÉTAPE 2 — MODIFICATION MINIMALE
+Dans GameEngine.ts uniquement, applique le correctif suivant :
+
+A. Dans le bloc de drawHex(...) qui traite territoryInfo :
+- supprimer le rendu de fill interne des cases claimées
+- supprimer le contour individuel autour de chaque case claimée
+- conserver seulement :
+  - le rendu de la colonie si colonyId existe
+  - le rendu des bordures externes via drawTerritoryBorders(...)
+
+B. Réactiver drawTerritoryBorders(...)
+- retirer le return immédiat
+- corriger la logique pour récupérer le territoire voisin avec :
+  - UnifiedTerritorySystem.getTerritory(neighborX, neighborY)
+et non :
+  - UnifiedTerritorySystem.isTerritoryClaimed(...)
+
+C. Comparaison “même owner”
+Implémente une logique claire :
+- si pas de territoire voisin → ce côté est une bordure
+- si territoire voisin avec owner différent → ce côté est une bordure
+- si territoire voisin avec même owner → ne pas dessiner ce côté
+
+D. Couleur de bordure
+Conserver une logique simple et stable :
+- ownership player → bordure bleutée
+- ownership faction → bordure verdâtre
+Tu peux réutiliser les couleurs déjà présentes si elles sont cohérentes.
+
+E. Largeur de ligne
+Utiliser un contour lisible mais non excessif.
+Objectif :
+- frontière visible
+- sans bruit
+- sans redessiner chaque case entière
+
+F. Ne pas ajouter d’overlay de remplissage interne
+Le résultat voulu est vraiment :
+- contour externe visible
+- pas de masse colorée interne répétée par case
+
+OPTION AUTORISÉE SI NÉCESSAIRE
+Si cela simplifie le code sans créer de refactor, tu peux ajouter dans GameEngine.ts un petit helper privé du style :
+- isSameTerritoryOwner(a, b): boolean
+ou équivalent
+
+Mais :
+- pas de refonte structurelle
+- pas d’extraction massive
+- pas de nouveau système
+
+POINTS À NE PAS CASSER
+Le correctif ne doit pas altérer :
+- le rendu des tuiles normales
+- le fog of war
+- le highlight de case sélectionnée
+- le preview path
+- le pending destination
+- le rendu des colonies
+- les autres joueurs
+- l’avatar
+- le clic carte
+
+IMPORTANT SUR LES COORDONNÉES VOISINES
+La logique des voisins hexagonaux existe déjà dans drawTerritoryBorders(...).
+Conserve l’approche actuelle si elle est correcte pour la grille offset utilisée.
+Ne réécris pas toute la géométrie hex si ce n’est pas nécessaire.
+Le but est de corriger le rendu, pas de refaire la topologie de la carte.
+
+CE QUE JE VEUX COMME RÉSULTAT DE TA PART
+Après modification, donne un rapport strict avec :
+
+1. FICHIERS MODIFIÉS
+- liste exacte
+
+2. MODIFICATION EFFECTIVE
+- ce que tu as retiré
+- ce que tu as réactivé
+- ce que tu as corrigé dans la logique de voisin
+- comment tu détermines “même owner”
+
+3. PREUVE DIRECTE
+- cite les blocs réellement modifiés
+- explique pourquoi les lignes internes vont disparaître maintenant
+
+4. VÉRIFICATION
+Confirme le comportement attendu sur ces cas :
+- 1 case seule
+- 2 cases adjacentes même owner
+- bloc de plusieurs cases
+- frontière entre deux owners différents
+- case de colonie
+
+5. STOP
+Ne lance aucun autre chantier.
+Ne propose pas de refactor supplémentaire.
+Ne touche à rien d’autre.
+
+RAPPEL FINAL
+Tu n’as pas le droit de transformer ce correctif en refonte du système de rendu.
+Tu dois faire le plus petit correctif stable, lisible et local possible.

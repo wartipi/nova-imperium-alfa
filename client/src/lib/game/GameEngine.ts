@@ -448,41 +448,21 @@ export class GameEngine {
       // Check and render territory claims using UnifiedTerritorySystem
       const territoryInfo = UnifiedTerritorySystem.getTerritory(hex.x, hex.y);
       if (territoryInfo) {
-        // Couleurs par joueur/faction
-        const playerColors: { [key: string]: { border: string } } = {
-          'gm_faction': { border: '#9932CC' }, // Violet pour MJ
-          'player_faction': { border: '#228B22' }, // Vert pour joueur
-          'player': { border: '#1E90FF' }, // Bleu pour joueur par défaut
-        };
-        
-        const colors = playerColors[territoryInfo.factionId ?? 'player'] || playerColors['player'];
+        // Couleur de bordure selon l'ownership canonique
+        const borderColor = territoryInfo.ownerType === 'player'
+          ? 'rgba(20, 100, 220, 0.90)'
+          : 'rgba(20, 110, 20, 0.90)';
 
-        // Overlay claim — visible, différencié par type d'ownership
-        const claimFill = territoryInfo.ownerType === 'player'
-          ? 'rgba(30, 144, 255, 0.28)'   // Bleu — ownership joueur
-          : 'rgba(34, 139, 34, 0.22)';   // Vert — ownership faction
-        this.ctx.fillStyle = claimFill;
-        this.ctx.fill();
+        // Contours externes uniquement — pas d'overlay fill par case
+        this.drawTerritoryBorders(hex.x, hex.y, territoryInfo, borderColor, x, y);
 
-        // Contour simple autour de la case claim (drawTerritoryBorders désactivé — artefacts)
-        const claimStroke = territoryInfo.ownerType === 'player'
-          ? 'rgba(20, 100, 220, 0.80)'
-          : 'rgba(20, 110, 20, 0.80)';
-        this.ctx.strokeStyle = claimStroke;
-        this.ctx.lineWidth = 1.5;
-        this.ctx.stroke();
-
-        // drawTerritoryBorders désactivé (return immédiat interne — conservé pour référence)
-        this.drawTerritoryBorders(hex.x, hex.y, territoryInfo, colors.border, x, y);
-        
         // Marquer les colonies avec un symbole spécial
         if (territoryInfo.colonyId) {
-          this.ctx.fillStyle = colors.border;
+          const textColor = territoryInfo.ownerType === 'player' ? '#1E90FF' : '#228B22';
+          this.ctx.fillStyle = textColor;
           this.ctx.font = 'bold 20px Arial';
           this.ctx.textAlign = 'center';
           this.ctx.fillText('🏘️', x, y + 5);
-          
-          // Ajouter un contour pour la visibilité
           this.ctx.strokeStyle = '#FFFFFF';
           this.ctx.lineWidth = 2;
           this.ctx.strokeText('🏘️', x, y + 5);
@@ -1100,15 +1080,9 @@ export class GameEngine {
     return { x: this.cameraX, y: this.cameraY };
   }
 
-  // Dessiner les contours externes des territoires - TEMPORAIREMENT DÉSACTIVÉ
+  // Dessiner les contours externes des territoires (bordures entre owners différents uniquement)
   private drawTerritoryBorders(hexX: number, hexY: number, territoryInfo: any, borderColor: string, screenX: number, screenY: number) {
-    // CORRECTION TEMPORAIRE : Désactivation du rendu des bordures de territoire
-    // pour résoudre les artefacts visuels (lignes indésirables)
-    return;
-    
-    const factionId = territoryInfo.factionId;
-    
-    // Vérifier chaque côté de l'hexagone pour voir s'il est une bordure externe
+    // Voisins hexagonaux en grille offset (colonne paire/impaire)
     const hexSides = [
       { dx: 0, dy: -1 }, // Nord
       { dx: 1, dy: hexX % 2 === 0 ? -1 : 0 }, // Nord-Est
@@ -1119,21 +1093,28 @@ export class GameEngine {
     ];
 
     this.ctx.strokeStyle = borderColor;
-    this.ctx.lineWidth = 3;
+    this.ctx.lineWidth = 2.5;
     this.ctx.setLineDash([]);
 
-    // Pour chaque côté de l'hexagone
     for (let i = 0; i < 6; i++) {
       const side = hexSides[i];
       const neighborX = hexX + side.dx;
       const neighborY = hexY + side.dy;
-      
-      // Vérifier si le voisin appartient à la même faction
-      const neighborTerritory = UnifiedTerritorySystem.isTerritoryClaimed(neighborX, neighborY);
-      const isSameFaction = neighborTerritory && neighborTerritory.factionId === factionId;
-      
-      // Si ce n'est pas la même faction, dessiner ce côté
-      if (!isSameFaction) {
+
+      const neighborTerritory = UnifiedTerritorySystem.getTerritory(neighborX, neighborY);
+
+      // Même owner = pas de bordure (les lignes internes disparaissent)
+      const isSameOwner = neighborTerritory
+        ? (territoryInfo.ownerType === 'player'
+            && neighborTerritory.ownerType === 'player'
+            && territoryInfo.ownerPlayerId === neighborTerritory.ownerPlayerId)
+          || (territoryInfo.ownerType === 'faction'
+            && neighborTerritory.ownerType === 'faction'
+            && territoryInfo.ownerFactionId === neighborTerritory.ownerFactionId
+            && territoryInfo.ownerFactionId !== null)
+        : false;
+
+      if (!isSameOwner) {
         this.drawHexSide(screenX, screenY, i);
       }
     }
