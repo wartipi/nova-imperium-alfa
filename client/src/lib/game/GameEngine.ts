@@ -389,15 +389,11 @@ export class GameEngine {
         // Draw hex with vision state (3 layers: direct / fog ring / explored-old / unknown)
         this.drawHex(screenX, screenY, hex, isVisible ?? false, isInCurrentVision ?? false, isInFogRing, isPendingDestination ?? false);
         
-        // Draw hex outline - different style for visible vs invisible
+        // Contour grille — path explicite stable, indépendant du path laissé par drawHex
         if (isVisible) {
-          this.ctx.strokeStyle = '#333';
-          this.ctx.lineWidth = 1;
-          this.ctx.stroke();
+          this.drawHexOutline(screenX, screenY, '#333', 1);
         } else {
-          this.ctx.strokeStyle = '#111';
-          this.ctx.lineWidth = 0.5;
-          this.ctx.stroke();
+          this.drawHexOutline(screenX, screenY, '#111', 0.5);
         }
       }
     }
@@ -407,8 +403,9 @@ export class GameEngine {
     for (let y = 0; y < this.mapData.length; y++) {
       for (let x = 0; x < this.mapData[y].length; x++) {
         const hex = this.mapData[y][x];
-        const isInCurrentVision = this.isAdminMode || (this.isHexInCurrentVision ? this.isHexInCurrentVision(x, y) : true);
-        if (!isInCurrentVision) continue;
+        // isVisible = tuile découverte — cohérent avec le contour gris de grille
+        const isVisible = this.isAdminMode || (this.isHexVisible ? this.isHexVisible(x, y) : true);
+        if (!isVisible) continue;
 
         const territoryInfo = UnifiedTerritorySystem.getTerritory(hex.x, hex.y);
         if (!territoryInfo) continue;
@@ -1143,6 +1140,25 @@ export class GameEngine {
     this.ctx.beginPath();
     this.ctx.moveTo(x1, y1);
     this.ctx.lineTo(x2, y2);
+    this.ctx.stroke();
+  }
+
+  // Contour hexagonal explicite — path stable indépendant de drawHex
+  private drawHexOutline(centerX: number, centerY: number, color: string, lineWidth: number) {
+    this.ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const angle = (i * Math.PI) / 3;
+      const px = centerX + this.hexSize * Math.cos(angle);
+      const py = centerY + this.hexSize * Math.sin(angle);
+      if (i === 0) {
+        this.ctx.moveTo(px, py);
+      } else {
+        this.ctx.lineTo(px, py);
+      }
+    }
+    this.ctx.closePath();
+    this.ctx.strokeStyle = color;
+    this.ctx.lineWidth = lineWidth;
     this.ctx.stroke();
   }
 }

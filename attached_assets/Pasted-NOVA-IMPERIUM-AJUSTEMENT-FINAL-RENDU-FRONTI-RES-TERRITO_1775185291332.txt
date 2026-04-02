@@ -1,0 +1,123 @@
+NOVA IMPERIUM — AJUSTEMENT FINAL RENDU FRONTIÈRES TERRITOIRE
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu appliques un ajustement final localisé sur le rendu carte.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucun chantier parallèle.
+Audit → correctif minimal → vérification.
+
+CONTEXTE
+Le correctif principal a déjà été poussé :
+- drawTerritoryBorders(...) a été sorti de drawHex(...)
+- une seconde passe de frontières territoire existe déjà dans renderMap()
+- drawTerritoryBorders(...) utilise déjà getTerritory(...) et la comparaison canonique ownerType / ownerPlayerId / ownerFactionId
+
+Donc :
+NE PAS refaire ce travail.
+NE PAS réouvrir le chantier précédent.
+Le but est seulement de corriger ce qui reste imparfait.
+
+PROBLÈMES RESTANTS À AUDITER ET CORRIGER
+
+PROBLÈME 1 — VISIBILITÉ DES FRONTIÈRES TROP RESTRICTIVE
+Dans la seconde passe de renderMap(), le rendu des frontières est actuellement filtré avec :
+- isInCurrentVision
+
+Cela peut être trop restrictif visuellement.
+Si une case est découverte / visible dans le modèle du joueur mais pas dans la vision immédiate, sa frontière ne sera pas dessinée.
+
+Je veux que tu vérifies cette condition et que tu l’ajustes vers la règle la plus cohérente pour l’UX actuelle.
+
+Objectif attendu :
+- les frontières territoire doivent être visibles selon une logique cohérente avec l’affichage de la carte,
+- pas uniquement selon la vision immédiate si cela coupe artificiellement le contour.
+
+Tu dois auditer quelle condition est la plus juste parmi :
+- isInCurrentVision
+- isVisible
+- isInCurrentVision || isInFogRing
+- autre condition déjà disponible dans ce fichier
+
+IMPORTANT :
+- ne fais pas d’invention
+- ne crée pas une nouvelle règle
+- réutilise les callbacks de vision déjà présents dans GameEngine.ts
+- choisis la plus petite correction cohérente avec le rendu existant
+
+PROBLÈME 2 — STROKE DE GRILLE FRAGILE
+Dans renderMap(), après drawHex(...), le code fait encore un simple :
+- ctx.stroke()
+
+Ce stroke dépend implicitement du path courant laissé par drawHex(...).
+Or drawHex(...) contient plusieurs beginPath() internes selon :
+- rivière
+- sélection
+- preview path
+- pending destination
+- autres overlays
+
+Je veux que tu sécurises ce comportement.
+
+OBJECTIF
+Le contour gris standard de chaque hex doit être dessiné à partir d’un path hex explicite et stable,
+pas à partir d’un path implicite laissé par drawHex(...).
+
+CORRECTIF ATTENDU
+
+ÉTAPE 1 — AUDIT
+Lis GameEngine.ts et confirme :
+1. la seconde passe territoire existe déjà
+2. drawHex(...) ne dessine plus les frontières territoire
+3. la condition actuelle de la seconde passe est bien isInCurrentVision
+4. le stroke de grille repose encore sur ctx.stroke() après drawHex(...)
+
+ÉTAPE 2 — CORRECTIF MINIMAL
+A. Visibilité des frontières
+- remplace la condition trop restrictive par la plus petite condition cohérente
+- garde le comportement stable
+- ne change rien au système de territoire
+
+B. Stroke de grille
+- ajoute un petit helper privé local si nécessaire, du style :
+  drawHexOutline(centerX, centerY, color, width)
+- ou équivalent minimal
+- ce helper doit reconstruire explicitement le path hex
+- utilise-le dans renderMap() pour le contour gris de grille
+- ne modifie pas la logique du rendu terrain dans drawHex(...)
+
+IMPORTANT
+Ne touche pas :
+- backend
+- UnifiedTerritorySystem.ts sauf nécessité absolue
+- DTO
+- routes
+- stockage
+- logique métier territoire
+
+NE PAS CASSER
+- fog of war
+- sélection de case
+- preview path
+- pending destination
+- colonies
+- avatar
+- autres joueurs
+- clic carte
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+CONTRAINTE FINALE
+Tu ne refais pas le chantier précédent.
+Tu fais uniquement la finition manquante sur :
+- la condition de visibilité des frontières
+- la stabilité du contour de grille
