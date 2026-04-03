@@ -29,6 +29,7 @@ import { FactionPanel } from "./FactionPanel";
 import { UnifiedTerritoryPanel } from "./UnifiedTerritoryPanel";
 import { ReputationManagementPanel } from "./ReputationManagementPanel";
 import { useFactions } from "../../lib/stores/useFactions";
+import { fetchGameClock, type GameClockData } from "../../lib/api/gameTurnApi";
 
 import { PublicMarketplace } from "./PublicMarketplace";
 import { useAuth } from "../../lib/auth/AuthContext";
@@ -67,6 +68,30 @@ export function MedievalHUD() {
 
   // Flag fin de tour — empêche le double clic pendant le traitement
   const [isEndingTurn, setIsEndingTurn] = useState(false);
+
+  // Horloge serveur-authoritative
+  const [clockData, setClockData] = useState<GameClockData | null>(null);
+  const [clientNow, setClientNow] = useState(() => new Date());
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const data = await fetchGameClock();
+        if (!cancelled) setClockData(data);
+      } catch (e) {
+        console.warn("[GameClock] Impossible de charger l'horloge serveur:", e);
+      }
+    };
+    load();
+    const refreshId = setInterval(load, 30_000);
+    return () => { cancelled = true; clearInterval(refreshId); };
+  }, []);
+
+  useEffect(() => {
+    const tickId = setInterval(() => setClientNow(new Date()), 1_000);
+    return () => clearInterval(tickId);
+  }, []);
 
   const { 
     selectedCharacter, 
@@ -313,8 +338,17 @@ export function MedievalHUD() {
   };
 
   const getTimeRemaining = () => {
-    // In a real implementation, this would show actual time remaining in the current month
-    return "15 jours";
+    if (!clockData) return "…";
+    const next = new Date(clockData.nextTurnAt);
+    const diffMs = next.getTime() - clientNow.getTime();
+    if (diffMs <= 0) return "imminent";
+    const totalSec = Math.floor(diffMs / 1000);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    if (h > 0) return `${h}h ${m.toString().padStart(2,'0')}m`;
+    if (m > 0) return `${m}m ${s.toString().padStart(2,'0')}s`;
+    return `${s}s`;
   };
 
   return (
@@ -336,7 +370,7 @@ export function MedievalHUD() {
             <div className="grid grid-cols-4 gap-6 text-amber-900 font-bold text-sm">
               <div className="text-center">
                 <div className="text-xs text-amber-700">DATE DE JEUX</div>
-                <div>{getGameDate(currentTurn)}</div>
+                <div>{getGameDate(clockData?.currentTurn ?? currentTurn)}</div>
               </div>
               <div className="text-center">
                 <div className="text-xs text-amber-700">TEMPS RESTANT</div>

@@ -1,0 +1,244 @@
+NOVA IMPERIUM — PHASE SUIVANTE — TOUR SERVEUR-AUTHORITATIVE EN TEMPS RÉEL (24H)
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu interviens sur un chantier ciblé.
+Tu dois respecter strictement :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucun changement d’architecture inutile.
+Aucune supposition.
+Tu dois protéger la stabilité du projet.
+
+OBJECTIF
+Installer une première version stable d’un système de tour temps réel :
+- 1 tour = 24 heures réelles
+- source de vérité côté serveur
+- persistance en base
+- lecture côté client dans le HUD
+- ne PAS retirer le bouton "Fin de Tour" avant que la nouvelle base soit fonctionnelle et vérifiée
+
+CONTEXTE VÉRIFIÉ
+État actuel du code :
+1. Dans client/src/components/game/MedievalHUD.tsx :
+- le bouton "Fin de Tour" existe toujours
+- handleEndTurn déclenche les ticks de production puis endTurn()
+- getTimeRemaining() retourne encore une valeur hardcodée ("15 jours")
+- l’affichage de date de jeu dépend de currentTurn
+
+2. Dans client/src/lib/stores/useGameState.tsx :
+- currentTurn est local au client
+- endTurn() fait simplement currentTurn + 1
+
+3. Dans server/index.ts :
+- aucun scheduler de tour temps réel n’est visible au démarrage
+
+IMPORTANT
+Le système actuel n’est donc pas prêt pour retirer le bouton.
+Le premier chantier sain est :
+- installer la source de vérité serveur du tour
+- brancher le HUD dessus
+- vérifier le ticker réel
+- seulement ensuite retirer le bouton
+
+CONTRAINTE DE CHANTIER
+Tu ne dois pas mélanger plusieurs chantiers.
+Ici on ne cherche PAS à refaire toute l’économie.
+On cherche à créer la fondation serveur-authoritative du temps de tour.
+
+OBJECTIF TECHNIQUE PRÉCIS
+Mettre en place une horloge globale persistée avec :
+- currentTurn
+- turnDurationHours = 24
+- turnStartedAt
+- nextTurnAt
+- lastProcessedTurn
+- updatedAt
+
+Cette horloge doit être :
+- persistée en base
+- lue par une API
+- maintenue par un petit scheduler serveur
+- consommée par le HUD
+
+TRAVAIL DEMANDÉ
+
+ÉTAPE 1 — AUDIT
+Lis les fichiers existants avant modification :
+- client/src/components/game/MedievalHUD.tsx
+- client/src/lib/stores/useGameState.tsx
+- server/index.ts
+- shared/schema.ts
+
+Confirme explicitement :
+- que currentTurn est encore local client
+- que getTimeRemaining() est hardcodé
+- qu’il n’existe pas déjà une vraie table de clock globale exploitable
+- qu’il n’existe pas déjà un scheduler serveur de tour
+
+ÉTAPE 2 — AJOUT DB MINIMAL
+Dans shared/schema.ts, ajoute une table unique pour l’état global du tour.
+Nom recommandé :
+- gameClock
+ou
+- worldClock
+
+Colonnes minimales recommandées :
+- id: integer primary key ou singleton simple
+- currentTurn: integer not null default 1
+- turnDurationHours: integer not null default 24
+- turnStartedAt: timestamp not null
+- nextTurnAt: timestamp not null
+- lastProcessedTurn: integer not null default 0
+- updatedAt: timestamp not null defaultNow
+
+IMPORTANT
+- structure simple
+- une seule ligne active
+- pas de complexité inutile
+- pas de support multi-mondes
+- pas de configuration excessive
+
+ÉTAPE 3 — SERVICE SERVEUR
+Créer un service dédié, par exemple :
+- server/gameTurnService.ts
+
+Ce service doit fournir au minimum :
+1. ensureGameClock()
+- garantit qu’une ligne singleton existe
+- initialise :
+  - currentTurn = 1
+  - turnDurationHours = 24
+  - turnStartedAt = now
+  - nextTurnAt = now + 24h
+  - lastProcessedTurn = 0
+
+2. getGameClock()
+- retourne l’état courant
+
+3. processDueTurns()
+- lit l’heure actuelle
+- compare avec nextTurnAt
+- si aucun tour n’est dû → ne rien faire
+- si un ou plusieurs tours sont dus :
+  - les traiter séquentiellement
+  - incrémenter currentTurn
+  - avancer turnStartedAt et nextTurnAt
+  - mettre à jour lastProcessedTurn
+
+IMPORTANT
+Pour cette première version :
+- rester simple
+- calcul déterministe
+- pas de logique exotique
+- accepter un rattrapage séquentiel si plusieurs tours sont dus
+
+Si le serveur est arrêté 2 ou 3 jours :
+- le service doit pouvoir rattraper proprement les tours dus au redémarrage
+- sans double traitement du même tour
+
+ÉTAPE 4 — INTÉGRATION AU BOOT SERVEUR
+Dans server/index.ts :
+- appeler ensureGameClock() au démarrage
+- lancer un petit scheduler serveur simple, par exemple un setInterval toutes les 60 secondes
+- ce scheduler appelle processDueTurns()
+
+IMPORTANT
+- ne pas faire une boucle agressive
+- ne pas faire un scheduler complexe
+- 60 secondes est suffisant pour un tour de 24h
+- priorité à la stabilité
+
+ÉTAPE 5 — API DE LECTURE
+Ajouter un endpoint minimal pour lire l’état courant, par exemple :
+- GET /api/game/clock
+
+Réponse JSON recommandée :
+{
+  currentTurn,
+  turnDurationHours,
+  turnStartedAt,
+  nextTurnAt,
+  serverNow
+}
+
+IMPORTANT
+- endpoint lecture seulement
+- pas d’édition admin dans cette étape
+- pas de mutation publique
+- pas de suppression du bouton encore
+
+ÉTAPE 6 — CLIENT API
+Créer un petit fichier client si nécessaire, par exemple :
+- client/src/lib/api/gameTurnApi.ts
+
+Méthode minimale :
+- fetchGameClock()
+
+ÉTAPE 7 — HUD
+Dans client/src/components/game/MedievalHUD.tsx :
+- ne plus utiliser getTimeRemaining() hardcodé
+- charger l’état de l’horloge serveur
+- afficher :
+  - DATE DE JEUX à partir du currentTurn serveur
+  - TEMPS RESTANT calculé depuis nextTurnAt - serverNow
+- mise à jour légère côté client :
+  - timer local d’affichage
+  - sans réinventer une logique de vérité
+  - le serveur reste la source de vérité
+
+IMPORTANT
+Pour cette étape :
+- le bouton "Fin de Tour" reste en place
+- ne le retire pas encore
+- on veut d’abord vérifier que le ticker réel fonctionne
+
+ÉTAPE 8 — NE PAS CASSER
+Ne casse pas :
+- flux de production existant
+- HUD général
+- menu gauche
+- minimap
+- action widget
+- tick économique actuel tant que la bascule complète n’est pas faite
+
+Si nécessaire :
+- le nouveau système d’horloge peut coexister temporairement avec le bouton
+- mais l’affichage du temps et du tour doit déjà venir du serveur
+
+ÉTAPE 9 — RAPPORT FINAL OBLIGATOIRE
+Après implémentation, réponds exactement avec :
+
+1. DIAGNOSTIC
+- état initial confirmé
+
+2. FICHIERS CONCERNÉS
+- liste exacte
+
+3. MODIFICATION MINIMALE PROPOSÉE
+- table ajoutée
+- service ajouté
+- scheduler ajouté
+- route ajoutée
+- HUD branché
+
+4. PREUVE DIRECTE
+- comment currentTurn n’est plus purement local pour l’affichage
+- comment le temps restant n’est plus hardcodé
+- comment le serveur maintient le passage du temps
+
+5. VÉRIFICATION
+- 1 tour = 24h
+- ticker diminue réellement
+- refresh client conserve le même état
+- redémarrage serveur recharge correctement la clock
+- si un tour est dû, il est rattrapé
+
+6. STOP
+
+CONTRAINTE FINALE
+Tu ne supprimes PAS le bouton Fin de Tour dans cette étape.
+Tu installes d’abord la fondation serveur-authoritative du temps réel.
+Le retrait du bouton sera un second mini-chantier après validation.

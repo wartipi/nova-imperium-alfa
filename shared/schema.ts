@@ -749,3 +749,16 @@ export const playerDiscoveredTiles = pgTable("player_discovered_tiles", {
 }));
 
 export type PlayerDiscoveredTileRecord = typeof playerDiscoveredTiles.$inferSelect;
+
+// --- Horloge globale du jeu (singleton — 1 seule ligne) ---
+export const gameClock = pgTable("game_clock", {
+  id:                 integer("id").primaryKey().default(1),
+  currentTurn:        integer("current_turn").notNull().default(1),
+  turnDurationHours:  integer("turn_duration_hours").notNull().default(24),
+  turnStartedAt:      timestamp("turn_started_at").notNull().defaultNow(),
+  nextTurnAt:         timestamp("next_turn_at").notNull().defaultNow(),
+  lastProcessedTurn:  integer("last_processed_turn").notNull().default(0),
+  updatedAt:          timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type GameClock = typeof gameClock.$inferSelect;

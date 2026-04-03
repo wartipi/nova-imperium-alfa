@@ -4,6 +4,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { backfillTileMetadata } from "./seeds/backfillTileMetadata";
 import { ensureUnitsTable } from "./cityService";
 import { backfillTerritoryOwnership } from "./territoryService";
+import { ensureGameClock, processDueTurns } from "./gameTurnService";
 
 const app = express();
 app.use(express.json());
@@ -51,6 +52,21 @@ app.use((req, res, next) => {
   backfillTerritoryOwnership().catch(err =>
     console.error('[backfillTerritoryOwnership] Erreur non-bloquante:', err)
   );
+
+  // Horloge globale du jeu — init + rattrapage des tours dus
+  await ensureGameClock().catch(err =>
+    console.error('[GameClock] Erreur init:', err)
+  );
+  processDueTurns().catch(err =>
+    console.error('[GameClock] Erreur rattrapage initial:', err)
+  );
+
+  // Scheduler 60s — traite les tours échus sans logique agressive
+  setInterval(() => {
+    processDueTurns().catch(err =>
+      console.error('[GameClock] Erreur scheduler:', err)
+    );
+  }, 60_000);
 
   const server = await registerRoutes(app);
 

@@ -27,6 +27,7 @@ import territoryRoutes from "./routes/territories";
 import economyRoutes from "./routes/economy";
 import marketRoutes from "./routes/market";
 import { seedFactions } from "./seeds/factionSeed";
+import { getGameClock } from "./gameTurnService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialiser le marketplace service avec exchangeService
@@ -56,6 +57,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Routes territoires et colonies (Phase 3)
   app.use("/api/territories", territoryRoutes);
   app.use("/api/treaties", treatyRoutes);
+  // Horloge globale du jeu (lecture seule)
+  app.get("/api/game/clock", async (_req, res) => {
+    try {
+      const clock = await getGameClock();
+      if (!clock) {
+        return res.status(503).json({ error: "Game clock not initialized" });
+      }
+      res.json({
+        currentTurn:       clock.currentTurn,
+        turnDurationHours: clock.turnDurationHours,
+        turnStartedAt:     clock.turnStartedAt.toISOString(),
+        nextTurnAt:        clock.nextTurnAt.toISOString(),
+        serverNow:         new Date().toISOString(),
+      });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to read game clock" });
+    }
+  });
+
   // Game save/load endpoints
   app.get("/api/game/save", async (req, res) => {
     try {
