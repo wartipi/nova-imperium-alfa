@@ -1,0 +1,221 @@
+NOVA IMPERIUM — MINI-CHANTIER TEST — AJOUTER 2 DE CHAQUE RESSOURCE DANS LES INVENTAIRES
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu interviens sur un mini-chantier de test ciblé.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucun chantier parallèle.
+Tu dois faire le plus petit correctif propre, stable et contrôlé possible.
+
+OBJECTIF
+Ajouter un stock de test de **2 unités de chaque ressource** pour pouvoir tester les différents inventaires.
+
+IMPORTANT
+On ne cherche PAS à changer l’économie du jeu.
+On ne cherche PAS à modifier la production.
+On ne cherche PAS à créer une nouvelle mécanique.
+On veut uniquement injecter des ressources de test de façon ciblée.
+
+PÉRIMÈTRE FONCTIONNEL ATTENDU
+Le seed/test doit ajouter **2 unités de chaque ressource** dans les inventaires suivants :
+
+1. player_bank du joueur ciblé
+2. player_transport du joueur ciblé
+3. city_inventory d’une ville appartenant au joueur ciblé
+
+IMPORTANT
+Ne pas toucher à :
+- city_pending_harvest
+- production per turn
+- coûts de bâtiments
+- marché
+- tours
+- HUD
+- logique de collecte
+- logique de transfert
+
+RESSOURCES À AJOUTER
+Ajouter 2 unités de chacune des ressources supportées par les inventaires actuels :
+- gold
+- food
+- wood
+- stone
+- iron
+- copper
+- coal
+- oil
+- herbs
+- fur
+
+=> Résultat attendu par inventaire ciblé :
+gold: 2
+food: 2
+wood: 2
+stone: 2
+iron: 2
+copper: 2
+coal: 2
+oil: 2
+herbs: 2
+fur: 2
+
+PRINCIPE DE CHANTIER
+Tu dois d’abord auditer le code réel pour voir quel est le point d’entrée le plus petit et le plus propre.
+
+Le plus probable :
+- un endpoint debug/test temporaire
+ou
+- une route serveur ciblée réservée au test
+ou
+- une petite action serveur appelée manuellement
+
+Choisis la solution la plus simple, la plus locale, la moins risquée.
+
+IMPORTANT
+Évite :
+- un script compliqué
+- une migration inutile
+- un refactor de service
+- de dupliquer massivement la logique
+
+ÉTAPE 1 — AUDIT
+Lis les fichiers réellement concernés avant toute modification, notamment :
+- server/routes.ts
+- routes économie / inventaire / villes si elles existent
+- schéma des tables inventaire si nécessaire
+- services existants de banque / transport / ville si réutilisables
+
+But de l’audit :
+1. identifier le point d’entrée le plus petit pour injecter des ressources
+2. vérifier comment lire le joueur courant ou un joueur cible
+3. vérifier comment identifier une ville appartenant à ce joueur
+4. éviter toute duplication inutile
+
+ÉTAPE 2 — SOLUTION ATTENDUE
+Créer la plus petite action test possible.
+
+Solution recommandée :
+- un endpoint debug/test temporaire, par exemple :
+  POST /api/debug/grant-test-resources
+
+Comportement attendu :
+- cibler le joueur courant authentifié si possible
+- sinon utiliser un identifiant explicite passé en paramètre de façon simple
+- garantir qu’une ligne existe dans :
+  - player_bank
+  - player_transport
+  - city_inventory
+- ajouter +2 de chaque ressource
+
+IMPORTANT
+Pour city_inventory :
+- choisir une ville appartenant au joueur ciblé
+- prendre la première ville valide si plusieurs existent
+- si aucune ville n’existe, retourner une erreur claire et propre
+- ne pas créer de ville artificielle dans cette étape
+
+ÉTAPE 3 — COMPORTEMENT D’AJOUT
+Le comportement doit être clairement défini.
+
+Par défaut :
+- AJOUTER +2 à l’existant
+et non
+- écraser brutalement les stocks
+
+Mais :
+si tu juges qu’un mode “set exact pour test” est plus propre et plus stable, tu peux l’utiliser seulement si tu l’expliques clairement dans le rapport.
+
+Préférence :
+- ajout incrémental simple
+- minimal
+- lisible
+- stable
+
+ÉTAPE 4 — CONTRAINTES
+Ne pas modifier :
+- shared/schema.ts sauf nécessité absolue
+- le système de tour
+- le HUD
+- le scheduler serveur
+- la logique de production
+- la logique de récolte
+- le marché
+- les permissions globales
+
+Ne pas lancer un autre chantier.
+
+ÉTAPE 5 — SÉCURITÉ / PORTÉE
+Cette route ou action doit être clairement considérée comme outil de test.
+
+Si possible :
+- la garder simple
+- la nommer explicitement debug/test
+- éviter qu’elle se mélange aux routes métier normales
+
+Pas besoin de construire un framework admin complet.
+Pas besoin d’un système complexe de permissions si ce n’est pas déjà prévu.
+Faire le plus petit correctif utile.
+
+ÉTAPE 6 — RÉSULTAT ATTENDU
+Après exécution de l’action de test, on doit pouvoir constater :
+
+Dans player_bank :
+- gold +2
+- food +2
+- wood +2
+- stone +2
+- iron +2
+- copper +2
+- coal +2
+- oil +2
+- herbs +2
+- fur +2
+
+Dans player_transport :
+- mêmes valeurs
+
+Dans city_inventory de la ville ciblée :
+- mêmes valeurs
+
+ÉTAPE 7 — VÉRIFICATION
+Tu dois vérifier :
+1. que la route/action fonctionne sans erreur
+2. qu’elle modifie bien les 3 inventaires attendus
+3. qu’aucune autre table non ciblée n’est touchée
+4. qu’aucune logique de production n’est déclenchée
+5. que le jeu reste stable
+
+ÉTAPE 8 — RAPPORT FINAL OBLIGATOIRE
+Après implémentation, réponds exactement avec :
+
+1. DIAGNOSTIC
+- point d’entrée choisi
+- pourquoi c’était le plus petit chantier sain
+
+2. FICHIERS CONCERNÉS
+- liste exacte
+
+3. MODIFICATION MINIMALE PROPOSÉE
+- route/action ajoutée
+- inventaires ciblés
+- mode d’écriture (add ou set)
+
+4. PREUVE DIRECTE
+- ce qui est effectivement ajouté
+- sur quels inventaires
+- comment la ville ciblée est choisie
+
+5. VÉRIFICATION
+- player_bank OK
+- player_transport OK
+- city_inventory OK
+- aucune autre table métier touchée
+
+6. STOP
+
+CONTRAINTE FINALE
+Tu ne touches à rien d’autre.
+Tu fais uniquement l’ajout contrôlé de ressources de test pour les inventaires.

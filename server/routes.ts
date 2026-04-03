@@ -26,6 +26,7 @@ import factionRoutes from "./routes/factions";
 import territoryRoutes from "./routes/territories";
 import economyRoutes from "./routes/economy";
 import marketRoutes from "./routes/market";
+import debugRoutes from "./routes/debug";
 import { seedFactions } from "./seeds/factionSeed";
 import { getGameClock } from "./gameTurnService";
 
@@ -935,6 +936,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/units', unitsRoutes);
   app.use('/api/economy', economyRoutes);
   app.use('/api/market', marketRoutes);
+  app.use('/api/debug', debugRoutes);
 
   const httpServer = createServer(app);
   return httpServer;
