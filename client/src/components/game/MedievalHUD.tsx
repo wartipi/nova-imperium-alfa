@@ -367,7 +367,7 @@ export function MedievalHUD() {
             <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-amber-800"></div>
             <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-amber-800"></div>
             
-            <div className="grid grid-cols-4 gap-6 text-amber-900 font-bold text-sm">
+            <div className="grid grid-cols-3 gap-6 text-amber-900 font-bold text-sm">
               <div className="text-center">
                 <div className="text-xs text-amber-700">DATE DE JEUX</div>
                 <div>{getGameDate(clockData?.currentTurn ?? currentTurn)}</div>
@@ -375,10 +375,6 @@ export function MedievalHUD() {
               <div className="text-center">
                 <div className="text-xs text-amber-700">TEMPS RESTANT</div>
                 <div>{getTimeRemaining()}</div>
-              </div>
-              <div className="text-center">
-                <div className="text-xs text-amber-700">BONUS ACTIF</div>
-                <div>Aucun</div>
               </div>
               {/* Faction Coat of Arms integrated in banner */}
               <div className="text-center">

@@ -1,0 +1,79 @@
+NOVA IMPERIUM — MINI-CHANTIER UI — SUPPRIMER “BONUS ACTIF” DU BANDEAU HAUT
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu interviens sur un mini-correctif UI ciblé.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucun chantier parallèle.
+Tu dois faire le plus petit correctif propre possible.
+
+OBJECTIF
+Supprimer la section “BONUS ACTIF” du bandeau haut de l’interface.
+Cette section est maintenant une relique UI et n’a plus d’utilité ici.
+
+CONTEXTE
+Dans client/src/components/game/MedievalHUD.tsx, le bandeau haut affiche actuellement 4 colonnes :
+- DATE DE JEUX
+- TEMPS RESTANT
+- BONUS ACTIF
+- FACTION
+
+Le temps restant du tour est déjà branché sur l’horloge serveur.
+Le bloc BONUS ACTIF affiche seulement “Aucun” et ne doit plus être présent.
+
+IMPORTANT
+Dans cette étape :
+- ne pas créer de nouvelle section dans le panneau joueur
+- ne pas migrer encore quoi que ce soit vers l’inventaire
+- ne pas toucher à la logique du ticker
+- ne pas toucher à l’horloge serveur
+- ne pas toucher aux autres panneaux
+
+TRAVAIL DEMANDÉ
+
+ÉTAPE 1 — AUDIT
+Lis client/src/components/game/MedievalHUD.tsx et confirme :
+1. que le bandeau haut est en grid-cols-4
+2. qu’il contient bien un bloc BONUS ACTIF
+3. que ce bloc affiche seulement “Aucun”
+4. que TEMPS RESTANT est déjà calculé séparément et doit être conservé
+
+ÉTAPE 2 — MODIFICATION MINIMALE
+Dans le bandeau haut :
+- remplacer grid-cols-4 par grid-cols-3
+- supprimer entièrement le bloc BONUS ACTIF
+- conserver :
+  - DATE DE JEUX
+  - TEMPS RESTANT
+  - FACTION
+
+IMPORTANT
+Ne touche pas :
+- getTimeRemaining()
+- fetchGameClock()
+- clockData
+- panneau joueur
+- inventaire
+- toute autre zone UI
+
+ÉTAPE 3 — VÉRIFICATION
+Confirme après modification :
+- le bandeau haut affiche 3 colonnes
+- la section BONUS ACTIF n’existe plus
+- TEMPS RESTANT continue de s’afficher normalement
+- la section FACTION reste intacte
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+CONTRAINTE FINALE
+Tu ne lances aucun autre chantier.
+Tu fais uniquement la suppression propre de BONUS ACTIF dans le bandeau haut.
