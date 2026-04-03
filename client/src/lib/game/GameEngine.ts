@@ -1089,14 +1089,16 @@ export class GameEngine {
 
   // Dessiner les contours externes des territoires (bordures entre owners différents uniquement)
   private drawTerritoryBorders(hexX: number, hexY: number, territoryInfo: any, borderColor: string, screenX: number, screenY: number) {
-    // Voisins hexagonaux en grille offset (colonne paire/impaire)
+    // Voisins alignés sur l'ordre réel des côtés de drawHexSide(sideIndex)
+    // drawHexSide(i) dessine le segment entre angle (i*60°) et ((i+1)*60°) en coords Canvas (y↓)
+    // => 0=SE, 1=S, 2=SW, 3=NW, 4=N, 5=NE
     const hexSides = [
-      { dx: 0, dy: -1 }, // Nord
-      { dx: 1, dy: hexX % 2 === 0 ? -1 : 0 }, // Nord-Est
-      { dx: 1, dy: hexX % 2 === 0 ? 0 : 1 }, // Sud-Est
-      { dx: 0, dy: 1 }, // Sud
-      { dx: -1, dy: hexX % 2 === 0 ? 0 : 1 }, // Sud-Ouest
-      { dx: -1, dy: hexX % 2 === 0 ? -1 : 0 } // Nord-Ouest
+      { dx:  1, dy: hexX % 2 === 0 ?  0 :  1 }, // side 0 = SE
+      { dx:  0, dy:  1                         }, // side 1 = S
+      { dx: -1, dy: hexX % 2 === 0 ?  0 :  1 }, // side 2 = SW
+      { dx: -1, dy: hexX % 2 === 0 ? -1 :  0 }, // side 3 = NW
+      { dx:  0, dy: -1                         }, // side 4 = N
+      { dx:  1, dy: hexX % 2 === 0 ? -1 :  0 }, // side 5 = NE
     ];
 
     this.ctx.strokeStyle = borderColor;

@@ -1,0 +1,110 @@
+NOVA IMPERIUM — CORRECTIF FINAL BORDURES TERRITOIRE — ALIGNER INDEX VOISINS / INDEX CÔTÉS
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu appliques un correctif minimal, strictement localisé.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucun chantier parallèle.
+Tu audites, tu corriges le plus petit point fautif, tu vérifies.
+
+CONTEXTE
+Le pipeline de rendu a déjà été corrigé :
+- seconde passe de frontières territoire dans renderMap()
+- drawTerritoryBorders(...) n’est plus appelé depuis drawHex(...)
+- getTerritory(...) est utilisé
+- comparaison canonique ownerType / ownerPlayerId / ownerFactionId est déjà en place
+
+Le rendu reste pourtant incorrect.
+
+DIAGNOSTIC CIBLE
+Le problème actuel est maintenant géométrique :
+dans drawTerritoryBorders(...), l’ordre des voisins dans hexSides ne correspond pas à l’ordre réel des côtés dessinés par drawHexSide(sideIndex).
+
+IMPORTANT
+Avec le path actuel de drawHexSide(...), l’ordre réel des côtés est :
+
+- side 0 = SE
+- side 1 = S
+- side 2 = SW
+- side 3 = NW
+- side 4 = N
+- side 5 = NE
+
+Or le tableau actuel hexSides est encore dans un autre ordre (N, NE, SE, S, SW, NW).
+Donc le code compare le bon voisin mais coupe / dessine le mauvais côté.
+
+OBJECTIF
+Corriger uniquement ce mapping.
+
+FICHIER À MODIFIER
+- client/src/lib/game/GameEngine.ts
+
+ZONE À CORRIGER
+- méthode drawTerritoryBorders(...)
+
+TRAVAIL DEMANDÉ
+
+ÉTAPE 1 — AUDIT
+Relis drawTerritoryBorders(...) et drawHexSide(...).
+Confirme explicitement :
+1. l’ordre actuel de hexSides
+2. l’ordre réel des côtés dessinés par drawHexSide(sideIndex)
+3. que ces deux ordres ne correspondent pas
+
+ÉTAPE 2 — CORRECTIF MINIMAL
+Dans drawTerritoryBorders(...), remplace le tableau hexSides par un tableau aligné sur l’ordre réel des côtés dessinés.
+
+Le path actuel de drawHexSide(...) doit être considéré comme source de vérité.
+
+Ordre à utiliser :
+- 0 = SE
+- 1 = S
+- 2 = SW
+- 3 = NW
+- 4 = N
+- 5 = NE
+
+Pour la grille actuelle basée sur :
+screenY = y * hexHeight + (x % 2) * (hexHeight / 2)
+
+Utilise ce tableau :
+
+const hexSides = [
+  { dx: 1,  dy: hexX % 2 === 0 ? 0  : 1  }, // side 0 = SE
+  { dx: 0,  dy: 1                         }, // side 1 = S
+  { dx: -1, dy: hexX % 2 === 0 ? 0  : 1  }, // side 2 = SW
+  { dx: -1, dy: hexX % 2 === 0 ? -1 : 0  }, // side 3 = NW
+  { dx: 0,  dy: -1                        }, // side 4 = N
+  { dx: 1,  dy: hexX % 2 === 0 ? -1 : 0  }, // side 5 = NE
+];
+
+IMPORTANT
+- ne modifie pas drawHexSide(...)
+- ne touche pas à renderMap()
+- ne change pas la seconde passe
+- ne change pas isSameOwner
+- ne change pas la logique d’owner
+- ne touche à rien d’autre
+
+ÉTAPE 3 — VÉRIFICATION
+Vérifie après correction :
+- 1 case seule → 6 côtés
+- 2 cases adjacentes même owner → seule la frontière commune disparaît
+- 2 cases diagonales → bonne frontière supprimée
+- bloc de plusieurs cases → périmètre propre
+- owners différents → frontière visible au bon endroit
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+CONTRAINTE FINALE
+Tu ne réouvres aucun autre chantier.
+Tu corriges uniquement l’alignement entre index de voisin et index du côté dessiné.
