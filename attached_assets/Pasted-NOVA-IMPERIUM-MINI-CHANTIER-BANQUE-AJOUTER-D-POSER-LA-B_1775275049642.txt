@@ -1,0 +1,234 @@
+NOVA IMPERIUM — MINI-CHANTIER BANQUE — AJOUTER “DÉPOSER À LA BANQUE” DANS LA FENÊTRE BANQUE
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu interviens sur un mini-chantier ciblé.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucun chantier parallèle.
+Tu dois faire le plus petit correctif propre et stable possible.
+
+OBJECTIF
+Ajouter dans la fenêtre de la banque une action permettant au joueur de déposer des ressources depuis son inventaire de transport vers sa banque personnelle.
+
+IMPORTANT
+Le timer des retraits existe déjà côté serveur pour :
+- banque → ville
+- banque → joueur
+
+Tu ne dois PAS le recréer.
+Tu ne dois PAS refondre le système d’actions.
+Tu dois le conserver tel quel.
+
+Le vrai manque à combler est :
+- transport → banque dans TreasuryPanel
+
+CONTEXTE VÉRIFIÉ
+État actuel :
+1. Dans client/src/components/game/TreasuryPanel.tsx :
+- il existe déjà :
+  - “Transférer vers une ville du réseau”
+  - “Prendre en transport”
+- il n’existe PAS de bloc “Déposer à la banque”
+
+2. Dans client/src/lib/api/economyApi.ts :
+- il existe déjà :
+  - postTransferBankToCity(...)
+  - postTransferBankToPlayer(...)
+  - postDepositTransportToCity(...)
+- il n’existe PAS de postDepositTransportToBank(...)
+
+3. Dans server/routes/economy.ts :
+- il existe déjà :
+  - POST /api/economy/transfer-bank-to-city
+  - POST /api/economy/transfer-bank-to-player
+  - POST /api/economy/deposit-transport-to-city
+- il n’existe PAS de POST /api/economy/deposit-transport-to-bank
+
+4. Dans server/playerActionService.ts :
+- les retraits banque → ville et banque → joueur sont déjà temporisés via playerActions
+- il ne faut pas rouvrir ce chantier
+
+OBJECTIF TECHNIQUE PRÉCIS
+Ajouter un flux simple :
+player_transport → player_bank
+
+Ce dépôt doit être disponible directement dans la fenêtre banque.
+
+RÈGLES MÉTIER ATTENDUES
+Pour déposer à la banque :
+- auth requise
+- non-admin : le joueur doit avoir accès physique à une banque
+- au moins une ressource > 0
+- les montants doivent être des entiers >= 0
+- le joueur doit avoir les quantités demandées dans player_transport
+- transaction atomique :
+  1. décrémenter player_transport
+  2. incrémenter player_bank
+
+IMPORTANT
+Ce dépôt peut être IMMÉDIAT.
+Ne le transforme pas en action timer si ce n’est pas nécessaire.
+Le besoin explicite de timer concerne les retraits, et ces retraits existent déjà.
+Donc :
+- dépôt = correctif minimal simple
+- retraits = conserver le système actuel existant
+
+TRAVAIL DEMANDÉ
+
+ÉTAPE 1 — AUDIT
+Lis avant modification :
+- client/src/components/game/TreasuryPanel.tsx
+- client/src/lib/api/economyApi.ts
+- server/routes/economy.ts
+- server/playerActionService.ts
+
+Confirme explicitement :
+1. que les retraits banque → joueur / ville sont déjà timerisés
+2. que le dépôt transport → banque n’existe pas encore
+3. que TreasuryPanel n’a pas encore de section de dépôt vers la banque
+
+ÉTAPE 2 — BACKEND MINIMAL
+Dans server/routes/economy.ts, ajouter :
+POST /api/economy/deposit-transport-to-bank
+
+Comportement attendu :
+- requireAuth
+- pour non-admin : gate physique banque via le même mécanisme que les autres routes banque
+- body :
+  {
+    gold?,
+    food?,
+    wood?,
+    stone?,
+    iron?,
+    copper?,
+    coal?,
+    oil?,
+    herbs?,
+    fur?
+  }
+
+Validation :
+- chaque champ doit être un entier >= 0
+- au moins un montant > 0
+
+Traitement :
+- lire player_transport courant
+- vérifier les stocks disponibles
+- transaction atomique :
+  - update player_transport avec soustraction
+  - upsert player_bank avec addition
+
+Réponse JSON recommandée :
+{
+  ok: true,
+  deposited: { ... },
+  destination: "player_bank"
+}
+
+IMPORTANT
+Ne touche pas :
+- city_inventory
+- city_pending_harvest
+- système de production
+- système de tour
+- playerActionService sauf nécessité absolue
+
+ÉTAPE 3 — API CLIENT
+Dans client/src/lib/api/economyApi.ts, ajouter :
+- interface de payload réutilisable si pertinent
+- postDepositTransportToBank(...)
+
+Le style doit rester cohérent avec les autres helpers API du fichier.
+
+ÉTAPE 4 — UI DANS TREASURYPANEL
+Dans client/src/components/game/TreasuryPanel.tsx :
+
+A. Charger aussi player_transport
+- utiliser getPlayerTransport()
+
+B. Ajouter un troisième sous-bloc dans “Solde & Transferts”
+Titre recommandé :
+- “Déposer à la banque”
+
+C. Formulaire :
+- mêmes ressources que les autres blocs :
+  - gold, food, wood, stone, iron, copper, coal, oil, herbs, fur
+- max = inventaire de transport courant
+- bouton : “Déposer”
+
+D. Au succès :
+- vider les inputs de ce bloc
+- afficher un message de succès
+- recharger banque + transport
+- déclencher nova:logistic-refresh si cohérent avec le reste du panneau
+
+IMPORTANT
+Ne casse pas les deux blocs existants :
+- “Transférer vers une ville du réseau”
+- “Prendre en transport”
+
+ÉTAPE 5 — RETRAITS / TIMER
+Ne recrée pas de nouveau timer.
+Ne refais pas le backend des retraits.
+
+Tu dois simplement :
+- conserver les routes existantes banque → ville et banque → joueur
+- conserver leur comportement timerisé actuel
+- ne pas modifier leur logique sauf nécessité absolue
+
+Si un ajustement UI mineur est nécessaire pour clarifier le timer déjà existant, fais-le seulement si c’est minime et strictement local.
+
+ÉTAPE 6 — NE PAS CASSER
+Ne pas casser :
+- accès physique banque
+- player_bank
+- player_transport
+- transferts banque → ville
+- transferts banque → joueur
+- HUD général
+- système de tour
+- route debug test inventaires
+- logique ville / entrepôt
+
+ÉTAPE 7 — RAPPORT FINAL OBLIGATOIRE
+Après implémentation, réponds exactement avec :
+
+1. DIAGNOSTIC
+- ce qui existait déjà
+- ce qui manquait réellement
+
+2. FICHIERS CONCERNÉS
+- liste exacte
+
+3. MODIFICATION MINIMALE PROPOSÉE
+- route ajoutée
+- API client ajoutée
+- section UI ajoutée
+- confirmation que les retraits timerisés existants ont été conservés
+
+4. PREUVE DIRECTE
+- comment fonctionne maintenant le dépôt transport → banque
+- comment la banque et le transport sont mis à jour
+- comment les timers de retraits existants restent en place
+
+5. VÉRIFICATION
+Confirmer :
+- dépôt vers banque fonctionne
+- player_transport est débité
+- player_bank est créditée
+- banque → joueur toujours timerisé
+- banque → ville toujours timerisé
+- aucune autre logique métier touchée
+
+6. STOP
+
+CONTRAINTE FINALE
+Tu ne lances aucun autre chantier.
+Tu ajoutes uniquement :
+- le dépôt transport → banque dans TreasuryPanel
+- le backend/API minimum nécessaire
+en conservant les timers existants des retraits.

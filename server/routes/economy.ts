@@ -3,7 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import { requireAuth } from "../middleware/auth";
 import type { AuthRequest } from "../middleware/auth";
 import { db } from "../db";
-import { factionMembers, playerTransport, cityInventory } from "../../shared/schema";
+import { factionMembers, playerTransport, cityInventory, playerBank } from "../../shared/schema";
 import {
   getFactionEconomy,
   aggregateFactionIncome,
@@ -492,6 +492,125 @@ router.post("/deposit-transport-to-city", requireAuth, async (req: AuthRequest, 
     if (msg.startsWith("WAREHOUSE_CAPACITY_EXCEEDED")) return res.status(422).json({ error: msg });
     if (msg.startsWith("WAREHOUSE_REQUIRED"))        return res.status(403).json({ error: msg });
     console.error("[POST /api/economy/deposit-transport-to-city] Erreur:", err);
+    return res.status(500).json({ error: "Impossible d'effectuer le dépôt" });
+  }
+});
+
+// ─── POST /api/economy/deposit-transport-to-bank ─────────────────────────────
+// Auth requise — dépôt immédiat depuis player_transport vers player_bank.
+// Gate physique banque pour les non-admins (même logique que player-bank/me).
+// Body : { gold?, food?, wood?, stone?, iron?, copper?, coal?, oil?, herbs?, fur? }
+// Règles :
+//   1. Non-admin : doit être physiquement sur une case banque.
+//   2. Au moins un montant > 0.
+//   3. Les quantités demandées doivent exister dans player_transport.
+//   4. Transaction atomique : décrémenter transport + incrémenter player_bank.
+router.post("/deposit-transport-to-bank", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const playerId = req.user!.id;
+    const isAdmin  = req.user!.role === "admin";
+
+    if (!isAdmin) {
+      await resolveAccessPoint(playerId, "bank");
+    }
+
+    const {
+      gold = 0, food = 0, wood = 0, stone = 0, iron = 0,
+      copper = 0, coal = 0, oil = 0, herbs = 0, fur = 0,
+    } = req.body;
+
+    const matList: Array<[string, number]> = [
+      ["gold",gold],["food",food],["wood",wood],["stone",stone],["iron",iron],
+      ["copper",copper],["coal",coal],["oil",oil],["herbs",herbs],["fur",fur],
+    ];
+    for (const [k, v] of matList) {
+      if (!Number.isInteger(v) || v < 0) {
+        return res.status(400).json({ error: `${k} doit être un entier >= 0` });
+      }
+    }
+    if (matList.every(([, v]) => v === 0)) {
+      return res.status(400).json({ error: "Montant nul — spécifiez au moins une ressource" });
+    }
+
+    const transport = await getOrInitPlayerTransport(playerId);
+
+    const insuffisant: string[] = [];
+    if (gold   > transport.gold)   insuffisant.push(`or (dispo: ${transport.gold})`);
+    if (food   > transport.food)   insuffisant.push(`nourriture (dispo: ${transport.food})`);
+    if (wood   > transport.wood)   insuffisant.push(`bois (dispo: ${transport.wood})`);
+    if (stone  > transport.stone)  insuffisant.push(`pierre (dispo: ${transport.stone})`);
+    if (iron   > transport.iron)   insuffisant.push(`fer (dispo: ${transport.iron})`);
+    if (copper > transport.copper) insuffisant.push(`cuivre (dispo: ${transport.copper})`);
+    if (coal   > transport.coal)   insuffisant.push(`charbon (dispo: ${transport.coal})`);
+    if (oil    > transport.oil)    insuffisant.push(`pétrole (dispo: ${transport.oil})`);
+    if (herbs  > transport.herbs)  insuffisant.push(`herbes (dispo: ${transport.herbs})`);
+    if (fur    > transport.fur)    insuffisant.push(`fourrure (dispo: ${transport.fur})`);
+
+    if (insuffisant.length > 0) {
+      return res.status(422).json({
+        error: `INSUFFICIENT_TRANSPORT: stocks insuffisants — ${insuffisant.join(", ")}`,
+      });
+    }
+
+    const now = new Date();
+
+    await db.transaction(async (tx) => {
+      // 1. Décrémenter player_transport
+      await tx
+        .update(playerTransport)
+        .set({
+          gold:      sql`${playerTransport.gold}   - ${gold}`,
+          food:      sql`${playerTransport.food}   - ${food}`,
+          wood:      sql`${playerTransport.wood}   - ${wood}`,
+          stone:     sql`${playerTransport.stone}  - ${stone}`,
+          iron:      sql`${playerTransport.iron}   - ${iron}`,
+          copper:    sql`${playerTransport.copper} - ${copper}`,
+          coal:      sql`${playerTransport.coal}   - ${coal}`,
+          oil:       sql`${playerTransport.oil}    - ${oil}`,
+          herbs:     sql`${playerTransport.herbs}  - ${herbs}`,
+          fur:       sql`${playerTransport.fur}    - ${fur}`,
+          updatedAt: now,
+        })
+        .where(eq(playerTransport.playerId, playerId));
+
+      // 2. Créditer player_bank (UPSERT)
+      await tx
+        .insert(playerBank)
+        .values({ playerId, gold, food, wood, stone, iron, copper, coal, oil, herbs, fur, lastProductionTurn: 0, updatedAt: now })
+        .onConflictDoUpdate({
+          target: playerBank.playerId,
+          set: {
+            gold:      sql`${playerBank.gold}   + ${gold}`,
+            food:      sql`${playerBank.food}   + ${food}`,
+            wood:      sql`${playerBank.wood}   + ${wood}`,
+            stone:     sql`${playerBank.stone}  + ${stone}`,
+            iron:      sql`${playerBank.iron}   + ${iron}`,
+            copper:    sql`${playerBank.copper} + ${copper}`,
+            coal:      sql`${playerBank.coal}   + ${coal}`,
+            oil:       sql`${playerBank.oil}    + ${oil}`,
+            herbs:     sql`${playerBank.herbs}  + ${herbs}`,
+            fur:       sql`${playerBank.fur}    + ${fur}`,
+            updatedAt: now,
+          },
+        });
+    });
+
+    console.log(
+      `[Deposit] player=${playerId} transport→bank ${gold}g ${food}f ${wood}w ${stone}s ${iron}ir` +
+      ` ${copper}cu ${coal}co ${oil}oil ${herbs}herbs ${fur}fur`
+    );
+
+    return res.json({
+      ok:          true,
+      deposited:   { gold, food, wood, stone, iron, copper, coal, oil, herbs, fur },
+      destination: "player_bank",
+    });
+
+  } catch (err: any) {
+    const msg = err.message ?? "";
+    if (err.status === 403) return res.status(403).json({ error: msg });
+    if (msg.startsWith("INSUFFICIENT_TRANSPORT")) return res.status(422).json({ error: msg });
+    console.error("[POST /api/economy/deposit-transport-to-bank] Erreur:", err);
     return res.status(500).json({ error: "Impossible d'effectuer le dépôt" });
   }
 });

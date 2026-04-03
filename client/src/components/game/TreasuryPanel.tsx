@@ -1,12 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   getPlayerBank,
+  getPlayerTransport,
   getCityHarvest,
   getCityWarehouseInfo,
   postCollectHarvest,
   postTransferBankToCity,
   postTransferBankToPlayer,
+  postDepositTransportToBank,
   type PlayerBankDTO,
+  type PlayerTransportDTO,
   type CityHarvestDTO,
   type CityWarehouseInfoDTO,
 } from "../../lib/api/economyApi";
@@ -158,6 +161,7 @@ function AmountInput({
 
 export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
   const [bank,       setBank]       = useState<PlayerBankDTO | null>(null);
+  const [transport,  setTransport]  = useState<PlayerTransportDTO | null>(null);
   const [cities,     setCities]     = useState<CityFull[]>([]);
   const [harvests,   setHarvests]   = useState<Record<number, CityHarvestState>>({});
   const [warehouses, setWarehouses] = useState<Record<number, CityWarehouseInfoDTO | null>>({});
@@ -190,6 +194,7 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
 
   const [toCity,   setToCity]   = useState<TransferState>(EMPTY_TRANSFER);
   const [toPlayer, setToPlayer] = useState<TransferState>(EMPTY_TRANSFER);
+  const [toBank,   setToBank]   = useState<TransferState>(EMPTY_TRANSFER);
 
   // ─── Chargement ─────────────────────────────────────────────────────────
 
@@ -198,12 +203,14 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
     try {
       const headers = getAuthHeaders();
 
-      const [bankRes, citiesRes] = await Promise.allSettled([
+      const [bankRes, transportRes, citiesRes] = await Promise.allSettled([
         getPlayerBank(),
+        getPlayerTransport(),
         fetch("/api/cities/me", { headers }).then(r => r.ok ? r.json() : []),
       ]);
 
-      if (bankRes.status === "fulfilled") setBank(bankRes.value);
+      if (bankRes.status === "fulfilled")      setBank(bankRes.value);
+      if (transportRes.status === "fulfilled") setTransport(transportRes.value);
 
       const cityList: CityFull[] = citiesRes.status === "fulfilled" ? citiesRes.value : [];
       setCities(cityList);
@@ -387,6 +394,47 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
     }
   };
 
+  // ─── Dépôt transport → banque ─────────────────────────────────────────────
+
+  const handleDepositToBank = async () => {
+    const mats = {
+      gold:   parseAmount(toBank.gold),
+      food:   parseAmount(toBank.food),
+      wood:   parseAmount(toBank.wood),
+      stone:  parseAmount(toBank.stone),
+      iron:   parseAmount(toBank.iron),
+      copper: parseAmount(toBank.copper),
+      coal:   parseAmount(toBank.coal),
+      oil:    parseAmount(toBank.oil),
+      herbs:  parseAmount(toBank.herbs),
+      fur:    parseAmount(toBank.fur),
+    };
+    if (Object.values(mats).every(v => v === 0)) {
+      setToBank(prev => ({ ...prev, message: "❌ Montant nul" }));
+      return;
+    }
+    setToBank(prev => ({ ...prev, loading: true, message: null }));
+    try {
+      await postDepositTransportToBank(mats);
+      setToBank(prev => ({ ...prev, loading: false, message: "✅ Déposé en banque",
+        gold: "", food: "", wood: "", stone: "", iron: "",
+        copper: "", coal: "", oil: "", herbs: "", fur: "" }));
+      setTimeout(() => {
+        Promise.allSettled([getPlayerBank(), getPlayerTransport()]).then(([b, t]) => {
+          if (b.status === "fulfilled") setBank(b.value);
+          if (t.status === "fulfilled") setTransport(t.value);
+        });
+        window.dispatchEvent(new CustomEvent('nova:logistic-refresh'));
+      }, 300);
+    } catch (err: any) {
+      const raw = err.message ?? "Erreur dépôt";
+      let msg = `❌ ${raw}`;
+      if (raw.includes("INSUFFICIENT_TRANSPORT")) msg = "❌ Stock transport insuffisant";
+      else if (raw.includes("403") || raw.startsWith("BANK_ACCESS")) msg = "❌ Accès banque requis";
+      setToBank(prev => ({ ...prev, loading: false, message: msg }));
+    }
+  };
+
   // ─── Réseau bancaire — villes connectées ──────────────────────────────────
   // Source de vérité : city.buildings (retourné par /api/cities/me, données serveur)
 
@@ -523,6 +571,44 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
                     ? "text-red-600" : "text-green-700"
                 ].join(" ")}>
                   {toPlayer.message}
+                </p>
+              )}
+            </div>
+
+            {/* Déposer à la banque */}
+            <div className="border-t border-amber-200 pt-2">
+              <p className="text-xs text-amber-600 font-semibold mb-1">Déposer à la banque</p>
+              {transport && (
+                <p className="text-xs text-amber-500 mb-2">
+                  Transport : {transport.usedUnits}/{transport.maxUnits} unités
+                </p>
+              )}
+              <div className="flex flex-wrap gap-1.5 items-end">
+                <AmountInput label="🪙" value={toBank.gold}   onChange={v => setToBank(p => ({ ...p, gold: v }))}   max={transport?.gold ?? 0} />
+                <AmountInput label="🌿" value={toBank.food}   onChange={v => setToBank(p => ({ ...p, food: v }))}   max={transport?.food ?? 0} />
+                <AmountInput label="🪵" value={toBank.wood}   onChange={v => setToBank(p => ({ ...p, wood: v }))}   max={transport?.wood ?? 0} />
+                <AmountInput label="🪨" value={toBank.stone}  onChange={v => setToBank(p => ({ ...p, stone: v }))}  max={transport?.stone ?? 0} />
+                <AmountInput label="⚙️" value={toBank.iron}   onChange={v => setToBank(p => ({ ...p, iron: v }))}   max={transport?.iron ?? 0} />
+                <AmountInput label="🟤" value={toBank.copper} onChange={v => setToBank(p => ({ ...p, copper: v }))} max={transport?.copper ?? 0} />
+                <AmountInput label="🖤" value={toBank.coal}   onChange={v => setToBank(p => ({ ...p, coal: v }))}   max={transport?.coal ?? 0} />
+                <AmountInput label="🛢️" value={toBank.oil}    onChange={v => setToBank(p => ({ ...p, oil: v }))}    max={transport?.oil ?? 0} />
+                <AmountInput label="🌱" value={toBank.herbs}  onChange={v => setToBank(p => ({ ...p, herbs: v }))}  max={transport?.herbs ?? 0} />
+                <AmountInput label="🦊" value={toBank.fur}    onChange={v => setToBank(p => ({ ...p, fur: v }))}    max={transport?.fur ?? 0} />
+                <button
+                  onClick={handleDepositToBank}
+                  disabled={toBank.loading}
+                  className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded disabled:opacity-50 shrink-0"
+                >
+                  {toBank.loading ? "…" : "Déposer"}
+                </button>
+              </div>
+              {toBank.message && (
+                <p className={[
+                  "text-xs mt-1 font-medium",
+                  toBank.message.startsWith("❌") || toBank.message.startsWith("⚠️")
+                    ? "text-red-600" : "text-green-700"
+                ].join(" ")}>
+                  {toBank.message}
                 </p>
               )}
             </div>

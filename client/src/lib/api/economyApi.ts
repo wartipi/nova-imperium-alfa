@@ -237,6 +237,27 @@ export async function postDepositTransportToCity(mats: T1Mats): Promise<DepositR
   return res.json();
 }
 
+// ─── Dépôt transport → banque joueur ─────────────────────────────────────────
+
+export interface DepositToBankResult {
+  ok:          boolean;
+  deposited:   Required<T1Mats>;
+  destination: "player_bank";
+}
+
+export async function postDepositTransportToBank(mats: T1Mats): Promise<DepositToBankResult> {
+  const res = await fetch("/api/economy/deposit-transport-to-bank", {
+    method:  "POST",
+    headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+    body:    JSON.stringify(mats),
+  });
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    throw new Error(json.error ?? `deposit-transport-to-bank: ${res.status}`);
+  }
+  return res.json();
+}
+
 // ─── Transferts depuis la banque ──────────────────────────────────────────────
 
 export interface TransferResult {
