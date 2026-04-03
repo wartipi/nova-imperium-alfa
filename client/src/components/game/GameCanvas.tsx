@@ -106,6 +106,38 @@ export function GameCanvas() {
   // Custom hooks for improved architecture  
   const { renderEngine, updateEngineStores } = useGameEngineAccess();
 
+  // ─── Double clic gauche → pendingMovement ──────────────────────────────────
+  // lastClickedHexRef : conserve l'objet hex (avec terrain) du dernier clic
+  // pour que onDoubleClick puisse lire terrain sans recalcul.
+  const lastClickedHexRef = useRef<{ x: number; y: number; terrain: string } | null>(null);
+
+  const { handleClick: detectDoubleClick } = useDoubleClick({
+    onDoubleClick: ({ x, y }) => {
+      const hex = lastClickedHexRef.current;
+      if (!hex || hex.x !== x || hex.y !== y) return;
+
+      // Garde 1 : pas d'unité sélectionnée (son flux est distinct)
+      const { selectedUnit: su } = useNovaImperium.getState();
+      if (su) return;
+
+      // Garde 2 : pas d'action active en cours
+      const { activeAction: aa } = usePlayerActions.getState();
+      if (aa) return;
+
+      // Garde 3 : terrain walkable
+      if (!TerrainHelpers.isWalkable(hex.terrain)) return;
+
+      // Garde 4 : case accessible (explorée ou admin)
+      const { isHexExplored: checkExplored, avatarHexPosition: currentHex } = usePlayer.getState();
+      if (!checkExplored(x, y) && !isAdmin) return;
+
+      // Garde 5 : case ≠ position actuelle
+      if (x === currentHex.x && y === currentHex.y) return;
+
+      setPendingMovement({ x, y });
+    },
+  });
+
   // REFACTORISATION : Initialize game engine avec injection des stores
   useEffect(() => {
     if (canvasRef.current && mapData) {
@@ -164,15 +196,25 @@ export function GameCanvas() {
     if (event.target !== canvasRef.current) return;
     event.preventDefault();
 
-    // Fermer d'éventuels menus déjà ouverts
-    setShowAvatarMenu(false);
-    setTileContextMenu(null);
-
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect || !gameEngineRef.current) return;
 
     const canvasX = event.clientX - rect.left;
     const canvasY = event.clientY - rect.top;
+
+    // ── Clic droit sur l'avatar → ouvrir AvatarActionMenu ────────────────────
+    if (gameEngineRef.current.isClickOnAvatar(canvasX, canvasY)) {
+      setTileContextMenu(null);
+      const avatarScreenPos = gameEngineRef.current.getAvatarScreenPosition();
+      setAvatarMenuPosition(avatarScreenPos);
+      setShowAvatarMenu(true);
+      return;
+    }
+
+    // Fermer d'éventuels menus déjà ouverts
+    setShowAvatarMenu(false);
+    setTileContextMenu(null);
+
     const hex = gameEngineRef.current.getHexAtPosition(canvasX, canvasY);
     if (!hex) return;
 
@@ -271,17 +313,11 @@ export function GameCanvas() {
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
 
-      // Check if click is on avatar first
-      if (gameEngineRef.current.isClickOnAvatar(x, y)) {
-        const avatarScreenPos = gameEngineRef.current.getAvatarScreenPosition();
-        setAvatarMenuPosition(avatarScreenPos);
-        setShowAvatarMenu(true);
-        setMouseDownPos(null);
-        return;
-      }
-
       const hex = gameEngineRef.current.getHexAtPosition(x, y);
       if (hex) {
+        // Stocker le hex pour onDoubleClick (terrain inclus)
+        lastClickedHexRef.current = { x: hex.x, y: hex.y, terrain: hex.terrain };
+
         // Vérifier si la case est explorée avant de permettre la sélection
         const { isHexExplored } = usePlayer.getState();
         const isAccessible = isHexExplored(hex.x, hex.y) || isAdmin;
@@ -303,14 +339,13 @@ export function GameCanvas() {
           }
         }
 
-        // NOTE: Le déplacement avatar est désormais déclenché uniquement via
-        // le menu contextuel de case (clic droit → "Se déplacer ici").
-        // Ce clic gauche ne lance plus la modale de déplacement.
+        // Double clic gauche → déclenche pendingMovement si walkable (via useDoubleClick)
+        detectDoubleClick({ x: hex.x, y: hex.y });
       }
     }
     
     setMouseDownPos(null);
-  }, [selectedUnit, setSelectedHex, moveUnit, mouseDownPos]);
+  }, [selectedUnit, setSelectedHex, moveUnit, mouseDownPos, detectDoubleClick, isAdmin]);
 
   // Update rendering when game state changes
   useEffect(() => {

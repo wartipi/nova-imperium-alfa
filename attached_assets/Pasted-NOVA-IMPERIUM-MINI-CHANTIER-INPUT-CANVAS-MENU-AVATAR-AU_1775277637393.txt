@@ -1,0 +1,159 @@
+NOVA IMPERIUM — MINI-CHANTIER INPUT CANVAS — MENU AVATAR AU CLIC DROIT + DÉPLACEMENT AVATAR AU DOUBLE CLIC GAUCHE
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu interviens sur un mini-chantier ciblé d’interaction utilisateur.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucun chantier parallèle.
+Tu dois faire le plus petit correctif propre et stable possible.
+
+OBJECTIF
+Modifier les interactions du canvas pour obtenir ce comportement :
+
+1. le menu d’action du joueur (AvatarActionMenu) doit s’ouvrir au clic droit, et non plus au clic gauche
+2. un double clic gauche sur une case doit lancer une commande de déplacement avatar
+3. le déplacement avatar doit réutiliser le flux déjà existant de pendingMovement + modale de confirmation
+4. le menu contextuel de case au clic droit doit continuer à fonctionner sur les cases normales
+
+IMPORTANT
+Hypothèse de travail à respecter :
+- “menu d’action du joueur” = menu de l’avatar uniquement
+- “double clic gauche” = commande de déplacement avatar
+- ne pas refondre le système de déplacement d’unités sélectionnées sauf nécessité absolue
+- ne pas toucher au backend
+- ne pas toucher à l’architecture de mouvement validée
+
+CONTEXTE VÉRIFIÉ
+Dans client/src/components/game/GameCanvas.tsx :
+- AvatarActionMenu s’ouvre actuellement dans handleCanvasClick() sur clic gauche si isClickOnAvatar(...)
+- TileContextMenu s’ouvre actuellement dans handleCanvasContextMenu() sur clic droit
+- le code précise déjà que le déplacement avatar n’est plus déclenché par clic gauche, mais via le menu contextuel de case
+- useDoubleClick est déjà importé dans GameCanvas.tsx mais n’est pas utilisé
+
+Dans client/src/lib/hooks/useDoubleClick.ts :
+- le hook existe déjà
+- il gère onSingleClick / onDoubleClick proprement
+- il doit être réutilisé si possible au lieu de réinventer un mécanisme
+
+TRAVAIL DEMANDÉ
+
+ÉTAPE 1 — AUDIT
+Lire :
+- client/src/components/game/GameCanvas.tsx
+- client/src/lib/hooks/useDoubleClick.ts
+
+Confirmer explicitement :
+1. où AvatarActionMenu s’ouvre aujourd’hui
+2. où TileContextMenu s’ouvre aujourd’hui
+3. que le flux déplacement avatar passe déjà par pendingMovement + MovementConfirmationModal
+4. que useDoubleClick est disponible et inutilisé
+
+ÉTAPE 2 — MENU AVATAR AU CLIC DROIT
+Dans handleCanvasContextMenu() :
+- détecter d’abord si le clic droit touche l’avatar via gameEngineRef.current.isClickOnAvatar(...)
+- si oui :
+  - event.preventDefault()
+  - fermer tileContextMenu
+  - positionner avatarMenuPosition avec getAvatarScreenPosition()
+  - ouvrir showAvatarMenu = true
+  - sortir immédiatement
+- sinon :
+  - conserver le comportement actuel du menu contextuel de case
+
+IMPORTANT
+Le clic droit sur une case normale doit continuer à ouvrir TileContextMenu.
+
+ÉTAPE 3 — SUPPRIMER L’OUVERTURE AU CLIC GAUCHE
+Dans handleCanvasClick() :
+- retirer la branche qui ouvre AvatarActionMenu sur clic gauche avatar
+- le clic gauche simple ne doit plus ouvrir le menu du joueur
+
+IMPORTANT
+Ne casse pas :
+- sélection de case
+- fermeture du tileContextMenu
+- comportement du canvas hors avatar
+
+ÉTAPE 4 — DOUBLE CLIC GAUCHE = DEMANDE DE DÉPLACEMENT AVATAR
+Réutiliser useDoubleClick dans GameCanvas.tsx.
+
+Comportement voulu :
+- single clic gauche :
+  - garde le comportement normal existant de sélection de case
+  - ne lance pas le menu avatar
+- double clic gauche sur une case :
+  - si terrain walkable
+  - si case accessible (explorée ou admin)
+  - si différente de la case actuelle de l’avatar
+  - alors lancer setPendingMovement({ x: hex.x, y: hex.y })
+
+IMPORTANT
+Le double clic ne doit PAS créer un nouveau flux de déplacement.
+Il doit réutiliser exactement :
+- pendingMovement
+- MovementConfirmationModal
+- handleMovementConfirm()
+
+ÉTAPE 5 — GARDES À CONSERVER
+Le double clic gauche ne doit pas lancer un déplacement si :
+- l’action serveur est déjà active
+- la case est non découverte (hors admin)
+- la case est non walkable
+- la case cible = case actuelle de l’avatar
+
+Si possible, réutiliser au maximum les mêmes gardes que le menu contextuel “Se déplacer ici”.
+
+ÉTAPE 6 — DÉPLACEMENT D’UNITÉS
+Ne refonds pas le système de déplacement d’unités sélectionnées.
+Conserver son comportement actuel, sauf si un conflit technique strict l’impose.
+Si un ajustement est nécessaire, il doit être minimal et expliqué.
+
+ÉTAPE 7 — NE PAS CASSER
+Ne pas casser :
+- menu contextuel de case
+- movement confirmation modal
+- pendingMovement
+- activeAction
+- preview path
+- sélection de case
+- clic droit case normale
+- avatar menu lui-même
+- déplacement unité sélectionnée si possible
+
+ÉTAPE 8 — RAPPORT FINAL OBLIGATOIRE
+Après implémentation, répondre exactement avec :
+
+1. DIAGNOSTIC
+- comportement initial confirmé
+- point d’entrée choisi
+
+2. FICHIERS CONCERNÉS
+- liste exacte
+
+3. MODIFICATION MINIMALE PROPOSÉE
+- menu avatar déplacé au clic droit
+- ouverture retirée du clic gauche
+- useDoubleClick branché
+- double clic gauche relié à pendingMovement
+
+4. PREUVE DIRECTE
+- comment le clic droit avatar ouvre maintenant AvatarActionMenu
+- comment le double clic gauche déclenche la commande de déplacement
+- comment le menu contextuel de case reste intact
+
+5. VÉRIFICATION
+Confirmer :
+- clic droit avatar = menu avatar
+- clic gauche avatar ≠ menu avatar
+- clic droit case = menu contextuel case
+- double clic gauche case walkable = modale déplacement
+- case interdite = pas de déplacement
+
+6. STOP
+
+CONTRAINTE FINALE
+Tu ne lances aucun autre chantier.
+Tu modifies uniquement l’interaction canvas demandée.
