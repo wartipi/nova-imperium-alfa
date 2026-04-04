@@ -10,7 +10,7 @@
  *   map_tiles, map_segments
  *   player_bank (remis à 0), player_transport (remis à 0)
  *   faction_economy (remis à 0)
- *   player_positions → repositionnés sur worldX=0, worldY=0, segment=(0,0)
+ *   player_positions → repositionnés sur le safe spawn résolu (case terrestre la plus proche de CANONICAL_SPAWN)
  *
  * Tables CONSERVÉES :
  *   users, player_state, factions, faction_members
@@ -48,6 +48,8 @@ import {
 } from "../../shared/schema";
 import { sql } from "drizzle-orm";
 import { seedMap } from "../seeds/mapSeed";
+import { findNearestValidGroundSpawn } from "../playerPositionService";
+import { CANONICAL_SPAWN } from "../../shared/runtimeDefaults";
 
 async function resetWorld(): Promise<void> {
   console.log("═══════════════════════════════════════════════════");
@@ -138,24 +140,37 @@ async function resetWorld(): Promise<void> {
   `);
   console.log("  faction_economy remise à 0");
 
-  // ── 11. Repositionnement joueurs → (0, 0) / segment (0, 0) ───────────────
-  // Position sûre : segment (0,0) est dans la grille 20×20 (-10..+9)
-  // worldX=0, worldY=0 → terrain généré de façon déterministe
-  console.log("[Reset] Positions joueur → worldX=0, worldY=0, segment=(0,0)...");
-  await db.execute(sql`
-    UPDATE player_positions
-    SET world_x=0, world_y=0, segment_x=0, segment_y=0, updated_at=NOW()
-  `);
-  console.log("  Toutes les positions joueur repositionnées sur (0,0)");
-
-  // ── 12. Reseed 20×20 ───────────────────────────────────────────────────────
+  // ── 11. Reseed 20×20 (avant repositionnement — la carte doit exister pour le safe spawn)
   console.log("\n[Reseed] Génération de la carte 20×20...");
   await seedMap();
 
+  // ── 12. Repositionnement joueurs → safe spawn sur terre ───────────────────
+  // Résolution après reseed : la carte doit exister pour que findNearestValidGroundSpawn
+  // puisse interroger map_tiles. La référence est CANONICAL_SPAWN, même logique
+  // qu'ensurePlayerPosition() au runtime.
+  console.log("[Reset] Résolution du safe spawn pour repositionnement joueurs...");
+  const safeSpawn = await findNearestValidGroundSpawn(
+    CANONICAL_SPAWN.worldX,
+    CANONICAL_SPAWN.worldY
+  );
+  const spawnSegX = Math.floor(safeSpawn.worldX / 50);
+  const spawnSegY = Math.floor(safeSpawn.worldY / 30);
+  await db.execute(sql`
+    UPDATE player_positions
+    SET world_x=${safeSpawn.worldX},
+        world_y=${safeSpawn.worldY},
+        segment_x=${spawnSegX},
+        segment_y=${spawnSegY},
+        updated_at=NOW()
+  `);
+  console.log(
+    `  Joueurs repositionnés sur safe spawn worldX=${safeSpawn.worldX}, worldY=${safeSpawn.worldY}` +
+    ` — segment (${spawnSegX},${spawnSegY})`
+  );
+
   console.log("\n═══════════════════════════════════════════════════");
   console.log("  Reset et reseed terminés avec succès.");
-  console.log("  Les joueurs reprendront sur worldX=0, worldY=0");
-  console.log("  dans le segment (0,0) — inclus dans la grille.");
+  console.log(`  Safe spawn résolu : worldX=${safeSpawn.worldX}, worldY=${safeSpawn.worldY}`);
   console.log("═══════════════════════════════════════════════════");
 }
 

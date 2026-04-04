@@ -1,0 +1,148 @@
+NOVA IMPERIUM — CORRECTIF SPAWN — GARANTIR UN SPAWN JOUEUR SUR TERRE ET UNIFIER RESET/RUNTIME
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu interviens sur un mini-chantier ciblé.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucun chantier parallèle.
+Tu dois faire le plus petit correctif propre, stable et déterministe possible.
+
+OBJECTIF
+Garantir qu’un joueur spawn toujours au minimum sur une case terrestre valide.
+
+PROBLÈME RÉEL
+Le joueur spawn actuellement dans une grosse zone d’eau.
+
+Audit déjà confirmé :
+1. `server/playerPositionService.ts`
+- `ensurePlayerPosition()` utilise `CANONICAL_SPAWN`
+- si la position existante est invalide, il relocalise vers ce spawn
+- MAIS il ne cherche pas une case de secours autour du spawn si ce spawn canonique est lui-même invalide
+
+2. `shared/runtimeDefaults.ts`
+- `CANONICAL_SPAWN` est actuellement défini à une coordonnée fixe
+
+3. `server/scripts/resetWorld.ts`
+- repositionne actuellement tous les joueurs à `(0,0)`
+- donc il existe deux logiques incohérentes :
+  - reset → `(0,0)`
+  - runtime → `CANONICAL_SPAWN`
+
+OBJECTIF TECHNIQUE PRÉCIS
+Unifier la logique de spawn et garantir un spawn sur terre.
+
+SOLUTION ATTENDUE
+Ne pas changer au hasard la carte.
+Ne pas toucher au générateur.
+Ne pas refaire l’architecture.
+
+Faire plutôt ceci :
+
+ÉTAPE 1 — AUDIT
+Lire :
+- `server/playerPositionService.ts`
+- `shared/runtimeDefaults.ts`
+- `server/scripts/resetWorld.ts`
+
+Confirmer explicitement :
+1. que `ensurePlayerPosition()` ne résout pas encore de safe spawn autour du spawn canonique
+2. que `resetWorld.ts` hardcode encore `(0,0)`
+3. que la validité d’une case est déjà correctement définie par `isValidPlayerPosition()`
+
+ÉTAPE 2 — AJOUTER UNE RÉSOLUTION DE SPAWN SÛR
+Dans `server/playerPositionService.ts`, ajouter une fonction du style :
+- `findNearestValidGroundSpawn(startWorldX: number, startWorldY: number): Promise<{ worldX: number; worldY: number }>`
+
+Règles :
+- tester d’abord la case de départ
+- si invalide, chercher autour en anneaux croissants
+- prendre la première case valide trouvée
+- rester simple, déterministe, lisible
+
+CRITÈRES DE VALIDITÉ
+Réutiliser la logique existante via `isValidPlayerPosition()` :
+- tuile existante
+- walkable
+- pas `deep_water`
+- pas `shallow_water`
+
+IMPORTANT
+Ne duplique pas inutilement la logique de validité.
+Réutilise `isValidPlayerPosition()` autant que possible.
+
+ÉTAPE 3 — UTILISER CETTE RÉSOLUTION DANS ENSUREPLAYERPOSITION
+Modifier `ensurePlayerPosition()` pour que :
+- si la position existante est invalide :
+  - il ne fasse pas juste `savePlayerPosition(...CANONICAL_SPAWN...)`
+  - il appelle d’abord la résolution safe spawn autour de `CANONICAL_SPAWN`
+- si aucune position n’existe :
+  - même logique : safe spawn autour de `CANONICAL_SPAWN`
+
+IMPORTANT
+Le spawn canonique reste la référence logique.
+Mais le spawn réel doit être la case terrestre valide la plus proche.
+
+ÉTAPE 4 — UNIFIER RESETWORLD
+Dans `server/scripts/resetWorld.ts` :
+- ne plus hardcoder `(0,0)`
+- réutiliser la même logique canonique/runtime
+- soit en appelant un helper partagé
+- soit en calculant une fois le safe spawn puis en mettant tous les joueurs dessus
+
+OBJECTIF
+Le reset monde et le runtime normal doivent utiliser la même logique de spawn.
+
+ÉTAPE 5 — CONTRAINTES
+Ne pas toucher :
+- générateur de carte
+- seed
+- vision
+- déplacement
+- routes API hors besoin strict
+- structure segments
+- auth
+
+ÉTAPE 6 — VÉRIFICATION
+Je veux une vraie vérification après correctif :
+
+1. confirmer la coordonnée réelle du spawn sûr résolu
+2. confirmer qu’elle est valide selon `isValidPlayerPosition()`
+3. confirmer qu’un joueur sans position spawn sur terre
+4. confirmer qu’un joueur reset par `resetWorld.ts` repart sur terre
+5. confirmer qu’il n’y a plus de hardcode incohérent `(0,0)` côté reset
+
+ÉTAPE 7 — RAPPORT FINAL OBLIGATOIRE
+Répondre exactement avec :
+
+1. DIAGNOSTIC
+- cause réelle du bug spawn
+- incohérence reset/runtime confirmée
+
+2. FICHIERS CONCERNÉS
+- liste exacte
+
+3. MODIFICATION MINIMALE PROPOSÉE
+- helper safe spawn ajouté
+- ensurePlayerPosition corrigé
+- resetWorld unifié
+
+4. PREUVE DIRECTE
+- coordonnée finale du safe spawn trouvée
+- validation qu’elle est sur terre
+- preuve que reset et runtime utilisent maintenant la même logique
+
+5. VÉRIFICATION
+Confirmer :
+- nouveau joueur spawn sur terre
+- joueur reset spawn sur terre
+- plus de double logique incohérente
+- aucune autre architecture touchée
+
+6. STOP
+
+CONTRAINTE FINALE
+Tu ne lances aucun autre chantier.
+Tu corriges uniquement la logique de spawn pour garantir une apparition sur terre et unifier reset/runtime.
