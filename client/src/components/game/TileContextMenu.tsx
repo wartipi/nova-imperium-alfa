@@ -91,7 +91,7 @@ export function TileContextMenu({
       <div className="px-3 py-2 border-b border-amber-800/60 flex items-center justify-between">
         <div>
           <p className="text-xs font-bold text-amber-400">
-            {locationName ?? (hasAnyAction ? "Colonie" : "Terrain")}
+            {locationName ?? "Terrain"}
           </p>
           <p className="text-xs text-stone-400">
             case ({hexX}, {hexY})
