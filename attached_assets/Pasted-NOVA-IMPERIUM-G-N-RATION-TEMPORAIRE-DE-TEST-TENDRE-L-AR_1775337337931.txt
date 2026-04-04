@@ -1,0 +1,208 @@
+NOVA IMPERIUM — GÉNÉRATION TEMPORAIRE DE TEST — ÉTENDRE L’ARCHIPEL SUR LE MONDE 20×20 SANS REFACTOR MASSIF
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu interviens sur un chantier ciblé de génération temporaire pour tests.
+Tu dois respecter strictement :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucune supposition.
+Tu dois préserver la simplicité, la stabilité et le déterminisme.
+
+OBJECTIF
+Adapter le générateur temporaire actuel pour que la carte 20×20 segments produise plusieurs archipels répartis à l’échelle du nouveau monde.
+
+IMPORTANT
+Ce générateur est TEMPORAIRE pour la phase de test.
+Il n’a pas vocation à être le générateur final.
+Le but n’est donc PAS de créer un système parfait ou ultra-complexe.
+Le but est uniquement :
+- garder le pipeline actuel
+- respecter les règles déterministes existantes
+- générer plus d’archipels sur les nouveaux blocs
+- éviter que toute la terre soit concentrée dans une petite ancienne zone centrale
+
+CONTRAINTE ABSOLUE
+Ne pas refondre :
+- la structure segmentée
+- le seed segmenté
+- `computeLandScore(...)`
+- `pickTerrain(...)`
+- la logique générale terrain → ressources
+- les seuils de biomes
+- le modèle monde/local/segment
+- la persistance
+
+Tu dois faire le plus petit correctif structurel utile.
+
+CONTEXTE VÉRIFIÉ
+État actuel :
+- la carte seedée est maintenant 20×20 segments
+- `mapSeed.ts` génère bien une grille `segmentX [-10..+9]`, `segmentY [-10..+9]`
+- MAIS les centres d’îles (`ISLAND_CENTERS`) sont encore calibrés comme pour l’ancien petit monde
+- donc la terre risque d’être concentrée dans une zone trop réduite
+
+OBJECTIF TECHNIQUE PRÉCIS
+Conserver le générateur actuel, mais remplacer la source des centres d’îles fixes par une génération déterministe plus adaptée à l’échelle 20×20.
+
+SOLUTION CIBLE
+Je veux que tu gardes le pipeline existant, mais que tu remplaces les centres codés en dur par une logique temporaire du type :
+
+- découper le monde 20×20 en grandes macro-zones
+- pour chaque macro-zone, générer de manière déterministe :
+  - 0, 1 ou 2 centres d’îles
+  - avec position légèrement décalée (jitter)
+  - avec rayon variable
+  - avec force variable
+- toutes les macro-zones ne doivent pas contenir de terre
+- le résultat final doit produire plusieurs archipels répartis dans le monde, avec encore de grands espaces océaniques
+
+IMPORTANT
+Ce doit rester :
+- déterministe
+- lisible
+- simple
+- réexécutable
+- cohérent avec le générateur actuel
+
+TRAVAIL DEMANDÉ
+
+ÉTAPE 1 — AUDIT
+Lire :
+- `server/seeds/mapSeed.ts`
+- si nécessaire `shared/mapCoordinates.ts`
+
+Confirmer explicitement :
+1. que la carte seedée est maintenant 20×20 segments
+2. que `ISLAND_CENTERS` est encore statique et calibré pour l’ancien petit monde
+3. que le problème réel vient de la répartition des centres, pas du pipeline général
+
+ÉTAPE 2 — MODIFICATION MINIMALE
+Dans `server/seeds/mapSeed.ts` :
+
+A. Retirer le tableau fixe `ISLAND_CENTERS` comme source unique
+Tu peux le supprimer ou le remplacer, mais l’idée est :
+- ne plus dépendre d’un petit set de centres codés en dur pour un monde désormais beaucoup plus grand
+
+B. Ajouter une fonction déterministe pour générer des centres d’îles à l’échelle du monde 20×20
+Nom recommandé :
+- `generateIslandCenters()`
+ou équivalent
+
+Cette fonction doit :
+- retourner `Array<{ cx: number; cy: number; radius: number; strength: number }>`
+- être totalement déterministe
+- ne pas dépendre de `Math.random()`
+- utiliser les helpers déjà présents (`seededRandom`, `hash`) si possible
+
+C. Stratégie recommandée
+Utiliser une macro-grille simple.
+
+Exemple acceptable :
+- découper le monde en macro-cellules de taille fixe
+- par exemple 100×100 cases monde
+ou toute autre taille raisonnable simple et lisible
+
+Pour chaque macro-cellule :
+- décider de façon déterministe si elle contient un archipel
+- si oui, générer 1 ou 2 centres
+- avec un léger décalage interne
+- rayon et force déterministes dans une plage bornée
+
+IMPORTANT
+Je ne veux pas une forêt de petites îles partout.
+Je veux :
+- plusieurs archipels répartis
+- encore de grands espaces marins
+- une sensation de monde testable à grande échelle
+
+D. Réutiliser le pipeline existant
+`computeLandScore(worldX, worldY)` doit continuer à :
+- partir d’un score de base océan
+- sommer les influences des centres
+- ajouter un léger bruit
+- garder la décision eau/terre actuelle
+
+Tu ne dois pas refondre cette logique.
+Tu dois seulement changer la façon d’obtenir les centres.
+
+ÉTAPE 3 — PARAMÈTRES TEMPORAIRES DE TEST
+Je veux des paramètres simples et lisibles.
+
+Tu peux choisir quelque chose dans cet esprit :
+- 35% à 45% des macro-zones actives
+- 1 ou 2 centres dans une macro-zone active
+- radius autour de 18 à 45
+- strength autour de 0.8 à 1.8
+
+IMPORTANT
+Pas de tuning infini.
+Choisir une configuration simple, raisonnable, cohérente avec la phase de test.
+
+ÉTAPE 4 — COMMENTAIRES DE CODE
+Comme c’est temporaire, je veux des commentaires clairs dans `mapSeed.ts` expliquant :
+- que c’est un générateur temporaire de test
+- qu’il étend l’archipel à l’échelle 20×20
+- que le pipeline final pourra être remplacé plus tard sans toucher au reste
+
+ÉTAPE 5 — NE PAS CASSER
+Ne pas casser :
+- seedMap()
+- génération déterministe
+- création segments / tuiles
+- ressources
+- walkable / movementCost
+- resetWorld.ts
+- modèle 20×20 actuel
+- coordonnées monde / segment
+
+ÉTAPE 6 — VÉRIFICATION
+Après modification, je veux une vérification réelle.
+
+Tu dois au minimum confirmer :
+1. que le seed fonctionne toujours
+2. que le monde 20×20 est toujours généré entièrement
+3. que les centres d’îles sont maintenant répartis à l’échelle du nouveau monde
+4. que la carte n’est plus concentrée uniquement autour de l’ancienne petite zone
+5. que le résultat reste déterministe
+
+Si possible, donne un résumé simple du type :
+- nombre total de centres générés
+- quelques exemples de centres
+- confirmation que leurs coordonnées couvrent plusieurs zones du monde
+
+ÉTAPE 7 — RAPPORT FINAL OBLIGATOIRE
+Après implémentation, réponds exactement avec :
+
+1. DIAGNOSTIC
+- problème initial confirmé
+- pourquoi la solution retenue est la plus simple et la plus saine pour la phase de test
+
+2. FICHIERS CONCERNÉS
+- liste exacte
+
+3. MODIFICATION MINIMALE PROPOSÉE
+- comment `ISLAND_CENTERS` a été remplacé
+- comment la génération déterministe des centres fonctionne
+- quels paramètres temporaires ont été choisis
+
+4. PREUVE DIRECTE
+- nombre de centres générés
+- exemple de répartition
+- confirmation que le monde 20×20 est bien couvert par plusieurs archipels
+
+5. VÉRIFICATION
+Confirmer :
+- seed OK
+- déterminisme OK
+- pas de refactor massif
+- archipel réparti à l’échelle du monde 20×20
+
+6. STOP
+
+CONTRAINTE FINALE
+Tu ne lances aucun autre chantier.
+Tu adaptes uniquement le générateur temporaire pour qu’il respecte la nouvelle taille du monde 20×20 et produise plusieurs archipels répartis.

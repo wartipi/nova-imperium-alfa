@@ -130,20 +130,78 @@ function pickResource(
   return resources.length > 0 ? resources[0] : null;
 }
 
-// ─── Centres d'îles de l'archipel (déterministes, codés en dur) ─────────────
-// Carte monde : X de -50 à +99, Y de -30 à +59, centre géométrique (25, 15)
-const ISLAND_CENTERS: Array<{ cx: number; cy: number; radius: number; strength: number }> = [
-  // Grande île centrale
-  { cx: 25,  cy: 15,  radius: 30, strength: 1.5  },
-  // Îles moyennes
-  { cx: -20, cy: -5,  radius: 20, strength: 1.1  },
-  { cx: 75,  cy: 35,  radius: 22, strength: 1.1  },
-  // Petites îles
-  { cx: 85,  cy: -5,  radius: 14, strength: 0.9  },
-  { cx: -10, cy: 45,  radius: 12, strength: 0.85 },
-  { cx: 50,  cy: -10, radius: 11, strength: 0.8  },
-  { cx: 5,   cy: 30,  radius: 10, strength: 0.75 },
-];
+// ─── Générateur temporaire de test — Archipel 20×20 ──────────────────────────
+//
+// Ce générateur est TEMPORAIRE pour la phase de test à l'échelle 20×20 segments.
+// Il n'a pas vocation à être le générateur final de la campagne.
+// Le pipeline terrain (computeLandScore → pickTerrain) peut être remplacé
+// ultérieurement sans toucher au reste du seed ni à la persistance.
+//
+// Monde 20×20 : worldX [-500..+499], worldY [-300..+299]
+//
+// Stratégie :
+//   Découpage en macro-cellules de 100×100 cases monde (2×2 segments).
+//   Grille : 10 colonnes × 6 lignes = 60 macro-cellules.
+//   Environ 40 % des macro-cellules contiennent 1 ou 2 archipels.
+//   Position, rayon et force sont totalement déterministes via seededRandom/hash.
+//
+function generateIslandCenters(): Array<{ cx: number; cy: number; radius: number; strength: number }> {
+  const centers: Array<{ cx: number; cy: number; radius: number; strength: number }> = [];
+
+  const MACRO_SIZE    = 100;   // taille d'une macro-cellule en cases monde
+  const X_MIN         = -500;  // bord gauche du monde
+  const X_CELLS       = 10;    // colonnes de macro-cellules
+  const Y_MIN         = -300;  // bord haut du monde
+  const Y_CELLS       = 6;     // lignes de macro-cellules
+
+  const ACTIVE_RATE   = 0.40;  // 40 % des cellules ont un archipel
+  const DUAL_RATE     = 0.45;  // 45 % des cellules actives ont 2 centres (sinon 1)
+
+  const JITTER_RANGE  = 60;    // décalage max ±30 unités autour du centre de cellule
+  const RADIUS_MIN    = 18;
+  const RADIUS_RANGE  = 27;    // radius dans [18, 45]
+  const STR_MIN       = 0.80;
+  const STR_RANGE     = 1.00;  // strength dans [0.80, 1.80]
+
+  for (let row = 0; row < Y_CELLS; row++) {
+    for (let col = 0; col < X_CELLS; col++) {
+      const mcX = X_MIN + col * MACRO_SIZE; // coin gauche de la cellule
+      const mcY = Y_MIN + row * MACRO_SIZE; // coin haut de la cellule
+
+      // Décision : cette cellule est-elle active ?
+      const rActive = seededRandom(hash(mcX, mcY, 99, 77));
+      if (rActive > ACTIVE_RATE) continue;
+
+      // Nombre de centres dans cette cellule
+      const rDual   = seededRandom(hash(mcX, mcY, 11, 33));
+      const nCenters = rDual < DUAL_RATE ? 2 : 1;
+
+      for (let i = 0; i < nCenters; i++) {
+        const cellCX = mcX + MACRO_SIZE / 2; // centre géométrique de la cellule
+        const cellCY = mcY + MACRO_SIZE / 2;
+
+        // Jitter déterministe (décalage ±JITTER_RANGE/2)
+        const jX = (seededRandom(hash(mcX, mcY, 13, i * 7 + 1)) - 0.5) * JITTER_RANGE;
+        const jY = (seededRandom(hash(mcX, mcY, 17, i * 7 + 2)) - 0.5) * JITTER_RANGE;
+
+        const radius   = RADIUS_MIN + seededRandom(hash(mcX, mcY, 23, i * 7 + 3)) * RADIUS_RANGE;
+        const strength = STR_MIN    + seededRandom(hash(mcX, mcY, 31, i * 7 + 4)) * STR_RANGE;
+
+        centers.push({
+          cx:       Math.round(cellCX + jX),
+          cy:       Math.round(cellCY + jY),
+          radius:   Math.round(radius),
+          strength: parseFloat(strength.toFixed(2)),
+        });
+      }
+    }
+  }
+
+  return centers;
+}
+
+// Centres d'îles — générés de façon déterministe à l'échelle du monde 20×20
+const ISLAND_CENTERS = generateIslandCenters();
 
 const ARCHIPELAGO_BASE_SCORE   = -0.3;  // score de départ (océan) — archipel validé
 const ARCHIPELAGO_NOISE_AMP    = 0.25;  // amplitude du bruit côtier (±0.125)
