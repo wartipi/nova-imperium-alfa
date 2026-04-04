@@ -218,76 +218,15 @@ export function GameCanvas() {
     const hex = gameEngineRef.current.getHexAtPosition(canvasX, canvasY);
     if (!hex) return;
 
-    // ── Résolution des services réels sur la case ─────────────────────────────
-    //
-    // Priorité 1 : ville du joueur dans novaImperiums — buildings exacts connus
-    //   (coords locales = worldX - originWorldX via hydrateCitiesFromServer)
-    // Priorité 2 : colonie tierce — hasMarket/hasBank viennent du DTO serveur
-    //   (getAllColonies() batch-query city_buildings — aucune approximation)
-    // Priorité 3 : terrain sans colonie → hasMarket=false, hasBank=false
-    // ─────────────────────────────────────────────────────────────────────────
-
-    const allOwnCities = novaImperiums.flatMap((ni) => ni.cities);
-    const ownCity = allOwnCities.find((c) => c.x === hex.x && c.y === hex.y);
-
-    let hasMarket    = false;
-    let hasBank      = false;
-    let locationName: string | null = null;
-
-    if (ownCity) {
-      const buildings = ownCity.buildings as string[];
-      hasMarket    = buildings.includes("guilde_des_marchands");
-      hasBank      = buildings.includes("bank");
-      locationName = ownCity.name ?? null;
-      console.log(
-        `[GameCanvas] Clic droit → hex(${hex.x},${hex.y}) ownCity="${ownCity.name}" ` +
-        `buildings=[${buildings.join(",")}] hasMarket=${hasMarket} hasBank=${hasBank}`
-      );
-    } else {
-      const territory = UnifiedTerritorySystem.getTerritory(hex.x, hex.y);
-      locationName = territory?.colonyName ?? null;
-      if (territory?.colonyId) {
-        hasMarket = territory.hasMarket ?? false;
-        hasBank   = territory.hasBank   ?? false;
-        console.log(
-          `[GameCanvas] Clic droit → hex(${hex.x},${hex.y}) colonie="${locationName}" ` +
-          `hasMarket=${hasMarket} hasBank=${hasBank}`
-        );
-      } else {
-        console.log(`[GameCanvas] Clic droit → hex(${hex.x},${hex.y}) terrain`);
-      }
-    }
-
-    // ── "Se déplacer ici" — mêmes gardes que le clic gauche (LOT A/C) ─────────
-    // Réutilise exactement les conditions de handleCanvasClick :
-    //   1. Pas d'unité sélectionnée (le déplacement d'unité a son propre flux)
-    //   2. Terrain walkable
-    //   3. Case ≠ position actuelle du joueur
-    //   4. Case accessible (explorée ou admin)
-    const { isHexExplored: isHexExploredCtx, avatarHexPosition: ctxCurrentHex } = usePlayer.getState();
+    // Clic droit sur une case → sélectionner si accessible (affiche TileInfoPanel)
+    // TileContextMenu n'est plus ouvert pour les cases.
+    const { isHexExplored: isHexExploredCtx } = usePlayer.getState();
     const isAccessibleCtx = isHexExploredCtx(hex.x, hex.y) || isAdmin;
-    const canMove = (
-      !selectedUnit &&
-      TerrainHelpers.isWalkable(hex.terrain) &&
-      !(hex.x === ctxCurrentHex.x && hex.y === ctxCurrentHex.y) &&
-      isAccessibleCtx
-    );
-    console.log(
-      `[GameCanvas] Clic droit → hex(${hex.x},${hex.y}) ` +
-      `canMove=${canMove} terrain=${hex.terrain}`
-    );
-
-    setTileContextMenu({
-      screenX: event.clientX,
-      screenY: event.clientY,
-      hexX:    hex.x,
-      hexY:    hex.y,
-      hasMarket,
-      hasBank,
-      locationName,
-      canMove,
-    });
-  }, [gameEngineRef, novaImperiums, selectedUnit, isAdmin]);
+    if (isAccessibleCtx) {
+      setSelectedHex(hex);
+    }
+    console.log(`[GameCanvas] Clic droit → hex(${hex.x},${hex.y}) accessible=${isAccessibleCtx}`);
+  }, [gameEngineRef, isAdmin, setSelectedHex]);
 
   // Handle canvas clicks (only if not dragging)
   const handleCanvasClick = useCallback((event: React.MouseEvent) => {

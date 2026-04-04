@@ -1,0 +1,148 @@
+NOVA IMPERIUM — AJUSTEMENT INPUT/UI — SUPPRIMER LE PETIT MENU DE CASE AU CLIC DROIT, DÉPLACEMENT DANS TILEINFOPANEL
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu interviens sur un mini-chantier UI ciblé.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucun chantier parallèle.
+Tu dois faire le plus petit correctif propre et stable possible.
+
+OBJECTIF
+Corriger le comportement du clic droit sur une case.
+
+COMPORTEMENT VOULU
+1. quand on fait un clic droit sur une case :
+   - les informations de case doivent apparaître
+   - le petit menu contextuel de case avec en-tête “Colonie” / “Terrain” ne doit plus apparaître
+2. le bouton “Se déplacer ici” ne doit plus être dans ce petit menu
+3. le bouton “Se déplacer ici” doit apparaître dans TileInfoPanel quand on a fait clic droit sur la case
+4. clic droit sur l’avatar doit continuer à ouvrir AvatarActionMenu
+
+IMPORTANT
+Le but n’est PAS de refaire tout le système de sélection.
+Le but n’est PAS de refaire le déplacement.
+Le but est seulement :
+- ne plus ouvrir TileContextMenu pour les cases
+- déplacer l’action de déplacement dans TileInfoPanel
+- conserver le flux pendingMovement + modale existant
+
+CONTEXTE VÉRIFIÉ
+Dans client/src/components/game/GameCanvas.tsx :
+- le clic droit sur une case ouvre actuellement TileContextMenu
+- le clic droit sur avatar a déjà son propre flux séparé
+
+Dans client/src/components/game/TileContextMenu.tsx :
+- c’est bien le petit menu avec en-tête “Colonie” / “Terrain”
+- ce menu contient actuellement “Se déplacer ici”
+
+Dans client/src/components/game/TileInfoPanel.tsx :
+- le panneau affiche déjà les infos détaillées de la case
+- il n’a pas encore le bouton de déplacement
+
+Dans GameCanvas.tsx :
+- la modale de déplacement s’ouvre déjà via pendingMovement
+- il faut réutiliser ce flux tel quel
+
+TRAVAIL DEMANDÉ
+
+ÉTAPE 1 — AUDIT
+Lire :
+- client/src/components/game/GameCanvas.tsx
+- client/src/components/game/TileInfoPanel.tsx
+- client/src/components/game/TileContextMenu.tsx
+
+Confirmer explicitement :
+1. que le clic droit case ouvre actuellement TileContextMenu
+2. que le petit menu avec “Colonie” / “Terrain” vient bien de TileContextMenu
+3. que TileInfoPanel dépend de selectedHex
+4. que pendingMovement est déjà la source d’ouverture de la modale
+
+ÉTAPE 2 — GAMECANVAS
+Dans handleCanvasContextMenu() :
+- si clic droit sur avatar :
+  - conserver l’ouverture de AvatarActionMenu
+- si clic droit sur une case :
+  - faire setSelectedHex(hex) si la case est accessible
+  - NE PLUS ouvrir TileContextMenu
+  - NE PLUS appeler setTileContextMenu(...) pour les cases
+
+IMPORTANT
+Le clic droit sur une case doit maintenant seulement sélectionner la case pour afficher TileInfoPanel.
+Le petit menu contextuel de case ne doit plus apparaître.
+
+ÉTAPE 3 — TILEINFOPANEL
+Dans TileInfoPanel.tsx :
+- ajouter un bouton “Se déplacer ici” dans le panneau d’info de la case
+- idéalement dans la section Déplacement ou juste après
+
+Le bouton doit être visible seulement si :
+- la case est walkable
+- la case est accessible (explorée ou admin)
+- la case n’est pas la case actuelle de l’avatar
+
+Au clic :
+- appeler uniquement :
+  setPendingMovement({ x: selectedHex.x, y: selectedHex.y })
+
+IMPORTANT
+Ne pas appeler l’API directement.
+Ne pas bypass la modale.
+Ne pas créer un nouveau flux.
+Réutiliser uniquement pendingMovement + modale existante.
+
+ÉTAPE 4 — TILECONTEXTMENU
+Le petit menu de case n’est plus nécessaire dans ce flux.
+Tu peux :
+- soit le laisser dans le code mais inutilisé
+- soit le nettoyer minimalement si c’est strictement local
+
+Préférence :
+- ne pas l’ouvrir depuis GameCanvas pour les cases
+- pas de refactor inutile
+
+ÉTAPE 5 — NE PAS CASSER
+Ne pas casser :
+- clic droit avatar → AvatarActionMenu
+- double clic gauche → déplacement avatar
+- TileInfoPanel
+- pendingMovement
+- MovementConfirmationModal
+- sélection de case informative via clic droit
+- autres panneaux
+
+ÉTAPE 6 — RAPPORT FINAL OBLIGATOIRE
+Après implémentation, répondre exactement avec :
+
+1. DIAGNOSTIC
+- état initial confirmé
+- ce qui était réellement en trop
+
+2. FICHIERS CONCERNÉS
+- liste exacte
+
+3. MODIFICATION MINIMALE PROPOSÉE
+- TileContextMenu retiré du clic droit case
+- clic droit case → TileInfoPanel
+- bouton “Se déplacer ici” ajouté dans TileInfoPanel
+
+4. PREUVE DIRECTE
+- comment le petit menu n’apparaît plus
+- comment TileInfoPanel apparaît au clic droit
+- comment le bouton ouvre la modale via pendingMovement
+
+5. VÉRIFICATION
+Confirmer :
+- clic droit case = infos seulement
+- plus de petit menu “Colonie / Terrain”
+- bouton déplacement visible dans TileInfoPanel si case valide
+- clic sur le bouton = modale
+- clic droit avatar = menu avatar intact
+
+6. STOP
+
+CONTRAINTE FINALE
+Tu ne lances aucun autre chantier.
+Tu modifies uniquement le flux clic droit case + déplacement depuis TileInfoPanel.
