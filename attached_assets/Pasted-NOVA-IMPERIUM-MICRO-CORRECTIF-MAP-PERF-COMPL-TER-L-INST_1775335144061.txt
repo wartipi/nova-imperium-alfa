@@ -1,0 +1,131 @@
+NOVA IMPERIUM — MICRO-CORRECTIF MAP PERF — COMPLÉTER L’INSTRUMENTATION `GameCanvas.tsx`
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu interviens sur un micro-correctif ciblé.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucun chantier parallèle.
+Tu dois faire le plus petit correctif propre possible.
+
+OBJECTIF
+Compléter l’instrumentation perf côté `GameCanvas.tsx` pour que le dépôt poussé reflète réellement le rapport MapPerf annoncé.
+
+CONTEXTE VÉRIFIÉ
+État actuel :
+1. `client/src/lib/stores/useMap.tsx`
+- l’instrumentation MapPerf est bien présente :
+  - `_t0`, `_tFetch`, `_tBuild`, `_tState`
+  - logs `[MapPerf]`
+  - `_summary`
+  - buffer global `window.__novaMapPerf.lastTransitions`
+
+2. `client/src/components/game/GameCanvas.tsx`
+- le useEffect([mapData]) existe
+- `loadDiscoveredTiles().then(() => { updateVision(); engine?.setVisionCallbacks(...); engine?.render(); })`
+- MAIS la partie “render after swap” du rapport n’est pas clairement présente dans le code poussé
+
+Le rapport attendu parlait de :
+- mesure du délai entre `_stateReadyAt` et le rendu visuel final
+- mesure du temps brut de `engine.render()`
+- écriture de `renderAfterSwapMs` dans le dernier résumé du buffer global
+
+OBJECTIF TECHNIQUE PRÉCIS
+Compléter uniquement cette partie manquante dans `GameCanvas.tsx`.
+
+IMPORTANT
+Ne touche pas à `useMap.tsx` sauf nécessité absolue.
+Ne refonds pas le chargement de carte.
+Ne refonds pas la vision.
+Ne modifies pas la logique métier.
+Ne touches pas à la taille des segments.
+Tu ajoutes seulement l’instrumentation manquante autour du rendu final après swap de map.
+
+TRAVAIL DEMANDÉ
+
+ÉTAPE 1 — AUDIT
+Relire :
+- `client/src/components/game/GameCanvas.tsx`
+- éventuellement `client/src/lib/stores/useMap.tsx` uniquement pour confirmer la structure du buffer `window.__novaMapPerf.lastTransitions`
+
+Confirmer explicitement :
+1. que `useMap.tsx` remplit déjà `window.__novaMapPerf.lastTransitions`
+2. que `GameCanvas.tsx` déclenche le rendu final dans le `.then()` après `loadDiscoveredTiles()`
+3. que la métrique `renderAfterSwapMs` n’est pas encore réellement mise à jour dans le buffer global
+
+ÉTAPE 2 — MICRO-CORRECTIF DANS GAMECANVAS.TSX
+Dans le `useEffect([mapData])`, à l’intérieur du `.then()` après `loadDiscoveredTiles()` :
+
+A. Mesurer le temps brut du `engine.render()`
+- utiliser `performance.now()` juste avant `engine?.render()`
+- mesurer la durée juste après
+
+B. Calculer le délai de perception utilisateur entre “state prêt” et “rendu final”
+- récupérer le dernier élément de `window.__novaMapPerf.lastTransitions`
+- lire `_stateReadyAt`
+- calculer `renderAfterSwapMs = performance.now() - _stateReadyAt`
+
+C. Mettre à jour le dernier résumé du buffer global
+- écrire :
+  - `renderAfterSwapMs`
+  - éventuellement `renderMs` si tu veux l’ajouter proprement
+- conserver la structure existante aussi intacte que possible
+
+D. Ajouter un log console lisible
+Format recommandé :
+`[MapPerf] Render after swap ms=... (engine.render()=...ms)`
+
+IMPORTANT
+Cette instrumentation doit être :
+- strictement optionnelle/debug
+- sans effet métier
+- sans effet sur le comportement carte
+- sans dépendance UI
+
+ÉTAPE 3 — CONTRAINTES
+Ne pas :
+- créer un overlay debug
+- refondre `GameCanvas`
+- modifier la logique de `loadDiscoveredTiles()`
+- modifier `updateVision()`
+- modifier `engine.setVisionCallbacks()`
+- modifier la logique du render hors instrumentation
+
+ÉTAPE 4 — ROBUSTESSE
+Le code doit être défensif :
+- si `window.__novaMapPerf` n’existe pas, ne rien casser
+- si `lastTransitions` est vide, ne rien casser
+- si `_stateReadyAt` est absent, loguer seulement `engine.render()` brut si nécessaire
+- ne jamais faire planter le jeu à cause de l’instrumentation
+
+ÉTAPE 5 — RAPPORT FINAL OBLIGATOIRE
+Après modification, répondre exactement avec :
+
+1. DIAGNOSTIC
+- ce qui était déjà présent
+- ce qui manquait réellement dans `GameCanvas.tsx`
+
+2. FICHIERS CONCERNÉS
+- liste exacte
+
+3. MODIFICATION MINIMALE PROPOSÉE
+- où l’instrumentation a été ajoutée
+- quelles métriques sont maintenant complètes
+
+4. PREUVE DIRECTE
+- montrer le log attendu
+- expliquer comment `renderAfterSwapMs` est maintenant écrit dans le dernier résumé du buffer global
+
+5. VÉRIFICATION
+Confirmer :
+- aucun comportement carte modifié
+- buffer global mis à jour
+- log console visible
+- aucun crash si le buffer n’existe pas
+
+6. STOP
+
+CONTRAINTE FINALE
+Tu ne fais qu’un micro-correctif d’instrumentation dans `GameCanvas.tsx` pour aligner le code poussé avec le rapport MapPerf.
