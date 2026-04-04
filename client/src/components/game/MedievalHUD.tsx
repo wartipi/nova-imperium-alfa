@@ -525,9 +525,9 @@ export function MedievalHUD() {
                   setActiveSection('transport');
                 }}
                 className="mt-2 w-full text-xs bg-amber-700 hover:bg-amber-600 text-amber-100 font-semibold px-2 py-1.5 rounded border border-amber-900 flex items-center justify-center gap-1"
-                title="Inventaire de transport"
+                title="Panneau joueur / inventaire"
               >
-                🎒 Inventaire du joueur
+                👤 Joueur / Inventaire
               </button>
               <div className="text-xs text-amber-700 mt-1">RÉPUTATION</div>
               <div className="flex items-center justify-between">

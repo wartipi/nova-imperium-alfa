@@ -1,0 +1,161 @@
+NOVA IMPERIUM — MICRO-ÉVOLUTION UI — TRANSFORMER “INVENTAIRE DU JOUEUR” EN “JOUEUR / INVENTAIRE” ET INTÉGRER LES INFOS JOUEUR DANS CE PANNEAU
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu interviens sur un chantier UI ciblé.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucun chantier parallèle.
+Tu dois faire le plus petit changement propre et évolutif possible.
+
+OBJECTIF
+Je veux que le bouton actuel d’inventaire s’appelle :
+
+- `👤 Joueur / Inventaire`
+
+Et je veux que ce panneau devienne un panneau joueur unifié contenant :
+1. les informations du joueur
+2. l’inventaire
+3. une section équipement
+4. une section personnalisation de l’avatar
+
+IMPORTANT
+Le but n’est PAS de créer un nouveau panneau séparé.
+Le but est de faire évoluer le panneau actuel déjà ouvert via `activeSection === 'transport'`.
+
+CONTEXTE
+Dans `client/src/components/game/MedievalHUD.tsx` :
+- il existe déjà un bouton qui ouvre `activeSection = 'transport'`
+- ce bouton affiche actuellement `🎒 Inventaire du joueur`
+
+Dans `client/src/components/game/PlayerTransportPanel.tsx` :
+- il existe déjà un panneau lié à cette section
+
+Je veux utiliser ce panneau existant comme base du futur panneau joueur.
+
+OBJECTIF TECHNIQUE PRÉCIS
+1. renommer le bouton en `👤 Joueur / Inventaire`
+2. garder l’ID / la logique actuelle si possible (`transport`) pour éviter un refactor inutile
+3. enrichir `PlayerTransportPanel` pour qu’il contienne plusieurs sections joueur
+
+TRAVAIL DEMANDÉ
+
+1. DIAGNOSTIC
+Confirmer explicitement :
+- où est le bouton actuel
+- quel panneau il ouvre
+- que la solution la plus saine est d’étendre le panneau existant plutôt que d’en créer un nouveau
+
+2. FICHIERS CONCERNÉS
+Au minimum :
+- `client/src/components/game/MedievalHUD.tsx`
+- `client/src/components/game/PlayerTransportPanel.tsx`
+
+Autres fichiers seulement si strictement nécessaires.
+
+3. MODIFICATION MINIMALE PROPOSÉE
+
+A. Dans `MedievalHUD.tsx`
+- renommer le bouton :
+  - de `🎒 Inventaire du joueur`
+  - vers `👤 Joueur / Inventaire`
+- conserver le même `onClick`
+- conserver `activeSection = 'transport'` si possible
+
+B. Dans `PlayerTransportPanel.tsx`
+Transformer le panneau en panneau joueur unifié avec sections clairement séparées.
+
+Sections attendues :
+
+SECTION 1 — Résumé joueur
+Afficher au minimum :
+- nom de l’avatar actuel
+- personnage / classe actuelle si disponible
+- niveau
+- XP / progression si disponible
+- points d’action
+- éventuellement réputation / honneur si c’est simple à réutiliser
+
+SECTION 2 — Inventaire
+Conserver l’inventaire transport existant
+
+SECTION 3 — Équipement
+Créer une section équipement lisible, même si les slots sont encore placeholders
+Exemple acceptable :
+- Arme
+- Armure
+- Accessoire 1
+- Accessoire 2
+- Monture / outil selon ce qui est le plus cohérent
+Si aucun vrai système d’équipement n’existe encore, afficher proprement :
+- “Emplacement vide”
+- sans inventer de logique backend
+
+SECTION 4 — Personnalisation de l’avatar
+Intégrer une section dédiée à la personnalisation / gestion avatar
+Réutiliser au maximum l’existant déjà visible dans le bloc joueur du HUD :
+- nom avatar
+- avatar courant
+- changement d’avatar si système déjà présent
+- création / gestion avatar si déjà disponible
+- options de personnalisation déjà existantes
+
+IMPORTANT
+Réutiliser l’état existant au maximum.
+Ne pas dupliquer inutilement la logique.
+Ne pas inventer un backend de personnalisation s’il n’existe pas.
+
+4. CONTRAINTES IMPORTANTES
+- ne pas créer un nouveau panneau séparé
+- ne pas changer l’architecture des menus
+- ne pas toucher au backend
+- ne pas refondre `usePlayer`
+- ne pas casser le HUD actuel
+- ne pas supprimer immédiatement les infos joueur déjà affichées dans la carte de droite si la migration n’est pas encore complète
+
+IMPORTANT
+Je préfère :
+- d’abord intégrer ces sections dans le panneau joueur/inventaire
+- puis, dans une étape future, nettoyer le bloc joueur du HUD si tout est validé
+
+5. STYLE ATTENDU
+Je veux un panneau clair, structuré, avec sous-sections lisibles.
+Tu peux utiliser :
+- titres de section
+- encadrés simples
+- séparation visuelle cohérente avec le style médiéval existant
+
+6. PREUVE DIRECTE
+Dans ton rapport final, explique :
+- comment le bouton a été renommé
+- comment le panneau existant a été enrichi
+- quelles sections ont été ajoutées
+- ce qui a été réutilisé de l’existant
+
+7. VÉRIFICATION
+Confirmer :
+- le bouton affiche bien `👤 Joueur / Inventaire`
+- il ouvre toujours le panneau prévu
+- le panneau contient bien :
+  - résumé joueur
+  - inventaire
+  - équipement
+  - personnalisation avatar
+- aucun autre panneau n’a été cassé
+- aucun backend n’a été touché
+
+8. RAPPORT FINAL OBLIGATOIRE
+Répondre exactement avec :
+
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+CONTRAINTE FINALE
+Tu ne lances aucun autre chantier.
+Tu modifies uniquement le bouton et le panneau existant pour en faire un panneau `Joueur / Inventaire` plus complet.
