@@ -72,13 +72,19 @@ export function MedievalHUD() {
   // Horloge serveur-authoritative
   const [clockData, setClockData] = useState<GameClockData | null>(null);
   const [clientNow, setClientNow] = useState(() => new Date());
+  const [serverOffsetMs, setServerOffsetMs] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       try {
         const data = await fetchGameClock();
-        if (!cancelled) setClockData(data);
+        if (!cancelled) {
+          setClockData(data);
+          // Calcul de l'offset serveur/client : permet d'estimer l'heure serveur
+          // à partir de l'horloge locale sans dépendre de la sync NTP du client.
+          setServerOffsetMs(new Date(data.serverNow).getTime() - Date.now());
+        }
       } catch (e) {
         console.warn("[GameClock] Impossible de charger l'horloge serveur:", e);
       }
@@ -339,16 +345,16 @@ export function MedievalHUD() {
 
   const getTimeRemaining = () => {
     if (!clockData) return "…";
-    const next = new Date(clockData.nextTurnAt);
-    const diffMs = next.getTime() - clientNow.getTime();
-    if (diffMs <= 0) return "imminent";
+    // Estimation de l'heure serveur courante : horloge locale + offset calculé
+    // à la dernière réception de clockData.serverNow.
+    const estimatedServerNow = clientNow.getTime() + serverOffsetMs;
+    const diffMs = new Date(clockData.nextTurnAt).getTime() - estimatedServerNow;
+    if (diffMs <= 0) return "00h 00m 00s";
     const totalSec = Math.floor(diffMs / 1000);
     const h = Math.floor(totalSec / 3600);
     const m = Math.floor((totalSec % 3600) / 60);
     const s = totalSec % 60;
-    if (h > 0) return `${h}h ${m.toString().padStart(2,'0')}m`;
-    if (m > 0) return `${m}m ${s.toString().padStart(2,'0')}s`;
-    return `${s}s`;
+    return `${h.toString().padStart(2,'0')}h ${m.toString().padStart(2,'0')}m ${s.toString().padStart(2,'0')}s`;
   };
 
   return (

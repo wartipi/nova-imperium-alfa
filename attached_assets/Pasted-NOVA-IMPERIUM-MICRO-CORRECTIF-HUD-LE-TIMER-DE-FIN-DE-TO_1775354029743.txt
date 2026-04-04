@@ -1,0 +1,132 @@
+NOVA IMPERIUM — MICRO-CORRECTIF HUD — LE TIMER DE FIN DE TOUR DOIT TOUJOURS AFFICHER HHh MMm SSs
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu interviens sur un micro-correctif UI ciblé.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucun chantier parallèle.
+Tu dois corriger UNIQUEMENT le timer de fin de tour.
+
+IMPORTANT
+Tu t’es trompé de sujet précédemment.
+NE TOUCHE PAS :
+- playerPositionService
+- resetWorld
+- spawn
+- carte
+- vision
+- déplacement
+- économie
+- aucun autre fichier hors périmètre strict si ce n’est pas nécessaire
+
+OBJECTIF
+Corriger l’affichage du timer de fin de tour dans le HUD.
+
+PROBLÈME RÉEL CONFIRMÉ
+Dans `client/src/components/game/MedievalHUD.tsx`, la fonction `getTimeRemaining()` contient encore :
+- `if (diffMs <= 0) return "imminent";`
+- un format partiel :
+  - `Xh YYm`
+  - ou `Xm YYs`
+  - ou `Xs`
+
+Ce comportement n’est PAS désiré.
+
+COMPORTEMENT VOULU
+Je veux un timer toujours affiché au format fixe :
+- `HHh MMm SSs`
+
+Exemples valides :
+- `23h 58m 12s`
+- `00h 04m 09s`
+- `00h 00m 03s`
+- `00h 00m 00s`
+
+IMPORTANT
+Le texte `"imminent"` doit être supprimé complètement.
+
+CONTEXTE VÉRIFIÉ
+- `fetchGameClock()` renvoie :
+  - `currentTurn`
+  - `turnDurationHours`
+  - `turnStartedAt`
+  - `nextTurnAt`
+  - `serverNow`
+- le HUD charge bien `clockData`
+- MAIS `serverNow` n’est pas réellement utilisé pour le calcul du compteur
+- le calcul se base encore sur `clientNow`
+
+OBJECTIF TECHNIQUE PRÉCIS
+Corriger `MedievalHUD.tsx` pour :
+1. ne plus jamais afficher `"imminent"`
+2. toujours afficher `HHh MMm SSs`
+3. baser le calcul sur une estimation de l’horloge serveur à partir de `serverNow`
+
+TRAVAIL DEMANDÉ
+
+1. DIAGNOSTIC
+Confirmer explicitement :
+- que `"imminent"` est encore codé dans `getTimeRemaining()`
+- que le format actuel n’est pas fixe
+- que `serverNow` n’est pas utilisé dans le calcul actuel
+
+2. FICHIERS CONCERNÉS
+- `client/src/components/game/MedievalHUD.tsx`
+- autre fichier seulement si strictement nécessaire, sinon interdit
+
+3. MODIFICATION MINIMALE PROPOSÉE
+Dans `MedievalHUD.tsx` :
+
+A. Supprimer complètement :
+- `if (diffMs <= 0) return "imminent";`
+
+B. Ajouter une base de temps serveur estimée
+Approche recommandée :
+- à la réception de `clockData`, calculer un offset :
+  `serverOffsetMs = new Date(clockData.serverNow).getTime() - Date.now()`
+- ensuite calculer :
+  `estimatedServerNow = Date.now() + serverOffsetMs`
+- puis :
+  `diffMs = new Date(clockData.nextTurnAt).getTime() - estimatedServerNow`
+
+C. Formater toujours en :
+- `HHh MMm SSs`
+avec padding à 2 chiffres pour h, m, s
+
+Exemple attendu :
+- `const h = ...`
+- `const m = ...`
+- `const s = ...`
+- `return \`${h.toString().padStart(2,'0')}h ${m.toString().padStart(2,'0')}m ${s.toString().padStart(2,'0')}s\`;`
+
+D. Si `diffMs <= 0`
+retourner :
+- `00h 00m 00s`
+
+IMPORTANT
+Ne touche pas au serveur.
+Ne touche pas à `gameTurnService.ts`.
+Ne change pas le scheduler.
+Tu corriges seulement l’affichage HUD.
+
+4. PREUVE DIRECTE
+Après modification, montre :
+- l’ancien bloc retiré
+- le nouveau format fixe
+- comment `serverNow` est maintenant utilisé
+
+5. VÉRIFICATION
+Confirmer :
+- plus jamais `"imminent"`
+- toujours `HHh MMm SSs`
+- calcul basé sur `serverNow` + temps écoulé local
+- aucun autre comportement du HUD modifié
+
+6. STOP
+
+CONTRAINTE FINALE
+Tu corriges UNIQUEMENT le timer de fin de tour dans `client/src/components/game/MedievalHUD.tsx`.
+Aucun autre chantier.
