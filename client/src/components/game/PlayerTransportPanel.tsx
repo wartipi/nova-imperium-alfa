@@ -235,7 +235,7 @@ export function PlayerTransportPanel() {
             <div className="text-xs text-amber-600 mb-1">Réputation</div>
             <div className="flex items-center justify-between">
               <span className="text-sm font-bold text-amber-900">{reputation}</span>
-              <span className="text-xs text-amber-500 italic">{getReputationLevel()}</span>
+              <span className="text-xs text-amber-500 italic">{getReputationLevel().name}</span>
             </div>
           </div>
         </div>
