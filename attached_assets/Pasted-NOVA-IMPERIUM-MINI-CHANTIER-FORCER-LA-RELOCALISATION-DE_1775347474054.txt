@@ -1,0 +1,81 @@
+NOVA IMPERIUM — MINI-CHANTIER — FORCER LA RELOCALISATION DES JOUEURS EXISTANTS VERS LE SAFE SPAWN V2
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu interviens sur un mini-chantier ciblé.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucun chantier parallèle.
+Tu dois faire le plus petit correctif utile.
+
+OBJECTIF
+Les joueurs déjà présents gardent leur ancienne position si elle est encore “valide”.
+Je veux maintenant forcer leur relocalisation vers le nouveau safe spawn v2 (masse terrestre minimale), sans toucher au reste.
+
+CONTEXTE VÉRIFIÉ
+Dans `server/playerPositionService.ts` :
+- la v2 du safe spawn est bien présente
+- MAIS `ensurePlayerPosition()` conserve une position existante si `isValidPlayerPosition()` retourne true
+
+Conséquence :
+- un joueur déjà sur une petite île terrestre reste sur place
+- il ne profite pas automatiquement du nouveau safe spawn v2
+
+OBJECTIF TECHNIQUE
+Créer la plus petite solution propre pour forcer les joueurs existants à être replacés sur le safe spawn v2.
+
+SOLUTION ATTENDUE
+Créer un script serveur dédié, par exemple :
+- `server/scripts/respawnPlayersOnSafeSpawn.ts`
+
+Comportement attendu :
+1. calculer une seule fois le safe spawn v2 via :
+   - `findNearestValidGroundSpawn(CANONICAL_SPAWN.worldX, CANONICAL_SPAWN.worldY)`
+2. calculer `segmentX` / `segmentY`
+3. mettre à jour toutes les lignes de `player_positions`
+4. loguer :
+   - coordonnée finale
+   - segment final
+   - nombre de joueurs repositionnés
+
+IMPORTANT
+Ne pas refaire un reset complet du monde.
+Ne pas toucher au seed.
+Ne pas toucher à la génération.
+Ne pas toucher à l’auth.
+Ne pas toucher au gameplay.
+
+TRAVAIL DEMANDÉ
+
+1. DIAGNOSTIC
+Confirmer que le problème vient du fait que `ensurePlayerPosition()` conserve les positions existantes valides.
+
+2. FICHIERS CONCERNÉS
+- `server/scripts/respawnPlayersOnSafeSpawn.ts` (nouveau)
+- autre fichier seulement si strictement nécessaire
+
+3. MODIFICATION MINIMALE PROPOSÉE
+Créer le script de relocalisation.
+Réutiliser :
+- `findNearestValidGroundSpawn`
+- `CANONICAL_SPAWN`
+
+4. PREUVE DIRECTE
+Montrer dans les logs :
+- safe spawn résolu
+- segment calculé
+- nombre de joueurs mis à jour
+
+5. VÉRIFICATION
+Confirmer :
+- les joueurs existants sont bien déplacés
+- aucune autre donnée monde touchée
+- aucune architecture touchée
+
+6. STOP
+
+CONTRAINTE FINALE
+Tu ne lances aucun autre chantier.
+Tu crées uniquement un script pour forcer la relocalisation des joueurs existants vers le safe spawn v2.
