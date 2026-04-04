@@ -711,8 +711,8 @@ export function MedievalHUD() {
         </div>
       </div>
 
-      {/* Left Menu Panel - Back to original position */}
-      <div className="absolute top-1/2 left-4 transform -translate-y-1/2 pointer-events-auto">
+      {/* Left column — menu + tile info (même alignement top-4 que les autres menus) */}
+      <div className="absolute top-4 left-4 flex flex-col gap-2 pointer-events-auto">
         <div className="relative">
           {/* Menu principal unifié */}
           <div 
@@ -721,8 +721,6 @@ export function MedievalHUD() {
             onMouseDown={(e) => e.stopPropagation()}
             onMouseUp={(e) => e.stopPropagation()}
           >
-
-            
             <div className="space-y-2">
               {menuItems.map((item) => (
                 <button
@@ -748,6 +746,8 @@ export function MedievalHUD() {
             </div>
           </div>
         </div>
+        {/* TileInfoPanel — juste en dessous du menu gauche */}
+        <TileInfoPanel />
       </div>
 
       {/* Control Buttons */}
@@ -855,9 +855,6 @@ export function MedievalHUD() {
           </div>
         </div>
       )}
-
-      {/* Tile Information Panel */}
-      <TileInfoPanel />
 
       {/* Character Selector Modal */}
       {showCharacterSelector && (
@@ -969,9 +966,6 @@ export function MedievalHUD() {
           </div>
         </div>
       )}
-
-      {/* Tile Information Panel */}
-      <TileInfoPanel />
 
       {/* Level Up Notification */}
       <LevelUpNotification

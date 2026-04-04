@@ -541,7 +541,7 @@ export function TileInfoPanel() {
   };
 
   return (
-    <div className="absolute top-64 right-4 bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-lg p-4 w-80 max-h-96 overflow-y-auto pointer-events-auto">
+    <div className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-lg p-4 w-64 max-h-[60vh] overflow-y-auto pointer-events-auto">
       <div className="flex justify-between items-center mb-3">
         <div className="text-amber-900 font-bold text-lg">
           INFORMATIONS DE LA CASE
