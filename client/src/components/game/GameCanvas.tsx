@@ -257,18 +257,6 @@ export function GameCanvas() {
         // Stocker le hex pour onDoubleClick (terrain inclus)
         lastClickedHexRef.current = { x: hex.x, y: hex.y, terrain: hex.terrain };
 
-        // Vérifier si la case est explorée avant de permettre la sélection
-        const { isHexExplored } = usePlayer.getState();
-        const isAccessible = isHexExplored(hex.x, hex.y) || isAdmin;
-        
-        // Ne permettre la sélection que si la case est accessible
-        if (isAccessible) {
-          setSelectedHex(hex);
-        } else {
-          // Aucune action pour les cases non explorées
-          console.log('Case non explorée - aucune action possible');
-        }
-        
         // Déplacement d'unité sélectionnée (flux distinct du déplacement avatar)
         if (selectedUnit && (hex.x !== selectedUnit.x || hex.y !== selectedUnit.y)) {
           if (TerrainHelpers.isWalkable(hex.terrain)) {
@@ -284,7 +272,7 @@ export function GameCanvas() {
     }
     
     setMouseDownPos(null);
-  }, [selectedUnit, setSelectedHex, moveUnit, mouseDownPos, detectDoubleClick, isAdmin]);
+  }, [selectedUnit, moveUnit, mouseDownPos, detectDoubleClick, isAdmin]);
 
   // Update rendering when game state changes
   useEffect(() => {
