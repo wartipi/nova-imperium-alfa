@@ -1,0 +1,187 @@
+NOVA IMPERIUM — ÉTAPE SUIVANTE RECOMMANDÉE — INSTRUMENTER LES CHARGEMENTS DE BLOC CARTE AVANT TOUTE SOUS-DIVISION
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu interviens sur un chantier d’audit technique instrumenté.
+Tu dois respecter strictement :
+audit → diagnostic → instrumentation minimale → vérification.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucune modification de la taille canonique des segments.
+Aucune sous-division réelle dans cette étape.
+Aucune supposition.
+
+OBJECTIF
+Mesurer précisément ce qui coûte cher lors des transitions de bloc carte côté client.
+
+Le but n’est PAS de modifier encore les segments.
+Le but n’est PAS d’implémenter les micro-chunks.
+Le but est d’obtenir des mesures réelles pour savoir si la lourdeur vient surtout de :
+- fetch réseau
+- reconstruction du bloc mapData
+- swap d’origine monde
+- render canvas
+- recentrage caméra
+- combinaison de plusieurs de ces facteurs
+
+CONTEXTE TECHNIQUE
+État actuel connu :
+- les segments canoniques sont de 50x30
+- le client charge un bloc 3x3 autour du segment du joueur
+- useMap.loadBlockFromDB() gère chargement + cache + éviction
+- adaptBlockToMap/buildMapFromSegments reconstruit la carte active côté client
+- ensurePlayerSegmentLoaded() déclenche le rechargement quand le joueur change de segment
+- la caméra est recentrée sur l’avatar et peut amplifier la sensation de saut visuel
+
+IMPORTANT
+Cette étape est uniquement un audit instrumenté.
+Tu ne dois pas :
+- changer SEGMENT_WIDTH / SEGMENT_HEIGHT
+- changer le format DB
+- créer des micro-segments réels
+- changer la logique de vision
+- changer la logique métier
+- changer la persistance
+- ouvrir un chantier de refonte carte
+
+PÉRIMÈTRE DE L’AUDIT
+Lire avant toute modification :
+- shared/mapCoordinates.ts
+- client/src/lib/stores/useMap.tsx
+- client/src/lib/game/mapAdapter.ts
+- client/src/lib/api/mapApi.ts
+- client/src/components/game/CameraControls.tsx
+- si nécessaire GameCanvas.tsx et GameEngine.ts
+
+OBJECTIF D’INSTRUMENTATION
+Je veux des mesures concrètes, lisibles, centrées sur les transitions de bloc.
+
+MESURES À CAPTURER
+Pour chaque transition déclenchée par ensurePlayerSegmentLoaded / loadBlockFromDB :
+
+1. segment de départ et segment cible
+2. heure de début du chargement
+3. durée fetchMapBlock()
+4. nombre de segments effectivement reçus
+5. nombre total de tiles reçues
+6. durée buildMapFromSegments()/adaptBlockToMap()
+7. dimensions finales du mapData reconstruit
+8. durée entre "début loadBlockFromDB" et "state prêt"
+9. durée du premier render suivant le swap si mesurable simplement
+10. nombre de segments évincés du cache
+11. taille finale du cache actif
+12. position monde/origine avant et après
+13. si possible : durée du recentrage caméra déclenché autour du même moment
+
+IMPORTANT
+Mesurer simplement et proprement.
+Pas de profiler complexe.
+Pas de bibliothèque externe.
+Pas de refonte.
+
+SOLUTION ATTENDUE
+Mettre en place une instrumentation minimale et propre avec :
+- performance.now() côté client
+- logs structurés et lisibles
+- éventuellement un petit buffer mémoire debug global
+- aucune pollution métier
+
+FORMAT DE LOG RECOMMANDÉ
+Je veux des logs stables et faciles à lire, par exemple :
+[MapPerf] Transition start from=(a,b) to=(c,d)
+[MapPerf] Fetch done ms=...
+[MapPerf] Build done ms=...
+[MapPerf] State ready ms=...
+[MapPerf] Render after swap ms=...
+[MapPerf] Summary {...}
+
+Tu peux utiliser un objet résumé unique par transition.
+
+OPTION RECOMMANDÉE
+Si c’est simple et propre, ajoute un petit buffer global debug non intrusif du style :
+window.__novaMapPerf = {
+  lastTransitions: [...]
+}
+
+Contraintes :
+- garder seulement les 10 ou 20 dernières transitions
+- pas de dépendance UI obligatoire
+- pas de panneau debug visuel si ce n’est pas strictement nécessaire
+
+PRIORITÉ
+Je préfère :
+- instrumentation console propre
+- résumé clair
+plutôt qu’un overlay UI.
+
+POINTS D’INJECTION PROBABLES
+Tu dois auditer le code réel, mais les points probables sont :
+- useMap.loadBlockFromDB()
+- fetchMapBlock()
+- buildMapFromSegments()/adaptBlockToMap()
+- éventuellement après set(...) et/ou premier render du GameEngine si un hook simple est possible
+
+IMPORTANT
+Si mesurer le "premier render après swap" proprement est trop intrusif :
+- ne casse rien
+- signale clairement la limite
+- capture au minimum le temps jusqu’au state prêt
+
+CONTRAINTE DE MODIFICATION
+Le chantier doit rester minimal :
+- quelques mesures
+- quelques logs
+- éventuellement un petit helper local de perf
+- pas de refactor large
+
+NE PAS CASSER
+- chargement de carte
+- cache segment
+- éviction
+- recalibration origine joueur
+- caméra
+- mouvement
+- vision
+- rendu
+- synchronisation territoire
+- HUD
+
+RAPPORT FINAL OBLIGATOIRE
+Après implémentation, réponds exactement avec :
+
+1. DIAGNOSTIC
+- où les transitions sont réellement pilotées
+- où l’instrumentation a été branchée
+
+2. FICHIERS CONCERNÉS
+- liste exacte
+
+3. MODIFICATION MINIMALE PROPOSÉE
+- quelles mesures ont été ajoutées
+- quels logs/résumés existent
+- si un buffer debug global a été ajouté
+
+4. PREUVE DIRECTE
+- montrer un exemple réel de résumé de transition
+- fetch ms
+- build ms
+- state ready ms
+- render ms si disponible
+- tailles du bloc/cache
+
+5. VÉRIFICATION
+Confirmer :
+- aucun comportement carte modifié
+- instrumentation visible en console
+- transitions mesurables
+- aucune régression
+
+6. STOP
+
+CONTRAINTE FINALE
+Tu n’optimises rien dans cette étape.
+Tu ne modifies pas la taille des segments.
+Tu n’implémentes pas encore de sous-division.
+Tu fournis uniquement l’instrumentation nécessaire pour décider proprement de l’étape suivante.

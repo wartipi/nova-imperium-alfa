@@ -171,7 +171,19 @@ export function GameCanvas() {
         // Enregistrer les callbacks vision maintenant que les tuiles sont chargées
         // et forcer un rendu : exploredHexes et currentVision contiennent les bonnes données.
         engine?.setVisionCallbacks(isHexVisible, isHexInCurrentVision, isHexInFogRing);
+        const _tRender = performance.now();
         engine?.render();
+        const _renderMs = Math.round(performance.now() - _tRender);
+        // ── [MapPerf] Render after swap ───────────────────────────────────────
+        type _PerfBuf = { lastTransitions: Array<{ _stateReadyAt: number; renderAfterSwapMs: number | null }> };
+        const _w = window as typeof window & { __novaMapPerf?: _PerfBuf };
+        const _last = _w.__novaMapPerf?.lastTransitions?.at?.(-1);
+        if (_last?._stateReadyAt) {
+          const _swapToRenderMs = Math.round(performance.now() - _last._stateReadyAt);
+          _last.renderAfterSwapMs = _swapToRenderMs;
+          console.log(`[MapPerf] Render after swap ms=${_swapToRenderMs} (engine.render()=${_renderMs}ms)`);
+        }
+        // ─────────────────────────────────────────────────────────────────────
       });
     }
   }, [mapData]);
