@@ -1,0 +1,246 @@
+NOVA IMPERIUM — ÉTAPE SUIVANTE — RETIRER LES OUTILS DEBUG, GÉNÉRER UNE MAP 20x20 SEGMENTS, RESET COMPLET DE LA PARTIE
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu interviens sur un chantier ciblé de préparation d’environnement de test.
+Tu dois respecter strictement :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucune supposition.
+Tu dois préserver la cohérence du projet.
+
+OBJECTIF
+Préparer un nouveau test grandeur nature de la carte en :
+
+1. retirant les instruments/debug perf ajoutés pour diagnostiquer les transitions de bloc
+2. générant une carte beaucoup plus grande : 20x20 segments
+3. resetant complètement la partie en cours pour repartir sur un monde neuf
+
+IMPORTANT
+Le but n’est PAS de changer la logique des segments.
+Le but n’est PAS de refaire la génération.
+Le but n’est PAS de toucher à la vision gameplay.
+Le but est uniquement :
+- enlever les outils de debug temporaires
+- créer un monde plus grand pour les tests
+- repartir d’un état propre
+
+CONTEXTE VÉRIFIÉ
+État actuel :
+- une instrumentation `MapPerf` a été ajoutée dans :
+  - `client/src/lib/stores/useMap.tsx`
+  - `client/src/components/game/GameCanvas.tsx`
+- la carte seedée actuelle semble limitée à un voisinage 3x3 autour de `(0,0)` via `getAdjacentSegmentCoords(0, 0)` dans `server/seeds/mapSeed.ts`
+- je veux maintenant une vraie carte de test plus large
+- je veux repartir à zéro sur une nouvelle partie
+
+CONTRAINTE ABSOLUE
+Tu ne dois pas faire un reset flou ou partiel.
+Tu dois d’abord auditer les tables réellement concernées par “la partie en cours” et remettre uniquement ce qui doit être remis à neuf pour repartir sur un nouveau monde/test.
+
+TU DOIS GARDER
+- comptes utilisateurs / auth
+- structure DB
+- schéma
+- code métier
+- compétences / progression joueur seulement si elles ne dépendent pas du monde à reset
+- toute donnée qui n’est pas directement liée à la partie courante ou au monde à régénérer, sauf nécessité claire
+
+TU DOIS RESET
+tout ce qui représente le monde courant et sa progression de partie, après audit précis.
+
+TRAVAIL DEMANDÉ
+
+ÉTAPE 1 — AUDIT
+Lire avant toute modification :
+- `server/seeds/mapSeed.ts`
+- `shared/mapCoordinates.ts`
+- `shared/schema.ts`
+- fichiers serveur liés à la carte / segments / territoires / colonies / villes / découvertes / actions / positions si nécessaires
+- les fichiers où l’instrumentation debug MapPerf a été ajoutée :
+  - `client/src/lib/stores/useMap.tsx`
+  - `client/src/components/game/GameCanvas.tsx`
+
+Confirmer explicitement :
+1. où le seed carte limite actuellement le monde à 3x3 segments
+2. quels outils debug/perf temporaires ont été ajoutés
+3. quelles tables représentent réellement la partie en cours / monde courant
+4. quelles tables doivent être conservées
+5. quelles tables doivent être resetées pour repartir à neuf
+
+IMPORTANT
+Je veux un audit réel, pas une supposition.
+
+ÉTAPE 2 — RETIRER LES OUTILS DEBUG TEMPORAIRES
+Retirer proprement les instruments de debug ajoutés pour le diagnostic des segments.
+
+Cible minimale :
+- `MapPerf` dans `client/src/lib/stores/useMap.tsx`
+- instrumentation de rendu associée dans `client/src/components/game/GameCanvas.tsx`
+
+À retirer :
+- logs `[MapPerf]`
+- mesures `performance.now()` ajoutées pour ce diagnostic
+- buffer global `window.__novaMapPerf`
+- toute couche purement temporaire de diagnostic de ce chantier
+
+IMPORTANT
+Ne retire pas de logs métier utiles.
+Ne retire pas autre chose que ces outils temporaires de debug/perf.
+Revenir à un état propre, lisible, sans instrumentation temporaire.
+
+ÉTAPE 3 — ÉTENDRE LE SEED MONDE À 20x20 SEGMENTS
+Modifier le seed de carte pour générer une carte de test de 20x20 segments.
+
+RÈGLE
+Ne change pas la taille canonique d’un segment.
+On garde :
+- `SEGMENT_WIDTH`
+- `SEGMENT_HEIGHT`
+
+On change seulement :
+- l’étendue du seed
+
+ATTENDU
+Le seed doit générer un monde de 20 segments par 20 segments = 400 segments.
+
+Je veux quelque chose de propre et déterministe, centré de façon cohérente autour de 0,0.
+
+Exemple acceptable :
+- segmentX de -10 à +9
+- segmentY de -10 à +9
+
+ou toute autre convention propre, tant que :
+- c’est explicitement documenté
+- c’est bien 20x20
+- la carte reste déterministe
+- le centre logique reste cohérent
+
+IMPORTANT
+Ne plus utiliser seulement `getAdjacentSegmentCoords(0, 0)` pour le seed.
+Il faut générer explicitement la grille 20x20 de segments.
+
+ÉTAPE 4 — RESET COMPLET DE LA PARTIE COURANTE
+Je veux repartir sur une partie neuve.
+
+Tu dois préparer un reset propre du monde courant.
+
+OBJECTIF
+Après reset + nouveau seed :
+- plus aucune ancienne carte
+- plus aucune ancienne colonie
+- plus aucun ancien claim/territoire
+- plus aucune ancienne découverte de carte
+- plus aucune ancienne action en cours
+- plus aucune ancienne position monde incohérente
+- repartir sur une base propre de test
+
+IMPORTANT
+Tu dois auditer et reset les tables exactes concernées.
+Tu ne dois pas effacer au hasard.
+
+Approche recommandée :
+- créer un script serveur dédié de reset world/test
+ou
+- étendre proprement le script de seed pour inclure un reset contrôlé avant régénération
+ou
+- créer une commande explicite “reset + reseed”
+
+Je préfère une solution claire, réexécutable, lisible.
+
+EXIGENCES DU RESET
+Le reset doit au minimum, après audit réel, traiter :
+- segments / tuiles carte
+- territoires / claims
+- colonies / villes / bâtiments / inventaires liés au monde si nécessaires
+- tuiles découvertes / exploration persistée
+- actions joueur persistantes
+- positions monde joueur si elles deviennent invalides
+- toute autre donnée strictement liée à la partie en cours
+
+IMPORTANT
+Après reset, les joueurs doivent pouvoir repartir sur le nouveau monde sans incohérence de coordonnées ou références cassées.
+
+ÉTAPE 5 — RESPAWN / REPOSITIONNEMENT PROPRE
+Après reset + nouveau seed 20x20, il faut que la reprise soit propre.
+
+Tu dois vérifier comment sont gérées les positions joueur après reseed.
+Je veux éviter :
+- joueur dans l’eau
+- joueur hors bloc chargé
+- joueur sur ancienne coordonnée invalide
+- ancien segment référencé alors qu’il n’existe plus
+
+ATTENDU
+Mettre en place la plus petite stratégie stable pour que les joueurs redémarrent dans un état cohérent sur la nouvelle carte.
+
+Exemples possibles selon audit réel :
+- repositionnement sur une position de départ canonique
+- réinitialisation des positions monde vers une zone sûre
+- nettoyage des états de déplacement/action en cours
+
+Ne pas improviser : suivre l’audit réel.
+
+ÉTAPE 6 — NE PAS CASSER
+Ne pas casser :
+- architecture segments
+- génération déterministe
+- logique de vision
+- logique de déplacement
+- auth / users
+- compétences / progression si non concernées par le reset monde
+- routes API existantes hors tables resetées
+
+ÉTAPE 7 — VÉRIFICATION
+Tu dois exécuter la vérification réelle après implémentation.
+
+Je veux au minimum :
+1. confirmation que les outils debug sont retirés
+2. confirmation que le seed génère bien 20x20 segments
+3. confirmation du nombre total de segments et tuiles générés
+4. confirmation qu’il n’y a plus d’anciennes colonies/territoires/actions du monde précédent
+5. confirmation qu’un joueur reconnecté repart sur un état cohérent
+6. confirmation que le serveur redémarre proprement
+
+ÉTAPE 8 — RAPPORT FINAL OBLIGATOIRE
+Après implémentation, réponds exactement avec :
+
+1. DIAGNOSTIC
+- état initial
+- périmètre réel du reset
+- taille réelle de seed avant/après
+
+2. FICHIERS CONCERNÉS
+- liste exacte
+
+3. MODIFICATION MINIMALE PROPOSÉE
+- debug retiré
+- seed étendu à 20x20
+- stratégie de reset choisie
+- stratégie de repositionnement choisie
+
+4. PREUVE DIRECTE
+- nombre de segments générés
+- nombre de tuiles générées
+- confirmation des tables resetées
+- confirmation de l’absence des anciennes données monde
+
+5. VÉRIFICATION
+Confirmer :
+- plus de MapPerf
+- monde 20x20 bien seedé
+- partie remise à neuf
+- serveur propre
+- reprise joueur cohérente
+
+6. STOP
+
+CONTRAINTE FINALE
+Tu ne lances aucun autre chantier.
+Tu fais uniquement :
+- retrait des outils debug temporaires
+- agrandissement du seed monde à 20x20 segments
+- reset propre de la partie en cours pour repartir à neuf.

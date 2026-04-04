@@ -89,19 +89,6 @@ export const useMap = create<MapState>()(
         return;
       }
 
-      // ── [MapPerf] Instrumentation transition ────────────────────────────────
-      const _t0 = performance.now();
-      const {
-        loadedCenterSegmentX: _fromSegX,
-        loadedCenterSegmentY: _fromSegY,
-        originWorldX: _prevOriginX,
-        originWorldY: _prevOriginY,
-      } = get();
-      console.log(
-        `[MapPerf] Transition start from=(${_fromSegX},${_fromSegY}) to=(${centerSegX},${centerSegY})`
-      );
-      // ────────────────────────────────────────────────────────────────────────
-
       set({ isLoadingFromDB: true, pendingSegmentX: null, pendingSegmentY: null });
 
       try {
@@ -112,32 +99,13 @@ export const useMap = create<MapState>()(
         const allCached = Array.from(activeKeys).every((k) => k in cachedSegments);
 
         let newCachedSegments: Record<string, CachedSegment>;
-        let _fetchMs = 0;
-        let _segmentsReceived = 0;
-        let _tilesReceived = 0;
 
         if (allCached) {
           console.log(`[Map] Bloc (${centerSegX},${centerSegY}) entièrement en cache — aucun fetch réseau`);
           newCachedSegments = { ...cachedSegments };
-          _segmentsReceived = activeKeys.size;
-          _tilesReceived = Array.from(activeKeys).reduce(
-            (s, k) => s + (cachedSegments[k]?.tiles.length ?? 0),
-            0
-          );
-          console.log(`[MapPerf] Cache hit — segments=${_segmentsReceived} tiles=${_tilesReceived}`);
         } else {
           console.log(`[Map] Chargement bloc DB: segment central (${centerSegX}, ${centerSegY})`);
-
-          // ── Fetch timing ────────────────────────────────────────────────────
-          const _tFetch = performance.now();
           const block = await fetchMapBlock(centerSegX, centerSegY);
-          _fetchMs = performance.now() - _tFetch;
-          _segmentsReceived = block.segmentCount;
-          _tilesReceived = block.totalTiles;
-          console.log(
-            `[MapPerf] Fetch done ms=${Math.round(_fetchMs)} | segments=${_segmentsReceived} tiles=${_tilesReceived}`
-          );
-          // ───────────────────────────────────────────────────────────────────
 
           // Fusionner les nouveaux segments dans le cache
           newCachedSegments = { ...cachedSegments };
@@ -164,18 +132,9 @@ export const useMap = create<MapState>()(
           .filter((k) => k in newCachedSegments)
           .map((k) => newCachedSegments[k]);
 
-        // ── Build timing ─────────────────────────────────────────────────────
-        const _tBuild = performance.now();
         const { mapData, width, height, originWorldX, originWorldY } =
           buildMapFromSegments(activeSegments);
-        const _buildMs = performance.now() - _tBuild;
-        console.log(
-          `[MapPerf] Build done ms=${Math.round(_buildMs)} | map=${width}x${height} tiles=${width * height}`
-        );
-        // ────────────────────────────────────────────────────────────────────
 
-        // ── State set timing ─────────────────────────────────────────────────
-        const _tState = performance.now();
         set({
           mapData,
           mapWidth: width,
@@ -186,51 +145,11 @@ export const useMap = create<MapState>()(
           loadedCenterSegmentY: centerSegY,
           cachedSegments: newCachedSegments,
         });
-        const _stateMs = performance.now() - _tState;
-        const _totalMs = performance.now() - _t0;
-        const _stateReadyAt = performance.now();
-        // ────────────────────────────────────────────────────────────────────
 
         console.log(
           `[Map] Bloc prêt: ${width}x${height} — ${activeSegments.length} segments en cache` +
           ` — origine (${originWorldX}, ${originWorldY})`
         );
-
-        // ── [MapPerf] Summary + buffer global ───────────────────────────────
-        const _summary = {
-          from:             `(${_fromSegX},${_fromSegY})`,
-          to:               `(${centerSegX},${centerSegY})`,
-          cached:           allCached,
-          fetchMs:          Math.round(_fetchMs),
-          segmentsReceived: _segmentsReceived,
-          tilesReceived:    _tilesReceived,
-          buildMs:          Math.round(_buildMs),
-          mapDimensions:    `${width}x${height}`,
-          stateReadyMs:     Math.round(_stateMs),
-          totalMs:          Math.round(_totalMs),
-          evictedCount:     evicted.length,
-          cacheSize:        Object.keys(newCachedSegments).length,
-          prevOrigin:       `(${_prevOriginX},${_prevOriginY})`,
-          newOrigin:        `(${originWorldX},${originWorldY})`,
-          renderAfterSwapMs: null as number | null,
-          _stateReadyAt,
-          ts:               new Date().toISOString(),
-        };
-        console.log(
-          `[MapPerf] State ready ms=${_summary.stateReadyMs} | total ms=${_summary.totalMs}`
-        );
-        console.log(
-          `[MapPerf] Cache: evicted=${_summary.evictedCount} size=${_summary.cacheSize}` +
-          ` | origin ${_summary.prevOrigin} → ${_summary.newOrigin}`
-        );
-        console.log(`[MapPerf] Summary`, _summary);
-
-        type _PerfBuf = { lastTransitions: typeof _summary[] };
-        const _w = window as typeof window & { __novaMapPerf?: _PerfBuf };
-        if (!_w.__novaMapPerf) _w.__novaMapPerf = { lastTransitions: [] };
-        _w.__novaMapPerf.lastTransitions.push(_summary);
-        if (_w.__novaMapPerf.lastTransitions.length > 20) _w.__novaMapPerf.lastTransitions.shift();
-        // ────────────────────────────────────────────────────────────────────
 
       } catch (err) {
         console.error("[Map] Échec chargement DB, fallback procédural:", err);

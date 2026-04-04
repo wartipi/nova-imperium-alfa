@@ -234,10 +234,26 @@ function generateTilesForSegment(
   return tiles;
 }
 
-export async function seedMap(): Promise<void> {
-  console.log("Démarrage du seed de la carte segmentée...");
+// ─── Grille monde 20×20 segments ─────────────────────────────────────────────
+// segmentX : -10 à +9 (inclus)
+// segmentY : -10 à +9 (inclus)
+// Monde monde : worldX de -500 à +499, worldY de -300 à +299
+// Centre géométrique : (0, 0) dans l'espace segment → worldX=0, worldY=0
+function getWorldGrid20x20(): Array<{ segmentX: number; segmentY: number }> {
+  const coords: Array<{ segmentX: number; segmentY: number }> = [];
+  for (let sy = -10; sy <= 9; sy++) {
+    for (let sx = -10; sx <= 9; sx++) {
+      coords.push({ segmentX: sx, segmentY: sy });
+    }
+  }
+  return coords;
+}
 
-  const coords = getAdjacentSegmentCoords(0, 0);
+export async function seedMap(): Promise<void> {
+  console.log("Démarrage du seed de la carte segmentée (20×20 segments)...");
+  console.log("  Grille : segmentX [-10, +9] × segmentY [-10, +9]");
+
+  const coords = getWorldGrid20x20();
   let segmentsCreated = 0;
   let tilesCreated = 0;
 
@@ -261,15 +277,19 @@ export async function seedMap(): Promise<void> {
   const totalTiles = await getTileCount();
 
   console.log(`Seed terminé.`);
-  console.log(`  Segments créés cette exécution : ${segmentsCreated}`);
+  console.log(`  Segments créés cette exécution : ${segmentsCreated} / 400`);
   console.log(`  Tuiles créées cette exécution  : ${tilesCreated}`);
   console.log(`  Total segments en base         : ${totalSegments}`);
   console.log(`  Total tuiles en base           : ${totalTiles}`);
 }
 
-seedMap()
-  .then(() => process.exit(0))
-  .catch((err) => {
-    console.error("Erreur lors du seed:", err);
-    process.exit(1);
-  });
+// Exécution directe uniquement (tsx server/seeds/mapSeed.ts)
+// Lorsque ce module est importé par resetWorld.ts, ce bloc ne s'exécute pas.
+if (process.argv[1] && process.argv[1].replace(/\\/g, "/").includes("seeds/mapSeed")) {
+  seedMap()
+    .then(() => process.exit(0))
+    .catch((err) => {
+      console.error("Erreur lors du seed:", err);
+      process.exit(1);
+    });
+}
