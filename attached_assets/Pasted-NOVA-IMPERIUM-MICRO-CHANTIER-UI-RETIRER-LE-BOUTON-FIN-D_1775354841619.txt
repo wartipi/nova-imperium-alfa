@@ -1,0 +1,83 @@
+NOVA IMPERIUM — MICRO-CHANTIER UI — RETIRER LE BOUTON “FIN DE TOUR” ET LE BOUTON “RECENTRER”
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu interviens sur un micro-chantier UI ciblé.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucun chantier parallèle.
+Tu dois faire le plus petit correctif propre possible.
+
+OBJECTIF
+Retirer de l’interface :
+1. le bouton **“Fin de Tour”**
+2. le bouton **“🎯 Recentrer”**
+
+IMPORTANT
+Le but est uniquement de retirer ces deux boutons de l’UI.
+Ne touche pas :
+- au système d’horloge
+- au scheduler de tour
+- au backend des tours
+- au système caméra
+- au raccourci clavier Espace si encore présent
+- à `centerCameraOnAvatar()` lui-même
+- à la logique `handleEndTurn()` sauf si elle devient totalement inutilisée et que son retrait est strictement local et propre
+
+CONTEXTE VÉRIFIÉ
+Dans `client/src/components/game/MedievalHUD.tsx` :
+- il existe en bas à gauche un bloc “Control Buttons”
+- ce bloc contient :
+  - bouton son
+  - bouton “⚔️ Fin de Tour”
+- plus bas, il existe un bouton fixe :
+  - “🎯 Recentrer”
+
+Le bouton “Fin de Tour” ne doit plus être affiché.
+Le bouton “Recentrer” ne doit plus être affiché.
+
+TRAVAIL DEMANDÉ
+
+1. DIAGNOSTIC
+Confirmer explicitement :
+- où se trouve le bouton “Fin de Tour”
+- où se trouve le bouton “🎯 Recentrer”
+- que la demande porte uniquement sur leur retrait visuel
+
+2. FICHIERS CONCERNÉS
+- `client/src/components/game/MedievalHUD.tsx`
+- aucun autre fichier sauf nécessité absolue
+
+3. MODIFICATION MINIMALE PROPOSÉE
+Dans `MedievalHUD.tsx` :
+- retirer le rendu du bouton “Fin de Tour”
+- retirer le rendu du bouton “🎯 Recentrer”
+- conserver le bouton son
+- conserver le reste du HUD intact
+
+IMPORTANT
+Si `handleEndTurn`, `isEndingTurn` ou imports liés deviennent inutilisés après retrait, tu peux faire un nettoyage local minimal dans ce même fichier uniquement.
+Pas de refactor.
+Pas de propagation ailleurs.
+
+4. PREUVE DIRECTE
+Expliquer :
+- quel bloc JSX a été retiré pour “Fin de Tour”
+- quel bloc JSX a été retiré pour “Recentrer”
+- ce qui a été laissé intact
+
+5. VÉRIFICATION
+Confirmer :
+- plus de bouton “Fin de Tour” dans le HUD
+- plus de bouton “🎯 Recentrer” dans le HUD
+- bouton son toujours présent
+- aucun autre panneau touché
+- aucun backend touché
+
+6. STOP
+
+CONTRAINTE FINALE
+Tu ne lances aucun autre chantier.
+Tu retires uniquement ces deux boutons de l’interface dans `client/src/components/game/MedievalHUD.tsx`.

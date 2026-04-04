@@ -66,9 +66,6 @@ export function MedievalHUD() {
   // Synchronisation des systèmes de ressources
   const { isInSync } = useDualResourceSync();
 
-  // Flag fin de tour — empêche le double clic pendant le traitement
-  const [isEndingTurn, setIsEndingTurn] = useState(false);
-
   // Horloge serveur-authoritative
   const [clockData, setClockData] = useState<GameClockData | null>(null);
   const [clientNow, setClientNow] = useState(() => new Date());
@@ -202,64 +199,6 @@ export function MedievalHUD() {
     return () => window.removeEventListener('nova:ap-refresh', handler);
   }, []);
 
-  // ─── Fin de Tour ──────────────────────────────────────────────────────────
-  const handleEndTurn = async () => {
-    if (isEndingTurn) return;
-    setIsEndingTurn(true);
-    try {
-      if (playerFaction) {
-        // Tick de production par-ville (player_bank / city_pending_harvest)
-        // Modèle canonique — faction_economy n'est plus alimentée automatiquement.
-        try {
-          const prodResult = await postProductionTick(currentTurn);
-          console.log("[handleEndTurn] Production tick:", prodResult);
-          if (prodResult.applied && prodResult.cities.length > 0) {
-            setLastTurnResult(prodResult);
-            window.dispatchEvent(new CustomEvent('nova:logistic-refresh'));
-          }
-        } catch (prodErr) {
-          console.warn("[handleEndTurn] Production tick échoué (non bloquant):", prodErr);
-        }
-        // Tick de production de ville — serveur autoritaire
-        try {
-          const cityTickResult = await apiProductionTick();
-          console.log("[handleEndTurn] City production tick:", cityTickResult);
-          // Hydrate le store local depuis l'état serveur réel
-          await hydrateCitiesFromServer();
-          await hydrateUnitsFromServer();
-          // Toasts bâtiments
-          for (const { buildingId, cityName } of cityTickResult.completedBuildings) {
-            window.dispatchEvent(new CustomEvent('nova:building-completed', {
-              detail: { buildingId, cityName },
-            }));
-          }
-          // Toasts unités
-          for (const { unitType, unitName, cityName } of cityTickResult.completedUnits) {
-            const id = ++toastCounterRef.current;
-            setUnitToasts(prev => [...prev, { id, unitType, unitName, cityName }]);
-            setTimeout(() => setUnitToasts(prev => prev.filter(t => t.id !== id)), 6000);
-          }
-          if (cityTickResult.completedBuildings.length > 0 || cityTickResult.progressed.length > 0 || cityTickResult.completedUnits.length > 0) {
-            window.dispatchEvent(new CustomEvent('nova:logistic-refresh'));
-          }
-        } catch (cityTickErr) {
-          console.warn("[handleEndTurn] Tick production ville échoué (non bloquant):", cityTickErr);
-        }
-        // Reset mouvement unités + IA locale (production ville retirée de processTurn)
-        processTurn();
-        // Incrément du tour
-        endTurn();
-      } else {
-        // Pas de faction — pas de tick économique, on avance quand même
-        processTurn();
-        endTurn();
-      }
-    } catch (err) {
-      console.warn("[handleEndTurn] Erreur fin de tour — tour non avancé :", err);
-    } finally {
-      setIsEndingTurn(false);
-    }
-  };
 
   const getUserRole = () => {
     if (currentUser === 'admin') return 'Administrateur';
@@ -770,25 +709,9 @@ export function MedievalHUD() {
           >
             {isMuted ? "🔇" : "🔊"}
           </button>
-          <button
-            onClick={handleEndTurn}
-            disabled={isEndingTurn}
-            className="bg-amber-700 border border-amber-900 text-amber-50 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-1 rounded text-sm font-bold"
-            title={isEndingTurn ? "Traitement en cours..." : "Passer au tour suivant"}
-          >
-            {isEndingTurn ? "⏳" : "⚔️ Fin de Tour"}
-          </button>
         </div>
       </div>
 
-      {/* Bouton Recentrer caméra */}
-      <button
-        className="fixed bottom-48 right-4 pointer-events-auto z-[9991] bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs font-semibold px-3 py-1.5 rounded shadow-md border border-amber-600"
-        onClick={() => (window as any).gameEngine?.centerCameraOnAvatar()}
-        title="Recentrer la caméra sur votre personnage (ou appuyez sur Espace)"
-      >
-        🎯 Recentrer
-      </button>
 
       {/* MiniMap */}
       <div 
