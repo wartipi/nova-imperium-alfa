@@ -7,15 +7,99 @@ import { CANONICAL_SPAWN } from "../shared/runtimeDefaults";
 const SEGMENT_WIDTH = 50;
 const SEGMENT_HEIGHT = 30;
 
+// ─── Taille minimale de masse terrestre pour un spawn viable ──────────────────
+const MIN_SPAWN_LANDMASS_SIZE = 25;
+
+// Rayon de recherche SQL initial (cases candidates autour du spawn canonique)
+const SPAWN_SEARCH_RADIUS = 100;
+// Nombre maximum de candidates à évaluer (par lot) avant d'élargir
+const SPAWN_CANDIDATE_LIMIT = 150;
+
 export function getActiveSpawnPoint(): { worldX: number; worldY: number } {
   return CANONICAL_SPAWN;
 }
 
-// ─── Règle de validité de position (prototype) ────────────────────────────────
-// Une position est valide ssi :
-//   - la tuile existe dans map_tiles
-//   - is_walkable = true
-//   - terrain_type ≠ deep_water ET terrain_type ≠ shallow_water
+// ─── Voisinage hex canonique (colonnes paires/impaires) ───────────────────────
+// Miroir exact de HexMath.getAdjacentHexes (client/src/lib/systems/HexMath.ts).
+// Colonnes impaires décalées vers le bas (odd-column-down offset coords).
+function hexNeighbors(x: number, y: number): Array<{ x: number; y: number }> {
+  const odd = x % 2 !== 0;
+  if (odd) {
+    return [
+      { x: x - 1, y },
+      { x: x + 1, y },
+      { x, y: y - 1 },
+      { x, y: y + 1 },
+      { x: x - 1, y: y + 1 },
+      { x: x + 1, y: y + 1 },
+    ];
+  } else {
+    return [
+      { x: x - 1, y },
+      { x: x + 1, y },
+      { x, y: y - 1 },
+      { x, y: y + 1 },
+      { x: x - 1, y: y - 1 },
+      { x: x + 1, y: y - 1 },
+    ];
+  }
+}
+
+// ─── BFS flood-fill : taille de la masse terrestre connectée ─────────────────
+// Démarre sur (startWorldX, startWorldY), considérée déjà valide.
+// Utilise le voisinage hex canonique.
+// S'arrête dès que le compte atteint MIN_SPAWN_LANDMASS_SIZE (early exit).
+// Chaque round BFS = une seule requête SQL sur tous les voisins candidats.
+async function computeConnectedLandmassSize(
+  startWorldX: number,
+  startWorldY: number
+): Promise<number> {
+  const visited = new Set<string>([`${startWorldX},${startWorldY}`]);
+  let frontier: Array<{ x: number; y: number }> = [
+    { x: startWorldX, y: startWorldY },
+  ];
+  let count = 1; // la tuile de départ est déjà comptée
+
+  while (frontier.length > 0 && count < MIN_SPAWN_LANDMASS_SIZE) {
+    // Collecter tous les voisins non encore visités de la frontière courante
+    const candidates: Array<{ x: number; y: number }> = [];
+    for (const tile of frontier) {
+      for (const nb of hexNeighbors(tile.x, tile.y)) {
+        const key = `${nb.x},${nb.y}`;
+        if (!visited.has(key)) {
+          visited.add(key);
+          candidates.push(nb);
+        }
+      }
+    }
+
+    if (candidates.length === 0) break;
+
+    // Une seule requête SQL pour tous les voisins candidats
+    const rows = await db
+      .select({ worldX: mapTiles.worldX, worldY: mapTiles.worldY })
+      .from(mapTiles)
+      .where(
+        drizzleSql`
+          (${mapTiles.worldX}, ${mapTiles.worldY}) IN (
+            ${drizzleSql.join(
+              candidates.map((c) => drizzleSql`(${c.x}, ${c.y})`),
+              drizzleSql`, `
+            )}
+          )
+          AND ${mapTiles.isWalkable} = true
+          AND ${mapTiles.terrainType} NOT IN ('deep_water', 'shallow_water')
+        `
+      );
+
+    frontier = rows.map((r) => ({ x: r.worldX, y: r.worldY }));
+    count += frontier.length;
+  }
+
+  return count;
+}
+
+// ─── Règle de validité de position ────────────────────────────────────────────
 export async function isValidPlayerPosition(
   worldX: number,
   worldY: number
@@ -25,25 +109,26 @@ export async function isValidPlayerPosition(
     .from(mapTiles)
     .where(and(eq(mapTiles.worldX, worldX), eq(mapTiles.worldY, worldY)));
 
-  if (!tile)                              return false;
-  if (!tile.isWalkable)                   return false;
-  if (tile.terrainType === "deep_water")  return false;
+  if (!tile)                                return false;
+  if (!tile.isWalkable)                     return false;
+  if (tile.terrainType === "deep_water")    return false;
   if (tile.terrainType === "shallow_water") return false;
   return true;
 }
 
-// ─── Safe spawn : case terrestre valide la plus proche ────────────────────────
-// Cherche dans un carré de ±SEARCH_RADIUS cases autour de (startWorldX, startWorldY)
-// la tuile terrestre walkable la plus proche (distance Manhattan).
-// Requête unique — déterministe pour une même carte.
-// Retourne le point de départ si aucune tuile valide trouvée dans le rayon.
-const SPAWN_SEARCH_RADIUS = 100;
-
+// ─── Safe spawn v2 : masse terrestre minimale ─────────────────────────────────
+// 1. Récupère SPAWN_CANDIDATE_LIMIT cases terrestres ordonnées par distance Manhattan
+//    dans un rayon SPAWN_SEARCH_RADIUS autour de (startWorldX, startWorldY).
+// 2. Teste chaque candidat du plus proche au plus loin via computeConnectedLandmassSize.
+// 3. Retourne le premier candidat dont la masse terrestre ≥ MIN_SPAWN_LANDMASS_SIZE.
+// 4. Si aucun candidat ne satisfait le seuil, retourne le meilleur trouvé (fallback
+//    explicitement loggé) plutôt que de revenir silencieusement sur une micro-île.
 export async function findNearestValidGroundSpawn(
   startWorldX: number,
   startWorldY: number
 ): Promise<{ worldX: number; worldY: number }> {
-  const [tile] = await db
+  // ── Récupérer les candidats terrestres ordonnés par proximité ──────────────
+  const candidates = await db
     .select({ worldX: mapTiles.worldX, worldY: mapTiles.worldY })
     .from(mapTiles)
     .where(
@@ -57,20 +142,50 @@ export async function findNearestValidGroundSpawn(
     .orderBy(
       drizzleSql`ABS(${mapTiles.worldX} - ${startWorldX}) + ABS(${mapTiles.worldY} - ${startWorldY})`
     )
-    .limit(1);
+    .limit(SPAWN_CANDIDATE_LIMIT);
 
-  if (tile) {
-    console.log(
-      `[PlayerPosition] Safe spawn résolu: (${tile.worldX},${tile.worldY})` +
-      ` — depuis départ (${startWorldX},${startWorldY})`
+  if (candidates.length === 0) {
+    console.warn(
+      `[PlayerPosition] Aucune case terrestre à ±${SPAWN_SEARCH_RADIUS} de (${startWorldX},${startWorldY}) — fallback sur départ`
     );
-    return { worldX: tile.worldX, worldY: tile.worldY };
+    return { worldX: startWorldX, worldY: startWorldY };
   }
 
-  // Fallback de dernier recours (ne devrait jamais arriver sur une carte correcte)
-  console.warn(
-    `[PlayerPosition] Aucune case terrestre trouvée à ±${SPAWN_SEARCH_RADIUS} de (${startWorldX},${startWorldY}) — fallback sur le départ`
-  );
+  // ── Tester les candidats du plus proche au plus loin ──────────────────────
+  let bestCandidate: { worldX: number; worldY: number } | null = null;
+  let bestSize = 0;
+
+  for (const candidate of candidates) {
+    const size = await computeConnectedLandmassSize(candidate.worldX, candidate.worldY);
+
+    if (size >= MIN_SPAWN_LANDMASS_SIZE) {
+      console.log(
+        `[PlayerPosition] Safe spawn v2 résolu: (${candidate.worldX},${candidate.worldY})` +
+        ` — masse terrestre ≥ ${MIN_SPAWN_LANDMASS_SIZE} (comptée: ${size})` +
+        ` — depuis départ (${startWorldX},${startWorldY})`
+      );
+      return { worldX: candidate.worldX, worldY: candidate.worldY };
+    }
+
+    // Garder trace du meilleur candidat pour le fallback
+    if (size > bestSize) {
+      bestSize = size;
+      bestCandidate = { worldX: candidate.worldX, worldY: candidate.worldY };
+    }
+  }
+
+  // ── Fallback : aucune masse ≥ seuil trouvée dans les candidats ────────────
+  if (bestCandidate) {
+    console.warn(
+      `[PlayerPosition] FALLBACK spawn: aucune masse ≥ ${MIN_SPAWN_LANDMASS_SIZE} trouvée` +
+      ` dans ${candidates.length} candidats à ±${SPAWN_SEARCH_RADIUS} de (${startWorldX},${startWorldY}).` +
+      ` Meilleure masse: ${bestSize} cases → (${bestCandidate.worldX},${bestCandidate.worldY})`
+    );
+    return bestCandidate;
+  }
+
+  // Fallback de dernier recours (ne devrait jamais arriver si candidates.length > 0)
+  console.warn(`[PlayerPosition] Fallback ultime sur départ (${startWorldX},${startWorldY})`);
   return { worldX: startWorldX, worldY: startWorldY };
 }
 
@@ -122,8 +237,6 @@ export async function ensurePlayerPosition(playerId: string): Promise<PlayerPosi
   if (existing) {
     const valid = await isValidPlayerPosition(existing.worldX, existing.worldY);
     if (valid) {
-      // Rafraîchir updatedAt pour que le joueur soit immédiatement visible dans le filtre de présence (10 min)
-      // sans attendre son premier déplacement.
       console.log(`[PlayerPosition] Position existante valide: player=${playerId} world=(${existing.worldX},${existing.worldY}) — touch présence`);
       return savePlayerPosition(playerId, existing.worldX, existing.worldY);
     }

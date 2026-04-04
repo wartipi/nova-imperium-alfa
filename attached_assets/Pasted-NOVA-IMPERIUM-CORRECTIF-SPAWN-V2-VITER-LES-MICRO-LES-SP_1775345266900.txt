@@ -1,0 +1,167 @@
+NOVA IMPERIUM — CORRECTIF SPAWN V2 — ÉVITER LES MICRO-ÎLES, SPAWN SUR MASSE TERRESTRE MINIMALE
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu interviens sur un mini-chantier ciblé.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucun chantier parallèle.
+Tu dois faire le plus petit correctif propre, stable et déterministe possible.
+
+OBJECTIF
+Corriger le spawn joueur pour éviter qu’il apparaisse sur une micro-île ridicule de 1 ou 2 cases.
+
+IMPORTANT
+Le correctif actuel garantit seulement une case terrestre valide.
+Ce n’est plus suffisant.
+Je veux maintenant un spawn sur une masse terrestre minimale viable.
+
+CONTEXTE VÉRIFIÉ
+Dans `server/playerPositionService.ts` :
+- `findNearestValidGroundSpawn(...)` existe
+- il filtre bien les cases valides :
+  - isWalkable = true
+  - terrainType not in ('deep_water', 'shallow_water')
+- MAIS il trie simplement par proximité et fait `LIMIT 1`
+- donc une micro-île de 2 cases peut être choisie si elle est la plus proche
+
+Dans `server/scripts/resetWorld.ts` :
+- le reset utilise déjà la même logique canonique de safe spawn
+- donc si on corrige le helper canonique, reset et runtime seront corrigés ensemble
+
+Référence de voisinage hex existante :
+- le projet a déjà une logique hex canonique colonnes paires/impaires dans `HexMath.getAdjacentHexes(...)`
+- tu peux t’en inspirer pour la version serveur si nécessaire
+- ne fais pas de gros refactor cross-layer si ce n’est pas nécessaire
+
+OBJECTIF TECHNIQUE PRÉCIS
+Modifier le safe spawn pour qu’il choisisse :
+- la case terrestre la plus proche
+- appartenant à une masse terrestre d’au moins une taille minimale
+
+SEUIL DEMANDÉ
+Utiliser un seuil simple de test :
+- `MIN_SPAWN_LANDMASS_SIZE = 25`
+
+Ce seuil doit être clairement visible comme constante.
+
+TRAVAIL DEMANDÉ
+
+ÉTAPE 1 — AUDIT
+Lire :
+- `server/playerPositionService.ts`
+- `server/scripts/resetWorld.ts`
+- si utile `client/src/lib/systems/HexMath.ts` comme référence de voisinage canonique
+
+Confirmer explicitement :
+1. que le helper actuel ne regarde pas la taille de l’île
+2. que reset/runtime passent déjà par la même logique canonique
+3. que le vrai manque est la notion de masse terrestre minimale
+
+ÉTAPE 2 — MODIFICATION MINIMALE
+Dans `server/playerPositionService.ts` :
+
+A. Ajouter une constante claire :
+- `MIN_SPAWN_LANDMASS_SIZE = 25`
+
+B. Ajouter un helper interne minimal pour calculer la taille d’une masse terrestre connectée
+Nom recommandé :
+- `computeConnectedLandmassSize(...)`
+ou équivalent
+
+Règles :
+- départ sur une tuile terrestre valide
+- BFS ou flood fill simple
+- voisinage hex cohérent avec le projet
+- compter les cases connectées terrestres
+- possibilité d’arrêter tôt dès que la taille atteint 25 (pas besoin de tout explorer au-delà)
+
+IMPORTANT
+Faire simple et déterministe.
+Pas de structure complexe.
+Pas de cache global compliqué.
+Pas de refactor serveur/client partagé si ce n’est pas nécessaire.
+
+C. Modifier `findNearestValidGroundSpawn(...)`
+Le helper doit maintenant :
+1. récupérer un ensemble raisonnable de cases terrestres candidates autour du spawn canonique
+2. tester les candidats du plus proche au plus loin
+3. choisir le premier candidat dont la masse terrestre connectée atteint au moins 25 cases
+
+IMPORTANT
+Je préfère :
+- un algo simple
+- lisible
+- robuste
+plutôt qu’une optimisation prématurée
+
+ÉTAPE 3 — RECHERCHE ET FALLBACK
+Tu peux garder le rayon SQL actuel comme base de départ, mais si aucune masse ≥ 25 n’est trouvée :
+- soit élargir proprement la recherche
+- soit prendre la meilleure masse trouvée en loguant explicitement le fallback
+
+IMPORTANT
+Ne pas revenir silencieusement à une micro-île sans le dire.
+
+ÉTAPE 4 — RESETWORLD
+Ne pas modifier inutilement `resetWorld.ts`.
+Il utilise déjà le helper canonique.
+Le but est que la correction du helper suffise à améliorer aussi le reset.
+
+Modifie `resetWorld.ts` seulement si un petit ajustement local est strictement nécessaire.
+
+ÉTAPE 5 — NE PAS CASSER
+Ne pas casser :
+- `isValidPlayerPosition()`
+- `ensurePlayerPosition()`
+- `resetWorld.ts`
+- modèle segment
+- seed
+- vision
+- déplacement
+
+ÉTAPE 6 — VÉRIFICATION
+Je veux une vraie vérification après implémentation :
+
+1. coordonnée du spawn résolu
+2. terrain de cette case
+3. taille de la masse terrestre connectée choisie
+4. confirmation qu’elle est ≥ 25
+5. confirmation que runtime et reset utilisent toujours la même logique
+6. confirmation qu’une micro-île proche n’est plus choisie si une masse viable existe
+
+ÉTAPE 7 — RAPPORT FINAL OBLIGATOIRE
+Répondre exactement avec :
+
+1. DIAGNOSTIC
+- pourquoi la v1 du safe spawn était insuffisante
+- pourquoi la micro-île était encore possible
+
+2. FICHIERS CONCERNÉS
+- liste exacte
+
+3. MODIFICATION MINIMALE PROPOSÉE
+- constante de taille minimale
+- helper de taille de masse terrestre
+- adaptation de `findNearestValidGroundSpawn(...)`
+
+4. PREUVE DIRECTE
+- coordonnée finale du spawn
+- type de terrain
+- taille de la masse terrestre retenue
+- explication du rejet des micro-îles
+
+5. VÉRIFICATION
+Confirmer :
+- spawn runtime sur masse terrestre viable
+- spawn reset sur masse terrestre viable
+- seuil ≥ 25 respecté
+- aucune autre architecture touchée
+
+6. STOP
+
+CONTRAINTE FINALE
+Tu ne lances aucun autre chantier.
+Tu corriges uniquement la logique de spawn pour éviter les micro-îles et garantir une masse terrestre minimale viable.
