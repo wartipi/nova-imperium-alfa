@@ -111,9 +111,6 @@ export function GameCanvas() {
   // pour que onDoubleClick puisse lire terrain sans recalcul.
   const lastClickedHexRef = useRef<{ x: number; y: number; terrain: string } | null>(null);
 
-  // lastRightClickRef : détection double clic droit (ouvre TileInfoPanel)
-  const lastRightClickRef = useRef<{ hexX: number; hexY: number; time: number } | null>(null);
-
   const { handleClick: detectDoubleClick } = useDoubleClick({
     onDoubleClick: ({ x, y }) => {
       const hex = lastClickedHexRef.current;
@@ -224,23 +221,7 @@ export function GameCanvas() {
     const { isHexExplored: isHexExploredCtx } = usePlayer.getState();
     const isAccessibleCtx = isHexExploredCtx(hex.x, hex.y) || isAdmin;
 
-    // ── Détection double clic droit (< 400 ms, même hex) → TileInfoPanel ─────
-    const now = Date.now();
-    const last = lastRightClickRef.current;
-    const isDoubleRightClick =
-      last !== null &&
-      last.hexX === hex.x &&
-      last.hexY === hex.y &&
-      now - last.time < 400;
-    lastRightClickRef.current = { hexX: hex.x, hexY: hex.y, time: now };
-
-    if (isDoubleRightClick) {
-      if (isAccessibleCtx) setSelectedHex(hex);
-      console.log(`[GameCanvas] Double clic droit → TileInfoPanel hex(${hex.x},${hex.y})`);
-      return;
-    }
-
-    // ── Simple clic droit → TileContextMenu ──────────────────────────────────
+    // ── Clic droit → TileContextMenu ─────────────────────────────────────────
     const { avatarHexPosition: currentHex } = usePlayer.getState();
     const canMove =
       isAccessibleCtx &&
@@ -608,6 +589,13 @@ export function GameCanvas() {
           hasMarket={tileContextMenu.hasMarket}
           hasBank={tileContextMenu.hasBank}
           locationName={tileContextMenu.locationName}
+          onOpenInfo={() => {
+            const foundHex = mapData?.find(
+              (h) => h.x === tileContextMenu.hexX && h.y === tileContextMenu.hexY
+            ) ?? null;
+            if (foundHex) setSelectedHex(foundHex);
+            setTileContextMenu(null);
+          }}
           onMove={tileContextMenu.canMove
             ? () => {
                 setPendingMovement({ x: tileContextMenu.hexX, y: tileContextMenu.hexY });

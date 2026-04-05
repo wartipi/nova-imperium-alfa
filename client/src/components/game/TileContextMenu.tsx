@@ -23,6 +23,8 @@ export interface TileContextMenuProps {
   hasMarket:     boolean;
   hasBank:       boolean;
   locationName:  string | null;
+  // Infos — toujours disponible, ouvre TileInfoPanel
+  onOpenInfo:    () => void;
   // Déplacement — non null si la case est walkable, accessible et ≠ position actuelle
   onMove:        (() => void) | null;
   onClose:       () => void;
@@ -36,6 +38,7 @@ export function TileContextMenu({
   hasMarket,
   hasBank,
   locationName,
+  onOpenInfo,
   onMove,
   onClose,
 }: TileContextMenuProps) {
@@ -57,15 +60,15 @@ export function TileContextMenu({
     };
   }, [onClose]);
 
-  const hasAnyAction = Boolean(onMove) || hasMarket || hasBank;
+  // ℹ️ Infos de la case est toujours disponible → hasAnyAction toujours true
+  const hasAnyAction = true;
 
   // Clamping pour rester dans le viewport
   const menuW      = 230;
   const baseH      = 56;
   const rowH       = 52;
-  const noActH     = 44;
-  const actionCount = [Boolean(onMove), hasMarket, hasBank].filter(Boolean).length;
-  const menuH      = baseH + (hasAnyAction ? actionCount * rowH : noActH);
+  const actionCount = 1 + [Boolean(onMove), hasMarket, hasBank].filter(Boolean).length;
+  const menuH      = baseH + actionCount * rowH;
   const clampedX = Math.min(screenX, window.innerWidth  - menuW - 8);
   const clampedY = Math.min(screenY, window.innerHeight - menuH - 8);
 
@@ -108,6 +111,19 @@ export function TileContextMenu({
 
       {/* Corps — actions par case */}
       <div className="py-1">
+        {/* Infos de la case — toujours disponible */}
+        <button
+          onClick={onOpenInfo}
+          className="w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-stone-700/60 transition-colors"
+          style={{ pointerEvents: "auto" }}
+        >
+          <span className="text-base mt-0.5">ℹ️</span>
+          <span className="flex flex-col">
+            <span className="text-sm font-medium text-stone-200">Infos de la case</span>
+            <span className="text-xs text-stone-400">Terrain, ressources, territoire</span>
+          </span>
+        </button>
+
         {onMove && (
           <button
             onClick={onMove}
@@ -150,11 +166,6 @@ export function TileContextMenu({
           </button>
         )}
 
-        {!hasAnyAction && (
-          <div className="px-3 py-2 text-xs text-stone-400 italic">
-            Aucun service disponible sur ce terrain.
-          </div>
-        )}
       </div>
     </div>
   );

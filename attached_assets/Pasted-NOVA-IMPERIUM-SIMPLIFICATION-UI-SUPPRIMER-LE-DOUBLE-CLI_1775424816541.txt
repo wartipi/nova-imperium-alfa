@@ -1,0 +1,131 @@
+NOVA IMPERIUM — SIMPLIFICATION UI — SUPPRIMER LE DOUBLE CLIC DROIT ET OUVRIR LES INFOS DE CASE DEPUIS LE MENU CONTEXTUEL
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu interviens sur un micro-chantier de simplification UI.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucun chantier parallèle.
+Tu dois simplifier le flux d’interaction de case en supprimant les vieilles mécaniques devenues inutiles.
+
+OBJECTIF
+Je ne veux plus de double clic droit pour ouvrir les infos de case.
+
+Je veux un flux unique et simple :
+
+- clic droit simple sur une case → ouvre `TileContextMenu`
+- dans ce menu, ajouter une entrée :
+  - `ℹ️ Infos de la case`
+- clic sur cette entrée → ouvre `TileInfoPanel`
+
+Je veux donc :
+1. ajouter l’accès “Infos de la case” dans `TileContextMenu`
+2. supprimer complètement la logique de double clic droit
+3. supprimer les mécaniques temporaires introduites juste pour supporter ce double clic
+4. garder un système plus simple, plus stable et plus lisible
+
+IMPORTANT
+Le but est de simplifier.
+Je préfère :
+- une seule mécanique claire
+- un seul point d’entrée
+- moins d’états temporaires
+- moins de logique fragile dans `GameCanvas`
+
+COMPORTEMENT CIBLE
+- clic droit simple sur l’avatar → `AvatarActionMenu` (inchangé)
+- clic droit simple sur une case → `TileContextMenu`
+- dans `TileContextMenu` :
+  - `ℹ️ Infos de la case`
+  - `🚶 Se déplacer ici` si déplacement réellement possible
+  - `🏦 Accéder à la banque` si disponible
+  - `🛒 Accéder au marché` si disponible
+- clic sur `ℹ️ Infos de la case` → ouvre `TileInfoPanel`
+- plus aucun double clic droit
+
+TRAVAIL DEMANDÉ
+
+1. DIAGNOSTIC
+Confirmer explicitement :
+- que le double clic droit a ajouté une complexité inutile
+- que le flux peut être simplifié en utilisant directement `TileContextMenu`
+- que `TileContextMenu` est maintenant le point d’entrée canonique des actions de case
+
+2. FICHIERS CONCERNÉS
+Au minimum :
+- `client/src/components/game/GameCanvas.tsx`
+- `client/src/components/game/TileContextMenu.tsx`
+
+Autres fichiers seulement si strictement nécessaires.
+
+3. MODIFICATION MINIMALE PROPOSÉE
+
+A. Dans `TileContextMenu.tsx`
+Ajouter une nouvelle action en haut du menu :
+- `ℹ️ Infos de la case`
+
+Cette action doit appeler un callback reçu en prop, par exemple :
+- `onOpenInfo: () => void`
+
+Elle doit être toujours disponible pour une case accessible.
+
+B. Dans `GameCanvas.tsx`
+Au rendu de `TileContextMenu`, fournir :
+- `onOpenInfo={() => { setSelectedHex(hexCorrespondant); setTileContextMenu(null); }}`
+
+IMPORTANT
+Tu dois utiliser les coordonnées déjà stockées dans `tileContextMenu` pour retrouver la case et ouvrir la bonne info.
+
+C. Supprimer complètement la logique de double clic droit
+Retirer :
+- `lastRightClickRef`
+- `isDoubleRightClick`
+- tout timer ou toute condition liée au double clic droit
+- toute ouverture de `TileInfoPanel` via double clic droit dans `handleCanvasContextMenu`
+
+D. Conserver intact :
+- clic droit avatar → `AvatarActionMenu`
+- clic droit case → `TileContextMenu`
+- `Se déplacer ici` dans `TileContextMenu`
+- suppression déjà faite du bouton déplacement dans `TileInfoPanel`
+
+4. CONTRAINTES IMPORTANTES
+- ne pas casser `AvatarActionMenu`
+- ne pas casser `TileInfoPanel`
+- ne pas casser `TileContextMenu`
+- ne pas casser le déplacement
+- ne pas réintroduire de logique complexe
+- ne pas garder des refs/états morts liés au double clic droit
+
+5. PREUVE DIRECTE
+Dans le rapport final, montrer :
+- quel prop `onOpenInfo` a été ajouté à `TileContextMenu`
+- comment `GameCanvas` ouvre maintenant `TileInfoPanel` depuis ce menu
+- quelle logique de double clic droit a été retirée
+- quels résidus de vieille mécanique ont été nettoyés
+
+6. VÉRIFICATION
+Confirmer :
+- clic droit avatar → inchangé
+- clic droit case → `TileContextMenu`
+- `ℹ️ Infos de la case` visible dans le menu
+- clic sur `ℹ️ Infos de la case` → `TileInfoPanel`
+- plus aucun double clic droit requis
+- plus de logique résiduelle de double clic droit
+- aucune autre interaction cassée
+
+7. RAPPORT FINAL OBLIGATOIRE
+Répondre exactement avec :
+
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+CONTRAINTE FINALE
+Tu ne lances aucun autre chantier.
+Tu simplifies uniquement l’accès aux infos de case en passant par `TileContextMenu` et tu retires complètement la logique de double clic droit.
