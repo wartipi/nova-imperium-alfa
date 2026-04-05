@@ -1,0 +1,177 @@
+NOVA IMPERIUM — MICRO-CHANTIER UI MARCHÉ + CRÉDIT TEST BANQUE
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu interviens sur un micro-chantier ciblé.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucun chantier parallèle.
+Tu dois faire le plus petit changement propre, stable et cohérent possible.
+
+OBJECTIF
+Je veux 2 choses dans ce même chantier :
+
+1. Améliorer `PublicMarketplace` :
+   - si le point d’accès actuel donne aussi accès à la Banque, afficher un bouton `🏦 Banque` dans le marché
+   - afficher une section `Inventaire du joueur` dans le panneau marché
+   - recharger cet inventaire après les actions marché importantes
+
+2. Ajouter un crédit de test en banque :
+   - je veux que ma `player_bank` soit créditée de **100 unités de chaque ressource**
+   - c’est uniquement pour les tests
+   - je veux une solution minimale, propre, sans casser le reste
+
+IMPORTANT
+Le but n’est pas de refondre le système.
+Le but est :
+- d’étendre `PublicMarketplace`
+- et d’ajouter un crédit de test ciblé pour la banque
+
+CONTEXTE VÉRIFIÉ
+Dans `client/src/components/game/PublicMarketplace.tsx` :
+- le panneau vérifie déjà l’accès marché via `/api/market/access-check`
+- il charge déjà le carnet, les ordres et les trades
+- il ne sait pas encore si la Banque est aussi accessible
+- il n’affiche pas encore l’inventaire du joueur
+
+Dans `client/src/components/game/TreasuryPanel.tsx` :
+- `getPlayerTransport()` existe déjà
+- le check banque existe déjà via `/api/economy/bank-access-check`
+
+Dans `client/src/components/game/MedievalHUD.tsx` :
+- `nova:open-panel` ouvre déjà `marketplace` et `treasury`
+
+OBJECTIF TECHNIQUE PRÉCIS
+A. Étendre `PublicMarketplace.tsx`
+B. Ajouter un crédit test banque de +100 par ressource
+
+TRAVAIL DEMANDÉ
+
+1. DIAGNOSTIC
+Confirmer explicitement :
+- que `PublicMarketplace.tsx` est le bon point d’entrée pour le chantier marché
+- que l’accès marché est déjà vérifié
+- que l’accès banque peut être vérifié séparément
+- que `getPlayerTransport()` existe déjà
+- que le crédit test banque doit être fait avec la solution la plus petite et propre possible
+
+2. FICHIERS CONCERNÉS
+Au minimum :
+- `client/src/components/game/PublicMarketplace.tsx`
+
+Pour le crédit banque :
+- privilégier un script one-shot ou une route debug déjà cohérente avec l’existant
+- ne toucher au backend que de manière minimale
+
+3. MODIFICATION MINIMALE PROPOSÉE
+
+A. Accès Banque depuis le marché
+Dans `PublicMarketplace.tsx` :
+- après validation de l’accès marché, faire aussi un check banque via :
+  - `/api/economy/bank-access-check`
+- stocker cet état localement, par exemple :
+  - `hasBankAccess`
+
+Si `access.status === "allowed"` et `hasBankAccess === true` :
+- afficher un bouton `🏦 Banque` dans l’en-tête ou dans la bannière du point d’accès
+
+Comportement attendu :
+- clic sur `🏦 Banque` :
+  - `window.dispatchEvent(new CustomEvent('nova:open-panel', { detail: { panel: 'treasury' } }))`
+
+IMPORTANT :
+- ne pas casser le panneau marché
+- ne pas casser le panneau banque
+
+B. Inventaire du joueur dans le marché
+Toujours dans `PublicMarketplace.tsx` :
+- charger `getPlayerTransport()`
+- stocker le résultat dans un état local
+- afficher une section `Inventaire du joueur`
+
+Contenu minimum attendu :
+- capacité utilisée / capacité max
+- ressources transportées
+- affichage lisible et compact
+
+Style attendu :
+- encadré distinct
+- cohérent avec le style du marché
+- placé avant le formulaire d’ordre ou dans une zone bien visible
+
+C. Refresh inventaire après actions marché
+Après :
+- `rmPlaceOrder`
+- `rmCancelOrder`
+- `rmFillOrder`
+
+recharger aussi l’inventaire du joueur.
+
+IMPORTANT :
+- ne pas casser le rechargement actuel du marché
+- juste compléter les refresh existants
+
+D. Crédit test banque : +100 de chaque ressource
+Je veux que ma banque soit créditée de :
+- gold +100
+- food +100
+- wood +100
+- stone +100
+- iron +100
+- copper +100
+- coal +100
+- oil +100
+- herbs +100
+- fur +100
+
+SOLUTION ATTENDUE
+Choisir la solution la plus petite et la plus propre parmi :
+- un script one-shot serveur
+- ou une route debug existante / adaptée si c’est déjà cohérent avec l’existant
+
+PRÉFÉRENCE
+Je préfère un **script one-shot** ou un **appel debug contrôlé**, pas une logique permanente dans le gameplay.
+
+IMPORTANT
+Ce crédit est pour les tests.
+Ne pas intégrer ce bonus dans la logique normale du jeu.
+Ne pas l’appliquer à tous les joueurs sauf si je l’ai explicitement demandé.
+Cibler uniquement mon compte de test / le joueur courant utilisé pour les tests.
+
+4. PREUVE DIRECTE
+Dans le rapport final, montrer :
+- comment l’accès banque est détecté depuis le marché
+- où le bouton `🏦 Banque` a été ajouté
+- où l’inventaire du joueur est affiché
+- quels handlers déclenchent aussi un refresh inventaire
+- comment le crédit test banque +100 par ressource a été appliqué
+- sur quel joueur / quelle banque le crédit a été fait
+
+5. VÉRIFICATION
+Confirmer :
+- marché seul → pas de bouton Banque
+- marché + banque présents → bouton `🏦 Banque` visible
+- clic sur `🏦 Banque` → ouvre `treasury`
+- l’inventaire du joueur est visible dans le marché
+- l’inventaire se met à jour après place / cancel / fill d’ordre
+- la banque du joueur ciblé a bien reçu +100 de chaque ressource
+- aucun backend métier modifié inutilement
+- aucun autre panneau cassé
+
+6. RAPPORT FINAL OBLIGATOIRE
+Répondre exactement avec :
+
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+CONTRAINTE FINALE
+Tu ne lances aucun autre chantier.
+Tu modifies uniquement :
+- `PublicMarketplace` pour l’accès Banque + inventaire joueur
+- et tu ajoutes un crédit test banque de +100 sur chaque ressource, via la solution la plus minimale et propre possible.
