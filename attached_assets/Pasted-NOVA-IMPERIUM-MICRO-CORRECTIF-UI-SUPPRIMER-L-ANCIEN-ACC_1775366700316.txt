@@ -1,0 +1,80 @@
+NOVA IMPERIUM — MICRO-CORRECTIF UI — SUPPRIMER L’ANCIEN ACCÈS À L’ARBRE DES COMPÉTENCES
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu interviens sur un micro-correctif UI ciblé.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucun chantier parallèle.
+Tu dois faire le plus petit correctif propre possible.
+
+OBJECTIF
+L’ancien accès séparé à l’arbre des compétences n’est plus nécessaire maintenant que les compétences sont intégrées dans le panneau :
+
+- `👤 Joueur / Inventaire`
+
+Je veux donc supprimer cet ancien accès.
+
+IMPORTANT
+Le but est uniquement de retirer l’ancien point d’entrée UI séparé vers les compétences.
+Ne touche pas :
+- au contenu compétences déjà intégré dans `Joueur / Inventaire`
+- au backend
+- à `usePlayer`
+- à la logique d’apprentissage
+- à l’arbre de compétences lui-même si réutilisé dans le panneau joueur
+- à d’autres panneaux si ce n’est pas strictement nécessaire
+
+CONTEXTE
+Les compétences sont maintenant intégrées dans le panneau `Joueur / Inventaire`.
+L’ancien accès séparé à l’arbre des compétences dans le HUD ou via un bouton dédié est devenu redondant.
+
+OBJECTIF TECHNIQUE PRÉCIS
+Supprimer l’ancien accès séparé à l’arbre des compétences, sans casser le nouveau flux dans `Joueur / Inventaire`.
+
+TRAVAIL DEMANDÉ
+
+1. DIAGNOSTIC
+Confirmer explicitement :
+- où se trouve encore l’ancien accès séparé aux compétences
+- pourquoi il est devenu redondant
+- que le nouveau point d’accès canonique est maintenant `Joueur / Inventaire`
+
+2. FICHIERS CONCERNÉS
+Au minimum :
+- `client/src/components/game/MedievalHUD.tsx`
+
+Autres fichiers seulement si strictement nécessaires.
+
+3. MODIFICATION MINIMALE PROPOSÉE
+Retirer uniquement l’ancien accès séparé aux compétences.
+
+Selon l’état réel du code, cela peut vouloir dire :
+- supprimer le bouton/menu dédié “Compétences”
+- supprimer son ouverture de panneau/modal si elle n’est plus utilisée
+- nettoyer les états locaux devenus inutiles dans ce même fichier
+
+IMPORTANT
+Tu dois faire un nettoyage local minimal seulement si devenu inutile.
+Ne retire pas le composant de compétences lui-même s’il est encore utilisé dans `Joueur / Inventaire`.
+
+4. PREUVE DIRECTE
+Expliquer :
+- quel ancien point d’accès a été supprimé
+- ce qui reste intact
+- pourquoi le nouveau flux fonctionne toujours
+
+5. VÉRIFICATION
+Confirmer :
+- plus d’ancien accès séparé aux compétences
+- compétences toujours accessibles via `Joueur / Inventaire`
+- aucun autre panneau cassé
+- aucun backend touché
+
+6. STOP
+
+CONTRAINTE FINALE
+Tu ne lances aucun autre chantier.
+Tu supprimes uniquement l’ancien accès séparé à l’arbre des compétences.

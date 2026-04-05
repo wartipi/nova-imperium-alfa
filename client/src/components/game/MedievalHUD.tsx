@@ -22,7 +22,6 @@ import { PublicAnnouncementPanel } from "./PublicAnnouncementPanel";
 import { GameGuidePanel } from "./GameGuidePanel";
 import { HelpPanel } from "./HelpPanel";
 import { CharacterSelector, CharacterOption } from "./CharacterSelector";
-import { CompetenceTree } from "./CompetenceTree";
 import { TileInfoPanel } from "./TileInfoPanel";
 import { ReputationPanel } from "./ReputationPanel";
 import { FactionPanel } from "./FactionPanel";
@@ -48,7 +47,6 @@ type MenuSection =
   | 'announcements' 
   | 'guide' 
   | 'help'
-  | 'competences'
   | 'factions'
   | 'territory'
   | 'reputation_management'
@@ -125,7 +123,6 @@ export function MedievalHUD() {
   const { playerFaction, getFactionById } = useFactions();
   const [activeSection, setActiveSection] = useState<MenuSection | null>(null);
   const [showCharacterSelector, setShowCharacterSelector] = useState(false);
-  const [showCompetenceModal, setShowCompetenceModal] = useState(false);
   const [showReputationDetails, setShowReputationDetails] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [showAvatarManager, setShowAvatarManager] = useState(false);
@@ -252,7 +249,6 @@ export function MedievalHUD() {
   const PANEL_TITLES: Partial<Record<MenuSection, string>> = {
     treasury:    'TRÉSORERIE',
     marketplace: 'MARCHÉ PUBLIC',
-    competences: 'COMPÉTENCES',
     factions:    'FACTIONS',
     transport:   'INVENTAIRE DE TRANSPORT',
   };
@@ -778,7 +774,6 @@ export function MedievalHUD() {
               {activeSection === 'announcements' && <PublicEventsPanel />}
               {activeSection === 'guide' && <GameGuidePanel />}
               {activeSection === 'help' && <HelpPanel />}
-              {activeSection === 'competences' && <CompetenceTree />}
               {activeSection === 'factions' && <FactionPanel onClose={() => setActiveSection(null)} />}
               {activeSection === 'transport' && <PlayerTransportPanel />}
             </div>
@@ -796,72 +791,6 @@ export function MedievalHUD() {
         </div>
       )}
 
-      {/* Competence Tree Modal */}
-      {showCompetenceModal && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
-          onClick={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-
-            setShowCompetenceModal(false);
-          }}
-          onMouseDown={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-          }}
-          onMouseUp={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-          }}
-          style={{ pointerEvents: 'auto' }}
-        >
-          <div 
-            className="bg-gradient-to-b from-amber-200 via-amber-100 to-amber-200 border-2 border-amber-800 rounded-lg shadow-2xl p-6 w-[800px] max-h-[80vh] overflow-hidden"
-            onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-
-            }}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-            }}
-            onMouseUp={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-            }}
-            style={{ pointerEvents: 'auto' }}
-          >
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-amber-900 font-bold text-xl">Arbre de Compétences</h3>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-
-                  setShowCompetenceModal(false);
-                }}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                }}
-                onMouseUp={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                }}
-                className="text-amber-800 hover:text-amber-900 text-xl font-bold px-2 py-1 rounded hover:bg-amber-300 transition-colors"
-                type="button"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="text-amber-800 max-h-[70vh] overflow-y-auto">
-              <CompetenceTree />
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Reputation Details Modal */}
       {showReputationDetails && (
