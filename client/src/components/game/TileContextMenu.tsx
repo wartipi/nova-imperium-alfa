@@ -60,15 +60,15 @@ export function TileContextMenu({
     };
   }, [onClose]);
 
-  // ℹ️ Infos de la case est toujours disponible → hasAnyAction toujours true
-  const hasAnyAction = true;
+  const hasAnyAction = Boolean(onMove) || hasMarket || hasBank;
 
   // Clamping pour rester dans le viewport
   const menuW      = 230;
   const baseH      = 56;
   const rowH       = 52;
-  const actionCount = 1 + [Boolean(onMove), hasMarket, hasBank].filter(Boolean).length;
-  const menuH      = baseH + actionCount * rowH;
+  const noActH     = 44;
+  const actionCount = [Boolean(onMove), hasMarket, hasBank].filter(Boolean).length;
+  const menuH      = baseH + (hasAnyAction ? actionCount * rowH : noActH);
   const clampedX = Math.min(screenX, window.innerWidth  - menuW - 8);
   const clampedY = Math.min(screenY, window.innerHeight - menuH - 8);
 
@@ -100,30 +100,27 @@ export function TileContextMenu({
             case ({hexX}, {hexY})
           </p>
         </div>
-        <button
-          onClick={onClose}
-          className="text-stone-500 hover:text-stone-200 text-lg leading-none px-1"
-          title="Fermer"
-        >
-          ×
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={onOpenInfo}
+            className="text-stone-400 hover:text-amber-300 text-xs px-1.5 py-0.5 rounded hover:bg-stone-700/60 transition-colors flex items-center gap-1"
+            title="Infos de la case"
+          >
+            <span>ℹ️</span>
+            <span>Infos</span>
+          </button>
+          <button
+            onClick={onClose}
+            className="text-stone-500 hover:text-stone-200 text-lg leading-none px-1"
+            title="Fermer"
+          >
+            ×
+          </button>
+        </div>
       </div>
 
       {/* Corps — actions par case */}
       <div className="py-1">
-        {/* Infos de la case — toujours disponible */}
-        <button
-          onClick={onOpenInfo}
-          className="w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-stone-700/60 transition-colors"
-          style={{ pointerEvents: "auto" }}
-        >
-          <span className="text-base mt-0.5">ℹ️</span>
-          <span className="flex flex-col">
-            <span className="text-sm font-medium text-stone-200">Infos de la case</span>
-            <span className="text-xs text-stone-400">Terrain, ressources, territoire</span>
-          </span>
-        </button>
-
         {onMove && (
           <button
             onClick={onMove}
@@ -166,6 +163,11 @@ export function TileContextMenu({
           </button>
         )}
 
+        {!hasAnyAction && (
+          <div className="px-3 py-2 text-xs text-stone-400 italic">
+            Aucun service disponible sur ce terrain.
+          </div>
+        )}
       </div>
     </div>
   );

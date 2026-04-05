@@ -1,0 +1,107 @@
+NOVA IMPERIUM — MICRO-AJUSTEMENT UI — DÉPLACER LE BOUTON “INFOS DE LA CASE” DANS LA PREMIÈRE SECTION DU TILECONTEXTMENU
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu interviens sur un micro-ajustement UI ciblé.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucun chantier parallèle.
+Tu dois faire le plus petit ajustement propre possible.
+
+OBJECTIF
+Le bouton `ℹ️ Infos de la case` a bien été ajouté dans `TileContextMenu`, mais je veux maintenant le déplacer dans la première section du menu.
+
+Je veux qu’il soit intégré dans la zone d’en-tête qui affiche déjà :
+- le nom du lieu / `Terrain`
+- les coordonnées de la case
+
+En pratique :
+- le bouton `Infos de la case` ne doit plus apparaître comme première action dans le corps du menu
+- il doit être placé dans la section du haut, à côté du bloc d’identité de la case
+
+IMPORTANT
+Je ne veux pas changer la logique.
+Je veux seulement un ajustement de placement / hiérarchie visuelle.
+
+CONTEXTE
+Dans `client/src/components/game/TileContextMenu.tsx` :
+- l’en-tête affiche actuellement :
+  - `locationName ?? "Terrain"`
+  - `case (x, y)`
+  - bouton `×`
+- le corps affiche ensuite :
+  - `ℹ️ Infos de la case`
+  - `🚶 Se déplacer ici`
+  - `🏪 Marché`
+  - `🏦 Banque`
+
+OBJECTIF TECHNIQUE PRÉCIS
+Déplacer `ℹ️ Infos de la case` depuis le corps du menu vers la première section / en-tête.
+
+TRAVAIL DEMANDÉ
+
+1. DIAGNOSTIC
+Confirmer explicitement :
+- que `Infos de la case` est actuellement rendu dans le corps des actions
+- que la demande est purement un ajustement de placement visuel
+- que la logique `onOpenInfo` doit rester intacte
+
+2. FICHIER CONCERNÉ
+- `client/src/components/game/TileContextMenu.tsx`
+- aucun autre fichier sauf nécessité absolue
+
+3. MODIFICATION MINIMALE PROPOSÉE
+Dans `TileContextMenu.tsx` :
+
+A. Retirer le bouton `ℹ️ Infos de la case` du corps des actions
+
+B. Le réinsérer dans la première section du menu, dans l’en-tête
+Placement souhaité :
+- dans la ligne / zone qui contient déjà l’identité de la case
+- visuellement proche du titre `Terrain` / `locationName`
+- sans casser le bouton `×`
+
+C. Garder exactement la même logique :
+- même callback `onOpenInfo`
+- même ouverture de `TileInfoPanel`
+- aucune modification du comportement
+
+D. Conserver le reste du corps intact :
+- `Se déplacer ici`
+- `Accéder au marché`
+- `Accéder à la banque`
+
+STYLE ATTENDU
+Je veux que `Infos de la case` ressemble davantage à un accès principal lié à la case.
+Tu peux le rendre plus compact que les autres actions si nécessaire.
+Exemples acceptables :
+- petit bouton dans l’en-tête
+- lien compact avec icône `ℹ️`
+- bouton aligné à droite du bloc titre
+
+IMPORTANT
+Pas de redesign complet.
+Juste un meilleur placement visuel.
+
+4. PREUVE DIRECTE
+Dans ton rapport final, montrer :
+- où le bouton était avant
+- où il est maintenant
+- que `onOpenInfo` est inchangé
+- que seules les positions JSX ont été ajustées
+
+5. VÉRIFICATION
+Confirmer :
+- `Infos de la case` n’est plus dans le corps principal des actions
+- `Infos de la case` est bien visible dans la section d’en-tête
+- clic sur ce bouton ouvre toujours `TileInfoPanel`
+- `Se déplacer ici`, `Marché`, `Banque` restent inchangés
+- aucun autre comportement cassé
+
+6. STOP
+
+CONTRAINTE FINALE
+Tu ne lances aucun autre chantier.
+Tu ajustes uniquement le placement du bouton `Infos de la case` dans `TileContextMenu.tsx`.
