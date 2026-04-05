@@ -537,6 +537,55 @@ export async function recalculateManagingColoniesForOwner(
   );
 }
 
+// ─── Check non destructif — mêmes règles que claimTerritory, sans écriture ────
+
+export async function checkClaimTerritory(
+  playerId: string,
+  worldX: number,
+  worldY: number,
+  ownerType: 'player' | 'faction'
+): Promise<{ allowed: boolean; reason?: string }> {
+  // Règle 1 : ownerType faction → joueur doit avoir une faction active
+  if (ownerType === 'faction') {
+    const memberRows = await db
+      .select({ factionId: factionMembers.factionId })
+      .from(factionMembers)
+      .where(eq(factionMembers.playerId, playerId));
+
+    if (memberRows.length === 0) {
+      return { allowed: false, reason: "Vous devez appartenir à une faction active" };
+    }
+    const fId = memberRows[0].factionId;
+    const factionRows = await db
+      .select({ isActive: factions.isActive })
+      .from(factions)
+      .where(eq(factions.id, fId));
+    if (factionRows.length === 0 || !factionRows[0].isActive) {
+      return { allowed: false, reason: "Vous devez appartenir à une faction active" };
+    }
+  }
+
+  // Règle 2 : case non déjà revendiquée
+  const existing = await db
+    .select({ id: territories.id })
+    .from(territories)
+    .where(and(eq(territories.worldX, worldX), eq(territories.worldY, worldY)));
+  if (existing.length > 0) {
+    return { allowed: false, reason: "Ce territoire est déjà revendiqué" };
+  }
+
+  // Règle 3 : case walkable
+  const tileRows = await db
+    .select({ isWalkable: mapTiles.isWalkable })
+    .from(mapTiles)
+    .where(and(eq(mapTiles.worldX, worldX), eq(mapTiles.worldY, worldY)));
+  if (tileRows.length === 0 || !tileRows[0].isWalkable) {
+    return { allowed: false, reason: "Cette case n'est pas revendiquable" };
+  }
+
+  return { allowed: true };
+}
+
 export async function claimTerritory(
   playerId: string,
   playerName: string,

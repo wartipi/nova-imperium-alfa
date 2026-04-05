@@ -69,6 +69,30 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     return () => { cancelled = true; };
   }, []);
 
+  // ─── Check revendication — chargé au montage ─────────────────────────────────
+  const [claimCheck, setClaimCheck] = useState<{ allowed: boolean }>({ allowed: false });
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const avatarPos = usePlayer.getState().avatarHexPosition;
+        const { originWorldX, originWorldY } = useMap.getState();
+        const worldX = avatarPos.x + originWorldX;
+        const worldY = avatarPos.y + originWorldY;
+        const ownerType = playerFaction ? 'faction' : 'player';
+        const res = await fetch(
+          `/api/territories/claim-check?worldX=${worldX}&worldY=${worldY}&ownerType=${ownerType}`,
+          { headers: getAuthHeaders() }
+        );
+        if (cancelled) return;
+        const data = res.ok ? await res.json() : { allowed: false };
+        setClaimCheck({ allowed: !!data.allowed });
+      } catch { /* réseau KO — claim non affiché */ }
+    })();
+    return () => { cancelled = true; };
+  }, [playerFaction]);
+
   // Actions de base supprimées - déplacement par clic direct sur la carte
 
   // Action d'exploration nécessitant la compétence exploration niveau 1
@@ -462,11 +486,14 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       }
     }
 
+    // Action de revendication — visible uniquement si le check canonique serveur l'autorise
+    const filteredTerritoryActions = claimCheck.allowed ? territoryActions : [];
+
     const allActions = [
       ...cityActions,
       ...filteredExplorationActions,
       ...filteredCompetenceActions,
-      ...territoryActions,
+      ...filteredTerritoryActions,
       ...getAdvancedActions(),
       ...reputationActions.filter(action => 
         reputation === action.requiredReputation

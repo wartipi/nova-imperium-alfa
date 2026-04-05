@@ -5,6 +5,7 @@ import {
   getAllTerritories,
   getAllColonies,
   claimTerritory,
+  checkClaimTerritory,
   foundColony,
   setColonyGovernor,
   exploitTerritory,
@@ -34,6 +35,27 @@ router.get("/colonies", async (_req, res) => {
   } catch (err) {
     console.error("[Territories] getAllColonies error:", err);
     res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// ─── GET /api/territories/claim-check ────────────────────────────────────────
+// Check non destructif — retourne { allowed, reason? } sans écriture en base.
+// Query params : worldX (int), worldY (int), ownerType ('player' | 'faction')
+router.get("/claim-check", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const worldX = parseInt(req.query.worldX as string, 10);
+    const worldY = parseInt(req.query.worldY as string, 10);
+    if (isNaN(worldX) || isNaN(worldY)) {
+      return res.status(400).json({ allowed: false, reason: "worldX et worldY sont requis" });
+    }
+    const ownerType: 'player' | 'faction' =
+      req.query.ownerType === 'faction' ? 'faction' : 'player';
+    const playerId = req.user!.id;
+    const result = await checkClaimTerritory(playerId, worldX, worldY, ownerType);
+    return res.json(result);
+  } catch (err) {
+    console.error("[Territories] checkClaimTerritory error:", err);
+    res.status(500).json({ allowed: false, reason: "Erreur serveur" });
   }
 });
 
