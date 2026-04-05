@@ -9,7 +9,6 @@ import { UnifiedTerritorySystem } from "../../lib/systems/UnifiedTerritorySystem
 import { HexPathfinding } from "../../lib/pathfinding/HexPathfinding";
 import { HexMath } from "../../lib/systems/HexMath";
 import { fetchAllTerritories, fetchAllColonies } from "../../lib/api/territoriesApi";
-import { TerrainHelpers } from "../../lib/constants/TerrainTypes";
 
 // Fonction pour obtenir les informations de coût de déplacement
 function getMovementCostInfo(terrain: string) {
@@ -420,7 +419,7 @@ function TerritoryInfoSection({ selectedHex }: { selectedHex: HexTile }) {
 export function TileInfoPanel() {
   const { selectedHex, setSelectedHex } = useMap();
   const { novaImperiums } = useNovaImperium();
-  const { isHexExplored, setPendingMovement, avatarHexPosition } = usePlayer();
+  const { isHexExplored } = usePlayer();
   const { isAdmin, role } = useAuth();
 
   if (!selectedHex) return null;
@@ -574,18 +573,6 @@ export function TileInfoPanel() {
       {/* Movement Information */}
       <MovementInfoSection selectedHex={selectedHex} />
 
-      {/* Bouton "Se déplacer ici" — visible si case walkable et ≠ position actuelle */}
-      {TerrainHelpers.isWalkable(selectedHex.terrain) &&
-        !(selectedHex.x === avatarHexPosition.x && selectedHex.y === avatarHexPosition.y) && (
-        <button
-          type="button"
-          onClick={() => setPendingMovement({ x: selectedHex.x, y: selectedHex.y })}
-          className="w-full mb-3 px-4 py-2 bg-green-700 hover:bg-green-600 active:bg-green-800 text-white font-semibold rounded-lg flex items-center justify-center gap-2 transition-colors shadow"
-        >
-          <span>🚶</span>
-          <span>Se déplacer ici</span>
-        </button>
-      )}
 
       {/* Terrain Information */}
       <div className="bg-amber-50 border border-amber-700 rounded p-2 mb-3">

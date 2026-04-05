@@ -1,0 +1,172 @@
+NOVA IMPERIUM — MICRO-CHANTIER UI / INTERACTIONS — DÉPLACER “SE DÉPLACER ICI” VERS LE MENU D’ACTION DE CASE, SUPPRIMER LE BOUTON DE LA FENÊTRE D’INFO, ET PASSER L’OUVERTURE INFO EN DOUBLE CLIC DROIT
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu interviens sur un micro-chantier ciblé d’interaction UI.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucun chantier parallèle.
+Tu dois faire le plus petit correctif propre, stable et cohérent possible.
+
+OBJECTIF
+Je veux 3 changements liés aux interactions sur les cases :
+
+1. L’option `Se déplacer ici` doit apparaître dans le menu d’action de la case, mais seulement quand le déplacement est réellement possible.
+2. Le bouton `Se déplacer ici` doit être retiré de la fenêtre d’information de case.
+3. La fenêtre d’information de case doit s’ouvrir au **double clic droit**, et non plus au simple clic droit.
+
+IMPORTANT
+Ne pas casser :
+- le menu d’action de l’avatar au clic droit sur le personnage
+- le preview/pathfinding déjà harmonisé
+- la logique de confirmation de déplacement existante
+- la distinction entre info de case et menu d’action
+- le flux serveur-autoritaire de déplacement
+
+CONTEXTE MÉTIER
+Le principe attendu est le même que pour `Revendiquer le territoire` :
+- une action ne doit être visible que si elle est réellement faisable
+- je ne veux pas un bouton visible qui échoue ensuite sans raison
+- je veux réutiliser la logique déjà existante autant que possible
+
+CONTEXTE TECHNIQUE
+Le projet a déjà :
+- une logique de déplacement harmonisée
+- un preview de path dans `GameCanvas`
+- une validation client qui refuse les destinations non découvertes et les chemins traversant des cases non découvertes
+- une fenêtre d’information de case
+- un menu d’action / menu contextuel de case
+- une logique existante de confirmation de déplacement
+
+Je veux réutiliser ces briques, pas en recréer.
+
+TRAVAIL DEMANDÉ
+
+1. DIAGNOSTIC
+Avant toute modification, identifie précisément :
+- le fichier qui gère l’ouverture de la fenêtre d’info de case
+- le fichier qui gère le menu d’action / menu contextuel de case
+- le fichier où se trouve actuellement le bouton `Se déplacer ici` dans la fenêtre d’info
+- le point d’entrée exact de la confirmation de déplacement existante
+
+Confirmer explicitement :
+- où le simple clic droit ouvre actuellement l’info
+- où le menu d’action de case est rendu
+- comment le bouton `Se déplacer ici` est actuellement branché
+- quelle logique canonique permet déjà de savoir si un déplacement est possible
+
+IMPORTANT
+Je veux un audit réel, pas une supposition.
+
+2. FICHIERS CONCERNÉS
+Au minimum, selon l’audit réel, probablement dans cette zone :
+- le fichier d’interaction carte (souvent `GameCanvas.tsx` ou équivalent)
+- le composant de fenêtre d’information de case (`TileInfoPanel.tsx` ou équivalent)
+- le composant de menu d’action / menu contextuel de case (`TileContextMenu.tsx` ou équivalent)
+
+Autres fichiers seulement si strictement nécessaires.
+
+3. MODIFICATION MINIMALE PROPOSÉE
+
+A. Déplacer l’action `Se déplacer ici` vers le menu d’action de case
+Je veux que `Se déplacer ici` soit proposée dans le menu d’action de la case, pas dans la fenêtre d’info.
+
+Règle :
+- l’action ne doit apparaître que si le déplacement est réellement possible
+
+IMPORTANT
+Pour décider si le déplacement est possible, réutiliser la logique existante du projet :
+- destination valide
+- destination découverte
+- chemin valide
+- pas de traversée interdite
+- pas de bouton si la case est la case actuelle du joueur
+- pas de duplication fragile de logique si un helper existe déjà
+
+Le comportement au clic doit ouvrir le même flux de confirmation de déplacement que l’existant.
+Je ne veux pas un nouveau système de déplacement parallèle.
+
+B. Retirer le bouton `Se déplacer ici` de la fenêtre d’info
+Dans la fenêtre d’information de case :
+- supprimer le bouton / CTA de déplacement
+- laisser le reste intact
+
+C. Ouvrir la fenêtre d’info au double clic droit
+Je veux que la fenêtre d’info ne s’ouvre plus au simple clic droit.
+Je veux qu’elle s’ouvre au double clic droit.
+
+IMPORTANT
+Le comportement attendu est :
+- simple clic droit sur une case → ne doit plus ouvrir la fenêtre d’info
+- double clic droit sur une case → ouvre la fenêtre d’info de cette case
+
+Tu dois faire ça proprement, sans casser :
+- la prévention du menu contextuel navigateur
+- le clic droit avatar si distinct
+- le menu d’action de case si déjà existant
+
+Si le système actuel ne distingue pas encore proprement simple clic droit / double clic droit, ajoute la plus petite logique locale possible pour le faire.
+
+D. Ne pas toucher à l’avatar
+Le clic droit sur l’avatar et son menu d’action doivent rester intacts sauf si l’audit montre un conflit strictement technique.
+Par défaut :
+- ne pas modifier le menu avatar
+
+4. CONTRAINTES IMPORTANTES
+- ne pas refactorer toute la couche d’interaction
+- ne pas déplacer plusieurs systèmes à la fois
+- ne pas casser les panneaux existants
+- ne pas changer l’architecture des événements si ce n’est pas nécessaire
+- ne pas créer un second flux de déplacement
+- ne pas inventer de nouvelle logique métier de validation si elle existe déjà
+
+5. PREUVE DIRECTE
+Dans ton rapport final, montrer :
+- où l’ancien bouton `Se déplacer ici` a été retiré
+- où l’action a été ajoutée dans le menu d’action de case
+- quelle condition exacte contrôle maintenant son affichage
+- où le passage simple clic droit → double clic droit a été modifié
+
+6. VÉRIFICATION
+Confirmer les cas suivants :
+
+CAS 1 — case atteignable
+- menu d’action affiche `Se déplacer ici`
+- clic dessus ouvre la confirmation de déplacement
+
+CAS 2 — case non atteignable / non valide
+- `Se déplacer ici` n’apparaît pas
+
+CAS 3 — case actuelle du joueur
+- `Se déplacer ici` n’apparaît pas
+
+CAS 4 — simple clic droit sur une case
+- n’ouvre plus la fenêtre d’info
+
+CAS 5 — double clic droit sur une case
+- ouvre la fenêtre d’info
+
+CAS 6 — fenêtre d’info
+- ne contient plus le bouton de déplacement
+
+CAS 7 — clic droit sur avatar
+- inchangé si aucun conflit technique
+
+7. RAPPORT FINAL OBLIGATOIRE
+Répondre exactement avec :
+
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+CONTRAINTE FINALE
+Tu ne lances aucun autre chantier.
+Tu fais uniquement :
+- déplacement de `Se déplacer ici` vers le menu d’action de case avec affichage conditionnel
+- suppression du bouton de déplacement dans la fenêtre d’info
+- ouverture de la fenêtre d’info en double clic droit au lieu du simple clic droit.

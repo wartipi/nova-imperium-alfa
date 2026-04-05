@@ -111,6 +111,9 @@ export function GameCanvas() {
   // pour que onDoubleClick puisse lire terrain sans recalcul.
   const lastClickedHexRef = useRef<{ x: number; y: number; terrain: string } | null>(null);
 
+  // lastRightClickRef : détection double clic droit (ouvre TileInfoPanel)
+  const lastRightClickRef = useRef<{ hexX: number; hexY: number; time: number } | null>(null);
+
   const { handleClick: detectDoubleClick } = useDoubleClick({
     onDoubleClick: ({ x, y }) => {
       const hex = lastClickedHexRef.current;
@@ -218,14 +221,50 @@ export function GameCanvas() {
     const hex = gameEngineRef.current.getHexAtPosition(canvasX, canvasY);
     if (!hex) return;
 
-    // Clic droit sur une case → sélectionner si accessible (affiche TileInfoPanel)
-    // TileContextMenu n'est plus ouvert pour les cases.
     const { isHexExplored: isHexExploredCtx } = usePlayer.getState();
     const isAccessibleCtx = isHexExploredCtx(hex.x, hex.y) || isAdmin;
-    if (isAccessibleCtx) {
-      setSelectedHex(hex);
+
+    // ── Détection double clic droit (< 400 ms, même hex) → TileInfoPanel ─────
+    const now = Date.now();
+    const last = lastRightClickRef.current;
+    const isDoubleRightClick =
+      last !== null &&
+      last.hexX === hex.x &&
+      last.hexY === hex.y &&
+      now - last.time < 400;
+    lastRightClickRef.current = { hexX: hex.x, hexY: hex.y, time: now };
+
+    if (isDoubleRightClick) {
+      if (isAccessibleCtx) setSelectedHex(hex);
+      console.log(`[GameCanvas] Double clic droit → TileInfoPanel hex(${hex.x},${hex.y})`);
+      return;
     }
-    console.log(`[GameCanvas] Clic droit → hex(${hex.x},${hex.y}) accessible=${isAccessibleCtx}`);
+
+    // ── Simple clic droit → TileContextMenu ──────────────────────────────────
+    const { avatarHexPosition: currentHex } = usePlayer.getState();
+    const canMove =
+      isAccessibleCtx &&
+      TerrainHelpers.isWalkable(hex.terrain) &&
+      !(hex.x === currentHex.x && hex.y === currentHex.y);
+
+    // Détection ville / services (market = building 'market', bank = non défini → false)
+    const { novaImperiums: nis } = useNovaImperium.getState();
+    const cityAtHex = nis.flatMap((ni) => ni.cities).find((c) => c.x === hex.x && c.y === hex.y);
+    const locationName = cityAtHex?.name ?? null;
+    const hasMarket = cityAtHex ? (cityAtHex.buildings ?? []).includes('market') : false;
+    const hasBank   = false; // aucun BuildingType 'bank' dans le schéma actuel
+
+    setTileContextMenu({
+      screenX:      event.clientX,
+      screenY:      event.clientY,
+      hexX:         hex.x,
+      hexY:         hex.y,
+      hasMarket,
+      hasBank,
+      locationName,
+      canMove,
+    });
+    console.log(`[GameCanvas] Clic droit → TileContextMenu hex(${hex.x},${hex.y}) canMove=${canMove}`);
   }, [gameEngineRef, isAdmin, setSelectedHex]);
 
   // Handle canvas clicks (only if not dragging)
