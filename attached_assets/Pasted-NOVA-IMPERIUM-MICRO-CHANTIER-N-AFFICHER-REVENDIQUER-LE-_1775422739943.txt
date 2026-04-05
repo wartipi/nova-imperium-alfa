@@ -1,0 +1,123 @@
+NOVA IMPERIUM — MICRO-CHANTIER — N’AFFICHER “REVENDIQUER LE TERRITOIRE” QUE SI LA REVENDICATION EST RÉELLEMENT POSSIBLE
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu interviens sur un micro-chantier ciblé.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucun chantier parallèle.
+Tu dois faire le plus petit correctif propre possible.
+
+OBJECTIF
+Je veux que l’option `Revendiquer le territoire` dans `AvatarActionMenu` soit visible uniquement quand la revendication est réellement possible.
+
+IMPORTANT
+Je ne veux PAS d’une logique locale approximative côté client.
+Je veux que l’UI se base sur la logique canonique serveur.
+
+CONTEXTE VÉRIFIÉ
+Dans `client/src/components/game/AvatarActionMenu.tsx` :
+- l’action `claim_territory` est encore injectée dans la liste sans vrai check métier
+- `isActionAvailable()` ne vérifie pas la revendicabilité réelle de la case
+
+Dans `server/territoryService.ts`, `claimTerritory(...)` valide déjà les règles canoniques :
+1. si ownerType = faction, le joueur doit appartenir à une faction active
+2. la case ne doit pas être déjà revendiquée
+3. la case doit être walkable / revendiquable
+
+PROBLÈME
+Aujourd’hui l’UI affiche l’option même si le serveur la refusera ensuite.
+
+OBJECTIF TECHNIQUE PRÉCIS
+Ajouter un check canonique non destructif côté serveur, puis l’utiliser dans `AvatarActionMenu` pour n’afficher l’action que si `allowed === true`.
+
+TRAVAIL DEMANDÉ
+
+1. DIAGNOSTIC
+Confirmer explicitement :
+- que `AvatarActionMenu.tsx` affiche encore l’action claim sans check métier réel
+- que `claimTerritory(...)` contient déjà les règles canoniques
+- que la solution saine est d’exposer un check non destructif serveur plutôt que de recopier la logique côté client
+
+2. FICHIERS CONCERNÉS
+Au minimum :
+- `server/territoryService.ts`
+- `server/routes/territories.ts`
+- `client/src/components/game/AvatarActionMenu.tsx`
+
+Autres fichiers seulement si strictement nécessaires.
+
+3. MODIFICATION MINIMALE PROPOSÉE
+
+A. Dans `server/territoryService.ts`
+Extraire une fonction non destructive, par exemple :
+- `checkClaimTerritory(playerId, worldX, worldY, ownerType)`
+
+Elle doit retourner :
+- `{ allowed: true }`
+ou
+- `{ allowed: false, reason: string }`
+
+IMPORTANT
+Cette fonction doit réutiliser exactement les mêmes règles métier que `claimTerritory(...)`.
+Je ne veux pas deux logiques divergentes.
+
+B. Dans `server/routes/territories.ts`
+Ajouter une route info dédiée, par exemple :
+- `GET /api/territories/claim-check?worldX=...&worldY=...&ownerType=...`
+
+Comportement attendu :
+- lit les paramètres
+- appelle `checkClaimTerritory(...)`
+- retourne le résultat JSON
+
+C. Dans `AvatarActionMenu.tsx`
+Au montage :
+- calculer la position monde actuelle de l’avatar avec la même source canonique déjà utilisée pour le claim
+- déterminer `ownerType` effectif (`faction` si faction active, sinon `player`)
+- appeler `claim-check`
+- stocker le résultat dans un état local
+
+Puis dans `getAllAvailableActions()` :
+- n’ajouter `claim_territory` que si `claimCheck.allowed === true`
+
+IMPORTANT
+Je veux que l’action disparaisse complètement si la revendication est impossible.
+Je ne veux pas seulement un bouton grisé.
+
+4. CONTRAINTES IMPORTANTES
+- ne pas recopier la logique métier côté client
+- ne pas casser `apiClaimTerritory(...)`
+- ne pas modifier les autres actions avatar
+- ne pas faire de refactor large de `territoryService.ts`
+- le check doit être le plus proche possible des règles existantes
+
+5. PREUVE DIRECTE
+Dans le rapport final, montrer :
+- quelles règles sont vérifiées par le nouveau check
+- comment `AvatarActionMenu` décide maintenant d’afficher ou non l’action
+- que le clic final continue d’utiliser `apiClaimTerritory(...)`
+
+6. VÉRIFICATION
+Confirmer :
+- case libre + walkable + claim autorisé → action visible
+- case déjà revendiquée → action absente
+- case non walkable → action absente
+- claim faction impossible → action absente
+- aucune autre action d’AvatarActionMenu cassée
+
+7. RAPPORT FINAL OBLIGATOIRE
+Répondre exactement avec :
+
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+CONTRAINTE FINALE
+Tu ne lances aucun autre chantier.
+Tu corriges uniquement l’affichage conditionnel de `Revendiquer le territoire` en le branchant sur un check canonique serveur.
