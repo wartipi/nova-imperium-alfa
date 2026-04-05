@@ -590,9 +590,7 @@ export function GameCanvas() {
           hasBank={tileContextMenu.hasBank}
           locationName={tileContextMenu.locationName}
           onOpenInfo={() => {
-            const foundHex = mapData?.find(
-              (h) => h.x === tileContextMenu.hexX && h.y === tileContextMenu.hexY
-            ) ?? null;
+            const foundHex = mapData?.[tileContextMenu.hexY]?.[tileContextMenu.hexX] ?? null;
             if (foundHex) setSelectedHex(foundHex);
             setTileContextMenu(null);
           }}
