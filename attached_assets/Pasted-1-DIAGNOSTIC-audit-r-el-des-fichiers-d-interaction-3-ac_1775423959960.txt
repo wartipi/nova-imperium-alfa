@@ -1,0 +1,115 @@
+1. DIAGNOSTIC — audit réel des fichiers d'interaction
+
+3 actions
+Lire les 4 fichiers clés en parallèle :
+
+
+4 actions
+Lire la section clé de GameCanvas.tsx pour comprendre le clic droit actuel et comment TileContextMenu est peuplé :
+
+
+4 actions
+Lire la suite de GameCanvas.tsx pour voir les imports, hooks utilisés, et le rendu de TileContextMenu :
+
+
+3 actions
+Voir comment la détection ville/bâtiments fonctionne dans l'existant (AvatarActionMenu) et comment récupérer le playerId :
+
+
+12 actions
+Maintenant j'ai tout. Plan clair. Exécution en parallèle :
+
+
+8 actions
+J'ai tous les éléments. Voici l'état exact du système avant modification :
+
+Audit confirmé :
+
+handleCanvasContextMenu (GameCanvas.tsx l.218-228) : simple clic droit → setSelectedHex(hex) → TileInfoPanel — TileContextMenu n'est jamais peuplé pour les cases
+TileInfoPanel.tsx l.577-588 : bouton "Se déplacer ici" hardcodé
+TileContextMenu.tsx : déjà prêt avec prop onMove: (() => void) | null — inchangé
+Mise en œuvre :
+
+
+3 actions
+Maintenant modifier handleCanvasContextMenu dans GameCanvas.tsx — ajouter le ref et la logique double clic droit :
+
+
+2 actions
+Maintenant remplacer le corps de la gestion des cases dans handleCanvasContextMenu :
+
+
+2 actions
+Vérifier si TileInfoPanel.tsx a maintenant des imports/déstructurations inutiles après suppression du bouton :
+
+
+4 actions
+setPendingMovement, avatarHexPosition et TerrainHelpers sont maintenant inutilisés — nettoyage :
+
+
+3 actions
+Vérification rapide que tout est cohérent, puis restart :
+
+
+3 actions
+Tout est propre. Vérification des logs HMR :
+
+
+2 actions
+HMR confirmé sur GameCanvas.tsx et TileInfoPanel.tsx — zéro erreur.
+
+1. DIAGNOSTIC
+Audit réel effectué avant toute modification :
+
+Élément	État avant
+TileInfoPanel.tsx l.577-588	Bouton "Se déplacer ici" hardcodé : TerrainHelpers.isWalkable + ≠ position actuelle → setPendingMovement
+GameCanvas.tsx handleCanvasContextMenu l.221-228	Simple clic droit case → setSelectedHex(hex) → TileInfoPanel. tileContextMenu jamais peuplé pour les cases
+TileContextMenu.tsx	Déjà complet avec prop onMove: (() => void) | null et rendu conditionnel {onMove && ...} — inchangé
+2. FICHIERS CONCERNÉS
+client/src/components/game/TileInfoPanel.tsx — suppression bouton + imports orphelins
+client/src/components/game/GameCanvas.tsx — lastRightClickRef + logique double clic droit + peuplement TileContextMenu
+client/src/components/game/TileContextMenu.tsx — aucune modification (déjà prêt)
+3. MODIFICATION MINIMALE PROPOSÉE → réalisée
+A. TileInfoPanel.tsx — suppression des lignes 577-588 (bouton) + nettoyage de setPendingMovement, avatarHexPosition, import TerrainHelpers devenus orphelins.
+
+B. GameCanvas.tsx — ajout de lastRightClickRef + remplacement de la logique cases dans handleCanvasContextMenu :
+
+Simple clic droit → setTileContextMenu({ ..., canMove, hasMarket, hasBank, locationName })
+Double clic droit (< 400 ms, même hex) → setSelectedHex(hex) → TileInfoPanel
+C. canMove — 3 gardes réutilisées de l'existant (identiques au double-clic gauche) :
+
+isAccessibleCtx (explorée ou admin)
+TerrainHelpers.isWalkable(hex.terrain)
+!(hex.x === currentHex.x && hex.y === currentHex.y)
+D. Avatar — inchangé. La garde isClickOnAvatar s'exécute avant la logique cases, la priorité est préservée.
+
+4. PREUVE DIRECTE
+Bouton retiré de TileInfoPanel : lignes 577-588 supprimées — plus aucune occurrence de setPendingMovement ni TerrainHelpers dans le fichier.
+
+Action ajoutée dans TileContextMenu via onMove prop :
+
+// GameCanvas.tsx — rendu TileContextMenu (inchangé)
+onMove={tileContextMenu.canMove
+  ? () => { setPendingMovement({ x: tileContextMenu.hexX, y: tileContextMenu.hexY }); setTileContextMenu(null); }
+  : null}
+
+canMove=false → onMove=null → TileContextMenu n'affiche pas "Se déplacer ici" (condition {onMove && ...} dans TileContextMenu.tsx l.111).
+
+Passage simple → double clic droit :
+
+const isDoubleRightClick = last !== null &&
+  last.hexX === hex.x && last.hexY === hex.y && now - last.time < 400;
+if (isDoubleRightClick) { if (isAccessibleCtx) setSelectedHex(hex); return; }
+// sinon → setTileContextMenu(...)
+
+Le clic sur "Se déplacer ici" continue d'appeler setPendingMovement → MovementConfirmationModal — flux inchangé.
+
+5. VÉRIFICATION
+✅ CAS 1 — case atteignable : canMove=true → TileContextMenu affiche 🚶 Se déplacer ici → clic → setPendingMovement → confirmation modale
+✅ CAS 2 — case non walkable ou non explorée : canMove=false → onMove=null → action absente du menu
+✅ CAS 3 — case actuelle du joueur : 3ème garde hex.x/y === currentHex.x/y → canMove=false → action absente
+✅ CAS 4 — simple clic droit : isDoubleRightClick=false → TileContextMenu ouvert, TileInfoPanel non ouvert
+✅ CAS 5 — double clic droit (< 400 ms, même hex) : isDoubleRightClick=true → TileInfoPanel ouvert
+✅ CAS 6 — TileInfoPanel : bouton "Se déplacer ici" retiré, reste intact (terrain, ressources, territoire, déplacement info)
+✅ CAS 7 — clic droit avatar : garde isClickOnAvatar exécutée en premier, return immédiat — inchangé
+6. STOP
