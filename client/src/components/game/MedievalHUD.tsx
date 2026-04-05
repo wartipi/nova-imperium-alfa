@@ -103,8 +103,6 @@ export function MedievalHUD() {
     experience,
     experienceToNextLevel,
     totalExperience,
-    competences, 
-    competencePoints, 
     actionPoints, 
     maxActionPoints, 
     getExperienceProgress,
@@ -557,23 +555,6 @@ export function MedievalHUD() {
                   </button>
                 )}
               </div>
-              <div className="text-xs text-amber-700 mt-1">COMPÉTENCES</div>
-              <div className="flex items-center justify-between">
-                <div className="text-purple-600">{competences.length} apprises ({competencePoints} pts)</div>
-                <div className="flex space-x-1">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveSection('transport');
-                    }}
-                    className="text-xs bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded"
-                    title="Ouvrir Joueur / Inventaire → Compétences"
-                  >
-                    🎯
-                  </button>
-                </div>
-              </div>
-              
               {/* Inventaire accessible via TRÉSORERIE */}
 
 

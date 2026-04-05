@@ -1,0 +1,81 @@
+NOVA IMPERIUM — MICRO-CORRECTIF UI — SUPPRIMER LE DERNIER POINT D’ACCÈS AUX COMPÉTENCES DANS LA CARTE JOUEUR EN HAUT À DROITE
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu interviens sur un micro-correctif UI ciblé.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucun chantier parallèle.
+Tu dois faire le plus petit correctif propre possible.
+
+OBJECTIF
+Je veux supprimer le dernier point d’accès aux compétences encore visible dans la carte joueur en haut à droite.
+
+IMPORTANT
+L’ancien panneau séparé des compétences a déjà été retiré.
+Mais il reste encore un accès secondaire visible dans la carte joueur :
+- label `COMPÉTENCES`
+- compteur de compétences
+- bouton `🎯`
+
+Je ne veux plus ce point d’accès du tout.
+Le point d’accès canonique doit maintenant être uniquement :
+- `👤 Joueur / Inventaire`
+
+CONTEXTE
+Dans `client/src/components/game/MedievalHUD.tsx`, la carte joueur en haut à droite affiche encore :
+- un titre `COMPÉTENCES`
+- le texte du type `X apprises (Y pts)`
+- un bouton `🎯`
+
+Ce bouton n’ouvre plus l’ancien panneau, mais il redirige encore vers `transport`.
+Ce raccourci n’est plus désiré.
+
+TRAVAIL DEMANDÉ
+
+1. DIAGNOSTIC
+Confirmer explicitement :
+- où se trouve encore ce résidu
+- que ce n’est plus un ancien panneau séparé, mais encore un accès secondaire
+- que le point d’accès canonique doit être uniquement `👤 Joueur / Inventaire`
+
+2. FICHIER CONCERNÉ
+- `client/src/components/game/MedievalHUD.tsx`
+- aucun autre fichier sauf nécessité absolue
+
+3. MODIFICATION MINIMALE PROPOSÉE
+Dans `MedievalHUD.tsx`, retirer uniquement dans la carte joueur de droite :
+- le label `COMPÉTENCES`
+- le texte de résumé des compétences
+- le bouton `🎯`
+
+IMPORTANT
+Ne pas toucher :
+- au panneau `Joueur / Inventaire`
+- à `PlayerTransportPanel`
+- à `CompetenceTree`
+- au backend
+- à la logique des compétences
+- au reste du HUD
+
+4. PREUVE DIRECTE
+Expliquer :
+- quel bloc JSX a été supprimé
+- ce qui reste intact
+- pourquoi le nouveau flux fonctionne toujours
+
+5. VÉRIFICATION
+Confirmer :
+- plus de section `COMPÉTENCES` dans la carte joueur en haut à droite
+- plus de bouton `🎯` à cet endroit
+- compétences toujours accessibles via `👤 Joueur / Inventaire`
+- aucun autre panneau cassé
+- aucun backend touché
+
+6. STOP
+
+CONTRAINTE FINALE
+Tu ne lances aucun autre chantier.
+Tu supprimes uniquement ce dernier point d’accès UI aux compétences dans `MedievalHUD.tsx`.
