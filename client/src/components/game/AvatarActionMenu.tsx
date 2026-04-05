@@ -7,9 +7,12 @@ import { useMap } from "../../lib/stores/useMap";
 // import { useMapState } from "../../lib/stores/useMapState"; // Pas utilisé ici
 import { Card } from "../ui/card";
 import { apiClaimTerritory } from "../../lib/api/territoriesApi";
+import { getPlayerCurrentCity } from "../../lib/api/economyApi";
 
 function getAuthHeaders(): Record<string, string> {
-  const token = localStorage.getItem('auth_token');
+  const saved = localStorage.getItem("nova_imperium_auth");
+  if (!saved) return {};
+  const { token } = JSON.parse(saved);
   if (!token) return {};
   return { Authorization: `Bearer ${token}` };
 }
@@ -48,9 +51,8 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
     let cancelled = false;
     (async () => {
       try {
-        const cityRes = await fetch('/api/economy/player-current-city', { headers: getAuthHeaders() });
-        if (!cityRes.ok || cancelled) return;
-        const city = await cityRes.json();
+        const city = await getPlayerCurrentCity();
+        if (cancelled) return;
         const onCity = city.cityId != null;
         if (!onCity) { setCityAccess({ onCity: false, bankOk: false, marketOk: false }); return; }
 

@@ -1,0 +1,82 @@
+NOVA IMPERIUM — CORRECTIF CIBLÉ — LES ACTIONS BANQUE / MARCHÉ SONT CODÉES MAIS NE S’AFFICHENT PAS À CAUSE D’UN MAUVAIS HEADER D’AUTH
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu interviens sur un micro-correctif ciblé.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucun chantier parallèle.
+Tu dois corriger uniquement la cause réelle du non-affichage.
+
+PROBLÈME RÉEL
+Dans `AvatarActionMenu.tsx`, les actions `open_bank` et `open_market` sont bien présentes.
+Mais elles ne s’affichent pas en jeu.
+
+CAUSE IDENTIFIÉE
+Le fichier `AvatarActionMenu.tsx` utilise un `getAuthHeaders()` local incorrect :
+
+- il lit `localStorage.getItem('auth_token')`
+
+Alors que le pattern canonique du projet, visible dans `client/src/lib/api/economyApi.ts`, est :
+
+- `localStorage.getItem("nova_imperium_auth")`
+- `JSON.parse(saved)`
+- récupération de `token`
+
+Conséquence probable :
+- les appels à
+  - `/api/economy/player-current-city`
+  - `/api/economy/bank-access-check`
+  - `/api/market/access-check`
+ne partent pas avec le bon header Bearer,
+- donc `cityAccess` reste faux,
+- donc les actions ne s’affichent jamais.
+
+TRAVAIL DEMANDÉ
+
+1. DIAGNOSTIC
+Confirmer explicitement :
+- que les actions `open_bank` / `open_market` sont bien présentes
+- que leur affichage dépend de `cityAccess`
+- que `getAuthHeaders()` dans `AvatarActionMenu.tsx` n’utilise pas la même source que `economyApi.ts`
+
+2. FICHIERS CONCERNÉS
+- `client/src/components/game/AvatarActionMenu.tsx`
+- éventuellement réutilisation de `client/src/lib/api/economyApi.ts`
+- aucun autre fichier sauf nécessité absolue
+
+3. MODIFICATION MINIMALE PROPOSÉE
+A. Corriger `getAuthHeaders()` dans `AvatarActionMenu.tsx` pour utiliser exactement le même pattern que `economyApi.ts` :
+- lire `nova_imperium_auth`
+- parser JSON
+- extraire `token`
+- retourner `Authorization: Bearer ${token}`
+
+B. Réutiliser `getPlayerCurrentCity()` depuis `economyApi.ts` si possible, au lieu du fetch brut, puisque ce helper existe déjà
+
+C. Garder les fetch directs restants seulement si nécessaire, mais avec le bon header
+
+IMPORTANT
+Ne change pas la logique des actions.
+Ne change pas le backend.
+Ne touche pas au rendu sauf si strictement nécessaire.
+
+4. PREUVE DIRECTE
+Montrer :
+- l’ancien `getAuthHeaders()` fautif
+- le nouveau aligné avec `economyApi.ts`
+- que `cityAccess` reçoit maintenant les vraies réponses serveur
+
+5. VÉRIFICATION
+Confirmer :
+- sur ville avec banque → `🏦 Accéder à la Banque` visible
+- sur ville avec marché → `🛒 Accéder au Marché` visible
+- hors ville → aucune de ces actions
+- aucune autre action d’AvatarActionMenu cassée
+
+6. STOP
+
+CONTRAINTE FINALE
+Tu corriges uniquement la cause réelle du non-affichage des actions banque / marché dans `AvatarActionMenu.tsx`.
