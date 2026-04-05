@@ -1,0 +1,186 @@
+NOVA IMPERIUM — SEGMENT CONTRÔLÉ — CHAMP DE VISION DES VILLES + CASERNE + FORTIFICATION
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu interviens sur un chantier ciblé.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucun chantier parallèle.
+Tu dois respecter strictement :
+audit → diagnostic → correctif minimal → vérification
+
+OBJECTIF
+Je veux ajouter 3 choses :
+
+1. un champ de vision pour les villes
+2. un bâtiment `barracks` / `caserne` servant à produire les unités
+3. un bâtiment `fortification`
+
+IMPORTANT
+Je veux une implémentation simple, stable et propre.
+Je ne veux pas de refonte globale du système de vision, du combat, ou de la production.
+
+CONTEXTE TECHNIQUE VÉRIFIÉ
+Le projet a déjà :
+- une persistance des tuiles découvertes via `player_discovered_tiles`
+- un système de villes / colonies persisté
+- `city_buildings`
+- `city_production`
+- `units`
+
+Le champ `city_buildings.building` est textuel, donc l’ajout de nouveaux bâtiments ne doit pas déclencher de refonte DB inutile.
+
+OBJECTIF TECHNIQUE PRÉCIS
+
+A. CHAMP DE VISION DES VILLES
+Je veux qu’une ville révèle une zone autour d’elle.
+
+RÈGLE V1 ATTENDUE
+- utiliser une constante explicite visible dans le code :
+  - `CITY_VISION_RADIUS = 2`
+- chaque ville possédée par le joueur doit révéler les cases dans ce rayon
+- réutiliser le pipeline de découverte existant
+- ne pas créer un second système parallèle de vision
+
+IMPORTANT
+Je veux une solution branchée sur le système existant de découvertes persistées, pas un hack visuel temporaire.
+
+B. CASERNE
+Je veux un bâtiment :
+- `barracks`
+- libellé FR : `Caserne`
+
+RÈGLE V1 ATTENDUE
+- bâtiment constructible comme les autres
+- visible dans les labels / listes / panneaux
+- la production d’unités doit être autorisée seulement si la ville possède une caserne
+
+IMPORTANT
+Je veux un vrai gate métier :
+- pas de caserne = pas de production d’unités
+
+C. FORTIFICATION
+Je veux un bâtiment :
+- `fortification`
+- libellé FR : `Fortification`
+
+RÈGLE V1 ATTENDUE
+- bâtiment constructible comme les autres
+- visible dans les labels / listes / panneaux
+- ne pas lancer une refonte du système de combat
+
+IMPORTANT
+Fortification V1 doit au minimum :
+- exister dans le système
+- être construisible
+- être visible
+- être prête pour une extension future
+
+Si un bonus défensif simple peut être branché proprement sur une valeur existante sans refactor, tu peux le faire.
+Sinon :
+- ne pas inventer de gros système défensif
+- ne pas cacher de logique instable
+
+TRAVAIL DEMANDÉ
+
+1. DIAGNOSTIC
+Avant toute modification :
+- auditer le pipeline de vision / découverte actuel
+- auditer le pipeline de construction de bâtiments
+- auditer le pipeline de production d’unités
+- identifier précisément :
+  - où brancher la vision des villes
+  - où ajouter `barracks`
+  - où ajouter `fortification`
+  - où mettre le gate “production d’unités nécessite caserne”
+
+2. FICHIERS CONCERNÉS
+Lister précisément les fichiers réellement touchés.
+Probablement dans cette zone :
+- logique vision / découverte joueur
+- service / DTO villes
+- config/catalogue bâtiments
+- panneaux ville / construction
+- pipeline de production d’unités
+- labels UI concernés
+
+IMPORTANT
+Ne pas toucher à plus de fichiers que nécessaire.
+
+3. MODIFICATION MINIMALE PROPOSÉE
+
+A. Vision des villes
+- ajouter une constante visible `CITY_VISION_RADIUS = 2`
+- brancher la découverte des villes sur le système existant
+- appliquer la révélation autour de chaque ville du joueur
+- persister proprement via le système existant
+
+B. Caserne
+- ajouter `barracks` dans le catalogue / config bâtiment
+- libellé FR : `Caserne`
+- rendre le bâtiment constructible
+- afficher correctement le bâtiment dans les panneaux / labels / toasts existants
+- empêcher la production d’unités dans une ville sans caserne
+
+C. Fortification
+- ajouter `fortification` dans le catalogue / config bâtiment
+- libellé FR : `Fortification`
+- rendre le bâtiment constructible
+- afficher correctement le bâtiment dans les panneaux / labels / toasts existants
+- ne pas refondre le combat
+
+IMPORTANT
+Pas de changement d’architecture.
+Pas de “grand système défensif”.
+Pas de duplication de logique.
+
+4. PREUVE DIRECTE
+Dans le rapport final, montrer explicitement :
+- où la vision des villes a été branchée
+- où `CITY_VISION_RADIUS = 2` a été définie
+- où `barracks` a été ajoutée
+- où `fortification` a été ajoutée
+- où la production d’unités est maintenant bloquée sans caserne
+
+5. VÉRIFICATION
+Confirmer au minimum :
+
+VISION
+- une ville révèle bien un rayon de 2 cases
+- cette révélation est cohérente avec le système de découverte existant
+
+CASERNE
+- la caserne apparaît dans les bâtiments constructibles
+- la caserne est visible dans les panneaux / labels
+- sans caserne, impossible de produire une unité
+- avec caserne, la production d’unités fonctionne toujours
+
+FORTIFICATION
+- la fortification apparaît dans les bâtiments constructibles
+- la fortification est visible dans les panneaux / labels
+- aucune régression du système ville / production / UI
+
+STABILITÉ
+- aucun refactor massif
+- aucune architecture changée
+- aucune régression évidente sur la vision, les villes ou la production
+
+6. RAPPORT FINAL OBLIGATOIRE
+Répondre exactement avec :
+
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+CONTRAINTE FINALE
+Tu ne lances aucun autre chantier.
+Tu implémentes uniquement :
+- vision des villes V1
+- caserne V1
+- fortification V1
+avec le plus petit changement propre possible.
