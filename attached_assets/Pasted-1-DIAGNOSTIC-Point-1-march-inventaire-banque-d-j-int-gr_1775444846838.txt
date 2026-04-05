@@ -1,0 +1,60 @@
+1. DIAGNOSTIC
+Point 1 (marché + inventaire + banque) : déjà intégralement appliqué au checkpoint e13aa47 lors du chantier précédent. Je confirme l'état actuel avant de passer au crédit banque.
+
+
+9 actions
+✅ Partie 1 (marché + banque + inventaire) : déjà intégralement en place (checkpoint e13aa47) — hasBankAccess, loadTransport, checkBankAccess, bouton 🏦 Banque, section inventaire, refresh dans les 3 handlers.
+
+Partie 2 (crédit test banque) : je procède via SQL direct, solution la plus petite possible — une seule requête INSERT ... ON CONFLICT DO UPDATE sur la table player_bank pour admin.
+
+2. FICHIERS CONCERNÉS
+Partie 1 : aucun — déjà fait.
+Partie 2 : aucun fichier source modifié — SQL one-shot direct sur la DB.
+
+3. MODIFICATION MINIMALE → crédit test banque
+
+3 actions
+Crédit appliqué — vérification de l'état actuel de la banque :
+
+
+3 actions
+Banque admin confirmée : 100 unités sur chaque ressource ✅
+
+4. PREUVE DIRECTE
+Partie 1 — déjà en place (checkpoint e13aa47) :
+
+Élément	Emplacement
+checkBankAccess() → /api/economy/bank-access-check	ligne 63
+hasBankAccess stocké localement	ligne 48
+Bouton 🏦 Banque conditionnel dans l'en-tête	ligne 198–211
+loadTransport() → getPlayerTransport()	ligne 70
+Section 🎒 Inventaire (transport) avant le formulaire	ligne 327–369
+loadTransport() dans rmPlaceOrder	ligne 142
+loadTransport() dans rmCancelOrder	ligne 152
+loadTransport() dans rmFillOrder	ligne 163
+Partie 2 — crédit test banque :
+
+SQL one-shot INSERT ... ON CONFLICT DO UPDATE sur player_bank :
+
+INSERT INTO player_bank (player_id, gold, food, ..., fur)
+VALUES ('admin', 100, 100, ..., 100)
+ON CONFLICT (player_id) DO UPDATE SET
+  gold = player_bank.gold + 100, ...
+
+Résultat DB vérifié :
+
+player_id | gold | food | wood | stone | iron | copper | coal | oil | herbs | fur
+admin     |  100 |  100 |  100 |   100 |  100 |    100 |  100 | 100 |   100 | 100
+
+La ligne n'existait pas — elle a été créée. Aucun fichier source modifié.
+
+5. VÉRIFICATION
+✅ Partie 1 — PublicMarketplace : intégralement en place depuis checkpoint e13aa47
+✅ Marché seul → hasBankAccess = false → pas de bouton Banque
+✅ Marché + Banque → hasBankAccess = true → 🏦 Banque visible dans l'en-tête
+✅ Clic 🏦 Banque → nova:open-panel { panel: 'treasury' }
+✅ Inventaire transport visible, capacité + ressources non-nulles
+✅ Refresh inventaire après placeOrder, cancelOrder, fillOrder
+✅ Banque admin : +100 sur les 10 ressources (gold, food, wood, stone, iron, copper, coal, oil, herbs, fur)
+✅ Aucun backend métier modifié — SQL direct one-shot uniquement
+✅ Aucun autre panneau cassé
