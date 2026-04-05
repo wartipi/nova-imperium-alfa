@@ -1,0 +1,152 @@
+NOVA IMPERIUM — MICRO-CHANTIER UI — RELIER LE MARCHÉ À LA BANQUE SI LES DEUX BÂTIMENTS SONT PRÉSENTS, ET AJOUTER L’INVENTAIRE DU JOUEUR DANS LE PANNEAU MARCHÉ
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu interviens sur un micro-chantier UI ciblé.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucun chantier parallèle.
+Tu dois faire le plus petit changement propre, stable et cohérent possible.
+
+OBJECTIF
+Je veux améliorer le panneau du marché (`PublicMarketplace`) avec 2 ajouts :
+
+1. Si le point d’accès actuel possède aussi une Banque, je veux un accès direct vers la Banque depuis le marché.
+2. Je veux une fenêtre / section visible dans le marché qui affiche l’inventaire du joueur.
+
+IMPORTANT
+Le but n’est pas de refondre le système.
+Le but est d’ajouter ces deux capacités dans le panneau marché existant.
+
+CONTEXTE VÉRIFIÉ
+Dans `client/src/components/game/PublicMarketplace.tsx` :
+- le panneau vérifie déjà l’accès marché via `/api/market/access-check`
+- il charge déjà le carnet, les ordres et les trades
+- il ne sait pas encore si une banque est aussi accessible
+- il n’affiche pas encore l’inventaire du joueur
+
+Dans `client/src/components/game/TreasuryPanel.tsx` :
+- l’accès banque existe déjà séparément
+- `getPlayerTransport()` existe déjà dans `economyApi.ts`
+- `getPlayerBank()` existe déjà aussi
+
+Dans `client/src/components/game/MedievalHUD.tsx` :
+- `nova:open-panel` ouvre déjà les panneaux
+- `marketplace` et `treasury` existent déjà comme panneaux
+
+OBJECTIF TECHNIQUE PRÉCIS
+Faire évoluer `PublicMarketplace.tsx` pour :
+1. afficher un raccourci Banque si la Banque est aussi accessible au point d’accès actuel
+2. afficher un encart Inventaire du joueur dans le panneau marché
+3. recharger cet inventaire après les actions de marché importantes
+
+TRAVAIL DEMANDÉ
+
+1. DIAGNOSTIC
+Confirmer explicitement :
+- que `PublicMarketplace.tsx` est le bon point d’entrée
+- que l’accès marché est déjà vérifié
+- que l’accès banque peut être vérifié séparément
+- que `getPlayerTransport()` existe déjà et peut être réutilisé
+- que la solution saine est d’étendre `PublicMarketplace` sans refondre l’architecture
+
+2. FICHIERS CONCERNÉS
+Au minimum :
+- `client/src/components/game/PublicMarketplace.tsx`
+
+Éventuellement :
+- `client/src/lib/api/economyApi.ts` si un helper manque, mais seulement si strictement nécessaire
+
+Ne pas toucher au backend sauf nécessité absolue.
+
+3. MODIFICATION MINIMALE PROPOSÉE
+
+A. Accès Banque depuis le marché
+Dans `PublicMarketplace.tsx` :
+- après validation de l’accès marché, faire aussi un check banque via :
+  - `/api/economy/bank-access-check`
+- stocker cet état localement, par exemple :
+  - `hasBankAccess`
+- si `access.status === "allowed"` ET `hasBankAccess === true` :
+  - afficher un bouton `🏦 Banque` dans l’en-tête ou dans la bannière du point d’accès
+
+COMPORTEMENT ATTENDU :
+- clic sur `🏦 Banque` :
+  - déclenche `window.dispatchEvent(new CustomEvent('nova:open-panel', { detail: { panel: 'treasury' } }))`
+
+IMPORTANT :
+- éviter tout conflit avec `onClose()`
+- je veux une vraie bascule propre vers le panneau Banque
+- ne pas casser le panneau marché
+
+B. Inventaire du joueur dans le marché
+Toujours dans `PublicMarketplace.tsx` :
+- charger `getPlayerTransport()`
+- stocker le résultat dans un état local
+- afficher une section / carte “Inventaire du joueur” dans le marché
+
+CONTENU ATTENDU MINIMUM :
+- capacité utilisée / capacité max
+- inventaire transport par ressource
+- affichage lisible et compact
+
+STYLE ATTENDU :
+- encadré clair
+- visuellement distinct du carnet d’ordres
+- cohérent avec le style existant
+
+C. Refresh inventaire après actions marché
+Après :
+- `rmPlaceOrder`
+- `rmCancelOrder`
+- `rmFillOrder`
+
+recharger aussi l’inventaire du joueur pour garder l’affichage à jour.
+
+IMPORTANT :
+- ne pas casser le rechargement actuel du marché
+- simplement compléter les refresh existants
+
+4. CONTRAINTES IMPORTANTES
+- ne pas refondre `PublicMarketplace`
+- ne pas créer un nouveau panneau
+- ne pas casser `treasury`
+- ne pas casser `marketplace`
+- ne pas toucher au backend si le client suffit
+- ne pas mélanger ce chantier avec d’autres
+
+5. PREUVE DIRECTE
+Dans ton rapport final, montrer :
+- comment l’accès banque est détecté depuis le marché
+- où le bouton `🏦 Banque` a été ajouté
+- comment l’inventaire du joueur est chargé
+- où la section inventaire est rendue
+- quels handlers déclenchent maintenant aussi un refresh inventaire
+
+6. VÉRIFICATION
+Confirmer :
+- marché seul → pas de bouton Banque
+- marché + banque présents → bouton `🏦 Banque` visible
+- clic sur `🏦 Banque` → ouvre le panneau `treasury`
+- l’inventaire du joueur est visible dans le marché
+- l’inventaire se met à jour après création / annulation / fill d’ordre
+- aucune autre interaction du marché cassée
+- aucun backend modifié inutilement
+
+7. RAPPORT FINAL OBLIGATOIRE
+Répondre exactement avec :
+
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+CONTRAINTE FINALE
+Tu ne lances aucun autre chantier.
+Tu modifies uniquement `PublicMarketplace` pour :
+- ajouter un accès Banque quand les deux services sont disponibles
+- ajouter une section Inventaire du joueur dans le panneau marché.

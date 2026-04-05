@@ -5,6 +5,7 @@ import {
   type MarketGuild, type MarketOrder, type MarketTrade,
   type ResourceType, type OrderSide, RESOURCE_LABELS, ALL_RESOURCES,
 } from "../../lib/api/marketApi";
+import { getPlayerTransport, type PlayerTransportDTO } from "../../lib/api/economyApi";
 
 interface PublicMarketplaceProps {
   playerId: string;
@@ -43,6 +44,10 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
   const [rmFillQty, setRmFillQty]   = useState<Record<number, number>>({});
   const [rmFeeInput, setRmFeeInput] = useState<string>('');
 
+  // ─── Banque & Inventaire transport ────────────────────────────────────────────
+  const [hasBankAccess, setHasBankAccess] = useState(false);
+  const [transport,     setTransport]     = useState<PlayerTransportDTO | null>(null);
+
   // ─── Auth ─────────────────────────────────────────────────────────────────────
   const rmGetAuth = (): Record<string, string> => {
     const saved = localStorage.getItem("nova_imperium_auth");
@@ -50,6 +55,24 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
     const { token } = JSON.parse(saved);
     return token ? { Authorization: `Bearer ${token}` } : {};
   };
+
+  // ─── Accès banque (parallèle au marché) ──────────────────────────────────────
+  const checkBankAccess = useCallback(async () => {
+    try {
+      const resp = await fetch("/api/economy/bank-access-check", { headers: rmGetAuth() });
+      if (!resp.ok) { setHasBankAccess(false); return; }
+      const data = await resp.json();
+      setHasBankAccess(data.allowed === true);
+    } catch { setHasBankAccess(false); }
+  }, []);
+
+  // ─── Inventaire transport ─────────────────────────────────────────────────────
+  const loadTransport = useCallback(async () => {
+    try {
+      const t = await getPlayerTransport();
+      setTransport(t);
+    } catch { setTransport(null); }
+  }, []);
 
   // ─── Vérification d'accès physique au montage ─────────────────────────────────
   const checkAccess = useCallback(async () => {
@@ -101,17 +124,19 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
   useEffect(() => {
     if (access.status === "allowed" && access.cityId !== null) {
       rmLoadMarket(access.cityId);
+      checkBankAccess();
+      loadTransport();
     }
   }, [access.status, access.cityId]);
 
   // ─── Actions ──────────────────────────────────────────────────────────────────
   const rmPlaceOrder = async () => {
-    // Le cityId est résolu côté serveur — on passe le cityId du point d'accès pour le tag.
     const cityId = access.cityId ?? 0;
     try {
       const result = await placeMarketOrder(cityId > 0 ? cityId : 1, rmOrderForm);
       setRmMsg(`✅ Ordre #${result.orderId} créé — escrow prélevé.`);
       rmLoadMarket(cityId);
+      loadTransport();
     } catch (e: any) { setRmMsg(`❌ ${e.message}`); }
   };
 
@@ -121,6 +146,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
       await cancelMarketOrder(cityId > 0 ? cityId : 1, orderId);
       setRmMsg(`✅ Ordre #${orderId} annulé — escrow retourné.`);
       rmLoadMarket(cityId);
+      loadTransport();
     } catch (e: any) { setRmMsg(`❌ ${e.message}`); }
   };
 
@@ -131,6 +157,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
       const r = await fillMarketOrder(cityId > 0 ? cityId : 1, orderId, qty);
       setRmMsg(`✅ Fill #${orderId} — ${qty} unités — ${r.totalGold}g (frais: ${r.feeAmount}g)`);
       rmLoadMarket(cityId);
+      loadTransport();
     } catch (e: any) { setRmMsg(`❌ ${e.message}`); }
   };
 
@@ -167,14 +194,27 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
               <p className="text-sm text-amber-700">Service central · Accès via terminal physique</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="text-amber-700 hover:text-amber-900 text-3xl font-bold hover:bg-amber-200 rounded px-2"
-            style={{ userSelect: 'none', pointerEvents: 'auto' }}
-            title="Fermer le marché"
-          >
-            ×
-          </button>
+          <div className="flex items-center gap-2">
+            {hasBankAccess && (
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent('nova:open-panel', { detail: { panel: 'treasury' } }))}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm font-semibold transition-colors"
+                style={{ pointerEvents: 'auto' }}
+                title="Accéder à la banque"
+              >
+                <span>🏦</span>
+                <span>Banque</span>
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="text-amber-700 hover:text-amber-900 text-3xl font-bold hover:bg-amber-200 rounded px-2"
+              style={{ userSelect: 'none', pointerEvents: 'auto' }}
+              title="Fermer le marché"
+            >
+              ×
+            </button>
+          </div>
         </div>
 
         {/* Corps */}
@@ -280,6 +320,50 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                 <div className="flex-1 flex items-center justify-center text-emerald-700">Chargement du carnet…</div>
               ) : (
                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
+
+                  {/* ─── Inventaire transport du joueur ─────────────────────── */}
+                  {transport && (
+                    <div className="bg-white border border-amber-200 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-bold text-amber-900 text-sm flex items-center gap-1.5">
+                          🎒 Inventaire (transport)
+                        </h4>
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                          transport.usedUnits >= transport.maxUnits
+                            ? "bg-red-100 text-red-700"
+                            : transport.usedUnits >= transport.maxUnits * 0.8
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-emerald-100 text-emerald-700"
+                        }`}>
+                          {transport.usedUnits} / {transport.maxUnits} u.
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+                        {/* Or */}
+                        {transport.gold > 0 && (
+                          <div className="flex items-center gap-1 bg-yellow-50 border border-yellow-200 rounded px-2 py-1 text-xs">
+                            <span>💰</span>
+                            <span className="text-yellow-800 font-semibold">{transport.gold}</span>
+                            <span className="text-yellow-600 truncate">Or</span>
+                          </div>
+                        )}
+                        {/* Ressources */}
+                        {ALL_RESOURCES.map(r => {
+                          const qty = (transport as any)[r] as number;
+                          if (!qty) return null;
+                          return (
+                            <div key={r} className="flex items-center gap-1 bg-stone-50 border border-stone-200 rounded px-2 py-1 text-xs">
+                              <span className="text-stone-700 font-semibold">{qty}</span>
+                              <span className="text-stone-500 truncate">{RESOURCE_LABELS[r]}</span>
+                            </div>
+                          );
+                        })}
+                        {transport.gold === 0 && transport.usedUnits === 0 && (
+                          <span className="col-span-5 text-xs text-gray-400 italic">Aucune ressource en transit</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Formulaire nouvel ordre */}
                   <div className="bg-white border border-emerald-200 rounded-lg p-4">
