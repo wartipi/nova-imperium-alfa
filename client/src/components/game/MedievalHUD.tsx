@@ -568,9 +568,10 @@ export function MedievalHUD() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      setShowCompetenceModal(true);
+                      setActiveSection('transport');
                     }}
                     className="text-xs bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded"
+                    title="Ouvrir Joueur / Inventaire → Compétences"
                   >
                     🎯
                   </button>

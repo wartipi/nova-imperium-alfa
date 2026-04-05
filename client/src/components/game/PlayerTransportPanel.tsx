@@ -9,6 +9,7 @@ import {
 } from "../../lib/api/economyApi";
 import { usePlayer } from "../../lib/stores/usePlayer";
 import { useReputation } from "../../lib/stores/useReputation";
+import { CompetenceTree } from "./CompetenceTree";
 
 // ─── Matériaux ────────────────────────────────────────────────────────────────
 
@@ -32,7 +33,7 @@ const EQUIPMENT_SLOTS = [
 
 // ─── Types des onglets ────────────────────────────────────────────────────────
 
-type Tab = 'resume' | 'inventaire' | 'equipement' | 'avatar';
+type Tab = 'resume' | 'inventaire' | 'equipement' | 'avatar' | 'competences';
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
@@ -138,10 +139,11 @@ export function PlayerTransportPanel() {
 
   // ─── Onglets ────────────────────────────────────────────────────────────────
   const TABS: Array<{ id: Tab; label: string }> = [
-    { id: 'resume',     label: '👤 Résumé' },
-    { id: 'inventaire', label: '🎒 Inventaire' },
-    { id: 'equipement', label: '⚔️ Équipement' },
-    { id: 'avatar',     label: '👥 Avatar' },
+    { id: 'resume',      label: '👤 Résumé' },
+    { id: 'inventaire',  label: '🎒 Inventaire' },
+    { id: 'equipement',  label: '⚔️ Équipement' },
+    { id: 'avatar',      label: '👥 Avatar' },
+    { id: 'competences', label: '🎯 Compétences' },
   ];
 
   return (
@@ -464,6 +466,20 @@ export function PlayerTransportPanel() {
               Maximum 2 avatars par joueur atteint.
             </div>
           )}
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          SECTION 5 — Compétences
+      ══════════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'competences' && (
+        <div className="space-y-3">
+          <div className="text-xs text-amber-700 font-semibold uppercase tracking-wide mb-1">
+            Arbre de Compétences
+          </div>
+          <div className="bg-white border border-amber-200 rounded-lg p-2 max-h-[60vh] overflow-y-auto">
+            <CompetenceTree />
+          </div>
         </div>
       )}
 
