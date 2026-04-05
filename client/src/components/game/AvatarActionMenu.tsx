@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePlayer } from "../../lib/stores/usePlayer";
 import { useReputation } from "../../lib/stores/useReputation";
 import { useAuth } from "../../lib/auth/AuthContext";
@@ -7,6 +7,12 @@ import { useMap } from "../../lib/stores/useMap";
 // import { useMapState } from "../../lib/stores/useMapState"; // Pas utilisé ici
 import { Card } from "../ui/card";
 import { apiClaimTerritory } from "../../lib/api/territoriesApi";
+
+function getAuthHeaders(): Record<string, string> {
+  const token = localStorage.getItem('auth_token');
+  if (!token) return {};
+  return { Authorization: `Bearer ${token}` };
+}
 
 interface AvatarActionMenuProps {
   position: { x: number; y: number };
@@ -30,6 +36,37 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
   const { isAdmin } = useAuth();
   const { playerFaction } = useFactions();
   const { setSelectedHex } = useMap();
+
+  // ─── Accès ville — chargé au montage ────────────────────────────────────────
+  const [cityAccess, setCityAccess] = useState<{
+    onCity: boolean;
+    bankOk: boolean;
+    marketOk: boolean;
+  }>({ onCity: false, bankOk: false, marketOk: false });
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const cityRes = await fetch('/api/economy/player-current-city', { headers: getAuthHeaders() });
+        if (!cityRes.ok || cancelled) return;
+        const city = await cityRes.json();
+        const onCity = city.cityId != null;
+        if (!onCity) { setCityAccess({ onCity: false, bankOk: false, marketOk: false }); return; }
+
+        const [bankRes, marketRes] = await Promise.all([
+          fetch('/api/economy/bank-access-check',  { headers: getAuthHeaders() }),
+          fetch('/api/market/access-check',         { headers: getAuthHeaders() }),
+        ]);
+        if (cancelled) return;
+        const bank   = bankRes.ok   ? await bankRes.json()   : { allowed: false };
+        const market = marketRes.ok ? await marketRes.json() : { allowed: false };
+        setCityAccess({ onCity: true, bankOk: !!bank.allowed, marketOk: !!market.allowed });
+      } catch { /* hors ville ou réseau KO — on laisse onCity=false */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   // Actions de base supprimées - déplacement par clic direct sur la carte
 
   // Action d'exploration nécessitant la compétence exploration niveau 1
@@ -360,6 +397,18 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       return;
     }
     
+    if (action.id === 'open_bank') {
+      window.dispatchEvent(new CustomEvent('nova:open-panel', { detail: { panel: 'treasury' } }));
+      onClose();
+      return;
+    }
+
+    if (action.id === 'open_market') {
+      window.dispatchEvent(new CustomEvent('nova:open-panel', { detail: { panel: 'marketplace' } }));
+      onClose();
+      return;
+    }
+
     // En mode MJ, on n'utilise pas de PA pour les autres actions
     if (isAdmin || spendActionPoints(action.cost)) {
       if (isAdmin) {
@@ -386,7 +435,33 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
       return true;
     });
 
+    // Actions ville — visibles uniquement si le joueur est physiquement sur une ville
+    const cityActions: any[] = [];
+    if (cityAccess.onCity) {
+      if (cityAccess.bankOk) {
+        cityActions.push({
+          id: 'open_bank',
+          name: 'Accéder à la Banque',
+          description: 'Ouvrir la banque de cette ville',
+          cost: 0,
+          icon: '🏦',
+          category: 'city',
+        });
+      }
+      if (cityAccess.marketOk) {
+        cityActions.push({
+          id: 'open_market',
+          name: 'Accéder au Marché',
+          description: 'Ouvrir le marché public de cette ville',
+          cost: 0,
+          icon: '🛒',
+          category: 'city',
+        });
+      }
+    }
+
     const allActions = [
+      ...cityActions,
       ...filteredExplorationActions,
       ...filteredCompetenceActions,
       ...territoryActions,
@@ -455,9 +530,11 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
                       </div>
                     </div>
                   </div>
-                  <div className="text-sm font-bold text-amber-800">
-                    {action.cost} PA
-                  </div>
+                  {action.cost > 0 && (
+                    <div className="text-sm font-bold text-amber-800">
+                      {action.cost} PA
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

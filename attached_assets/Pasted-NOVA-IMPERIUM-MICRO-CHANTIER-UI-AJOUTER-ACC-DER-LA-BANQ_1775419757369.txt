@@ -1,0 +1,128 @@
+NOVA IMPERIUM — MICRO-CHANTIER UI — AJOUTER “ACCÉDER À LA BANQUE” ET “ACCÉDER AU MARCHÉ” DANS LE MENU D’ACTION AVATAR QUAND LE JOUEUR EST SUR UNE VILLE
+
+BRANCHE
+NI-10.3
+
+RÔLE
+Tu interviens sur un micro-chantier UI ciblé.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucun chantier parallèle.
+Tu dois faire le plus petit correctif propre possible.
+
+OBJECTIF
+Je veux ajouter dans le menu d’action de l’avatar (clic droit sur le personnage) :
+- `Accéder à la Banque`
+- `Accéder au Marché`
+
+mais uniquement quand le joueur se trouve physiquement sur une ville, et uniquement si le service est réellement accessible.
+
+IMPORTANT
+Le but n’est PAS de créer une nouvelle logique métier locale.
+Le but est de réutiliser la logique serveur déjà existante.
+
+CONTEXTE VÉRIFIÉ
+1. `client/src/components/game/AvatarActionMenu.tsx`
+- gère déjà les actions contextuelles du clic droit avatar
+- c’est le bon point d’entrée pour ajouter ces actions
+
+2. `client/src/components/game/MedievalHUD.tsx`
+- écoute déjà `nova:open-panel`
+- sait déjà ouvrir un panneau existant via :
+  - `treasury`
+  - `marketplace`
+
+3. Côté serveur, les checks d’accès existent déjà :
+- banque : `GET /api/economy/bank-access-check`
+- ville courante : `GET /api/economy/player-current-city`
+- marché : `GET /api/market/access-check`
+
+4. La logique canonique existe déjà dans `accessPointService.ts`
+- `checkAccessPoint(playerId, "bank" | "market")`
+- `checkPlayerCity(playerId)`
+
+OBJECTIF TECHNIQUE PRÉCIS
+Ajouter 2 actions contextuelles dans `AvatarActionMenu` :
+- visibles seulement quand le joueur est sur une ville
+- et seulement si l’accès au service correspondant est réellement permis
+- qui ouvrent les panneaux déjà existants
+
+TRAVAIL DEMANDÉ
+
+1. DIAGNOSTIC
+Confirmer explicitement :
+- que `AvatarActionMenu.tsx` est bien le bon point d’entrée
+- que `MedievalHUD.tsx` sait déjà ouvrir les panneaux via `nova:open-panel`
+- que les checks serveur existent déjà pour banque / marché / ville courante
+- que la solution saine est de réutiliser ces checks au lieu de faire une logique locale
+
+2. FICHIERS CONCERNÉS
+Au minimum :
+- `client/src/components/game/AvatarActionMenu.tsx`
+
+Éventuellement :
+- petits helpers API client si absents, mais uniquement si strictement nécessaire
+
+Ne pas toucher au backend métier sauf nécessité absolue.
+
+3. MODIFICATION MINIMALE PROPOSÉE
+
+A. Dans `AvatarActionMenu.tsx`
+Ajouter deux actions contextuelles :
+- `open_bank`
+- `open_market`
+
+B. Conditions d’affichage
+Le menu doit charger au montage les infos suivantes :
+- si le joueur est sur une ville (`/api/economy/player-current-city`)
+- si l’accès banque est autorisé (`/api/economy/bank-access-check`)
+- si l’accès marché est autorisé (`/api/market/access-check`)
+
+Règle d’affichage attendue :
+- hors ville → aucune de ces deux actions
+- sur ville sans banque → pas d’action banque
+- sur ville sans marché → pas d’action marché
+- sur ville avec service → action visible
+
+C. Action au clic
+Pour `Accéder à la Banque` :
+- dispatch :
+  `window.dispatchEvent(new CustomEvent('nova:open-panel', { detail: { panel: 'treasury' } }))`
+- puis `onClose()`
+
+Pour `Accéder au Marché` :
+- dispatch :
+  `window.dispatchEvent(new CustomEvent('nova:open-panel', { detail: { panel: 'marketplace' } }))`
+- puis `onClose()`
+
+D. Style / libellés
+Libellés recommandés :
+- `🏦 Accéder à la Banque`
+- `🛒 Accéder au Marché`
+
+E. IMPORTANT
+Ne pas :
+- ajouter un nouveau panneau
+- ajouter une logique de bâtiment locale fragile
+- toucher au backend métier si les endpoints d’info existants suffisent
+- casser les autres actions avatar
+
+4. PREUVE DIRECTE
+Dans ton rapport final, montrer :
+- quels checks sont appelés côté client
+- sous quelles conditions les deux actions apparaissent
+- comment l’ouverture de panneau est déclenchée
+
+5. VÉRIFICATION
+Confirmer :
+- hors ville → pas d’accès banque/marché
+- sur ville avec banque → action banque visible et ouvre `treasury`
+- sur ville avec marché → action marché visible et ouvre `marketplace`
+- aucun autre comportement d’`AvatarActionMenu` cassé
+- aucun backend métier modifié inutilement
+
+6. STOP
+
+CONTRAINTE FINALE
+Tu ne lances aucun autre chantier.
+Tu ajoutes uniquement ces deux actions contextuelles dans `AvatarActionMenu` en réutilisant les checks serveur existants.
