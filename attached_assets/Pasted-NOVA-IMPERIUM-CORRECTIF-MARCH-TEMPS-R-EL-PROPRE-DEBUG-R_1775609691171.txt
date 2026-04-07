@@ -1,0 +1,313 @@
+NOVA IMPERIUM — CORRECTIF MARCHÉ TEMPS RÉEL PROPRE + DEBUG RESSOURCES TEST
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucun changement d’architecture globale.
+Aucune dérive hors sujet.
+
+OBJECTIF
+Rendre le marché des ressources quasi instantané entre joueurs connectés au panneau marché, de façon propre et limitée au marché uniquement.
+
+IMPORTANT
+Ne pars PAS sur websocket global du projet.
+Ne pars PAS sur une refonte réseau générale.
+Ne touche PAS à la logique métier d’escrow déjà valide.
+Ne transforme PAS ce chantier en système temps réel global.
+Le correctif doit rester circonscrit au marché.
+
+DIAGNOSTIC À RESPECTER
+
+1. Le carnet marché est déjà global côté serveur.
+2. Le problème n’est pas la portée des ordres, mais l’absence de notification cross-client.
+3. PublicMarketplace recharge déjà après les actions locales du client.
+4. Il manque un signal serveur → client pour notifier les autres clients connectés au marché.
+5. La meilleure option ici est un flux SSE ciblé marché, avec invalidation du carnet.
+6. L’auth actuelle passe par bearer token dans Authorization, ce qui nécessite un traitement spécifique pour SSE.
+
+FICHIERS À MODIFIER
+
+* client/src/components/game/PublicMarketplace.tsx
+* server/routes/market.ts
+* server/middleware/auth.ts
+* créer un petit module dédié au push marché, par exemple :
+
+  * server/marketEvents.ts
+* ajouter un mécanisme debug ciblé pour créditer le joueur "maitre" dans player_bank
+
+CONTRAINTES FORTES
+
+* ne pas modifier la logique métier de placeOrder / fillOrder / cancelOrder / getOpenOrders sauf pour brancher l’émission d’événement
+* ne pas refondre l’auth globale
+* ne pas toucher aux autres panneaux HUD
+* ne pas ouvrir de chantier websocket général
+* ne pas ajouter de dépendance lourde
+* le push doit rester limité au marché
+* ne jamais envoyer le carnet complet en push
+* envoyer seulement un événement d’invalidation / refresh
+
+ARCHITECTURE CIBLE
+A. Serveur
+
+* garder les routes marché existantes
+* ajouter un mini canal SSE marché
+* maintenir une liste en mémoire des clients SSE connectés au marché
+* lors d’un changement marché, envoyer un petit événement :
+
+  * type: market_invalidated
+  * éventuellement avec timestamp / reason
+* les clients recevant cet événement rechargent le carnet via les routes existantes
+
+B. Client
+
+* quand PublicMarketplace est ouvert et access.status === "allowed", ouvrir la connexion SSE
+* quand un événement market_invalidated arrive :
+
+  * appeler rmLoadMarket(access.cityId)
+  * appeler loadTransport()
+* fermer proprement la connexion SSE au démontage ou quand l’accès n’est plus allowed
+
+C. Auth SSE
+
+* EventSource ne permet pas d’envoyer facilement Authorization en header
+* solution minimale acceptable :
+
+  1. extraire un helper de validation de token dans auth.ts
+  2. réutiliser ce helper pour la route SSE marché
+  3. autoriser cette route SSE à recevoir le token via query param
+* IMPORTANT :
+
+  * ne pas logger le token
+  * ne pas propager ce pattern à toutes les routes
+  * limiter cette exception au flux SSE marché uniquement
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT RAPIDE
+Relire avant modification :
+
+* client/src/components/game/PublicMarketplace.tsx
+* server/routes/market.ts
+* server/middleware/auth.ts
+
+Confirmer :
+
+* PublicMarketplace recharge déjà après action locale
+* il n’existe pas de mécanisme cross-client actuel
+* requireAuth dépend d’Authorization: Bearer ...
+* les routes marché existantes doivent rester la source de vérité pour charger les données
+
+ÉTAPE 2 — EXTRACTION AUTH MINIMALE
+Dans auth.ts :
+
+* extraire un helper réutilisable, par exemple :
+
+  * getUserFromBearerToken(token: string)
+    ou équivalent
+* requireAuth doit continuer à fonctionner comme avant
+* ne change pas le contrat des routes existantes
+* ne fais pas un refactor large
+* but : permettre à la route SSE marché de valider un token transmis autrement qu’en header
+
+ÉTAPE 3 — MODULE SSE MARCHÉ
+Créer un petit module dédié, par exemple server/marketEvents.ts, avec responsabilité minimale :
+
+* enregistrer une connexion SSE
+* retirer une connexion à la fermeture
+* diffuser un petit événement à tous les abonnés actifs
+* pas de stockage persistant
+* pas de replay
+* pas de logique métier marché
+* seulement diffusion in-memory pour le process courant
+
+API interne suggérée :
+
+* addMarketSubscriber(...)
+* removeMarketSubscriber(...)
+* broadcastMarketInvalidation(reason?: string)
+
+Format événement SSE suggéré :
+event: market_invalidated
+data: {"reason":"order_created","ts":1234567890}
+
+IMPORTANT
+
+* ne pousse pas les ordres complets
+* ne pousse pas les trades complets
+* seulement un signal de refresh
+
+ÉTAPE 4 — ROUTE SSE DANS market.ts
+Ajouter une route dédiée, par exemple :
+GET /api/market/stream
+
+Comportement :
+
+* authentifier le joueur via token transmis en query param
+* si token invalide → 401
+* si token valide → ouvrir la réponse en mode SSE
+* poser les headers SSE corrects
+* inscrire le client dans le module marketEvents
+* nettoyer l’inscription à la fermeture de la connexion
+* éventuellement envoyer un événement initial “connected”
+
+IMPORTANT
+
+* ne pas imposer de présence physique pour ouvrir le flux SSE lui-même
+* la sécurité métier reste côté chargement réel du marché via /access-check + /orders + /trades
+* le flux SSE sert uniquement à dire “recharge ton carnet”
+* ne pas casser les routes existantes
+
+ÉTAPE 5 — BRANCHER LES ÉMISSIONS SERVEUR
+Dans server/routes/market.ts ou au point le plus propre possible juste après succès :
+
+* après POST /:cityId/orders réussi
+  → broadcastMarketInvalidation("order_created")
+* après DELETE /:cityId/orders/:orderId réussi
+  → broadcastMarketInvalidation("order_cancelled")
+* après POST /:cityId/orders/:orderId/fill réussi
+  → broadcastMarketInvalidation("order_filled")
+* après PATCH /:cityId/guild/fee réussi
+  → broadcastMarketInvalidation("fee_updated")
+
+IMPORTANT
+
+* diffuser uniquement après succès réel
+* ne pas diffuser avant validation métier
+* ne pas dupliquer la logique métier
+
+ÉTAPE 6 — CLIENT SSE DANS PublicMarketplace.tsx
+Ajouter un useEffect dédié :
+
+* actif uniquement si :
+
+  * access.status === "allowed"
+  * le panneau est monté
+* récupérer le token auth depuis localStorage (même source que le reste)
+* ouvrir EventSource sur /api/market/stream?token=...
+* écouter l’événement market_invalidated
+* à réception :
+
+  * relancer rmLoadMarket(access.cityId)
+  * relancer loadTransport()
+* fermer EventSource au cleanup
+
+GARDES IMPORTANTES
+
+* éviter plusieurs EventSource concurrents
+* ne pas reconnecter en boucle agressive
+* rester minimal
+* ne pas ajouter de state inutile
+* ne pas casser le chargement initial existant
+* ne pas supprimer le refresh local déjà présent après action locale
+* les deux peuvent coexister proprement
+
+Amélioration propre possible :
+
+* éviter les refresh multiples trop rapprochés avec un petit garde anti-spam local
+  exemple : ignorer si un refresh a déjà été lancé dans les 250–500 ms
+* mais reste minimal, pas de système complexe
+
+ÉTAPE 7 — DEBUG RESSOURCES TEST POUR "maitre"
+Ajouter un mécanisme DEBUG explicite pour créditer player_bank du joueur :
+
+* id cible : "maitre"
+
+Ajouter +100 à :
+
+* food
+* wood
+* stone
+* iron
+* copper
+* coal
+* oil
+* herbs
+* fur
+
+IMPORTANT
+
+* strictement debug
+* pas au démarrage normal
+* pas automatique pour tous les admins
+* pas une logique de gameplay
+* utiliser un chemin explicite :
+
+  * route debug dédiée
+    ou
+  * script one-shot debug clairement isolé
+* si player_bank de "maitre" n’existe pas, l’assurer proprement avant le crédit
+
+Option recommandée :
+
+* route debug admin/auth, par exemple :
+  POST /api/debug/grant-master-market-test-resources
+
+Réponse attendue de cette route :
+
+* success
+* snapshot ou résumé des ressources ajoutées
+
+ÉTAPE 8 — VÉRIFICATION OBLIGATOIRE
+Après modifications, vérifier explicitement :
+
+A. Auth
+
+* requireAuth fonctionne encore comme avant
+* la route SSE valide correctement le token
+* aucun log du token en clair
+
+B. SSE marché
+
+* ouverture de la connexion SSE quand le marché est ouvert
+* fermeture propre au démontage
+* pas de duplication de connexion
+* réception correcte de market_invalidated
+
+C. Flux joueur
+
+* joueur A et joueur B ouvrent le marché
+* joueur A poste un ordre
+* joueur B voit le carnet se recharger quasi instantanément sans fermer/réouvrir
+* même vérification pour annulation
+* même vérification pour fill
+
+D. Stabilité
+
+* aucune modification de la logique d’escrow
+* aucune modification du carnet global métier
+* aucune régression d’accès physique marché
+* pas de refactor massif
+
+E. Debug
+
+* appel du mécanisme debug pour "maitre"
+* vérifier player_bank :
+  +100 food
+  +100 wood
+  +100 stone
+  +100 iron
+  +100 copper
+  +100 coal
+  +100 oil
+  +100 herbs
+  +100 fur
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+
+1. FICHIERS MODIFIÉS
+2. DIFF LOGIQUE PAR FICHIER
+3. MÉCANISME SSE AJOUTÉ
+4. MÉCANISME DEBUG AJOUTÉ
+5. VÉRIFICATION FINALE
+
+CONTRAINTE FINALE
+Ne touche à rien d’autre.
+Le but est uniquement :
+
+* marché quasi instantané entre clients ouverts
+* implementation propre, ciblée, limitée au marché
+* crédit debug test pour "maitre"
+* stabilité absolue du reste du projet

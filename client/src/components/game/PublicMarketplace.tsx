@@ -129,6 +129,34 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
     }
   }, [access.status, access.cityId]);
 
+  // ─── SSE marché — invalidation cross-client ───────────────────────────────────
+  // Ouvert uniquement si l'accès est confirmé.
+  // Recharge le carnet via les routes REST existantes à chaque signal serveur.
+  // Garde anti-spam 300 ms pour éviter les rafraîchissements concurrents.
+  useEffect(() => {
+    if (access.status !== "allowed" || access.cityId === null) return;
+    let token: string;
+    try {
+      const saved = localStorage.getItem("nova_imperium_auth");
+      if (!saved) return;
+      token = JSON.parse(saved).token;
+      if (!token) return;
+    } catch { return; }
+
+    const sse = new EventSource(`/api/market/stream?token=${encodeURIComponent(token)}`);
+    let lastRefresh = 0;
+
+    sse.addEventListener("market_invalidated", () => {
+      const now = Date.now();
+      if (now - lastRefresh < 300) return;
+      lastRefresh = now;
+      rmLoadMarket(access.cityId!);
+      loadTransport();
+    });
+
+    return () => { sse.close(); };
+  }, [access.status, access.cityId, rmLoadMarket, loadTransport]);
+
   // ─── Actions ──────────────────────────────────────────────────────────────────
   const rmPlaceOrder = async () => {
     const cityId = access.cityId ?? 0;

@@ -90,4 +90,48 @@ router.post("/grant-test-resources", requireAuth, async (req: AuthRequest, res) 
   }
 });
 
+// ─── POST /api/debug/grant-master-market-test-resources ──────────────────────
+// DEBUG UNIQUEMENT — Crédite +100 de chaque ressource marché dans player_bank
+// du joueur "maitre". Strictement ciblé, pas automatique, pas de gameplay.
+const MASTER_MARKET_FIELDS = ["food", "wood", "stone", "iron", "copper", "coal", "oil", "herbs", "fur"] as const;
+const MASTER_GRANT_AMOUNT  = 100;
+
+router.post("/grant-master-market-test-resources", requireAuth, async (req: AuthRequest, res) => {
+  const TARGET = "maitre";
+
+  try {
+    const zeroDefaults: Record<string, number | Date> = { gold: 0, lastProductionTurn: 0, updatedAt: new Date() };
+    for (const r of MASTER_MARKET_FIELDS) zeroDefaults[r] = 0;
+
+    const increments: Record<string, any> = { updatedAt: new Date() };
+    for (const r of MASTER_MARKET_FIELDS) {
+      increments[r] = sql`${(playerBank as any)[r]} + ${MASTER_GRANT_AMOUNT}`;
+    }
+
+    await db
+      .insert(playerBank)
+      .values({ playerId: TARGET, ...(zeroDefaults as any) })
+      .onConflictDoUpdate({
+        target: playerBank.playerId,
+        set: increments,
+      });
+
+    const [row] = await db
+      .select()
+      .from(playerBank)
+      .where(eq(playerBank.playerId, TARGET));
+
+    res.json({
+      ok:        true,
+      playerId:  TARGET,
+      added:     MASTER_GRANT_AMOUNT,
+      resources: MASTER_MARKET_FIELDS,
+      snapshot:  row,
+    });
+  } catch (err: any) {
+    console.error("[debug/grant-master-market-test-resources] Erreur:", err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 export default router;

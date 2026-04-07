@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, getUserFromBearerToken } from "../middleware/auth";
 import type { AuthRequest } from "../middleware/auth";
 import {
   getMarketInfo,
@@ -14,6 +14,11 @@ import { checkAccessPoint, resolveAccessPoint } from "../accessPointService";
 import { db } from "../db";
 import { factionMembers } from "../../shared/schema";
 import { eq } from "drizzle-orm";
+import {
+  addMarketSubscriber,
+  removeMarketSubscriber,
+  broadcastMarketInvalidation,
+} from "../marketEvents";
 
 const router = Router();
 
@@ -28,6 +33,36 @@ router.get("/access-check", requireAuth, async (req: AuthRequest, res) => {
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
+});
+
+// ─── GET /stream ──────────────────────────────────────────────────────────────
+// Flux SSE marché — notifie les clients connectés d'une invalidation du carnet.
+// Auth via query param ?token=... (EventSource ne supporte pas les headers custom).
+// Seul un signal d'invalidation est diffusé — jamais les ordres complets.
+// Les clients rechargent via les routes REST existantes.
+router.get("/stream", async (req, res) => {
+  const token = req.query.token as string | undefined;
+  if (!token) {
+    return res.status(401).json({ error: "Token requis" });
+  }
+  const user = getUserFromBearerToken(token);
+  if (!user) {
+    return res.status(401).json({ error: "Token invalide" });
+  }
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
+
+  // Signal initial de connexion établie
+  res.write(`event: connected\ndata: {"ts":${Date.now()}}\n\n`);
+
+  addMarketSubscriber(res);
+
+  req.on("close", () => {
+    removeMarketSubscriber(res);
+  });
 });
 
 // ─── GET /:cityId/guild ────────────────────────────────────────────────────────
@@ -96,6 +131,7 @@ router.post("/:cityId/orders", requireAuth, async (req: AuthRequest, res) => {
       Number(pricePerUnit), Number(quantity),
     );
     res.json(result);
+    broadcastMarketInvalidation("order_created");
   } catch (err: any) {
     res.status(err.status ?? 500).json({ error: err.message });
   }
@@ -115,6 +151,7 @@ router.delete("/:cityId/orders/:orderId", requireAuth, async (req: AuthRequest, 
 
     await cancelOrder(orderId, playerId, isAdmin);
     res.json({ success: true });
+    broadcastMarketInvalidation("order_cancelled");
   } catch (err: any) {
     res.status(err.status ?? 500).json({ error: err.message });
   }
@@ -137,6 +174,7 @@ router.post("/:cityId/orders/:orderId/fill", requireAuth, async (req: AuthReques
 
     const result = await fillOrder(orderId, fillerId, fillerName, Number(quantity));
     res.json(result);
+    broadcastMarketInvalidation("order_filled");
   } catch (err: any) {
     res.status(err.status ?? 500).json({ error: err.message });
   }
@@ -164,6 +202,7 @@ router.patch("/:cityId/guild/fee", requireAuth, async (req: AuthRequest, res) =>
 
     await updateFee(cityId, Number(feeBps), playerId, isAdmin, requesterFactionId);
     res.json({ success: true });
+    broadcastMarketInvalidation("fee_updated");
   } catch (err: any) {
     res.status(err.status ?? 500).json({ error: err.message });
   }

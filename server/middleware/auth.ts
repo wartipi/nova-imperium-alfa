@@ -103,4 +103,22 @@ export function loginEndpoint(req: Request, res: Response) {
   });
 }
 
+// ─── getUserFromBearerToken ────────────────────────────────────────────────────
+// Helper réutilisable pour valider un token Bearer transmis hors header HTTP.
+// Usage exclusif : route SSE marché (EventSource ne supporte pas les headers custom).
+// Ne jamais loguer le token brut.
+export function getUserFromBearerToken(
+  token: string,
+): { id: string; username: string; role: string } | null {
+  try {
+    const decoded = Buffer.from(token, "base64").toString("utf-8");
+    const [username, password] = decoded.split(":");
+    const user = AUTHORIZED_USERS[username?.toLowerCase()];
+    if (!user || user.password !== password) return null;
+    return { id: user.id, username: username.toLowerCase(), role: user.role };
+  } catch {
+    return null;
+  }
+}
+
 export { AUTHORIZED_USERS };
