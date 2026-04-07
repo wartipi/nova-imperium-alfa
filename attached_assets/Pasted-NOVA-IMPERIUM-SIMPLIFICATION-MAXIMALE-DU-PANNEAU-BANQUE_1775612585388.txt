@@ -1,0 +1,224 @@
+NOVA IMPERIUM — SIMPLIFICATION MAXIMALE DU PANNEAU BANQUE
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucun changement backend.
+Aucune dérive hors sujet.
+
+OBJECTIF
+Simplifier fortement TreasuryPanel.tsx pour supprimer le bruit visuel :
+- plus d’icônes avec des 0 partout
+- plus de rangées fixes de petits inputs
+- seulement les ressources réellement disponibles
+- un seul pattern UI réutilisable
+
+IMPORTANT
+Ne touche pas au backend.
+Ne touche pas aux handlers métier.
+Ne touche pas aux routes.
+Le chantier est purement UI dans :
+- client/src/components/game/TreasuryPanel.tsx
+
+DIAGNOSTIC À RESPECTER
+1. Le solde banque affiche actuellement une grille fixe avec toutes les ressources.
+2. Les sections de transfert/dépôt affichent des AmountInput fixes pour toutes les ressources.
+3. Cela crée trop de bruit visuel.
+4. La simplification cible est :
+   - afficher seulement les ressources disponibles
+   - unifier le rendu avec un seul composant de ligne de ressource
+   - supprimer la grille fixe et les champs inutiles
+
+OBJECTIF UI EXACT
+
+A. Solde banque
+- supprimer complètement la grille de StatBox fixe
+- remplacer par un bloc simple :
+  - si ressources disponibles :
+    afficher une liste compacte de ressources actives seulement
+  - si aucune :
+    afficher "Aucune ressource en banque"
+
+Format attendu :
+- 🪵 Bois · 34
+- 🪨 Pierre · 12
+- ⚙️ Fer · 6
+
+B. Transférer vers une ville du réseau
+- afficher seulement les ressources de banque > 0
+- une ligne par ressource visible
+- plus aucun champ pour une ressource absente
+
+C. Prendre en transport
+- afficher seulement les ressources de banque > 0
+- une ligne par ressource visible
+- plus aucun champ pour une ressource absente
+
+D. Déposer à la banque
+- afficher seulement les ressources de transport > 0
+- une ligne par ressource visible
+- si transport vide :
+  afficher "Aucune ressource à déposer"
+
+ERGONOMIE À APPLIQUER
+Créer un composant unique de ligne, par exemple :
+- ActiveResourceRow
+
+Chaque ligne doit contenir :
+- icône
+- nom de la ressource
+- quantité disponible
+- input quantité
+- bouton Max
+
+Format visuel cible :
+🪵 Bois · dispo 34 · [input] [Max]
+
+RÈGLES TECHNIQUES
+1. créer une source de vérité unique pour les ressources :
+   - key
+   - icon
+   - label
+2. créer un helper pour extraire les ressources visibles depuis une source :
+   - bank > 0
+   - transport > 0
+3. supprimer l’usage de AmountInput dans les trois sections
+4. remplacer par le composant unique ActiveResourceRow
+5. conserver les states existants :
+   - toCity
+   - toPlayer
+   - toBank
+6. conserver les handlers existants :
+   - handleTransferToCity
+   - handleTransferToPlayer
+   - handleDepositToBank
+7. les ressources non affichées restent implicitement à 0 dans les handlers
+
+CHANGEMENTS À FAIRE
+
+ÉTAPE 1 — AUDIT
+Relire TreasuryPanel.tsx et confirmer :
+- grille fixe de StatBox
+- rangées fixes de AmountInput
+- répétition des mêmes ressources dans 3 sections
+
+ÉTAPE 2 — SOURCE DE VÉRITÉ UNIQUE
+Créer une constante unique de ressources UI, par exemple :
+- key
+- icon
+- label
+
+Ne duplique plus les listes de ressources dans le rendu.
+
+ÉTAPE 3 — HELPER DE FILTRAGE
+Créer un helper qui retourne seulement les ressources actives d’une source donnée.
+
+Exemples :
+- visibleBankResources = ressources dont bank[key] > 0
+- visibleTransportResources = ressources dont transport[key] > 0
+
+ÉTAPE 4 — COMPOSANT DE LIGNE UNIQUE
+Créer un composant unique, par exemple :
+- ActiveResourceRow
+
+Props suggérées :
+- icon
+- label
+- available
+- value
+- onChange
+- onSetMax
+
+Ce composant doit rendre :
+- icône
+- nom
+- dispo
+- input
+- bouton Max
+
+ÉTAPE 5 — SOLDE BANQUE
+Supprimer la grille fixe de StatBox.
+Remplacer par :
+- liste simple des ressources actives
+- message vide si aucune ressource
+
+ÉTAPE 6 — FORMULAIRES
+Refaire les trois sections avec le même pattern :
+
+A. toCity
+- conserver le select ville
+- dessous, liste des ActiveResourceRow visibles depuis bank
+- bouton Envoyer inchangé
+
+B. toPlayer
+- liste des ActiveResourceRow visibles depuis bank
+- bouton Prendre inchangé
+
+C. toBank
+- liste des ActiveResourceRow visibles depuis transport
+- bouton Déposer inchangé
+
+ÉTAPE 7 — BOUTON MAX
+Chaque ligne doit permettre de remplir automatiquement l’input avec la quantité disponible.
+
+ÉTAPE 8 — NETTOYAGE
+- supprimer AmountInput si plus utilisé
+- conserver StatBox seulement si encore utile ailleurs dans TreasuryPanel
+- sinon le supprimer aussi
+- mettre à jour les commentaires pour qu’ils reflètent le nouveau rendu
+
+CONTRAINTES
+Ne touche pas à :
+- logique API
+- parseAmount
+- handleTransferToCity
+- handleTransferToPlayer
+- handleDepositToBank
+- logique banque / transport / villes
+- routes serveur
+
+VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+1. Solde banque
+- les ressources à 0 ne sont plus affichées
+- si tout est à 0 → message simple
+
+2. Vers ville
+- seules les ressources présentes en banque sont visibles
+- ville selectable inchangée
+- bouton Envoyer inchangé
+
+3. Vers joueur
+- seules les ressources présentes en banque sont visibles
+- bouton Prendre inchangé
+
+4. Dépôt banque
+- seules les ressources présentes dans transport sont visibles
+- si transport vide → message simple
+
+5. Max
+- chaque ligne permet de remplir la quantité max
+
+6. Stabilité
+- aucun changement backend
+- aucune route modifiée
+- aucune logique métier cassée
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. FICHIERS MODIFIÉS
+2. DIFF LOGIQUE PAR FICHIER
+3. CHANGEMENTS D’ERGONOMIE
+4. PREUVE DIRECTE
+5. VÉRIFICATION FINALE
+6. STOP
+
+CONTRAINTE FINALE
+Le but est :
+- le panneau banque le plus simple possible
+- uniquement les ressources utiles
+- une seule UI réutilisable
+- zéro bruit visuel inutile

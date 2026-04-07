@@ -100,6 +100,73 @@ function formatMats(m: Mats): string {
   return parts.length > 0 ? parts.join(' ') : '—';
 }
 
+// ─── Source de vérité unique des ressources UI ────────────────────────────────
+
+type ResourceKey = keyof Mats;
+
+interface ResourceDef {
+  key:   ResourceKey;
+  icon:  string;
+  label: string;
+}
+
+const RESOURCE_DEFS: ResourceDef[] = [
+  { key: 'gold',   icon: '🪙', label: 'Or'         },
+  { key: 'food',   icon: '🌿', label: 'Nourriture'  },
+  { key: 'wood',   icon: '🪵', label: 'Bois'        },
+  { key: 'stone',  icon: '🪨', label: 'Pierre'      },
+  { key: 'iron',   icon: '⚙️', label: 'Fer'         },
+  { key: 'copper', icon: '🟤', label: 'Cuivre'      },
+  { key: 'coal',   icon: '🖤', label: 'Charbon'     },
+  { key: 'oil',    icon: '🛢️', label: 'Pétrole'     },
+  { key: 'herbs',  icon: '🌱', label: 'Herbes'      },
+  { key: 'fur',    icon: '🦊', label: 'Fourrure'    },
+];
+
+function visibleResources(
+  defs: ResourceDef[],
+  source: Record<string, number | undefined | null>,
+): ResourceDef[] {
+  return defs.filter(d => (source[d.key] ?? 0) > 0);
+}
+
+// ─── Composant de ligne de ressource unique ───────────────────────────────────
+
+function ActiveResourceRow({
+  icon, label, available, value, onChange, onSetMax,
+}: {
+  icon:      string;
+  label:     string;
+  available: number;
+  value:     string;
+  onChange:  (v: string) => void;
+  onSetMax:  () => void;
+}) {
+  return (
+    <div className="flex items-center gap-2 py-0.5">
+      <span className="w-5 text-center">{icon}</span>
+      <span className="text-xs text-amber-800 w-20 shrink-0">{label}</span>
+      <span className="text-xs text-amber-500 w-12 shrink-0">· {available}</span>
+      <input
+        type="number"
+        min="0"
+        max={available}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="w-16 text-xs border border-amber-300 rounded px-1 py-0.5 text-amber-900 bg-white"
+        placeholder="0"
+      />
+      <button
+        type="button"
+        onClick={onSetMax}
+        className="text-xs px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded border border-amber-300"
+      >
+        Max
+      </button>
+    </div>
+  );
+}
+
 // ─── Bâtiments ────────────────────────────────────────────────────────────────
 
 const BUILDING_LABELS: Record<string, string> = {
@@ -136,27 +203,6 @@ function BuildingsTooltip({ buildings }: { buildings: string[] }) {
   );
 }
 
-// ─── Formulaire de transfert ──────────────────────────────────────────────────
-
-function AmountInput({
-  label, value, onChange, max,
-}: { label: string; value: string; onChange: (v: string) => void; max?: number }) {
-  return (
-    <div className="flex items-center gap-1">
-      <span className="text-xs text-amber-700 w-6">{label}</span>
-      <input
-        type="number"
-        min="0"
-        max={max}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        className="w-16 text-xs border border-amber-300 rounded px-1 py-0.5 text-amber-900 bg-white"
-        placeholder="0"
-      />
-    </div>
-  );
-}
-
 // ─── TreasuryPanel ────────────────────────────────────────────────────────────
 
 export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
@@ -185,7 +231,7 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
     }
   }, []);
 
-  // Transfert banque → ville
+  // États transfert
   const EMPTY_TRANSFER: TransferState = {
     gold: "", food: "", wood: "", stone: "", iron: "",
     copper: "", coal: "", oil: "", herbs: "", fur: "",
@@ -254,7 +300,6 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
 
   useEffect(() => { loadAll(); loadBankAccess(); }, [loadAll, loadBankAccess]);
 
-  // Resynchronisation globale
   useEffect(() => {
     const handler = () => { loadAll(); loadBankAccess(); };
     window.addEventListener('nova:logistic-refresh', handler);
@@ -436,9 +481,13 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
   };
 
   // ─── Réseau bancaire — villes connectées ──────────────────────────────────
-  // Source de vérité : city.buildings (retourné par /api/cities/me, données serveur)
 
   const bankCities = cities.filter(c => c.buildings?.includes('bank'));
+
+  // ─── Ressources visibles par source ──────────────────────────────────────
+
+  const bankVisible      = bank      ? visibleResources(RESOURCE_DEFS, bank as any)      : [];
+  const transportVisible = transport ? visibleResources(RESOURCE_DEFS, transport as any) : [];
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
@@ -478,58 +527,70 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
           </div>
         ) : bank ? (
           <>
-            {/* Solde — visible uniquement si présence physique confirmée */}
-            <div className="grid grid-cols-2 gap-2 mb-2">
-              <StatBox icon="🪙" label="Or"        value={bank.gold} />
-              <StatBox icon="🌿" label="Nourriture" value={bank.food} />
-              <StatBox icon="🪵" label="Bois"       value={bank.wood ?? 0} />
-              <StatBox icon="🪨" label="Pierre"     value={bank.stone ?? 0} />
-              <StatBox icon="⚙️" label="Fer"        value={bank.iron ?? 0} />
-              <StatBox icon="🟤" label="Cuivre"     value={bank.copper ?? 0} />
-              <StatBox icon="🖤" label="Charbon"    value={bank.coal ?? 0} />
-              <StatBox icon="🛢️" label="Pétrole"    value={bank.oil ?? 0} />
-              <StatBox icon="🌿" label="Herbes"     value={bank.herbs ?? 0} />
-              <StatBox icon="🦊" label="Fourrure"   value={bank.fur ?? 0} />
+            {/* A. Solde — liste compacte des ressources actives seulement */}
+            <div className="mb-3">
+              {bankVisible.length === 0 ? (
+                <p className="text-xs text-amber-400 italic">Aucune ressource en banque</p>
+              ) : (
+                <div className="space-y-0.5">
+                  {bankVisible.map(({ key, icon, label }) => (
+                    <div key={key} className="flex items-center gap-1.5 text-xs text-amber-800">
+                      <span>{icon}</span>
+                      <span className="font-medium">{label}</span>
+                      <span className="text-amber-500">·</span>
+                      <span className="font-bold text-amber-900">{(bank as any)[key] ?? 0}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-xs text-amber-500 italic mt-1.5">
+                Dépôt auto des villes connectées · Tour {bank.lastProductionTurn}
+              </p>
             </div>
-            <p className="text-xs text-amber-500 italic mb-3">
-              Dépôt auto des villes connectées · Tour {bank.lastProductionTurn}
-            </p>
 
-            {/* Transférer vers une ville du réseau */}
+            {/* B. Transférer vers une ville du réseau */}
             <div className="border-t border-amber-200 pt-2 mb-2">
               <p className="text-xs text-amber-600 font-semibold mb-2">Transférer vers une ville du réseau</p>
               {bankCities.length === 0 ? (
                 <p className="text-xs text-amber-400 italic">Aucune ville connectée au réseau bancaire.</p>
+              ) : bankVisible.length === 0 ? (
+                <p className="text-xs text-amber-400 italic">Aucune ressource disponible en banque.</p>
               ) : (
-                <div className="flex flex-wrap gap-1.5 items-end">
+                <>
                   <select
                     value={toCity.cityId}
                     onChange={e => setToCity(prev => ({ ...prev, cityId: e.target.value }))}
-                    className="text-xs border border-amber-300 rounded px-1 py-0.5 text-amber-900 bg-white flex-1 min-w-24"
+                    className="text-xs border border-amber-300 rounded px-1 py-0.5 text-amber-900 bg-white w-full mb-2"
                   >
-                    <option value="">— Ville —</option>
+                    <option value="">— Choisir une ville —</option>
                     {bankCities.map(c => (
                       <option key={c.id} value={String(c.id)}>{c.name}</option>
                     ))}
                   </select>
-                  <AmountInput label="🪙" value={toCity.gold}   onChange={v => setToCity(p => ({ ...p, gold: v }))}   max={bank.gold} />
-                  <AmountInput label="🌿" value={toCity.food}   onChange={v => setToCity(p => ({ ...p, food: v }))}   max={bank.food} />
-                  <AmountInput label="🪵" value={toCity.wood}   onChange={v => setToCity(p => ({ ...p, wood: v }))}   max={bank.wood ?? 0} />
-                  <AmountInput label="🪨" value={toCity.stone}  onChange={v => setToCity(p => ({ ...p, stone: v }))}  max={bank.stone ?? 0} />
-                  <AmountInput label="⚙️" value={toCity.iron}   onChange={v => setToCity(p => ({ ...p, iron: v }))}   max={bank.iron ?? 0} />
-                  <AmountInput label="🟤" value={toCity.copper} onChange={v => setToCity(p => ({ ...p, copper: v }))} max={bank.copper ?? 0} />
-                  <AmountInput label="🖤" value={toCity.coal}   onChange={v => setToCity(p => ({ ...p, coal: v }))}   max={bank.coal ?? 0} />
-                  <AmountInput label="🛢️" value={toCity.oil}    onChange={v => setToCity(p => ({ ...p, oil: v }))}    max={bank.oil ?? 0} />
-                  <AmountInput label="🌱" value={toCity.herbs}  onChange={v => setToCity(p => ({ ...p, herbs: v }))}  max={bank.herbs ?? 0} />
-                  <AmountInput label="🦊" value={toCity.fur}    onChange={v => setToCity(p => ({ ...p, fur: v }))}    max={bank.fur ?? 0} />
+                  <div className="space-y-0.5 mb-2">
+                    {bankVisible.map(({ key, icon, label }) => {
+                      const avail = (bank as any)[key] ?? 0;
+                      return (
+                        <ActiveResourceRow
+                          key={key}
+                          icon={icon}
+                          label={label}
+                          available={avail}
+                          value={(toCity as any)[key]}
+                          onChange={v => setToCity(p => ({ ...p, [key]: v }))}
+                          onSetMax={() => setToCity(p => ({ ...p, [key]: String(avail) }))}
+                        />
+                      );
+                    })}
+                  </div>
                   <button
                     onClick={handleTransferToCity}
                     disabled={toCity.loading || !toCity.cityId}
-                    className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded disabled:opacity-50 shrink-0"
+                    className="text-xs px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded disabled:opacity-50"
                   >
                     {toCity.loading ? "…" : "Envoyer"}
                   </button>
-                </div>
+                </>
               )}
               {toCity.message && (
                 <p className={[
@@ -542,28 +603,38 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
               )}
             </div>
 
-            {/* Prendre en transport */}
-            <div className="border-t border-amber-200 pt-2">
+            {/* C. Prendre en transport */}
+            <div className="border-t border-amber-200 pt-2 mb-2">
               <p className="text-xs text-amber-600 font-semibold mb-2">Prendre en transport</p>
-              <div className="flex flex-wrap gap-1.5 items-end">
-                <AmountInput label="🪙" value={toPlayer.gold}   onChange={v => setToPlayer(p => ({ ...p, gold: v }))}   max={bank.gold} />
-                <AmountInput label="🌿" value={toPlayer.food}   onChange={v => setToPlayer(p => ({ ...p, food: v }))}   max={bank.food} />
-                <AmountInput label="🪵" value={toPlayer.wood}   onChange={v => setToPlayer(p => ({ ...p, wood: v }))}   max={bank.wood ?? 0} />
-                <AmountInput label="🪨" value={toPlayer.stone}  onChange={v => setToPlayer(p => ({ ...p, stone: v }))}  max={bank.stone ?? 0} />
-                <AmountInput label="⚙️" value={toPlayer.iron}   onChange={v => setToPlayer(p => ({ ...p, iron: v }))}   max={bank.iron ?? 0} />
-                <AmountInput label="🟤" value={toPlayer.copper} onChange={v => setToPlayer(p => ({ ...p, copper: v }))} max={bank.copper ?? 0} />
-                <AmountInput label="🖤" value={toPlayer.coal}   onChange={v => setToPlayer(p => ({ ...p, coal: v }))}   max={bank.coal ?? 0} />
-                <AmountInput label="🛢️" value={toPlayer.oil}    onChange={v => setToPlayer(p => ({ ...p, oil: v }))}    max={bank.oil ?? 0} />
-                <AmountInput label="🌱" value={toPlayer.herbs}  onChange={v => setToPlayer(p => ({ ...p, herbs: v }))}  max={bank.herbs ?? 0} />
-                <AmountInput label="🦊" value={toPlayer.fur}    onChange={v => setToPlayer(p => ({ ...p, fur: v }))}    max={bank.fur ?? 0} />
-                <button
-                  onClick={handleTransferToPlayer}
-                  disabled={toPlayer.loading}
-                  className="text-xs px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded disabled:opacity-50 shrink-0"
-                >
-                  {toPlayer.loading ? "…" : "Prendre"}
-                </button>
-              </div>
+              {bankVisible.length === 0 ? (
+                <p className="text-xs text-amber-400 italic">Aucune ressource disponible en banque.</p>
+              ) : (
+                <>
+                  <div className="space-y-0.5 mb-2">
+                    {bankVisible.map(({ key, icon, label }) => {
+                      const avail = (bank as any)[key] ?? 0;
+                      return (
+                        <ActiveResourceRow
+                          key={key}
+                          icon={icon}
+                          label={label}
+                          available={avail}
+                          value={(toPlayer as any)[key]}
+                          onChange={v => setToPlayer(p => ({ ...p, [key]: v }))}
+                          onSetMax={() => setToPlayer(p => ({ ...p, [key]: String(avail) }))}
+                        />
+                      );
+                    })}
+                  </div>
+                  <button
+                    onClick={handleTransferToPlayer}
+                    disabled={toPlayer.loading}
+                    className="text-xs px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded disabled:opacity-50"
+                  >
+                    {toPlayer.loading ? "…" : "Prendre"}
+                  </button>
+                </>
+              )}
               {toPlayer.message && (
                 <p className={[
                   "text-xs mt-1 font-medium",
@@ -575,7 +646,7 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
               )}
             </div>
 
-            {/* Déposer à la banque */}
+            {/* D. Déposer à la banque */}
             <div className="border-t border-amber-200 pt-2">
               <p className="text-xs text-amber-600 font-semibold mb-1">Déposer à la banque</p>
               {transport && (
@@ -583,25 +654,35 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
                   Transport : {transport.usedUnits}/{transport.maxUnits} unités
                 </p>
               )}
-              <div className="flex flex-wrap gap-1.5 items-end">
-                <AmountInput label="🪙" value={toBank.gold}   onChange={v => setToBank(p => ({ ...p, gold: v }))}   max={transport?.gold ?? 0} />
-                <AmountInput label="🌿" value={toBank.food}   onChange={v => setToBank(p => ({ ...p, food: v }))}   max={transport?.food ?? 0} />
-                <AmountInput label="🪵" value={toBank.wood}   onChange={v => setToBank(p => ({ ...p, wood: v }))}   max={transport?.wood ?? 0} />
-                <AmountInput label="🪨" value={toBank.stone}  onChange={v => setToBank(p => ({ ...p, stone: v }))}  max={transport?.stone ?? 0} />
-                <AmountInput label="⚙️" value={toBank.iron}   onChange={v => setToBank(p => ({ ...p, iron: v }))}   max={transport?.iron ?? 0} />
-                <AmountInput label="🟤" value={toBank.copper} onChange={v => setToBank(p => ({ ...p, copper: v }))} max={transport?.copper ?? 0} />
-                <AmountInput label="🖤" value={toBank.coal}   onChange={v => setToBank(p => ({ ...p, coal: v }))}   max={transport?.coal ?? 0} />
-                <AmountInput label="🛢️" value={toBank.oil}    onChange={v => setToBank(p => ({ ...p, oil: v }))}    max={transport?.oil ?? 0} />
-                <AmountInput label="🌱" value={toBank.herbs}  onChange={v => setToBank(p => ({ ...p, herbs: v }))}  max={transport?.herbs ?? 0} />
-                <AmountInput label="🦊" value={toBank.fur}    onChange={v => setToBank(p => ({ ...p, fur: v }))}    max={transport?.fur ?? 0} />
-                <button
-                  onClick={handleDepositToBank}
-                  disabled={toBank.loading}
-                  className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded disabled:opacity-50 shrink-0"
-                >
-                  {toBank.loading ? "…" : "Déposer"}
-                </button>
-              </div>
+              {transportVisible.length === 0 ? (
+                <p className="text-xs text-amber-400 italic">Aucune ressource à déposer.</p>
+              ) : (
+                <>
+                  <div className="space-y-0.5 mb-2">
+                    {transportVisible.map(({ key, icon, label }) => {
+                      const avail = (transport as any)[key] ?? 0;
+                      return (
+                        <ActiveResourceRow
+                          key={key}
+                          icon={icon}
+                          label={label}
+                          available={avail}
+                          value={(toBank as any)[key]}
+                          onChange={v => setToBank(p => ({ ...p, [key]: v }))}
+                          onSetMax={() => setToBank(p => ({ ...p, [key]: String(avail) }))}
+                        />
+                      );
+                    })}
+                  </div>
+                  <button
+                    onClick={handleDepositToBank}
+                    disabled={toBank.loading}
+                    className="text-xs px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded disabled:opacity-50"
+                  >
+                    {toBank.loading ? "…" : "Déposer"}
+                  </button>
+                </>
+              )}
               {toBank.message && (
                 <p className={[
                   "text-xs mt-1 font-medium",
@@ -651,7 +732,7 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
                         );
                         return (
                           <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded text-xs">
-                            🏪 Niv.{wh.level} — {wh.currentUnits}/{wh.capacity}
+                            🏪 Niv.{wh.level} — {wh.currentTotal}/{wh.capacity}
                           </span>
                         );
                       })()}
@@ -710,18 +791,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
         {title}
       </h5>
       {children}
-    </div>
-  );
-}
-
-function StatBox({ icon, label, value }: { icon: string; label: string; value: string | number }) {
-  return (
-    <div className="bg-white border border-amber-200 rounded p-1.5 flex items-center gap-1.5">
-      <span>{icon}</span>
-      <div>
-        <div className="text-xs text-amber-500 leading-tight">{label}</div>
-        <div className="font-bold text-amber-900 text-sm leading-tight">{value}</div>
-      </div>
     </div>
   );
 }
