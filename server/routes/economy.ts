@@ -17,6 +17,7 @@ import {
   getOrInitPlayerTransport,
   msRemaining,
   TRANSPORT_MAX_UNITS,
+  computeTransportUnits,
 } from "../playerActionService";
 import { checkCityAccess } from "../cityService";
 import {
@@ -173,9 +174,7 @@ router.post("/production-tick", requireAuth, async (req: AuthRequest, res) => {
 router.get("/player-transport", requireAuth, async (req: AuthRequest, res) => {
   try {
     const transport = await getOrInitPlayerTransport(req.user!.id);
-    const usedUnits = transport.gold + transport.food + transport.wood + transport.stone + transport.iron
-                    + (transport.copper ?? 0) + (transport.coal ?? 0) + (transport.oil ?? 0)
-                    + (transport.herbs ?? 0) + (transport.fur ?? 0);
+    const usedUnits = computeTransportUnits(transport);
     return res.json({
       ...transport,
       maxUnits: TRANSPORT_MAX_UNITS,

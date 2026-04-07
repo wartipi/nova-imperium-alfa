@@ -19,6 +19,33 @@ const MS_PER_HOUR = 3600 * 1000;
 // Capacité max de transport de ressources (or + nourriture cumulés)
 export const TRANSPORT_MAX_UNITS = 50;
 
+// ─── Helper canonique de calcul des unités transport ─────────────────────────
+// Règle : gold = ceil(gold / 150), toutes les autres ressources = 1 unité chacune.
+// Source de vérité unique — utilisée partout où on calcule usedUnits / currentTotal.
+export function computeTransportUnits(t: {
+  gold:    number;
+  food:    number;
+  wood:    number;
+  stone:   number;
+  iron:    number;
+  copper?: number | null;
+  coal?:   number | null;
+  oil?:    number | null;
+  herbs?:  number | null;
+  fur?:    number | null;
+}): number {
+  return Math.ceil(t.gold / 150)
+       + t.food
+       + t.wood
+       + t.stone
+       + t.iron
+       + (t.copper ?? 0)
+       + (t.coal   ?? 0)
+       + (t.oil    ?? 0)
+       + (t.herbs  ?? 0)
+       + (t.fur    ?? 0);
+}
+
 // ─── Types enrichis retournés par le service ──────────────────────────────────
 
 export interface ResolvedAction extends PlayerAction {
@@ -768,10 +795,8 @@ export async function createTransferBankToPlayerAction(
     .limit(1);
 
   const current = transportRows[0] ?? { gold: 0, food: 0, wood: 0, stone: 0, iron: 0, copper: 0, coal: 0, oil: 0, herbs: 0, fur: 0 };
-  const currentTotal = current.gold + current.food + current.wood + current.stone + current.iron
-                     + (current.copper ?? 0) + (current.coal ?? 0) + (current.oil ?? 0)
-                     + (current.herbs ?? 0) + (current.fur ?? 0);
-  const addTotal = gold + food + wood + stone + iron + copper + coal + oil + herbs + fur;
+  const currentTotal = computeTransportUnits(current);
+  const addTotal     = computeTransportUnits({ gold, food, wood, stone, iron, copper, coal, oil, herbs, fur });
 
   if (currentTotal + addTotal > TRANSPORT_MAX_UNITS) {
     throw new Error(
