@@ -704,8 +704,8 @@ export async function createTransferBankToCityAction(
     .where(eq(playerBank.playerId, playerId));
 
   const totalUnits = gold + food + wood + stone + iron + copper + coal + oil + herbs + fur;
-  const durationMinutes = Math.max(5, 5 + Math.ceil(totalUnits / 10));
-  const durationMs = durationMinutes * 60 * 1000;
+  const durationSeconds = totalUnits * 5;
+  const durationMs = durationSeconds * 1000;
   const expectedEndTime = new Date(now.getTime() + durationMs);
 
   const [action] = await db
@@ -729,7 +729,7 @@ export async function createTransferBankToCityAction(
   console.log(
     `[PlayerAction] Transfert banque→ville créé id=${action.id} player=${playerId}` +
     ` cityId=${cityId} ${gold}g+${food}f+${wood}w+${stone}s+${iron}i` +
-    `+${copper}cu+${coal}co+${oil}oil+${herbs}herbs+${fur}fur durée=${durationMinutes}min`
+    `+${copper}cu+${coal}co+${oil}oil+${herbs}herbs+${fur}fur totalUnits=${totalUnits} durée=${durationSeconds}s`
   );
 
   return action;
@@ -818,8 +818,8 @@ export async function createTransferBankToPlayerAction(
     .where(eq(playerBank.playerId, playerId));
 
   const totalUnits = gold + food + wood + stone + iron + copper + coal + oil + herbs + fur;
-  const durationMinutes = Math.max(5, 5 + Math.ceil(totalUnits / 10));
-  const durationMs = durationMinutes * 60 * 1000;
+  const durationSeconds = totalUnits * 5;
+  const durationMs = durationSeconds * 1000;
   const expectedEndTime = new Date(now.getTime() + durationMs);
 
   const [action] = await db
@@ -842,7 +842,7 @@ export async function createTransferBankToPlayerAction(
 
   console.log(
     `[PlayerAction] Transfert banque→joueur créé id=${action.id} player=${playerId}` +
-    ` ${gold}g+${food}f+${wood}w+${stone}s+${iron}i+${copper}cu+${coal}co+${oil}oil+${herbs}herbs+${fur}fur durée=${durationMinutes}min`
+    ` ${gold}g+${food}f+${wood}w+${stone}s+${iron}i+${copper}cu+${coal}co+${oil}oil+${herbs}herbs+${fur}fur totalUnits=${totalUnits} durée=${durationSeconds}s`
   );
 
   return action;

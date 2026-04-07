@@ -1,0 +1,115 @@
+NOVA IMPERIUM — CORRECTIF CIBLÉ TIMER TRANSFERT INVENTAIRE
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucune dérive hors sujet.
+
+OBJECTIF
+Modifier la durée des actions de transfert d’inventaire pour qu’elles durent :
+5 secondes par unité de ressource transférée.
+
+IMPORTANT
+Ne touche qu’aux actions persistantes de transfert d’inventaire.
+Ne touche pas aux dépôts immédiats.
+Ne touche pas aux déplacements.
+Ne touche pas aux récoltes.
+Ne touche pas au reste du système d’actions.
+
+DIAGNOSTIC À RESPECTER
+1. Les routes concernées sont :
+   - POST /api/economy/transfer-bank-to-city
+   - POST /api/economy/transfer-bank-to-player
+2. Ces routes délèguent à :
+   - createTransferBankToCityAction(...)
+   - createTransferBankToPlayerAction(...)
+3. La durée actuelle est incorrecte :
+   - durationMinutes = Math.max(5, 5 + Math.ceil(totalUnits / 10))
+   - durationMs = durationMinutes * 60 * 1000
+4. La nouvelle règle cible est :
+   - 5 secondes par unité transférée
+   - durationSeconds = totalUnits * 5
+   - durationMs = durationSeconds * 1000
+
+FICHIER À MODIFIER
+- server/playerActionService.ts
+
+FICHIERS À RELIRE AVANT MODIF
+- server/routes/economy.ts
+- server/playerActionService.ts
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire et confirmer :
+- createTransferBankToCityAction(...)
+- createTransferBankToPlayerAction(...)
+- formule actuelle en minutes
+- totalUnits déjà calculé proprement
+
+ÉTAPE 2 — MODIFICATION MINIMALE
+Dans createTransferBankToCityAction(...)
+
+Remplacer :
+- const durationMinutes = Math.max(5, 5 + Math.ceil(totalUnits / 10));
+- const durationMs = durationMinutes * 60 * 1000;
+
+Par :
+- const durationSeconds = totalUnits * 5;
+- const durationMs = durationSeconds * 1000;
+
+Puis ajuster le log de debug pour afficher une durée en secondes.
+
+Dans createTransferBankToPlayerAction(...)
+
+Remplacer :
+- const durationMinutes = Math.max(5, 5 + Math.ceil(totalUnits / 10));
+- const durationMs = durationMinutes * 60 * 1000;
+
+Par :
+- const durationSeconds = totalUnits * 5;
+- const durationMs = durationSeconds * 1000;
+
+Puis ajuster le log de debug pour afficher une durée en secondes.
+
+ÉTAPE 3 — CONTRAINTES
+Ne touche pas à :
+- createMoveAction
+- createCollectHarvestAction
+- completeAction
+- deposit-transport-to-city
+- deposit-transport-to-bank
+- la logique d’escrow / banque / transport
+- la structure des routes
+
+ÉTAPE 4 — VÉRIFICATION OBLIGATOIRE
+Vérifier explicitement :
+
+A. Banque → joueur
+- 1 unité transférée = 5000 ms
+- 10 unités transférées = 50000 ms
+
+B. Banque → ville
+- somme multi-ressources correcte
+- exemple : 3 wood + 2 stone = 5 unités = 25000 ms
+
+C. Stabilité
+- aucune autre action persistante impactée
+- les dépôts transport restent immédiats
+- les routes economy existantes restent inchangées
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. FICHIERS MODIFIÉS
+2. DIFF LOGIQUE PAR FICHIER
+3. PREUVE DIRECTE
+4. VÉRIFICATION FINALE
+5. STOP
+
+CONTRAINTE FINALE
+Ne touche à rien d’autre.
+Le but est uniquement :
+5 secondes par unité transférée pour les actions de transfert d’inventaire persistantes.
