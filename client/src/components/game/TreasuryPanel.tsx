@@ -416,9 +416,11 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
       setToPlayer(prev => ({ ...prev, loading: false, message: msg,
         gold: "", food: "", wood: "", stone: "", iron: "",
         copper: "", coal: "", oil: "", herbs: "", fur: "" }));
+      // Rafraîchit uniquement la banque (déjà débitée immédiatement).
+      // Le refresh inventaire transport est déclenché par ActiveActionWidget
+      // à la vraie complétion (nova:logistic-refresh @ completion réelle).
       setTimeout(() => {
         getPlayerBank().then(b => setBank(b)).catch(() => {});
-        window.dispatchEvent(new CustomEvent('nova:logistic-refresh'));
       }, 300);
     } catch (err: any) {
       const raw = err.message ?? "Erreur transfert";

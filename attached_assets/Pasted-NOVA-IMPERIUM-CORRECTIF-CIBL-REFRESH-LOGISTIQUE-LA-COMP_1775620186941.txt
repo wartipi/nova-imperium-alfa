@@ -1,0 +1,106 @@
+NOVA IMPERIUM — CORRECTIF CIBLÉ : REFRESH LOGISTIQUE À LA COMPLÉTION RÉELLE
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucune dérive hors sujet.
+
+OBJECTIF
+Corriger le problème suivant :
+lors d’un transfert banque → joueur, la banque est débitée immédiatement mais l’inventaire joueur n’est pas rafraîchi au moment réel où l’action se termine.
+
+IMPORTANT
+Dans ce segment :
+- ne touche PAS à la logique banque/transport
+- ne touche PAS à la durée des transferts
+- ne touche PAS au marché
+- ne touche PAS aux routes serveur
+- ne touche PAS aux actions autres que transfer_bank_to_player
+- ne fais PAS de correction large
+
+DIAGNOSTIC À RESPECTER
+1. createTransferBankToPlayerAction débite la banque immédiatement.
+2. completeBankToPlayerTransfer crédite le transport seulement à la complétion réelle.
+3. TreasuryPanel déclenche actuellement un refresh 300 ms après création de l’action, ce qui est trop tôt.
+4. PlayerTransportPanel se recharge sur l’événement :
+   nova:logistic-refresh
+5. Le bon correctif est :
+   émettre nova:logistic-refresh à la vraie fin d’une action transfer_bank_to_player.
+
+FICHIERS À AUDITER
+- client/src/components/game/TreasuryPanel.tsx
+- client/src/components/game/PlayerTransportPanel.tsx
+- client/src/App.tsx
+- tout fichier client qui poll / surveille activeAction en continu
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire et identifier précisément :
+- où l’action active est surveillée en session normale
+- où une transition in_progress → completed est détectée
+- si cette détection est centralisée dans un hook, un store, App.tsx, HUD, ou ailleurs
+
+IMPORTANT
+Ne suppose rien.
+Trouve le vrai point d’observation de la complétion.
+
+ÉTAPE 2 — ISOLER LE BON POINT D’INJECTION
+Une fois le polling/watcher identifié :
+- ajouter un déclenchement de
+  window.dispatchEvent(new CustomEvent('nova:logistic-refresh'))
+- uniquement si l’action concernée est de type :
+  transfer_bank_to_player
+- uniquement au moment de la complétion réelle
+- pas au moment de la création
+
+ÉTAPE 3 — NE PAS UTILISER LE TIMEOUT PRÉCOCE COMME SOURCE DE VÉRITÉ
+Dans TreasuryPanel.tsx :
+- ne plus considérer le setTimeout 300 ms comme mécanisme principal de refresh logistique
+- il peut rester pour un feedback léger si nécessaire, mais il ne doit pas être la source de vérité du refresh inventaire
+- la source de vérité doit être la complétion réelle de l’action
+
+ÉTAPE 4 — CONTRAINTES
+Ne touche pas à :
+- createTransferBankToPlayerAction
+- completeBankToPlayerTransfer
+- computeTransportUnits
+- marketService
+- durations
+- SSE marché
+- playerTransport schema
+- routes economy
+
+ÉTAPE 5 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. Flux attendu
+- lancer un transfert banque → joueur
+- banque débitée immédiatement
+- inventaire pas encore crédité tant que l’action est en cours
+- à la complétion réelle :
+  nova:logistic-refresh est bien émis
+- PlayerTransportPanel se recharge correctement
+- la ressource apparaît alors en inventaire
+
+B. Non-régression
+- aucun refresh large inutile
+- aucun spam d’événements
+- aucun impact sur move / harvest / autres actions
+- aucune modification backend
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. FICHIERS MODIFIÉS
+2. DIFF LOGIQUE PAR FICHIER
+3. PREUVE DIRECTE
+4. VÉRIFICATION FINALE
+5. STOP
+
+CONTRAINTE FINALE
+Ne touche à rien d’autre.
+Le but exclusif est :
+déclencher le refresh logistique au moment réel où transfer_bank_to_player se termine.
