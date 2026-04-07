@@ -1,0 +1,203 @@
+NOVA IMPERIUM — SEGMENT SUIVANT : RÉALIGNER LE MARCHÉ SUR PLAYER_TRANSPORT
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucune dérive hors sujet.
+
+CONTEXTE
+Le segment 1 a déjà canonisé la capacité transport :
+- l’or compte maintenant en unités compressées
+- usedUnits/freeUnits sont déjà fournis correctement côté API transport
+
+Le prochain vrai problème restant est :
+- l’UI du marché affiche l’inventaire transport
+- mais le serveur du marché utilise encore player_bank
+
+OBJECTIF
+Réaligner complètement la logique marché joueur sur player_transport.
+
+IMPORTANT
+Ne touche PAS à :
+- SSE marché
+- routes marché existantes
+- carnet global
+- historique des trades
+- logique de commission propriétaire
+- TreasuryPanel
+- panneau banque
+- logique d’accès physique
+- matching / auto-match
+- structure DB
+
+DIAGNOSTIC À RESPECTER
+1. PublicMarketplace affiche déjà l’inventaire transport.
+2. marketService utilise encore player_bank pour :
+   - escrow vente
+   - escrow achat
+   - retour d’annulation
+   - règlements de fill
+3. Cela crée une incohérence visible pour le joueur.
+4. Le correctif demandé est :
+   marché = player_transport pour toutes les opérations joueur
+5. Les commissions propriétaire restent inchangées :
+   - owner player → player_bank
+   - owner faction → factionEconomy
+
+FICHIER PRINCIPAL À MODIFIER
+- server/marketService.ts
+
+FICHIER SECONDAIRE OPTIONNEL
+- client/src/components/game/PublicMarketplace.tsx
+  seulement si un petit ajustement de texte/messages est utile
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire entièrement server/marketService.ts et confirmer :
+- helpers actuels basés sur player_bank
+- placeOrder débite player_bank
+- cancelOrder retourne dans player_bank
+- fillOrder crédite/débite player_bank côté joueurs
+- logique commission propriétaire distincte
+
+ÉTAPE 2 — HELPERS TRANSPORT
+Dans server/marketService.ts :
+
+1. importer playerTransport depuis shared/schema
+2. garder playerBank uniquement pour les commissions propriétaire
+3. ajouter des helpers dédiés transport :
+
+- transportResourceCol(res: ResourceType)
+- ensurePlayerTransport(playerId: string, tx?: any)
+- debitTransportResource(playerId: string, res: ResourceType, qty: number, tx?: any): Promise<boolean>
+- creditTransportResource(playerId: string, res: ResourceType, qty: number, tx?: any): Promise<void>
+- debitTransportGold(playerId: string, amount: number, tx?: any): Promise<boolean>
+- creditTransportGold(playerId: string, amount: number, tx?: any): Promise<void>
+
+IMPORTANT
+- helpers simples
+- pas de refactor large
+- ne pas supprimer les helpers banque si encore utiles pour les frais propriétaire
+
+ÉTAPE 3 — placeOrder() = ESCROW DEPUIS TRANSPORT
+Modifier placeOrder(...)
+
+A. side === "sell"
+- débiter la ressource depuis player_transport
+
+B. side === "buy"
+- débiter l’or depuis player_transport
+
+IMPORTANT
+- validations side/resource/price/quantity inchangées
+- création d’ordre inchangée
+- message d’erreur clair :
+  - ressources insuffisantes dans le transport
+  - or insuffisant dans le transport
+
+ÉTAPE 4 — cancelOrder() = RETOUR ESCROW VERS TRANSPORT
+Modifier cancelOrder(...)
+
+A. ordre sell annulé
+- restituer la ressource dans player_transport
+
+B. ordre buy annulé
+- restituer l’or dans player_transport
+
+IMPORTANT
+- ne pas toucher aux règles owner/admin
+- ne pas toucher au status cancelled
+
+ÉTAPE 5 — fillOrder() = RÈGLEMENT VIA TRANSPORT
+Modifier fillOrder(...)
+
+A. Si order.side === "sell"
+- filler = acheteur
+- débiter l’or du filler depuis player_transport
+- créditer la ressource au filler dans player_transport
+- créditer l’or net au vendeur dans player_transport
+
+B. Si order.side === "buy"
+- filler = vendeur
+- débiter la ressource du filler depuis player_transport
+- créditer la ressource à l’acheteur original dans player_transport
+- créditer l’or net au vendeur (filler) dans player_transport
+
+IMPORTANT
+- respecter l’escrow déjà pris au placeOrder
+- ne pas toucher à la logique de trade history
+- ne pas toucher au calcul feeAmount
+- ne pas toucher à deriveMarketOwner
+- ne pas toucher aux commissions propriétaire
+
+ÉTAPE 6 — POLITIQUE DE CAPACITÉ À RESPECTER
+Pour cette V1 :
+- ne pas introduire de réservation de capacité transport
+- ne pas bloquer cancel/fill à cause de TRANSPORT_MAX_UNITS
+- ne pas toucher à transfer-bank-to-player
+- overflow toléré si une restitution/fill l’impose
+
+IMPORTANT
+Ajoute un commentaire clair dans marketService.ts :
+marché V1 transport-based, sans réservation de capacité, overflow toléré pour ne pas bloquer escrow/cancel/fill
+
+ÉTAPE 7 — AJUSTEMENT UI MINIMAL (OPTIONNEL)
+Dans PublicMarketplace.tsx, uniquement si nécessaire :
+- garder l’affichage transport
+- ajuster les messages :
+  - "escrow prélevé du transport"
+  - "escrow retourné au transport"
+- ajouter un petit texte :
+  "Le marché utilise votre inventaire de transport"
+
+Ne touche à rien d’autre côté UI.
+
+ÉTAPE 8 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. Vente
+- joueur avec 10 wood en transport
+- ordre sell de 4 wood
+- transport passe immédiatement à 6 wood
+
+B. Annulation vente
+- annulation de cet ordre
+- transport revient à 10 wood
+
+C. Achat
+- joueur avec assez d’or en transport
+- ordre buy
+- or retiré immédiatement du transport
+
+D. Fill ordre sell
+- acheteur paie en or transport
+- acheteur reçoit ressource en transport
+- vendeur reçoit or net en transport
+
+E. Fill ordre buy
+- vendeur débite sa ressource depuis transport
+- acheteur reçoit la ressource en transport
+- vendeur reçoit l’or net en transport
+
+F. Non-régression
+- SSE inchangé
+- carnet global inchangé
+- historique inchangé
+- commission propriétaire inchangée
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. FICHIERS MODIFIÉS
+2. DIFF LOGIQUE PAR FICHIER
+3. PREUVE DIRECTE
+4. VÉRIFICATION FINALE
+5. STOP
+
+CONTRAINTE FINALE
+Ne touche à rien d’autre.
+Le but exclusif est :
+rendre enfin le marché cohérent avec l’inventaire transport affiché au joueur.

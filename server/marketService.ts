@@ -1,7 +1,7 @@
 import { db } from "./db";
 import {
   marketGuilds, marketOrders, marketTrades,
-  playerBank, factionEconomy, cityBuildings, cities, colonies,
+  playerBank, playerTransport, factionEconomy, cityBuildings, cities, colonies,
 } from "../shared/schema";
 import { eq, and, sql, desc, lte } from "drizzle-orm";
 import { creditFactionGold } from "./economyService";
@@ -131,8 +131,8 @@ export async function getTradeHistory(_cityId: number) {
 
 // ─── Helpers ressource player_bank ───────────────────────────────────────────
 // Accède dynamiquement à la colonne de ressource correcte.
-function resourceCol(res: ResourceType) {
-  const map: Record<ResourceType, typeof playerBank.food> = {
+function resourceCol(res: ResourceType): any {
+  const map: Record<ResourceType, any> = {
     food:   playerBank.food,
     wood:   playerBank.wood,
     stone:  playerBank.stone,
@@ -198,6 +198,77 @@ async function creditGoldPlayer(playerId: string, amount: number, tx?: any): Pro
     .where(eq(playerBank.playerId, playerId));
 }
 
+// ─── Helpers ressource player_transport ──────────────────────────────────────
+// Marché V1 transport-based, sans réservation de capacité.
+// Overflow toléré pour ne pas bloquer escrow/cancel/fill.
+
+function transportResourceCol(res: ResourceType): any {
+  const map: Record<ResourceType, any> = {
+    food:   playerTransport.food,
+    wood:   playerTransport.wood,
+    stone:  playerTransport.stone,
+    iron:   playerTransport.iron,
+    copper: playerTransport.copper,
+    coal:   playerTransport.coal,
+    oil:    playerTransport.oil,
+    herbs:  playerTransport.herbs,
+    fur:    playerTransport.fur,
+  };
+  return map[res];
+}
+
+async function ensurePlayerTransport(playerId: string, tx?: any) {
+  const target = tx ?? db;
+  await target
+    .insert(playerTransport)
+    .values({ playerId, gold: 0, food: 0, wood: 0, stone: 0, iron: 0,
+              copper: 0, coal: 0, oil: 0, herbs: 0, fur: 0 })
+    .onConflictDoNothing();
+}
+
+// Débite des ressources depuis le transport. Retourne false si insuffisant.
+async function debitTransportResource(playerId: string, res: ResourceType, qty: number, tx?: any): Promise<boolean> {
+  const target = tx ?? db;
+  const col = transportResourceCol(res);
+  const updated = await target
+    .update(playerTransport)
+    .set({ [res]: sql`${col} - ${qty}`, updatedAt: new Date() })
+    .where(and(eq(playerTransport.playerId, playerId), sql`${col} >= ${qty}`))
+    .returning({ val: col });
+  return updated.length > 0;
+}
+
+// Crédite des ressources dans le transport.
+async function creditTransportResource(playerId: string, res: ResourceType, qty: number, tx?: any): Promise<void> {
+  const target = tx ?? db;
+  const col = transportResourceCol(res);
+  await target
+    .update(playerTransport)
+    .set({ [res]: sql`${col} + ${qty}`, updatedAt: new Date() })
+    .where(eq(playerTransport.playerId, playerId));
+}
+
+// Débite de l'or du transport. Retourne false si insuffisant.
+async function debitTransportGold(playerId: string, amount: number, tx?: any): Promise<boolean> {
+  const target = tx ?? db;
+  const updated = await target
+    .update(playerTransport)
+    .set({ gold: sql`${playerTransport.gold} - ${amount}`, updatedAt: new Date() })
+    .where(and(eq(playerTransport.playerId, playerId), sql`${playerTransport.gold} >= ${amount}`))
+    .returning({ gold: playerTransport.gold });
+  return updated.length > 0;
+}
+
+// Crédite de l'or dans le transport.
+async function creditTransportGold(playerId: string, amount: number, tx?: any): Promise<void> {
+  if (amount <= 0) return;
+  const target = tx ?? db;
+  await target
+    .update(playerTransport)
+    .set({ gold: sql`${playerTransport.gold} + ${amount}`, updatedAt: new Date() })
+    .where(eq(playerTransport.playerId, playerId));
+}
+
 // ─── placeOrder ───────────────────────────────────────────────────────────────
 // Validation + escrow + création de l'ordre. AUCUN auto-match.
 export async function placeOrder(
@@ -219,18 +290,19 @@ export async function placeOrder(
     throw Object.assign(new Error("quantity doit être un entier positif"), { status: 400 });
 
   // Réseau global : pas de gate guilde. La ville sert de point d'entrée de création d'ordre.
-  await ensurePlayerBank(playerId);
+  // Escrow prélevé du transport (marché V1 transport-based).
+  await ensurePlayerTransport(playerId);
 
   const res = resourceType as ResourceType;
 
-  // Escrow
+  // Escrow depuis player_transport
   if (side === "sell") {
-    const ok = await debitResource(playerId, res, quantity);
-    if (!ok) throw Object.assign(new Error(`Ressources insuffisantes pour l'escrow (${quantity}× ${res})`), { status: 422 });
+    const ok = await debitTransportResource(playerId, res, quantity);
+    if (!ok) throw Object.assign(new Error(`Ressources insuffisantes dans le transport pour l'escrow (${quantity}× ${res})`), { status: 422 });
   } else {
     const totalGold = quantity * pricePerUnit;
-    const ok = await debitGold(playerId, totalGold);
-    if (!ok) throw Object.assign(new Error(`Or insuffisant pour l'escrow (${totalGold} or requis)`), { status: 422 });
+    const ok = await debitTransportGold(playerId, totalGold);
+    if (!ok) throw Object.assign(new Error(`Or insuffisant dans le transport pour l'escrow (${totalGold} or requis)`), { status: 422 });
   }
 
   const [order] = await db
@@ -266,13 +338,13 @@ export async function cancelOrder(
     throw Object.assign(new Error("Accès refusé : vous n'êtes pas le propriétaire de cet ordre"), { status: 403 });
 
   // Réseau global : pas de gate guilde pour l'annulation d'un ordre.
-  // Retour escrow résiduel
-  await ensurePlayerBank(order.playerId);
+  // Retour escrow résiduel vers player_transport (marché V1 transport-based).
+  await ensurePlayerTransport(order.playerId);
   if (order.side === "sell") {
-    await creditResource(order.playerId, order.resourceType as ResourceType, order.quantityRemaining);
+    await creditTransportResource(order.playerId, order.resourceType as ResourceType, order.quantityRemaining);
   } else {
     const goldBack = order.quantityRemaining * order.pricePerUnit;
-    await creditGoldPlayer(order.playerId, goldBack);
+    await creditTransportGold(order.playerId, goldBack);
   }
 
   await db
@@ -280,7 +352,7 @@ export async function cancelOrder(
     .set({ status: "cancelled", updatedAt: new Date() })
     .where(eq(marketOrders.id, orderId));
 
-  console.log(`[market] cancelOrder orderId=${orderId} escrow retourné`);
+  console.log(`[market] cancelOrder orderId=${orderId} escrow retourné au transport`);
 }
 
 // ─── fillOrder ────────────────────────────────────────────────────────────────
@@ -304,7 +376,8 @@ export async function fillOrder(
   // Résoudre le contexte de frais depuis la ville d'origine de l'ordre (order.cityId).
   // Pas de gate guilde — la ville du filler peut différer.
   const feeContext = await resolveMarketContext(order.cityId);
-  await ensurePlayerBank(fillerId);
+  // S'assurer que le filler a bien une ligne transport (marché V1 transport-based).
+  await ensurePlayerTransport(fillerId);
 
   const totalGold = quantity * order.pricePerUnit;
   const res       = order.resourceType as ResourceType;
@@ -327,27 +400,27 @@ export async function fillOrder(
     const feeAmount = Math.floor(totalGold * feeBps / 10000);
     const netSeller = totalGold - feeAmount;
 
-    // 3. Mouvements selon side de l'ordre
+    // 3. Mouvements buyer/seller via player_transport
     if (order.side === "sell") {
-      // Filler = acheteur. Débite gold du filler.
-      const ok = await debitGold(fillerId, totalGold, tx);
-      if (!ok) throw Object.assign(new Error(`Or insuffisant pour le fill (${totalGold} or requis)`), { status: 422 });
-      // Crédite ressource au filler (l'escrow de la ressource est déjà dans le void depuis placeOrder)
-      await creditResource(fillerId, res, quantity, tx);
-      // Crédite or net au vendeur
-      await creditGoldPlayer(order.playerId, netSeller, tx);
+      // Filler = acheteur. Débite or du filler depuis transport.
+      const ok = await debitTransportGold(fillerId, totalGold, tx);
+      if (!ok) throw Object.assign(new Error(`Or insuffisant dans le transport pour le fill (${totalGold} or requis)`), { status: 422 });
+      // Crédite ressource au filler dans transport (escrow vendeur déjà dans le void depuis placeOrder).
+      await creditTransportResource(fillerId, res, quantity, tx);
+      // Crédite or net au vendeur dans transport.
+      await creditTransportGold(order.playerId, netSeller, tx);
     } else {
-      // order.side === "buy". Filler = vendeur. Débite ressource du filler.
-      const ok = await debitResource(fillerId, res, quantity, tx);
-      if (!ok) throw Object.assign(new Error(`Ressources insuffisantes pour le fill (${quantity}× ${res})`), { status: 422 });
-      // Crédite ressource à l'acheteur original (buyer = order.playerId)
-      await creditResource(order.playerId, res, quantity, tx);
-      // Or du buyer est déjà en escrow (déjà soustrait de player_bank à placeOrder)
-      // Crédite or net au vendeur (filler)
-      await creditGoldPlayer(fillerId, netSeller, tx);
+      // order.side === "buy". Filler = vendeur. Débite ressource du filler depuis transport.
+      const ok = await debitTransportResource(fillerId, res, quantity, tx);
+      if (!ok) throw Object.assign(new Error(`Ressources insuffisantes dans le transport pour le fill (${quantity}× ${res})`), { status: 422 });
+      // Crédite ressource à l'acheteur original dans transport.
+      await creditTransportResource(order.playerId, res, quantity, tx);
+      // Or du buyer déjà en escrow (soustrait du transport à placeOrder).
+      // Crédite or net au vendeur (filler) dans transport.
+      await creditTransportGold(fillerId, netSeller, tx);
     }
 
-    // 4. Commission → propriétaire du marché
+    // 4. Commission → propriétaire du marché (inchangée — player_bank ou factionEconomy)
     if (feeAmount > 0) {
       const owner = await deriveMarketOwner(order.cityId);
       if (owner) {
