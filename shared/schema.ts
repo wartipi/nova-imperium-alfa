@@ -631,7 +631,7 @@ export type CityInventoryRecord = typeof cityInventory.$inferSelect;
 // ─── player_transport ─────────────────────────────────────────────────────────
 // Ressources physiquement portées par le joueur (inventaire de transport).
 // Alimenté par l'action transfer_bank_to_player à complétion.
-// Capacité max : 50 unités totales (gold + food + wood + stone + iron cumulés).
+// Capacité max : 50 unités totales. Or compressé : 1 unité = 250 pièces (ceil(gold/250)). Autres ressources : 1 unité chacune.
 export const playerTransport = pgTable("player_transport", {
   playerId:  text("player_id").primaryKey(),
   gold:      integer("gold").notNull().default(0),

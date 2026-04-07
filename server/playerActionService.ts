@@ -16,11 +16,13 @@ import type { ActorContext } from "./types/actorContext";
 const HOURS_PER_AP = 5 / 3600; // 5 secondes par PA (phase test)
 const MS_PER_HOUR = 3600 * 1000;
 
-// Capacité max de transport de ressources (or + nourriture cumulés)
+// Capacité max de transport (unités canoniques : or compressé 1/250, autres ressources 1 chacune)
 export const TRANSPORT_MAX_UNITS = 50;
+// Stack de compression de l'or : 1 unité de transport = 250 pièces d'or.
+export const GOLD_TRANSPORT_STACK_SIZE = 250;
 
 // ─── Helper canonique de calcul des unités transport ─────────────────────────
-// Règle : gold = ceil(gold / 150), toutes les autres ressources = 1 unité chacune.
+// Règle : gold = ceil(gold / GOLD_TRANSPORT_STACK_SIZE), autres ressources = 1 unité chacune.
 // Source de vérité unique — utilisée partout où on calcule usedUnits / currentTotal.
 export function computeTransportUnits(t: {
   gold:    number;
@@ -34,7 +36,7 @@ export function computeTransportUnits(t: {
   herbs?:  number | null;
   fur?:    number | null;
 }): number {
-  return Math.ceil(t.gold / 150)
+  return (t.gold > 0 ? Math.ceil(t.gold / GOLD_TRANSPORT_STACK_SIZE) : 0)
        + t.food
        + t.wood
        + t.stone
@@ -842,7 +844,7 @@ export async function createTransferBankToPlayerAction(
     })
     .where(eq(playerBank.playerId, playerId));
 
-  const totalUnits = gold + food + wood + stone + iron + copper + coal + oil + herbs + fur;
+  const totalUnits = computeTransportUnits({ gold, food, wood, stone, iron, copper, coal, oil, herbs, fur });
   const durationSeconds = totalUnits * 5;
   const durationMs = durationSeconds * 1000;
   const expectedEndTime = new Date(now.getTime() + durationMs);

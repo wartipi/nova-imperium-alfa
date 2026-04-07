@@ -1,0 +1,154 @@
+NOVA IMPERIUM — SEGMENT SUIVANT : RÈGLE CANONIQUE OR = STACK 250
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucune dérive hors sujet.
+
+OBJECTIF
+Corriger globalement la règle de stack de l’or pour le transport.
+
+NOUVELLE RÈGLE CANONIQUE
+L’or compte désormais en unités de transport compressées par stack de 250 :
+
+- gold = 0   → 0 unité
+- gold = 1   → 1 unité
+- gold = 250 → 1 unité
+- gold = 251 → 2 unités
+- gold = 500 → 2 unités
+- gold = 501 → 3 unités
+
+Formule canonique :
+goldUnits = gold > 0 ? Math.ceil(gold / 250) : 0
+
+IMPORTANT
+Ce segment doit corriger la règle globalement, mais sans dérive.
+
+Ne touche PAS à :
+- marketService
+- SSE marché
+- logique d’escrow
+- routes marché
+- UI métier hors ce qui suit automatiquement l’API
+- structure DB
+- TRANSPORT_MAX_UNITS
+
+Le but exclusif est :
+- remplacer l’ancienne granularité 150 par 250
+- faire utiliser la même unité canonique à la capacité ET à la durée du transfert banque → joueur
+
+FICHIERS À AUDITER
+- server/playerActionService.ts
+- server/routes/economy.ts
+- shared/schema.ts
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire et confirmer précisément :
+- computeTransportUnits(...)
+- tous les usages actuels du helper
+- createTransferBankToPlayerAction(...)
+- les commentaires/documentations qui parlent encore d’une ancienne logique brute ou de 150
+
+ÉTAPE 2 — CONSTANTE CANONIQUE UNIQUE
+Dans server/playerActionService.ts :
+
+1. ajouter une constante explicite, exportée si nécessaire :
+   GOLD_TRANSPORT_STACK_SIZE = 250
+
+2. utiliser cette constante dans computeTransportUnits(...)
+
+Exemple attendu :
+- goldUnits = t.gold > 0 ? Math.ceil(t.gold / GOLD_TRANSPORT_STACK_SIZE) : 0
+
+IMPORTANT
+Ne laisse pas de nombre magique 250 répété partout.
+La règle doit être centralisée.
+
+ÉTAPE 3 — HELPER computeTransportUnits
+Mettre à jour computeTransportUnits(...) pour que :
+- l’or utilise la nouvelle règle 250
+- toutes les autres ressources restent à 1 unité chacune
+- le helper reste la source de vérité unique
+
+ÉTAPE 4 — DURÉE DU TRANSFERT BANQUE → JOUEUR
+Dans createTransferBankToPlayerAction(...)
+
+Remplacer le calcul brut actuel de totalUnits pour la durée :
+- gold + food + wood + stone + iron + copper + coal + oil + herbs + fur
+
+Par :
+- computeTransportUnits({ gold, food, wood, stone, iron, copper, coal, oil, herbs, fur })
+
+Puis :
+- durationSeconds = totalUnits * 5
+- durationMs = durationSeconds * 1000
+
+IMPORTANT
+Le but est :
+- capacité transport
+- durée du transfert banque → joueur
+doivent reposer sur la même unité canonique
+
+ÉTAPE 5 — ROUTE ECONOMY
+Vérifier que GET /api/economy/player-transport continue d’utiliser computeTransportUnits(...)
+Ajuster seulement si nécessaire.
+Ne change pas le contrat de la route.
+
+ÉTAPE 6 — COMMENTAIRES / DOCUMENTATION
+Mettre à jour les commentaires techniques qui parlent encore :
+- d’une logique brute
+- d’une ancienne logique cumulée
+- ou d’une granularité obsolète
+
+En particulier :
+- server/playerActionService.ts
+- shared/schema.ts autour de player_transport si le commentaire est maintenant faux
+
+IMPORTANT
+Ne fais que du nettoyage documentaire cohérent avec la nouvelle règle.
+Pas de prose inutile.
+
+ÉTAPE 7 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. Cas or seul
+- gold = 0   → 0 unité
+- gold = 1   → 1 unité
+- gold = 250 → 1 unité
+- gold = 251 → 2 unités
+- gold = 500 → 2 unités
+- gold = 501 → 3 unités
+
+B. Cas mixtes
+- 400 gold + 10 wood = 12 unités
+- 40 gold + 5 stone + 2 iron = 8 unités
+
+C. Durée transfert banque → joueur
+- 250 gold seul = 1 unité = 5 secondes
+- 400 gold + 10 wood = 12 unités = 60 secondes
+
+D. Non-régression
+- aucun changement marché
+- aucune modification SSE
+- aucune modification schéma
+- API player-transport continue d’exposer usedUnits/freeUnits correctement
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. FICHIERS MODIFIÉS
+2. DIFF LOGIQUE PAR FICHIER
+3. PREUVE DIRECTE
+4. VÉRIFICATION FINALE
+5. STOP
+
+CONTRAINTE FINALE
+Ne touche à rien d’autre.
+Le but exclusif est :
+- passer la règle canonique or de 150 à 250
+- l’appliquer partout où le transport calcule des unités
+- aligner enfin la durée du transfert banque → joueur sur cette même logique
