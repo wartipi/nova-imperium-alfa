@@ -81,23 +81,29 @@ function GameApp() {
 
         if (currentAction) {
           if (currentAction.status === "in_progress") {
-            // Action toujours en cours — position effective = case serveur confirmée (Phase 1 serveur)
-            // On utilise effectiveWorldX/Y (vérité calculée par le serveur) et non startWorldX/Y
             usePlayerActions.getState().setActiveAction(currentAction);
-            effectiveWorldX = currentAction.effectiveWorldX;
-            effectiveWorldY = currentAction.effectiveWorldY;
+            // Pour un déplacement : position effective = case confirmée par le serveur (mid-path).
+            // Pour toute autre action (transfer, harvest…) : les coords de l'action sont 0,0 (dummy) —
+            // on conserve la position DB du joueur.
+            if (currentAction.type === "move") {
+              effectiveWorldX = currentAction.effectiveWorldX;
+              effectiveWorldY = currentAction.effectiveWorldY;
+            }
             console.log(
-              `[Startup] Action active reprise: id=${currentAction.id}` +
+              `[Startup] Action active reprise: id=${currentAction.id} type=${currentAction.type}` +
               ` position effective=(${effectiveWorldX},${effectiveWorldY}) step=${currentAction.effectiveStep}` +
               ` → (${currentAction.endWorldX},${currentAction.endWorldY})`
             );
           } else if (currentAction.status === "completed") {
-            // Action expirée pendant l'absence — position finale = destination de l'action
-            effectiveWorldX = currentAction.endWorldX;
-            effectiveWorldY = currentAction.endWorldY;
+            // Pour un déplacement complété : position finale = destination de l'action.
+            // Pour toute autre action : on conserve la position DB du joueur.
+            if (currentAction.type === "move") {
+              effectiveWorldX = currentAction.endWorldX;
+              effectiveWorldY = currentAction.endWorldY;
+            }
             console.log(
-              `[Startup] Action complétée pendant l'absence — position finale:` +
-              ` monde (${effectiveWorldX},${effectiveWorldY})`
+              `[Startup] Action complétée pendant l'absence — type=${currentAction.type}` +
+              ` position finale: monde (${effectiveWorldX},${effectiveWorldY})`
             );
           }
         } else {
