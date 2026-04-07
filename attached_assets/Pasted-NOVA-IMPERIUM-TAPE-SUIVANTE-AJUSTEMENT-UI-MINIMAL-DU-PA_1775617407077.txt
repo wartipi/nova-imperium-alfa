@@ -1,0 +1,113 @@
+NOVA IMPERIUM — ÉTAPE SUIVANTE : AJUSTEMENT UI MINIMAL DU PANNEAU MARCHÉ
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucun changement backend.
+Aucune dérive hors sujet.
+
+CONTEXTE
+Le backend marché a déjà été réaligné sur player_transport.
+Cette étape ne concerne plus la logique métier.
+Elle concerne uniquement la cohérence de l’interface du marché.
+
+OBJECTIF
+Nettoyer le wording de PublicMarketplace.tsx pour que l’interface soit plus naturelle et plus propre visuellement.
+
+CONTRAINTE UI IMPORTANTE
+Je ne veux PAS voir dans le panneau du marché un label du type :
+- "Inventaire (transport)"
+- "Inventaire transport"
+
+Je veux simplement :
+- "Inventaire"
+
+IMPORTANT
+Même si la logique technique réelle repose sur player_transport,
+l’interface joueur ne doit pas surcharger ce détail dans le titre du bloc.
+
+FICHIER À MODIFIER
+- client/src/components/game/PublicMarketplace.tsx
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire PublicMarketplace.tsx et repérer précisément :
+- le bloc d’affichage de l’inventaire joueur
+- les messages de succès après placeOrder / cancelOrder / fillOrder
+- les éventuels textes explicatifs qui parlent encore de transport de façon trop lourde
+
+ÉTAPE 2 — TITRE DU BLOC INVENTAIRE
+Modifier le titre du bloc pour afficher seulement :
+- "Inventaire"
+
+Ne pas afficher :
+- "(transport)"
+- "transport" dans le titre
+- formulations lourdes ou techniques inutiles
+
+ÉTAPE 3 — MESSAGES UI
+Adapter les messages du marché pour utiliser un wording simple :
+
+A. Création d’ordre
+- remplacer le wording type :
+  "escrow prélevé du transport"
+- par :
+  "escrow prélevé de l’inventaire"
+
+B. Annulation d’ordre
+- remplacer le wording type :
+  "escrow retourné au transport"
+- par :
+  "escrow retourné à l’inventaire"
+
+C. Si un petit texte d’aide existe près du formulaire
+- il peut mentionner discrètement que les ressources utilisées sont celles actuellement portées
+- mais sans alourdir l’interface
+- éviter le mot “transport” dans les titres principaux
+
+ÉTAPE 4 — CONTRAINTES
+Ne touche pas à :
+- server/marketService.ts
+- SSE marché
+- logique d’escrow
+- logique des fills
+- logique des commissions
+- accès physique
+- routes
+- carnet d’ordres
+- historique
+
+Cette étape est purement UI / wording.
+
+ÉTAPE 5 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+1. Le bloc affiche bien :
+- "Inventaire"
+
+2. Le bloc n’affiche plus :
+- "Inventaire (transport)"
+- "Inventaire transport"
+
+3. Les messages de feedback du marché parlent bien de :
+- "inventaire"
+
+4. Aucun comportement fonctionnel n’a changé
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. FICHIERS MODIFIÉS
+2. DIFF LOGIQUE PAR FICHIER
+3. PREUVE DIRECTE
+4. VÉRIFICATION FINALE
+5. STOP
+
+CONTRAINTE FINALE
+Ne touche à rien d’autre.
+Le but exclusif est :
+- nettoyer le wording du panneau marché
+- afficher simplement "Inventaire"
+- garder l’interface plus propre et plus naturelle

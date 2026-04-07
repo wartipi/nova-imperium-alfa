@@ -349,12 +349,12 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
               ) : (
                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
 
-                  {/* ─── Inventaire transport du joueur ─────────────────────── */}
+                  {/* ─── Inventaire joueur ────────────────────────────────── */}
                   {transport && (
                     <div className="bg-white border border-amber-200 rounded-lg p-3">
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="font-bold text-amber-900 text-sm flex items-center gap-1.5">
-                          🎒 Inventaire (transport)
+                          🎒 Inventaire
                         </h4>
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
                           transport.usedUnits >= transport.maxUnits
@@ -387,7 +387,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                           );
                         })}
                         {transport.gold === 0 && transport.usedUnits === 0 && (
-                          <span className="col-span-5 text-xs text-gray-400 italic">Aucune ressource en transit</span>
+                          <span className="col-span-5 text-xs text-gray-400 italic">Inventaire vide</span>
                         )}
                       </div>
                     </div>
