@@ -20,7 +20,6 @@ function getAuthHeaders(): Record<string, string> {
 interface AvatarActionMenuProps {
   position: { x: number; y: number };
   onClose: () => void;
-  onMoveRequest: () => void;
 }
 
 // Fonction pour accéder aux données du jeu
@@ -33,7 +32,7 @@ const getGameData = () => {
   };
 };
 
-export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarActionMenuProps) {
+export function AvatarActionMenu({ position, onClose }: AvatarActionMenuProps) {
   const { actionPoints, spendActionPoints, hasCompetenceLevel, competences, discoverResourcesInVision, playerName } = usePlayer();
   const { reputation } = useReputation();
   const { isAdmin } = useAuth();
@@ -234,15 +233,6 @@ export function AvatarActionMenu({ position, onClose, onMoveRequest }: AvatarAct
         if (!isAdmin) usePlayer.getState().addActionPoints(claimCost);
         alert(err.message || 'Erreur lors de la revendication du territoire.');
       }
-      return;
-    }
-
-
-    if (action.id === 'found_colony') {
-      // La fondation de colonie est gérée via le menu GESTION DE TERRITOIRE (UnifiedTerritoryPanel).
-      // Ce chemin n'est plus accessible depuis l'AvatarActionMenu.
-      console.log('[AvatarActionMenu] found_colony : utiliser le menu Gestion de Territoire.');
-      onClose();
       return;
     }
 

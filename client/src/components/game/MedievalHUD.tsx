@@ -218,19 +218,8 @@ export function MedievalHUD() {
     };
   }, [showLevelUpNotification]);
 
-  React.useEffect(() => {
-    const handleOpenTerritoryPanel = () => {
-      setActiveSection('territory');
-    };
-
-    window.addEventListener('openTerritoryPanel', handleOpenTerritoryPanel);
-    return () => {
-      window.removeEventListener('openTerritoryPanel', handleOpenTerritoryPanel);
-    };
-  }, []);
-
-  // ─── Listener nova:open-panel — déclenché depuis TileContextMenu ──────────
-  // Ouvre le panneau demandé (marketplace, treasury, etc.) via le menu contextuel de case.
+  // ─── Listener nova:open-panel — canal centralisé d'ouverture des panneaux ──
+  // Émetteurs : AvatarActionMenu (banque, marché), tout composant via window.dispatchEvent.
   React.useEffect(() => {
     const handleOpenPanel = (e: Event) => {
       const panel = (e as CustomEvent<{ panel: MenuSection }>).detail?.panel;

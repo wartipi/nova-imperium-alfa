@@ -1,0 +1,240 @@
+NOVA IMPERIUM — SEGMENT DE NETTOYAGE CIBLÉ DES POINTS D’ACCÈS UI
+Branche : NI-10.3
+
+RÔLE
+Tu agis comme intervenant technique sous contrainte stricte.
+Tu dois faire un nettoyage ciblé, minimal, sans refactor massif, sans changement d’architecture, sans toucher à la logique métier serveur valide.
+Tu ne dois pas “réinventer” de nouveaux points d’accès.
+Tu dois uniquement réaligner l’UI sur les chemins canoniques déjà validés.
+
+PRIORITÉS
+Simplicité > Lisibilité > Stabilité > Compatibilité
+
+INTERDIT
+
+* aucun refactor massif
+* aucun changement d’architecture
+* ne pas toucher aux routes serveur
+* ne pas toucher à la logique d’accès physique réelle déjà valide
+* ne pas ouvrir de nouveau chantier
+* ne pas mélanger avec vision des villes / barracks / fortification
+* ne pas inventer de nouveau flux joueur
+
+OBJECTIF
+Nettoyer les points d’accès UI dérivés ou résiduels afin que :
+
+1. les services de ville passent par les chemins canoniques
+2. les panneaux s’ouvrent via un canal unique
+3. les vieux résidus morts soient supprimés
+4. le code soit plus lisible sans changer le comportement validé
+
+VÉRITÉ CANONIQUE À RESPECTER
+A. Banque / Marché
+Le point d’accès canonique doit être le menu d’action avatar.
+Le joueur se place physiquement sur une ville, ouvre AvatarActionMenu, puis accède à Banque / Marché si les checks serveur l’autorisent.
+
+B. Gestion territoire / fondation colonie
+La gestion territoire et la fondation de colonie passent par UnifiedTerritoryPanel.
+Ce flux ne doit pas être redoublé ailleurs.
+
+C. Ouverture de panneaux
+Le canal canonique d’ouverture doit être :
+window.dispatchEvent(new CustomEvent('nova:open-panel', { detail: { panel } }))
+puis résolution centralisée dans MedievalHUD via activeSection.
+
+ÉTAT RÉEL AUDITÉ À PRENDRE EN COMPTE
+
+1. MedievalHUD centralise déjà les panneaux avec activeSection + listener nova:open-panel.
+2. AvatarActionMenu possède déjà les checks physiques banque / marché.
+3. TileContextMenu expose encore des accès marché / banque = second point d’accès non canonique.
+4. GameCanvas porte encore la logique hasMarket / hasBank liée à TileContextMenu.
+5. AvatarActionMenu contient encore une branche morte found_colony.
+6. MedievalHUD écoute encore openTerritoryPanel en plus de nova:open-panel.
+7. GameCanvas passe encore onMoveRequest à AvatarActionMenu alors que ce mode n’est plus utilisé.
+
+FICHIERS À AUDITER ET MODIFIER
+
+* client/src/components/game/GameCanvas.tsx
+* client/src/components/game/TileContextMenu.tsx
+* client/src/components/game/AvatarActionMenu.tsx
+* client/src/components/game/MedievalHUD.tsx
+
+FICHIER DE RÉFÉRENCE CANONIQUE À RELIRE AVANT MODIF
+
+* client/src/components/game/UnifiedTerritoryPanel.tsx
+
+TRAVAIL À FAIRE — ORDRE OBLIGATOIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ AVANT MODIFICATION
+Relis entièrement ces fichiers et confirme les résidus suivants avant d’éditer :
+
+* accès marché / banque dans TileContextMenu
+* calcul / transport de hasMarket / hasBank dans GameCanvas
+* branche morte found_colony dans AvatarActionMenu
+* prop onMoveRequest inutilisé dans AvatarActionMenu / GameCanvas
+* listener legacy openTerritoryPanel dans MedievalHUD
+
+Tu dois raisonner en “plus petit correctif propre”, pas en nettoyage large.
+
+ÉTAPE 2 — NETTOYAGE DU MENU CONTEXTUEL DE CASE
+Objectif :
+Le TileContextMenu ne doit plus être un point d’accès aux services ville.
+
+Résultat attendu :
+TileContextMenu ne conserve que :
+
+* Infos
+* Se déplacer ici
+* fermeture
+
+À faire :
+
+1. Dans TileContextMenu.tsx
+
+   * supprimer les props :
+
+     * hasMarket
+     * hasBank
+   * supprimer toute logique handleAction liée à marketplace / treasury
+   * supprimer le rendu des boutons :
+
+     * Accéder au marché
+     * Accéder à la banque
+   * conserver seulement :
+
+     * header
+     * bouton Infos
+     * bouton fermer
+     * bouton Se déplacer ici si onMove non nul
+   * ajuster le calcul de hauteur / hasAnyAction en conséquence
+   * ajuster les commentaires pour refléter la nouvelle réalité
+   * ne laisse aucun commentaire disant que les services ville sont résolus ici
+
+2. Dans GameCanvas.tsx
+
+   * retirer de l’état tileContextMenu :
+
+     * hasMarket
+     * hasBank
+   * retirer leur calcul lors du clic droit sur case
+   * retirer leur passage en props au composant TileContextMenu
+   * conserver :
+
+     * screenX
+     * screenY
+     * hexX
+     * hexY
+     * locationName si encore utile visuellement dans le header
+     * canMove
+   * ne modifie pas onOpenInfo
+   * ne modifie pas le flux de déplacement
+   * ne modifie pas le flux avatar
+   * ne modifie pas le rendu général du canvas
+
+Important :
+on ne “remplace” pas ce chemin par un autre.
+On supprime simplement ce doublon, car le chemin canonique des services ville est AvatarActionMenu.
+
+ÉTAPE 3 — NETTOYAGE D’AvatarActionMenu
+Objectif :
+Retirer les résidus morts pour que ce menu reflète seulement les actions réellement supportées.
+
+À faire dans AvatarActionMenu.tsx :
+
+1. supprimer la branche morte :
+   if (action.id === 'found_colony') { ... }
+   si elle n’est plus atteignable depuis getAllAvailableActions
+2. vérifier qu’aucune action found_colony n’est encore injectée dans les listes
+3. retirer le prop onMoveRequest de l’interface si réellement inutilisé
+4. retirer son passage depuis GameCanvas si ce prop ne sert plus
+5. ne pas toucher :
+
+   * aux checks banque / marché
+   * à claim_territory
+   * à explore_zone
+   * à create_map
+6. ne pas réintroduire de bouton séparé de compétences
+7. ne pas déplacer banque / marché ailleurs
+
+But :
+AvatarActionMenu doit rester le point d’accès canonique aux services ville, pas un conteneur de vieux flux abandonnés.
+
+ÉTAPE 4 — UNIFICATION DU CANAL D’OUVERTURE DES PANNEAUX
+Objectif :
+Conserver un seul canal centralisé pour l’ouverture des panneaux.
+
+À faire dans MedievalHUD.tsx :
+
+1. garder le listener :
+   nova:open-panel
+2. auditer le listener :
+   openTerritoryPanel
+3. si aucun émetteur réel encore utilisé dans le code poussé n’en dépend :
+
+   * supprimer ce listener legacy
+4. ne pas casser l’ouverture du panneau territoire
+5. ne pas changer activeSection
+6. ne pas toucher au rendu des panneaux
+7. ne pas modifier les IDs des sections
+
+Important :
+n’invente aucun nouvel event bus.
+Le canal canonique existe déjà.
+
+ÉTAPE 5 — MISE À JOUR DES COMMENTAIRES
+Dans les fichiers modifiés :
+
+* retire les commentaires devenus faux
+* aligne les commentaires sur le comportement réel
+* évite tout commentaire spéculatif
+* ne documente que ce qui est effectivement vrai dans le code final
+
+ÉTAPE 6 — VÉRIFICATION FINALE OBLIGATOIRE
+Après modification, vérifie explicitement dans le code final que :
+
+A. TileContextMenu
+
+* n’expose plus marché / banque
+* ne dépend plus de hasMarket / hasBank
+* conserve Infos + Se déplacer ici
+
+B. GameCanvas
+
+* ne calcule plus hasMarket / hasBank pour TileContextMenu
+* ouvre toujours TileInfoPanel correctement
+* conserve le flux de déplacement inchangé
+
+C. AvatarActionMenu
+
+* conserve banque / marché via checks serveur
+* ne contient plus found_colony mort
+* n’expose plus de prop inutilisé onMoveRequest si supprimé
+
+D. MedievalHUD
+
+* conserve nova:open-panel
+* ne garde plus openTerritoryPanel si réellement inutile
+* continue d’ouvrir correctement treasury / marketplace / territory / transport / autres sections
+
+E. Comportement cible
+
+* clic droit sur case = infos / déplacement seulement
+* services ville = menu avatar
+* territoire / fondation = panneau territoire
+* panneaux = canal centralisé unique
+
+FORMAT DE RÉPONSE ATTENDU
+Tu dois répondre exactement avec :
+
+1. FICHIERS MODIFIÉS
+2. DIFF LOGIQUE PAR FICHIER
+3. CE QUI A ÉTÉ SUPPRIMÉ
+4. CE QUI A ÉTÉ CONSERVÉ
+5. VÉRIFICATION FINALE
+
+CONTRAINTE FINALE
+Ne sur-corrige rien.
+Ne touche à rien d’autre.
+Nettoie seulement les doublons, les résidus morts et les canaux legacy identifiés.
+Le but n’est pas d’ajouter des features.
+Le but est de rendre les chemins UI cohérents, centralisés et lisibles.

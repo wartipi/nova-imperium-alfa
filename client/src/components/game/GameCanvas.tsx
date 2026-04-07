@@ -97,8 +97,6 @@ export function GameCanvas() {
     screenY:      number;
     hexX:         number;
     hexY:         number;
-    hasMarket:    boolean;
-    hasBank:      boolean;
     locationName: string | null;
     canMove:      boolean;  // "Se déplacer ici" visible si true
   } | null>(null);
@@ -228,20 +226,16 @@ export function GameCanvas() {
       TerrainHelpers.isWalkable(hex.terrain) &&
       !(hex.x === currentHex.x && hex.y === currentHex.y);
 
-    // Détection ville / services (market = building 'market', bank = non défini → false)
+    // Nom de la ville sur cette case (si présente)
     const { novaImperiums: nis } = useNovaImperium.getState();
     const cityAtHex = nis.flatMap((ni) => ni.cities).find((c) => c.x === hex.x && c.y === hex.y);
     const locationName = cityAtHex?.name ?? null;
-    const hasMarket = cityAtHex ? (cityAtHex.buildings ?? []).includes('market') : false;
-    const hasBank   = false; // aucun BuildingType 'bank' dans le schéma actuel
 
     setTileContextMenu({
       screenX:      event.clientX,
       screenY:      event.clientY,
       hexX:         hex.x,
       hexY:         hex.y,
-      hasMarket,
-      hasBank,
       locationName,
       canMove,
     });
@@ -567,7 +561,6 @@ export function GameCanvas() {
         <AvatarActionMenu
           position={avatarMenuPosition}
           onClose={() => setShowAvatarMenu(false)}
-          onMoveRequest={() => {}} // Plus besoin de mode mouvement
         />
       )}
 
@@ -586,8 +579,6 @@ export function GameCanvas() {
           screenY={tileContextMenu.screenY}
           hexX={tileContextMenu.hexX}
           hexY={tileContextMenu.hexY}
-          hasMarket={tileContextMenu.hasMarket}
-          hasBank={tileContextMenu.hasBank}
           locationName={tileContextMenu.locationName}
           onOpenInfo={() => {
             const foundHex = mapData?.[tileContextMenu.hexY]?.[tileContextMenu.hexX] ?? null;
