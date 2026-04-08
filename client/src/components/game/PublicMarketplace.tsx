@@ -35,14 +35,15 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
   const [rmTrades,  setRmTrades]  = useState<MarketTrade[]>([]);
   const [rmLoading, setRmLoading] = useState(false);
   const [rmMsg,     setRmMsg]     = useState<string | null>(null);
-  const [rmOrderForm, setRmOrderForm] = useState({
-    side: 'sell' as OrderSide,
-    resourceType: 'wood' as ResourceType,
-    pricePerUnit: 10,
-    quantity: 1,
-  });
   const [rmFillQty, setRmFillQty]   = useState<Record<number, number>>({});
   const [rmFeeInput, setRmFeeInput] = useState<string>('');
+
+  // ─── Brouillons vente / achat par ressource ───────────────────────────────────
+  type DraftEntry = { qty: number; price: number };
+  const initDrafts = (): Record<ResourceType, DraftEntry> =>
+    Object.fromEntries(ALL_RESOURCES.map(r => [r, { qty: 1, price: 10 }])) as Record<ResourceType, DraftEntry>;
+  const [sellDrafts, setSellDrafts] = useState<Record<ResourceType, DraftEntry>>(initDrafts);
+  const [buyDrafts,  setBuyDrafts]  = useState<Record<ResourceType, DraftEntry>>(initDrafts);
 
   // ─── Banque & Inventaire transport ────────────────────────────────────────────
   const [hasBankAccess, setHasBankAccess] = useState(false);
@@ -201,24 +202,39 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
   }, [access.status, access.cityId, rmLoadMarket, loadTransport]);
 
   // ─── Actions ──────────────────────────────────────────────────────────────────
-  const rmPlaceOrder = async () => {
+  const rmPlaceSellOrder = async (resource: ResourceType) => {
     const cityId = access.cityId ?? 0;
-    // Confirmation uniquement pour les ordres BUY (escrow or → boîte de règlement)
-    if (rmOrderForm.side === "buy") {
-      const total = rmOrderForm.quantity * rmOrderForm.pricePerUnit;
-      const ok = window.confirm(
-        `Confirmer l'ordre d'achat ?\n\n` +
-        `Ressource : ${RESOURCE_LABELS[rmOrderForm.resourceType]}\n` +
-        `Quantité  : ${rmOrderForm.quantity}\n` +
-        `Prix/u    : ${rmOrderForm.pricePerUnit} or\n` +
-        `Coût total : ${total} or (mis en escrow)\n\n` +
-        `Les ressources achetées seront créditées dans votre Boîte de règlement.`
-      );
-      if (!ok) return;
-    }
+    const draft  = sellDrafts[resource];
     try {
-      const result = await placeMarketOrder(cityId > 0 ? cityId : 1, rmOrderForm);
-      setRmMsg(`✅ Ordre #${result.orderId} créé — escrow prélevé.`);
+      const result = await placeMarketOrder(cityId > 0 ? cityId : 1, {
+        side: "sell", resourceType: resource,
+        quantity: draft.qty, pricePerUnit: draft.price,
+      });
+      setRmMsg(`✅ Ordre vente #${result.orderId} créé — ${draft.qty}× ${RESOURCE_LABELS[resource]} en escrow.`);
+      rmLoadMarket(cityId);
+      loadTransport();
+    } catch (e: any) { setRmMsg(`❌ ${e.message}`); }
+  };
+
+  const rmPlaceBuyOrder = async (resource: ResourceType) => {
+    const cityId = access.cityId ?? 0;
+    const draft  = buyDrafts[resource];
+    const total  = draft.qty * draft.price;
+    const ok = window.confirm(
+      `Confirmer l'ordre d'achat ?\n\n` +
+      `Ressource : ${RESOURCE_LABELS[resource]}\n` +
+      `Quantité  : ${draft.qty}\n` +
+      `Prix/u    : ${draft.price} or\n` +
+      `Coût total : ${total} or (mis en escrow)\n\n` +
+      `Les ressources achetées seront créditées dans votre Boîte de règlement.`
+    );
+    if (!ok) return;
+    try {
+      const result = await placeMarketOrder(cityId > 0 ? cityId : 1, {
+        side: "buy", resourceType: resource,
+        quantity: draft.qty, pricePerUnit: draft.price,
+      });
+      setRmMsg(`✅ Ordre achat #${result.orderId} créé — ${total} or en escrow.`);
       rmLoadMarket(cityId);
       loadTransport();
     } catch (e: any) { setRmMsg(`❌ ${e.message}`); }
@@ -535,59 +551,111 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                     );
                   })()}
 
-                  {/* Formulaire nouvel ordre */}
-                  <div className="bg-white border border-emerald-200 rounded-lg p-4">
-                    <h4 className="font-bold text-emerald-900 mb-3">Poster un ordre</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                      <select
-                        value={rmOrderForm.side}
-                        onChange={e => setRmOrderForm(f => ({ ...f, side: e.target.value as OrderSide }))}
-                        className="px-2 py-1.5 border border-emerald-300 rounded text-sm"
-                      >
-                        <option value="sell">🔻 Vendre</option>
-                        <option value="buy">🔺 Acheter</option>
-                      </select>
-                      <select
-                        value={rmOrderForm.resourceType}
-                        onChange={e => setRmOrderForm(f => ({ ...f, resourceType: e.target.value as ResourceType }))}
-                        className="px-2 py-1.5 border border-emerald-300 rounded text-sm"
-                      >
-                        {ALL_RESOURCES.map(r => <option key={r} value={r}>{RESOURCE_LABELS[r]}</option>)}
-                      </select>
-                      <div className="flex items-center gap-1">
-                        <label className="text-xs text-emerald-700 whitespace-nowrap">Qté</label>
-                        <input
-                          type="number" min={1}
-                          value={rmOrderForm.quantity}
-                          onChange={e => setRmOrderForm(f => ({ ...f, quantity: parseInt(e.target.value) || 1 }))}
-                          className="w-full px-2 py-1.5 border border-emerald-300 rounded text-sm"
-                        />
+                  {/* ─── SELL — Mettre en vente ────────────────────────────── */}
+                  {(() => {
+                    const ICONS: Record<ResourceType, string> = {
+                      food:'🌿', wood:'🪵', stone:'🪨', iron:'⚙️',
+                      copper:'🟤', coal:'🖤', oil:'🛢️', herbs:'🌱', fur:'🦊',
+                    };
+                    const available = ALL_RESOURCES.filter(r => transport && (transport as any)[r] > 0);
+                    return (
+                      <div className="bg-white border border-red-200 rounded-lg p-3">
+                        <h4 className="font-bold text-red-900 text-sm mb-2">🔻 Mettre en vente</h4>
+                        {available.length === 0 ? (
+                          <p className="text-xs text-gray-400 italic">Aucune ressource disponible dans l'inventaire</p>
+                        ) : (
+                          <div className="space-y-1">
+                            {/* En-tête colonnes */}
+                            <div className="grid grid-cols-[1.5rem_7rem_4rem_5rem_5rem_auto] gap-2 text-xs text-gray-500 pb-0.5 border-b border-red-100">
+                              <span></span>
+                              <span>Ressource</span>
+                              <span>Dispo</span>
+                              <span>Quantité</span>
+                              <span>Prix/u (or)</span>
+                              <span></span>
+                            </div>
+                            {available.map(r => {
+                              const avail = (transport as any)[r] as number;
+                              const draft = sellDrafts[r];
+                              return (
+                                <div key={r} className="grid grid-cols-[1.5rem_7rem_4rem_5rem_5rem_auto] gap-2 items-center py-0.5">
+                                  <span className="text-sm">{ICONS[r]}</span>
+                                  <span className="text-xs text-red-900 font-medium truncate">{RESOURCE_LABELS[r]}</span>
+                                  <span className="text-xs text-gray-500">· {avail}</span>
+                                  <input
+                                    type="number" min={1} max={avail}
+                                    value={draft.qty}
+                                    onChange={e => setSellDrafts(d => ({ ...d, [r]: { ...d[r], qty: Math.min(avail, Math.max(1, parseInt(e.target.value) || 1)) } }))}
+                                    className="w-full px-1 py-0.5 border border-red-200 rounded text-xs text-center"
+                                  />
+                                  <input
+                                    type="number" min={1}
+                                    value={draft.price}
+                                    onChange={e => setSellDrafts(d => ({ ...d, [r]: { ...d[r], price: Math.max(1, parseInt(e.target.value) || 1) } }))}
+                                    className="w-full px-1 py-0.5 border border-red-200 rounded text-xs text-center"
+                                  />
+                                  <button
+                                    onClick={() => rmPlaceSellOrder(r)}
+                                    className="px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-semibold whitespace-nowrap"
+                                    style={{ pointerEvents: "auto" }}
+                                  >Mettre en vente</button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-center gap-1">
-                        <label className="text-xs text-emerald-700 whitespace-nowrap">Prix/u</label>
-                        <input
-                          type="number" min={1}
-                          value={rmOrderForm.pricePerUnit}
-                          onChange={e => setRmOrderForm(f => ({ ...f, pricePerUnit: parseInt(e.target.value) || 1 }))}
-                          className="w-full px-2 py-1.5 border border-emerald-300 rounded text-sm"
-                        />
+                    );
+                  })()}
+
+                  {/* ─── BUY — Passer un ordre d'achat ────────────────────── */}
+                  {(() => {
+                    const ICONS: Record<ResourceType, string> = {
+                      food:'🌿', wood:'🪵', stone:'🪨', iron:'⚙️',
+                      copper:'🟤', coal:'🖤', oil:'🛢️', herbs:'🌱', fur:'🦊',
+                    };
+                    return (
+                      <div className="bg-white border border-blue-200 rounded-lg p-3">
+                        <h4 className="font-bold text-blue-900 text-sm mb-2">🔺 Passer un ordre d'achat</h4>
+                        <div className="space-y-1">
+                          {/* En-tête colonnes */}
+                          <div className="grid grid-cols-[1.5rem_7rem_5rem_5rem_auto] gap-2 text-xs text-gray-500 pb-0.5 border-b border-blue-100">
+                            <span></span>
+                            <span>Ressource</span>
+                            <span>Quantité</span>
+                            <span>Prix/u (or)</span>
+                            <span></span>
+                          </div>
+                          {ALL_RESOURCES.map(r => {
+                            const draft = buyDrafts[r];
+                            return (
+                              <div key={r} className="grid grid-cols-[1.5rem_7rem_5rem_5rem_auto] gap-2 items-center py-0.5">
+                                <span className="text-sm">{ICONS[r]}</span>
+                                <span className="text-xs text-blue-900 font-medium truncate">{RESOURCE_LABELS[r]}</span>
+                                <input
+                                  type="number" min={1}
+                                  value={draft.qty}
+                                  onChange={e => setBuyDrafts(d => ({ ...d, [r]: { ...d[r], qty: Math.max(1, parseInt(e.target.value) || 1) } }))}
+                                  className="w-full px-1 py-0.5 border border-blue-200 rounded text-xs text-center"
+                                />
+                                <input
+                                  type="number" min={1}
+                                  value={draft.price}
+                                  onChange={e => setBuyDrafts(d => ({ ...d, [r]: { ...d[r], price: Math.max(1, parseInt(e.target.value) || 1) } }))}
+                                  className="w-full px-1 py-0.5 border border-blue-200 rounded text-xs text-center"
+                                />
+                                <button
+                                  onClick={() => rmPlaceBuyOrder(r)}
+                                  className="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold whitespace-nowrap"
+                                  style={{ pointerEvents: "auto" }}
+                                >Créer ordre d'achat</button>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                      <button
-                        onClick={rmPlaceOrder}
-                        className={`py-1.5 px-4 rounded text-white text-sm font-semibold ${
-                          rmOrderForm.side === "sell" ? "bg-red-600 hover:bg-red-700" : "bg-blue-600 hover:bg-blue-700"
-                        }`}
-                        style={{ pointerEvents: "auto" }}
-                      >
-                        {rmOrderForm.side === "sell" ? "Vendre" : "Acheter"} → Escrow
-                      </button>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      {rmOrderForm.side === "sell"
-                        ? `Escrow : ${rmOrderForm.quantity} × ${RESOURCE_LABELS[rmOrderForm.resourceType]} débité immédiatement.`
-                        : `Escrow : ${rmOrderForm.quantity * rmOrderForm.pricePerUnit} or débité immédiatement.`}
-                    </p>
-                  </div>
+                    );
+                  })()}
 
                   {/* Carnet d'ordres */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

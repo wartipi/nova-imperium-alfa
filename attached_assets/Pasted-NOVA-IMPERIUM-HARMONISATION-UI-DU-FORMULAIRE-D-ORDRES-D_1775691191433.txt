@@ -1,0 +1,198 @@
+NOVA IMPERIUM — HARMONISATION UI DU FORMULAIRE D’ORDRES DU MARCHÉ
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucune dérive hors sujet.
+Ne touche pas au backend si ce n’est pas nécessaire.
+
+OBJECTIF
+Refondre uniquement la partie création d’ordres dans PublicMarketplace.tsx pour l’aligner sur le principe de tableau utilisé côté banque.
+
+BESOIN EXACT
+1. Le côté SELL ne doit plus être un formulaire générique avec dropdown.
+2. Le côté SELL doit fonctionner comme la banque :
+   - afficher seulement les ressources disponibles dans le transport
+   - une ligne par ressource disponible
+   - quantité + prix/unité + bouton de mise en vente
+
+3. Le côté BUY doit être un tableau complet :
+   - toutes les ressources visibles
+   - une ligne par ressource
+   - quantité + prix/unité + bouton créer ordre d’achat
+
+IMPORTANT
+Ne pas toucher :
+- au backend marché
+- à marketService
+- aux routes
+- aux fees
+- au matching
+- au SSE
+- à la logique d’escrow
+- à la boîte de règlement
+- aux confirmations d’achat déjà ajoutées, sauf adaptation minimale au nouveau rendu
+
+FICHIERS À AUDITER
+- client/src/components/game/PublicMarketplace.tsx
+- client/src/components/game/TreasuryPanel.tsx comme référence de rendu
+- éventuellement les constantes RESOURCE_LABELS / ALL_RESOURCES déjà utilisées
+
+DIAGNOSTIC À RESPECTER
+Le code actuel de PublicMarketplace.tsx utilise encore un formulaire générique :
+- side
+- resourceType
+- quantity
+- pricePerUnit
+- bouton global
+
+Ce n’est pas encore harmonisé avec la banque.
+Le backend n’a pas besoin d’être modifié.
+Le chantier est purement UI.
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire dans PublicMarketplace.tsx :
+- le bloc “Poster un ordre”
+- rmPlaceOrder()
+- la logique de confirmation BUY
+- l’état transport déjà chargé
+- la boîte de règlement
+- la structure globale du marché
+
+Relire dans TreasuryPanel.tsx :
+- visibleResources(...)
+- RESOURCE_DEFS
+- ActiveResourceRow
+comme référence stylistique seulement
+
+ÉTAPE 2 — CÔTÉ SELL
+Remplacer le formulaire générique SELL par une liste/tableau de ressources disponibles.
+
+Règle :
+- utiliser uniquement les ressources réellement disponibles dans transport
+- ne pas afficher les ressources à 0 côté SELL
+- une ligne par ressource disponible
+
+Chaque ligne doit contenir :
+- icône
+- nom
+- disponible
+- input quantité
+- input prix/unité
+- bouton “Mettre en vente”
+
+IMPORTANT
+Le clic doit appeler placeMarketOrder avec :
+- side = "sell"
+- resourceType = ressource de la ligne
+- quantity = quantité de la ligne
+- pricePerUnit = prix de la ligne
+
+Aucun dropdown ressource côté SELL.
+
+ÉTAPE 3 — CÔTÉ BUY
+Créer un tableau complet BUY.
+
+Règle :
+- afficher toutes les ressources de ALL_RESOURCES
+- une ligne par ressource
+
+Chaque ligne doit contenir :
+- icône
+- nom
+- input quantité
+- input prix/unité
+- bouton “Créer ordre d’achat”
+
+IMPORTANT
+Le clic doit appeler placeMarketOrder avec :
+- side = "buy"
+- resourceType = ressource de la ligne
+- quantity = quantité de la ligne
+- pricePerUnit = prix de la ligne
+
+ÉTAPE 4 — ÉTAT LOCAL MINIMAL
+Créer des états UI propres pour les lignes sell et buy.
+
+Exemple acceptable :
+- sellDrafts[resource] = { quantity, pricePerUnit }
+- buyDrafts[resource] = { quantity, pricePerUnit }
+
+IMPORTANT
+Rester simple.
+Pas d’usine à gaz.
+Pas de state management externe.
+
+ÉTAPE 5 — CONFIRMATION ACHAT
+Conserver la confirmation avant achat déjà en place.
+
+Elle doit continuer à s’appliquer :
+- pour la création d’un ordre BUY
+- avec ressource / quantité / prix / coût total / mention boîte de règlement
+
+IMPORTANT
+Ne pas ajouter de confirmation sur SELL.
+
+ÉTAPE 6 — HARMONISATION VISUELLE
+Le rendu doit être plus proche de la banque :
+- lignes compactes
+- colonnes lisibles
+- messages sobres
+- pas de refonte massive
+
+Tu peux t’inspirer du principe de ActiveResourceRow,
+mais ne crée pas de dépendance compliquée si ce n’est pas nécessaire.
+
+ÉTAPE 7 — CONTRAINTES
+Ne touche pas à :
+- inventaire
+- boîte de règlement
+- carnet d’ordres existant
+- historique
+- logique des boutons Acheter/Vendre des ordres ouverts
+- gate banque
+- routes marché
+
+Le but exclusif est :
+le bloc de création d’ordre.
+
+ÉTAPE 8 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. SELL
+- seules les ressources disponibles dans transport apparaissent
+- chaque ligne peut créer un ordre sell correct
+- aucune ressource à 0 n’apparaît
+
+B. BUY
+- toutes les ressources apparaissent
+- chaque ligne peut créer un ordre buy correct
+- confirmation buy toujours active
+
+C. Non-régression
+- aucun changement backend
+- aucun changement sur le carnet
+- aucun changement sur les fees
+- aucun changement sur SSE
+- aucun changement sur la boîte de règlement
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+CONTRAINTE FINALE
+Ne dérive pas.
+Le but exclusif est :
+- SELL en tableau limité aux ressources disponibles
+- BUY en tableau complet
+- sans toucher au backend
+- avec une UX plus proche de la banque
