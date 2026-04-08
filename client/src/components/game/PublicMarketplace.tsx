@@ -566,22 +566,22 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                         ) : (
                           <div className="space-y-1">
                             {/* En-tête colonnes */}
-                            <div className="grid grid-cols-[1.5rem_7rem_4rem_5rem_5rem_auto] gap-2 text-xs text-gray-500 pb-0.5 border-b border-red-100">
+                            <div className="grid grid-cols-[1.5rem_6rem_3.5rem_4.5rem_4.5rem_4.5rem] gap-2 text-xs text-gray-500 pb-0.5 border-b border-red-100">
                               <span></span>
                               <span>Ressource</span>
                               <span>Dispo</span>
                               <span>Quantité</span>
-                              <span>Prix/u (or)</span>
+                              <span>Prix/u</span>
                               <span></span>
                             </div>
                             {available.map(r => {
                               const avail = (transport as any)[r] as number;
                               const draft = sellDrafts[r];
                               return (
-                                <div key={r} className="grid grid-cols-[1.5rem_7rem_4rem_5rem_5rem_auto] gap-2 items-center py-0.5">
+                                <div key={r} className="grid grid-cols-[1.5rem_6rem_3.5rem_4.5rem_4.5rem_4.5rem] gap-2 items-center py-0.5">
                                   <span className="text-sm">{ICONS[r]}</span>
                                   <span className="text-xs text-red-900 font-medium truncate">{RESOURCE_LABELS[r]}</span>
-                                  <span className="text-xs text-gray-500">· {avail}</span>
+                                  <span className="text-xs text-gray-400">{avail}</span>
                                   <input
                                     type="number" min={1} max={avail}
                                     value={draft.qty}
@@ -596,9 +596,9 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                                   />
                                   <button
                                     onClick={() => rmPlaceSellOrder(r)}
-                                    className="px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-semibold whitespace-nowrap"
+                                    className="w-full py-0.5 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-semibold"
                                     style={{ pointerEvents: "auto" }}
-                                  >Mettre en vente</button>
+                                  >Vendre</button>
                                 </div>
                               );
                             })}
@@ -629,19 +629,19 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                         <h4 className="font-bold text-blue-900 text-sm mb-2">🔺 Passer un ordre d'achat</h4>
                         <div className="space-y-1">
                           {/* En-tête colonnes */}
-                          <div className="grid grid-cols-[1.5rem_7rem_6rem_5rem_5rem_auto] gap-2 text-xs text-gray-500 pb-0.5 border-b border-blue-100">
+                          <div className="grid grid-cols-[1.5rem_6rem_5rem_4.5rem_4.5rem_4.5rem] gap-2 text-xs text-gray-500 pb-0.5 border-b border-blue-100">
                             <span></span>
                             <span>Ressource</span>
                             <span>Dernier prix</span>
                             <span>Quantité</span>
-                            <span>Prix/u (or)</span>
+                            <span>Prix/u</span>
                             <span></span>
                           </div>
                           {ALL_RESOURCES.map(r => {
                             const draft = buyDrafts[r];
                             const last  = latestPrice[r];
                             return (
-                              <div key={r} className="grid grid-cols-[1.5rem_7rem_6rem_5rem_5rem_auto] gap-2 items-center py-0.5">
+                              <div key={r} className="grid grid-cols-[1.5rem_6rem_5rem_4.5rem_4.5rem_4.5rem] gap-2 items-center py-0.5">
                                 <span className="text-sm">{ICONS[r]}</span>
                                 <span className="text-xs text-blue-900 font-medium truncate">{RESOURCE_LABELS[r]}</span>
                                 <span className={`text-xs truncate ${last != null ? "text-gray-500" : "text-gray-300 italic"}`}>
@@ -661,9 +661,9 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                                 />
                                 <button
                                   onClick={() => rmPlaceBuyOrder(r)}
-                                  className="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold whitespace-nowrap"
+                                  className="w-full py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold"
                                   style={{ pointerEvents: "auto" }}
-                                >Créer ordre d'achat</button>
+                                >Acheter</button>
                               </div>
                             );
                           })}

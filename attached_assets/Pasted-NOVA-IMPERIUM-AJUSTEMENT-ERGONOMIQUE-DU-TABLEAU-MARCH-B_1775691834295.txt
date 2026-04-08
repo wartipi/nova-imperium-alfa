@@ -1,0 +1,142 @@
+NOVA IMPERIUM — AJUSTEMENT ERGONOMIQUE DU TABLEAU MARCHÉ
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucune dérive hors sujet.
+Ne touche pas au backend.
+
+OBJECTIF
+Améliorer l’ergonomie visuelle du bloc de création d’ordres du marché.
+Le rendu actuel est fonctionnel, mais les boutons prennent trop de place et écrasent le tableau.
+
+BUT
+Rendre le marché plus proche d’un tableau compact, dans l’esprit de la banque.
+
+CONTRAINTE
+Ne change PAS la logique métier.
+Ne change PAS les routes.
+Ne change PAS l’escrow.
+Ne change PAS les confirmations déjà ajoutées.
+Ne change PAS la boîte de règlement.
+Chantier purement UI.
+
+FICHIER À MODIFIER
+- client/src/components/game/PublicMarketplace.tsx
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire le bloc SELL et le bloc BUY actuels.
+
+ÉTAPE 2 — BOUTONS PLUS COMPACTS
+Réduire les boutons d’action :
+- remplacer les grands boutons pleine largeur
+- par des boutons courts et compacts
+
+Texte cible :
+- SELL : "Vendre"
+- BUY : "Acheter"
+
+Style cible :
+- largeur fixe courte
+- hauteur compacte
+- visuellement alignés comme action de tableau
+- moins dominants
+
+ÉTAPE 3 — TABLEAU SELL
+Conserver le principe actuel :
+- seulement les ressources disponibles
+
+Mais rendre chaque ligne plus compacte et plus lisible :
+colonnes recommandées :
+- ressource
+- dispo
+- quantité
+- prix/u
+- action
+
+IMPORTANT
+Aucune ressource à 0 ne doit apparaître côté SELL.
+
+ÉTAPE 4 — TABLEAU BUY
+Conserver le tableau complet de toutes les ressources.
+
+Colonnes recommandées :
+- ressource
+- dernier prix
+- quantité
+- prix/u
+- action
+
+IMPORTANT
+Ajouter la colonne “Dernier prix” à partir des trades déjà chargés côté client.
+
+Règle :
+- calculer le dernier prix connu par resourceType
+- utiliser le trade au executedAt le plus récent
+- afficher :
+  "12 g/u"
+  ou
+  "—"
+  ou
+  "Aucune vente"
+de façon sobre
+
+ÉTAPE 5 — PRIORITÉ VISUELLE
+La priorité visuelle doit être :
+1. ressource
+2. dispo / dernier prix
+3. quantité
+4. prix/u
+5. action
+
+Les boutons ne doivent plus dominer toute la ligne.
+
+ÉTAPE 6 — CONTRAINTES
+Ne touche pas :
+- backend
+- marketService
+- routes
+- SSE
+- confirmations d’achat
+- carnet
+- historique
+- boîte de règlement
+
+ÉTAPE 7 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. SELL
+- seules les ressources disponibles apparaissent
+- les boutons sont plus petits
+- le tableau est plus lisible
+
+B. BUY
+- toutes les ressources apparaissent
+- le dernier prix est visible par ligne
+- les boutons sont plus petits
+- le tableau est plus lisible
+
+C. Non-régression
+- aucune logique métier modifiée
+- confirmations buy intactes
+- aucun changement backend
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+CONTRAINTE FINALE
+Le but exclusif est :
+- rapetiser et ergonomiser les boutons
+- rendre SELL et BUY plus lisibles
+- ajouter le dernier prix côté BUY
+- sans toucher à la logique métier
