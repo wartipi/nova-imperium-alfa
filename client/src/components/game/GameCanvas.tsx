@@ -156,18 +156,22 @@ export function GameCanvas() {
       // Les callbacks sont appliqués après le chargement des tuiles découvertes ci-dessous.
       gameEngineRef.current.render();
 
-      // Phase 6 : hydratation des villes depuis le serveur.
-      // Appelée ici car l'origine (originWorldX/Y) est disponible après le chargement de la carte.
-      useNovaImperium.getState().hydrateCitiesFromServer();
-
-      // Fog of war — chargement des tuiles découvertes depuis le serveur, puis application
-      // des callbacks vision + rendu final avec brouillard correctement initialisé.
+      // Phase 6 + vision villes : hydratation villes et tuiles découvertes en parallèle.
+      // Vision avatar + villes + ressources découvertes appliquées ensuite dans l'ordre.
       const engine = gameEngineRef.current;
       const { isHexVisible, isHexInCurrentVision, isHexInFogRing, loadDiscoveredTiles } = usePlayer.getState();
-      loadDiscoveredTiles().then(() => {
+      Promise.all([
+        useNovaImperium.getState().hydrateCitiesFromServer(),
+        loadDiscoveredTiles(),
+      ]).then(() => {
+        // Reconstruire les ressources découvertes depuis exploredHexes + mapData
+        usePlayer.getState().reconstructResourcesDiscovered();
+        // Vision passive des villes owned (rayon 2) → fusionnée dans exploredHexes
+        const cities = useNovaImperium.getState().currentNovaImperium?.cities ?? [];
+        usePlayer.getState().addCityVision(cities.map(c => ({ x: c.x, y: c.y })));
+        // Vision active de l'avatar
         usePlayer.getState().updateVision();
-        // Enregistrer les callbacks vision maintenant que les tuiles sont chargées
-        // et forcer un rendu : exploredHexes et currentVision contiennent les bonnes données.
+        // Enregistrer les callbacks et forcer un rendu final
         engine?.setVisionCallbacks(isHexVisible, isHexInCurrentVision, isHexInFogRing);
         engine?.render();
       });

@@ -114,7 +114,11 @@ interface PlayerState {
   discoverResourcesInVision: () => boolean;
   /** Charge les tuiles découvertes depuis le serveur et repeuple exploredHexes. */
   loadDiscoveredTiles: () => Promise<void>;
-  
+  /** Ajoute la vision passive des villes owned (rayon 2) à exploredHexes et synce au serveur. */
+  addCityVision: (cityLocalPositions: { x: number; y: number }[]) => void;
+  /** Reconstruit resourcesDiscovered depuis exploredHexes + mapData au startup. */
+  reconstructResourcesDiscovered: () => void;
+
   // Movement system
   setPendingMovement: (movement: { x: number; y: number } | null) => void;
   
@@ -476,6 +480,49 @@ export const usePlayer = create<PlayerState>((set, get) => {
     } catch (err) {
       console.warn('[loadDiscoveredTiles] Échec chargement:', err);
     }
+  },
+
+  addCityVision: (cityLocalPositions) => {
+    if (cityLocalPositions.length === 0) return;
+    const { originWorldX, originWorldY } = useMap.getState();
+    const state = get();
+    const newExploredHexes = new Set<string>(state.exploredHexes);
+    const newTiles: { worldX: number; worldY: number }[] = [];
+    for (const { x, y } of cityLocalPositions) {
+      const cityHexes = VisionSystem.getVisibleHexes(x, y, 2);
+      for (const hex of cityHexes) {
+        const key = `${hex.x},${hex.y}`;
+        if (!newExploredHexes.has(key)) {
+          newExploredHexes.add(key);
+          newTiles.push({ worldX: hex.x + originWorldX, worldY: hex.y + originWorldY });
+        }
+      }
+    }
+    set({ exploredHexes: newExploredHexes });
+    if (newTiles.length > 0) {
+      syncDiscoveredTiles(newTiles).catch(err =>
+        console.warn('[addCityVision] syncDiscoveredTiles échoué:', err)
+      );
+    }
+    console.log(`[addCityVision] ${cityLocalPositions.length} ville(s) → ${newTiles.length} tuile(s) nouvelles`);
+  },
+
+  reconstructResourcesDiscovered: () => {
+    const { mapData } = useMap.getState();
+    if (!mapData) return;
+    const state = get();
+    const newResourcesDiscovered = new Set<string>(state.resourcesDiscovered);
+    let count = 0;
+    state.exploredHexes.forEach(key => {
+      const [lx, ly] = key.split(',').map(Number);
+      const tile = mapData[ly]?.[lx];
+      if (tile?.resource) {
+        newResourcesDiscovered.add(key);
+        count++;
+      }
+    });
+    set({ resourcesDiscovered: newResourcesDiscovered });
+    console.log(`[reconstructResourcesDiscovered] ${count} ressource(s) reconstruite(s) depuis exploredHexes`);
   },
 
   isHexExplored: (hexX, hexY) => {

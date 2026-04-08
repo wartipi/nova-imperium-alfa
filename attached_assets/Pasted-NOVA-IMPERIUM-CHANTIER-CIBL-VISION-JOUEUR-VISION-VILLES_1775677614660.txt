@@ -1,0 +1,115 @@
+NOVA IMPERIUM — CHANTIER CIBLÉ : VISION JOUEUR + VISION VILLES + RESSOURCES DÉCOUVERTES PERSISTANTES
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucune dérive hors sujet.
+
+OBJECTIF
+Corriger le système de vision/fog pour que :
+1. le joueur voie correctement son champ de vision actif
+2. les villes qui lui appartiennent ajoutent aussi leur propre champ de vision
+3. les ressources déjà découvertes restent visibles après reload
+4. ajouter à la liste de tâches le correctif restant sur la durée de transfer_bank_to_city
+
+IMPORTANT
+Ne commence pas par coder en large.
+Commence par auditer les points exacts.
+Ne mélange pas plusieurs correctifs sans preuve.
+Si un segment est trop gros, isole les sous-correctifs.
+
+CONTEXTE DÉJÀ AUDITÉ
+- Côté client, updateVision() calcule encore la vision active autour de l’avatar uniquement.
+- loadDiscoveredTiles() recharge exploredHexes depuis /api/player/discovered-tiles.
+- resourcesDiscovered est encore un Set client-only, non rechargé au startup.
+- GameCanvas hydrate exploredHexes au montage puis applique les callbacks vision.
+- createTransferBankToCityAction() utilise encore un calcul brut de durée, contrairement à transfer_bank_to_player déjà réaligné.
+
+OBJECTIFS FONCTIONNELS À OBTENIR
+A. Vision joueur
+- conserver la vision actuelle de l’avatar
+
+B. Vision villes
+- chaque ville appartenant au joueur doit ajouter un rayon de vision de 2
+- cette vision doit être visible côté client
+- ne pas créer de système parallèle
+- fusionner proprement avec la vision existante
+
+C. Tuiles découvertes persistantes
+- les tuiles découvertes doivent rester découvertes après reload
+- réutiliser le pipeline existant si possible
+
+D. Ressources découvertes persistantes
+- une ressource déjà découverte doit rester visible après reload
+- ne pas laisser resourcesDiscovered uniquement en mémoire client
+
+E. Correctif annexe à garder dans la liste
+- aligner la durée de createTransferBankToCityAction() sur computeTransportUnits()
+- ne pas le faire dans ce même patch si cela mélange trop les chantiers
+- mais le garder explicitement comme tâche restante
+
+FICHIERS À AUDITER EN PRIORITÉ
+- client/src/components/game/GameCanvas.tsx
+- client/src/lib/stores/usePlayer.tsx
+- client/src/lib/systems/VisionSystem.ts
+- client/src/lib/api/discoveredTilesApi.ts
+- pipeline serveur lié à /api/player/discovered-tiles
+- pipeline serveur de vision des villes si déjà existant
+- server/playerActionService.ts (pour noter le point transfer_bank_to_city restant)
+
+PLAN DE TRAVAIL OBLIGATOIRE
+
+ÉTAPE 1 — AUDIT SERVEUR
+Identifier précisément :
+- où les tuiles découvertes sont persistées côté serveur
+- si la vision des villes est déjà calculée/persistée côté serveur
+- si les ressources découvertes ont déjà une persistance serveur ou non
+
+ÉTAPE 2 — DIAGNOSTIC CLAIR
+Distinguer explicitement :
+1. ce qui est déjà persisté
+2. ce qui est recalculé seulement côté client
+3. ce qui manque pour les villes
+4. ce qui manque pour les ressources
+
+ÉTAPE 3 — PROPOSITION DE CORRECTIF MINIMAL
+Proposer le plus petit correctif propre pour :
+- fusionner vision avatar + villes
+- rendre les ressources découvertes permanentes
+- sans casser le fog actuel
+- sans refactor massif
+
+ÉTAPE 4 — IMPLÉMENTATION PAR SEGMENTS
+Si nécessaire, découper en sous-segments :
+A. vision active villes côté client
+B. persistance resourcesDiscovered
+C. hydratation startup
+D. rendu ressource
+E. plus tard : transfer_bank_to_city duration
+
+ÉTAPE 5 — VÉRIFICATION
+Vérifier explicitement :
+- une ville owned révèle bien un rayon 2 côté client
+- ces tuiles restent découvertes après reload
+- une ressource déjà découverte reste visible après reload
+- le joueur conserve sa vision normale
+- aucun système parallèle incohérent n’a été introduit
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+CONTRAINTE FINALE
+Ne dérive pas vers d’autres chantiers.
+Le but exclusif est :
+- vision active joueur + villes
+- ressources découvertes persistantes
+- et garder dans la liste le correctif restant de duration pour transfer_bank_to_city
