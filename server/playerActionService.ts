@@ -732,7 +732,7 @@ export async function createTransferBankToCityAction(
     })
     .where(eq(playerBank.playerId, playerId));
 
-  const totalUnits = gold + food + wood + stone + iron + copper + coal + oil + herbs + fur;
+  const totalUnits = computeTransportUnits({ gold, food, wood, stone, iron, copper, coal, oil, herbs, fur });
   const durationSeconds = totalUnits * 5;
   const durationMs = durationSeconds * 1000;
   const expectedEndTime = new Date(now.getTime() + durationMs);

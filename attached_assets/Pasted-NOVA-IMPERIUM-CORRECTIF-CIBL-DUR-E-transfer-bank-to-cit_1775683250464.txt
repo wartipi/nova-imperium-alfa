@@ -1,0 +1,97 @@
+NOVA IMPERIUM — CORRECTIF CIBLÉ : DURÉE transfer_bank_to_city ALIGNÉE SUR computeTransportUnits
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucune dérive hors sujet.
+
+OBJECTIF
+Finaliser l’alignement des timers logistiques :
+createTransferBankToCityAction(...) doit utiliser la même unité canonique que le reste du transport.
+
+IMPORTANT
+Ne touche PAS :
+- au marché
+- au SSE
+- à la structure DB
+- à TRANSPORT_MAX_UNITS
+- à la logique de capacité
+- à createTransferBankToPlayerAction() déjà corrigée
+- au client
+
+CONTEXTE DÉJÀ VÉRIFIÉ
+1. computeTransportUnits(...) existe déjà et utilise GOLD_TRANSPORT_STACK_SIZE = 250.
+2. createTransferBankToPlayerAction(...) utilise déjà computeTransportUnits(...) pour la durée.
+3. createTransferBankToCityAction(...) utilise encore un calcul brut :
+   gold + food + wood + stone + iron + ...
+4. Il faut donc l’aligner sur la même logique canonique.
+
+FICHIER À MODIFIER
+- server/playerActionService.ts
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire précisément :
+- computeTransportUnits(...)
+- createTransferBankToCityAction(...)
+- createTransferBankToPlayerAction(...)
+
+ÉTAPE 2 — CORRECTIF MINIMAL
+Dans createTransferBankToCityAction(...)
+
+Remplacer le calcul brut actuel :
+- const totalUnits = gold + food + wood + stone + iron + copper + coal + oil + herbs + fur;
+
+Par :
+- const totalUnits = computeTransportUnits({ gold, food, wood, stone, iron, copper, coal, oil, herbs, fur });
+
+Puis conserver :
+- durationSeconds = totalUnits * 5
+- durationMs = durationSeconds * 1000
+
+ÉTAPE 3 — LOGS
+Conserver les logs actuels, mais ils doivent maintenant refléter le totalUnits canonique.
+
+ÉTAPE 4 — CONTRAINTES
+Ne touche pas à :
+- completeBankToCityTransfer()
+- createTransferBankToPlayerAction()
+- createCollectHarvestAction()
+- marketService
+- routes
+- client
+
+ÉTAPE 5 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. Cas or seul
+- 250 gold seul = 1 unité = 5 secondes
+- 400 gold seul = 2 unités = 10 secondes
+- 500 gold seul = 2 unités = 10 secondes
+- 501 gold seul = 3 unités = 15 secondes
+
+B. Cas mixtes
+- 400 gold + 10 wood = 12 unités = 60 secondes
+- 40 gold + 5 stone + 2 iron = 8 unités = 40 secondes
+
+C. Non-régression
+- createTransferBankToPlayerAction() inchangé
+- aucune autre action modifiée
+- aucun changement backend hors ce point
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. FICHIERS MODIFIÉS
+2. DIFF LOGIQUE PAR FICHIER
+3. PREUVE DIRECTE
+4. VÉRIFICATION FINALE
+5. STOP
+
+CONTRAINTE FINALE
+Ne touche à rien d’autre.
+Le but exclusif est :
+aligner createTransferBankToCityAction() sur computeTransportUnits() pour la durée.
