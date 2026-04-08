@@ -1,0 +1,117 @@
+NOVA IMPERIUM — AJOUT UX : BOUTON MAX DANS LE MARCHÉ
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucune dérive hors sujet.
+Ne touche pas au backend.
+
+OBJECTIF
+Ajouter un bouton “Max” à côté du champ quantité dans les tableaux SELL et BUY du marché, comme dans la banque.
+
+IMPORTANT
+Ne touche PAS :
+- au backend marché
+- aux routes
+- à l’escrow
+- aux confirmations
+- au SSE
+- à la boîte de règlement
+- au carnet d’ordres
+- à l’historique
+
+Chantier purement UI / ergonomie.
+
+FICHIER À MODIFIER
+- client/src/components/game/PublicMarketplace.tsx
+
+RÉFÉRENCE UX
+- TreasuryPanel.tsx utilise déjà un bouton Max dans les lignes de ressource
+- s’inspirer de ce comportement
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire :
+- le tableau SELL
+- le tableau BUY
+- les états locaux de quantité/prix par ligne
+- le pattern Max existant dans TreasuryPanel.tsx
+
+ÉTAPE 2 — BOUTON MAX CÔTÉ SELL
+Dans chaque ligne SELL :
+- ajouter un bouton “Max” à côté du champ quantité
+
+Règle :
+- Max remplit la quantité avec la quantité disponible réelle de la ressource dans le transport
+
+Formule :
+quantity = available
+
+IMPORTANT
+- ne pas modifier le prix/unité
+- ne pas modifier la logique de création d’ordre
+
+ÉTAPE 3 — BOUTON MAX CÔTÉ BUY
+Dans chaque ligne BUY :
+- ajouter un bouton “Max” à côté du champ quantité
+
+Règle :
+- Max remplit la quantité maximale achetable avec l’or transporté actuel
+
+Formule :
+maxQty = floor(transport.gold / pricePerUnit)
+
+IMPORTANT
+- si pricePerUnit <= 0 → ne rien casser
+- si transport.gold <= 0 → quantité 0 ou vide, mais comportement propre
+- ne pas modifier le prix/unité
+
+ÉTAPE 4 — ERGONOMIE
+Le bouton Max doit être :
+- compact
+- cohérent avec la banque
+- proche du champ quantité
+- discret mais visible
+
+ÉTAPE 5 — CONTRAINTES
+Ne touche pas à :
+- confirmations BUY
+- logique des boutons d’action
+- logique métier
+- calculs serveur
+
+ÉTAPE 6 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. SELL
+- Max met bien la quantité disponible réelle
+
+B. BUY
+- Max met bien floor(gold / pricePerUnit)
+
+C. Cas limites
+- gold = 0
+- pricePerUnit = 0
+- quantity déjà remplie
+- aucun crash
+
+D. Non-régression
+- aucun changement backend
+- confirmations intactes
+- création d’ordre intacte
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+CONTRAINTE FINALE
+Le but exclusif est :
+ajouter un bouton Max ergonomique à côté du champ quantité dans SELL et BUY.

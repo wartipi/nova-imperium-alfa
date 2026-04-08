@@ -594,11 +594,12 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                         ) : (
                           <div className="space-y-1">
                             {/* En-tête colonnes */}
-                            <div className="grid grid-cols-[1.5rem_6rem_3.5rem_4.5rem_4.5rem_4.5rem] gap-2 text-xs text-gray-500 pb-0.5 border-b border-red-100">
+                            <div className="grid grid-cols-[1.5rem_6rem_3.5rem_4.5rem_2.5rem_4.5rem_4.5rem] gap-2 text-xs text-gray-500 pb-0.5 border-b border-red-100">
                               <span></span>
                               <span>Ressource</span>
                               <span>Dispo</span>
                               <span>Quantité</span>
+                              <span></span>
                               <span>Prix/u</span>
                               <span></span>
                             </div>
@@ -606,7 +607,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                               const avail = (transport as any)[r] as number;
                               const draft = sellDrafts[r];
                               return (
-                                <div key={r} className="grid grid-cols-[1.5rem_6rem_3.5rem_4.5rem_4.5rem_4.5rem] gap-2 items-center py-0.5">
+                                <div key={r} className="grid grid-cols-[1.5rem_6rem_3.5rem_4.5rem_2.5rem_4.5rem_4.5rem] gap-2 items-center py-0.5">
                                   <span className="text-sm">{ICONS[r]}</span>
                                   <span className="text-xs text-red-900 font-medium truncate">{RESOURCE_LABELS[r]}</span>
                                   <span className="text-xs text-gray-400">{avail}</span>
@@ -616,6 +617,12 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                                     onChange={e => setSellDrafts(d => ({ ...d, [r]: { ...d[r], qty: Math.min(avail, Math.max(1, parseInt(e.target.value) || 1)) } }))}
                                     className="w-full px-1 py-0.5 border border-red-200 rounded text-xs text-center"
                                   />
+                                  <button
+                                    type="button"
+                                    onClick={() => setSellDrafts(d => ({ ...d, [r]: { ...d[r], qty: avail } }))}
+                                    className="w-full py-0.5 text-xs bg-red-50 hover:bg-red-100 text-red-700 rounded border border-red-300"
+                                    style={{ pointerEvents: "auto" }}
+                                  >Max</button>
                                   <input
                                     type="number" min={1}
                                     value={draft.price}
@@ -657,11 +664,12 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                         <h4 className="font-bold text-blue-900 text-sm mb-2">🔺 Passer un ordre d'achat</h4>
                         <div className="space-y-1">
                           {/* En-tête colonnes */}
-                          <div className="grid grid-cols-[1.5rem_6rem_5rem_4.5rem_4.5rem_4.5rem] gap-2 text-xs text-gray-500 pb-0.5 border-b border-blue-100">
+                          <div className="grid grid-cols-[1.5rem_6rem_5rem_4.5rem_2.5rem_4.5rem_4.5rem] gap-2 text-xs text-gray-500 pb-0.5 border-b border-blue-100">
                             <span></span>
                             <span>Ressource</span>
                             <span>Dernier prix</span>
                             <span>Quantité</span>
+                            <span></span>
                             <span>Prix/u</span>
                             <span></span>
                           </div>
@@ -669,7 +677,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                             const draft = buyDrafts[r];
                             const last  = latestPrice[r];
                             return (
-                              <div key={r} className="grid grid-cols-[1.5rem_6rem_5rem_4.5rem_4.5rem_4.5rem] gap-2 items-center py-0.5">
+                              <div key={r} className="grid grid-cols-[1.5rem_6rem_5rem_4.5rem_2.5rem_4.5rem_4.5rem] gap-2 items-center py-0.5">
                                 <span className="text-sm">{ICONS[r]}</span>
                                 <span className="text-xs text-blue-900 font-medium truncate">{RESOURCE_LABELS[r]}</span>
                                 <span className={`text-xs truncate ${last != null ? "text-gray-500" : "text-gray-300 italic"}`}>
@@ -681,6 +689,16 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                                   onChange={e => setBuyDrafts(d => ({ ...d, [r]: { ...d[r], qty: Math.max(1, parseInt(e.target.value) || 1) } }))}
                                   className="w-full px-1 py-0.5 border border-blue-200 rounded text-xs text-center"
                                 />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (!transport || draft.price <= 0) return;
+                                    const maxQty = Math.floor((transport as any).gold / draft.price);
+                                    setBuyDrafts(d => ({ ...d, [r]: { ...d[r], qty: Math.max(0, maxQty) } }));
+                                  }}
+                                  className="w-full py-0.5 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 rounded border border-blue-300"
+                                  style={{ pointerEvents: "auto" }}
+                                >Max</button>
                                 <input
                                   type="number" min={1}
                                   value={draft.price}
