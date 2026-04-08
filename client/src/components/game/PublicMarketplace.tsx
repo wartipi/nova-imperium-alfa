@@ -614,24 +614,39 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                       food:'🌿', wood:'🪵', stone:'🪨', iron:'⚙️',
                       copper:'🟤', coal:'🖤', oil:'🛢️', herbs:'🌱', fur:'🦊',
                     };
+                    // Dernier prix vendu par ressource — calculé explicitement sur executedAt
+                    const latestPrice: Partial<Record<ResourceType, number>> = {};
+                    for (const r of ALL_RESOURCES) {
+                      const trades = rmTrades.filter(t => t.resourceType === r);
+                      if (trades.length === 0) continue;
+                      const latest = trades.reduce((best, t) =>
+                        new Date(t.executedAt).getTime() > new Date(best.executedAt).getTime() ? t : best
+                      );
+                      latestPrice[r] = latest.pricePerUnit;
+                    }
                     return (
                       <div className="bg-white border border-blue-200 rounded-lg p-3">
                         <h4 className="font-bold text-blue-900 text-sm mb-2">🔺 Passer un ordre d'achat</h4>
                         <div className="space-y-1">
                           {/* En-tête colonnes */}
-                          <div className="grid grid-cols-[1.5rem_7rem_5rem_5rem_auto] gap-2 text-xs text-gray-500 pb-0.5 border-b border-blue-100">
+                          <div className="grid grid-cols-[1.5rem_7rem_6rem_5rem_5rem_auto] gap-2 text-xs text-gray-500 pb-0.5 border-b border-blue-100">
                             <span></span>
                             <span>Ressource</span>
+                            <span>Dernier prix</span>
                             <span>Quantité</span>
                             <span>Prix/u (or)</span>
                             <span></span>
                           </div>
                           {ALL_RESOURCES.map(r => {
                             const draft = buyDrafts[r];
+                            const last  = latestPrice[r];
                             return (
-                              <div key={r} className="grid grid-cols-[1.5rem_7rem_5rem_5rem_auto] gap-2 items-center py-0.5">
+                              <div key={r} className="grid grid-cols-[1.5rem_7rem_6rem_5rem_5rem_auto] gap-2 items-center py-0.5">
                                 <span className="text-sm">{ICONS[r]}</span>
                                 <span className="text-xs text-blue-900 font-medium truncate">{RESOURCE_LABELS[r]}</span>
+                                <span className={`text-xs truncate ${last != null ? "text-gray-500" : "text-gray-300 italic"}`}>
+                                  {last != null ? `${last} g/u` : "—"}
+                                </span>
                                 <input
                                   type="number" min={1}
                                   value={draft.qty}
