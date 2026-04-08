@@ -338,25 +338,25 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="bg-amber-50 border-4 border-amber-800 rounded-lg shadow-2xl w-[95vw] h-[90vh] max-w-6xl flex flex-col"
+        className="bg-amber-50 border-2 border-amber-400 rounded-xl shadow-xl w-[95vw] h-[90vh] max-w-6xl flex flex-col"
         style={{ pointerEvents: 'auto' }}
         onClick={(e) => e.stopPropagation()}
       >
 
         {/* En-tête */}
-        <div className="flex items-center justify-between p-6 border-b-2 border-amber-200">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">🏪</span>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-amber-300 bg-gradient-to-r from-amber-100 to-amber-50 rounded-t-xl">
+          <div className="flex items-center gap-2.5">
+            <span className="text-xl">🏪</span>
             <div>
-              <h2 className="text-2xl font-bold text-amber-900">Marché des Ressources</h2>
-              <p className="text-sm text-amber-700">Service central · Accès via terminal physique</p>
+              <h2 className="text-base font-bold text-amber-900 leading-tight">Marché des Ressources</h2>
+              <p className="text-xs text-amber-600">Service central · Accès via terminal physique</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {hasBankAccess && (
               <button
                 onClick={() => window.dispatchEvent(new CustomEvent('nova:open-panel', { detail: { panel: 'treasury' } }))}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm font-semibold transition-colors"
+                className="flex items-center gap-1 px-2.5 py-1 bg-amber-700 hover:bg-amber-800 text-amber-50 rounded text-xs font-semibold transition-colors"
                 style={{ pointerEvents: 'auto' }}
                 title="Accéder à la banque"
               >
@@ -366,7 +366,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
             )}
             <button
               onClick={onClose}
-              className="text-amber-700 hover:text-amber-900 text-3xl font-bold hover:bg-amber-200 rounded px-2"
+              className="text-amber-600 hover:text-amber-900 text-xl font-bold hover:bg-amber-200 rounded px-2 leading-none"
               style={{ userSelect: 'none', pointerEvents: 'auto' }}
               title="Fermer le marché"
             >
@@ -376,7 +376,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
         </div>
 
         {/* Corps */}
-        <div className="flex-1 overflow-hidden flex flex-col bg-emerald-50">
+        <div className="flex-1 overflow-hidden flex flex-col bg-amber-50">
 
           {/* Feedback */}
           {rmMsg && (
@@ -390,7 +390,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
           {/* ─── États d'accès ──────────────────────────────────────────────── */}
 
           {access.status === "loading" && (
-            <div className="flex-1 flex items-center justify-center text-emerald-700">
+            <div className="flex-1 flex items-center justify-center text-amber-700 text-sm">
               Vérification de présence physique…
             </div>
           )}
@@ -475,7 +475,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
 
               {/* Contenu marché */}
               {rmLoading ? (
-                <div className="flex-1 flex items-center justify-center text-emerald-700">Chargement du carnet…</div>
+                <div className="flex-1 flex items-center justify-center text-amber-700 text-sm">Chargement du carnet…</div>
               ) : (
                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
 

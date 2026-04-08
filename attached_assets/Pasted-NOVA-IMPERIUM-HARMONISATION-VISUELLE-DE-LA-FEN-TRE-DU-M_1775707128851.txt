@@ -1,0 +1,143 @@
+NOVA IMPERIUM — HARMONISATION VISUELLE DE LA FENÊTRE DU MARCHÉ
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucune dérive hors sujet.
+Ne touche pas au backend.
+
+OBJECTIF
+Harmoniser le style visuel de la fenêtre du marché avec le reste des fenêtres/panneaux du jeu.
+
+IMPORTANT
+Ce chantier est PUREMENT VISUEL.
+Ne touche PAS :
+- au backend
+- aux routes
+- au SSE
+- aux confirmations métier
+- aux fees
+- au matching
+- à l’escrow
+- à la boîte de règlement sur le fond métier
+- au comportement d’ouverture/fermeture
+- au système nova:open-panel
+- à l’architecture globale des panneaux
+
+CONTEXTE
+PublicMarketplace.tsx fonctionne, mais sa fenêtre a encore un rendu de grosse popup séparée du reste de l’UI.
+TreasuryPanel.tsx représente mieux le style cible :
+- sections claires
+- hiérarchie sobre
+- langage visuel cohérent avec le jeu
+
+FICHIERS À AUDITER
+- client/src/components/game/PublicMarketplace.tsx
+- client/src/components/game/TreasuryPanel.tsx (référence visuelle uniquement)
+
+OBJECTIF VISUEL EXACT
+Le marché doit :
+- rester une fenêtre modale
+- mais avoir un rendu aligné sur les autres fenêtres du jeu
+- sembler appartenir au même système UI que la banque et les autres panneaux
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire :
+- la coque complète de PublicMarketplace.tsx
+- son header
+- ses blocs internes
+- le style de TreasuryPanel.tsx comme référence
+
+ÉTAPE 2 — COQUE DE FENÊTRE
+Ajuster la fenêtre du marché pour qu’elle soit plus cohérente avec les autres panneaux :
+
+A. conserver :
+- overlay de fond
+- fermeture au clic extérieur
+- bouton fermer
+
+B. harmoniser :
+- fond principal
+- bordure
+- arrondis
+- ombre
+- header
+- séparateurs
+
+IMPORTANT
+Ne pas changer le fonctionnement.
+Seulement le style.
+
+ÉTAPE 3 — HEADER
+Rendre l’en-tête plus cohérent avec le reste de l’UI :
+- titre clair
+- sous-titre discret
+- boutons mieux intégrés
+- moins de sensation “popup web”
+- plus de sensation “panneau du jeu”
+
+ÉTAPE 4 — SECTIONS INTERNES
+Harmoniser les blocs internes du marché dans l’esprit de la banque.
+
+Blocs concernés :
+- Inventaire
+- Boîte de règlement
+- Poster un ordre
+- Ordres VENTE
+- Ordres ACHAT
+- Historique
+
+Tu peux :
+- soit créer un petit sous-composant Section local au marché
+- soit reprendre très légèrement le principe visuel de TreasuryPanel
+- mais sans créer de dépendance compliquée ni refactor partagé inutile
+
+IMPORTANT
+Le but est l’unité visuelle, pas une refonte fonctionnelle.
+
+ÉTAPE 5 — DENSITÉ VISUELLE
+Réduire l’effet “grosse popup lourde” :
+- un peu moins agressive
+- plus lisible
+- mieux hiérarchisée
+- plus proche des autres fenêtres du jeu
+
+Sans diminuer la lisibilité du contenu.
+
+ÉTAPE 6 — CONTRAINTES
+Ne touche pas :
+- aux handlers métier
+- aux confirmations
+- aux tableaux SELL/BUY sur leur logique
+- au backend
+- aux routes
+- à la boîte de règlement sur le fond
+
+Chantier purement UI / style.
+
+ÉTAPE 7 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. La fenêtre du marché reste fonctionnellement identique
+B. Le rendu est plus proche du style banque / autres panneaux
+C. Les sections sont plus cohérentes visuellement
+D. Le header est mieux intégré
+E. Aucun changement backend
+F. Aucun changement métier
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+CONTRAINTE FINALE
+Le but exclusif est :
+harmoniser visuellement la fenêtre du marché avec le reste des fenêtres du jeu, sans toucher à sa logique.
