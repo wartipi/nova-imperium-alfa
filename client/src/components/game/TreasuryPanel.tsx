@@ -231,6 +231,19 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
     }
   }, []);
 
+  // ─── Accès physique marché ─────────────────────────────────────────────────
+  const [hasMarketAccess, setHasMarketAccess] = useState(false);
+
+  const checkMarketAccess = useCallback(async () => {
+    try {
+      const headers = getAuthHeaders();
+      const resp = await fetch("/api/market/access-check", { headers });
+      if (!resp.ok) { setHasMarketAccess(false); return; }
+      const data = await resp.json();
+      setHasMarketAccess(data.allowed === true);
+    } catch { setHasMarketAccess(false); }
+  }, []);
+
   // États transfert
   const EMPTY_TRANSFER: TransferState = {
     gold: "", food: "", wood: "", stone: "", iron: "",
@@ -298,13 +311,13 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
     }
   }, []);
 
-  useEffect(() => { loadAll(); loadBankAccess(); }, [loadAll, loadBankAccess]);
+  useEffect(() => { loadAll(); loadBankAccess(); checkMarketAccess(); }, [loadAll, loadBankAccess, checkMarketAccess]);
 
   useEffect(() => {
-    const handler = () => { loadAll(); loadBankAccess(); };
+    const handler = () => { loadAll(); loadBankAccess(); checkMarketAccess(); };
     window.addEventListener('nova:logistic-refresh', handler);
     return () => window.removeEventListener('nova:logistic-refresh', handler);
-  }, [loadAll, loadBankAccess]);
+  }, [loadAll, loadBankAccess, checkMarketAccess]);
 
   // ─── Collecte physique ────────────────────────────────────────────────────
 
@@ -499,13 +512,26 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
       {/* Titre + rafraîchir */}
       <div className="flex items-center justify-between">
         <h4 className="font-bold text-base text-amber-900">🏦 Réseau Bancaire</h4>
-        <button
-          onClick={loadAll}
-          disabled={loading}
-          className="text-xs px-2 py-1 bg-amber-700 text-amber-50 rounded hover:bg-amber-600 disabled:opacity-50"
-        >
-          {loading ? "…" : "↻ Actualiser"}
-        </button>
+        <div className="flex items-center gap-2">
+          {hasMarketAccess && (
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('nova:open-panel', { detail: { panel: 'marketplace' } }))}
+              className="flex items-center gap-1 px-2.5 py-1 bg-amber-700 hover:bg-amber-800 text-amber-50 rounded text-xs font-semibold transition-colors"
+              style={{ pointerEvents: 'auto' }}
+              title="Accéder au marché"
+            >
+              <span>🏪</span>
+              <span>Marché</span>
+            </button>
+          )}
+          <button
+            onClick={loadAll}
+            disabled={loading}
+            className="text-xs px-2 py-1 bg-amber-700 text-amber-50 rounded hover:bg-amber-600 disabled:opacity-50"
+          >
+            {loading ? "…" : "↻ Actualiser"}
+          </button>
+        </div>
       </div>
 
       {/* ════════════════════════════════════════════════════════════════════

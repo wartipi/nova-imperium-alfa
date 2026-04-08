@@ -1,0 +1,107 @@
+NOVA IMPERIUM — BOUTON BANQUE → MARCHÉ CONDITIONNEL
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucune dérive hors sujet.
+Ne touche pas au backend.
+
+OBJECTIF
+Ajouter dans la banque un bouton pour accéder au marché, exactement dans le même esprit que le bouton marché → banque déjà présent côté marché.
+
+IMPORTANT
+Le bouton doit être conditionnel à l’accès réel au marché.
+Je ne veux pas un bouton visible en permanence.
+Il doit suivre la présence physique / bâtiment comme l’autre sens.
+
+FICHIERS À AUDITER
+- client/src/components/game/TreasuryPanel.tsx
+- client/src/components/game/PublicMarketplace.tsx
+- éventuellement le système d’ouverture de panneaux déjà existant, pour réutiliser la bonne clé/pattern
+
+CONTEXTE VÉRIFIÉ
+1. PublicMarketplace.tsx a déjà un bouton "🏦 Banque" conditionné par hasBankAccess
+2. TreasuryPanel.tsx n’a pas encore l’équivalent "🏪 Marché"
+3. /api/market/access-check existe déjà côté serveur
+
+OBJECTIF FONCTIONNEL EXACT
+Depuis la banque :
+- afficher un bouton "🏪 Marché"
+- seulement si l’accès marché est autorisé
+- ouvrir le marché via le système UI déjà existant
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire précisément :
+- le bouton Banque dans PublicMarketplace.tsx
+- TreasuryPanel.tsx
+- la manière exacte dont les panneaux sont ouverts dans l’UI
+- /api/market/access-check
+
+IMPORTANT
+Ne suppose pas la clé exacte du panneau marché.
+Réutilise la clé/event exact déjà supporté dans le projet après audit.
+
+ÉTAPE 2 — ÉTAT LOCAL MARCHÉ
+Dans TreasuryPanel.tsx :
+- ajouter un état local du type hasMarketAccess / marketAccess
+- faire un check via /api/market/access-check
+- rester cohérent avec le style déjà utilisé pour bankAccess
+
+ÉTAPE 3 — BOUTON CONDITIONNEL
+Ajouter un bouton "🏪 Marché" dans TreasuryPanel.tsx
+
+Règle :
+- visible seulement si l’accès marché est autorisé
+- masqué sinon
+
+IMPORTANT
+Ne pas afficher un faux bouton désactivé si ce n’est pas cohérent avec le reste du panneau.
+La version la plus simple et propre est : non affiché si non accessible.
+
+ÉTAPE 4 — OUVERTURE DU PANNEAU
+Au clic :
+- ouvrir le marché via le mécanisme UI déjà utilisé dans le projet
+- réutiliser le même canal que les autres ouvertures de panneau
+- ne pas inventer un nouveau mécanisme
+
+ÉTAPE 5 — CONTRAINTES
+Ne touche pas :
+- au backend
+- aux routes
+- aux guards serveur
+- à la logique banque
+- à la logique marché
+- au SSE
+
+Chantier purement UI / navigation.
+
+ÉTAPE 6 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. Avec accès marché
+- le bouton "🏪 Marché" apparaît dans la banque
+- le clic ouvre bien le marché
+
+B. Sans accès marché
+- le bouton n’apparaît pas
+
+C. Non-régression
+- bouton banque → marché inchangé côté marché
+- aucune modification backend
+- aucun changement logique métier
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+CONTRAINTE FINALE
+Le but exclusif est :
+ajouter un bouton banque → marché conditionnel, symétrique au bouton marché → banque déjà existant.
