@@ -1,0 +1,159 @@
+NOVA IMPERIUM — MODALE DE CONFIRMATION CANONIQUE STYLE JEU
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucune dérive hors sujet.
+Ne touche pas au backend.
+
+OBJECTIF
+Remplacer les popups natives de confirmation du marché par une modale stylée selon l’UI actuelle du jeu.
+
+RÈGLE À ÉTABLIR
+À partir de maintenant :
+- ne plus utiliser window.confirm pour les confirmations UI du jeu
+- ne plus utiliser de popup navigateur brut pour ce type d’interaction
+- utiliser un composant de confirmation canonique réutilisable
+
+IMPORTANT
+Dans ce segment :
+- ne touche PAS au backend
+- ne touche PAS aux routes
+- ne touche PAS à la logique marché
+- ne touche PAS aux fees
+- ne touche PAS au SSE
+- ne touche PAS à la boîte de règlement
+- ne fais PAS une migration globale de tous les alert/confirm du projet
+- ne corrige que le marché et pose la base réutilisable
+
+ÉTAT RÉEL VÉRIFIÉ
+PublicMarketplace.tsx utilise encore window.confirm(...) :
+1. pour poster un ordre BUY
+2. pour acheter un ordre SELL
+
+OBJECTIF FONCTIONNEL
+Créer une modale de confirmation stylée jeu, puis l’utiliser dans PublicMarketplace.tsx à la place de window.confirm(...)
+
+FICHIERS À MODIFIER
+- client/src/components/game/PublicMarketplace.tsx
+- nouveau composant :
+  client/src/components/game/NovaConfirmModal.tsx
+ou un nom équivalent simple et cohérent
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire précisément :
+- les deux window.confirm actuels dans PublicMarketplace.tsx
+- le style général des panneaux du jeu déjà présents
+- les patterns de modales déjà existants si un composant proche existe déjà
+
+IMPORTANT
+Si un composant de modale réutilisable existe déjà dans le projet et convient vraiment,
+réutilise-le au lieu d’en recréer un.
+Sinon crée un composant minimal propre.
+
+ÉTAPE 2 — COMPOSANT CANONIQUE
+Créer un composant réutilisable de confirmation stylé jeu.
+
+API minimale recommandée :
+- isOpen
+- title
+- message
+- confirmLabel
+- cancelLabel
+- confirmVariant
+- onConfirm
+- onCancel
+
+Le composant doit :
+- avoir un overlay sombre
+- être centré
+- reprendre le style global du jeu
+- rester simple
+- être lisible
+- avoir deux boutons clairs : confirmer / annuler
+
+STYLE RECHERCHÉ
+- cohérent avec les panneaux actuels
+- pas de style navigateur brut
+- pas de composant trop complexe
+- pas d’animation lourde
+- priorité à stabilité + cohérence visuelle
+
+ÉTAPE 3 — INTÉGRATION DANS LE MARCHÉ
+Dans PublicMarketplace.tsx :
+
+Remplacer les deux window.confirm(...) par la nouvelle modale :
+1. création d’un ordre BUY
+2. achat d’un ordre SELL
+
+IMPORTANT
+Ne change PAS le comportement métier.
+Le flux doit rester identique :
+- si confirmé → action exécutée
+- si annulé → rien ne part
+
+ÉTAPE 4 — ÉTAT LOCAL MINIMAL
+Ajouter seulement le state nécessaire pour piloter la modale.
+
+Exemple acceptable :
+- confirmState null | { type, title, message, onConfirmAction }
+
+Mais reste simple.
+Pas d’usine à gaz.
+Pas de state global.
+
+ÉTAPE 5 — LABELS
+Les textes doivent rester sobres et cohérents.
+
+Exemples acceptables :
+Titre :
+- Confirmer l’achat
+- Confirmer l’ordre d’achat
+
+Boutons :
+- Confirmer
+- Annuler
+
+Le message doit continuer à rappeler :
+- ressource
+- quantité
+- prix/u
+- coût total
+- mention boîte de règlement si c’était déjà prévu
+
+ÉTAPE 6 — RÈGLE FUTURE
+Ajouter un commentaire court dans le code si utile pour indiquer que :
+ce composant devient la référence pour les futures confirmations UI.
+
+Pas de prose inutile.
+Pas de documentation excessive.
+
+ÉTAPE 7 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. Les deux confirmations du marché n’utilisent plus window.confirm
+B. La modale s’affiche bien dans le style du jeu
+C. BUY order fonctionne toujours après confirmation
+D. Achat d’un ordre SELL fonctionne toujours après confirmation
+E. Annuler ferme la modale sans effet
+F. Aucun changement backend
+G. Aucun changement de logique métier
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+CONTRAINTE FINALE
+Le but exclusif est :
+- créer une modale de confirmation canonique style jeu
+- remplacer les confirmations natives actuelles du marché
+- établir la base pour tous les futurs popups de confirmation

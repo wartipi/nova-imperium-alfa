@@ -6,6 +6,7 @@ import {
   type ResourceType, type OrderSide, RESOURCE_LABELS, ALL_RESOURCES,
 } from "../../lib/api/marketApi";
 import { getPlayerTransport, type PlayerTransportDTO } from "../../lib/api/economyApi";
+import { NovaConfirmModal, type NovaConfirmLine } from "./NovaConfirmModal";
 
 interface PublicMarketplaceProps {
   playerId: string;
@@ -37,6 +38,15 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
   const [rmMsg,     setRmMsg]     = useState<string | null>(null);
   const [rmFillQty, setRmFillQty]   = useState<Record<number, number>>({});
   const [rmFeeInput, setRmFeeInput] = useState<string>('');
+
+  // ─── Modale de confirmation ───────────────────────────────────────────────────
+  const [confirmModal, setConfirmModal] = useState<{
+    title:     string;
+    lines:     NovaConfirmLine[];
+    note?:     string;
+    onConfirm: () => void;
+  } | null>(null);
+  const closeConfirm = () => setConfirmModal(null);
 
   // ─── Brouillons vente / achat par ressource ───────────────────────────────────
   type DraftEntry = { qty: number; price: number };
@@ -216,28 +226,32 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
     } catch (e: any) { setRmMsg(`❌ ${e.message}`); }
   };
 
-  const rmPlaceBuyOrder = async (resource: ResourceType) => {
+  const rmPlaceBuyOrder = (resource: ResourceType) => {
     const cityId = access.cityId ?? 0;
     const draft  = buyDrafts[resource];
     const total  = draft.qty * draft.price;
-    const ok = window.confirm(
-      `Confirmer l'ordre d'achat ?\n\n` +
-      `Ressource : ${RESOURCE_LABELS[resource]}\n` +
-      `Quantité  : ${draft.qty}\n` +
-      `Prix/u    : ${draft.price} or\n` +
-      `Coût total : ${total} or (mis en escrow)\n\n` +
-      `Les ressources achetées seront créditées dans votre Boîte de règlement.`
-    );
-    if (!ok) return;
-    try {
-      const result = await placeMarketOrder(cityId > 0 ? cityId : 1, {
-        side: "buy", resourceType: resource,
-        quantity: draft.qty, pricePerUnit: draft.price,
-      });
-      setRmMsg(`✅ Ordre achat #${result.orderId} créé — ${total} or en escrow.`);
-      rmLoadMarket(cityId);
-      loadTransport();
-    } catch (e: any) { setRmMsg(`❌ ${e.message}`); }
+    setConfirmModal({
+      title: "Confirmer l'ordre d'achat",
+      lines: [
+        { label: "Ressource",  value: RESOURCE_LABELS[resource] },
+        { label: "Quantité",   value: `${draft.qty}` },
+        { label: "Prix/u",     value: `${draft.price} or` },
+        { label: "Coût total", value: `${total} or (mis en escrow)` },
+      ],
+      note: "Les ressources achetées seront créditées dans votre Boîte de règlement.",
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          const result = await placeMarketOrder(cityId > 0 ? cityId : 1, {
+            side: "buy", resourceType: resource,
+            quantity: draft.qty, pricePerUnit: draft.price,
+          });
+          setRmMsg(`✅ Ordre achat #${result.orderId} créé — ${total} or en escrow.`);
+          rmLoadMarket(cityId);
+          loadTransport();
+        } catch (e: any) { setRmMsg(`❌ ${e.message}`); }
+      },
+    });
   };
 
   const rmCancelOrder = async (orderId: number) => {
@@ -250,7 +264,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
     } catch (e: any) { setRmMsg(`❌ ${e.message}`); }
   };
 
-  const rmFillOrder = async (orderId: number, orderSide: "sell" | "buy") => {
+  const rmFillOrder = (orderId: number, orderSide: "sell" | "buy") => {
     const cityId = access.cityId ?? 0;
     const qty = rmFillQty[orderId] ?? 1;
     // Confirmation uniquement pour l'achat d'un ordre SELL (joueur paie → reçoit ressources dans boîte)
@@ -258,23 +272,37 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
       const order = rmOrders.find(o => o.id === orderId);
       if (order) {
         const total = qty * order.pricePerUnit;
-        const ok = window.confirm(
-          `Confirmer l'achat ?\n\n` +
-          `Ressource : ${RESOURCE_LABELS[order.resourceType as ResourceType]}\n` +
-          `Quantité  : ${qty}\n` +
-          `Prix/u    : ${order.pricePerUnit} or\n` +
-          `Coût total : ${total} or\n\n` +
-          `Les ressources seront créditées dans votre Boîte de règlement.`
-        );
-        if (!ok) return;
+        setConfirmModal({
+          title: "Confirmer l'achat",
+          lines: [
+            { label: "Ressource",  value: RESOURCE_LABELS[order.resourceType as ResourceType] },
+            { label: "Quantité",   value: `${qty}` },
+            { label: "Prix/u",     value: `${order.pricePerUnit} or` },
+            { label: "Coût total", value: `${total} or` },
+          ],
+          note: "Les ressources seront créditées dans votre Boîte de règlement.",
+          onConfirm: async () => {
+            closeConfirm();
+            try {
+              const r = await fillMarketOrder(cityId > 0 ? cityId : 1, orderId, qty);
+              setRmMsg(`✅ Fill #${orderId} — ${qty} unités — ${r.totalGold}g (frais: ${r.feeAmount}g)`);
+              rmLoadMarket(cityId);
+              loadTransport();
+            } catch (e: any) { setRmMsg(`❌ ${e.message}`); }
+          },
+        });
+        return;
       }
     }
-    try {
-      const r = await fillMarketOrder(cityId > 0 ? cityId : 1, orderId, qty);
-      setRmMsg(`✅ Fill #${orderId} — ${qty} unités — ${r.totalGold}g (frais: ${r.feeAmount}g)`);
-      rmLoadMarket(cityId);
-      loadTransport();
-    } catch (e: any) { setRmMsg(`❌ ${e.message}`); }
+    // Vente dans un ordre BUY — pas de confirmation, exécution directe
+    (async () => {
+      try {
+        const r = await fillMarketOrder(cityId > 0 ? cityId : 1, orderId, qty);
+        setRmMsg(`✅ Fill #${orderId} — ${qty} unités — ${r.totalGold}g (frais: ${r.feeAmount}g)`);
+        rmLoadMarket(cityId);
+        loadTransport();
+      } catch (e: any) { setRmMsg(`❌ ${e.message}`); }
+    })();
   };
 
   const rmUpdateFee = async () => {
@@ -782,6 +810,18 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
 
         </div>
       </div>
+
+      {/* Modale de confirmation canonique */}
+      <NovaConfirmModal
+        isOpen={confirmModal !== null}
+        title={confirmModal?.title ?? ""}
+        lines={confirmModal?.lines ?? []}
+        note={confirmModal?.note}
+        confirmLabel="Confirmer"
+        cancelLabel="Annuler"
+        onConfirm={() => confirmModal?.onConfirm()}
+        onCancel={closeConfirm}
+      />
     </div>
   );
 }
