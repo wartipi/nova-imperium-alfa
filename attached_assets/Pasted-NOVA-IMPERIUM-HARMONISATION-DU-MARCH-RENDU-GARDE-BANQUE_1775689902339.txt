@@ -1,0 +1,193 @@
+NOVA IMPERIUM — HARMONISATION DU MARCHÉ : RENDU + GARDE BANQUE + CONFIRMATION ACHAT
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucun changement d’architecture inutile.
+Aucune dérive hors sujet.
+Ne déclare rien “réglé” sans avoir vérifié le code réel.
+
+OBJECTIF
+Finaliser l’intégration propre du marché maintenant que la boîte de règlement existe déjà.
+
+Il faut corriger 3 points :
+1. structurer le rendu du marché de manière plus proche de la banque
+2. s’assurer que l’option vers la banque depuis la boîte de règlement n’est disponible QUE si une banque est physiquement accessible
+3. ajouter une confirmation avant un achat sur le marché
+
+IMPORTANT
+Ne touche PAS :
+- à la logique de matching
+- aux frais propriétaire
+- au SSE hors refresh déjà existant
+- à la structure générale du marché
+- à la boîte de règlement sur le fond métier
+- à TreasuryPanel
+- au backend hors les gardes strictement nécessaires
+
+ÉTAT RÉEL À RESPECTER
+1. PublicMarketplace.tsx contient déjà :
+   - inventaire
+   - boîte de règlement
+   - formulaire d’ordre
+   - carnet d’ordres
+   - historique
+2. hasBankAccess existe déjà côté client
+3. le bouton Banque dans l’en-tête du marché est déjà conditionné par hasBankAccess
+4. MAIS le bouton “🏦 Banque” dans la boîte de règlement n’est pas conditionné par hasBankAccess
+5. ET la route POST /api/market/box/collect-bank n’impose pas encore de check d’accès banque
+6. Aucune confirmation d’achat n’existe encore
+
+FICHIERS À AUDITER
+- client/src/components/game/PublicMarketplace.tsx
+- server/routes/market.ts
+- éventuellement le service/route banque déjà existant pour réutiliser le bon gate
+- TreasuryPanel.tsx seulement comme référence de rendu, sans le modifier
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire précisément :
+- la structure actuelle de PublicMarketplace.tsx
+- la logique hasBankAccess
+- la boîte de règlement
+- la route /api/market/box/collect-bank
+- le rendu structuré de TreasuryPanel.tsx comme référence stylistique
+
+ÉTAPE 2 — RENDU MARCHÉ STRUCTURÉ COMME LA BANQUE
+Réorganiser le rendu de PublicMarketplace.tsx de façon plus propre, dans le même esprit que TreasuryPanel :
+- sections visuelles nettes
+- titres courts
+- listes compactes
+- messages vides sobres
+- actions regroupées
+
+Structure cible recommandée :
+A. Inventaire
+B. Boîte de règlement
+C. Poster un ordre
+D. Ordres VENTE
+E. Ordres ACHAT
+F. Historique
+
+IMPORTANT
+Ne fais pas de refonte visuelle lourde.
+Ne partage pas de composants entre banque et marché si cela alourdit.
+On veut seulement harmoniser le style de rendu.
+
+ÉTAPE 3 — GARDE BANQUE CÔTÉ CLIENT
+Dans PublicMarketplace.tsx :
+
+A. Le bouton de la boîte de règlement vers la banque
+- ne doit être visible que si hasBankAccess === true
+
+B. Si hasBankAccess === false
+- masquer le bouton “🏦 Banque”
+- afficher à la place un petit message discret, par exemple :
+  “🏦 Banque requise pour déposer ici”
+
+IMPORTANT
+Le bouton “🎒 Récupérer” vers transport reste disponible.
+Seule l’option banque est conditionnée.
+
+ÉTAPE 4 — GARDE BANQUE CÔTÉ SERVEUR
+Dans server/routes/market.ts :
+
+Sur POST /api/market/box/collect-bank
+- ajouter un vrai check d’accès banque
+- réutiliser le système canonique déjà en place pour la banque
+- refuser proprement si le joueur n’a pas de banque physique accessible
+
+IMPORTANT
+Ne duplique pas une logique bricolée.
+Réutilise le gate canonique de la banque s’il existe déjà dans le projet.
+
+ÉTAPE 5 — CONFIRMATION AVANT ACHAT
+Ajouter une confirmation explicite pour les actions d’achat uniquement.
+
+A. Confirmation pour poster un ordre BUY
+Quand rmOrderForm.side === "buy" et que le joueur clique pour poster l’ordre :
+- demander confirmation avant envoi
+
+Le message doit rappeler :
+- ressource
+- quantité
+- prix unitaire
+- coût total
+- que l’or sera mis en escrow
+- que les objets reçus iront dans la boîte de règlement
+
+B. Confirmation pour acheter depuis un ordre SELL
+Quand le joueur clique sur le bouton “Acheter” d’un ordre sell :
+- demander confirmation avant fill
+
+Le message doit rappeler :
+- ressource
+- quantité
+- prix unitaire
+- coût total
+- que les objets iront dans la boîte de règlement
+
+IMPORTANT
+Ne PAS ajouter de confirmation pour :
+- poster un ordre sell
+- vendre dans un ordre buy
+- annuler un ordre
+- récupérer la boîte
+- déposer à la banque
+
+ÉTAPE 6 — UX SOBRE
+La confirmation peut être :
+- soit une modale légère
+- soit window.confirm(...) si c’est la solution minimale la plus propre à ce stade
+
+Priorité :
+simplicité et stabilité.
+Pas de refonte lourde.
+
+ÉTAPE 7 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. Rendu
+- le marché est visuellement plus structuré
+- les sections sont plus lisibles
+- le style est cohérent avec la banque sans refonte massive
+
+B. Garde banque client
+- sans banque, le bouton “🏦 Banque” de la boîte n’apparaît pas
+- un message discret le remplace
+
+C. Garde banque serveur
+- sans banque, POST /api/market/box/collect-bank est refusé proprement
+- avec banque, il fonctionne
+
+D. Confirmation achat
+- poster un ordre buy demande confirmation
+- acheter depuis un ordre sell demande confirmation
+- le message rappelle bien coût total + boîte de règlement
+
+E. Non-régression
+- ordre sell inchangé
+- vente dans ordre buy inchangée
+- annulation inchangée
+- boîte de règlement inchangée sur le fond métier
+- frais propriétaire inchangés
+- SSE inchangé sauf refresh normal
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+CONTRAINTE FINALE
+Ne dérive pas.
+Le but exclusif est :
+- harmoniser le rendu du marché avec la banque
+- verrouiller l’option banque de la boîte de règlement derrière une vraie présence banque
+- ajouter une confirmation avant les achats

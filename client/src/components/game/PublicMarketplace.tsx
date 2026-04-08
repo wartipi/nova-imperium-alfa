@@ -203,6 +203,19 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
   // ─── Actions ──────────────────────────────────────────────────────────────────
   const rmPlaceOrder = async () => {
     const cityId = access.cityId ?? 0;
+    // Confirmation uniquement pour les ordres BUY (escrow or → boîte de règlement)
+    if (rmOrderForm.side === "buy") {
+      const total = rmOrderForm.quantity * rmOrderForm.pricePerUnit;
+      const ok = window.confirm(
+        `Confirmer l'ordre d'achat ?\n\n` +
+        `Ressource : ${RESOURCE_LABELS[rmOrderForm.resourceType]}\n` +
+        `Quantité  : ${rmOrderForm.quantity}\n` +
+        `Prix/u    : ${rmOrderForm.pricePerUnit} or\n` +
+        `Coût total : ${total} or (mis en escrow)\n\n` +
+        `Les ressources achetées seront créditées dans votre Boîte de règlement.`
+      );
+      if (!ok) return;
+    }
     try {
       const result = await placeMarketOrder(cityId > 0 ? cityId : 1, rmOrderForm);
       setRmMsg(`✅ Ordre #${result.orderId} créé — escrow prélevé.`);
@@ -221,9 +234,25 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
     } catch (e: any) { setRmMsg(`❌ ${e.message}`); }
   };
 
-  const rmFillOrder = async (orderId: number) => {
+  const rmFillOrder = async (orderId: number, orderSide: "sell" | "buy") => {
     const cityId = access.cityId ?? 0;
     const qty = rmFillQty[orderId] ?? 1;
+    // Confirmation uniquement pour l'achat d'un ordre SELL (joueur paie → reçoit ressources dans boîte)
+    if (orderSide === "sell") {
+      const order = rmOrders.find(o => o.id === orderId);
+      if (order) {
+        const total = qty * order.pricePerUnit;
+        const ok = window.confirm(
+          `Confirmer l'achat ?\n\n` +
+          `Ressource : ${RESOURCE_LABELS[order.resourceType as ResourceType]}\n` +
+          `Quantité  : ${qty}\n` +
+          `Prix/u    : ${order.pricePerUnit} or\n` +
+          `Coût total : ${total} or\n\n` +
+          `Les ressources seront créditées dans votre Boîte de règlement.`
+        );
+        if (!ok) return;
+      }
+    }
     try {
       const r = await fillMarketOrder(cityId > 0 ? cityId : 1, orderId, qty);
       setRmMsg(`✅ Fill #${orderId} — ${qty} unités — ${r.totalGold}g (frais: ${r.feeAmount}g)`);
@@ -448,7 +477,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                             📦 Boîte de règlement
                           </h4>
                           {hasContent && (
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 items-center flex-wrap">
                               <button
                                 onClick={claimToTransport}
                                 className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold"
@@ -457,14 +486,20 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                               >
                                 🎒 Récupérer
                               </button>
-                              <button
-                                onClick={claimToBank}
-                                className="px-2 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded text-xs font-semibold"
-                                style={{ pointerEvents: "auto" }}
-                                title="Déposer à la banque (sans limite de capacité)"
-                              >
-                                🏦 Banque
-                              </button>
+                              {hasBankAccess ? (
+                                <button
+                                  onClick={claimToBank}
+                                  className="px-2 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded text-xs font-semibold"
+                                  style={{ pointerEvents: "auto" }}
+                                  title="Déposer à la banque (sans limite de capacité)"
+                                >
+                                  🏦 Banque
+                                </button>
+                              ) : (
+                                <span className="text-xs text-amber-700 italic">
+                                  🏦 Banque requise pour déposer ici
+                                </span>
+                              )}
                             </div>
                           )}
                         </div>
@@ -579,7 +614,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                                 className="w-16 px-1 py-0.5 border border-gray-300 rounded text-xs"
                               />
                               <button
-                                onClick={() => rmFillOrder(o.id)}
+                                onClick={() => rmFillOrder(o.id, "sell")}
                                 className="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs"
                                 style={{ pointerEvents: "auto" }}
                               >Acheter</button>
@@ -618,7 +653,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                                 className="w-16 px-1 py-0.5 border border-gray-300 rounded text-xs"
                               />
                               <button
-                                onClick={() => rmFillOrder(o.id)}
+                                onClick={() => rmFillOrder(o.id, "buy")}
                                 className="px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white rounded text-xs"
                                 style={{ pointerEvents: "auto" }}
                               >Vendre</button>

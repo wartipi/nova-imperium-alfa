@@ -235,10 +235,16 @@ router.post("/box/collect-transport", requireAuth, async (req: AuthRequest, res)
 });
 
 // ─── POST /box/collect-bank ───────────────────────────────────────────────────
-// Transfère la boîte de règlement → banque du joueur. Sans check de capacité.
+// Transfère la boîte de règlement → banque du joueur.
+// Gate physique banque requis (même logique que /api/economy/player-bank/me).
 router.post("/box/collect-bank", requireAuth, async (req: AuthRequest, res) => {
   try {
-    const result = await claimMarketBoxToBank(req.user!.id);
+    const playerId = req.user!.id;
+    const isAdmin  = req.user!.role === "admin";
+    if (!isAdmin) {
+      await resolveAccessPoint(playerId, "bank");
+    }
+    const result = await claimMarketBoxToBank(playerId);
     res.json(result);
     broadcastMarketInvalidation("box_collected");
   } catch (err: any) {
