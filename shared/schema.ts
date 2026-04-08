@@ -783,3 +783,13 @@ export const gameClock = pgTable("game_clock", {
 });
 
 export type GameClock = typeof gameClock.$inferSelect;
+
+// ─── market_fee_box ─────────────────────────────────────────────────────────
+// Caisse locale de commission : utilisée quand la ville du marché
+// ne possède pas de bâtiment "bank". Collecte manuelle par le propriétaire.
+export const marketFeeBox = pgTable("market_fee_box", {
+  cityId:    integer("city_id").primaryKey().references(() => cities.id, { onDelete: "cascade" }),
+  gold:      integer("gold").notNull().default(0),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+export type MarketFeeBox = typeof marketFeeBox.$inferSelect;

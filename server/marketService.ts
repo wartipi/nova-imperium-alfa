@@ -1,7 +1,8 @@
 import { db } from "./db";
 import {
-  marketGuilds, marketOrders, marketTrades,
-  playerBank, playerTransport, playerMarketBox, factionEconomy, cityBuildings, cities, colonies,
+  marketGuilds, marketOrders, marketTrades, marketFeeBox,
+  playerBank, playerTransport, playerMarketBox, factionEconomy, factionMembers,
+  cityBuildings, cities, colonies,
 } from "../shared/schema";
 import { computeTransportUnits, TRANSPORT_MAX_UNITS } from "./playerActionService";
 import { eq, and, sql, desc, lte } from "drizzle-orm";
@@ -73,6 +74,31 @@ async function deriveMarketOwner(cityId: number) {
     .limit(1);
 
   return row ?? null;
+}
+
+// ─── hasBankBuilding ──────────────────────────────────────────────────────────
+// Vérifie si la ville possède un bâtiment "bank" (source canonique : city_buildings).
+async function hasBankBuilding(
+  cityId: number,
+  tx: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0],
+): Promise<boolean> {
+  const [row] = await (tx as typeof db)
+    .select({ id: cityBuildings.id })
+    .from(cityBuildings)
+    .where(and(eq(cityBuildings.cityId, cityId), eq(cityBuildings.building, "bank")))
+    .limit(1);
+  return !!row;
+}
+
+// ─── ensureMarketFeeBox ────────────────────────────────────────────────────────
+async function ensureMarketFeeBox(
+  cityId: number,
+  tx: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0],
+): Promise<void> {
+  await (tx as typeof db)
+    .insert(marketFeeBox)
+    .values({ cityId, gold: 0, updatedAt: new Date() })
+    .onConflictDoNothing();
 }
 
 // ─── computeMarketFee ─────────────────────────────────────────────────────────
@@ -493,19 +519,30 @@ export async function fillOrder(
       await creditMarketBoxGold(fillerId, netSeller, tx);
     }
 
-    // 4. Commission → propriétaire du marché (inchangée — player_bank ou factionEconomy)
+    // 4. Commission → propriétaire du marché ou caisse locale selon présence banque.
     if (feeAmount > 0) {
-      const owner = await deriveMarketOwner(order.cityId);
-      if (owner) {
-        if (owner.ownerType === "player" && owner.ownerPlayerId) {
-          await ensurePlayerBank(owner.ownerPlayerId, tx);
-          await creditGoldPlayer(owner.ownerPlayerId, feeAmount, tx);
-        } else if (owner.ownerType === "faction" && owner.ownerFactionId) {
-          await tx
-            .update(factionEconomy)
-            .set({ gold: sql`${factionEconomy.gold} + ${feeAmount}`, updatedAt: new Date() })
-            .where(eq(factionEconomy.factionId, owner.ownerFactionId));
+      const hasBank = await hasBankBuilding(order.cityId, tx);
+      if (hasBank) {
+        // Ville avec banque : transfert immédiat vers le compte propriétaire.
+        const owner = await deriveMarketOwner(order.cityId);
+        if (owner) {
+          if (owner.ownerType === "player" && owner.ownerPlayerId) {
+            await ensurePlayerBank(owner.ownerPlayerId, tx);
+            await creditGoldPlayer(owner.ownerPlayerId, feeAmount, tx);
+          } else if (owner.ownerType === "faction" && owner.ownerFactionId) {
+            await tx
+              .update(factionEconomy)
+              .set({ gold: sql`${factionEconomy.gold} + ${feeAmount}`, updatedAt: new Date() })
+              .where(eq(factionEconomy.factionId, owner.ownerFactionId));
+          }
         }
+      } else {
+        // Ville sans banque : commission stockée dans la caisse locale du marché.
+        await ensureMarketFeeBox(order.cityId, tx);
+        await (tx as typeof db)
+          .update(marketFeeBox)
+          .set({ gold: sql`${marketFeeBox.gold} + ${feeAmount}`, updatedAt: new Date() })
+          .where(eq(marketFeeBox.cityId, order.cityId));
       }
     }
 
@@ -747,4 +784,79 @@ export async function claimMarketBoxToBank(playerId: string): Promise<{ ok: true
 
   console.log(`[market] claimToBank player=${playerId} or=${box.gold}`);
   return { ok: true };
+}
+
+// ─── getFeeBox ────────────────────────────────────────────────────────────────
+// Lit la caisse locale de commission d'un marché (cityId).
+// Retourne { gold: 0 } si aucune caisse n'existe encore.
+export async function getFeeBox(cityId: number): Promise<{ gold: number }> {
+  const [row] = await db
+    .select({ gold: marketFeeBox.gold })
+    .from(marketFeeBox)
+    .where(eq(marketFeeBox.cityId, cityId))
+    .limit(1);
+  return { gold: row?.gold ?? 0 };
+}
+
+// ─── collectFeeBox ────────────────────────────────────────────────────────────
+// Collecte la caisse locale et transfère l'or vers le compte propriétaire.
+// Autorisé : propriétaire du marché (player ou faction leader) ou admin.
+export async function collectFeeBox(
+  cityId:    number,
+  requesterId: string,
+  isAdmin:   boolean,
+): Promise<{ collected: number }> {
+  const [row] = await db
+    .select({ gold: marketFeeBox.gold })
+    .from(marketFeeBox)
+    .where(eq(marketFeeBox.cityId, cityId))
+    .limit(1);
+
+  const gold = row?.gold ?? 0;
+  if (gold <= 0) throw Object.assign(new Error("Caisse locale vide"), { status: 400 });
+
+  const owner = await deriveMarketOwner(cityId);
+
+  // Vérification ownership ou admin
+  if (!isAdmin) {
+    const isOwnerPlayer  = owner?.ownerType === "player"  && owner.ownerPlayerId  === requesterId;
+    const isOwnerFaction = owner?.ownerType === "faction" && owner.ownerFactionId != null;
+    if (isOwnerFaction) {
+      // Simplification V1 : tout membre de la faction propriétaire peut collecter.
+      const [mem] = await db
+        .select({ factionId: factionMembers.factionId })
+        .from(factionMembers)
+        .where(eq(factionMembers.playerId, requesterId))
+        .limit(1);
+      if (!mem || mem.factionId !== owner!.ownerFactionId) {
+        throw Object.assign(new Error("Accès refusé — vous n'êtes pas propriétaire de ce marché"), { status: 403 });
+      }
+    } else if (!isOwnerPlayer) {
+      throw Object.assign(new Error("Accès refusé — vous n'êtes pas propriétaire de ce marché"), { status: 403 });
+    }
+  }
+
+  await db.transaction(async (tx) => {
+    // Vider la caisse
+    await tx
+      .update(marketFeeBox)
+      .set({ gold: 0, updatedAt: new Date() })
+      .where(eq(marketFeeBox.cityId, cityId));
+
+    // Transférer vers le compte propriétaire
+    if (owner) {
+      if (owner.ownerType === "player" && owner.ownerPlayerId) {
+        await ensurePlayerBank(owner.ownerPlayerId, tx);
+        await creditGoldPlayer(owner.ownerPlayerId, gold, tx);
+      } else if (owner.ownerType === "faction" && owner.ownerFactionId) {
+        await tx
+          .update(factionEconomy)
+          .set({ gold: sql`${factionEconomy.gold} + ${gold}`, updatedAt: new Date() })
+          .where(eq(factionEconomy.factionId, owner.ownerFactionId));
+      }
+    }
+  });
+
+  console.log(`[market] collectFeeBox cityId=${cityId} requester=${requesterId} collected=${gold}`);
+  return { collected: gold };
 }

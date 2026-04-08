@@ -129,6 +129,16 @@ export async function updateMarketFee(cityId: number, feeBps: number): Promise<{
   });
 }
 
+// ─── GET /api/market/fee-box/:cityId ─────────────────────────────────────────
+export async function fetchMarketFeeBox(cityId: number): Promise<{ gold: number }> {
+  return apiCall(`/api/market/fee-box/${cityId}`);
+}
+
+// ─── POST /api/market/fee-box/:cityId/collect ─────────────────────────────────
+export async function collectMarketFeeBox(cityId: number): Promise<{ collected: number }> {
+  return apiCall(`/api/market/fee-box/${cityId}/collect`, { method: "POST" });
+}
+
 export const RESOURCE_LABELS: Record<ResourceType, string> = {
   food:   "Nourriture",
   wood:   "Bois",

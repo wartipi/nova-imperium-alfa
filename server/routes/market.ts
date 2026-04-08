@@ -12,6 +12,8 @@ import {
   getMarketBox,
   claimMarketBoxToTransport,
   claimMarketBoxToBank,
+  getFeeBox,
+  collectFeeBox,
 } from "../marketService";
 import { checkAccessPoint, resolveAccessPoint } from "../accessPointService";
 import { db } from "../db";
@@ -247,6 +249,34 @@ router.post("/box/collect-bank", requireAuth, async (req: AuthRequest, res) => {
     const result = await claimMarketBoxToBank(playerId);
     res.json(result);
     broadcastMarketInvalidation("box_collected");
+  } catch (err: any) {
+    res.status(err.status ?? 500).json({ error: err.message });
+  }
+});
+
+// ─── GET /fee-box/:cityId ──────────────────────────────────────────────────────
+// Lit la caisse locale de commission du marché (visible propriétaire + admin).
+router.get("/fee-box/:cityId", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const cityId = parseInt(req.params.cityId, 10);
+    if (isNaN(cityId)) return res.status(400).json({ error: "cityId invalide" });
+    const result = await getFeeBox(cityId);
+    res.json(result);
+  } catch (err: any) {
+    res.status(err.status ?? 500).json({ error: err.message });
+  }
+});
+
+// ─── POST /fee-box/:cityId/collect ────────────────────────────────────────────
+// Collecte la caisse locale → compte propriétaire. Autorisé : owner ou admin.
+router.post("/fee-box/:cityId/collect", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const cityId = parseInt(req.params.cityId, 10);
+    if (isNaN(cityId)) return res.status(400).json({ error: "cityId invalide" });
+    const isAdmin = req.user!.role === "admin";
+    const result = await collectFeeBox(cityId, req.user!.id, isAdmin);
+    res.json(result);
+    broadcastMarketInvalidation("fee_collected");
   } catch (err: any) {
     res.status(err.status ?? 500).json({ error: err.message });
   }

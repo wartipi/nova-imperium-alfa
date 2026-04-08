@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import {
   fetchMarketGuild, fetchMarketOrders, fetchMarketTrades,
   placeMarketOrder, cancelMarketOrder, fillMarketOrder, updateMarketFee,
-  type MarketGuild, type MarketOrder, type MarketTrade,
+  fetchMarketFeeBox, collectMarketFeeBox,
+  type MarketGuild, type MarketOwner, type MarketOrder, type MarketTrade,
   type ResourceType, type OrderSide, RESOURCE_LABELS, ALL_RESOURCES,
 } from "../../lib/api/marketApi";
 import { getPlayerTransport, type PlayerTransportDTO } from "../../lib/api/economyApi";
@@ -32,6 +33,8 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
 
   // ─── Marché ───────────────────────────────────────────────────────────────────
   const [rmGuild,   setRmGuild]   = useState<MarketGuild | null>(null);
+  const [rmOwner,   setRmOwner]   = useState<MarketOwner | null>(null);
+  const [rmFeeBox,  setRmFeeBox]  = useState<{ gold: number } | null>(null);
   const [rmOrders,  setRmOrders]  = useState<MarketOrder[]>([]);
   const [rmTrades,  setRmTrades]  = useState<MarketTrade[]>([]);
   const [rmLoading, setRmLoading] = useState(false);
@@ -156,12 +159,15 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
     try {
       // Pour cityId=0 (admin sans position), utilise 0 — les routes renvoient le global.
       const safeId = cityId > 0 ? cityId : 0;
-      const [guildData, orders, trades] = await Promise.all([
-        safeId > 0 ? fetchMarketGuild(safeId) : Promise.resolve({ guild: null, hasGuild: false, feeBps: 0 }),
+      const [guildData, orders, trades, feeBox] = await Promise.all([
+        safeId > 0 ? fetchMarketGuild(safeId) : Promise.resolve({ guild: null, hasGuild: false, feeBps: 0, owner: null }),
         fetchMarketOrders(safeId > 0 ? safeId : 1),
         fetchMarketTrades(safeId > 0 ? safeId : 1),
+        safeId > 0 ? fetchMarketFeeBox(safeId).catch(() => ({ gold: 0 })) : Promise.resolve({ gold: 0 }),
       ]);
       setRmGuild((guildData as any).guild ?? null);
+      setRmOwner((guildData as any).owner ?? null);
+      setRmFeeBox(feeBox);
       setRmOrders(orders);
       setRmTrades(trades);
     } catch (e: any) {
@@ -308,15 +314,35 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
         return;
       }
     }
-    // Vente dans un ordre BUY — pas de confirmation, exécution directe
-    (async () => {
-      try {
-        const r = await fillMarketOrder(cityId > 0 ? cityId : 1, orderId, qty);
-        setRmMsg(`✅ Fill #${orderId} — ${qty} unités — ${r.totalGold}g (frais: ${r.feeAmount}g)`);
-        rmLoadMarket(cityId);
-        loadTransport();
-      } catch (e: any) { setRmMsg(`❌ ${e.message}`); }
-    })();
+    // Vente dans un ordre BUY — confirmation obligatoire
+    const buyOrder = rmOrders.find(o => o.id === orderId);
+    if (buyOrder) {
+      const total    = qty * buyOrder.pricePerUnit;
+      const feeBps   = access.feeBps ?? 500;
+      const feeEst   = feeBps > 0 ? Math.max(1, Math.round(total * feeBps / 10000)) : 0;
+      const netEst   = total - feeEst;
+      setConfirmModal({
+        title: "Confirmer la vente",
+        lines: [
+          { label: "Ressource",    value: RESOURCE_LABELS[buyOrder.resourceType as ResourceType] },
+          { label: "Quantité",     value: `${qty}` },
+          { label: "Prix/u",       value: `${buyOrder.pricePerUnit} or` },
+          { label: "Revenu brut",  value: `${total} or` },
+          { label: "Commission ≈", value: `${feeEst} or (${(feeBps / 100).toFixed(2)} %)` },
+          { label: "Net estimé ≈", value: `${netEst} or` },
+        ],
+        note: "L'or net sera crédité dans votre Boîte de règlement après déduction de la commission.",
+        onConfirm: async () => {
+          closeConfirm();
+          try {
+            const r = await fillMarketOrder(cityId > 0 ? cityId : 1, orderId, qty);
+            setRmMsg(`✅ Vente #${orderId} — ${qty} unités — ${r.totalGold}g brut (frais: ${r.feeAmount}g)`);
+            rmLoadMarket(cityId);
+            loadTransport();
+          } catch (e: any) { setRmMsg(`❌ ${e.message}`); }
+        },
+      });
+    }
   };
 
   const rmUpdateFee = async () => {
@@ -472,6 +498,37 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                     >
                       🔄
                     </button>
+                  </div>
+                )}
+
+                {/* Caisse locale de commission — visible propriétaire/admin si guilde présente */}
+                {access.hasGuild && rmFeeBox !== null &&
+                  (access.isAdmin || (rmOwner?.ownerType === "player" && rmOwner?.ownerPlayerId === playerId)) && (
+                  <div className="mt-2 bg-amber-100 border border-amber-300 rounded-lg p-2.5 flex items-center gap-3 text-sm">
+                    <span className="font-semibold text-amber-900">🏛️ Caisse locale</span>
+                    <span className="text-amber-800">
+                      {rmFeeBox.gold > 0
+                        ? <><strong>{rmFeeBox.gold} or</strong> — commissions sans banque</>
+                        : <em className="text-amber-500">Vide</em>
+                      }
+                    </span>
+                    {rmFeeBox.gold > 0 && (
+                      <button
+                        onClick={async () => {
+                          const cityId = access.cityId ?? 0;
+                          if (cityId <= 0) return;
+                          try {
+                            const r = await collectMarketFeeBox(cityId);
+                            setRmMsg(`✅ Caisse collectée : ${r.collected} or → compte propriétaire`);
+                            rmLoadMarket(cityId);
+                          } catch (e: any) { setRmMsg(`❌ ${e.message}`); }
+                        }}
+                        className="ml-auto px-3 py-1 bg-amber-700 hover:bg-amber-800 text-white rounded text-xs font-semibold"
+                        style={{ pointerEvents: "auto" }}
+                      >
+                        Collecter
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

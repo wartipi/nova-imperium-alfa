@@ -1,0 +1,256 @@
+NOVA IMPERIUM — COMMISSIONS LOCALES + CONFIRMATION MANQUANTE SUR VENTE DANS ORDRE BUY
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucune dérive hors sujet.
+
+OBJECTIF
+Corriger proprement deux points liés au marché :
+
+1. instaurer une caisse locale de commission pour les marchés sans banque
+2. corriger la confirmation manquante quand un joueur vend dans la section des ordres d’achat
+
+IMPORTANT
+Ne mélange pas ce chantier avec d’autres refontes UI.
+Ne touche pas au matching.
+Ne touche pas à l’escrow des ordres.
+Ne touche pas au SSE hors refresh strictement nécessaire.
+Ne change pas l’architecture générale du marché.
+
+RÈGLE MÉTIER À RESPECTER
+
+A. Commission
+- la commission est TOUJOURS perçue immédiatement au moment du fill
+- ce n’est PAS la commission qui est différée
+- c’est uniquement le CHANGEMENT DE TARIF qui a un délai de 24 h
+
+B. Changement de tarif
+- l’ancien tarif reste actif pendant 24 h
+- le nouveau tarif demandé devient actif seulement après délai
+- cette logique anti-spam doit être conservée
+
+C. Destination de la commission
+- si la ville du marché possède une banque :
+  la commission est automatiquement transférée au compte propriétaire
+- si la ville du marché n’a PAS de banque :
+  la commission est stockée dans une caisse locale du marché
+  et doit pouvoir être collectée ensuite
+
+CONTEXTE VÉRIFIÉ
+1. fillOrder(...) crédite actuellement directement :
+   - playerBank si owner player
+   - factionEconomy si owner faction
+2. updateFee(...) utilise déjà pendingFeeBps + pendingFeeAppliesAt
+3. rmFillOrder(...) ne confirme actuellement que orderSide === "sell"
+   donc la vente dans un ordre buy n’est pas confirmée
+
+FICHIERS À AUDITER
+- server/marketService.ts
+- server/routes/market.ts
+- shared/schema.ts
+- client/src/components/game/PublicMarketplace.tsx
+
+OBJECTIF FONCTIONNEL EXACT
+
+PARTIE 1 — CAISSE LOCALE DE COMMISSION
+
+Créer une caisse locale par marché, liée à la ville.
+
+STRUCTURE RECOMMANDÉE
+Créer une table minimale du type :
+market_fee_box
+- cityId (unique)
+- gold
+- updatedAt
+
+IMPORTANT
+Avant de coder, vérifier si une structure existante réutilisable convient.
+Si aucune ne convient proprement, créer cette table minimale.
+
+RÈGLE DE DESTINATION
+Dans fillOrder(...), après calcul de feeAmount :
+
+1. si feeAmount <= 0
+   - rien à faire
+
+2. si la ville du marché possède une banque
+   - comportement auto :
+     - owner player → playerBank
+     - owner faction → factionEconomy
+
+3. si la ville du marché ne possède PAS de banque
+   - créditer market_fee_box.gold += feeAmount
+   - ne rien envoyer automatiquement au compte
+
+IMPORTANT
+Le calcul du fee reste immédiat dans tous les cas.
+Seule la destination change selon la présence de la banque.
+
+DÉTECTION BANQUE
+Utiliser la source canonique des bâtiments de ville.
+Ne pas bricoler une détection parallèle.
+
+COLLECTE DE LA CAISSE
+Ajouter une collecte manuelle minimale.
+
+Version V1 demandée :
+- lecture du contenu de la caisse locale
+- collecte manuelle vers le compte propriétaire
+- collecte seulement si autorisé selon la logique propriétaire/admin déjà cohérente avec le marché
+
+IMPORTANT
+Pas de transfert vers transport.
+La commission locale collectée va vers :
+- playerBank si owner player
+- factionEconomy si owner faction
+
+API MINIMALE RECOMMANDÉE
+- GET /api/market/fee-box/:cityId
+- POST /api/market/fee-box/:cityId/collect
+
+IMPORTANT
+Rester minimal.
+Pas de système complexe.
+Pas de pagination.
+Pas d’historique de collecte pour l’instant.
+
+ACCÈS / AUTORISATION
+La collecte doit être autorisée seulement :
+- au propriétaire du marché
+- ou admin
+
+Réutiliser la logique ownership canonique déjà présente.
+Ne pas dupliquer des règles incohérentes.
+
+UI MINIMALE
+Dans PublicMarketplace.tsx :
+- afficher la caisse locale si pertinente
+- afficher son montant
+- afficher un bouton de collecte si autorisé
+- rester sobre
+
+IMPORTANT
+Ne pas partir dans une grosse refonte UI.
+Un petit bloc clair suffit.
+
+PARTIE 2 — CONFIRMATION MANQUANTE SUR VENTE DANS ORDRE BUY
+
+PROBLÈME
+Actuellement :
+- acheter un ordre sell est confirmé
+- créer un ordre buy est confirmé
+- MAIS vendre dans un ordre buy ne l’est pas
+
+OBJECTIF
+Ajouter aussi une confirmation stylée jeu pour :
+- vendre dans un ordre buy
+
+IMPORTANT
+Ne PAS revenir à window.confirm.
+Réutiliser la modale canonique style jeu déjà mise en place.
+
+MESSAGE DE CONFIRMATION
+Le message doit rappeler :
+- ressource
+- quantité
+- prix/u
+- total reçu brut
+- mention de la commission
+- mention que le gain net ira dans la boîte de règlement si c’est bien la destination actuelle
+  ou vers le compte selon la logique réelle si tu affiches ce détail
+
+IMPORTANT
+Le message doit être cohérent avec l’état réel du système après ce patch.
+Ne pas afficher un mensonge UX.
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire précisément :
+- fillOrder(...)
+- updateFee(...)
+- deriveMarketOwner(...)
+- logique de crédit des commissions
+- PublicMarketplace.tsx
+- la modale de confirmation actuelle
+
+ÉTAPE 2 — STRUCTURE CAISSE LOCALE
+Créer ou réutiliser une structure minimale pour stocker localement les commissions des marchés sans banque.
+
+ÉTAPE 3 — INTÉGRATION BACKEND
+Modifier fillOrder(...) pour router la commission selon présence banque / absence banque.
+
+ÉTAPE 4 — ROUTES MINIMALES
+Ajouter lecture + collecte de la caisse locale.
+
+ÉTAPE 5 — UI MINIMALE
+Afficher la caisse locale et la collecte dans le marché, sans refonte massive.
+
+ÉTAPE 6 — CONFIRMATION MANQUANTE
+Corriger la vente dans un ordre buy :
+- confirmation obligatoire
+- via la modale style jeu
+- sans toucher aux autres confirmations déjà correctes sauf adaptation minimale
+
+ÉTAPE 7 — CONTRAINTES
+Ne touche pas :
+- au matching
+- aux ordres ouverts hors ce qui est nécessaire
+- aux fees caps
+- au délai 24 h de changement de tarif
+- à la logique escrow de base
+- à la boîte de règlement du joueur hors message/affichage nécessaire
+
+ÉTAPE 8 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. Commission immédiate
+- chaque fill calcule immédiatement feeAmount
+
+B. Marché avec banque
+- commission créditée automatiquement au compte propriétaire
+
+C. Marché sans banque
+- commission créditée dans market_fee_box
+- rien n’est perdu
+- rien n’est auto-envoyé au compte
+
+D. Collecte locale
+- propriétaire peut collecter
+- admin peut collecter si prévu
+- transfert vers le bon compte
+
+E. Changement de tarif
+- logique pending 24 h inchangée
+- seul le changement de tarif reste différé
+
+F. Confirmation vente dans ordre buy
+- la modale apparaît bien
+- si confirmé, le fill part
+- si annulé, rien ne part
+
+G. Non-régression
+- confirmation buy create intacte
+- confirmation achat d’un ordre sell intacte
+- aucun changement matching
+- aucun changement SSE inutile
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+CONTRAINTE FINALE
+Le but exclusif est :
+- garder la commission immédiate
+- différer seulement le changement de tarif
+- stocker les commissions localement si pas de banque
+- permettre la collecte locale propre
+- ajouter la confirmation manquante sur la vente dans les ordres d’achat
