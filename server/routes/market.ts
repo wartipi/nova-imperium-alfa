@@ -9,6 +9,9 @@ import {
   cancelOrder,
   fillOrder,
   updateFee,
+  getMarketBox,
+  claimMarketBoxToTransport,
+  claimMarketBoxToBank,
 } from "../marketService";
 import { checkAccessPoint, resolveAccessPoint } from "../accessPointService";
 import { db } from "../db";
@@ -203,6 +206,41 @@ router.patch("/:cityId/guild/fee", requireAuth, async (req: AuthRequest, res) =>
     await updateFee(cityId, Number(feeBps), playerId, isAdmin, requesterFactionId);
     res.json({ success: true });
     broadcastMarketInvalidation("fee_updated");
+  } catch (err: any) {
+    res.status(err.status ?? 500).json({ error: err.message });
+  }
+});
+
+// ─── GET /box ─────────────────────────────────────────────────────────────────
+// Lit la boîte de règlement du joueur. Pas de gate physique (accessible partout).
+router.get("/box", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const box = await getMarketBox(req.user!.id);
+    res.json(box);
+  } catch (err: any) {
+    res.status(err.status ?? 500).json({ error: err.message });
+  }
+});
+
+// ─── POST /box/collect-transport ──────────────────────────────────────────────
+// Transfère la boîte de règlement → transport du joueur. Vérifie la capacité.
+router.post("/box/collect-transport", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const result = await claimMarketBoxToTransport(req.user!.id);
+    res.json(result);
+    broadcastMarketInvalidation("box_collected");
+  } catch (err: any) {
+    res.status(err.status ?? 500).json({ error: err.message });
+  }
+});
+
+// ─── POST /box/collect-bank ───────────────────────────────────────────────────
+// Transfère la boîte de règlement → banque du joueur. Sans check de capacité.
+router.post("/box/collect-bank", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const result = await claimMarketBoxToBank(req.user!.id);
+    res.json(result);
+    broadcastMarketInvalidation("box_collected");
   } catch (err: any) {
     res.status(err.status ?? 500).json({ error: err.message });
   }

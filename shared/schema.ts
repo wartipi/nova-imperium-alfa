@@ -750,6 +750,27 @@ export const playerDiscoveredTiles = pgTable("player_discovered_tiles", {
 
 export type PlayerDiscoveredTileRecord = typeof playerDiscoveredTiles.$inferSelect;
 
+// ─── player_market_box ────────────────────────────────────────────────────────
+// Boîte de règlement du marché — reçoit les résultats de fills et d'annulations.
+// Globale par joueur (PAS par ville, PAS par ordre).
+// Aucune capacité : ne bloque jamais un règlement de marché.
+// Le joueur récupère manuellement vers son transport ou sa banque.
+export const playerMarketBox = pgTable("player_market_box", {
+  playerId:  text("player_id").primaryKey(),
+  gold:      integer("gold").notNull().default(0),
+  food:      integer("food").notNull().default(0),
+  wood:      integer("wood").notNull().default(0),
+  stone:     integer("stone").notNull().default(0),
+  iron:      integer("iron").notNull().default(0),
+  copper:    integer("copper").notNull().default(0),
+  coal:      integer("coal").notNull().default(0),
+  oil:       integer("oil").notNull().default(0),
+  herbs:     integer("herbs").notNull().default(0),
+  fur:       integer("fur").notNull().default(0),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+export type PlayerMarketBoxRecord = typeof playerMarketBox.$inferSelect;
+
 // --- Horloge globale du jeu (singleton — 1 seule ligne) ---
 export const gameClock = pgTable("game_clock", {
   id:                 integer("id").primaryKey().default(1),

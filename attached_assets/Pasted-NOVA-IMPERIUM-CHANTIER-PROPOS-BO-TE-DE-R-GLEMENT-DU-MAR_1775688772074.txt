@@ -1,0 +1,265 @@
+NOVA IMPERIUM — CHANTIER PROPOSÉ : BOÎTE DE RÈGLEMENT DU MARCHÉ
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → proposition minimale → implémentation ciblée → vérification.
+Aucun refactor massif.
+Aucun changement d’architecture inutile.
+Aucune dérive hors sujet.
+Ne code pas avant d’avoir audité les fichiers réels.
+
+OBJECTIF
+Éliminer les incohérences d’inventaire liées au marché en introduisant un conteneur tampon de règlement du marché.
+
+INTENTION FONCTIONNELLE
+Le marché ne doit plus créditer directement player_transport après un fill ou une annulation.
+À la place, il doit créditer une boîte de règlement persistante du joueur.
+
+Cette boîte sert à recevoir :
+- les ressources achetées
+- l’or reçu après une vente
+- les retours d’annulation d’ordres buy/sell
+
+Le joueur pourra ensuite récupérer ce contenu :
+- soit vers son inventaire transport
+- soit vers sa banque
+
+OBJECTIF GAMEPLAY
+Le joueur peut continuer à bouger pendant qu’un ordre se remplit.
+Le marché reste cohérent même si le transport change entre-temps.
+On supprime le risque de conflit entre fills de marché et capacité d’inventaire.
+
+CONTRAINTE DE DESIGN
+Je veux une boîte de règlement GLOBALE PAR JOUEUR.
+PAS une boîte par ville.
+PAS une boîte avec capacité.
+PAS de crédit direct vers transport lors d’un fill ou d’une annulation.
+
+SOURCE DE VÉRITÉ CIBLE
+Transport = ce que le joueur porte physiquement
+Bank = réserve bancaire
+Market Box = résultats en attente du marché
+
+FORMULE FONCTIONNELLE CIBLE
+
+A. Création d’ordre sell
+- la ressource quitte immédiatement player_transport
+- elle part en escrow marché
+- rien n’entre encore dans la market box
+
+B. Création d’ordre buy
+- l’or quitte immédiatement player_transport
+- il part en escrow marché
+- rien n’entre encore dans la market box
+
+C. Fill d’un ordre sell
+- buyer reçoit la ressource dans market box
+- seller reçoit l’or net dans market box
+- fee propriétaire inchangée
+
+Formules :
+totalGold = fillQty * pricePerUnit
+fee = floor(totalGold * feeBps / 10000)
+sellerNet = totalGold - fee
+
+D. Fill d’un ordre buy
+- seller débite sa ressource depuis transport
+- buyer reçoit la ressource dans market box
+- seller reçoit l’or net dans market box
+- fee propriétaire inchangée
+
+E. Annulation d’un ordre sell
+- le reliquat de ressource retourne dans market box
+
+F. Annulation d’un ordre buy
+- l’or non consommé retourne dans market box
+
+G. Récupération manuelle
+Le joueur peut transférer depuis market box :
+1. vers player_transport avec check de capacité
+2. vers player_bank sans check transport
+
+IMPORTANT
+Dans ce chantier, ne touche PAS au système de marché pour autre chose que cette nouvelle destination de règlement.
+Ne modifie PAS la logique de fee propriétaire.
+Ne modifie PAS le carnet d’ordres.
+Ne modifie PAS les règles de matching.
+Ne modifie PAS le SSE hors refresh éventuel nécessaire.
+Ne change PAS l’architecture générale.
+
+FICHIERS À AUDITER EN PRIORITÉ
+- server/marketService.ts
+- server/routes/market.ts
+- client/src/components/game/PublicMarketplace.tsx
+- client/src/lib/api/... marché si nécessaire
+- server/playerActionService.ts seulement si tu touches à un transfert de récupération
+- shared/schema.ts
+
+PLAN DE TRAVAIL OBLIGATOIRE
+
+ÉTAPE 1 — AUDIT
+Lire le code réel et confirmer :
+1. où sont débités les escrows
+2. où sont crédités les fills
+3. où sont renvoyées les annulations
+4. comment PublicMarketplace recharge l’inventaire
+5. s’il existe déjà un conteneur réutilisable ou non
+
+ÉTAPE 2 — DIAGNOSTIC
+Distinguer clairement :
+- ce qui doit rester inchangé
+- ce qui doit changer
+- les points à risque
+- les points qui nécessitent migration DB ou non
+
+ÉTAPE 3 — PROPOSITION MINIMALE DE STRUCTURE
+Proposer la structure exacte de la table canonique, par exemple :
+player_market_box
+- playerId
+- gold
+- food
+- wood
+- stone
+- iron
+- copper
+- coal
+- oil
+- herbs
+- fur
+- updatedAt
+
+IMPORTANT
+Avant de coder, confirmer si cette table est la plus petite solution propre.
+Si oui, l’implémenter.
+Si non, expliquer pourquoi avec preuve du code existant.
+
+ÉTAPE 4 — BACKEND
+Implémenter la boîte de règlement du marché.
+
+A. Création ordre sell
+- inchangé sur le principe : débit transport → escrow
+
+B. Création ordre buy
+- inchangé sur le principe : débit gold transport → escrow
+
+C. Fill ordre sell
+Remplacer :
+- crédit ressource buyer vers transport
+- crédit or seller vers transport
+Par :
+- crédit ressource buyer vers market box
+- crédit or seller vers market box
+
+D. Fill ordre buy
+Remplacer :
+- crédit ressource buyer vers transport
+- crédit or seller vers transport
+Par :
+- crédit ressource buyer vers market box
+- crédit or seller vers market box
+
+E. Annulation ordre sell
+Remplacer retour ressource vers transport
+Par retour ressource vers market box
+
+F. Annulation ordre buy
+Remplacer retour gold vers transport
+Par retour gold vers market box
+
+IMPORTANT
+La fee propriétaire reste EXACTEMENT comme aujourd’hui.
+Si owner player → player_bank
+Si owner faction → factionEconomy
+
+ÉTAPE 5 — API DE LECTURE / RÉCUPÉRATION
+Ajouter les routes minimales nécessaires pour :
+1. lire la market box du joueur
+2. transférer market box → transport
+3. transférer market box → bank
+
+Règles :
+A. market box → transport
+- utiliser computeTransportUnits(...)
+- refuser si capacité dépassée
+- réponse d’erreur claire
+
+B. market box → bank
+- pas de check de capacité transport
+- transfert direct
+
+IMPORTANT
+Rester minimal.
+Pas de système de pagination.
+Pas de route inutile.
+
+ÉTAPE 6 — CLIENT
+Dans PublicMarketplace.tsx :
+- afficher un nouveau bloc simple pour la market box
+- rendre visible ce que le marché doit encore au joueur
+- ajouter deux actions minimales :
+  - récupérer vers inventaire
+  - déposer à la banque
+
+IMPORTANT
+UI simple.
+Pas de refonte visuelle massive.
+Réutiliser les patterns existants si possible.
+
+ÉTAPE 7 — WORDING
+Le wording doit rester simple et propre.
+
+Exemples acceptables :
+- Boîte de règlement
+- En attente du marché
+- Récupérer
+- Déposer à la banque
+
+Éviter les formulations lourdes ou techniques.
+
+ÉTAPE 8 — VÉRIFICATION OBLIGATOIRE
+Après implémentation, vérifier explicitement :
+
+A. Sell order
+- ressource quittant transport à la création
+- or reçu après fill dans market box
+
+B. Buy order
+- or quittant transport à la création
+- ressource reçue après fill dans market box
+
+C. Cancel sell
+- ressource restante revient dans market box
+
+D. Cancel buy
+- or restant revient dans market box
+
+E. Retrieval to transport
+- check de capacité correct
+- refus propre si dépassement
+
+F. Retrieval to bank
+- fonctionne sans dépendre de la capacité transport
+
+G. Non-régression
+- fee propriétaire inchangée
+- SSE inchangé sauf refresh utile
+- carnet inchangé
+- matching inchangé
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+CONTRAINTE FINALE
+Ne pars pas en dérive.
+Le but exclusif est :
+- remplacer les crédits directs marché → transport
+- par une boîte de règlement persistante par joueur
+- avec récupération manuelle vers transport ou banque
+- tout en gardant le marché stable pendant les déplacements du joueur

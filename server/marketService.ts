@@ -1,8 +1,9 @@
 import { db } from "./db";
 import {
   marketGuilds, marketOrders, marketTrades,
-  playerBank, playerTransport, factionEconomy, cityBuildings, cities, colonies,
+  playerBank, playerTransport, playerMarketBox, factionEconomy, cityBuildings, cities, colonies,
 } from "../shared/schema";
+import { computeTransportUnits, TRANSPORT_MAX_UNITS } from "./playerActionService";
 import { eq, and, sql, desc, lte } from "drizzle-orm";
 import { creditFactionGold } from "./economyService";
 
@@ -269,6 +270,51 @@ async function creditTransportGold(playerId: string, amount: number, tx?: any): 
     .where(eq(playerTransport.playerId, playerId));
 }
 
+// ─── Helpers player_market_box ───────────────────────────────────────────────
+// Boîte de règlement — reçoit fills et annulations. Sans capacité.
+
+async function ensurePlayerMarketBox(playerId: string, tx?: any) {
+  const target = tx ?? db;
+  await target
+    .insert(playerMarketBox)
+    .values({ playerId, gold: 0, food: 0, wood: 0, stone: 0, iron: 0,
+              copper: 0, coal: 0, oil: 0, herbs: 0, fur: 0 })
+    .onConflictDoNothing();
+}
+
+async function creditMarketBoxGold(playerId: string, amount: number, tx?: any): Promise<void> {
+  if (amount <= 0) return;
+  const target = tx ?? db;
+  await target
+    .update(playerMarketBox)
+    .set({ gold: sql`${playerMarketBox.gold} + ${amount}`, updatedAt: new Date() })
+    .where(eq(playerMarketBox.playerId, playerId));
+}
+
+function marketBoxResourceCol(res: ResourceType): any {
+  const map: Record<ResourceType, any> = {
+    food:   playerMarketBox.food,
+    wood:   playerMarketBox.wood,
+    stone:  playerMarketBox.stone,
+    iron:   playerMarketBox.iron,
+    copper: playerMarketBox.copper,
+    coal:   playerMarketBox.coal,
+    oil:    playerMarketBox.oil,
+    herbs:  playerMarketBox.herbs,
+    fur:    playerMarketBox.fur,
+  };
+  return map[res];
+}
+
+async function creditMarketBoxResource(playerId: string, res: ResourceType, qty: number, tx?: any): Promise<void> {
+  const target = tx ?? db;
+  const col = marketBoxResourceCol(res);
+  await target
+    .update(playerMarketBox)
+    .set({ [res]: sql`${col} + ${qty}`, updatedAt: new Date() })
+    .where(eq(playerMarketBox.playerId, playerId));
+}
+
 // ─── placeOrder ───────────────────────────────────────────────────────────────
 // Validation + escrow + création de l'ordre. AUCUN auto-match.
 export async function placeOrder(
@@ -337,14 +383,13 @@ export async function cancelOrder(
   if (!isAdmin && order.playerId !== requesterId)
     throw Object.assign(new Error("Accès refusé : vous n'êtes pas le propriétaire de cet ordre"), { status: 403 });
 
-  // Réseau global : pas de gate guilde pour l'annulation d'un ordre.
-  // Retour escrow résiduel vers player_transport (marché V1 transport-based).
-  await ensurePlayerTransport(order.playerId);
+  // Retour escrow résiduel vers player_market_box (jamais vers transport directement).
+  await ensurePlayerMarketBox(order.playerId);
   if (order.side === "sell") {
-    await creditTransportResource(order.playerId, order.resourceType as ResourceType, order.quantityRemaining);
+    await creditMarketBoxResource(order.playerId, order.resourceType as ResourceType, order.quantityRemaining);
   } else {
     const goldBack = order.quantityRemaining * order.pricePerUnit;
-    await creditTransportGold(order.playerId, goldBack);
+    await creditMarketBoxGold(order.playerId, goldBack);
   }
 
   await db
@@ -352,7 +397,7 @@ export async function cancelOrder(
     .set({ status: "cancelled", updatedAt: new Date() })
     .where(eq(marketOrders.id, orderId));
 
-  console.log(`[market] cancelOrder orderId=${orderId} escrow retourné au transport`);
+  console.log(`[market] cancelOrder orderId=${orderId} escrow retourné dans la boîte de règlement`);
 }
 
 // ─── fillOrder ────────────────────────────────────────────────────────────────
@@ -400,24 +445,30 @@ export async function fillOrder(
     const feeAmount = Math.floor(totalGold * feeBps / 10000);
     const netSeller = totalGold - feeAmount;
 
-    // 3. Mouvements buyer/seller via player_transport
+    // 3. Mouvements buyer/seller
+    // Débits escrow : toujours depuis transport (inchangé).
+    // Crédits résultats : vers player_market_box (jamais vers transport directement).
     if (order.side === "sell") {
       // Filler = acheteur. Débite or du filler depuis transport.
       const ok = await debitTransportGold(fillerId, totalGold, tx);
       if (!ok) throw Object.assign(new Error(`Or insuffisant dans le transport pour le fill (${totalGold} or requis)`), { status: 422 });
-      // Crédite ressource au filler dans transport (escrow vendeur déjà dans le void depuis placeOrder).
-      await creditTransportResource(fillerId, res, quantity, tx);
-      // Crédite or net au vendeur dans transport.
-      await creditTransportGold(order.playerId, netSeller, tx);
+      // Acheteur (filler) reçoit la ressource dans sa boîte de règlement.
+      await ensurePlayerMarketBox(fillerId, tx);
+      await creditMarketBoxResource(fillerId, res, quantity, tx);
+      // Vendeur (order.playerId) reçoit l'or net dans sa boîte de règlement.
+      await ensurePlayerMarketBox(order.playerId, tx);
+      await creditMarketBoxGold(order.playerId, netSeller, tx);
     } else {
       // order.side === "buy". Filler = vendeur. Débite ressource du filler depuis transport.
       const ok = await debitTransportResource(fillerId, res, quantity, tx);
       if (!ok) throw Object.assign(new Error(`Ressources insuffisantes dans le transport pour le fill (${quantity}× ${res})`), { status: 422 });
-      // Crédite ressource à l'acheteur original dans transport.
-      await creditTransportResource(order.playerId, res, quantity, tx);
+      // Acheteur original (order.playerId) reçoit la ressource dans sa boîte de règlement.
+      await ensurePlayerMarketBox(order.playerId, tx);
+      await creditMarketBoxResource(order.playerId, res, quantity, tx);
       // Or du buyer déjà en escrow (soustrait du transport à placeOrder).
-      // Crédite or net au vendeur (filler) dans transport.
-      await creditTransportGold(fillerId, netSeller, tx);
+      // Vendeur (filler) reçoit l'or net dans sa boîte de règlement.
+      await ensurePlayerMarketBox(fillerId, tx);
+      await creditMarketBoxGold(fillerId, netSeller, tx);
     }
 
     // 4. Commission → propriétaire du marché (inchangée — player_bank ou factionEconomy)
@@ -530,4 +581,148 @@ export async function updateFee(
     .where(eq(marketGuilds.cityId, cityId));
 
   console.log(`[market] updateFee cityId=${cityId} pending=${newFeeBps}bps appliesAt=${appliesAt.toISOString()}`);
+}
+
+// ─── getMarketBox ─────────────────────────────────────────────────────────────
+// Retourne le contenu actuel de la boîte de règlement du joueur.
+// Crée la ligne lazily si absente.
+export async function getMarketBox(playerId: string) {
+  await ensurePlayerMarketBox(playerId);
+  const [row] = await db
+    .select()
+    .from(playerMarketBox)
+    .where(eq(playerMarketBox.playerId, playerId))
+    .limit(1);
+  return row;
+}
+
+// ─── claimMarketBoxToTransport ────────────────────────────────────────────────
+// Transfère tout le contenu de la boîte vers le transport du joueur.
+// Vérifie la capacité : refuse si le transport serait dépassé.
+export async function claimMarketBoxToTransport(playerId: string): Promise<{ ok: true }> {
+  await ensurePlayerMarketBox(playerId);
+  await ensurePlayerTransport(playerId);
+
+  const [box] = await db
+    .select()
+    .from(playerMarketBox)
+    .where(eq(playerMarketBox.playerId, playerId))
+    .limit(1);
+
+  if (!box) throw Object.assign(new Error("Boîte introuvable"), { status: 500 });
+
+  // Vérifier qu'il y a quelque chose à récupérer
+  const hasContent = box.gold > 0 || box.food > 0 || box.wood > 0 || box.stone > 0
+    || box.iron > 0 || box.copper > 0 || box.coal > 0 || box.oil > 0
+    || box.herbs > 0 || box.fur > 0;
+  if (!hasContent) throw Object.assign(new Error("Boîte de règlement vide"), { status: 400 });
+
+  // Lire transport actuel pour vérifier la capacité
+  const [transport] = await db
+    .select()
+    .from(playerTransport)
+    .where(eq(playerTransport.playerId, playerId))
+    .limit(1);
+
+  const current = transport ?? { gold: 0, food: 0, wood: 0, stone: 0, iron: 0, copper: 0, coal: 0, oil: 0, herbs: 0, fur: 0 };
+  const usedNow = computeTransportUnits({
+    gold: current.gold, food: current.food, wood: current.wood, stone: current.stone,
+    iron: current.iron, copper: current.copper, coal: current.coal, oil: current.oil,
+    herbs: current.herbs, fur: current.fur,
+  });
+  const toAdd = computeTransportUnits({
+    gold: box.gold, food: box.food, wood: box.wood, stone: box.stone,
+    iron: box.iron, copper: box.copper, coal: box.coal, oil: box.oil,
+    herbs: box.herbs, fur: box.fur,
+  });
+
+  if (usedNow + toAdd > TRANSPORT_MAX_UNITS) {
+    throw Object.assign(
+      new Error(`Capacité transport insuffisante : ${usedNow} + ${toAdd} > ${TRANSPORT_MAX_UNITS} unités`),
+      { status: 422 }
+    );
+  }
+
+  const now = new Date();
+  await db.transaction(async (tx) => {
+    // Créditer transport
+    await tx
+      .update(playerTransport)
+      .set({
+        gold:      sql`${playerTransport.gold}   + ${box.gold}`,
+        food:      sql`${playerTransport.food}   + ${box.food}`,
+        wood:      sql`${playerTransport.wood}   + ${box.wood}`,
+        stone:     sql`${playerTransport.stone}  + ${box.stone}`,
+        iron:      sql`${playerTransport.iron}   + ${box.iron}`,
+        copper:    sql`${playerTransport.copper} + ${box.copper}`,
+        coal:      sql`${playerTransport.coal}   + ${box.coal}`,
+        oil:       sql`${playerTransport.oil}    + ${box.oil}`,
+        herbs:     sql`${playerTransport.herbs}  + ${box.herbs}`,
+        fur:       sql`${playerTransport.fur}    + ${box.fur}`,
+        updatedAt: now,
+      })
+      .where(eq(playerTransport.playerId, playerId));
+
+    // Vider la boîte
+    await tx
+      .update(playerMarketBox)
+      .set({ gold: 0, food: 0, wood: 0, stone: 0, iron: 0,
+             copper: 0, coal: 0, oil: 0, herbs: 0, fur: 0, updatedAt: now })
+      .where(eq(playerMarketBox.playerId, playerId));
+  });
+
+  console.log(`[market] claimToTransport player=${playerId} +${toAdd}u (gold=${box.gold})`);
+  return { ok: true };
+}
+
+// ─── claimMarketBoxToBank ──────────────────────────────────────────────────────
+// Transfère tout le contenu de la boîte vers la banque du joueur.
+// Pas de check de capacité transport.
+export async function claimMarketBoxToBank(playerId: string): Promise<{ ok: true }> {
+  await ensurePlayerMarketBox(playerId);
+  await ensurePlayerBank(playerId);
+
+  const [box] = await db
+    .select()
+    .from(playerMarketBox)
+    .where(eq(playerMarketBox.playerId, playerId))
+    .limit(1);
+
+  if (!box) throw Object.assign(new Error("Boîte introuvable"), { status: 500 });
+
+  const hasContent = box.gold > 0 || box.food > 0 || box.wood > 0 || box.stone > 0
+    || box.iron > 0 || box.copper > 0 || box.coal > 0 || box.oil > 0
+    || box.herbs > 0 || box.fur > 0;
+  if (!hasContent) throw Object.assign(new Error("Boîte de règlement vide"), { status: 400 });
+
+  const now = new Date();
+  await db.transaction(async (tx) => {
+    // Créditer banque
+    await tx
+      .update(playerBank)
+      .set({
+        gold:      sql`${playerBank.gold}   + ${box.gold}`,
+        food:      sql`${playerBank.food}   + ${box.food}`,
+        wood:      sql`${playerBank.wood}   + ${box.wood}`,
+        stone:     sql`${playerBank.stone}  + ${box.stone}`,
+        iron:      sql`${playerBank.iron}   + ${box.iron}`,
+        copper:    sql`${playerBank.copper} + ${box.copper}`,
+        coal:      sql`${playerBank.coal}   + ${box.coal}`,
+        oil:       sql`${playerBank.oil}    + ${box.oil}`,
+        herbs:     sql`${playerBank.herbs}  + ${box.herbs}`,
+        fur:       sql`${playerBank.fur}    + ${box.fur}`,
+        updatedAt: now,
+      })
+      .where(eq(playerBank.playerId, playerId));
+
+    // Vider la boîte
+    await tx
+      .update(playerMarketBox)
+      .set({ gold: 0, food: 0, wood: 0, stone: 0, iron: 0,
+             copper: 0, coal: 0, oil: 0, herbs: 0, fur: 0, updatedAt: now })
+      .where(eq(playerMarketBox.playerId, playerId));
+  });
+
+  console.log(`[market] claimToBank player=${playerId} or=${box.gold}`);
+  return { ok: true };
 }

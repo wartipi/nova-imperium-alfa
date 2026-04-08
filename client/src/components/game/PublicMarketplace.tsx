@@ -48,6 +48,10 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
   const [hasBankAccess, setHasBankAccess] = useState(false);
   const [transport,     setTransport]     = useState<PlayerTransportDTO | null>(null);
 
+  // ─── Boîte de règlement du marché ─────────────────────────────────────────────
+  const [marketBox, setMarketBox] = useState<Record<string, number> | null>(null);
+  const [boxMsg,    setBoxMsg]    = useState<string | null>(null);
+
   // ─── Auth ─────────────────────────────────────────────────────────────────────
   const rmGetAuth = (): Record<string, string> => {
     const saved = localStorage.getItem("nova_imperium_auth");
@@ -73,6 +77,43 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
       setTransport(t);
     } catch { setTransport(null); }
   }, []);
+
+  // ─── Boîte de règlement ───────────────────────────────────────────────────────
+  const loadMarketBox = useCallback(async () => {
+    try {
+      const resp = await fetch("/api/market/box", { headers: rmGetAuth() });
+      if (!resp.ok) { setMarketBox(null); return; }
+      const data = await resp.json();
+      setMarketBox(data);
+    } catch { setMarketBox(null); }
+  }, []);
+
+  const claimToTransport = async () => {
+    setBoxMsg(null);
+    try {
+      const resp = await fetch("/api/market/box/collect-transport", {
+        method: "POST", headers: { ...rmGetAuth(), "Content-Type": "application/json" },
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error);
+      setBoxMsg("✅ Récupéré dans l'inventaire.");
+      loadMarketBox();
+      loadTransport();
+    } catch (e: any) { setBoxMsg(`❌ ${e.message}`); }
+  };
+
+  const claimToBank = async () => {
+    setBoxMsg(null);
+    try {
+      const resp = await fetch("/api/market/box/collect-bank", {
+        method: "POST", headers: { ...rmGetAuth(), "Content-Type": "application/json" },
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error);
+      setBoxMsg("✅ Déposé à la banque.");
+      loadMarketBox();
+    } catch (e: any) { setBoxMsg(`❌ ${e.message}`); }
+  };
 
   // ─── Vérification d'accès physique au montage ─────────────────────────────────
   const checkAccess = useCallback(async () => {
@@ -126,6 +167,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
       rmLoadMarket(access.cityId);
       checkBankAccess();
       loadTransport();
+      loadMarketBox();
     }
   }, [access.status, access.cityId]);
 
@@ -152,6 +194,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
       lastRefresh = now;
       rmLoadMarket(access.cityId!);
       loadTransport();
+      loadMarketBox();
     });
 
     return () => { sse.close(); };
@@ -392,6 +435,70 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                       </div>
                     </div>
                   )}
+
+                  {/* ─── Boîte de règlement ───────────────────────────────── */}
+                  {marketBox && (() => {
+                    const MB_RESOURCES = ['food','wood','stone','iron','copper','coal','oil','herbs','fur'] as const;
+                    const hasContent = (marketBox.gold ?? 0) > 0
+                      || MB_RESOURCES.some(r => (marketBox[r] ?? 0) > 0);
+                    return (
+                      <div className="bg-white border border-purple-200 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-bold text-purple-900 text-sm flex items-center gap-1.5">
+                            📦 Boîte de règlement
+                          </h4>
+                          {hasContent && (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={claimToTransport}
+                                className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold"
+                                style={{ pointerEvents: "auto" }}
+                                title="Récupérer dans l'inventaire (vérifie la capacité)"
+                              >
+                                🎒 Récupérer
+                              </button>
+                              <button
+                                onClick={claimToBank}
+                                className="px-2 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded text-xs font-semibold"
+                                style={{ pointerEvents: "auto" }}
+                                title="Déposer à la banque (sans limite de capacité)"
+                              >
+                                🏦 Banque
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        {boxMsg && (
+                          <div className={`text-xs px-2 py-1 rounded mb-2 ${
+                            boxMsg.startsWith("✅") ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                          }`}>{boxMsg}</div>
+                        )}
+                        {hasContent ? (
+                          <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+                            {(marketBox.gold ?? 0) > 0 && (
+                              <div className="flex items-center gap-1 bg-yellow-50 border border-yellow-200 rounded px-2 py-1 text-xs">
+                                <span>💰</span>
+                                <span className="text-yellow-800 font-semibold">{marketBox.gold}</span>
+                                <span className="text-yellow-600 truncate">Or</span>
+                              </div>
+                            )}
+                            {MB_RESOURCES.map(r => {
+                              const qty = marketBox[r] ?? 0;
+                              if (!qty) return null;
+                              return (
+                                <div key={r} className="flex items-center gap-1 bg-purple-50 border border-purple-200 rounded px-2 py-1 text-xs">
+                                  <span className="text-purple-800 font-semibold">{qty}</span>
+                                  <span className="text-purple-600 truncate">{RESOURCE_LABELS[r as ResourceType]}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400 italic">En attente du marché — vide</span>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Formulaire nouvel ordre */}
                   <div className="bg-white border border-emerald-200 rounded-lg p-4">
