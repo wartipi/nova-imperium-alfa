@@ -212,18 +212,32 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
   }, [access.status, access.cityId, rmLoadMarket, loadTransport]);
 
   // ─── Actions ──────────────────────────────────────────────────────────────────
-  const rmPlaceSellOrder = async (resource: ResourceType) => {
+  const rmPlaceSellOrder = (resource: ResourceType) => {
     const cityId = access.cityId ?? 0;
     const draft  = sellDrafts[resource];
-    try {
-      const result = await placeMarketOrder(cityId > 0 ? cityId : 1, {
-        side: "sell", resourceType: resource,
-        quantity: draft.qty, pricePerUnit: draft.price,
-      });
-      setRmMsg(`✅ Ordre vente #${result.orderId} créé — ${draft.qty}× ${RESOURCE_LABELS[resource]} en escrow.`);
-      rmLoadMarket(cityId);
-      loadTransport();
-    } catch (e: any) { setRmMsg(`❌ ${e.message}`); }
+    const total  = draft.qty * draft.price;
+    setConfirmModal({
+      title: "Confirmer la mise en vente",
+      lines: [
+        { label: "Ressource",  value: RESOURCE_LABELS[resource] },
+        { label: "Quantité",   value: `${draft.qty}` },
+        { label: "Prix/u",     value: `${draft.price} or` },
+        { label: "Revenu brut", value: `${total} or (si vendu)` },
+      ],
+      note: "La ressource sera immédiatement retirée de votre transport et placée en escrow sur le marché.",
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          const result = await placeMarketOrder(cityId > 0 ? cityId : 1, {
+            side: "sell", resourceType: resource,
+            quantity: draft.qty, pricePerUnit: draft.price,
+          });
+          setRmMsg(`✅ Ordre vente #${result.orderId} créé — ${draft.qty}× ${RESOURCE_LABELS[resource]} en escrow.`);
+          rmLoadMarket(cityId);
+          loadTransport();
+        } catch (e: any) { setRmMsg(`❌ ${e.message}`); }
+      },
+    });
   };
 
   const rmPlaceBuyOrder = (resource: ResourceType) => {

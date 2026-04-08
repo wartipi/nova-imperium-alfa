@@ -1,0 +1,302 @@
+NOVA IMPERIUM — HARMONISATION FINALE UI DU MARCHÉ
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucune dérive hors sujet.
+Ne touche pas au backend.
+
+OBJECTIF
+Finaliser l’UI du marché en une seule passe, sans toucher à la logique métier serveur.
+
+Le chantier couvre uniquement :
+1. modale de confirmation stylée jeu
+2. confirmation avant BUY et SELL
+3. bouton Max côté SELL et BUY
+4. dernier prix vendu visible dans la section BUY
+5. ergonomie visuelle des lignes d’action
+
+IMPORTANT
+Ne touche PAS :
+- marketService
+- routes marché
+- routes économie
+- SSE
+- frais propriétaire
+- matching
+- escrow
+- boîte de règlement sur le fond métier
+- garde banque déjà en place
+- logique backend
+
+ÉTAT RÉEL À RESPECTER
+1. PublicMarketplace.tsx contient déjà :
+   - garde client banque dans la boîte de règlement
+   - confirmation BUY pour création d’ordre
+   - confirmation BUY pour achat d’un ordre SELL
+2. server/routes/market.ts contient déjà :
+   - gate banque sur POST /api/market/box/collect-bank
+3. Le formulaire d’ordres a déjà été séparé SELL / BUY, mais l’ergonomie reste moyenne
+4. Les confirmations actuelles sont encore basées sur des popups natives navigateur
+5. Il manque encore une confirmation avant création d’un ordre SELL
+6. Il manque encore le bouton Max et le repère de dernier prix dans BUY
+
+FICHIERS À MODIFIER
+- client/src/components/game/PublicMarketplace.tsx
+- nouveau composant si nécessaire :
+  client/src/components/game/NovaConfirmModal.tsx
+ou équivalent simple et cohérent
+
+RÉFÉRENCE VISUELLE
+- TreasuryPanel.tsx pour l’esprit général :
+  lignes compactes
+  bouton Max
+  tableaux lisibles
+  structure sobre
+- ne pas modifier TreasuryPanel.tsx
+- s’en inspirer seulement
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire précisément dans PublicMarketplace.tsx :
+- le tableau SELL
+- le tableau BUY
+- la boîte de règlement
+- les confirmations existantes
+- les handlers de création d’ordre
+- les handlers de fill
+- les états locaux de quantité/prix
+- rmTrades déjà chargé pour l’historique
+
+ÉTAPE 2 — MODALE DE CONFIRMATION STYLE JEU
+Créer ou réutiliser un composant de confirmation stylé jeu.
+
+RÈGLE
+À partir de maintenant :
+- ne plus utiliser window.confirm pour ce flux
+- utiliser une modale cohérente avec l’UI du jeu
+
+API minimale recommandée :
+- isOpen
+- title
+- message
+- confirmLabel
+- cancelLabel
+- confirmVariant
+- onConfirm
+- onCancel
+
+STYLE RECHERCHÉ
+- cohérent avec les panneaux du jeu
+- sobre
+- lisible
+- fond/contour dans l’esprit UI existant
+- pas d’animation lourde
+- pas de dépendance inutile
+
+ÉTAPE 3 — CONFIRMATIONS COMPLÈTES
+Remplacer les confirmations actuelles et compléter la confirmation manquante.
+
+A. Confirmation avant création d’un ordre BUY
+Conserver la logique existante, mais via la modale style jeu.
+
+Le message doit rappeler :
+- ressource
+- quantité
+- prix/u
+- coût total
+- or mis en escrow
+- réception dans la boîte de règlement
+
+B. Confirmation avant achat d’un ordre SELL
+Conserver la logique existante, mais via la modale style jeu.
+
+Le message doit rappeler :
+- ressource
+- quantité
+- prix/u
+- coût total
+- réception dans la boîte de règlement
+
+C. AJOUT MANQUANT — Confirmation avant création d’un ordre SELL
+Ajouter aussi une confirmation pour SELL.
+
+Le message doit rappeler :
+- ressource
+- quantité
+- prix/u
+- que la ressource sera retirée immédiatement de l’inventaire
+- qu’elle partira en escrow sur le marché
+
+IMPORTANT
+Ne PAS ajouter de confirmation pour :
+- vendre dans un ordre BUY
+- annuler un ordre
+- récupérer la boîte
+- déposer à la banque
+
+ÉTAPE 4 — TABLEAU SELL
+Conserver le principe :
+- seulement les ressources réellement disponibles dans transport
+
+Mais améliorer la ligne de rendu.
+
+Colonnes recommandées :
+- ressource
+- dispo
+- quantité
+- Max
+- prix/u
+- action
+
+RÈGLES
+- aucune ressource à 0 ne doit apparaître
+- bouton d’action compact
+- label bouton : "Vendre"
+
+BOUTON MAX SELL
+Le bouton Max côté SELL doit remplir :
+quantity = available
+
+IMPORTANT
+- ne pas changer le prix/u
+- ne pas toucher à la logique de création d’ordre
+
+ÉTAPE 5 — TABLEAU BUY
+Conserver le tableau complet :
+- toutes les ressources visibles
+
+Colonnes recommandées :
+- ressource
+- dernier prix
+- quantité
+- Max
+- prix/u
+- action
+
+RÈGLES
+- afficher toutes les ressources
+- bouton d’action compact
+- label bouton : "Acheter"
+
+BOUTON MAX BUY
+Le bouton Max côté BUY doit remplir :
+maxQty = floor(transport.gold / pricePerUnit)
+
+IMPORTANT
+- si pricePerUnit <= 0 → comportement propre, pas de crash
+- si transport.gold <= 0 → 0 ou vide, mais stable
+- ne pas modifier le prix/u
+
+ÉTAPE 6 — DERNIER PRIX DANS BUY
+Ajouter un repère de prix par ressource dans la section BUY.
+
+SOURCE
+- dériver cette information côté client à partir de rmTrades déjà chargé
+- ne pas toucher au backend
+
+RÈGLE
+Pour chaque resourceType :
+- trouver le trade au executedAt le plus récent
+- afficher son pricePerUnit dans la ligne BUY
+
+AFFICHAGE SOBRE
+Exemples acceptables :
+- "Dernier : 12 g/u"
+- "Dernier prix : 12 g/u"
+- "—" si aucune vente récente
+
+IMPORTANT
+- ne pas supposer que rmTrades est déjà trié
+- calculer explicitement le plus récent
+
+ÉTAPE 7 — ERGONOMIE VISUELLE
+Améliorer l’ergonomie générale des lignes SELL / BUY :
+
+OBJECTIF
+Les boutons ne doivent plus dominer la ligne.
+
+PRIORITÉ VISUELLE
+1. ressource
+2. dispo / dernier prix
+3. quantité
+4. Max
+5. prix/u
+6. action
+
+ACTIONS
+- rapetiser les boutons
+- les rendre compacts
+- éviter les gros boutons pleine largeur si cela alourdit
+- garder une lecture de type tableau de marché
+
+IMPORTANT
+Pas de refonte massive.
+Pas de redesign complet.
+Seulement un ajustement propre et compact.
+
+ÉTAPE 8 — CONTRAINTES
+Ne touche pas à :
+- carnet d’ordres ouvert
+- historique
+- garde banque
+- logique de la boîte de règlement
+- logique des frais
+- logique de matching
+- routes serveur
+- backend
+
+Le chantier est purement UI / UX client.
+
+ÉTAPE 9 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. Modale
+- plus aucun window.confirm dans ce flux marché
+- la modale style jeu s’affiche bien
+
+B. Confirmations
+- BUY create confirmé
+- BUY fill d’un ordre SELL confirmé
+- SELL create confirmé
+- aucun autre flux confirmé inutilement
+
+C. SELL
+- seules les ressources disponibles apparaissent
+- Max met la quantité dispo exacte
+- bouton compact
+- création d’ordre SELL fonctionne
+
+D. BUY
+- toutes les ressources apparaissent
+- dernier prix visible par ligne
+- Max remplit floor(gold / pricePerUnit)
+- création d’ordre BUY fonctionne
+
+E. Non-régression
+- aucun changement backend
+- aucun changement escrow
+- aucun changement fees
+- aucun changement SSE
+- aucun changement boîte de règlement
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+CONTRAINTE FINALE
+Le but exclusif est :
+- remplacer les confirmations natives par une modale style jeu
+- confirmer BUY et SELL aux bons endroits
+- ajouter Max côté SELL et BUY
+- afficher le dernier prix côté BUY
+- compacter l’ergonomie du tableau marché
+- sans toucher au backend
