@@ -1,0 +1,103 @@
+NOVA IMPERIUM — CORRECTIF RESTANT POINT 1 : VISION ACTIVE DES VILLES NON APPLIQUÉE
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucune dérive hors sujet.
+Ne déclare rien “réglé” sans preuve du code poussé.
+
+PROBLÈME
+Le correctif précédent n’est pas complet.
+
+ÉTAT RÉEL VÉRIFIÉ
+1. addCityVision() existe bien dans usePlayer.tsx
+   → ajoute les hexes des villes à exploredHexes
+   → syncDiscoveredTiles() côté serveur
+2. reconstructResourcesDiscovered() existe bien
+3. GameCanvas.tsx appelle bien :
+   hydrateCitiesFromServer()
+   loadDiscoveredTiles()
+   reconstructResourcesDiscovered()
+   addCityVision(...)
+   updateVision()
+4. MAIS updateVision() reste avatar-only :
+   - currentVision calculée autour de l’avatar seulement
+   - fogRing calculé autour de l’avatar seulement
+
+CONCLUSION
+Le champ de vision ACTIF des villes n’est pas encore appliqué.
+Seule la découverte permanente des tuiles de ville a été ajoutée.
+
+OBJECTIF
+Corriger uniquement ce point :
+faire contribuer les villes owned à currentVision
+et à fogRing si on garde l’option A.
+
+FICHIER À MODIFIER
+- client/src/lib/stores/usePlayer.tsx
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire précisément :
+- updateVision()
+- addCityVision()
+- imports du fichier
+
+ÉTAPE 2 — IMPORT SI NÉCESSAIRE
+Ajouter l’accès à useNovaImperium dans usePlayer.tsx
+si et seulement si nécessaire pour lire les villes owned.
+
+ÉTAPE 3 — currentVision = avatar ∪ villes
+Dans updateVision() :
+
+A. calculer la vision avatar comme aujourd’hui
+B. récupérer les villes owned chargées côté client
+C. pour chaque ville, calculer getVisibleHexes(city.x, city.y, 2)
+D. fusionner ces hexes dans newCurrentVision
+
+ÉTAPE 4 — fogRing
+Appliquer explicitement l’option A :
+- anneau avatar
+- anneaux des villes
+- ne pas inclure dans fogRing une case déjà dans currentVision
+
+ÉTAPE 5 — exploredHexes
+Conserver la logique actuelle :
+- discoveredThisTurn = currentVision + fogRing
+- updateExploredHexes(...)
+- syncDiscoveredTiles(...) du delta
+
+ÉTAPE 6 — CONTRAINTES
+Ne touche pas à :
+- GameCanvas.tsx
+- addCityVision()
+- reconstructResourcesDiscovered()
+- backend
+- discoveredTilesApi
+- marché
+- transport
+
+Le but est uniquement de finir correctement updateVision().
+
+VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+1. updateVision() contient bien une fusion avatar + villes
+2. currentVision augmente réellement quand une ville owned est hors de portée de l’avatar
+3. fogRing inclut aussi l’anneau des villes si option A
+4. GameCanvas n’a pas besoin de changement supplémentaire
+5. Aucun changement backend
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. FICHIERS MODIFIÉS
+2. DIFF LOGIQUE PAR FICHIER
+3. PREUVE DIRECTE
+4. VÉRIFICATION FINALE
+5. STOP
+
+CONTRAINTE FINALE
+Ne dis pas que le point 1 est réglé tant que updateVision() ne fusionne pas réellement la vision des villes.

@@ -402,12 +402,14 @@ export const usePlayer = create<PlayerState>((set, get) => {
     // Vision active des villes owned (rayon fixe 2) — fusionnée dans currentVision
     const CITY_VISION_RADIUS = 2;
     const cities = useNovaImperium.getState().currentNovaImperium?.cities ?? [];
+    const avatarVisionSizeBefore = newCurrentVision.size;
     for (const city of cities) {
       const cityHexes = VisionSystem.getVisibleHexes(city.x, city.y, CITY_VISION_RADIUS);
       for (const hex of cityHexes) {
         newCurrentVision.add(`${hex.x},${hex.y}`);
       }
     }
+    const citiesVisionAdded = newCurrentVision.size - avatarVisionSizeBefore;
 
     // Anneau de brouillard de l'avatar (rayon+1 hors vision directe)
     // Option A : fogRing = union des anneaux avatar + villes, moins currentVision
@@ -451,6 +453,8 @@ export const usePlayer = create<PlayerState>((set, get) => {
       avatarHex,
       explorationLevel,
       visionRange: VisionSystem.getVisionRange(explorationLevel),
+      avatarVision: avatarVisionSizeBefore,
+      citiesVisionAdded,
       currentVisionCount: newCurrentVision.size,
       fogRingCount: newFogRing.size,
       exploredCount: newExploredHexes.size,
