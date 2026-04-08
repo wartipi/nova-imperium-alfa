@@ -738,45 +738,6 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                   {/* Carnet d'ordres */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                    {/* Ordres VENTE */}
-                    <div className="bg-white border border-red-200 rounded-lg p-3">
-                      <h4 className="font-bold text-red-800 mb-2 text-sm">
-                        Ordres VENTE ({rmOrders.filter(o => o.side === "sell").length})
-                      </h4>
-                      {rmOrders.filter(o => o.side === "sell").length === 0
-                        ? <p className="text-xs text-gray-400 italic">Aucun ordre de vente</p>
-                        : rmOrders.filter(o => o.side === "sell").map(o => (
-                          <div key={o.id} className="border border-red-100 rounded p-2 mb-2 text-xs">
-                            <div className="flex justify-between font-semibold">
-                              <span>{RESOURCE_LABELS[o.resourceType as ResourceType]}</span>
-                              <span className="text-red-700">{o.pricePerUnit} g/u</span>
-                            </div>
-                            <div className="text-gray-600">Qté : {o.quantityRemaining}/{o.quantityTotal} — {o.playerName}</div>
-                            <div className="flex gap-2 mt-1.5 items-center">
-                              <input
-                                type="number" min={1} max={o.quantityRemaining}
-                                value={rmFillQty[o.id] ?? o.quantityRemaining}
-                                onChange={e => setRmFillQty(q => ({ ...q, [o.id]: parseInt(e.target.value) || 1 }))}
-                                className="w-16 px-1 py-0.5 border border-gray-300 rounded text-xs"
-                              />
-                              <button
-                                onClick={() => rmFillOrder(o.id, "sell")}
-                                className="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs"
-                                style={{ pointerEvents: "auto" }}
-                              >Acheter</button>
-                              {o.playerId === playerId && (
-                                <button
-                                  onClick={() => rmCancelOrder(o.id)}
-                                  className="px-2 py-0.5 bg-gray-400 hover:bg-gray-500 text-white rounded text-xs"
-                                  style={{ pointerEvents: "auto" }}
-                                >Annuler</button>
-                              )}
-                            </div>
-                          </div>
-                        ))
-                      }
-                    </div>
-
                     {/* Ordres ACHAT */}
                     <div className="bg-white border border-blue-200 rounded-lg p-3">
                       <h4 className="font-bold text-blue-800 mb-2 text-sm">
@@ -803,6 +764,45 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                                 className="px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white rounded text-xs"
                                 style={{ pointerEvents: "auto" }}
                               >Vendre</button>
+                              {o.playerId === playerId && (
+                                <button
+                                  onClick={() => rmCancelOrder(o.id)}
+                                  className="px-2 py-0.5 bg-gray-400 hover:bg-gray-500 text-white rounded text-xs"
+                                  style={{ pointerEvents: "auto" }}
+                                >Annuler</button>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      }
+                    </div>
+
+                    {/* Ordres VENTE */}
+                    <div className="bg-white border border-red-200 rounded-lg p-3">
+                      <h4 className="font-bold text-red-800 mb-2 text-sm">
+                        Ordres VENTE ({rmOrders.filter(o => o.side === "sell").length})
+                      </h4>
+                      {rmOrders.filter(o => o.side === "sell").length === 0
+                        ? <p className="text-xs text-gray-400 italic">Aucun ordre de vente</p>
+                        : rmOrders.filter(o => o.side === "sell").map(o => (
+                          <div key={o.id} className="border border-red-100 rounded p-2 mb-2 text-xs">
+                            <div className="flex justify-between font-semibold">
+                              <span>{RESOURCE_LABELS[o.resourceType as ResourceType]}</span>
+                              <span className="text-red-700">{o.pricePerUnit} g/u</span>
+                            </div>
+                            <div className="text-gray-600">Qté : {o.quantityRemaining}/{o.quantityTotal} — {o.playerName}</div>
+                            <div className="flex gap-2 mt-1.5 items-center">
+                              <input
+                                type="number" min={1} max={o.quantityRemaining}
+                                value={rmFillQty[o.id] ?? o.quantityRemaining}
+                                onChange={e => setRmFillQty(q => ({ ...q, [o.id]: parseInt(e.target.value) || 1 }))}
+                                className="w-16 px-1 py-0.5 border border-gray-300 rounded text-xs"
+                              />
+                              <button
+                                onClick={() => rmFillOrder(o.id, "sell")}
+                                className="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs"
+                                style={{ pointerEvents: "auto" }}
+                              >Acheter</button>
                               {o.playerId === playerId && (
                                 <button
                                   onClick={() => rmCancelOrder(o.id)}
