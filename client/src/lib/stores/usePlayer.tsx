@@ -4,6 +4,7 @@ import { VisionSystem, type HexCoordinate } from '../systems/VisionSystem';
 import { getLearnCost, getUpgradeCost } from '../competence/CompetenceCosts';
 import { useMap } from './useMap';
 import { usePlayerActions } from './usePlayerActions';
+import { useNovaImperium } from './useNovaImperium';
 import { savePlayerPosition } from '../api/playerApi';
 import { savePlayerState } from '../api/playerStateApi';
 import { fetchDiscoveredTiles, syncDiscoveredTiles } from '../api/discoveredTilesApi';
@@ -391,19 +392,39 @@ export const usePlayer = create<PlayerState>((set, get) => {
     const avatarHex = state.avatarHexPosition;
     const explorationLevel = state.getCompetenceLevel('exploration');
 
-    // Vision directe
+    // Vision directe de l'avatar
     const newCurrentVision = VisionSystem.calculateCurrentVision(
       avatarHex.x,
       avatarHex.y,
       explorationLevel
     );
 
-    // Anneau de brouillard (rayon+1 hors vision directe)
+    // Vision active des villes owned (rayon fixe 2) — fusionnée dans currentVision
+    const CITY_VISION_RADIUS = 2;
+    const cities = useNovaImperium.getState().currentNovaImperium?.cities ?? [];
+    for (const city of cities) {
+      const cityHexes = VisionSystem.getVisibleHexes(city.x, city.y, CITY_VISION_RADIUS);
+      for (const hex of cityHexes) {
+        newCurrentVision.add(`${hex.x},${hex.y}`);
+      }
+    }
+
+    // Anneau de brouillard de l'avatar (rayon+1 hors vision directe)
+    // Option A : fogRing = union des anneaux avatar + villes, moins currentVision
     const newFogRing = VisionSystem.calculateFogRing(
       avatarHex.x,
       avatarHex.y,
       explorationLevel
     );
+    for (const city of cities) {
+      const outerHexes = VisionSystem.getVisibleHexes(city.x, city.y, CITY_VISION_RADIUS + 1);
+      for (const hex of outerHexes) {
+        const key = `${hex.x},${hex.y}`;
+        if (!newCurrentVision.has(key)) {
+          newFogRing.add(key);
+        }
+      }
+    }
 
     // Exploration permanente — découverte = vision directe + anneau (visionRange+1)
     const prevExplored = state.exploredHexes;

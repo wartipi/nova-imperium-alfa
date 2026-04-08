@@ -1,0 +1,126 @@
+NOVA IMPERIUM — CORRECTIF CIBLÉ : VISION ACTIVE DES VILLES OWNED CÔTÉ CLIENT
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucun changement d’architecture.
+Aucune dérive hors sujet.
+
+OBJECTIF
+Finaliser le chantier vision/fog côté client :
+les villes owned ne doivent pas seulement révéler des cases de façon permanente,
+elles doivent aussi contribuer à la VISION ACTIVE rendue côté client.
+
+IMPORTANT
+Ne touche PAS :
+- au backend de découverte déjà en place
+- à la persistance des discovered tiles
+- au marché
+- aux timers logistiques
+- aux routes serveur
+- à la structure DB
+
+CONTEXTE DÉJÀ VÉRIFIÉ
+1. loadDiscoveredTiles() recharge bien exploredHexes depuis le serveur.
+2. reconstructResourcesDiscovered() reconstruit bien resourcesDiscovered au startup.
+3. addCityVision() ajoute actuellement un rayon 2 des villes dans exploredHexes seulement.
+4. updateVision() calcule encore currentVision et fogRing uniquement autour de l’avatar.
+5. Donc le vrai champ de vision actif des villes n’est pas encore rendu.
+
+FICHIERS À AUDITER
+- client/src/lib/stores/usePlayer.tsx
+- client/src/lib/systems/VisionSystem.ts
+- client/src/components/game/GameCanvas.tsx
+
+OBJECTIF FONCTIONNEL EXACT
+- conserver la vision active de l’avatar
+- y ajouter la vision active des villes owned
+- rayon ville = 2
+- ne pas créer un système parallèle
+- réutiliser VisionSystem et les structures existantes
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire précisément :
+- updateVision()
+- addCityVision()
+- la séquence de startup dans GameCanvas.tsx
+- les helpers de VisionSystem
+
+ÉTAPE 2 — SOURCE DE VÉRITÉ UNIQUE DE VISION ACTIVE
+Implémenter un calcul propre où currentVision est l’union de :
+- la vision de l’avatar
+- la vision de toutes les villes owned
+
+La logique doit rester centralisée.
+Ne duplique pas du code de rayon partout.
+
+ÉTAPE 3 — FOG RING
+Gérer fogRing proprement.
+Deux options acceptables, mais il faut en choisir une proprement et l’assumer :
+
+Option A — recommandée si simple :
+- fogRing = union des anneaux avatar + villes
+
+Option B — acceptable si tu veux rester minimal :
+- fogRing avatar uniquement, mais currentVision inclut bien les villes
+
+IMPORTANT
+Si tu prends l’option B, documente-la clairement dans le code.
+Ne fais pas un comportement implicite flou.
+
+ÉTAPE 4 — STARTUP
+Dans la séquence startup de GameCanvas.tsx :
+- conserver l’ordre actuel amélioré
+- une fois les villes hydratées et les tuiles découvertes chargées :
+  - reconstruire resourcesDiscovered
+  - appliquer la vision permanente des villes si nécessaire
+  - recalculer la vision active fusionnée avatar + villes
+  - render final
+
+IMPORTANT
+Ne casse pas la séquence actuelle.
+
+ÉTAPE 5 — CONTRAINTES
+Ne touche pas à :
+- syncDiscoveredTiles()
+- fetchDiscoveredTiles()
+- logique serveur de discovered tiles
+- logique marché
+- logique transport
+- createTransferBankToCityAction()
+
+ÉTAPE 6 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. Vision active
+- une ville owned donne bien une vision active rayon 2
+- cette vision est visible côté client même si l’avatar est plus loin
+
+B. Vision avatar
+- la vision de l’avatar fonctionne toujours normalement
+
+C. Reload
+- après reload, la ville redonne bien sa vision active une fois les villes hydratées
+- les ressources déjà reconstruites restent visibles
+
+D. Non-régression
+- aucun système parallèle de vision
+- aucun changement backend
+- aucun refactor massif
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. FICHIERS MODIFIÉS
+2. DIFF LOGIQUE PAR FICHIER
+3. PREUVE DIRECTE
+4. VÉRIFICATION FINALE
+5. STOP
+
+CONTRAINTE FINALE
+Ne touche à rien d’autre.
+Le but exclusif est :
+faire contribuer les villes owned à la vision active réelle côté client.
