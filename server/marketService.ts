@@ -75,6 +75,15 @@ async function deriveMarketOwner(cityId: number) {
   return row ?? null;
 }
 
+// ─── computeMarketFee ─────────────────────────────────────────────────────────
+// Source de vérité unique pour le calcul de commission.
+// Minimum 1 gold si commission non nulle ; 0 si feeBps ou totalGold <= 0.
+function computeMarketFee(totalGold: number, feeBps: number): number {
+  if (feeBps <= 0 || totalGold <= 0) return 0;
+  const rawFee = totalGold * feeBps / 10000;
+  return Math.max(1, Math.round(rawFee));
+}
+
 // ─── promoteFeeLazy ───────────────────────────────────────────────────────────
 // Promeut pendingFeeBps → activeFeeBps si pendingFeeAppliesAt <= now().
 // Doit être appelé à l'intérieur d'une transaction avant tout calcul de commission.
@@ -98,9 +107,22 @@ async function promoteFeeLazy(cityId: number, tx: typeof db | Parameters<Paramet
 
 // ─── getMarketInfo ────────────────────────────────────────────────────────────
 // Retourne le contexte marché sans gate dur.
+// Effectue la promotion lazy du fee pending → active si l'heure est passée,
+// afin que l'affichage soit cohérent même sans trade récent.
 export async function getMarketInfo(cityId: number) {
   const context = await resolveMarketContext(cityId);
   const owner   = await deriveMarketOwner(cityId);
+  if (context.hasGuild) {
+    await promoteFeeLazy(cityId, db);
+    const [updated] = await db.select().from(marketGuilds)
+      .where(eq(marketGuilds.cityId, cityId)).limit(1);
+    return {
+      guild:    updated ?? context.guildRecord,
+      hasGuild: context.hasGuild,
+      feeBps:   updated?.activeFeeBps ?? context.feeBps,
+      owner,
+    };
+  }
   return {
     guild:    context.guildRecord,
     hasGuild: context.hasGuild,
@@ -442,7 +464,7 @@ export async function fillOrder(
       const [guild] = await tx.select().from(marketGuilds).where(eq(marketGuilds.cityId, order.cityId)).limit(1);
       feeBps = guild?.activeFeeBps ?? 0;
     }
-    const feeAmount = Math.floor(totalGold * feeBps / 10000);
+    const feeAmount = computeMarketFee(totalGold, feeBps);
     const netSeller = totalGold - feeAmount;
 
     // 3. Mouvements buyer/seller

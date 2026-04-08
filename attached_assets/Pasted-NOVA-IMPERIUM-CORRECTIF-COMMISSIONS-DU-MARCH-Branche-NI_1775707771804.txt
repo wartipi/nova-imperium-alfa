@@ -1,0 +1,205 @@
+NOVA IMPERIUM — CORRECTIF COMMISSIONS DU MARCHÉ
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucune dérive hors sujet.
+
+OBJECTIF
+Corriger 3 points du système de commission du marché :
+1. formule de frais sur petits montants
+2. promotion/affichage de la commission active
+3. UI de saisie en pourcentage au lieu des bps
+
+IMPORTANT
+Ne touche PAS :
+- au matching
+- aux ordres
+- à l’escrow
+- à la boîte de règlement
+- au SSE
+- à la logique de propriété du marché
+- au cooldown 24h lui-même
+
+Le chantier concerne seulement :
+- calcul du fee
+- promotion lazy de l’active fee à la lecture
+- rendu/saisie UI de la commission
+
+FICHIERS À AUDITER
+- server/marketService.ts
+- client/src/components/game/PublicMarketplace.tsx
+
+DIAGNOSTIC À RESPECTER
+1. fillOrder(...) utilise encore :
+   Math.floor(totalGold * feeBps / 10000)
+   → les petits montants peuvent donner 0 de commission
+2. updateFee(...) écrit pendingFeeBps + pendingFeeAppliesAt
+3. promoteFeeLazy(...) existe déjà
+4. MAIS la promotion lazy n’est faite que dans fillOrder(...)
+5. L’UI du marché montre encore les frais en bps au lieu de %
+
+OBJECTIF FONCTIONNEL EXACT
+
+A. Formule de commission
+Nouvelle règle :
+- si feeBps <= 0 ou totalGold <= 0 → feeAmount = 0
+- sinon :
+  rawFee = totalGold * feeBps / 10000
+  feeAmount = max(1, round(rawFee))
+
+IMPORTANT
+On veut :
+- minimum 1 gold quand une commission non nulle doit exister
+- arrondi normal sur les fractions
+- pas de floor systématique
+
+B. Promotion lazy aussi sur lecture
+Le joueur ne doit pas avoir l’impression que la commission n’a pas été mise à jour.
+
+Il faut faire en sorte que le contexte marché affiché soit promu correctement même sans trade, dès que l’heure d’activation est passée.
+
+La solution minimale recommandée :
+- dans getMarketInfo(cityId)
+- si guilde présente :
+  - appeler promoteFeeLazy(cityId, db)
+  - puis relire la ligne market_guilds
+
+IMPORTANT
+Ne change pas le principe pending → active après 24h.
+On corrige seulement le fait que l’affichage ne suit pas tant qu’aucun fill n’a lieu.
+
+C. UI en pourcentage
+Le joueur doit régler et voir la commission en pourcentage, pas en bps.
+
+Règle cible :
+- affichage : 5.00% au lieu de 500 bps
+- saisie : 5, 1.5, 12.25 etc.
+- conversion au submit :
+  newFeeBps = round(percent * 100)
+
+IMPORTANT
+Le backend continue de stocker en bps.
+On ne change pas le modèle de données.
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire précisément :
+- fillOrder(...)
+- promoteFeeLazy(...)
+- getMarketInfo(...)
+- updateFee(...)
+- la bannière commission dans PublicMarketplace.tsx
+- le champ rmFeeInput et rmUpdateFee()
+
+ÉTAPE 2 — HELPER DE CALCUL DE COMMISSION
+Créer un helper canonique simple dans marketService.ts, par exemple :
+computeMarketFee(totalGold, feeBps)
+
+Règle :
+- totalGold <= 0 ou feeBps <= 0 → 0
+- rawFee = totalGold * feeBps / 10000
+- return max(1, round(rawFee))
+
+IMPORTANT
+Ne pas dupliquer la formule inline.
+Source de vérité unique.
+
+ÉTAPE 3 — fillOrder()
+Remplacer la formule actuelle de fee par le helper canonique.
+
+Conserver :
+- netSeller = totalGold - feeAmount
+- logique propriétaire inchangée
+- logique trade inchangée
+
+ÉTAPE 4 — PROMOTION LAZY À LA LECTURE
+Dans getMarketInfo(cityId) :
+- si une guilde est présente
+- exécuter promoteFeeLazy(cityId, db)
+- puis relire la ligne de guilde
+- retourner l’état actif réellement à jour
+
+IMPORTANT
+Ne pas casser resolveMarketContext().
+Le plus petit correctif propre suffit.
+
+ÉTAPE 5 — UI % AU LIEU DE BPS
+Dans PublicMarketplace.tsx :
+
+A. affichage
+Remplacer les affichages du type :
+- 500 bps
+Par :
+- 5.00%
+
+B. pending
+Afficher aussi pendingFeeBps en pourcentage
+
+C. input
+Le champ rmFeeInput doit représenter un pourcentage lisible par l’utilisateur
+
+D. submit
+Dans rmUpdateFee(), convertir :
+percent -> bps
+avec :
+Math.round(percent * 100)
+
+E. validation UI
+Comportement propre si valeur invalide
+
+IMPORTANT
+Le backend reste inchangé en bps.
+Seule l’UI devient en pourcentage.
+
+ÉTAPE 6 — CAPS VISIBLES EN %
+Si tu affiches une aide de limite, elle doit être lisible en pourcentage :
+- tier 1 = 6%
+- tier 2 = 12%
+- tier 3 = 20%
+- tier 4 = 25%
+
+Pas en bps.
+
+ÉTAPE 7 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. Formule fee
+- 5 gold @ 1% = 1 gold
+- 15 gold @ 10% = 2 gold
+- 49 gold @ 5% = 2 gold
+- 50 gold @ 5% = 3 gold
+- 0% = 0 gold
+
+B. Promotion lazy
+- une commission pending devenue due s’active correctement quand on lit le marché, même sans nouveau trade
+
+C. UI
+- affichage commission en %
+- saisie commission en %
+- conversion correcte vers bps au submit
+
+D. Non-régression
+- aucun changement matching
+- aucun changement SSE
+- aucun changement escrow
+- aucun changement propriété/faction
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+CONTRAINTE FINALE
+Le but exclusif est :
+- corriger la formule de commission
+- rendre l’activation visible correctement
+- afficher/régler la commission en pourcentage
+- sans toucher au reste du marché

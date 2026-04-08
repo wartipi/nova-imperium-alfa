@@ -320,12 +320,15 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
   };
 
   const rmUpdateFee = async () => {
-    const cityId = access.cityId ?? 0;
-    const bps = parseInt(rmFeeInput, 10);
-    if (isNaN(bps)) { setRmMsg("❌ Valeur invalide"); return; }
+    const cityId  = access.cityId ?? 0;
+    const percent = parseFloat(rmFeeInput);
+    if (isNaN(percent) || percent < 0 || percent > 25) {
+      setRmMsg("❌ Valeur invalide (0 % – 25 %)"); return;
+    }
+    const bps = Math.round(percent * 100);
     try {
       await updateMarketFee(cityId > 0 ? cityId : 1, bps);
-      setRmMsg(`✅ Commission en attente : ${bps} bps — active dans 24 h`);
+      setRmMsg(`✅ Commission en attente : ${percent.toFixed(2)} % — active dans 24 h`);
       rmLoadMarket(cityId);
     } catch (e: any) { setRmMsg(`❌ ${e.message}`); }
   };
@@ -422,30 +425,30 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
               {/* Bannière point d'accès */}
               <div className="px-4 pt-3 pb-1 flex-shrink-0">
                 {access.hasGuild && rmGuild ? (
-                  <div className="bg-white border border-emerald-200 rounded-lg p-2.5 flex flex-wrap gap-4 items-center text-sm">
-                    <span className="font-semibold text-emerald-900">🏦 Guilde Tier {rmGuild.tier}</span>
-                    <span className="text-emerald-800">
-                      Commission : <strong>{rmGuild.activeFeeBps} bps</strong> ({(rmGuild.activeFeeBps / 100).toFixed(2)}%)
+                  <div className="bg-white border border-amber-200 rounded-lg p-2.5 flex flex-wrap gap-4 items-center text-sm">
+                    <span className="font-semibold text-amber-900">🏦 Guilde Tier {rmGuild.tier}</span>
+                    <span className="text-amber-800">
+                      Commission : <strong>{(rmGuild.activeFeeBps / 100).toFixed(2)} %</strong>
                     </span>
                     {rmGuild.pendingFeeBps != null && (
                       <span className="text-amber-700 text-xs">
-                        En attente : {rmGuild.pendingFeeBps} bps — actif le {new Date(rmGuild.pendingFeeAppliesAt!).toLocaleString()}
+                        En attente : {(rmGuild.pendingFeeBps / 100).toFixed(2)} % — actif le {new Date(rmGuild.pendingFeeAppliesAt!).toLocaleString()}
                       </span>
                     )}
                     <div className="flex gap-2 ml-auto items-center">
                       <input
-                        type="number" min={0} max={600}
-                        placeholder="bps"
+                        type="number" min={0} max={25} step={0.01}
+                        placeholder="% (ex: 5)"
                         value={rmFeeInput}
                         onChange={e => setRmFeeInput(e.target.value)}
-                        className="w-20 px-2 py-1 border border-emerald-300 rounded text-sm"
+                        className="w-24 px-2 py-1 border border-amber-300 rounded text-sm"
                       />
                       <button
                         onClick={rmUpdateFee}
-                        className="px-3 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded text-sm"
+                        className="px-3 py-1 bg-amber-700 hover:bg-amber-800 text-white rounded text-sm"
                         style={{ pointerEvents: "auto" }}
                       >
-                        Changer commission
+                        Changer %
                       </button>
                     </div>
                   </div>
@@ -456,7 +459,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                   <div className="bg-amber-50 border border-amber-300 rounded-lg p-2.5 flex flex-wrap gap-4 items-center text-sm">
                     <span className="font-semibold text-amber-900">⚙️ Vue administrateur</span>
                     <span className="text-amber-800">
-                      Frais réseau par défaut : <strong>500 bps</strong> (5%) — aucune guilde active à ce point d'accès
+                      Frais réseau par défaut : <strong>5 %</strong> — aucune guilde active à ce point d'accès
                     </span>
                     <span className="text-amber-600 text-xs ml-auto">
                       Mode admin — accès global sans contrainte de position
