@@ -1,0 +1,91 @@
+NOVA IMPERIUM — RESTAURATION CIBLÉE DU SYSTÈME CARTOGRAPHIE
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucune dérive hors sujet.
+
+OBJECTIF
+Restaurer uniquement le système cartographie qui a été retiré à tort du routage serveur.
+
+IMPORTANT
+Le service cartographie existe encore dans le dépôt.
+Le problème n’est pas une suppression totale du système, mais son débranchement dans server/routes.ts.
+
+FICHIERS À AUDITER
+- server/routes.ts
+- server/cartographyService.ts
+
+DIAGNOSTIC À RESPECTER
+1. server/cartographyService.ts existe encore et contient bien la logique métier cartographie
+2. server/routes.ts n’importe plus cartographyService
+3. server/routes.ts ne monte plus les routes /api/cartography/*
+4. La restauration doit être ciblée sur cartographie uniquement
+
+OBJECTIF FONCTIONNEL EXACT
+Remettre en service les routes cartographie précédemment présentes, sans rouvrir le reste du legacy nettoyé.
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire :
+- server/cartographyService.ts
+- server/routes.ts
+
+ÉTAPE 2 — RESTAURATION IMPORT
+Dans server/routes.ts :
+- restaurer uniquement l’import nécessaire de cartographyService
+
+ÉTAPE 3 — RESTAURATION ROUTES
+Restaurer uniquement les routes /api/cartography/* précédemment présentes, à partir du service existant :
+- GET /api/cartography/regions/:playerId
+- POST /api/cartography/discover
+- POST /api/cartography/project
+- POST /api/cartography/project/:projectId/progress
+- GET /api/cartography/maps/:playerId
+- GET /api/cartography/maps/tradable
+- GET /api/cartography/projects/:playerId
+- POST /api/cartography/transfer
+- GET /api/cartography/stats/:playerId
+- GET /api/cartography/map/:mapId
+
+IMPORTANT
+Ne restaure QUE cartographie.
+Ne remets PAS :
+- exchange
+- marketplace legacy
+- placeholders save/load/leaderboard
+- debug routes
+
+ÉTAPE 4 — CONTRAINTES
+Ne touche pas :
+- aux routes cœur modernes
+- à economy
+- à market
+- à treaties
+- à player
+- à la logique du service cartographie sauf si une correction minimale est nécessaire pour recompiler
+
+ÉTAPE 5 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. cartographyService toujours importé correctement
+B. les routes /api/cartography/* sont à nouveau montées
+C. aucune autre famille legacy n’a été restaurée par erreur
+D. aucune route cœur n’a été touchée
+E. build / TypeScript sans nouvelle erreur liée à cette restauration
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+CONTRAINTE FINALE
+Le but exclusif est :
+restaurer cartographie, et seulement cartographie, parce que le système a été retiré à tort du routage serveur.
