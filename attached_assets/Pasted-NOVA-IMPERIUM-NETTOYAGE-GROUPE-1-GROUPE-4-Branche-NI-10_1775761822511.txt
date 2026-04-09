@@ -1,0 +1,188 @@
+NOVA IMPERIUM — NETTOYAGE GROUPE 1 + GROUPE 4
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucune dérive hors sujet.
+Ne supprime rien sans preuve d’inutilité réelle.
+
+OBJECTIF
+Nettoyer deux groupes de résidus :
+
+GROUPE 1 — debug explicite
+GROUPE 4 — ancien système / routes legacy / endpoints prototype non utilisés
+
+IMPORTANT
+Le but n’est PAS de casser des systèmes encore branchés.
+Tu dois d’abord auditer les usages réels avant suppression.
+Si un élément du groupe 4 est encore consommé par le client actif ou par une route encore utile, tu ne le supprimes pas dans ce patch.
+
+RÈGLE DE TRAVAIL
+Toujours répondre avec ce format :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+PÉRIMÈTRE À TRAITER
+
+========================
+GROUPE 1 — DEBUG EXPLICITE
+========================
+
+ÉLÉMENTS IDENTIFIÉS À SUPPRIMER SI AUCUNE DÉPENDANCE RÉELLE :
+1. server/routes/debug.ts
+   - POST /api/debug/grant-test-resources
+   - POST /api/debug/grant-master-market-test-resources
+
+2. server/routes.ts
+   - montage de app.use('/api/debug', debugRoutes)
+
+3. client/src/lib/stores/usePlayer.tsx
+   - setMaxActionPointsForTesting()
+
+OBJECTIF GROUPE 1
+Retirer complètement ces éléments de debug explicite.
+
+========================
+GROUPE 4 — LEGACY / PROTOTYPE
+========================
+
+ÉLÉMENTS À AUDITER PUIS SUPPRIMER UNIQUEMENT SI AUCUN USAGE ACTIF :
+Dans server/routes.ts, auditer les blocs suivants :
+
+A. Endpoints placeholder / prototype évidents
+- /api/game/save
+- /api/game/load
+- /api/leaderboard
+
+B. Systèmes legacy potentiellement parallèles
+- /api/messages/*
+- /api/exchange/*
+- /api/cartography/*
+- /api/unique-items/*
+- /api/marketplace/*
+  y compris :
+  - /api/marketplace/maps*
+  - /api/marketplace/items*
+  - /api/marketplace/direct-sale
+  - /api/marketplace/auction
+  - /api/marketplace/purchase*
+  - /api/marketplace/bid/*
+  - /api/marketplace/resolve-auctions
+
+C. Imports associés dans server/routes.ts à nettoyer si suppression confirmée
+Exemples probables :
+- storage
+- messageService
+- exchangeService
+- UniqueItem
+- cartographyService
+- marketplaceService
+- initializeMarketplaceService
+et tout import devenu mort après nettoyage
+
+IMPORTANT
+Ne touche PAS aux routes cœur actives du projet moderne sans preuve :
+- /api/map
+- /api/player
+- /api/players
+- /api/cities
+- /api/units
+- /api/factions
+- /api/territories
+- /api/economy
+- /api/market
+- /api/treaties
+- /api/marshal
+- /api/public-events
+- horloge du jeu
+sauf si tu trouves une dépendance morte évidente et totalement sûre, mais ce n’est pas l’objectif principal.
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ GLOBAL
+Avant toute suppression, faire un audit réel des consommateurs.
+
+Tu dois rechercher dans le repo :
+- usages client des routes du groupe 4
+- imports / appels API associés
+- composants encore branchés
+- éventuels services encore utilisés indirectement
+
+IMPORTANT
+Ne te base pas sur une intuition.
+Tu dois prouver si chaque bloc est encore utilisé ou non.
+
+ÉTAPE 2 — DIAGNOSTIC PAR SOUS-GROUPE
+Distinguer clairement :
+A. sûr à supprimer maintenant
+B. encore utilisé → ne pas supprimer
+C. ambigu → ne pas supprimer dans ce patch
+
+Le groupe 1 doit normalement finir dans “sûr à supprimer”.
+Le groupe 4 doit être trié rigoureusement, pas supprimé en bloc sans preuve.
+
+ÉTAPE 3 — SUPPRESSION GROUPE 1
+Si l’audit confirme l’absence de dépendance :
+- supprimer server/routes/debug.ts
+- supprimer son montage dans server/routes.ts
+- supprimer setMaxActionPointsForTesting() de usePlayer.tsx
+- nettoyer les types / signatures / imports morts
+
+ÉTAPE 4 — SUPPRESSION GROUPE 4
+Pour chaque bloc du groupe 4 :
+- supprimer uniquement ce qui est prouvé non utilisé par le client actif ou par le projet actuel
+- nettoyer routes.ts en conséquence
+- nettoyer les imports morts associés
+- ne pas laisser de code mort résiduel
+
+IMPORTANT
+Pas de suppression “au cas où”.
+Pas de grand refactor.
+Suppression chirurgicale seulement.
+
+ÉTAPE 5 — NETTOYAGE DES IMPORTS ET RÉSIDUS
+Après suppression :
+- retirer les imports morts
+- retirer les variables mortes
+- retirer les commentaires devenus faux
+- vérifier qu’aucune référence cassée ne reste
+
+ÉTAPE 6 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. GROUPE 1
+- aucune route /api/debug montée
+- aucun handler debug restant
+- plus de setMaxActionPointsForTesting dans le client
+
+B. GROUPE 4
+- lister précisément ce qui a été supprimé
+- lister précisément ce qui a été conservé et pourquoi
+- aucune route active du projet moderne cassée
+
+C. BUILD / STABILITÉ
+- aucune importation cassée
+- aucun appel à une fonction supprimée
+- aucune erreur TypeScript nouvelle liée à ce nettoyage
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+CONTRAINTE FINALE
+Le but exclusif est :
+- supprimer le debug explicite du groupe 1
+- nettoyer les endpoints legacy/prototype du groupe 4 uniquement s’ils sont prouvés inutilisés
+- sans toucher aux systèmes cœur encore actifs
+- sans refactor massif
