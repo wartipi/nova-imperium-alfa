@@ -1,0 +1,70 @@
+ÉTAPE 1 — AUDIT CIBLÉ GLOBAL (parallèle)
+
+
+4 actions
+Résultats importants. Audit approfondi en parallèle :
+
+
+22 actions
+Audit complet. J'ai maintenant toutes les preuves. Je passe à l'exécution — suppression chirurgicale en une seule passe propre.
+
+
+3 actions
+Maintenant, suppression de debug.ts et vérification du serveur :
+
+
+6 actions
+Serveur propre — serving on port 5000, zéro erreur TypeScript.
+
+1. DIAGNOSTIC
+
+Élément	Usage client prouvé	Verdict
+server/routes/debug.ts	Aucun (/api/debug absent du client)	✅ Supprimé
+app.use('/api/debug', ...) dans routes.ts	—	✅ Supprimé
+setMaxActionPointsForTesting usePlayer	MedievalHUD.tsx l.494 — guard admin|maitre	⚠️ Conservé (actif)
+/api/game/save + /api/game/load	Aucun	✅ Supprimé
+/api/leaderboard	Aucun	✅ Supprimé
+/api/exchange/* (7 routes)	Aucun	✅ Supprimé
+/api/cartography/* (7 routes)	Aucun	✅ Supprimé
+/api/marketplace/maps* (2 routes)	Aucun	✅ Supprimé
+/api/marketplace/items*, seller, search	Aucun	✅ Supprimé
+/api/marketplace/direct-sale	Aucun	✅ Supprimé
+/api/marketplace/auction	Aucun	✅ Supprimé
+/api/marketplace/purchase* (2 routes)	Aucun	✅ Supprimé
+/api/marketplace/bid/:itemId	Aucun	✅ Supprimé
+/api/marketplace/item/:itemId DELETE	Aucun	✅ Supprimé
+/api/messages/*	CouriersPanel.tsx	❌ Conservé
+/api/unique-items/*	AvatarActionMenu, PlayerInventory, MapMarketplace	❌ Conservé
+/api/marketplace/resolve-auctions	TurnEffectsSystem.tsx l.343	❌ Conservé
+2. FICHIERS CONCERNÉS
+
+server/routes/debug.ts (supprimé) · server/routes.ts (réécrit chirurgicalement)
+
+3. MODIFICATION MINIMALE APPLIQUÉE
+
+debug.ts : fichier supprimé
+routes.ts 944 → 226 lignes :
+Imports retirés : storage, UniqueItem, cartographyService, eq, factionMembers, debitFactionGoldIfEnough, creditFactionGold, debugRoutes
+Blocs retirés : 3 placeholders + 14 routes legacy/exchange/cartography/marketplace
+Conservé intact : messages, unique-items, resolve-auctions, toutes les routes cœur
+4. PREUVE DIRECTE
+
+Serveur → serving on port 5000 — 0 erreur TypeScript ✅
+routes.ts : 944 lignes → 226 lignes
+server/routes/debug.ts : supprimé
+grep "/api/debug" client/src → 0 résultat ✅
+grep "setMaxActionPointsForTesting" client/src → MedievalHUD.tsx l.494 (conservé, guard admin/maitre)
+
+5. VÉRIFICATION
+
+Critère	État
+A. Aucune route /api/debug montée	✅
+A. Aucun handler debug restant	✅
+A. setMaxActionPointsForTesting conservé	✅ (actif dans le HUD)
+B. Supprimés : 3 placeholders + 7 exchange + 7 cartography + 14 marketplace legacy	✅
+B. Conservés avec preuve : messages (CouriersPanel), unique-items (3 composants), resolve-auctions (TurnEffectsSystem)	✅
+B. Aucune route cœur touchée	✅
+C. Aucun import cassé	✅
+C. Aucun appel à fonction supprimée	✅
+C. Aucune erreur TypeScript	✅
+6. STOP
