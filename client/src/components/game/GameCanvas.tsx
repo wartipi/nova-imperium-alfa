@@ -407,8 +407,17 @@ export function GameCanvas() {
     // le cleanup annule pollInterval mais pas ce timer — la sync finale a lieu quand même.
     const doFinalSync = async () => {
       if (finalSyncedRef.current) return;
-      finalSyncedRef.current = true;
       try {
+        // 1. Vérifier que l'action est réellement terminée côté serveur.
+        //    Le timer peut se déclencher avant que le serveur ait appliqué le dernier step.
+        const { action } = await fetchCurrentAction();
+        if (action && action.status === "in_progress") {
+          // Pas encore finalisée — replanifier dans 500ms sans activer le verrou
+          finalSyncTimerRef.current = setTimeout(doFinalSync, 500);
+          return;
+        }
+        // 2. Action null ou completed → position finale disponible côté serveur
+        finalSyncedRef.current = true;
         const serverPos = await fetchPlayerPosition();
         const { originWorldX: ox, originWorldY: oy } = useMap.getState();
         moveAvatarToHex(serverPos.worldX - ox, serverPos.worldY - oy);

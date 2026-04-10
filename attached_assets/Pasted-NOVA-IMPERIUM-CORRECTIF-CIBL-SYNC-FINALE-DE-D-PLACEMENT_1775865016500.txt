@@ -1,0 +1,150 @@
+NOVA IMPERIUM — CORRECTIF CIBLÉ : SYNC FINALE DE DÉPLACEMENT
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucune dérive hors sujet.
+Ne touche pas à l’architecture générale.
+
+OBJECTIF
+Corriger un bug de fin de déplacement :
+à la fin d’un move, le joueur reste parfois affiché sur l’avant-dernière case côté client.
+Un refresh manuel corrige alors la position.
+Le but est de corriger la sync finale authoritative, pas de bricoler un refresh cosmétique.
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+FICHIERS À AUDITER EN PRIORITÉ
+1. client/src/components/game/GameCanvas.tsx
+2. client/src/components/game/ActiveActionWidget.tsx
+3. server/routes/playerActions.ts
+4. server/playerActionService.ts
+
+DIAGNOSTIC À RESPECTER
+Le problème suspecté n’est pas seulement “un refresh manquant”.
+Le problème probable est une race condition entre :
+- le timer de fin côté client dans GameCanvas
+- la complétion lazy côté serveur via GET /api/player/actions/current
+- la lecture de fetchPlayerPosition()
+- le verrou finalSyncedRef
+
+Constat attendu à vérifier dans le code réel :
+A. La complétion authoritative du move est déclenchée côté serveur via getActiveAction()/completeAction()
+B. GameCanvas fait une sync finale par timer client
+C. doFinalSync() lit fetchPlayerPosition() trop tôt dans certains cas
+D. finalSyncedRef peut être marqué à true avant que la vraie position finale serveur soit disponible
+E. Le client reste alors visuellement sur la case précédente jusqu’au reload
+
+OBJECTIF FONCTIONNEL EXACT
+À la fin d’un déplacement :
+- le client doit toujours finir sur la vraie case finale serveur
+- sans nécessité de refresh manuel
+- sans déplacement visuel incohérent
+- sans double application de step
+- sans refactor massif du système d’actions
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire précisément :
+- l’effet move dans GameCanvas.tsx
+- doFinalSync()
+- finalSyncedRef
+- finalSyncTimerRef
+- le polling fetchCurrentAction()
+- la complétion du widget ActiveActionWidget
+- getActiveAction()/completeAction() côté serveur
+
+ÉTAPE 2 — IDENTIFIER LA SOURCE DE VÉRITÉ
+Vérifier et confirmer explicitement que :
+- fetchCurrentAction() est la source de vérité pour savoir si l’action est réellement terminée
+- fetchPlayerPosition() seul ne suffit pas tant que le serveur n’a pas finalisé l’action
+
+ÉTAPE 3 — CORRECTIF MINIMAL DANS GameCanvas
+Modifier doFinalSync() pour qu’il devienne authoritative-first.
+
+COMPORTEMENT CIBLE :
+1. doFinalSync() appelle d’abord fetchCurrentAction()
+2. si l’action existe encore et est status === "in_progress"
+   - ne PAS faire la sync finale
+   - ne PAS mettre finalSyncedRef à true
+   - reprogrammer une tentative courte
+3. si l’action est null ou completed
+   - appeler fetchPlayerPosition()
+   - appliquer moveAvatarToHex(...)
+   - seulement ensuite mettre finalSyncedRef à true
+
+IMPORTANT
+Le verrou finalSyncedRef ne doit être activé qu’après une vraie sync finale valide.
+Pas avant.
+
+ÉTAPE 4 — NE PAS DÉRIVER
+Ne touche pas à :
+- l’architecture générale des actions
+- la structure DB
+- les routes API
+- la logique de coût de déplacement
+- la logique fog/pathfinding
+- les autres actions logistiques
+- le marché
+- la banque
+
+Chantier ciblé sur la fin de déplacement uniquement.
+
+ÉTAPE 5 — WIDGET DE COMPLÉTION
+Auditer ActiveActionWidget.tsx.
+
+Vérifier si le setActiveAction(null) différé de 800 ms doit rester inchangé.
+Ne le modifie que si c’est strictement nécessaire.
+Priorité absolue :
+corriger GameCanvas avec le plus petit changement possible.
+
+IMPORTANT
+Ne pars pas dans une refonte du widget si GameCanvas suffit.
+
+ÉTAPE 6 — ROBUSTESSE
+Le correctif doit couvrir :
+- action terminée exactement à l’instant du timer
+- léger retard serveur
+- léger décalage horloge client/serveur
+- fin d’action détectée par polling
+- fin d’action détectée par timer
+
+ÉTAPE 7 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. Cas normal
+- le joueur finit bien sur la case finale sans refresh
+
+B. Cas avec léger retard serveur
+- la sync finale attend correctement la vraie complétion
+- aucune case précédente conservée
+
+C. finalSyncedRef
+- n’est pas activé trop tôt
+
+D. Non-régression
+- les steps intermédiaires continuent à s’appliquer normalement
+- aucun double déplacement final
+- ActiveActionWidget continue à fonctionner
+- aucune autre action n’est impactée
+
+PREUVE ATTENDUE
+Dans la réponse finale, montre précisément :
+- l’ancien flux fautif
+- le nouveau flux
+- l’endroit exact du verrou corrigé
+- pourquoi ce n’est pas juste un problème de refresh cosmétique
+
+CONTRAINTE FINALE
+Le but exclusif est :
+corriger la sync finale de déplacement pour que la position client corresponde toujours à la position finale serveur sans refresh manuel.
