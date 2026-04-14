@@ -354,7 +354,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
     const bps = Math.round(percent * 100);
     try {
       await updateMarketFee(cityId > 0 ? cityId : 1, bps);
-      setRmMsg(`✅ Commission en attente : ${percent.toFixed(2)} % — active dans 24 h`);
+      setRmMsg(`✅ Commission en attente : ${percent.toFixed(2)} % — active dans 10 s`);
       rmLoadMarket(cityId);
     } catch (e: any) { setRmMsg(`❌ ${e.message}`); }
   };

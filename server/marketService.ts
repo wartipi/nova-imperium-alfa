@@ -19,7 +19,7 @@ const VALID_RESOURCES: ReadonlySet<string> = new Set([
 ]);
 
 const TIER_CAPS: Record<number, number> = { 1: 600, 2: 1200, 3: 2000, 4: 2500 };
-const COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 h en ms
+const COOLDOWN_MS = 10 * 1000; // 10 s (phase de test)
 
 // ─── resolveMarketContext ─────────────────────────────────────────────────────
 // Résout le contexte fee/guilde pour une ville donnée (helper interne).
@@ -617,12 +617,12 @@ export async function updateFee(
     if (!authorized)
       throw Object.assign(new Error("Seul le propriétaire du marché peut modifier la commission"), { status: 403 });
 
-    // Cooldown 24 h
+    // Cooldown 10 s (phase de test)
     if (guild.lastFeeChangeRequestedAt) {
       const elapsed = Date.now() - guild.lastFeeChangeRequestedAt.getTime();
       if (elapsed < COOLDOWN_MS) {
-        const waitH = Math.ceil((COOLDOWN_MS - elapsed) / 3600000);
-        throw Object.assign(new Error(`Cooldown actif — réessayez dans ~${waitH} h`), { status: 429 });
+        const waitS = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
+        throw Object.assign(new Error(`Cooldown actif — réessayez dans ~${waitS} s`), { status: 429 });
       }
     }
   }

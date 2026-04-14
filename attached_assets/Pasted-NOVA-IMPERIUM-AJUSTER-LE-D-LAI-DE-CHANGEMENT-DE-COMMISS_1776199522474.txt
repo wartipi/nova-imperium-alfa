@@ -1,0 +1,119 @@
+NOVA IMPERIUM — AJUSTER LE DÉLAI DE CHANGEMENT DE COMMISSION À 10 SECONDES
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucune dérive hors sujet.
+
+OBJECTIF
+Pour la phase de test, remplacer le délai actuel de changement de tarif de commission du marché par un délai de 10 secondes.
+
+IMPORTANT
+La commission elle-même doit rester immédiate au moment du fill.
+Ce n’est PAS la perception de la commission qui change ici.
+On modifie uniquement le délai d’activation du nouveau tarif.
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+FICHIERS À AUDITER
+- server/marketService.ts
+- éventuellement client/src/components/game/PublicMarketplace.tsx uniquement si un texte UI mentionne encore “24 h” en dur
+
+DIAGNOSTIC À RESPECTER
+Le code actuel garde encore un délai de 24 h pour le changement de tarif, via la constante utilisée par updateFee(...).
+Le système pending → active doit être conservé.
+Le calcul du fee au moment du fill ne doit pas être touché.
+
+OBJECTIF FONCTIONNEL EXACT
+Quand le propriétaire change le tarif de commission :
+- le nouveau tarif doit passer en pending
+- puis devenir actif après 10 secondes
+- sans casser la logique existante
+- sans modifier le calcul du fee immédiat sur les trades
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire précisément dans marketService.ts :
+- la constante de délai/cooldown utilisée pour le changement de tarif
+- updateFee(...)
+- promoteFeeLazy(...)
+- getMarketInfo(...)
+
+Vérifier aussi si l’UI affiche encore une mention “24 h” en dur dans PublicMarketplace.tsx.
+
+ÉTAPE 2 — CORRECTIF MINIMAL
+Remplacer le délai de changement de tarif par 10 secondes.
+
+IMPORTANT
+Ne touche PAS :
+- à computeMarketFee(...)
+- à fillOrder(...)
+- à la caisse locale marketFeeBox
+- aux routes marché
+- au SSE
+- au système propriétaire/faction
+
+ÉTAPE 3 — UI
+Si PublicMarketplace.tsx affiche encore explicitement “24 h” :
+- remplacer ce texte pour qu’il soit cohérent avec le nouveau délai de test
+- rester sobre
+- ne pas faire de refonte du panneau
+
+IMPORTANT
+Ne modifie l’UI que si un texte devient faux à cause du nouveau délai.
+
+ÉTAPE 4 — CONTRAINTES
+Ne touche pas :
+- à la logique de commission immédiate
+- à la logique de pending/active
+- à la structure DB
+- aux autorisations
+- aux caps par tier
+
+Le but est uniquement :
+24 h → 10 secondes
+
+ÉTAPE 5 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. updateFee(...)
+- écrit toujours pendingFeeBps
+- écrit toujours pendingFeeAppliesAt
+- utilise maintenant un délai de 10 secondes
+
+B. promoteFeeLazy(...)
+- continue à promouvoir correctement pending → active
+
+C. getMarketInfo(...)
+- continue à promouvoir lazy à la lecture
+- permet donc de voir le nouveau tarif après 10 secondes
+
+D. UI
+- aucun texte faux “24 h” restant si corrigé
+
+E. Non-régression
+- commission au fill inchangée
+- calcul du fee inchangé
+- SSE inchangé
+- marketFeeBox inchangé
+
+PREUVE ATTENDUE
+Dans la réponse finale, montre clairement :
+- la constante ancienne
+- la constante nouvelle
+- l’endroit exact où elle est utilisée
+- les éventuels textes UI corrigés
+
+CONTRAINTE FINALE
+Le but exclusif est :
+ramener le délai de changement de commission à 10 secondes pour la phase de test, sans toucher au reste du système de marché.
