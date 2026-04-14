@@ -34,7 +34,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
   // ─── Marché ───────────────────────────────────────────────────────────────────
   const [rmGuild,   setRmGuild]   = useState<MarketGuild | null>(null);
   const [rmOwner,   setRmOwner]   = useState<MarketOwner | null>(null);
-  const [rmFeeBox,  setRmFeeBox]  = useState<{ gold: number } | null>(null);
+  const [rmFeeBox,  setRmFeeBox]  = useState<{ gold: number; canCollect: boolean } | null>(null);
   const [rmOrders,  setRmOrders]  = useState<MarketOrder[]>([]);
   const [rmTrades,  setRmTrades]  = useState<MarketTrade[]>([]);
   const [rmLoading, setRmLoading] = useState(false);
@@ -501,9 +501,8 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                   </div>
                 )}
 
-                {/* Caisse locale de commission — visible propriétaire/admin si guilde présente */}
-                {access.hasGuild && rmFeeBox !== null &&
-                  (access.isAdmin || (rmOwner?.ownerType === "player" && rmOwner?.ownerPlayerId === playerId)) && (
+                {/* Caisse locale de commission — canCollect calculé côté serveur (player / faction / admin) */}
+                {access.hasGuild && rmFeeBox !== null && rmFeeBox.canCollect && (
                   <div className="mt-2 bg-amber-100 border border-amber-300 rounded-lg p-2.5 flex items-center gap-3 text-sm">
                     <span className="font-semibold text-amber-900">🏛️ Caisse locale</span>
                     <span className="text-amber-800">

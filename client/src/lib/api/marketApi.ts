@@ -130,7 +130,7 @@ export async function updateMarketFee(cityId: number, feeBps: number): Promise<{
 }
 
 // ─── GET /api/market/fee-box/:cityId ─────────────────────────────────────────
-export async function fetchMarketFeeBox(cityId: number): Promise<{ gold: number }> {
+export async function fetchMarketFeeBox(cityId: number): Promise<{ gold: number; canCollect: boolean }> {
   return apiCall(`/api/market/fee-box/${cityId}`);
 }
 

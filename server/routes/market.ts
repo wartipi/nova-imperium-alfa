@@ -14,6 +14,7 @@ import {
   claimMarketBoxToBank,
   getFeeBox,
   collectFeeBox,
+  deriveMarketOwner,
 } from "../marketService";
 import { checkAccessPoint, resolveAccessPoint } from "../accessPointService";
 import { db } from "../db";
@@ -255,13 +256,34 @@ router.post("/box/collect-bank", requireAuth, async (req: AuthRequest, res) => {
 });
 
 // ─── GET /fee-box/:cityId ──────────────────────────────────────────────────────
-// Lit la caisse locale de commission du marché (visible propriétaire + admin).
+// Lit la caisse locale de commission + canCollect (calculé côté serveur).
 router.get("/fee-box/:cityId", requireAuth, async (req: AuthRequest, res) => {
   try {
-    const cityId = parseInt(req.params.cityId, 10);
+    const cityId  = parseInt(req.params.cityId, 10);
     if (isNaN(cityId)) return res.status(400).json({ error: "cityId invalide" });
-    const result = await getFeeBox(cityId);
-    res.json(result);
+    const isAdmin  = req.user!.role === "admin";
+    const playerId = req.user!.id;
+
+    const [feeBox, owner] = await Promise.all([
+      getFeeBox(cityId),
+      deriveMarketOwner(cityId),
+    ]);
+
+    let canCollect = isAdmin;
+    if (!canCollect && owner) {
+      if (owner.ownerType === "player" && owner.ownerPlayerId === playerId) {
+        canCollect = true;
+      } else if (owner.ownerType === "faction" && owner.ownerFactionId != null) {
+        const [mem] = await db
+          .select({ factionId: factionMembers.factionId })
+          .from(factionMembers)
+          .where(eq(factionMembers.playerId, playerId))
+          .limit(1);
+        canCollect = mem?.factionId === owner.ownerFactionId;
+      }
+    }
+
+    res.json({ ...feeBox, canCollect });
   } catch (err: any) {
     res.status(err.status ?? 500).json({ error: err.message });
   }

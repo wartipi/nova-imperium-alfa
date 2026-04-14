@@ -1,0 +1,171 @@
+NOVA IMPERIUM — CORRECTIF UI : CAISSE LOCALE DE COMMISSION POUR MARCHÉS DE FACTION
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucune dérive hors sujet.
+Ne touche pas au reste du marché si ce n’est pas strictement nécessaire.
+
+OBJECTIF
+Corriger une incohérence entre la logique serveur et l’UI du marché concernant la caisse locale de commission.
+
+PROBLÈME IDENTIFIÉ
+Le backend autorise déjà la collecte de la caisse locale du marché pour :
+- admin
+- propriétaire joueur
+- membre de la faction propriétaire si le marché appartient à une faction
+
+Mais côté UI, dans PublicMarketplace.tsx, l’affichage du bloc "Caisse locale" semble actuellement limité à :
+- admin
+- owner player
+
+Donc un marché détenu par une faction peut être collectable côté serveur, mais invisible ou mal affiché côté client.
+
+IMPORTANT
+Le but n’est PAS de changer la règle métier de collecte.
+Le but est d’aligner l’UI sur la vérité serveur.
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+FICHIERS À AUDITER
+1. client/src/components/game/PublicMarketplace.tsx
+2. server/marketService.ts
+3. server/routes/market.ts
+4. tout helper ou route existante permettant déjà de savoir si le joueur appartient à la faction propriétaire
+
+DIAGNOSTIC À RESPECTER
+Le serveur possède déjà la logique canonique de collecte dans collectFeeBox(...).
+Cette logique ne doit pas être dupliquée de façon fragile côté client si on peut l’éviter.
+
+OBJECTIF FONCTIONNEL EXACT
+Quand le marché appartient à une faction :
+- la caisse locale doit être visible correctement pour les utilisateurs réellement autorisés
+- le bouton Collecter doit apparaître seulement si la collecte est réellement autorisée
+- l’UI ne doit pas mentir
+- la logique serveur existante doit rester la source de vérité
+
+RÈGLE DE CONCEPTION
+Priorité à une source de vérité unique côté serveur.
+
+IMPORTANT
+Si le client ne possède pas déjà une information fiable pour savoir si le joueur peut collecter la caisse locale d’un marché de faction, ne recopie pas la logique d’autorisation côté client en bricolant.
+Dans ce cas, fais le plus petit ajustement propre pour exposer cette information depuis le serveur.
+
+SOLUTION ATTENDUE PAR DÉFAUT
+Option préférée :
+- enrichir la lecture de la caisse locale ou du contexte marché avec un booléen canonique du type :
+  canCollectFeeBox
+- calculé côté serveur avec la même logique réelle que collectFeeBox(...)
+- puis utiliser ce booléen dans PublicMarketplace.tsx pour afficher correctement le bloc et le bouton
+
+IMPORTANT
+Ne fais cela que si l’audit confirme que le client ne peut pas déjà déterminer proprement cette information.
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire précisément :
+- le rendu actuel du bloc "Caisse locale" dans PublicMarketplace.tsx
+- la logique collectFeeBox(...) dans marketService.ts
+- la route GET /fee-box/:cityId dans routes/market.ts
+- la structure de rmOwner et les infos déjà disponibles dans le client
+- la possibilité ou non de connaître la faction du joueur sans ajouter de duplication fragile
+
+ÉTAPE 2 — DIAGNOSTIC CLAIR
+Déterminer explicitement :
+A. si le problème est purement UI
+B. si le client dispose déjà de l’info nécessaire
+C. ou si un petit enrichissement serveur est nécessaire pour exposer proprement l’autorisation
+
+ÉTAPE 3 — CORRECTIF MINIMAL
+Implémenter le plus petit correctif propre.
+
+CAS 1 — si l’info existe déjà côté client
+- corriger uniquement PublicMarketplace.tsx
+
+CAS 2 — si l’info n’existe pas côté client
+- enrichir minimalement la route de lecture concernée
+- exposer un booléen canonique type canCollectFeeBox
+- utiliser ce booléen dans PublicMarketplace.tsx
+
+IMPORTANT
+Ne touche pas à la logique de collecte elle-même sauf si un ajustement strictement minimal est indispensable.
+
+ÉTAPE 4 — CONTRAINTES
+Ne touche pas :
+- au calcul de commission
+- à fillOrder(...)
+- à marketFeeBox sur le fond métier
+- à la boîte de règlement joueur
+- au SSE
+- au carnet d’ordres
+- aux confirmations marché
+- au délai de commission
+
+Le chantier vise uniquement :
+l’alignement UI ↔ autorisation réelle de la caisse locale.
+
+ÉTAPE 5 — COMPORTEMENT CIBLE
+Résultat attendu :
+
+A. Marché owner player
+- owner voit la caisse locale et peut collecter
+- non-owner ne voit pas de faux bouton
+
+B. Marché owner faction
+- membre autorisé de la faction propriétaire voit la caisse locale correctement
+- peut collecter
+- joueur non autorisé ne voit pas de faux bouton
+
+C. Admin
+- voit et peut collecter comme avant
+
+IMPORTANT
+Si tu fais apparaître le bloc sans le bouton pour les non-autorisés, cela doit être un choix cohérent et assumé.
+Sinon, masque entièrement le bloc si c’est plus propre.
+Choisis la version la plus simple et la plus cohérente avec l’UI actuelle.
+
+ÉTAPE 6 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. owner player
+- bloc visible
+- bouton visible
+- collecte inchangée
+
+B. owner faction / membre de la faction
+- bloc visible correctement
+- bouton visible si autorisé
+
+C. non autorisé
+- pas de faux bouton
+- pas de comportement incohérent
+
+D. admin
+- toujours fonctionnel
+
+E. non-régression
+- aucun changement sur le calcul des commissions
+- aucun changement sur fillOrder
+- aucun changement sur le SSE
+- aucun changement sur le marché hors ce point
+
+PREUVE ATTENDUE
+Dans la réponse finale, montre clairement :
+- pourquoi l’ancienne UI était insuffisante
+- où se trouvait l’écart avec le backend
+- si tu as choisi une solution purement client ou un petit enrichissement serveur
+- pourquoi c’est le plus petit correctif propre
+
+CONTRAINTE FINALE
+Le but exclusif est :
+aligner l’affichage et l’accès à la caisse locale du marché avec la logique réelle d’autorisation, y compris pour les marchés détenus par une faction.

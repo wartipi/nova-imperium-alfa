@@ -61,7 +61,7 @@ export async function resolveMarketContext(cityId: number): Promise<MarketContex
 // ─── deriveMarketOwner ────────────────────────────────────────────────────────
 // Dérive le propriétaire du marché via cities → colonies (ownership canonique).
 // Ne stocke jamais l'owner dans market_guilds.
-async function deriveMarketOwner(cityId: number) {
+export async function deriveMarketOwner(cityId: number) {
   const [row] = await db
     .select({
       ownerType:       colonies.ownerType,
