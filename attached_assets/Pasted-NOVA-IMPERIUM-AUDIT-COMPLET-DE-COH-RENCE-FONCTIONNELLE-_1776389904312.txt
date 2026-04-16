@@ -1,0 +1,202 @@
+NOVA IMPERIUM — AUDIT COMPLET DE COHÉRENCE FONCTIONNELLE DU MARCHÉ MODERNE
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → preuve → correctif minimal si demandé.
+Aucun refactor massif.
+Aucune dérive hors sujet.
+Pour ce segment : AUDIT uniquement. Ne modifie rien tant que les écarts ne sont pas listés clairement.
+
+OBJECTIF
+Faire une revue complète de stabilité et de cohérence fonctionnelle du marché moderne après les derniers ajouts.
+
+IMPORTANT
+Ce segment n’est PAS un segment d’implémentation.
+Tu dois d’abord :
+- relire le code réellement poussé
+- recenser ce qui est cohérent
+- recenser les écarts restants
+- distinguer bug réel / comportement attendu / zone fragile / dette technique
+- produire une liste d’actions claire pour les prochains correctifs
+
+RÈGLE DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec ce format :
+1. DIAGNOSTIC GLOBAL
+2. FLUX VALIDÉS
+3. PROBLÈMES CONFIRMÉS
+4. ZONES FRAGILES / À SURVEILLER
+5. LISTE PRIORISÉE DES CORRECTIFS RESTANTS
+6. STOP
+
+PÉRIMÈTRE À AUDITER
+Backend :
+- server/marketService.ts
+- server/routes/market.ts
+- server/routes/economy.ts si nécessaire
+- server/accessPointService.ts si nécessaire
+
+Client :
+- client/src/components/game/PublicMarketplace.tsx
+- client/src/lib/api/marketApi.ts
+- client/src/components/game/TreasuryPanel.tsx si nécessaire pour les flux croisés
+- client/src/components/game/NovaConfirmModal.tsx si nécessaire
+
+CONTEXTE À RESPECTER
+Le marché moderne doit maintenant couvrir :
+- accès physique marché
+- accès banque lié
+- carnet global buy/sell
+- historique
+- boîte de règlement joueur
+- collecte vers transport
+- collecte vers banque
+- commissions immédiates au fill
+- changement de tarif différé (10 s en phase test)
+- caisse locale du marché si pas de banque
+- collecte de la caisse locale
+- owner joueur / owner faction / admin
+- confirmations modales
+- SSE cross-client
+- inventaire transport comme source de marché
+
+IMPORTANT
+Ne compare pas au vieux système legacy.
+Audit uniquement du système moderne réellement en place.
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT STRUCTURÉ DES FLUX
+Tu dois auditer séparément :
+
+A. ACCÈS
+- /api/market/access-check
+- accès marché refusé/autorisé
+- accès banque depuis le marché
+- accès marché depuis la banque si pertinent au niveau cohérence
+
+B. CARNET / ORDRES
+- création ordre SELL
+- création ordre BUY
+- annulation ordre
+- remplissage ordre SELL
+- remplissage ordre BUY
+- propriétaire ne peut pas remplir son propre ordre
+- quantités résiduelles
+- statuts open / filled / cancelled
+
+C. ESCROW / DESTINATION DES RÉSULTATS
+Vérifier précisément où vont :
+- ressource mise en vente
+- or mis en escrow pour un buy
+- retour d’annulation
+- ressource achetée
+- or net de la vente
+- or / ressource après fill
+
+IMPORTANT
+Distinguer :
+- transport
+- playerMarketBox
+- playerBank
+- marketFeeBox
+- factionEconomy
+
+D. BOÎTE DE RÈGLEMENT
+- lecture
+- collecte vers transport
+- collecte vers banque
+- refus si vide
+- refus si capacité insuffisante
+- refus si banque absente
+- cohérence des messages
+
+E. COMMISSIONS
+- calcul de la commission
+- minimum 1 gold si commission non nulle
+- changement de tarif pending → active
+- délai actuel à 10 s
+- promoteFeeLazy
+- commission vers compte propriétaire si banque présente
+- commission vers marketFeeBox sinon
+- collecte de marketFeeBox
+
+F. OWNERSHIP / AUTORISATIONS
+- owner player
+- owner faction
+- non-owner
+- admin
+- alignement UI ↔ serveur
+- canCollect de la caisse locale
+
+G. UI / COHÉRENCE CLIENT
+- structure SELL
+- structure BUY
+- Max côté SELL
+- Max côté BUY
+- dernier prix visible côté BUY
+- confirmations modales
+- message de pending fee
+- bloc caisse locale
+- bloc boîte de règlement
+- cohérence des labels
+
+H. SYNC CROSS-CLIENT
+- invalidation SSE après création ordre
+- invalidation SSE après annulation
+- invalidation SSE après fill
+- invalidation SSE après collecte boîte
+- invalidation SSE après collecte caisse locale
+- refresh transport / boîte / carnet
+
+ÉTAPE 2 — CLASSIFICATION OBLIGATOIRE
+Pour chaque point trouvé, classer explicitement dans une seule catégorie :
+- VALIDÉ
+- BUG CONFIRMÉ
+- COMPORTEMENT ATTENDU
+- ZONE FRAGILE
+- DETTE TECHNIQUE NON BLOQUANTE
+
+IMPORTANT
+Ne mélange pas les catégories.
+
+ÉTAPE 3 — PREUVES
+Chaque problème ou validation importante doit s’appuyer sur une preuve directe :
+- route
+- fonction
+- condition
+- destination de flux
+- état UI
+- garde d’accès
+- commentaire de code si utile
+
+Tu dois t’appuyer sur le code réellement poussé, pas sur les réponses précédentes.
+
+ÉTAPE 4 — PAS DE CORRECTIF DANS CE SEGMENT
+Ne modifie rien.
+Ne propose pas encore de patch.
+Tu dois seulement sortir une liste propre et priorisée des écarts restants.
+
+ÉTAPE 5 — SORTIE ATTENDUE
+Dans “DIAGNOSTIC GLOBAL” :
+- donner un état honnête du marché moderne
+- dire s’il est globalement stable ou encore fragile
+- dire si les problèmes restants sont critiques, moyens, ou secondaires
+
+Dans “FLUX VALIDÉS” :
+- lister seulement les flux réellement propres
+
+Dans “PROBLÈMES CONFIRMÉS” :
+- lister seulement les bugs réels prouvés
+
+Dans “ZONES FRAGILES / À SURVEILLER” :
+- lister les éléments techniquement fonctionnels mais à risque
+
+Dans “LISTE PRIORISÉE DES CORRECTIFS RESTANTS” :
+- produire une vraie séquence d’intervention
+- du plus important au plus secondaire
+- sans mélanger marché avec d’autres systèmes du jeu
+
+CONTRAINTE FINALE
+Le but exclusif est :
+produire un audit complet, propre et priorisé du marché moderne, afin de décider ensuite les prochains correctifs un par un.
