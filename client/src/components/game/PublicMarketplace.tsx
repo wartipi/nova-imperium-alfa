@@ -461,22 +461,26 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                         En attente : {(rmGuild.pendingFeeBps / 100).toFixed(2)} % — actif le {new Date(rmGuild.pendingFeeAppliesAt).toLocaleString()}
                       </span>
                     )}
-                    <div className="flex gap-2 ml-auto items-center">
-                      <input
-                        type="number" min={0} max={25} step={0.01}
-                        placeholder="% (ex: 5)"
-                        value={rmFeeInput}
-                        onChange={e => setRmFeeInput(e.target.value)}
-                        className="w-24 px-2 py-1 border border-amber-300 rounded text-sm"
-                      />
-                      <button
-                        onClick={rmUpdateFee}
-                        className="px-3 py-1 bg-amber-700 hover:bg-amber-800 text-white rounded text-sm"
-                        style={{ pointerEvents: "auto" }}
-                      >
-                        Changer %
-                      </button>
-                    </div>
+                    {(access.isAdmin ||
+                      (rmOwner?.ownerType === "player" && rmOwner?.ownerPlayerId === playerId) ||
+                      rmOwner?.ownerType === "faction") && (
+                      <div className="flex gap-2 ml-auto items-center">
+                        <input
+                          type="number" min={0} max={25} step={0.01}
+                          placeholder="% (ex: 5)"
+                          value={rmFeeInput}
+                          onChange={e => setRmFeeInput(e.target.value)}
+                          className="w-24 px-2 py-1 border border-amber-300 rounded text-sm"
+                        />
+                        <button
+                          onClick={rmUpdateFee}
+                          className="px-3 py-1 bg-amber-700 hover:bg-amber-800 text-white rounded text-sm"
+                          style={{ pointerEvents: "auto" }}
+                        >
+                          Changer %
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   // Cette branche n'est accessible qu'aux admins (cityId=0, hasGuild=false).
@@ -767,9 +771,11 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                                   onClick={() => {
                                     if (!transport || draft.price <= 0) return;
                                     const maxQty = Math.floor((transport as any).gold / draft.price);
-                                    setBuyDrafts(d => ({ ...d, [r]: { ...d[r], qty: Math.max(0, maxQty) } }));
+                                    if (maxQty < 1) return;
+                                    setBuyDrafts(d => ({ ...d, [r]: { ...d[r], qty: maxQty } }));
                                   }}
-                                  className="w-full py-0.5 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 rounded border border-blue-300"
+                                  disabled={!transport || draft.price <= 0 || Math.floor(((transport as any).gold ?? 0) / draft.price) < 1}
+                                  className="w-full py-0.5 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 rounded border border-blue-300 disabled:opacity-40 disabled:cursor-not-allowed"
                                   style={{ pointerEvents: "auto" }}
                                 >Max</button>
                                 <input
@@ -815,11 +821,13 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                                 onChange={e => setRmFillQty(q => ({ ...q, [o.id]: parseInt(e.target.value) || 1 }))}
                                 className="w-16 px-1 py-0.5 border border-gray-300 rounded text-xs"
                               />
-                              <button
-                                onClick={() => rmFillOrder(o.id, "buy")}
-                                className="px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white rounded text-xs"
-                                style={{ pointerEvents: "auto" }}
-                              >Vendre</button>
+                              {o.playerId !== playerId && (
+                                <button
+                                  onClick={() => rmFillOrder(o.id, "buy")}
+                                  className="px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white rounded text-xs"
+                                  style={{ pointerEvents: "auto" }}
+                                >Vendre</button>
+                              )}
                               {o.playerId === playerId && (
                                 <button
                                   onClick={() => rmCancelOrder(o.id)}

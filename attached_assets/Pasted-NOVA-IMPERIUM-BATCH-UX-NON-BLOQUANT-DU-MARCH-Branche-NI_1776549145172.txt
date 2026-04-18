@@ -1,0 +1,191 @@
+NOVA IMPERIUM — BATCH UX NON BLOQUANT DU MARCHÉ
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucune dérive hors sujet.
+Ne touche pas au backend si ce n’est pas strictement nécessaire.
+
+OBJECTIF
+Appliquer uniquement les correctifs UX non bloquants déjà identifiés et validés sur le marché moderne.
+
+IMPORTANT
+Ce batch ne doit PAS toucher :
+- au matching
+- à fillOrder() sur le fond métier
+- à la boîte de règlement
+- au calcul de commission
+- au SSE
+- aux accès physiques
+- aux permissions serveur
+- à la logique d’escrow
+
+On corrige seulement l’UX côté client pour éviter les actions inutiles ou confuses.
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+CORRECTIFS À FAIRE DANS CE BATCH
+
+==================================================
+UX-1 — MASQUER “CHANGER %” AUX NON-AUTORISÉS
+==================================================
+
+PROBLÈME
+Le champ + bouton de changement de commission est visible pour tous les joueurs ayant accès au marché.
+Les non-propriétaires peuvent tenter l’action, puis le serveur renvoie 403.
+
+OBJECTIF
+Ne montrer l’UI de changement de commission qu’aux utilisateurs réellement autorisés.
+
+RÈGLE ATTENDUE
+Le bloc input + bouton “Changer %” doit être visible seulement si :
+- access.isAdmin === true
+OU
+- le marché appartient au joueur
+OU
+- le marché appartient à une faction dont le joueur est membre autorisé
+
+IMPORTANT
+Privilégie la plus petite solution propre.
+Si le client ne peut pas déterminer proprement le cas faction avec les infos déjà disponibles, n’invente pas une logique fragile.
+Dans ce cas :
+- soit tu réutilises une info déjà présente
+- soit tu proposes un micro-enrichissement minimal
+Mais seulement si c’est strictement nécessaire.
+
+==================================================
+UX-2 — MASQUER “VENDRE” SUR SON PROPRE ORDRE BUY
+==================================================
+
+PROBLÈME
+Dans la liste des ordres BUY, le propriétaire de l’ordre voit encore le bouton “Vendre”.
+En cliquant, la modale s’ouvre puis le serveur rejette avec :
+“Vous ne pouvez pas remplir votre propre ordre”.
+
+OBJECTIF
+Éviter cette action inutile côté UI.
+
+CORRECTION ATTENDUE
+Dans la liste des ordres BUY :
+- masquer le bouton “Vendre” si o.playerId === playerId
+- conserver le bouton “Annuler” pour le propriétaire
+
+IMPORTANT
+Ne touche pas au garde serveur existant.
+Le serveur doit continuer à protéger ce cas.
+
+==================================================
+UX-3 — CORRIGER MAX BUY QUI PEUT METTRE qty=0
+==================================================
+
+PROBLÈME
+Le bouton Max du formulaire BUY peut fixer qty à 0 si :
+transport.gold < draft.price
+
+Cela mène ensuite à une erreur serveur “quantity doit être un entier positif”.
+Le serveur a raison, mais l’UX est mauvaise.
+
+OBJECTIF
+Empêcher le bouton Max de produire un état invalide.
+
+CORRECTION MINIMALE ATTENDUE
+Choisir UNE seule de ces solutions simples :
+
+Option A — préférée
+- désactiver le bouton Max BUY si le max calculé < 1
+
+OU
+
+Option B
+- ne rien changer visuellement mais ne jamais écrire 0
+- si maxQty < 1, garder la quantité actuelle ou forcer 1
+
+IMPORTANT
+Choisir la version la plus propre et cohérente avec l’UI actuelle.
+Pas de refonte.
+
+FICHIERS À AUDITER
+- client/src/components/game/PublicMarketplace.tsx
+- éventuellement client/src/lib/api/marketApi.ts uniquement si strictement nécessaire
+- éventuellement la source déjà disponible de l’owner / autorisation si utile
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire précisément :
+- le bloc guilde / commission dans PublicMarketplace.tsx
+- le rendu des ordres BUY
+- le bouton Max BUY
+- les informations réellement disponibles côté client pour déterminer l’autorisation du changement de commission
+
+ÉTAPE 2 — UX-1
+Corriger l’affichage du champ + bouton “Changer %”.
+
+IMPORTANT
+Ne duplique pas maladroitement la logique serveur si ce n’est pas fiable.
+Si l’info faction n’est pas disponible proprement côté client, fais le plus petit ajustement sûr.
+Le but est d’éviter les faux boutons visibles inutilement.
+
+ÉTAPE 3 — UX-2
+Masquer le bouton “Vendre” pour le propriétaire sur ses propres ordres BUY.
+Le bouton “Annuler” doit rester disponible.
+
+ÉTAPE 4 — UX-3
+Empêcher Max BUY de produire qty=0.
+Solution simple, locale, sans refonte.
+
+ÉTAPE 5 — CONTRAINTES
+Ne touche pas :
+- aux routes marché
+- à fillOrder
+- à cancelOrder
+- à updateFee sur le fond
+- à computeMarketFee
+- à collectFeeBox
+- au SSE
+- aux flux d’escrow
+
+ÉTAPE 6 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. UX-1
+- non-propriétaire simple : plus de faux contrôle “Changer %”
+- propriétaire joueur : contrôle visible
+- admin : contrôle visible
+- cas faction : comportement cohérent avec les infos réellement disponibles
+
+B. UX-2
+- sur un ordre BUY appartenant au joueur : bouton “Vendre” absent
+- bouton “Annuler” toujours présent
+- sur un ordre BUY d’un autre joueur : bouton “Vendre” toujours présent
+
+C. UX-3
+- Max BUY ne peut plus mettre qty à 0
+- aucune erreur UI nouvelle
+- le formulaire BUY reste utilisable normalement
+
+D. Non-régression
+- marché compile
+- aucune logique serveur modifiée par erreur
+- confirmations modales inchangées
+- flows SELL / BUY inchangés hors ces points UX
+
+PREUVE ATTENDUE
+Dans la réponse finale, montre clairement :
+- l’ancienne condition fautive
+- la nouvelle condition
+- le traitement exact du bouton “Vendre” sur ordre BUY
+- le traitement exact du bouton Max BUY
+
+CONTRAINTE FINALE
+Le but exclusif est :
+corriger les trois irritants UX restants du marché sans toucher au fond métier.
