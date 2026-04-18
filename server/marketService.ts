@@ -586,7 +586,7 @@ export async function fillOrder(
 }
 
 // ─── updateFee ────────────────────────────────────────────────────────────────
-// Change la commission du marché. Owner canonique ou admin. Cooldown 24 h.
+// Change la commission du marché. Owner canonique ou admin. Cooldown 10 s (phase de test).
 export async function updateFee(
   cityId:      number,
   newFeeBps:   number,

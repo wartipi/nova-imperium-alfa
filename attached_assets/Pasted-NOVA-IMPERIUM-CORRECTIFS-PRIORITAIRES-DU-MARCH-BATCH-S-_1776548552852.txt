@@ -1,0 +1,203 @@
+NOVA IMPERIUM — CORRECTIFS PRIORITAIRES DU MARCHÉ (BATCH SÛR)
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucune dérive hors sujet.
+
+OBJECTIF
+Appliquer uniquement les correctifs confirmés, sûrs et non destructifs issus du dernier audit du marché.
+
+IMPORTANT
+Ce segment ne doit PAS toucher :
+- au matching
+- à fillOrder() sur le fond métier
+- à la boîte de règlement
+- au calcul de commission
+- au SSE
+- aux routes de carnet d’ordres
+- à la logique d’escrow
+- aux accès physiques marché/banque
+
+On corrige seulement les incohérences et bugs mineurs confirmés.
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+CORRECTIFS À FAIRE DANS CE BATCH
+
+==================================================
+P1 — FALLBACK INCOMPLET APRÈS AJOUT DE canCollect
+==================================================
+
+PROBLÈME
+Dans PublicMarketplace.tsx, le fallback de fetchMarketFeeBox retourne encore :
+{ gold: 0 }
+alors que le type réel attendu est maintenant :
+{ gold: number; canCollect: boolean }
+
+RISQUE
+Si la requête fee-box échoue, rmFeeBox.canCollect devient undefined.
+Le bloc caisse locale peut alors disparaître silencieusement de manière incohérente.
+
+CORRECTION ATTENDUE
+Remplacer le fallback par :
+{ gold: 0, canCollect: false }
+
+IMPORTANT
+Ne touche pas à la logique générale de chargement.
+Corriger uniquement ce fallback.
+
+==================================================
+P4 — FUITE D’INFORMATION SUR GET /fee-box/:cityId
+==================================================
+
+PROBLÈME
+La route GET /api/market/fee-box/:cityId retourne actuellement :
+{ gold, canCollect }
+
+Même si canCollect === false, l’utilisateur peut quand même connaître le montant réel de la caisse locale.
+
+OBJECTIF
+Conserver le booléen canCollect, mais ne pas exposer le montant réel aux non-autorisés.
+
+CORRECTION MINIMALE ATTENDUE
+Dans GET /fee-box/:cityId :
+
+- si l’utilisateur est autorisé à collecter :
+  retourner le vrai montant + canCollect: true
+
+- si l’utilisateur n’est PAS autorisé :
+  retourner
+  { gold: 0, canCollect: false }
+
+IMPORTANT
+Ne pas changer POST /fee-box/:cityId/collect
+Ne pas changer collectFeeBox(...)
+Ne pas changer la logique métier d’autorisation
+On masque seulement la lecture du montant aux non-autorisés.
+
+==================================================
+P2 — COMMENTAIRE STALE DANS updateFee
+==================================================
+
+PROBLÈME
+Le commentaire de updateFee mentionne encore un cooldown de 24 h alors que le code est maintenant à 10 s pour la phase test.
+
+CORRECTION ATTENDUE
+Mettre le commentaire à jour proprement pour refléter la réalité du code :
+10 s (phase de test)
+
+IMPORTANT
+Commentaire seulement.
+Aucun changement métier.
+
+==================================================
+P3 — pendingFeeAppliesAt! NON SÉCURISÉ CÔTÉ UI
+==================================================
+
+PROBLÈME
+Dans PublicMarketplace.tsx, l’affichage du fee pending utilise encore :
+rmGuild.pendingFeeAppliesAt!
+
+Si pendingFeeBps est non-null mais pendingFeeAppliesAt est null, l’UI peut afficher "Invalid Date".
+
+CORRECTION ATTENDUE
+Ne rendre la ligne pending que si :
+- rmGuild.pendingFeeBps != null
+ET
+- rmGuild.pendingFeeAppliesAt != null
+
+IMPORTANT
+Correctif strictement minimal.
+Ne pas refaire le bloc UI.
+Ne pas changer le sens du message.
+Seulement sécuriser le rendu.
+
+FICHIERS À AUDITER
+- client/src/components/game/PublicMarketplace.tsx
+- server/routes/market.ts
+- server/marketService.ts
+- client/src/lib/api/marketApi.ts
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire précisément :
+- le fallback feeBox dans PublicMarketplace.tsx
+- la route GET /fee-box/:cityId
+- le commentaire de updateFee dans marketService.ts
+- le rendu pendingFee dans PublicMarketplace.tsx
+
+ÉTAPE 2 — APPLIQUER P1
+Corriger le fallback client de feeBox.
+
+ÉTAPE 3 — APPLIQUER P4
+Masquer le montant réel de la caisse locale aux non-autorisés dans GET /fee-box/:cityId, tout en conservant canCollect.
+
+RÈGLE DE SORTIE ATTENDUE
+Autorisé :
+{ gold: vraiMontant, canCollect: true }
+
+Non autorisé :
+{ gold: 0, canCollect: false }
+
+ÉTAPE 4 — APPLIQUER P2
+Corriger le commentaire stale dans marketService.ts.
+
+ÉTAPE 5 — APPLIQUER P3
+Sécuriser l’affichage UI de pendingFeeAppliesAt.
+
+ÉTAPE 6 — CONTRAINTES
+Ne touche pas :
+- à collectFeeBox(...)
+- à updateFee(...) sur sa logique
+- à fillOrder(...)
+- à computeMarketFee(...)
+- au SSE
+- aux flux d’escrow
+- aux permissions réelles du backend
+
+Ce batch est purement :
+- cohérence type / fallback
+- protection d’information
+- commentaire stale
+- garde de rendu UI
+
+ÉTAPE 7 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. P1
+- le fallback feeBox retourne bien { gold: 0, canCollect: false }
+
+B. P4
+- un utilisateur non autorisé ne reçoit plus le vrai montant de fee-box
+- un utilisateur autorisé reçoit encore le vrai montant
+- canCollect reste correct
+
+C. P2
+- le commentaire updateFee reflète bien 10 s phase test
+
+D. P3
+- aucun usage non sécurisé de pendingFeeAppliesAt!
+- pas de "Invalid Date" possible dans ce bloc
+
+E. Non-régression
+- collectFeeBox inchangée
+- marketFeeBox inchangée sur le fond métier
+- computeMarketFee inchangée
+- fillOrder inchangée
+- SSE inchangé
+- UI du marché toujours compilable
+
+CONTRAINTE FINALE
+Le but exclusif est :
+corriger P1, P4, P2 et P3 sans toucher au reste du système de marché.

@@ -283,7 +283,7 @@ router.get("/fee-box/:cityId", requireAuth, async (req: AuthRequest, res) => {
       }
     }
 
-    res.json({ ...feeBox, canCollect });
+    res.json({ gold: canCollect ? feeBox.gold : 0, canCollect });
   } catch (err: any) {
     res.status(err.status ?? 500).json({ error: err.message });
   }

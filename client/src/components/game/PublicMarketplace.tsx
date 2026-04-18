@@ -163,7 +163,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
         safeId > 0 ? fetchMarketGuild(safeId) : Promise.resolve({ guild: null, hasGuild: false, feeBps: 0, owner: null }),
         fetchMarketOrders(safeId > 0 ? safeId : 1),
         fetchMarketTrades(safeId > 0 ? safeId : 1),
-        safeId > 0 ? fetchMarketFeeBox(safeId).catch(() => ({ gold: 0 })) : Promise.resolve({ gold: 0 }),
+        safeId > 0 ? fetchMarketFeeBox(safeId).catch(() => ({ gold: 0, canCollect: false })) : Promise.resolve({ gold: 0, canCollect: false }),
       ]);
       setRmGuild((guildData as any).guild ?? null);
       setRmOwner((guildData as any).owner ?? null);
@@ -456,9 +456,9 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                     <span className="text-amber-800">
                       Commission : <strong>{(rmGuild.activeFeeBps / 100).toFixed(2)} %</strong>
                     </span>
-                    {rmGuild.pendingFeeBps != null && (
+                    {rmGuild.pendingFeeBps != null && rmGuild.pendingFeeAppliesAt != null && (
                       <span className="text-amber-700 text-xs">
-                        En attente : {(rmGuild.pendingFeeBps / 100).toFixed(2)} % — actif le {new Date(rmGuild.pendingFeeAppliesAt!).toLocaleString()}
+                        En attente : {(rmGuild.pendingFeeBps / 100).toFixed(2)} % — actif le {new Date(rmGuild.pendingFeeAppliesAt).toLocaleString()}
                       </span>
                     )}
                     <div className="flex gap-2 ml-auto items-center">
