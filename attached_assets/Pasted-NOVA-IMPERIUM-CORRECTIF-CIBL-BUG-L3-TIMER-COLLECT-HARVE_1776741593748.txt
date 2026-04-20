@@ -1,0 +1,121 @@
+NOVA IMPERIUM — CORRECTIF CIBLÉ BUG-L3 (TIMER COLLECT_HARVEST)
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucune dérive hors sujet.
+
+OBJECTIF
+Corriger BUG-L3 uniquement :
+le timer de collect_harvest semble encore utiliser une somme brute des ressources au lieu du calcul canonique computeTransportUnits(...), ce qui pénalise fortement l’or.
+
+IMPORTANT
+Ne traite PAS dans ce segment :
+- BUG-L2 admin bypass durée
+- transaction DB
+- marché
+- banque→joueur
+- banque→ville
+- toute autre action non liée à collect_harvest
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+FICHIERS À AUDITER
+- server/playerActionService.ts
+- éventuellement server/routes/economy.ts seulement si nécessaire pour vérifier que rien d’autre n’est impacté
+
+DIAGNOSTIC À RESPECTER
+Le problème suspecté est :
+- createCollectHarvestAction() calcule encore totalUnits avec une somme brute :
+  gold + food + wood + stone + ...
+- au lieu d’utiliser computeTransportUnits(...)
+- donc l’or est compté 1:1 au lieu d’être compressé à 250 = 1 unité
+- ce qui produit des durées de collecte beaucoup trop longues dès qu’il y a de l’or
+
+OBJECTIF FONCTIONNEL EXACT
+Le timer de collect_harvest doit être aligné sur la règle canonique actuelle :
+- gold compressé : 250 = 1 unité
+- autres ressources : 1 unité chacune
+- même logique que le reste du système logistique
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire précisément dans playerActionService.ts :
+- createCollectHarvestAction()
+- le calcul actuel de totalUnits
+- le calcul de durationMs / durationMinutes / durationSeconds
+- computeTransportUnits(...)
+
+ÉTAPE 2 — CORRECTIF MINIMAL
+Si createCollectHarvestAction() utilise encore une somme brute, la remplacer par :
+- computeTransportUnits({
+    gold: pendingGold,
+    food: pendingFood,
+    wood: pendingWood,
+    stone: pendingStone,
+    iron: pendingIron,
+    copper: pendingCopper,
+    coal: pendingCoal,
+    oil: pendingOil,
+    herbs: pendingHerbs,
+    fur: pendingFur,
+  })
+
+IMPORTANT
+Ne change pas la formule générale de durée si elle est autrement correcte.
+Corrige uniquement la source de vérité pour totalUnits.
+
+ÉTAPE 3 — CONTRAINTES
+Ne touche pas :
+- aux routes
+- aux réponses API
+- à la logique de complétion
+- au stockage des pending
+- aux autres actions logistiques
+- au marché
+- à la banque
+
+Le but exclusif est d’aligner le timer de collect_harvest sur computeTransportUnits().
+
+ÉTAPE 4 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. Le code de createCollectHarvestAction utilise bien computeTransportUnits(...)
+
+B. La règle canonique est bien respectée :
+- gold=0 → 0 unité or
+- gold=1 → 1 unité
+- gold=250 → 1 unité
+- gold=251 → 2 unités
+
+C. Exemple mixte :
+- 400 gold + 10 wood
+- gold compte pour ceil(400/250)=2 unités
+- total attendu = 12 unités
+
+D. Non-régression
+- aucune autre action logistique modifiée
+- aucune route modifiée
+- aucun contrat API modifié
+- aucune erreur TypeScript
+
+PREUVE ATTENDUE
+Dans la réponse finale, montre clairement :
+- l’ancien calcul fautif
+- le nouveau calcul
+- l’endroit exact modifié
+- pourquoi cela corrige la pénalisation de l’or
+
+CONTRAINTE FINALE
+Le but exclusif est :
+corriger BUG-L3 en faisant calculer le timer de collect_harvest avec computeTransportUnits(...), pour aligner la collecte sur la règle canonique 250 or = 1 unité.

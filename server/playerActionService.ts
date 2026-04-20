@@ -632,8 +632,18 @@ export async function createCollectHarvestAction(
     throw new Error(`ACTION_ALREADY_ACTIVE: joueur ${playerId} a déjà une action en cours (id=${existing.id})`);
   }
 
-  const totalUnits = pendingGold + pendingFood + pendingWood + pendingStone + pendingIron
-                   + pendingCopper + pendingCoal + pendingOil + pendingHerbs + pendingFur;
+  const totalUnits = computeTransportUnits({
+    gold:   pendingGold,
+    food:   pendingFood,
+    wood:   pendingWood,
+    stone:  pendingStone,
+    iron:   pendingIron,
+    copper: pendingCopper,
+    coal:   pendingCoal,
+    oil:    pendingOil,
+    herbs:  pendingHerbs,
+    fur:    pendingFur,
+  });
   const durationMinutes = Math.max(5, 5 + Math.ceil(totalUnits / 10));
   const durationMs = durationMinutes * 60 * 1000;
 
