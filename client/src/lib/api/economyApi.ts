@@ -263,21 +263,35 @@ export async function postDepositTransportToBank(mats: T1Mats): Promise<DepositT
 export interface TransferResult {
   ok: boolean;
   action: {
-    id:           number;
-    type:         string;
-    status:       string;
-    msRemaining:  number;
-    minRemaining: number;
-    gold:         number;
-    food:         number;
-    wood:         number;
-    stone:        number;
-    iron:         number;
-    copper:       number;
-    coal:         number;
-    oil:          number;
-    herbs:        number;
-    fur:          number;
+    id:               number;
+    type:             string;
+    status:           "in_progress" | "completed" | "cancelled";
+    msRemaining:      number;
+    minRemaining:     number;
+    startWorldX:      number;
+    startWorldY:      number;
+    endWorldX:        number;
+    endWorldY:        number;
+    totalCost:        number;
+    startTime:        string;
+    expectedEndTime:  string;
+    completedAt:      string | null;
+    path:             any[];
+    lastAppliedStep:  number | null;
+    effectiveStep:    number;
+    effectiveWorldX:  number;
+    effectiveWorldY:  number;
+    effectiveTerrain: string;
+    gold:             number;
+    food:             number;
+    wood:             number;
+    stone:            number;
+    iron:             number;
+    copper:           number;
+    coal:             number;
+    oil:              number;
+    herbs:            number;
+    fur:              number;
   };
 }
 

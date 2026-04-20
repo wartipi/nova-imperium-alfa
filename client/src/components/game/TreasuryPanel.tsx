@@ -13,6 +13,7 @@ import {
   type CityHarvestDTO,
   type CityWarehouseInfoDTO,
 } from "../../lib/api/economyApi";
+import { usePlayerActions } from "../../lib/stores/usePlayerActions";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -371,6 +372,7 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
     setToCity(prev => ({ ...prev, loading: true, message: null }));
     try {
       const res = await postTransferBankToCity(cityId, mats, adminModeEnabled);
+      usePlayerActions.getState().setActiveAction(res.action);
       const min = res.action.minRemaining;
       const msg = adminModeEnabled
         ? `✅ Transfert immédiat vers ville (admin)`
@@ -422,6 +424,7 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
     setToPlayer(prev => ({ ...prev, loading: true, message: null }));
     try {
       const res = await postTransferBankToPlayer(mats, adminModeEnabled);
+      usePlayerActions.getState().setActiveAction(res.action);
       const min = res.action.minRemaining;
       const msg = adminModeEnabled
         ? "✅ Transfert immédiat sur vous (admin)"

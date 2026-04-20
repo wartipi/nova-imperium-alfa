@@ -1,0 +1,110 @@
+NOVA IMPERIUM — CORRECTIF CIBLÉ BUG-L1 LOGISTIQUE
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucune dérive hors sujet.
+
+OBJECTIF
+Corriger BUG-L1 uniquement :
+les transferts banque→joueur et banque→ville ne branchent pas l’action active côté client, donc ActiveActionWidget ne suit pas l’action et le refresh de complétion ne part jamais correctement.
+
+IMPORTANT
+Ne traite PAS encore :
+- BUG-L2 admin bypass durée
+- BUG-L3 collect_harvest et computeTransportUnits
+- ZF-L1 transaction DB
+On fait BUG-L1 seul.
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+FICHIERS À AUDITER
+- client/src/components/game/TreasuryPanel.tsx
+- client/src/lib/stores/usePlayerActions.ts
+- client/src/components/game/ActiveActionWidget.tsx
+
+DIAGNOSTIC À RESPECTER
+Le problème suspecté est :
+- handleTransferToPlayer() crée bien l’action côté serveur
+- handleTransferToCity() crée bien l’action côté serveur
+- mais le résultat res.action n’est pas poussé dans le store usePlayerActions
+- donc ActiveActionWidget ne voit jamais l’action
+- donc le timer/logique de complétion du widget ne démarre pas
+- donc le refresh logistique à vraie complétion ne part pas correctement
+
+OBJECTIF FONCTIONNEL EXACT
+Quand un transfert banque→joueur ou banque→ville est lancé avec succès :
+- l’action doit apparaître dans ActiveActionWidget
+- le décompte doit être visible
+- à la vraie complétion, le refresh logistique doit se déclencher comme prévu
+- sans reload manuel
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire précisément :
+- handleTransferToPlayer() dans TreasuryPanel.tsx
+- handleTransferToCity() dans TreasuryPanel.tsx
+- la structure attendue par setActiveAction(...) dans usePlayerActions
+- le comportement de complétion dans ActiveActionWidget
+
+ÉTAPE 2 — CORRECTIF MINIMAL
+Dans TreasuryPanel.tsx :
+- après succès de création de l’action banque→joueur
+- après succès de création de l’action banque→ville
+
+brancher explicitement l’action créée dans le store, avec :
+- usePlayerActions.getState().setActiveAction(res.action)
+
+IMPORTANT
+Ne le faire que si res.action existe réellement dans la réponse.
+Ne change pas le contrat API si ce n’est pas nécessaire.
+
+ÉTAPE 3 — CONTRAINTES
+Ne touche pas :
+- aux routes backend
+- aux durées
+- au calcul de capacité
+- à ActiveActionWidget sauf si une micro-adaptation strictement nécessaire s’impose
+- aux autres handlers non concernés
+
+ÉTAPE 4 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. Banque → joueur
+- l’action créée est injectée dans le store
+- ActiveActionWidget affiche bien l’action
+
+B. Banque → ville
+- l’action créée est injectée dans le store
+- ActiveActionWidget affiche bien l’action
+
+C. Complétion
+- le flux prévu par ActiveActionWidget reste intact
+- le refresh logistique à complétion peut partir normalement
+
+D. Non-régression
+- aucun changement sur collect_harvest
+- aucun changement sur admin bypass
+- aucun changement sur la logique backend
+- aucun changement sur les autres panneaux
+
+PREUVE ATTENDUE
+Dans la réponse finale, montre clairement :
+- où le setActiveAction manquait
+- où il a été ajouté
+- que cela couvre bien les deux handlers
+- que le reste n’a pas été touché
+
+CONTRAINTE FINALE
+Le but exclusif est :
+corriger BUG-L1 en branchant correctement l’action logistique créée dans le store client, pour que ActiveActionWidget suive enfin les transferts.
