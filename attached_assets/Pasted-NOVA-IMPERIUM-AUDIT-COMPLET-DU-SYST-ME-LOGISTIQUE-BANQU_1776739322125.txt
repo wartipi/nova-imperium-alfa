@@ -1,0 +1,233 @@
+NOVA IMPERIUM — AUDIT COMPLET DU SYSTÈME LOGISTIQUE / BANQUE / INVENTAIRE
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → preuve → correctif minimal si demandé.
+Aucun refactor massif.
+Aucune dérive hors sujet.
+Pour ce segment : AUDIT uniquement. Ne modifie rien tant que les écarts ne sont pas listés clairement.
+
+OBJECTIF
+Faire une revue complète de stabilité et de cohérence fonctionnelle du système logistique autour de :
+- la banque
+- l’inventaire transport
+- les transferts
+- la boîte de règlement du marché
+- les timers logistiques
+- la capacité de transport
+- les refreshs client après complétion
+
+IMPORTANT
+Ce segment n’est PAS un segment d’implémentation.
+Tu dois d’abord :
+- relire le code réellement poussé
+- recenser ce qui est cohérent
+- recenser les écarts restants
+- distinguer bug réel / comportement attendu / zone fragile / dette technique
+- produire une liste d’actions claire pour les prochains correctifs
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC GLOBAL
+2. FLUX VALIDÉS
+3. PROBLÈMES CONFIRMÉS
+4. ZONES FRAGILES / À SURVEILLER
+5. LISTE PRIORISÉE DES CORRECTIFS RESTANTS
+6. STOP
+
+PÉRIMÈTRE À AUDITER
+
+BACKEND
+- server/playerActionService.ts
+- server/routes/economy.ts
+- server/routes/playerActions.ts
+- server/playerService.ts si nécessaire
+- server/marketService.ts uniquement pour les flux liés à playerMarketBox
+- server/accessPointService.ts si nécessaire pour les gates physiques banque
+
+CLIENT
+- client/src/components/game/TreasuryPanel.tsx
+- client/src/components/game/ActiveActionWidget.tsx
+- client/src/components/game/PublicMarketplace.tsx
+- client/src/components/game/GameCanvas.tsx si nécessaire pour sync/complétion
+- client/src/lib/api/economyApi.ts
+- client/src/lib/api/playerActionsApi.ts
+- tout store client réellement impliqué dans refresh banque / transport / action active
+
+CONTEXTE À RESPECTER
+Le système logistique actuel doit maintenant couvrir :
+- banque du joueur
+- inventaire transport du joueur
+- actions de transfert banque → joueur
+- actions de transfert banque → ville
+- dépôt boîte marché → transport
+- dépôt boîte marché → banque
+- capacité transport canonique
+- compression de l’or à 250 par unité transport
+- timers d’action cohérents avec le calcul d’unités
+- apparition réelle du résultat à la complétion
+- refresh client sans reload manuel
+- messages et refus cohérents
+
+IMPORTANT
+Ne compare pas au vieux système.
+Audit uniquement du système moderne réellement en place.
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT STRUCTURÉ DES FLUX
+
+A. BANQUE → TRANSPORT JOUEUR
+Vérifier :
+- création d’action de transfert
+- validation des quantités
+- débit immédiat banque ou non
+- destination réelle à la complétion
+- refresh UI banque
+- refresh UI transport
+- timing exact appliqué
+- messages côté client
+- comportement si capacité insuffisante
+- comportement si banque absente
+
+B. TRANSPORT / BOÎTE MARCHÉ → BANQUE
+Vérifier :
+- collecte boîte marché vers banque
+- gate physique banque
+- crédit réel banque
+- vidage réel boîte
+- refresh UI cohérent
+- messages cohérents
+
+C. BOÎTE MARCHÉ → TRANSPORT
+Vérifier :
+- lecture de la boîte
+- calcul de capacité
+- refus si capacité insuffisante
+- transfert réel vers transport
+- vidage réel boîte
+- refresh UI cohérent
+- pas de duplication / perte silencieuse
+
+D. BANQUE → VILLE
+Vérifier :
+- création d’action
+- durée calculée
+- cohérence avec computeTransportUnits si applicable
+- complétion réelle
+- destination réelle dans la ville
+- messages et refreshs
+
+E. CAPACITÉ TRANSPORT
+Vérifier précisément :
+- computeTransportUnits(...)
+- or compressé : 1 unité = 250 or
+- autres ressources : 1 unité chacune
+- usedUnits / freeUnits backend
+- affichage client
+- cohérence entre capacité réelle et messages d’erreur
+- cohérence entre capacité et dépôt boîte marché
+
+F. TIMERS LOGISTIQUES
+Vérifier précisément :
+- banque → joueur
+- banque → ville
+- autres actions logistiques connexes encore actives
+- s’il reste des anciennes formules non alignées
+- si une durée utilise encore un calcul brut au lieu du calcul canonique
+
+G. COMPLÉTION / REFRESH CLIENT
+Vérifier :
+- comment le client sait qu’une action logistique est terminée
+- qui déclenche les refreshs banque / transport / boîte
+- s’il existe encore des refreshs prématurés
+- s’il faut reload manuel dans certains cas
+- cohérence entre ActiveActionWidget, polling actions, et panneaux concernés
+
+H. GATES D’ACCÈS
+Vérifier :
+- accès physique banque
+- accès marché
+- collecte boîte → banque
+- lecture banque
+- cohérence UI ↔ backend
+- erreurs retournées si le joueur n’est pas au bon endroit
+
+ÉTAPE 2 — CLASSIFICATION OBLIGATOIRE
+Pour chaque point trouvé, classer explicitement dans une seule catégorie :
+- VALIDÉ
+- BUG CONFIRMÉ
+- COMPORTEMENT ATTENDU
+- ZONE FRAGILE
+- DETTE TECHNIQUE NON BLOQUANTE
+
+IMPORTANT
+Ne mélange pas les catégories.
+
+ÉTAPE 3 — PREUVES
+Chaque validation importante ou problème doit s’appuyer sur une preuve directe :
+- route
+- fonction
+- condition
+- destination réelle des ressources/or
+- état UI
+- garde d’accès
+- calcul de durée
+- calcul d’unités
+- refresh déclenché ou absent
+
+Tu dois t’appuyer sur le code réellement poussé, pas sur les réponses précédentes.
+
+ÉTAPE 4 — POINTS SPÉCIAUX À CONTRÔLER OBLIGATOIREMENT
+
+POINT S1 — OR COMPRESSÉ
+Confirmer noir sur blanc :
+- où la règle 250 or = 1 unité est appliquée
+- où elle est consommée
+- si toute logique logistique critique est alignée dessus
+
+POINT S2 — TIMERS
+Confirmer noir sur blanc :
+- si les durées banque → joueur et banque → ville sont cohérentes avec le calcul canonique d’unités
+- ou s’il reste un décalage
+
+POINT S3 — REFRESH À COMPLÉTION
+Confirmer noir sur blanc :
+- si les ressources transférées apparaissent sans reload manuel
+- ou s’il reste des cas où un refresh manque ou part trop tôt
+
+POINT S4 — PERTE SILENCIEUSE
+Chercher explicitement s’il existe encore un cas où :
+- une ressource/or quitte une source
+- mais n’apparaît pas correctement à destination
+- même de façon intermittente
+
+ÉTAPE 5 — PAS DE CORRECTIF DANS CE SEGMENT
+Ne modifie rien.
+Ne propose pas encore de patch.
+Tu dois seulement sortir une liste propre et priorisée des écarts restants.
+
+ÉTAPE 6 — SORTIE ATTENDUE
+
+Dans “DIAGNOSTIC GLOBAL” :
+- dire honnêtement si le système logistique est globalement stable ou encore fragile
+- dire si les problèmes restants sont critiques, moyens, ou secondaires
+
+Dans “FLUX VALIDÉS” :
+- lister seulement les flux réellement propres
+
+Dans “PROBLÈMES CONFIRMÉS” :
+- lister seulement les bugs réels prouvés
+
+Dans “ZONES FRAGILES / À SURVEILLER” :
+- lister les éléments techniquement fonctionnels mais à risque
+
+Dans “LISTE PRIORISÉE DES CORRECTIFS RESTANTS” :
+- produire une vraie séquence d’intervention
+- du plus important au plus secondaire
+- sans mélanger ce chantier avec d’autres systèmes non logistiques
+
+CONTRAINTE FINALE
+Le but exclusif est :
+produire un audit complet, propre et priorisé du système logistique / banque / inventaire, afin de décider ensuite les prochains correctifs un par un.
