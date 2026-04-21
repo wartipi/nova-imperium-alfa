@@ -1,0 +1,177 @@
+NOVA IMPERIUM — CORRECTIF CIBLÉ P0 : SÛRETÉ TRANSACTIONNELLE DE completeAction()
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucune dérive hors sujet.
+
+OBJECTIF
+Corriger uniquement le risque critique P0 :
+dans completeAction(), l’action est actuellement marquée "completed" avant l’application de l’effet de bord réel (crédit destination / reset pending), ce qui peut produire une perte silencieuse ou une duplication si une erreur survient ensuite.
+
+IMPORTANT
+Ne traite PAS dans ce segment :
+- P1 placeOrder transactionnel
+- P2 createTransferBankToCityAction / createTransferBankToPlayerAction
+- P3 cancelOrder
+- autres chantiers marché
+- admin bypass
+- timers
+- UI
+
+On corrige uniquement la sûreté transactionnelle de completeAction() et, si nécessaire, la sûreté immédiate de completeHarvestTransfer() utilisée par ce flux.
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+FICHIERS À AUDITER
+- server/playerActionService.ts
+
+DIAGNOSTIC À RESPECTER
+Le problème suspecté est :
+
+A. completeAction() fait actuellement :
+1. update playerActions → status="completed"
+2. puis appelle l’effet de bord :
+   - completeBankToCityTransfer(...)
+   - ou completeBankToPlayerTransfer(...)
+   - ou completeHarvestTransfer(...)
+
+B. Si l’effet de bord échoue après le update status="completed" :
+- l’action n’est plus in_progress
+- getActiveAction() ne la retryera plus
+- les ressources peuvent être perdues silencieusement
+- ou, pour harvest, un demi-état peut apparaître
+
+C. completeHarvestTransfer() lui-même semble faire :
+1. crédit cityInventory
+2. puis reset cityPendingHarvest
+sans transaction englobante
+
+OBJECTIF FONCTIONNEL EXACT
+Garantir que :
+- l’effet de bord de complétion et le passage à status="completed" soient atomiques
+OU
+- à défaut, si l’effet de bord échoue, l’action reste retryable et aucun demi-état silencieux n’est commité
+
+Priorité absolue :
+pas de perte silencieuse
+pas de duplication silencieuse
+pas d’action “completed” sans effet réel
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire précisément :
+- completeAction()
+- completeHarvestTransfer()
+- completeBankToCityTransfer()
+- completeBankToPlayerTransfer()
+- getActiveAction() uniquement pour comprendre le point d’entrée
+
+ÉTAPE 2 — CHOIX DE CORRECTIF MINIMAL
+Appliquer la solution la plus petite et la plus sûre.
+
+SOLUTION ATTENDUE PAR DÉFAUT
+Mettre completeAction() sous transaction DB pour les types logistiques concernés :
+- collect_harvest
+- transfer_bank_to_city
+- transfer_bank_to_player
+
+Dans cette transaction :
+1. appliquer d’abord l’effet de bord réel
+2. puis marquer l’action completed
+
+IMPORTANT
+Le move a un flux spécial avec applyMoveProgressAndCosts ; ne le refonds pas.
+Si le move ne peut pas entrer proprement dans le même schéma, laisse-le inchangé et cible uniquement les types logistiques ci-dessus.
+
+ÉTAPE 3 — COMPLETEHARVESTTRANSFER
+Si completeHarvestTransfer() reste composée de deux écritures séparées :
+- crédit cityInventory
+- reset cityPendingHarvest
+
+alors l’intégrer proprement dans la même transaction appelée depuis completeAction,
+OU
+la rendre transactionnelle de la manière la plus minimale possible.
+
+IMPORTANT
+Évite de dupliquer la logique.
+Privilégie la plus petite adaptation propre :
+- soit helpers acceptant tx
+- soit petit wrapper transactionnel
+- pas de refonte générale
+
+ÉTAPE 4 — GARDE D’IDEMPOTENCE MINIMALE
+Ajouter une garde simple pour éviter un double-complete concurrent.
+
+Solution attendue :
+quand tu passes l’action à completed, le UPDATE doit être conditionné par :
+- id = action.id
+- status = 'in_progress'
+
+Puis vérifier le résultat :
+- si aucune ligne n’a été mise à jour, une autre requête a déjà complété → bail out proprement sans reappliquer le crédit
+
+IMPORTANT
+Pas de sur-ingénierie.
+Une garde optimistic minimale suffit.
+
+ÉTAPE 5 — CONTRAINTES
+Ne touche pas :
+- à createTransferBankToCityAction
+- à createTransferBankToPlayerAction
+- à placeOrder
+- à cancelOrder
+- au frontend
+- aux routes
+- aux contrats API
+- aux timers
+
+Le but exclusif est :
+durcir la complétion transactionnelle des actions logistiques.
+
+ÉTAPE 6 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. transfer_bank_to_city
+- le crédit ville n’est plus séparable du passage à completed
+- si le crédit échoue, pas d’action completed orpheline
+
+B. transfer_bank_to_player
+- le crédit transport n’est plus séparable du passage à completed
+- si le crédit échoue, pas d’action completed orpheline
+
+C. collect_harvest
+- le crédit inventaire + reset pending sont cohérents
+- pas de possibilité simple de crédit sans reset ou reset sans crédit
+
+D. idempotence
+- un deuxième complete concurrent ne peut pas réappliquer l’effet si la première complétion a déjà gagné
+
+E. non-régression
+- move non cassé
+- getActiveAction continue à fonctionner
+- aucune route modifiée
+- aucun contrat API modifié
+- aucune erreur TypeScript
+
+PREUVE ATTENDUE
+Dans la réponse finale, montre clairement :
+- l’ancien ordre fautif
+- le nouvel ordre
+- où la transaction commence et finit
+- comment la garde status='in_progress' est appliquée
+- pourquoi cela supprime le risque de complete orphan / duplication silencieuse
+
+CONTRAINTE FINALE
+Le but exclusif est :
+rendre completeAction() sûre pour les actions logistiques, afin qu’aucune action ne puisse être marquée completed avant que son effet réel soit appliqué correctement.
