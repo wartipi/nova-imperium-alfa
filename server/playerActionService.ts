@@ -382,6 +382,77 @@ export async function createMoveAction(
 async function completeAction(action: PlayerAction): Promise<PlayerAction> {
   const now = new Date();
 
+  // ─── Actions financières : transaction atomique + garde d'idempotence ─────────
+  // Ordre : UPDATE status=completed PUIS effets de bord, tous dans la même transaction.
+  // Si un effet de bord échoue → rollback complet → action reste in_progress → retry possible.
+  // La garde WHERE status='in_progress' prévient les doubles complétions concurrentes.
+  if (
+    action.type === "collect_harvest"      ||
+    action.type === "transfer_bank_to_city" ||
+    action.type === "transfer_bank_to_player"
+  ) {
+    return await db.transaction(async (tx) => {
+      // 1. Marquer completed — seulement si encore in_progress (idempotence)
+      const rows = await tx
+        .update(playerActions)
+        .set({ status: "completed", completedAt: now, updatedAt: now })
+        .where(and(eq(playerActions.id, action.id), eq(playerActions.status, "in_progress")))
+        .returning();
+
+      if (rows.length === 0) {
+        // Déjà complétée par un appel concurrent — retourner l'état actuel sans double effet
+        console.warn(`[PlayerAction] completeAction id=${action.id} : déjà completed (garde idempotence)`);
+        const [current] = await tx
+          .select()
+          .from(playerActions)
+          .where(eq(playerActions.id, action.id))
+          .limit(1);
+        return current!;
+      }
+
+      const updated = rows[0];
+
+      // 2. Effets de bord financiers dans la même transaction
+      if (action.type === "collect_harvest") {
+        const pathData = action.path as Array<{ cityId?: number }>;
+        const cityId = pathData?.[0]?.cityId;
+        if (cityId) {
+          await completeHarvestTransfer(cityId, tx);
+        }
+        console.log(`[PlayerAction] Récolte complétée id=${action.id} player=${action.playerId} cityId=${cityId}`);
+      } else if (action.type === "transfer_bank_to_city") {
+        const pathData = action.path as Array<{
+          cityId?: number; gold?: number; food?: number; wood?: number; stone?: number; iron?: number;
+          copper?: number; coal?: number; oil?: number; herbs?: number; fur?: number;
+        }>;
+        const meta = pathData?.[0] ?? {};
+        if (meta.cityId) {
+          await completeBankToCityTransfer(
+            meta.cityId, meta.gold ?? 0, meta.food ?? 0, meta.wood ?? 0, meta.stone ?? 0, meta.iron ?? 0,
+            meta.copper ?? 0, meta.coal ?? 0, meta.oil ?? 0, meta.herbs ?? 0, meta.fur ?? 0,
+            tx,
+          );
+        }
+        console.log(`[PlayerAction] Transfert banque→ville complété id=${action.id} player=${action.playerId}`);
+      } else if (action.type === "transfer_bank_to_player") {
+        const pathData = action.path as Array<{
+          gold?: number; food?: number; wood?: number; stone?: number; iron?: number;
+          copper?: number; coal?: number; oil?: number; herbs?: number; fur?: number;
+        }>;
+        const meta = pathData?.[0] ?? {};
+        await completeBankToPlayerTransfer(
+          action.playerId, meta.gold ?? 0, meta.food ?? 0, meta.wood ?? 0, meta.stone ?? 0, meta.iron ?? 0,
+          meta.copper ?? 0, meta.coal ?? 0, meta.oil ?? 0, meta.herbs ?? 0, meta.fur ?? 0,
+          tx,
+        );
+        console.log(`[PlayerAction] Transfert banque→joueur complété id=${action.id} player=${action.playerId}`);
+      }
+
+      return updated;
+    });
+  }
+
+  // ─── Actions non-financières (move) : comportement existant ──────────────────
   const [updated] = await db
     .update(playerActions)
     .set({ status: "completed", completedAt: now, updatedAt: now })
@@ -398,45 +469,14 @@ async function completeAction(action: PlayerAction): Promise<PlayerAction> {
       `[PlayerAction] Complétée id=${action.id} player=${action.playerId}` +
       ` → position (${applied.worldX},${applied.worldY}) costDebited=${applied.costDebited} AP`
     );
-  } else if (action.type === "collect_harvest") {
-    const pathData = action.path as Array<{ cityId?: number }>;
-    const cityId = pathData?.[0]?.cityId;
-    if (cityId) {
-      await completeHarvestTransfer(cityId);
-    }
-    console.log(`[PlayerAction] Récolte complétée id=${action.id} player=${action.playerId} cityId=${cityId}`);
-  } else if (action.type === "transfer_bank_to_city") {
-    const pathData = action.path as Array<{
-      cityId?: number; gold?: number; food?: number; wood?: number; stone?: number; iron?: number;
-      copper?: number; coal?: number; oil?: number; herbs?: number; fur?: number;
-    }>;
-    const meta = pathData?.[0] ?? {};
-    if (meta.cityId) {
-      await completeBankToCityTransfer(
-        meta.cityId, meta.gold ?? 0, meta.food ?? 0, meta.wood ?? 0, meta.stone ?? 0, meta.iron ?? 0,
-        meta.copper ?? 0, meta.coal ?? 0, meta.oil ?? 0, meta.herbs ?? 0, meta.fur ?? 0,
-      );
-    }
-    console.log(`[PlayerAction] Transfert banque→ville complété id=${action.id} player=${action.playerId}`);
-  } else if (action.type === "transfer_bank_to_player") {
-    const pathData = action.path as Array<{
-      gold?: number; food?: number; wood?: number; stone?: number; iron?: number;
-      copper?: number; coal?: number; oil?: number; herbs?: number; fur?: number;
-    }>;
-    const meta = pathData?.[0] ?? {};
-    await completeBankToPlayerTransfer(
-      action.playerId, meta.gold ?? 0, meta.food ?? 0, meta.wood ?? 0, meta.stone ?? 0, meta.iron ?? 0,
-      meta.copper ?? 0, meta.coal ?? 0, meta.oil ?? 0, meta.herbs ?? 0, meta.fur ?? 0,
-    );
-    console.log(`[PlayerAction] Transfert banque→joueur complété id=${action.id} player=${action.playerId}`);
   }
 
   return updated;
 }
 
 // ─── completeHarvestTransfer ──────────────────────────────────────────────────
-async function completeHarvestTransfer(cityId: number): Promise<void> {
-  const rows = await db
+async function completeHarvestTransfer(cityId: number, tx: any = db): Promise<void> {
+  const rows = await tx
     .select()
     .from(cityPendingHarvest)
     .where(eq(cityPendingHarvest.cityId, cityId))
@@ -449,7 +489,7 @@ async function completeHarvestTransfer(cityId: number): Promise<void> {
 
   const now = new Date();
 
-  await db
+  await tx
     .insert(cityInventory)
     .values({ cityId, gold, food, wood, stone, iron, copper, coal, oil, herbs, fur, updatedAt: now })
     .onConflictDoUpdate({
@@ -469,7 +509,7 @@ async function completeHarvestTransfer(cityId: number): Promise<void> {
       },
     });
 
-  await db
+  await tx
     .update(cityPendingHarvest)
     .set({ gold: 0, food: 0, wood: 0, stone: 0, iron: 0,
            copper: 0, coal: 0, oil: 0, herbs: 0, fur: 0, updatedAt: now })
@@ -488,12 +528,13 @@ async function completeBankToCityTransfer(
   cityId: number, gold: number, food: number,
   wood = 0, stone = 0, iron = 0,
   copper = 0, coal = 0, oil = 0, herbs = 0, fur = 0,
+  tx: any = db,
 ): Promise<void> {
   if (gold === 0 && food === 0 && wood === 0 && stone === 0 && iron === 0
       && copper === 0 && coal === 0 && oil === 0 && herbs === 0 && fur === 0) return;
   const now = new Date();
 
-  await db
+  await tx
     .insert(cityInventory)
     .values({ cityId, gold, food, wood, stone, iron, copper, coal, oil, herbs, fur, updatedAt: now })
     .onConflictDoUpdate({
@@ -525,12 +566,13 @@ async function completeBankToPlayerTransfer(
   playerId: string, gold: number, food: number,
   wood = 0, stone = 0, iron = 0,
   copper = 0, coal = 0, oil = 0, herbs = 0, fur = 0,
+  tx: any = db,
 ): Promise<void> {
   if (gold === 0 && food === 0 && wood === 0 && stone === 0 && iron === 0
       && copper === 0 && coal === 0 && oil === 0 && herbs === 0 && fur === 0) return;
   const now = new Date();
 
-  await db
+  await tx
     .insert(playerTransport)
     .values({ playerId, gold, food, wood, stone, iron, copper, coal, oil, herbs, fur, updatedAt: now })
     .onConflictDoUpdate({
