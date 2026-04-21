@@ -1,0 +1,140 @@
+NOVA IMPERIUM — AUDIT DE SÛRETÉ TRANSACTIONNELLE (LOGISTIQUE)
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → preuve → correctif minimal si demandé.
+Aucun refactor massif.
+Aucune dérive hors sujet.
+Pour ce segment : AUDIT uniquement. Ne modifie rien tant que les risques ne sont pas prouvés clairement.
+
+OBJECTIF
+Vérifier la sûreté transactionnelle du système logistique, en particulier les transferts bancaires qui :
+- débitent une source
+- puis créent une action
+ou
+- déplacent des ressources entre deux stockages
+
+Le but est de détecter si un crash ou une erreur intermédiaire peut produire une perte silencieuse ou un état incohérent.
+
+IMPORTANT
+Ce segment n’est PAS un segment d’implémentation.
+Tu dois d’abord :
+- relire le code réellement poussé
+- identifier les opérations critiques en plusieurs étapes
+- dire lesquelles sont atomiques
+- dire lesquelles ne le sont pas
+- classer les risques
+- produire une liste claire des correctifs éventuels
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC GLOBAL
+2. FLUX ATOMIQUES VALIDÉS
+3. RISQUES CONFIRMÉS
+4. ZONES FRAGILES / À SURVEILLER
+5. LISTE PRIORISÉE DES DURCISSEMENTS À FAIRE
+6. STOP
+
+PÉRIMÈTRE À AUDITER
+
+BACKEND
+- server/playerActionService.ts
+- server/routes/economy.ts
+- server/marketService.ts uniquement si des mouvements critiques similaires existent
+- toute fonction appelée par ces flux si nécessaire
+
+POINTS OBLIGATOIRES À CONTRÔLER
+
+A. BANQUE → ACTION LOGISTIQUE
+Vérifier précisément :
+- createTransferBankToCityAction()
+- createTransferBankToPlayerAction()
+
+Pour chacune :
+- la banque est-elle débitée avant la création d’action ?
+- ces deux opérations sont-elles dans une même transaction DB ?
+- si l’insert de playerActions échoue après le débit, que se passe-t-il ?
+- existe-t-il un risque réel de perte silencieuse ?
+
+B. COMPLÉTION D’ACTION LOGISTIQUE
+Vérifier précisément :
+- completeBankToCityTransfer()
+- completeBankToPlayerTransfer()
+- completeHarvestTransfer()
+
+Pour chacune :
+- crédit destination + vidage source éventuel sont-ils atomiques ?
+- y a-t-il une possibilité de duplication ou de demi-état si une requête échoue au milieu ?
+
+C. DÉPÔTS IMMÉDIATS
+Vérifier précisément :
+- deposit-transport-to-city
+- deposit-transport-to-bank
+
+Confirmer noir sur blanc :
+- ces flux sont-ils déjà protégés par db.transaction(...) ?
+- sont-ils sûrs contre les demi-écritures ?
+
+D. MARCHÉ / BOÎTE / CAISSE LOCALE
+Sans auditer tout le marché à nouveau, vérifier uniquement s’il existe un flux critique analogue où :
+- une source est débitée
+- puis une destination est créditée
+- sans transaction
+- avec risque de perte ou duplication silencieuse
+
+IMPORTANT
+Ne dérive pas dans un audit global du marché.
+Seulement les flux de sûreté transactionnelle.
+
+ÉTAPE 1 — AUDIT CIBLÉ DES OPÉRATIONS CRITIQUES
+Pour chaque flux critique trouvé, préciser :
+- source débitée
+- destination créditée
+- action créée ou non
+- présence ou absence de transaction
+- risque exact en cas d’échec intermédiaire
+
+ÉTAPE 2 — CLASSIFICATION OBLIGATOIRE
+Pour chaque flux, classer dans une seule catégorie :
+- VALIDÉ (atomique / sûr)
+- RISQUE CONFIRMÉ
+- ZONE FRAGILE
+- DETTE TECHNIQUE NON BLOQUANTE
+
+ÉTAPE 3 — PREUVES
+Chaque conclusion doit s’appuyer sur une preuve directe :
+- fonction
+- ordre réel des requêtes
+- présence ou absence de db.transaction(...)
+- comportement en cas d’échec intermédiaire
+- source et destination exactes
+
+Tu dois t’appuyer sur le code réellement poussé, pas sur les réponses précédentes.
+
+ÉTAPE 4 — PAS DE PATCH DANS CE SEGMENT
+Ne modifie rien.
+Ne propose pas encore de diff.
+Le but est d’abord de confirmer précisément les risques.
+
+ÉTAPE 5 — SORTIE ATTENDUE
+
+Dans “DIAGNOSTIC GLOBAL” :
+- dire honnêtement si le système logistique est sûr, moyennement sûr, ou fragile au niveau transactionnel
+
+Dans “FLUX ATOMIQUES VALIDÉS” :
+- lister seulement les flux réellement protégés
+
+Dans “RISQUES CONFIRMÉS” :
+- lister seulement les cas prouvés où une perte silencieuse ou un demi-état est possible
+
+Dans “ZONES FRAGILES / À SURVEILLER” :
+- lister les cas pas forcément cassés aujourd’hui mais qui restent risqués
+
+Dans “LISTE PRIORISÉE DES DURCISSEMENTS À FAIRE” :
+- produire une séquence claire du plus important au plus secondaire
+- sans dériver vers d’autres systèmes non concernés
+
+CONTRAINTE FINALE
+Le but exclusif est :
+vérifier la sûreté transactionnelle réelle du système logistique, afin de savoir s’il faut durcir certains flux critiques contre les pertes silencieuses et les demi-écritures.
