@@ -385,34 +385,38 @@ export async function placeOrder(
 
   // Réseau global : pas de gate guilde. La ville sert de point d'entrée de création d'ordre.
   // Escrow prélevé du transport (marché V1 transport-based).
+  // ensurePlayerTransport hors transaction : init idempotente de la ligne (ON CONFLICT DO NOTHING).
   await ensurePlayerTransport(playerId);
 
   const res = resourceType as ResourceType;
 
-  // Escrow depuis player_transport
-  if (side === "sell") {
-    const ok = await debitTransportResource(playerId, res, quantity);
-    if (!ok) throw Object.assign(new Error(`Ressources insuffisantes dans le transport pour l'escrow (${quantity}× ${res})`), { status: 422 });
-  } else {
-    const totalGold = quantity * pricePerUnit;
-    const ok = await debitTransportGold(playerId, totalGold);
-    if (!ok) throw Object.assign(new Error(`Or insuffisant dans le transport pour l'escrow (${totalGold} or requis)`), { status: 422 });
-  }
+  // Débit escrow + création ordre dans la même transaction.
+  // Si l'insert échoue, le débit est rollbacké — aucune ressource ne quitte le transport sans ordre associé.
+  const [order] = await db.transaction(async (tx) => {
+    if (side === "sell") {
+      const ok = await debitTransportResource(playerId, res, quantity, tx);
+      if (!ok) throw Object.assign(new Error(`Ressources insuffisantes dans le transport pour l'escrow (${quantity}× ${res})`), { status: 422 });
+    } else {
+      const totalGold = quantity * pricePerUnit;
+      const ok = await debitTransportGold(playerId, totalGold, tx);
+      if (!ok) throw Object.assign(new Error(`Or insuffisant dans le transport pour l'escrow (${totalGold} or requis)`), { status: 422 });
+    }
 
-  const [order] = await db
-    .insert(marketOrders)
-    .values({
-      cityId,
-      playerId,
-      playerName,
-      side,
-      resourceType: res,
-      pricePerUnit,
-      quantityTotal:     quantity,
-      quantityRemaining: quantity,
-      status: "open",
-    })
-    .returning({ id: marketOrders.id });
+    return tx
+      .insert(marketOrders)
+      .values({
+        cityId,
+        playerId,
+        playerName,
+        side,
+        resourceType: res,
+        pricePerUnit,
+        quantityTotal:     quantity,
+        quantityRemaining: quantity,
+        status: "open",
+      })
+      .returning({ id: marketOrders.id });
+  });
 
   console.log(`[market] placeOrder orderId=${order.id} cityId=${cityId} player=${playerId} side=${side} ${quantity}×${res} @${pricePerUnit}g`);
   return { orderId: order.id };

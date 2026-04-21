@@ -1,0 +1,150 @@
+NOVA IMPERIUM — CORRECTIF CIBLÉ P1 : ATOMICITÉ DE placeOrder()
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucune dérive hors sujet.
+
+OBJECTIF
+Corriger uniquement le risque P1 :
+dans placeOrder(), l’escrow est actuellement débité depuis playerTransport avant l’insertion de marketOrders, sans transaction englobante. Si l’insert échoue après le débit, les ressources/or peuvent disparaître silencieusement.
+
+IMPORTANT
+Ne traite PAS dans ce segment :
+- P3 cancelOrder
+- autres chantiers marché
+- UI / client
+- routes
+- fillOrder
+- claims box
+- collectFeeBox
+- logistique hors placeOrder
+
+On corrige uniquement :
+débit escrow + création ordre atomiques.
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+FICHIERS À AUDITER
+- server/marketService.ts
+
+DIAGNOSTIC À RESPECTER
+Le problème suspecté est :
+
+A. placeOrder() fait actuellement :
+1. validations side / resourceType / price / quantity
+2. ensurePlayerTransport(playerId)
+3. si side === "sell" :
+   - debitTransportResource(playerId, res, quantity)
+4. si side === "buy" :
+   - debitTransportGold(playerId, totalGold)
+5. insert marketOrders
+
+B. Le débit d’escrow et l’insert d’ordre sont séparés.
+Si l’insert échoue après le débit :
+- le transport est déjà débité
+- aucun ordre n’existe
+- perte silencieuse possible
+
+OBJECTIF FONCTIONNEL EXACT
+Garantir que pour placeOrder() :
+- soit l’escrow est débité ET l’ordre est créé ensemble
+- soit rien n’est commité
+
+Aucune ressource / aucun or ne doit quitter playerTransport sans ordre associé créé avec succès.
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire précisément :
+- placeOrder()
+- debitTransportResource(...)
+- debitTransportGold(...)
+- ensurePlayerTransport(...)
+
+Identifier l’ordre exact :
+- validations
+- initialisation éventuelle du transport
+- débit escrow
+- insert ordre
+
+ÉTAPE 2 — CORRECTIF MINIMAL
+Envelopper les opérations critiques de placeOrder() dans une db.transaction(...).
+
+Structure attendue :
+- garder les validations existantes
+- garder les messages d’erreur existants
+- garder la logique buy / sell existante
+- faire le débit transport ET l’insert order dans la même transaction
+
+IMPORTANT
+Si debitTransportResource / debitTransportGold acceptent déjà un paramètre tx optionnel, réutilise-le.
+Si ensurePlayerTransport doit être appelé avant le débit transactionnel pour garantir la ligne, fais-le de la manière la plus minimale propre.
+
+ÉTAPE 3 — CONTRAINTES
+Ne touche pas :
+- à fillOrder
+- à cancelOrder
+- à updateFee
+- à getMarketInfo
+- aux routes
+- au client
+- aux règles métier du marché
+- aux validations de surface
+
+Le but exclusif est :
+escrow transport + insert ordre atomiques.
+
+ÉTAPE 4 — POINTS À PRÉSERVER
+A. SELL
+- doit continuer à débiter la ressource vendue depuis le transport
+- doit continuer à créer un ordre "sell" identique
+- quantité / prix / resourceType inchangés
+
+B. BUY
+- doit continuer à débiter l’or total depuis le transport
+- doit continuer à créer un ordre "buy" identique
+- totalGold = quantity * pricePerUnit inchangé
+
+C. Shape de retour
+- conserver le même retour :
+  { orderId: number }
+
+ÉTAPE 5 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. SELL
+- débit transport et insert ordre sont dans la même transaction
+- si l’insert échoue, le débit ne reste pas commité
+
+B. BUY
+- débit transport or et insert ordre sont dans la même transaction
+- si l’insert échoue, le débit ne reste pas commité
+
+C. Non-régression
+- validations métier inchangées
+- shape de retour inchangée
+- fillOrder inchangé
+- aucune route modifiée
+- aucune erreur TypeScript
+
+PREUVE ATTENDUE
+Dans la réponse finale, montre clairement :
+- l’ancien ordre fautif
+- le nouvel ordre
+- où la transaction commence et finit
+- comment BUY et SELL sont couverts
+- que le reste n’a pas été touché
+
+CONTRAINTE FINALE
+Le but exclusif est :
+empêcher qu’un ordre de marché puisse débiter le transport sans créer correctement son ordre associé.
