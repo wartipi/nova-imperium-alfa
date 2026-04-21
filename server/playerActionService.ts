@@ -767,46 +767,51 @@ export async function createTransferBankToCityAction(
 
   const now = new Date();
 
-  await db
-    .update(playerBank)
-    .set({
-      gold:      sql`${playerBank.gold}   - ${gold}`,
-      food:      sql`${playerBank.food}   - ${food}`,
-      wood:      sql`${playerBank.wood}   - ${wood}`,
-      stone:     sql`${playerBank.stone}  - ${stone}`,
-      iron:      sql`${playerBank.iron}   - ${iron}`,
-      copper:    sql`${playerBank.copper} - ${copper}`,
-      coal:      sql`${playerBank.coal}   - ${coal}`,
-      oil:       sql`${playerBank.oil}    - ${oil}`,
-      herbs:     sql`${playerBank.herbs}  - ${herbs}`,
-      fur:       sql`${playerBank.fur}    - ${fur}`,
-      updatedAt: now,
-    })
-    .where(eq(playerBank.playerId, playerId));
+  // Débit banque + création action dans la même transaction.
+  // Si l'insert échoue, le débit est rollbacké — aucune ressource ne quitte la banque sans action associée.
+  const [action] = await db.transaction(async (tx) => {
+    await tx
+      .update(playerBank)
+      .set({
+        gold:      sql`${playerBank.gold}   - ${gold}`,
+        food:      sql`${playerBank.food}   - ${food}`,
+        wood:      sql`${playerBank.wood}   - ${wood}`,
+        stone:     sql`${playerBank.stone}  - ${stone}`,
+        iron:      sql`${playerBank.iron}   - ${iron}`,
+        copper:    sql`${playerBank.copper} - ${copper}`,
+        coal:      sql`${playerBank.coal}   - ${coal}`,
+        oil:       sql`${playerBank.oil}    - ${oil}`,
+        herbs:     sql`${playerBank.herbs}  - ${herbs}`,
+        fur:       sql`${playerBank.fur}    - ${fur}`,
+        updatedAt: now,
+      })
+      .where(eq(playerBank.playerId, playerId));
+
+    const totalUnits = computeTransportUnits({ gold, food, wood, stone, iron, copper, coal, oil, herbs, fur });
+    const durationSeconds = totalUnits * 5;
+    const expectedEndTime = new Date(now.getTime() + durationSeconds * 1000);
+
+    return tx
+      .insert(playerActions)
+      .values({
+        playerId,
+        type: "transfer_bank_to_city",
+        status: "in_progress",
+        startWorldX: cityWorldX,
+        startWorldY: cityWorldY,
+        endWorldX:   cityWorldX,
+        endWorldY:   cityWorldY,
+        path: [{ cityId, gold, food, wood, stone, iron, copper, coal, oil, herbs, fur }] as any,
+        totalCost: 0,
+        startTime: now,
+        expectedEndTime,
+        updatedAt: now,
+      })
+      .returning();
+  });
 
   const totalUnits = computeTransportUnits({ gold, food, wood, stone, iron, copper, coal, oil, herbs, fur });
   const durationSeconds = totalUnits * 5;
-  const durationMs = durationSeconds * 1000;
-  const expectedEndTime = new Date(now.getTime() + durationMs);
-
-  const [action] = await db
-    .insert(playerActions)
-    .values({
-      playerId,
-      type: "transfer_bank_to_city",
-      status: "in_progress",
-      startWorldX: cityWorldX,
-      startWorldY: cityWorldY,
-      endWorldX:   cityWorldX,
-      endWorldY:   cityWorldY,
-      path: [{ cityId, gold, food, wood, stone, iron, copper, coal, oil, herbs, fur }] as any,
-      totalCost: 0,
-      startTime: now,
-      expectedEndTime,
-      updatedAt: now,
-    })
-    .returning();
-
   console.log(
     `[PlayerAction] Transfert banque→ville créé id=${action.id} player=${playerId}` +
     ` cityId=${cityId} ${gold}g+${food}f+${wood}w+${stone}s+${iron}i` +
@@ -879,46 +884,51 @@ export async function createTransferBankToPlayerAction(
 
   const now = new Date();
 
-  await db
-    .update(playerBank)
-    .set({
-      gold:      sql`${playerBank.gold}   - ${gold}`,
-      food:      sql`${playerBank.food}   - ${food}`,
-      wood:      sql`${playerBank.wood}   - ${wood}`,
-      stone:     sql`${playerBank.stone}  - ${stone}`,
-      iron:      sql`${playerBank.iron}   - ${iron}`,
-      copper:    sql`${playerBank.copper} - ${copper}`,
-      coal:      sql`${playerBank.coal}   - ${coal}`,
-      oil:       sql`${playerBank.oil}    - ${oil}`,
-      herbs:     sql`${playerBank.herbs}  - ${herbs}`,
-      fur:       sql`${playerBank.fur}    - ${fur}`,
-      updatedAt: now,
-    })
-    .where(eq(playerBank.playerId, playerId));
+  // Débit banque + création action dans la même transaction.
+  // Si l'insert échoue, le débit est rollbacké — aucune ressource ne quitte la banque sans action associée.
+  const [action] = await db.transaction(async (tx) => {
+    await tx
+      .update(playerBank)
+      .set({
+        gold:      sql`${playerBank.gold}   - ${gold}`,
+        food:      sql`${playerBank.food}   - ${food}`,
+        wood:      sql`${playerBank.wood}   - ${wood}`,
+        stone:     sql`${playerBank.stone}  - ${stone}`,
+        iron:      sql`${playerBank.iron}   - ${iron}`,
+        copper:    sql`${playerBank.copper} - ${copper}`,
+        coal:      sql`${playerBank.coal}   - ${coal}`,
+        oil:       sql`${playerBank.oil}    - ${oil}`,
+        herbs:     sql`${playerBank.herbs}  - ${herbs}`,
+        fur:       sql`${playerBank.fur}    - ${fur}`,
+        updatedAt: now,
+      })
+      .where(eq(playerBank.playerId, playerId));
+
+    const totalUnits = computeTransportUnits({ gold, food, wood, stone, iron, copper, coal, oil, herbs, fur });
+    const durationSeconds = totalUnits * 5;
+    const expectedEndTime = new Date(now.getTime() + durationSeconds * 1000);
+
+    return tx
+      .insert(playerActions)
+      .values({
+        playerId,
+        type: "transfer_bank_to_player",
+        status: "in_progress",
+        startWorldX: 0,
+        startWorldY: 0,
+        endWorldX:   0,
+        endWorldY:   0,
+        path: [{ gold, food, wood, stone, iron, copper, coal, oil, herbs, fur }] as any,
+        totalCost: 0,
+        startTime: now,
+        expectedEndTime,
+        updatedAt: now,
+      })
+      .returning();
+  });
 
   const totalUnits = computeTransportUnits({ gold, food, wood, stone, iron, copper, coal, oil, herbs, fur });
   const durationSeconds = totalUnits * 5;
-  const durationMs = durationSeconds * 1000;
-  const expectedEndTime = new Date(now.getTime() + durationMs);
-
-  const [action] = await db
-    .insert(playerActions)
-    .values({
-      playerId,
-      type: "transfer_bank_to_player",
-      status: "in_progress",
-      startWorldX: 0,
-      startWorldY: 0,
-      endWorldX:   0,
-      endWorldY:   0,
-      path: [{ gold, food, wood, stone, iron, copper, coal, oil, herbs, fur }] as any,
-      totalCost: 0,
-      startTime: now,
-      expectedEndTime,
-      updatedAt: now,
-    })
-    .returning();
-
   console.log(
     `[PlayerAction] Transfert banque→joueur créé id=${action.id} player=${playerId}` +
     ` ${gold}g+${food}f+${wood}w+${stone}s+${iron}i+${copper}cu+${coal}co+${oil}oil+${herbs}herbs+${fur}fur totalUnits=${totalUnits} durée=${durationSeconds}s`

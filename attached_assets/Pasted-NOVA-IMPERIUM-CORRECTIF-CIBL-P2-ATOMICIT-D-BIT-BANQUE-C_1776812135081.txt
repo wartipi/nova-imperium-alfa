@@ -1,0 +1,151 @@
+NOVA IMPERIUM — CORRECTIF CIBLÉ P2 : ATOMICITÉ DÉBIT BANQUE + CRÉATION D’ACTION
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucune dérive hors sujet.
+
+OBJECTIF
+Corriger uniquement le risque P2 :
+dans createTransferBankToCityAction() et createTransferBankToPlayerAction(), la banque est débitée avant la création de l’action, sans transaction englobante. Si l’insert de playerActions échoue après le débit, les ressources peuvent disparaître silencieusement.
+
+IMPORTANT
+Ne traite PAS dans ce segment :
+- P1 placeOrder
+- P3 cancelOrder
+- UI / client
+- admin bypass des durées
+- timers
+- marché hors analogie éventuelle de preuve
+- completeAction (déjà traité)
+
+On corrige uniquement l’atomicité :
+débit banque + insert action
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
+
+FICHIERS À AUDITER
+- server/playerActionService.ts
+
+DIAGNOSTIC À RESPECTER
+Le problème suspecté est :
+
+A. createTransferBankToCityAction() fait actuellement :
+1. vérification des stocks banque
+2. update playerBank (débit)
+3. insert playerActions
+
+B. createTransferBankToPlayerAction() fait actuellement :
+1. vérification capacité transport
+2. vérification des stocks banque
+3. update playerBank (débit)
+4. insert playerActions
+
+C. Dans les deux cas, le débit et l’insert sont séparés.
+Si l’insert échoue après le débit :
+- la banque est déjà débitée
+- aucune action n’existe
+- aucune complétion ne pourra restituer la valeur
+- perte silencieuse possible
+
+OBJECTIF FONCTIONNEL EXACT
+Garantir que, pour les deux fonctions :
+- soit le débit banque ET la création d’action réussissent ensemble
+- soit rien n’est commité
+
+Aucune ressource ne doit pouvoir quitter la banque sans action associée créée avec succès.
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire précisément :
+- createTransferBankToCityAction()
+- createTransferBankToPlayerAction()
+
+Identifier l’ordre exact :
+- lectures de vérification
+- débit banque
+- calcul de durée
+- insert action
+
+ÉTAPE 2 — CORRECTIF MINIMAL
+Envelopper, dans chaque fonction, les opérations critiques dans une db.transaction(...).
+
+Structure attendue :
+- garder les validations métiers existantes
+- garder les messages d’erreur existants
+- faire le débit playerBank et l’insert playerActions dans la même transaction
+
+IMPORTANT
+Tu peux :
+- faire les lectures de vérification avant la transaction si tu veux rester minimal
+- mais le débit effectif + l’insert effectif doivent être transactionnels
+
+Si tu juges qu’une vérification critique doit être relue dans la transaction pour éviter une race simple, fais-le seulement si c’est strictement nécessaire et minimal.
+
+ÉTAPE 3 — CONTRAINTES
+Ne touche pas :
+- à completeAction
+- aux helpers de complétion
+- aux routes
+- aux contrats API
+- au client
+- aux durées
+- à computeTransportUnits
+- aux messages UX
+
+Le but exclusif est :
+débit banque + insert action atomiques.
+
+ÉTAPE 4 — POINTS À PRÉSERVER
+A. createTransferBankToCityAction
+- doit continuer à vérifier la banque
+- doit continuer à débiter les mêmes ressources
+- doit continuer à créer la même action transfer_bank_to_city
+- doit garder le même path/meta
+
+B. createTransferBankToPlayerAction
+- doit continuer à vérifier la capacité transport
+- doit continuer à vérifier la banque
+- doit continuer à créer la même action transfer_bank_to_player
+- doit garder le même path/meta
+
+ÉTAPE 5 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. transfer_bank_to_city
+- le débit banque et l’insert action sont dans la même transaction
+- si l’insert échoue, le débit ne reste pas commité
+
+B. transfer_bank_to_player
+- le débit banque et l’insert action sont dans la même transaction
+- si l’insert échoue, le débit ne reste pas commité
+
+C. Non-régression
+- validations métier inchangées
+- capacité transport inchangée
+- durée inchangée
+- shape de l’action inchangée
+- aucune route modifiée
+- aucune erreur TypeScript
+
+PREUVE ATTENDUE
+Dans la réponse finale, montre clairement :
+- l’ancien ordre fautif
+- le nouvel ordre
+- où la transaction commence et finit
+- que les deux fonctions sont couvertes
+- que le reste n’a pas été touché
+
+CONTRAINTE FINALE
+Le but exclusif est :
+empêcher qu’un transfert bancaire puisse débiter la banque sans créer correctement son action associée.
