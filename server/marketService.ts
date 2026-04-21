@@ -436,18 +436,24 @@ export async function cancelOrder(
     throw Object.assign(new Error("Accès refusé : vous n'êtes pas le propriétaire de cet ordre"), { status: 403 });
 
   // Retour escrow résiduel vers player_market_box (jamais vers transport directement).
+  // ensurePlayerMarketBox hors transaction : init idempotente de la ligne (ON CONFLICT DO NOTHING).
   await ensurePlayerMarketBox(order.playerId);
-  if (order.side === "sell") {
-    await creditMarketBoxResource(order.playerId, order.resourceType as ResourceType, order.quantityRemaining);
-  } else {
-    const goldBack = order.quantityRemaining * order.pricePerUnit;
-    await creditMarketBoxGold(order.playerId, goldBack);
-  }
 
-  await db
-    .update(marketOrders)
-    .set({ status: "cancelled", updatedAt: new Date() })
-    .where(eq(marketOrders.id, orderId));
+  // Crédit boîte + fermeture ordre dans la même transaction.
+  // Si l'update échoue, le crédit est rollbacké — l'ordre reste open et ne peut pas être re-crédité en doublon.
+  await db.transaction(async (tx) => {
+    if (order.side === "sell") {
+      await creditMarketBoxResource(order.playerId, order.resourceType as ResourceType, order.quantityRemaining, tx);
+    } else {
+      const goldBack = order.quantityRemaining * order.pricePerUnit;
+      await creditMarketBoxGold(order.playerId, goldBack, tx);
+    }
+
+    await tx
+      .update(marketOrders)
+      .set({ status: "cancelled", updatedAt: new Date() })
+      .where(eq(marketOrders.id, orderId));
+  });
 
   console.log(`[market] cancelOrder orderId=${orderId} escrow retourné dans la boîte de règlement`);
 }
