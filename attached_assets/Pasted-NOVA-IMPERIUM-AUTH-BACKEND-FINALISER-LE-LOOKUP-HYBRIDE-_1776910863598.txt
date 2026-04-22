@@ -1,0 +1,124 @@
+NOVA IMPERIUM — AUTH BACKEND : FINALISER LE LOOKUP HYBRIDE
+Branche : NI-10.3
+
+SOURCE DE VÉRITÉ
+Tu dois ignorer tout état local non poussé.
+Tu travailles uniquement à partir de l’état réel actuel du code :
+- server/routes.ts contient déjà POST /api/auth/register
+- server/middleware/auth.ts est encore basé uniquement sur AUTHORIZED_USERS
+
+OBJECTIF
+Finaliser uniquement le chaînage auth backend pour que :
+- les comptes hardcodés continuent de fonctionner
+- les comptes créés via /api/auth/register puissent se connecter
+- requireAuth / optionalAuth / getUserFromBearerToken acceptent aussi les comptes DB
+- sans toucher au frontend ni à routes.ts
+
+PÉRIMÈTRE AUTORISÉ
+- server/middleware/auth.ts uniquement
+
+PÉRIMÈTRE INTERDIT
+- server/routes.ts
+- frontend
+- schema DB
+- email
+- market.ts
+- gameplay
+- refactor auth global
+- JWT
+- bcrypt
+- rôles DB
+
+DIAGNOSTIC DE DÉPART
+État réel à corriger :
+- requireAuth consulte seulement AUTHORIZED_USERS
+- optionalAuth consulte seulement AUTHORIZED_USERS
+- loginEndpoint consulte seulement AUTHORIZED_USERS
+- getUserFromBearerToken consulte seulement AUTHORIZED_USERS
+
+Conséquence :
+- les comptes DB créés via /api/auth/register ne peuvent toujours pas se connecter
+
+OBJECTIF FONCTIONNEL EXACT
+1. Lookup auth en 2 couches :
+   - couche 1 : AUTHORIZED_USERS
+   - couche 2 : table users en DB par username
+
+2. Pour un utilisateur DB authentifié :
+   - id = username
+   - username = username
+   - role = "player"
+
+3. Format token inchangé :
+   - base64(username:password)
+
+CONTRAINTE SPÉCIALE — getUserFromBearerToken
+Cette fonction est synchrone et utilisée par le SSE marché.
+Dans ce segment, ne touche pas market.ts.
+
+Solution minimale attendue :
+- ajouter un petit DB_USERS_CACHE en mémoire
+- peuplé lors des logins DB réussis
+- getUserFromBearerToken :
+  - vérifie AUTHORIZED_USERS
+  - sinon vérifie DB_USERS_CACHE
+- pas de requête DB synchrone impossible
+- pas de modification de market.ts
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire intégralement server/middleware/auth.ts tel qu’il est réellement sur disque.
+
+ÉTAPE 2 — AJOUTS MINIMAUX
+Ajouter dans auth.ts :
+- import DB nécessaire
+- helper async lookupDBUser(username)
+- petit DB_USERS_CACHE de compatibilité SSE
+- fallback DB dans :
+  - requireAuth
+  - optionalAuth
+  - loginEndpoint
+- fallback cache dans :
+  - getUserFromBearerToken
+
+ÉTAPE 3 — RÈGLES MÉTIER
+- hardcoded garde la priorité
+- DB ne s’utilise qu’en fallback
+- aucun changement de token
+- aucun changement de structure de réponse login
+- aucune route touchée
+
+ÉTAPE 4 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. Comptes hardcodés
+- admin fonctionne toujours
+- joueur1 fonctionne toujours
+- maitre fonctionne toujours
+
+B. Compte DB
+- compte créé via /api/auth/register peut ensuite login
+- loginEndpoint renvoie bien token + user
+- requireAuth accepte ce token
+- optionalAuth accepte ce token
+
+C. SSE compatibilité
+- getUserFromBearerToken reste synchrone
+- un login DB réussi peuple bien DB_USERS_CACHE
+- getUserFromBearerToken peut ensuite résoudre ce compte sans toucher market.ts
+
+D. Compatibilité
+- format token inchangé
+- id logique = username
+- aucune erreur TypeScript
+- routes.ts non modifié
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
