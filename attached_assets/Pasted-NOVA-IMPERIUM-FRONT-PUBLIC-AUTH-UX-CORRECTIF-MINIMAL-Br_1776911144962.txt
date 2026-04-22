@@ -1,0 +1,68 @@
+NOVA IMPERIUM — FRONT PUBLIC AUTH UX : CORRECTIF MINIMAL
+Branche : NI-10.3
+
+ÉTAT DE DÉPART VALIDÉ
+Le backend auth est maintenant considéré comme fonctionnel :
+- /api/auth/register existe
+- login hardcodé + DB fonctionne
+- requireAuth / optionalAuth / getUserFromBearerToken sont déjà hybrides
+
+IMPORTANT
+Dans ce segment :
+- ne touche PAS au backend
+- ne touche PAS à routes.ts serveur
+- ne touche PAS au schéma DB
+- ne traite PAS email
+- ne traite PAS responsive
+- ne traite PAS refonte visuelle générale
+
+OBJECTIF
+Corriger uniquement le flux frontend public d’authentification pour qu’il soit cohérent de bout en bout.
+
+PÉRIMÈTRE AUTORISÉ
+- client/src/App.tsx
+- client/src/pages/public/RegisterPage.tsx
+- client/src/components/public/PublicHeader.tsx
+- éventuellement HomePage.tsx seulement si strictement nécessaire
+- rien d’autre
+
+DIAGNOSTIC DE DÉPART
+État réel du frontend public :
+- PublicHeader utilise “Connexion” → /game
+- App.tsx redirige /game vers / si non-auth
+- donc il n’existe pas de vrai point d’entrée login clair pour un non-auth
+- LoginModal existe encore dans GameApp
+- RegisterPage fait register puis login()
+- le flux après login/échec login doit être clarifié
+
+OBJECTIF FONCTIONNEL EXACT
+Après ce segment :
+- un joueur non connecté a un vrai chemin de connexion fonctionnel
+- le lien “Connexion” fonctionne réellement
+- si register + auto-login réussit → accès jeu
+- si register réussit mais auto-login échoue → message cohérent, pas de redirection trompeuse
+- aucune modification backend
+
+CONTRAINTE DE SOLUTION
+Prendre la plus petite solution propre.
+
+Solution attendue par défaut :
+- restaurer /game comme point d’entrée login pour les non-auth
+- ne pas rediriger un non-auth vers / avant que LoginModal puisse jouer son rôle
+- conserver GameApp / LoginModal comme source de vérité de connexion si possible
+- ne pas créer une nouvelle page login si ce n’est pas strictement nécessaire
+
+REGISTERPAGE
+Corriger uniquement la logique de fin de submit :
+- si register OK + login OK → navigate("/game")
+- si register OK + login FAIL → afficher un message cohérent
+- ne pas rediriger automatiquement vers /game si le joueur n’est pas réellement connecté
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP

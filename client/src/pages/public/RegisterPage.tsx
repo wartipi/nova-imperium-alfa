@@ -54,9 +54,8 @@ export default function RegisterPage() {
           setMessage("Compte créé. Vous êtes connecté — bienvenue dans l'Empire !");
           setTimeout(() => navigate("/game"), 1800);
         } else {
-          setStatus("success");
-          setMessage("Compte créé avec succès ! Connectez-vous pour jouer.");
-          setTimeout(() => navigate("/game"), 2000);
+          setStatus("error");
+          setMessage("Compte créé, mais la connexion automatique a échoué. Veuillez vous connecter manuellement.");
         }
       } else {
         let errMsg = "Erreur lors de la création du compte.";

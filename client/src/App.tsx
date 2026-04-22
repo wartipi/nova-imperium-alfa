@@ -207,7 +207,7 @@ function AppRouter() {
   return (
     <Switch>
       <Route path="/game">
-        {isAuthenticated ? <GameApp /> : <Redirect to="/" />}
+        <GameApp />
       </Route>
       <Route path="/register">
         <RegisterPage />
