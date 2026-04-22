@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { Switch, Route, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GameCanvas } from "./components/game/GameCanvas";
 import { MedievalHUD } from "./components/game/MedievalHUD";
@@ -19,6 +20,8 @@ import { usePlayerActions } from "./lib/stores/usePlayerActions";
 import { useFactions } from "./lib/stores/useFactions";
 import { fetchAllTerritories, fetchAllColonies } from "./lib/api/territoriesApi";
 import { UnifiedTerritorySystem } from "./lib/systems/UnifiedTerritorySystem";
+import HomePage from "./pages/public/HomePage";
+import RegisterPage from "./pages/public/RegisterPage";
 import "@fontsource/inter";
 import "./index.css";
 
@@ -67,14 +70,11 @@ function GameApp() {
         );
 
         // Étape 3 — Factions (chargement serveur)
-        // loadPlayerFaction() ne lève pas d'erreur si l'auth est absente (guard interne)
         await loadFactions();
         await loadPlayerFaction();
         console.log(`[Startup] Factions chargées: ${useFactions.getState().factions.length}`);
 
         // Étape 4 — Action active (source de vérité serveur)
-        // Si une action move était en cours : la reprendre dans le store.
-        // Si elle vient d'expirer : le serveur la finalise (position déjà mise à jour en DB).
         const { action: currentAction } = await fetchCurrentAction();
         let effectiveWorldX = position.worldX;
         let effectiveWorldY = position.worldY;
@@ -82,9 +82,6 @@ function GameApp() {
         if (currentAction) {
           if (currentAction.status === "in_progress") {
             usePlayerActions.getState().setActiveAction(currentAction);
-            // Pour un déplacement : position effective = case confirmée par le serveur (mid-path).
-            // Pour toute autre action (transfer, harvest…) : les coords de l'action sont 0,0 (dummy) —
-            // on conserve la position DB du joueur.
             if (currentAction.type === "move") {
               effectiveWorldX = currentAction.effectiveWorldX;
               effectiveWorldY = currentAction.effectiveWorldY;
@@ -95,8 +92,6 @@ function GameApp() {
               ` → (${currentAction.endWorldX},${currentAction.endWorldY})`
             );
           } else if (currentAction.status === "completed") {
-            // Pour un déplacement complété : position finale = destination de l'action.
-            // Pour toute autre action : on conserve la position DB du joueur.
             if (currentAction.type === "move") {
               effectiveWorldX = currentAction.endWorldX;
               effectiveWorldY = currentAction.endWorldY;
@@ -115,8 +110,7 @@ function GameApp() {
         const effectiveSegmentY = Math.floor(effectiveWorldY / 30);
         await loadBlockFromDB(effectiveSegmentX, effectiveSegmentY);
 
-        // Étape 6 — Territoires et colonies (état politique carte, source serveur)
-        // Doit être après loadBlockFromDB pour que l'origine monde soit connue.
+        // Étape 6 — Territoires et colonies
         const { originWorldX, originWorldY } = useMap.getState();
         try {
           const [serverTerritories, serverColonies] = await Promise.all([
@@ -129,7 +123,7 @@ function GameApp() {
           console.warn("[Startup] Chargement territoires échoué (non bloquant):", territoryErr);
         }
 
-        // Étape 7 — Convertir world → repère local après stabilisation de l'origine
+        // Étape 7 — Convertir world → repère local
         const hexX = effectiveWorldX - originWorldX;
         const hexY = effectiveWorldY - originWorldY;
 
@@ -139,8 +133,7 @@ function GameApp() {
           ` origine=(${originWorldX},${originWorldY})`
         );
 
-        // Étape 6 — Appliquer l'état persisté au store
-        // experienceToNextLevel est recalculé depuis level (valeur dérivée)
+        // Étape 8 — Appliquer l'état persisté au store
         const { calculateExperienceForLevel } = usePlayer.getState();
         const experienceToNextLevel = calculateExperienceForLevel(playerStateData.level + 1);
 
@@ -156,7 +149,7 @@ function GameApp() {
         });
         console.log(`[Startup] Store joueur initialisé depuis DB`);
 
-        // Étape 7 — Placer l'avatar exactement à la bonne position
+        // Étape 9 — Placer l'avatar
         const { moveAvatarToHex } = usePlayer.getState();
         moveAvatarToHex(hexX, hexY);
 
@@ -168,7 +161,6 @@ function GameApp() {
       } catch (err) {
         console.error("[Startup] Erreur — fallback findLandHex:", err);
 
-        // Fallback : bloc (0,0) + case libre, état par défaut
         await loadBlockFromDB(0, 0);
         const { findLandHex, moveAvatarToHex } = usePlayer.getState();
         const { mapData } = useMap.getState();
@@ -184,14 +176,14 @@ function GameApp() {
 
   if (gamePhase === "loading") {
     return (
-      <div className="w-full h-full flex items-center justify-center bg-gray-900 text-white">
-        <div className="text-2xl">Loading Nova Imperium...</div>
+      <div style={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#08030a', color: '#c9a227', fontFamily: 'Georgia, serif' }}>
+        <div style={{ fontSize: '1.4rem', letterSpacing: '0.1em' }}>Chargement de Nova Imperium…</div>
       </div>
     );
   }
 
   return (
-    <>
+    <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative', background: '#111' }}>
       <LoginModal
         onLogin={login}
         isVisible={!isAuthenticated}
@@ -205,7 +197,28 @@ function GameApp() {
           </div>
         </GameEngineProvider>
       )}
-    </>
+    </div>
+  );
+}
+
+function AppRouter() {
+  const { isAuthenticated } = useAuth();
+
+  return (
+    <Switch>
+      <Route path="/game">
+        {isAuthenticated ? <GameApp /> : <Redirect to="/" />}
+      </Route>
+      <Route path="/register">
+        <RegisterPage />
+      </Route>
+      <Route path="/">
+        {isAuthenticated ? <Redirect to="/game" /> : <HomePage />}
+      </Route>
+      <Route>
+        <Redirect to="/" />
+      </Route>
+    </Switch>
   );
 }
 
@@ -213,7 +226,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <GameApp />
+        <AppRouter />
       </AuthProvider>
     </QueryClientProvider>
   );

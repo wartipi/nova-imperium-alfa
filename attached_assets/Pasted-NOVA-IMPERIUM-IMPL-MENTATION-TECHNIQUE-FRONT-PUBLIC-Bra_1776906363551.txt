@@ -1,0 +1,302 @@
+NOVA IMPERIUM — IMPLÉMENTATION TECHNIQUE FRONT PUBLIC
+Branche : NI-10.3
+
+OBJECTIF
+Créer le frontend public initial de Nova Imperium en React/TypeScript avec :
+1. une page d’accueil
+2. une page de création de compte
+3. un système de composants/styles réutilisables
+4. un routing public propre
+5. un rendu très fidèle à l’image de référence fournie
+
+IMPORTANT
+L’image jointe est la source de vérité esthétique principale.
+Il ne faut pas proposer une autre direction artistique.
+Il faut reproduire au plus près :
+- l’ambiance médiévale premium
+- les textures sombres
+- les cadres ornementaux
+- les panneaux parchemin
+- les accents or / bronze / bois
+- les CTA rouge sombre / or
+- la hiérarchie visuelle du mockup
+
+NE PAS FAIRE
+- pas de style SaaS moderne
+- pas de minimalisme blanc / bleu
+- pas de redesign libre
+- pas de composants génériques sans caractère
+- pas de refactor massif du projet existant
+
+STACK À RESPECTER
+- React
+- TypeScript
+- intégration propre dans l’architecture existante
+- réutilisation maximale
+- pas de dépendance lourde inutile
+- CSS simple, clair, stable
+- si le projet utilise déjà une approche CSS existante, la respecter
+- sinon créer une structure de styles locale propre et maintenable
+
+MÉTHODE OBLIGATOIRE
+1. Auditer la structure frontend actuelle
+2. Identifier où brancher les routes publiques
+3. Proposer la structure minimale de fichiers
+4. Créer les composants de base partagés
+5. Implémenter la page d’accueil
+6. Implémenter la page d’inscription
+7. Vérifier intégration + rendu + cohérence
+
+LIVRABLE ATTENDU
+Je veux à la fin :
+1. la liste exacte des fichiers créés/modifiés
+2. la structure proposée
+3. le routing ajouté
+4. un résumé court des choix
+5. aucune dérive hors périmètre
+
+==================================================
+PARTIE 1 — AUDIT TECHNIQUE
+==================================================
+
+Avant de coder :
+- identifier le point d’entrée frontend actuel
+- identifier le système de routing déjà en place
+- identifier où placer des pages publiques sans casser l’existant
+- identifier où stocker les assets publics / images / textures si nécessaire
+- vérifier s’il existe déjà :
+  - App.tsx
+  - router principal
+  - layout partagé
+  - dossier pages
+  - dossier components
+  - dossier styles
+
+Si la structure existe déjà :
+- la prolonger minimalement
+
+Si elle n’existe pas :
+- créer seulement la structure minimale nécessaire
+
+==================================================
+PARTIE 2 — STRUCTURE CIBLE RECOMMANDÉE
+==================================================
+
+Créer ou réutiliser une structure proche de celle-ci, seulement si elle s’intègre proprement :
+
+client/src/
+  components/public/
+    PublicHeader.tsx
+    PublicFooter.tsx
+    HeroSection.tsx
+    FeatureCards.tsx
+    FramedPanel.tsx
+    CTASection.tsx
+    PublicButton.tsx
+    PublicSectionTitle.tsx
+  layouts/
+    PublicLayout.tsx
+  pages/public/
+    HomePage.tsx
+    RegisterPage.tsx
+  styles/
+    public-theme.css
+    public-home.css
+    public-register.css
+
+IMPORTANT
+Ne pas forcer exactement ces noms si le projet a déjà une convention existante meilleure.
+Mais garder la logique :
+- composants publics réutilisables
+- layout public
+- pages séparées
+- styles séparés et propres
+
+==================================================
+PARTIE 3 — ROUTING
+==================================================
+
+Créer les routes publiques minimales suivantes :
+- /
+- /register
+- /login si une route placeholder existe déjà, sinon ne pas l’inventer complètement
+- garder la navigation compatible avec la suite
+
+Objectif :
+- HomePage sur /
+- RegisterPage sur /register
+
+Si le projet a déjà un router :
+- l’étendre proprement
+Sinon :
+- mettre en place la solution minimale propre
+
+IMPORTANT
+Ne pas casser les routes du jeu existant.
+
+==================================================
+PARTIE 4 — SYSTÈME VISUEL PARTAGÉ
+==================================================
+
+Créer une base visuelle réutilisable pour éviter de refaire le style à la main dans chaque page.
+
+Créer des primitives ou composants simples pour :
+- bouton principal
+- bouton secondaire
+- cadre décoratif / panel
+- titre de section
+- header public
+- footer public
+
+Le langage visuel doit refléter l’image :
+- fond sombre texturé
+- encadrements fins décoratifs
+- panneaux parchemin / bronze / bois
+- typographie noble et lisible
+- contrastes élégants
+- CTA forts mais cohérents
+- densité visuelle riche sans être illisible
+
+IMPORTANT
+La cohérence visuelle entre accueil et inscription est obligatoire.
+
+==================================================
+PARTIE 5 — PAGE D’ACCUEIL
+==================================================
+
+Créer une vraie landing page publique fidèle à l’image.
+
+Sections attendues :
+
+A. Header
+- logo / nom Nova Imperium
+- navigation :
+  - Accueil
+  - Le Monde
+  - Fonctionnalités
+  - Connexion
+  - Créer un compte
+- CTA principal visible dans le header
+
+B. Hero
+- grand bloc immersif
+- gros titre principal en français
+- sous-texte court et fort
+- deux boutons :
+  - Créer un compte
+  - Découvrir le jeu
+
+C. Blocs piliers
+Créer 4 cartes visuelles :
+- Carte hex persistante
+- Serveur autoritaire
+- Commerce et logistique
+- Villes, colonies et territoires
+
+D. Aperçu / preview
+- un encadré de présentation inspiré du mockup
+- avec visuel, panneau descriptif, ou bloc illustré
+- rester proche de la structure de l’image
+
+E. Section “Pourquoi Nova Imperium ?”
+- bénéfices clés
+- mise en page éditoriale propre
+
+F. CTA final
+- rejoindre l’empire
+- créer un compte
+- se connecter
+
+G. Footer
+- simple, propre, cohérent
+
+==================================================
+PARTIE 6 — PAGE D’INSCRIPTION
+==================================================
+
+Créer une vraie page publique d’inscription dans exactement le même univers visuel.
+
+Structure attendue :
+
+A. Même header public
+B. même ambiance générale
+C. panneau central ou layout deux colonnes
+D. formulaire stylisé mais lisible
+E. footer cohérent
+
+Champs du formulaire :
+- nom d’utilisateur
+- email
+- mot de passe
+- confirmer mot de passe
+
+Actions :
+- bouton principal : Créer mon compte
+- lien secondaire : Se connecter
+
+IMPORTANT
+Ne pas faire un simple formulaire brut sur fond vide.
+La page doit sembler faire partie du même site officiel que l’accueil.
+
+==================================================
+PARTIE 7 — STYLE ET QUALITÉ DE RENDU
+==================================================
+
+Le rendu recherché est :
+- premium
+- immersif
+- médiéval fantasy
+- proprement intégrable
+- crédible comme esthétique finale du projet
+
+L’image de référence doit guider :
+- proportions
+- composition
+- bordures
+- type de panneaux
+- intensité des ombres
+- ton des couleurs
+- hiérarchie des CTA
+- densité décorative
+
+Il faut viser :
+- fidélité visuelle élevée
+- bonne lisibilité
+- rendu desktop fort
+- responsive raisonnable ensuite
+
+==================================================
+PARTIE 8 — RESPONSIVE
+==================================================
+
+Priorité :
+1. desktop
+2. tablette
+3. mobile lisible
+
+Ne pas dégrader complètement le style sur mobile.
+Mais ne pas sacrifier la version desktop pour ça.
+
+==================================================
+PARTIE 9 — CONTRAINTES FINALES
+==================================================
+
+Ne pas toucher :
+- aux systèmes gameplay
+- au backend jeu
+- aux systèmes marché
+- aux systèmes logistiques
+- aux écrans in-game existants
+- à l’architecture globale du jeu si non nécessaire
+
+Le but exclusif est :
+ajouter un frontend public cohérent pour accueil + inscription, dans un style visuel très fidèle à l’image fournie.
+
+FORMAT DE RÉPONSE ATTENDU
+Réponds avec :
+1. AUDIT
+2. STRUCTURE PROPOSÉE
+3. FICHIERS CRÉÉS / MODIFIÉS
+4. IMPLÉMENTATION
+5. VÉRIFICATION
+6. STOP

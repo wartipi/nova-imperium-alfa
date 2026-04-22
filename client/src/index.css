@@ -11,10 +11,9 @@
     @apply font-sans antialiased bg-background text-foreground;
     margin: 0;
     padding: 0;
-    overflow: hidden;
-    width: 100vw;
-    height: 100vh;
-    background: linear-gradient(135deg, #8B4513 0%, #A0522D 50%, #8B4513 100%);
+    width: 100%;
+    min-height: 100vh;
+    background: #100802;
   }
 }
 
