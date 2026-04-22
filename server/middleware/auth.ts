@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
+import { db } from '../db';
+import { users } from '@shared/schema';
+import { eq } from 'drizzle-orm';
 
-// Interface pour étendre Express Request avec les données utilisateur
 export interface AuthRequest extends Request {
   user?: {
     id: string;
@@ -9,113 +11,155 @@ export interface AuthRequest extends Request {
   };
 }
 
-// Utilisateurs autorisés (dans une vraie application, ceci serait dans une base de données)
-const AUTHORIZED_USERS = {
-  'admin': { id: 'admin', password: 'nova2025', role: 'admin' },
-  'joueur1': { id: 'joueur1', password: 'imperium123', role: 'player' },
-  'maitre': { id: 'maitre', password: 'pandem456', role: 'admin' }
+const AUTHORIZED_USERS: Record<string, { id: string; password: string; role: string }> = {
+  'admin':   { id: 'admin',   password: 'nova2025',     role: 'admin'  },
+  'joueur1': { id: 'joueur1', password: 'imperium123',  role: 'player' },
+  'maitre':  { id: 'maitre',  password: 'pandem456',    role: 'admin'  },
 };
 
-// Middleware pour vérifier l'authentification
-export function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
+// Cache en mémoire des utilisateurs DB authentifiés — alimenté au login, consulté par SSE (sync).
+// Clé : username ; Valeur : plaintext password tel que stocké en DB.
+const DB_USERS_CACHE = new Map<string, string>();
+
+// Helper async : cherche username+password dans la table DB users.
+// Si trouvé, alimente DB_USERS_CACHE pour les usages synchrones (SSE).
+async function lookupDBUser(
+  username: string,
+  password: string,
+): Promise<{ id: string; username: string; role: string } | null> {
+  try {
+    const rows = await db.select().from(users).where(eq(users.username, username)).limit(1);
+    if (rows.length === 0) return null;
+    if (rows[0].password !== password) return null;
+    DB_USERS_CACHE.set(username, password);
+    return { id: username, username, role: 'player' };
+  } catch {
+    return null;
+  }
+}
+
+// Middleware d'authentification obligatoire.
+// Vérifie d'abord AUTHORIZED_USERS, puis la DB si non trouvé.
+export async function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
-  
+
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Token d\'authentification requis' });
   }
 
-  const token = authHeader.substring(7); // Enlever "Bearer "
-  
+  const token = authHeader.substring(7);
+
   try {
-    // Dans une vraie application, on vérifierait un JWT token
-    // Ici, on fait une vérification simple
     const decoded = Buffer.from(token, 'base64').toString('utf-8');
-    const [username, password] = decoded.split(':');
-    
-    const user = AUTHORIZED_USERS[username.toLowerCase()];
-    if (!user || user.password !== password) {
-      return res.status(401).json({ error: 'Identifiants invalides' });
+    const [rawUsername, password] = decoded.split(':');
+    const username = rawUsername?.toLowerCase();
+
+    // 1. Comptes hardcodés — chemin inchangé
+    const hardcoded = AUTHORIZED_USERS[username];
+    if (hardcoded && hardcoded.password === password) {
+      req.user = { id: hardcoded.id, username, role: hardcoded.role };
+      return next();
     }
 
-    req.user = {
-      id: user.id,
-      username: username.toLowerCase(),
-      role: user.role
-    };
+    // 2. Fallback DB
+    const dbUser = await lookupDBUser(username, password);
+    if (dbUser) {
+      req.user = dbUser;
+      return next();
+    }
 
-    next();
-  } catch (error) {
+    return res.status(401).json({ error: 'Identifiants invalides' });
+  } catch {
     return res.status(401).json({ error: 'Token invalide' });
   }
 }
 
-// Middleware pour l'authentification optionnelle (pour les endpoints publics qui peuvent bénéficier d'informations utilisateur)
-export function optionalAuth(req: AuthRequest, res: Response, next: NextFunction) {
+// Middleware d'authentification optionnelle — ne bloque pas si absent.
+export async function optionalAuth(req: AuthRequest, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
-  
+
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.substring(7);
-    
     try {
       const decoded = Buffer.from(token, 'base64').toString('utf-8');
-      const [username, password] = decoded.split(':');
-      
-      const user = AUTHORIZED_USERS[username.toLowerCase()];
-      if (user && user.password === password) {
-        req.user = {
-          id: user.id,
-          username: username.toLowerCase(),
-          role: user.role
-        };
+      const [rawUsername, password] = decoded.split(':');
+      const username = rawUsername?.toLowerCase();
+
+      // 1. Comptes hardcodés
+      const hardcoded = AUTHORIZED_USERS[username];
+      if (hardcoded && hardcoded.password === password) {
+        req.user = { id: hardcoded.id, username, role: hardcoded.role };
+      } else {
+        // 2. Fallback DB
+        const dbUser = await lookupDBUser(username, password);
+        if (dbUser) req.user = dbUser;
       }
-    } catch (error) {
-      // Ignore les erreurs d'authentification pour les endpoints optionnels
+    } catch {
+      // Ignore — auth optionnelle
     }
   }
-  
+
   next();
 }
 
-// Endpoint pour la connexion
-export function loginEndpoint(req: Request, res: Response) {
+// Endpoint de connexion.
+// Vérifie d'abord AUTHORIZED_USERS, puis DB. Format token inchangé : base64(username:password).
+export async function loginEndpoint(req: Request, res: Response) {
   const { username, password } = req.body;
-  
+
   if (!username || !password) {
     return res.status(400).json({ error: 'Nom d\'utilisateur et mot de passe requis' });
   }
 
-  const user = AUTHORIZED_USERS[username.toLowerCase()];
-  if (!user || user.password !== password) {
-    return res.status(401).json({ error: 'Identifiants incorrects' });
+  const uname = username.toLowerCase();
+
+  // 1. Comptes hardcodés
+  const hardcoded = AUTHORIZED_USERS[uname];
+  if (hardcoded && hardcoded.password === password) {
+    const token = Buffer.from(`${uname}:${password}`).toString('base64');
+    return res.json({
+      success: true,
+      token,
+      user: { id: hardcoded.id, username: uname, role: hardcoded.role },
+    });
   }
 
-  // Créer un token simple (dans une vraie application, utiliser JWT)
-  const token = Buffer.from(`${username.toLowerCase()}:${password}`).toString('base64');
-  
-  res.json({
-    success: true,
-    token,
-    user: {
-      id: user.id,
-      username: username.toLowerCase(),
-      role: user.role
-    }
-  });
+  // 2. Fallback DB
+  const dbUser = await lookupDBUser(uname, password);
+  if (dbUser) {
+    const token = Buffer.from(`${uname}:${password}`).toString('base64');
+    return res.json({ success: true, token, user: dbUser });
+  }
+
+  return res.status(401).json({ error: 'Identifiants incorrects' });
 }
 
 // ─── getUserFromBearerToken ────────────────────────────────────────────────────
-// Helper réutilisable pour valider un token Bearer transmis hors header HTTP.
-// Usage exclusif : route SSE marché (EventSource ne supporte pas les headers custom).
+// Fonction synchrone — usage exclusif : route SSE marché (EventSource ne supporte
+// pas les headers custom). Consulte AUTHORIZED_USERS puis DB_USERS_CACHE.
+// Le cache est alimenté à chaque login réussi d'un utilisateur DB.
 // Ne jamais loguer le token brut.
 export function getUserFromBearerToken(
   token: string,
 ): { id: string; username: string; role: string } | null {
   try {
-    const decoded = Buffer.from(token, "base64").toString("utf-8");
-    const [username, password] = decoded.split(":");
-    const user = AUTHORIZED_USERS[username?.toLowerCase()];
-    if (!user || user.password !== password) return null;
-    return { id: user.id, username: username.toLowerCase(), role: user.role };
+    const decoded = Buffer.from(token, 'base64').toString('utf-8');
+    const [rawUsername, password] = decoded.split(':');
+    const username = rawUsername?.toLowerCase();
+
+    // 1. Comptes hardcodés
+    const hardcoded = AUTHORIZED_USERS[username];
+    if (hardcoded && hardcoded.password === password) {
+      return { id: hardcoded.id, username, role: hardcoded.role };
+    }
+
+    // 2. Cache DB (alimenté lors du login)
+    const cached = DB_USERS_CACHE.get(username);
+    if (cached !== undefined && cached === password) {
+      return { id: username, username, role: 'player' };
+    }
+
+    return null;
   } catch {
     return null;
   }

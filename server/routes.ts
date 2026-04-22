@@ -5,9 +5,11 @@ import treatyRoutes from "./routes/treaties";
 import { exchangeService } from "./exchangeService";
 import { marketplaceService, initializeMarketplaceService } from "./marketplaceService";
 import { cartographyService } from "./cartographyService";
-import { loginEndpoint, requireAuth } from "./middleware/auth";
+import { loginEndpoint, requireAuth, AUTHORIZED_USERS } from "./middleware/auth";
 import type { AuthRequest } from "./middleware/auth";
 import { db } from "./db";
+import { users } from "@shared/schema";
+import { eq } from "drizzle-orm";
 import marshalRoutes from "./routes/marshal";
 import publicEventsRoutes from "./routes/publicEvents";
 import mapRoutes from "./routes/map";
@@ -74,6 +76,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Authentication endpoint
   app.post("/api/auth/login", loginEndpoint);
+
+  // Inscription — création d'un compte DB
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+
+      if (!username || !password) {
+        return res.status(400).json({ error: 'Nom d\'utilisateur et mot de passe requis' });
+      }
+
+      const uname = String(username).trim().toLowerCase();
+
+      if (uname.length < 3 || uname.length > 32) {
+        return res.status(400).json({ error: 'Nom d\'utilisateur : 3 à 32 caractères requis' });
+      }
+
+      if (String(password).length < 6) {
+        return res.status(400).json({ error: 'Mot de passe : 6 caractères minimum requis' });
+      }
+
+      // Refus si le nom est reservé par un compte hardcodé
+      if (AUTHORIZED_USERS[uname]) {
+        return res.status(409).json({ error: 'Nom d\'utilisateur déjà pris' });
+      }
+
+      // Refus si déjà présent en DB
+      const existing = await db.select({ id: users.id }).from(users).where(eq(users.username, uname)).limit(1);
+      if (existing.length > 0) {
+        return res.status(409).json({ error: 'Nom d\'utilisateur déjà pris' });
+      }
+
+      // Insertion en DB — password stocké tel quel (niveau de sécurité identique aux comptes hardcodés)
+      await db.insert(users).values({ username: uname, password: String(password).trim() });
+
+      return res.status(201).json({ success: true, message: 'Compte créé avec succès' });
+    } catch (err: any) {
+      console.error('[Register] Erreur:', err);
+      return res.status(500).json({ error: 'Erreur lors de la création du compte' });
+    }
+  });
 
   // Message endpoints
   app.get("/api/messages/:playerId", async (req, res) => {

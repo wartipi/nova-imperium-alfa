@@ -1,0 +1,136 @@
+NOVA IMPERIUM — AUTH BACKEND : INSCRIPTION RÉELLE, SEGMENT MINIMAL
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucune dérive hors sujet.
+
+OBJECTIF
+Rendre l’inscription réellement fonctionnelle avec le plus petit changement propre possible.
+
+IMPORTANT
+Ne traite PAS dans ce segment :
+- ajout d’email
+- ajout d’une colonne role en DB
+- hachage bcrypt
+- refonte du système auth
+- JWT
+- modifications frontend
+- nouvelle page de login publique
+- refactor storage
+
+On veut uniquement :
+1. permettre l’inscription backend réelle
+2. permettre le login des comptes DB nouvellement créés
+3. garder les 3 comptes hardcodés existants intacts
+
+PÉRIMÈTRE AUTORISÉ
+- server/middleware/auth.ts
+- server/routes.ts
+- éventuellement l’accès DB / schéma déjà existant si strictement nécessaire
+- ne touche pas au frontend dans ce segment
+
+DIAGNOSTIC DE DÉPART
+État actuel vérifié :
+- auth hardcodée dans AUTHORIZED_USERS
+- loginEndpoint ne consulte pas la DB
+- requireAuth / optionalAuth / getUserFromBearerToken ne consultent pas la DB
+- POST /api/auth/register n’existe pas
+- RegisterPage appelle pourtant /api/auth/register puis login()
+
+OBJECTIF FONCTIONNEL EXACT
+Après ce segment :
+- un nouvel utilisateur peut s’inscrire via POST /api/auth/register
+- ce nouvel utilisateur peut ensuite se connecter avec le même flux login existant
+- les comptes hardcodés admin / joueur1 / maitre continuent de fonctionner inchangés
+- le format token reste inchangé
+
+DÉCISION DE PÉRIMÈTRE
+Dans ce segment :
+- username + password seulement
+- pas d’email
+- pas de role DB
+- pour les utilisateurs DB, role = "player" côté auth
+- pour les utilisateurs DB, req.user.id doit rester compatible avec le jeu → utiliser username comme id logique côté auth
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire précisément :
+- AUTHORIZED_USERS
+- requireAuth
+- optionalAuth
+- loginEndpoint
+- getUserFromBearerToken
+- la structure réellement disponible pour lire/écrire les users DB
+
+ÉTAPE 2 — LOOKUP AUTH HYBRIDE
+Dans auth.ts, mettre en place une logique minimale :
+- d’abord lookup dans AUTHORIZED_USERS
+- si non trouvé, fallback DB par username
+- comparaison password compatible avec l’état actuel
+- pour un user DB authentifié :
+  - id = username
+  - username = username
+  - role = "player"
+
+IMPORTANT
+Ne casse pas le token existant.
+Conserver :
+base64(username:password)
+
+Le but est la compatibilité maximale.
+
+ÉTAPE 3 — ROUTE REGISTER
+Ajouter POST /api/auth/register dans routes.ts avec logique minimale :
+- valider username et password
+- refuser si champs manquants
+- refuser si username déjà présent dans AUTHORIZED_USERS
+- refuser si username déjà présent en DB
+- insérer le nouvel utilisateur en DB
+- renvoyer une réponse simple de succès
+
+IMPORTANT
+Ne pas connecter automatiquement ici.
+Le frontend appelle déjà login() juste après.
+
+ÉTAPE 4 — CONTRAINTES
+Ne touche pas :
+- au frontend
+- à RegisterPage
+- aux routes gameplay
+- au marché
+- à la logistique
+- au format token
+- aux comptes hardcodés existants
+
+ÉTAPE 5 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. Comptes hardcodés
+- admin fonctionne toujours
+- joueur1 fonctionne toujours
+- maitre fonctionne toujours
+
+B. Nouveau compte DB
+- register crée bien l’utilisateur
+- loginEndpoint accepte ensuite ce compte
+- requireAuth accepte ensuite le token de ce compte
+- getUserFromBearerToken accepte aussi ce token si utilisé par SSE
+
+C. Compatibilité
+- req.user.id reste exploitable comme player_id logique
+- aucun changement frontend requis
+- aucune erreur TypeScript
+- aucune route existante cassée
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
