@@ -1,0 +1,78 @@
+NOVA IMPERIUM — FRONT PUBLIC : AUDIT D’ÉCART UNIQUEMENT
+Branche : NI-10.3
+
+Le socle public est maintenant poussé.
+Je veux reprendre le contrôle du chantier avant toute nouvelle implémentation.
+
+IMPORTANT
+Dans ce segment :
+- tu ne modifies rien
+- tu ne touches à aucun fichier
+- tu ne proposes pas de refonte
+- tu fais uniquement un audit d’écart entre :
+  1. le frontend public actuellement poussé
+  2. la cible visuelle et fonctionnelle réellement demandée
+
+PÉRIMÈTRE À AUDITER
+- client/src/App.tsx
+- client/src/pages/public/HomePage.tsx
+- client/src/pages/public/RegisterPage.tsx
+- client/src/styles/public-theme.css
+- composants publics réellement utilisés
+
+OBJECTIF
+Lister précisément ce qui est :
+- déjà correct
+- partiellement correct
+- manquant
+- hors périmètre
+- à corriger en priorité
+
+POINTS À CONTRÔLER OBLIGATOIREMENT
+
+A. ROUTING
+- / fonctionne-t-il comme accueil public
+- /register fonctionne-t-il comme page publique
+- /game reste-t-il compatible avec le jeu
+- la logique auth est-elle proprement séparée
+
+B. PAGE D’ACCUEIL
+- présence réelle des sections principales
+- cohérence générale avec l’image de référence
+- quels blocs sont déjà bons
+- quels blocs sont encore trop éloignés de l’esthétique cible
+
+C. PAGE D’INSCRIPTION
+- vérifier si la structure demandée est respectée
+- vérifier explicitement :
+  - username
+  - email
+  - mot de passe
+  - confirmation mot de passe
+- signaler clairement ce qui manque
+- signaler si le submit repose sur une hypothèse non vérifiée
+
+D. COHÉRENCE VISUELLE
+- thème partagé réel
+- cohérence home/register
+- fidélité visuelle actuelle par rapport à l’image de référence
+- ce qui devra être raffiné plus tard
+
+E. PÉRIMÈTRE
+- identifier ce qui a été fait au-delà de l’étape prévue
+- séparer clairement :
+  - ce qui est utile
+  - ce qui est prématuré
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. ÉTAT RÉEL VÉRIFIÉ
+3. ÉCARTS CONFIRMÉS
+4. RISQUES
+5. PROCHAIN PLUS PETIT SEGMENT RECOMMANDÉ
+6. STOP
+
+IMPORTANT
+Je ne veux pas de code dans cette réponse.
+Je veux un audit d’écart strict pour reprendre le contrôle du chantier.
