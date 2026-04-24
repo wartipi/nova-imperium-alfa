@@ -1,0 +1,159 @@
+NOVA IMPERIUM — INSCRIPTION : AJOUT EMAIL DE BOUT EN BOUT
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucune dérive hors sujet.
+
+OBJECTIF
+Ajouter l’email au flux d’inscription de bout en bout.
+
+PÉRIMÈTRE AUTORISÉ
+- shared/schema.ts
+- server/routes.ts
+- client/src/pages/public/RegisterPage.tsx
+- éventuellement le type/validation strictement nécessaire autour de ce flux
+- rien d’autre sauf nécessité absolue
+
+PÉRIMÈTRE INTERDIT
+- server/middleware/auth.ts
+- App.tsx
+- PublicHeader
+- HomePage
+- marché
+- gameplay
+- styles globaux hors ajustement mineur d’un champ
+- refonte visuelle
+- responsive
+
+ÉTAT DE DÉPART
+Le backend auth minimal fonctionne déjà.
+Le frontend register existe déjà.
+Le manque actuel :
+- pas de champ email dans RegisterPage
+- la route register ne traite pas encore email
+- le schéma users doit être aligné si nécessaire
+
+OBJECTIF FONCTIONNEL EXACT
+Après ce segment :
+- le formulaire d’inscription contient :
+  - username
+  - email
+  - password
+  - confirm password
+- POST /api/auth/register valide aussi email
+- l’email est stocké proprement en DB
+- le reste du flux reste inchangé :
+  - register
+  - auto-login
+  - navigate("/game") si login OK
+
+DÉCISION DE PRODUIT À APPLIQUER
+Dans ce segment :
+- email requis
+- unicité email requise si possible proprement
+- validation simple et robuste
+- pas de système de confirmation email
+- pas d’envoi de mail
+- pas de vérification externe
+- pas de récupération de mot de passe
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Relire précisément :
+- la table users actuelle
+- la route POST /api/auth/register
+- RegisterPage.tsx
+
+Confirmer :
+- colonnes actuelles
+- validations actuelles
+- contrat actuel du formulaire
+
+ÉTAPE 2 — SCHÉMA
+Ajouter l’email à users avec le plus petit changement propre.
+
+Cible attendue :
+- colonne email
+- not null si faisable proprement dans le contexte actuel
+- unique si faisable proprement
+- rester cohérent avec les insertions existantes
+
+IMPORTANT
+Ne pas lancer de refonte auth.
+Ne pas toucher au token.
+Ne pas toucher au login hors stricte compatibilité si nécessaire.
+
+ÉTAPE 3 — BACKEND REGISTER
+Étendre POST /api/auth/register pour :
+- lire username, email, password
+- valider :
+  - username présent
+  - email présent
+  - password présent
+  - format email minimal correct
+  - unicité username
+  - unicité email
+- insérer username + email + password
+
+Garder :
+- réponses simples
+- messages cohérents
+- logique générale actuelle
+
+ÉTAPE 4 — FRONTEND REGISTER
+Ajouter le champ email dans RegisterPage.tsx :
+- position logique entre username et password
+- validation client minimale
+- envoyer email dans le body du fetch
+- conserver le reste du comportement existant
+
+ÉTAPE 5 — CONTRAINTES
+Ne touche pas :
+- au login backend
+- à requireAuth
+- à optionalAuth
+- à getUserFromBearerToken
+- à App.tsx
+- à la logique des redirections déjà stabilisée
+
+ÉTAPE 6 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. Schéma
+- users contient bien email
+- contrainte cohérente avec l’usage
+
+B. Register backend
+- username dupliqué refusé
+- email dupliqué refusé
+- email invalide refusé
+- compte valide accepté
+
+C. Register frontend
+- champ email visible
+- validation client présente
+- fetch envoie bien email
+
+D. Flux complet
+- register OK
+- auto-login OK
+- accès jeu OK
+- aucune régression sur les comptes hardcodés
+
+E. Non-régression
+- auth.ts non touché sauf nécessité absolue
+- frontend public hors RegisterPage non touché
+- aucune erreur TypeScript
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP

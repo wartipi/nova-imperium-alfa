@@ -10,6 +10,7 @@ export default function RegisterPage() {
   const { login } = useAuth();
 
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -23,6 +24,13 @@ export default function RegisterPage() {
     if (username.trim().length < 3) {
       setStatus("error");
       setMessage("Le nom d'utilisateur doit comporter au moins 3 caractères.");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setStatus("error");
+      setMessage("Veuillez saisir une adresse email valide.");
       return;
     }
 
@@ -44,7 +52,7 @@ export default function RegisterPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: username.trim().toLowerCase(), password }),
+        body: JSON.stringify({ username: username.trim().toLowerCase(), email: email.trim().toLowerCase(), password }),
       });
 
       if (res.ok) {
@@ -124,6 +132,19 @@ export default function RegisterPage() {
                   minLength={3}
                   maxLength={32}
                   autoComplete="username"
+                />
+              </div>
+
+              <div className="ni-form-field">
+                <label className="ni-form-label">Adresse email</label>
+                <input
+                  type="email"
+                  className="ni-form-input"
+                  placeholder="ex : valdrick@exemple.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
                 />
               </div>
 

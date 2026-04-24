@@ -6,6 +6,7 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  email: text("email").unique(),
 });
 
 // Tables pour la mécanique de maréchaux
@@ -164,6 +165,7 @@ export const mapTiles = pgTable("map_tiles", {
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
+  email: true,
 });
 
 export const insertArmySchema = createInsertSchema(armies).pick({

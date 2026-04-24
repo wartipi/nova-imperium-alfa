@@ -80,16 +80,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Inscription — création d'un compte DB
   app.post("/api/auth/register", async (req, res) => {
     try {
-      const { username, password } = req.body;
+      const { username, email, password } = req.body;
 
-      if (!username || !password) {
-        return res.status(400).json({ error: 'Nom d\'utilisateur et mot de passe requis' });
+      if (!username || !email || !password) {
+        return res.status(400).json({ error: 'Nom d\'utilisateur, email et mot de passe requis' });
       }
 
       const uname = String(username).trim().toLowerCase();
+      const emailNorm = String(email).trim().toLowerCase();
 
       if (uname.length < 3 || uname.length > 32) {
         return res.status(400).json({ error: 'Nom d\'utilisateur : 3 à 32 caractères requis' });
+      }
+
+      // Validation email format minimal
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailNorm)) {
+        return res.status(400).json({ error: 'Adresse email invalide' });
       }
 
       if (String(password).length < 6) {
@@ -101,14 +108,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(409).json({ error: 'Nom d\'utilisateur déjà pris' });
       }
 
-      // Refus si déjà présent en DB
-      const existing = await db.select({ id: users.id }).from(users).where(eq(users.username, uname)).limit(1);
-      if (existing.length > 0) {
+      // Refus si username déjà présent en DB
+      const existingUser = await db.select({ id: users.id }).from(users).where(eq(users.username, uname)).limit(1);
+      if (existingUser.length > 0) {
         return res.status(409).json({ error: 'Nom d\'utilisateur déjà pris' });
       }
 
+      // Refus si email déjà présent en DB
+      const existingEmail = await db.select({ id: users.id }).from(users).where(eq(users.email, emailNorm)).limit(1);
+      if (existingEmail.length > 0) {
+        return res.status(409).json({ error: 'Adresse email déjà utilisée' });
+      }
+
       // Insertion en DB — password stocké tel quel (niveau de sécurité identique aux comptes hardcodés)
-      await db.insert(users).values({ username: uname, password: String(password).trim() });
+      await db.insert(users).values({ username: uname, email: emailNorm, password: String(password).trim() });
 
       return res.status(201).json({ success: true, message: 'Compte créé avec succès' });
     } catch (err: any) {
