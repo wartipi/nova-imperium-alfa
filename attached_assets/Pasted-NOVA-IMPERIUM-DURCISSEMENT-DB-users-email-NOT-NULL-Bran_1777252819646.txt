@@ -1,0 +1,103 @@
+NOVA IMPERIUM — DURCISSEMENT DB : users.email NOT NULL
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucune dérive hors sujet.
+
+OBJECTIF
+Aligner la contrainte DB avec la règle métier actuelle :
+l’email est déjà obligatoire dans le flux d’inscription, donc users.email doit maintenant devenir NOT NULL côté schéma/base.
+
+IMPORTANT
+Ne traite PAS dans ce segment :
+- auth.ts
+- App.tsx
+- RegisterPage.tsx
+- routes.ts sauf nécessité absolue
+- marché
+- gameplay
+- styles
+- responsive
+
+PÉRIMÈTRE AUTORISÉ
+- shared/schema.ts
+- la migration / db push strictement nécessaire
+- éventuellement une vérification SQL ciblée
+
+ÉTAT DE DÉPART
+État déjà validé :
+- RegisterPage exige déjà email
+- /api/auth/register exige déjà email, valide email, et l’insère
+- users.email existe déjà en DB/schema
+Le seul écart restant :
+- users.email est encore nullable côté schéma DB
+
+OBJECTIF FONCTIONNEL EXACT
+Après ce segment :
+- users.email est NOT NULL côté schéma
+- la base réelle est alignée si possible proprement
+- aucune régression sur register
+- aucun changement de comportement frontend
+
+TRAVAIL À FAIRE
+
+ÉTAPE 1 — AUDIT CIBLÉ
+Avant toute modification :
+- relire users dans shared/schema.ts
+- vérifier l’état réel de la colonne email
+- vérifier s’il existe des lignes users avec email NULL
+
+IMPORTANT
+Cette vérification est obligatoire.
+Si des lignes existantes ont email NULL :
+- ne pas forcer aveuglément NOT NULL
+- ne pas inventer d’emails
+- arrêter le segment et rapporter précisément le blocage
+
+ÉTAPE 2 — CORRECTIF MINIMAL
+Si aucun user existant n’a email NULL :
+- modifier shared/schema.ts pour passer users.email en notNull().unique()
+- appliquer la migration / db push minimale nécessaire
+
+ÉTAPE 3 — CONTRAINTES
+Ne touche pas :
+- à la route register si elle est déjà cohérente
+- au frontend
+- au login
+- au token
+- aux comptes hardcodés
+- à tout autre système
+
+ÉTAPE 4 — VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. Schéma
+- users.email est bien NOT NULL
+- users.email reste unique
+
+B. Données
+- aucune ligne users avec email NULL restante
+- la migration n’a pas cassé les comptes existants
+
+C. Flux
+- /api/auth/register fonctionne toujours
+- création de compte avec email toujours OK
+- login derrière toujours OK
+
+D. Non-régression
+- auth.ts non touché
+- frontend non touché
+- aucune erreur TypeScript
+- aucune dérive de périmètre
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE PROPOSÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. STOP
