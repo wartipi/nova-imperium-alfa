@@ -131,9 +131,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Message endpoints
-  app.get("/api/messages/:playerId", async (req, res) => {
+  app.get("/api/messages/:playerId", requireAuth, async (req: AuthRequest, res) => {
     try {
       const { playerId } = req.params;
+      if (req.user!.role !== "admin" && req.user!.id !== playerId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
       const messages = messageService.getMessagesForPlayer(playerId);
       res.json(messages);
     } catch (error) {
@@ -141,36 +144,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/messages", async (req, res) => {
+  app.post("/api/messages", requireAuth, async (req: AuthRequest, res) => {
     try {
-      const { from, to, content, type, read = false } = req.body;
-      
-      if (!from || !to || !content) {
+      const { to, content, type } = req.body;
+      // Le champ "from" est forcé depuis le token — pas de spoofing possible
+      const from = req.user!.id;
+
+      if (!to || !content) {
         return res.status(400).json({ error: "Missing required fields" });
       }
-      
+
       const message = messageService.sendMessage({
         from,
         to,
         content,
         type: type || 'message'
       });
-      
+
       res.json(message);
     } catch (error) {
       res.status(500).json({ error: "Failed to send message" });
     }
   });
 
-  app.patch("/api/messages/:messageId/read", async (req, res) => {
+  app.patch("/api/messages/:messageId/read", requireAuth, async (req: AuthRequest, res) => {
     try {
       const { messageId } = req.params;
-      const { playerId } = req.body;
-      
-      if (!playerId) {
-        return res.status(400).json({ error: "Player ID required" });
-      }
-      
+      const playerId = req.user!.id;
+
       const success = messageService.markAsRead(messageId, playerId);
       res.json({ success });
     } catch (error) {
@@ -178,9 +179,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/messages/:playerId/stats", async (req, res) => {
+  app.get("/api/messages/:playerId/stats", requireAuth, async (req: AuthRequest, res) => {
     try {
       const { playerId } = req.params;
+      if (req.user!.role !== "admin" && req.user!.id !== playerId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
       const stats = messageService.getStats(playerId);
       res.json(stats);
     } catch (error) {
@@ -290,9 +294,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Cartography endpoints
-  app.get("/api/cartography/regions/:playerId", async (req, res) => {
+  app.get("/api/cartography/regions/:playerId", requireAuth, async (req: AuthRequest, res) => {
     try {
       const { playerId } = req.params;
+      if (req.user!.role !== "admin" && req.user!.id !== playerId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
       const regions = await cartographyService.getDiscoveredRegions(playerId);
       res.json(regions);
     } catch (error) {
@@ -300,9 +307,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/cartography/discover", async (req, res) => {
+  app.post("/api/cartography/discover", requireAuth, async (req: AuthRequest, res) => {
     try {
-      const { playerId, centerX, centerY, radius, name } = req.body;
+      const { centerX, centerY, radius, name } = req.body;
+      // playerId forcé depuis le token
+      const playerId = req.user!.id;
       const region = await cartographyService.discoverRegion(playerId, centerX, centerY, radius, name);
       if (region) {
         res.json(region);
@@ -314,9 +323,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/cartography/project", async (req, res) => {
+  app.post("/api/cartography/project", requireAuth, async (req: AuthRequest, res) => {
     try {
-      const { playerId, regionId, tools, assistants } = req.body;
+      const { regionId, tools, assistants } = req.body;
+      // playerId forcé depuis le token
+      const playerId = req.user!.id;
       const project = await cartographyService.startCartographyProject(playerId, regionId, tools, assistants);
       if (project) {
         res.json(project);
@@ -328,7 +339,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/cartography/project/:projectId/progress", async (req, res) => {
+  app.post("/api/cartography/project/:projectId/progress", requireAuth, async (req: AuthRequest, res) => {
     try {
       const { projectId } = req.params;
       const { actionPoints } = req.body;
@@ -343,7 +354,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/cartography/maps/tradable", async (req, res) => {
+  app.get("/api/cartography/maps/tradable", requireAuth, async (req: AuthRequest, res) => {
     try {
       const maps = await cartographyService.getTradableMaps();
       res.json(maps);
@@ -352,9 +363,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/cartography/maps/:playerId", async (req, res) => {
+  app.get("/api/cartography/maps/:playerId", requireAuth, async (req: AuthRequest, res) => {
     try {
       const { playerId } = req.params;
+      if (req.user!.role !== "admin" && req.user!.id !== playerId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
       const maps = await cartographyService.getPlayerMaps(playerId);
       res.json(maps);
     } catch (error) {
@@ -362,9 +376,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/cartography/projects/:playerId", async (req, res) => {
+  app.get("/api/cartography/projects/:playerId", requireAuth, async (req: AuthRequest, res) => {
     try {
       const { playerId } = req.params;
+      if (req.user!.role !== "admin" && req.user!.id !== playerId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
       const projects = await cartographyService.getActiveProjects(playerId);
       res.json(projects);
     } catch (error) {
@@ -372,9 +389,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/cartography/transfer", async (req, res) => {
+  app.post("/api/cartography/transfer", requireAuth, async (req: AuthRequest, res) => {
     try {
-      const { mapId, fromPlayerId, toPlayerId } = req.body;
+      const { mapId, toPlayerId } = req.body;
+      // fromPlayerId forcé depuis le token — empêche le vol de carte d'autrui
+      const fromPlayerId = req.user!.role === "admin" && req.body.fromPlayerId
+        ? req.body.fromPlayerId
+        : req.user!.id;
       const success = await cartographyService.transferMap(mapId, fromPlayerId, toPlayerId);
       if (success) {
         res.json({ success: true, message: "Map transferred successfully" });
@@ -386,9 +407,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/cartography/stats/:playerId", async (req, res) => {
+  app.get("/api/cartography/stats/:playerId", requireAuth, async (req: AuthRequest, res) => {
     try {
       const { playerId } = req.params;
+      if (req.user!.role !== "admin" && req.user!.id !== playerId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
       const stats = await cartographyService.getCartographyStats(playerId);
       res.json(stats);
     } catch (error) {
@@ -396,7 +420,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/cartography/map/:mapId", async (req, res) => {
+  app.get("/api/cartography/map/:mapId", requireAuth, async (req: AuthRequest, res) => {
     try {
       const { mapId } = req.params;
       const map = await cartographyService.getMapById(mapId);
