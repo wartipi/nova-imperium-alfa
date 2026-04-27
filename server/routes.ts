@@ -225,7 +225,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/unique-items/create", async (req, res) => {
+  app.post("/api/unique-items/create", requireAuth, async (req: AuthRequest, res) => {
+    if (req.user!.role !== "admin") {
+      return res.status(403).json({ error: "Admin only" });
+    }
     try {
       const { name, type, rarity, description, ownerId, effects, requirements, value, metadata } = req.body;
       
@@ -251,9 +254,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/unique-items/:playerId", async (req, res) => {
+  app.delete("/api/unique-items/:playerId", requireAuth, async (req: AuthRequest, res) => {
+    const { playerId } = req.params;
+    if (req.user!.id !== playerId && req.user!.role !== "admin") {
+      return res.status(403).json({ error: "Forbidden" });
+    }
     try {
-      const { playerId } = req.params;
       const success = exchangeService.clearPlayerInventory(playerId);
       
       if (success) {
@@ -266,7 +272,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/unique-items/clear", async (req, res) => {
+  app.post("/api/unique-items/clear", requireAuth, async (req: AuthRequest, res) => {
+    if (req.user!.role !== "admin") {
+      return res.status(403).json({ error: "Admin only" });
+    }
     try {
       const success = exchangeService.clearAllInventories();
       
@@ -401,8 +410,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Résoudre les enchères (appelé en fin de tour)
-  app.post("/api/marketplace/resolve-auctions", async (req, res) => {
+  // Résoudre les enchères (appelé en fin de tour) — admin only
+  app.post("/api/marketplace/resolve-auctions", requireAuth, async (req: AuthRequest, res) => {
+    if (req.user!.role !== "admin") {
+      return res.status(403).json({ error: "Admin only" });
+    }
     try {
       const { currentTurn } = req.body;
 
