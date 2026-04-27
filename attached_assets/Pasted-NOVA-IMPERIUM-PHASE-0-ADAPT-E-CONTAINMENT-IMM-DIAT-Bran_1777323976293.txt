@@ -1,0 +1,155 @@
+NOVA IMPERIUM — PHASE 0 ADAPTÉE : CONTAINMENT IMMÉDIAT
+Branche : NI-10.3
+
+RÔLE
+Tu travailles sous contrainte stricte :
+audit → diagnostic → correctif minimal → vérification.
+Aucun refactor massif.
+Aucune dérive hors sujet.
+
+DÉCISION DE CADRAGE
+On NE lance PAS encore :
+- bcrypt
+- JWT
+- refonte auth globale
+- nettoyage de code mort
+- suppression de fichiers
+- normalisation API vers /me partout
+
+On traite d’abord les risques immédiats et la stabilité prod.
+
+OBJECTIF
+Fermer les trous critiques les plus exposés avec le plus petit changement propre possible.
+
+ORDRE OBLIGATOIRE DE CETTE PHASE 0
+1. Routes inline critiques
+2. Déploiement Replit en mode prod
+3. Middleware d’erreur Express
+4. Pré-audit du verrou processDueTurns
+
+PÉRIMÈTRE AUTORISÉ
+- server/routes.ts
+- server/index.ts
+- .replit
+- éventuellement package.json uniquement si strictement nécessaire
+- rien d’autre
+
+PÉRIMÈTRE INTERDIT
+- server/middleware/auth.ts
+- shared/schema.ts
+- frontend
+- nettoyage de repo
+- déplacement de routes dans d’autres fichiers
+- refactor architecture
+- JWT / sessions / bcrypt dans ce segment
+
+ÉTAPE 1 — VAGUE 1 ROUTES CRITIQUES
+Corriger uniquement ces 4 routes inline dans server/routes.ts :
+
+A. DELETE /api/unique-items/:playerId
+- ajouter requireAuth
+- autoriser si :
+  - req.user.id === playerId
+  - ou req.user.role === "admin"
+- sinon 403
+
+B. POST /api/unique-items/clear
+- ajouter requireAuth
+- admin only
+- sinon 403
+
+C. POST /api/marketplace/resolve-auctions
+- ajouter requireAuth
+- admin only
+- sinon 403
+
+D. POST /api/unique-items/create
+- ajouter requireAuth
+- admin only
+- sinon 403
+- IMPORTANT : ne pas la transformer en route self-service dans ce segment
+
+IMPORTANT
+Ne touche pas encore :
+- messages
+- cartography
+- autres routes inline
+- logique auth
+- services métier
+
+ÉTAPE 2 — DÉPLOIEMENT REPLIT
+Corriger la config de déploiement pour ne plus lancer le serveur en mode dev.
+
+Objectif :
+- run local : npm run dev inchangé
+- deployment : utiliser le flux prod existant
+- si possible : build puis start
+- ne pas casser le développement local
+
+ÉTAPE 3 — MIDDLEWARE D’ERREUR EXPRESS
+Dans server/index.ts :
+- conserver réponse JSON propre
+- conserver log si nécessaire
+- supprimer le throw err après envoi de réponse
+- ne pas refactoriser le bootstrap serveur
+
+ÉTAPE 4 — PRÉ-AUDIT VERROU processDueTurns
+Sans implémenter encore le verrou :
+- lire exactement où et comment processDueTurns() est déclenché
+- confirmer le risque multi-instance
+- proposer ensuite le plus petit verrou propre compatible PostgreSQL
+- pas d’implémentation du verrou dans cette phase si cela élargit trop le segment
+
+CONTRAINTES
+- pas de nettoyage de code mort
+- pas de suppression de fichiers
+- pas de refactor massif
+- pas de changement d’URL frontend
+- pas de bascule auth
+
+VÉRIFICATION OBLIGATOIRE
+Après modification, vérifier explicitement :
+
+A. DELETE /api/unique-items/:playerId
+- non-auth refusé
+- joueur standard peut supprimer uniquement son propre inventaire
+- admin peut supprimer n’importe quel inventaire
+- joueur standard sur inventaire d’un autre → 403
+
+B. POST /api/unique-items/clear
+- non-auth refusé
+- non-admin 403
+- admin OK
+
+C. POST /api/marketplace/resolve-auctions
+- non-auth refusé
+- non-admin 403
+- admin OK
+
+D. POST /api/unique-items/create
+- non-auth refusé
+- non-admin 403
+- admin OK
+
+E. Déploiement
+- .replit n’utilise plus npm run dev pour le déploiement
+- dev local reste inchangé
+
+F. Middleware d’erreur
+- plus de throw err après res.status(...).json(...)
+- aucune erreur TypeScript
+
+G. processDueTurns
+- audit clair du risque
+- proposition minimale de verrou pour segment suivant
+- pas de dérive d’implémentation
+
+FORMAT DE RÉPONSE OBLIGATOIRE
+Réponds exactement avec :
+1. DIAGNOSTIC
+2. FICHIERS CONCERNÉS
+3. MODIFICATION MINIMALE APPLIQUÉE
+4. PREUVE DIRECTE
+5. VÉRIFICATION
+6. PROCHAIN MICRO-SEGMENT RECOMMANDÉ
+7. STOP
