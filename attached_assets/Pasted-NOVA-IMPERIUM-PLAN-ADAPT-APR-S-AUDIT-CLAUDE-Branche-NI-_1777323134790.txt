@@ -1,0 +1,83 @@
+NOVA IMPERIUM — PLAN ADAPTÉ APRÈS AUDIT CLAUDE
+Branche : NI-10.3
+
+DÉCISION DE CADRAGE
+On ne lance PAS de suppression de code mort, de purge de fichiers, ni de refactor massif pour l’instant.
+Ces sujets reviendront plus tard dans un chantier dédié.
+
+PRIORITÉ ACTUELLE
+On traite uniquement les correctifs critiques immédiats :
+1. routes inline vulnérables
+2. déploiement en mode dev
+3. handler d’erreur Express
+4. verrou scheduler processDueTurns
+5. auth plus profonde plus tard
+
+ORDRE DE TRAVAIL À RESPECTER
+
+ÉTAPE 1 — AUDIT CIBLÉ DES ROUTES INLINE VULNÉRABLES
+Périmètre :
+- server/routes.ts uniquement
+
+Objectif :
+- lister précisément les routes inline legacy qui :
+  - n’ont pas requireAuth
+  - lisent l’identité depuis req.params ou req.body
+  - permettent lecture / création / suppression / usurpation
+- classer les risques par gravité
+- proposer le plus petit plan de correction
+
+IMPORTANT
+Pas d’implémentation dans cette étape.
+Audit seulement.
+
+Format de réponse :
+1. DIAGNOSTIC
+2. ROUTES À RISQUE CONFIRMÉES
+3. GRAVITÉ PAR ROUTE
+4. PLUS PETIT PLAN DE CORRECTION
+5. STOP
+
+ÉTAPE 2 — CORRECTION MINIMALE DES ROUTES LES PLUS DANGEREUSES
+Une fois l’audit validé :
+- ajouter requireAuth
+- remplacer playerId body/params par req.user.id quand c’est canonique
+- ne pas refactoriser le fichier
+- corriger d’abord :
+  - suppressions
+  - créations arbitraires
+  - usurpations directes
+
+ÉTAPE 3 — CORRECTIF PROD
+Périmètre :
+- .replit
+- éventuellement vérification package.json
+
+Objectif :
+- déploiement = build + start
+- dev local inchangé
+
+ÉTAPE 4 — HANDLER D’ERREUR
+Périmètre :
+- server/index.ts
+
+Objectif :
+- supprimer le throw err après réponse
+- garder log + réponse propre
+- pas de dérive
+
+ÉTAPE 5 — VERROU processDueTurns
+Périmètre :
+- server/index.ts
+- éventuellement gameTurnService si strictement nécessaire
+
+Objectif :
+- empêcher double traitement multi-instance
+- solution minimale Postgres-compatible
+- pas de refonte du système de tours
+
+CONTRAINTE FINALE
+Pas de suppression de code mort maintenant.
+Pas de nettoyage repo maintenant.
+Pas de refactor massif.
+On ferme d’abord les trous réels et les fragilités prod.
