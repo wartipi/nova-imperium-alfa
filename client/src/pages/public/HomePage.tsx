@@ -68,7 +68,7 @@ export default function HomePage() {
             <p className="ni-hero-kicker">Jeu de Stratégie Médiéval-Fantastique</p>
 
             <h1 className="ni-title-xl" style={{ marginBottom: '1.2rem' }}>
-              Forgez Votre Empire<br />Sur la Carte du Monde
+              Forgez Votre Histoire<br />Sur la Carte du Monde
             </h1>
 
             <div className="ni-divider-sm" style={{ marginBottom: '1.4rem', background: 'var(--ni-gold)' }} />
