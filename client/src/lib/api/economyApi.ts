@@ -303,30 +303,40 @@ export interface TransferResult {
     effectiveWorldX:  number;
     effectiveWorldY:  number;
     effectiveTerrain: string;
-    gold:             number;
-    food:             number;
-    wood:             number;
-    stone:            number;
-    iron:             number;
-    copper:           number;
-    coal:             number;
-    oil:              number;
-    herbs:            number;
-    fur:              number;
+    // F2 V2 response fields
+    fracten:       number;
+    food:          number;
+    wood:          number;
+    stone:         number;
+    common_metals: number;
+    coal:          number;
+    oil:           number;
+    herbs:         number;
+    leather_fur:   number;
+    // V1 backward-compat (optionnels)
+    gold?:   number;
+    iron?:   number;
+    copper?: number;
+    fur?:    number;
   };
 }
 
 export interface TransferMaterials {
-  gold?:   number;
-  food?:   number;
-  wood?:   number;
-  stone?:  number;
-  iron?:   number;
-  copper?: number;
-  coal?:   number;
-  oil?:    number;
-  herbs?:  number;
-  fur?:    number;
+  // V2 principal F2
+  fracten?:       number;
+  common_metals?: number;
+  leather_fur?:   number;
+  food?:          number;
+  wood?:          number;
+  stone?:         number;
+  coal?:          number;
+  oil?:           number;
+  herbs?:         number;
+  // V1 legacy backward-compat
+  gold?:          number;
+  iron?:          number;
+  copper?:        number;
+  fur?:           number;
 }
 
 export async function postTransferBankToCity(
@@ -339,15 +349,20 @@ export async function postTransferBankToCity(
     headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
     body: JSON.stringify({
       cityId,
+      // V2 principal F2
+      fracten:       materials.fracten       ?? 0,
+      common_metals: materials.common_metals ?? 0,
+      leather_fur:   materials.leather_fur   ?? 0,
+      food:          materials.food          ?? 0,
+      wood:          materials.wood          ?? 0,
+      stone:         materials.stone         ?? 0,
+      coal:          materials.coal          ?? 0,
+      oil:           materials.oil           ?? 0,
+      herbs:         materials.herbs         ?? 0,
+      // V1 backward-compat
       gold:   materials.gold   ?? 0,
-      food:   materials.food   ?? 0,
-      wood:   materials.wood   ?? 0,
-      stone:  materials.stone  ?? 0,
       iron:   materials.iron   ?? 0,
       copper: materials.copper ?? 0,
-      coal:   materials.coal   ?? 0,
-      oil:    materials.oil    ?? 0,
-      herbs:  materials.herbs  ?? 0,
       fur:    materials.fur    ?? 0,
       adminModeEnabled: adminModeEnabled ?? false,
     }),
@@ -367,15 +382,20 @@ export async function postTransferBankToPlayer(
     method: "POST",
     headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
     body: JSON.stringify({
+      // V2 principal F2
+      fracten:       materials.fracten       ?? 0,
+      common_metals: materials.common_metals ?? 0,
+      leather_fur:   materials.leather_fur   ?? 0,
+      food:          materials.food          ?? 0,
+      wood:          materials.wood          ?? 0,
+      stone:         materials.stone         ?? 0,
+      coal:          materials.coal          ?? 0,
+      oil:           materials.oil           ?? 0,
+      herbs:         materials.herbs         ?? 0,
+      // V1 backward-compat
       gold:   materials.gold   ?? 0,
-      food:   materials.food   ?? 0,
-      wood:   materials.wood   ?? 0,
-      stone:  materials.stone  ?? 0,
       iron:   materials.iron   ?? 0,
       copper: materials.copper ?? 0,
-      coal:   materials.coal   ?? 0,
-      oil:    materials.oil    ?? 0,
-      herbs:  materials.herbs  ?? 0,
       fur:    materials.fur    ?? 0,
       adminModeEnabled: adminModeEnabled ?? false,
     }),

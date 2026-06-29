@@ -448,28 +448,37 @@ async function completeAction(action: PlayerAction): Promise<PlayerAction> {
         }
         console.log(`[PlayerAction] Récolte complétée id=${action.id} player=${action.playerId} cityId=${cityId}`);
       } else if (action.type === "transfer_bank_to_city") {
+        // F2 V2 — path stocké en V2 (fracten/common_metals/leather_fur)
         const pathData = action.path as Array<{
-          cityId?: number; gold?: number; food?: number; wood?: number; stone?: number; iron?: number;
-          copper?: number; coal?: number; oil?: number; herbs?: number; fur?: number;
+          cityId?: number;
+          fracten?: number; food?: number; wood?: number; stone?: number;
+          common_metals?: number; coal?: number; oil?: number; herbs?: number;
+          leather_fur?: number;
         }>;
         const meta = pathData?.[0] ?? {};
         if (meta.cityId) {
           await completeBankToCityTransfer(
-            meta.cityId, meta.gold ?? 0, meta.food ?? 0, meta.wood ?? 0, meta.stone ?? 0, meta.iron ?? 0,
-            meta.copper ?? 0, meta.coal ?? 0, meta.oil ?? 0, meta.herbs ?? 0, meta.fur ?? 0,
+            meta.cityId,
+            meta.fracten ?? 0, meta.food ?? 0, meta.wood ?? 0, meta.stone ?? 0,
+            meta.common_metals ?? 0, meta.coal ?? 0, meta.oil ?? 0, meta.herbs ?? 0,
+            meta.leather_fur ?? 0,
             tx,
           );
         }
         console.log(`[PlayerAction] Transfert banque→ville complété id=${action.id} player=${action.playerId}`);
       } else if (action.type === "transfer_bank_to_player") {
+        // F2 V2 — path stocké en V2 (fracten/common_metals/leather_fur)
         const pathData = action.path as Array<{
-          gold?: number; food?: number; wood?: number; stone?: number; iron?: number;
-          copper?: number; coal?: number; oil?: number; herbs?: number; fur?: number;
+          fracten?: number; food?: number; wood?: number; stone?: number;
+          common_metals?: number; coal?: number; oil?: number; herbs?: number;
+          leather_fur?: number;
         }>;
         const meta = pathData?.[0] ?? {};
         await completeBankToPlayerTransfer(
-          action.playerId, meta.gold ?? 0, meta.food ?? 0, meta.wood ?? 0, meta.stone ?? 0, meta.iron ?? 0,
-          meta.copper ?? 0, meta.coal ?? 0, meta.oil ?? 0, meta.herbs ?? 0, meta.fur ?? 0,
+          action.playerId,
+          meta.fracten ?? 0, meta.food ?? 0, meta.wood ?? 0, meta.stone ?? 0,
+          meta.common_metals ?? 0, meta.coal ?? 0, meta.oil ?? 0, meta.herbs ?? 0,
+          meta.leather_fur ?? 0,
           tx,
         );
         console.log(`[PlayerAction] Transfert banque→joueur complété id=${action.id} player=${action.playerId}`);
@@ -579,78 +588,101 @@ async function completeHarvestTransfer(cityId: number, tx: any = db): Promise<vo
 
 // ─── completeBankToCityTransfer ───────────────────────────────────────────────
 // Crédite city_inventory du montant stocké dans le path de l'action.
-// Matériaux V1 : gold, food, wood, stone, iron.
+// F2 V2 : fracten/common_metals/leather_fur comme ressources principales.
 async function completeBankToCityTransfer(
-  cityId: number, gold: number, food: number,
-  wood = 0, stone = 0, iron = 0,
-  copper = 0, coal = 0, oil = 0, herbs = 0, fur = 0,
+  cityId: number,
+  fracten: number,
+  food: number,
+  wood = 0, stone = 0,
+  commonMetals = 0,
+  coal = 0, oil = 0, herbs = 0,
+  leatherFur = 0,
   tx: any = db,
 ): Promise<void> {
-  if (gold === 0 && food === 0 && wood === 0 && stone === 0 && iron === 0
-      && copper === 0 && coal === 0 && oil === 0 && herbs === 0 && fur === 0) return;
+  if (fracten === 0 && food === 0 && wood === 0 && stone === 0 && commonMetals === 0
+      && coal === 0 && oil === 0 && herbs === 0 && leatherFur === 0) return;
   const now = new Date();
 
   await tx
     .insert(cityInventory)
-    .values({ cityId, gold, food, wood, stone, iron, copper, coal, oil, herbs, fur, updatedAt: now })
+    .values({
+      cityId,
+      fracten, food, wood, stone,
+      common_metals: commonMetals,
+      coal, oil, herbs,
+      leather_fur: leatherFur,
+      updatedAt: now,
+    } as any)
     .onConflictDoUpdate({
       target: cityInventory.cityId,
       set: {
-        gold:      sql`${cityInventory.gold}   + ${gold}`,
-        food:      sql`${cityInventory.food}   + ${food}`,
-        wood:      sql`${cityInventory.wood}   + ${wood}`,
-        stone:     sql`${cityInventory.stone}  + ${stone}`,
-        iron:      sql`${cityInventory.iron}   + ${iron}`,
-        copper:    sql`${cityInventory.copper} + ${copper}`,
-        coal:      sql`${cityInventory.coal}   + ${coal}`,
-        oil:       sql`${cityInventory.oil}    + ${oil}`,
-        herbs:     sql`${cityInventory.herbs}  + ${herbs}`,
-        fur:       sql`${cityInventory.fur}    + ${fur}`,
+        fracten:       sql`${(cityInventory as any).fracten}       + ${fracten}`,      // F2 V2
+        food:          sql`${cityInventory.food}                   + ${food}`,
+        wood:          sql`${cityInventory.wood}                   + ${wood}`,
+        stone:         sql`${cityInventory.stone}                  + ${stone}`,
+        common_metals: sql`${(cityInventory as any).common_metals} + ${commonMetals}`, // F2 V2
+        coal:          sql`${cityInventory.coal}                   + ${coal}`,
+        oil:           sql`${cityInventory.oil}                    + ${oil}`,
+        herbs:         sql`${cityInventory.herbs}                  + ${herbs}`,
+        leather_fur:   sql`${(cityInventory as any).leather_fur}   + ${leatherFur}`,   // F2 V2
         updatedAt: now,
       },
     });
 
   console.log(
-    `[Transfer] banque→ville cityId=${cityId} +${gold}g+${food}f+${wood}w+${stone}s+${iron}i` +
-    `+${copper}cu+${coal}co+${oil}oil+${herbs}herbs+${fur}fur → city_inventory`
+    `[Transfer] banque→ville cityId=${cityId} F2 V2` +
+    ` +${fracten}fr+${food}f+${wood}w+${stone}s+${commonMetals}cm` +
+    `+${coal}co+${oil}oil+${herbs}herbs+${leatherFur}lf → city_inventory`
   );
 }
 
 // ─── completeBankToPlayerTransfer ────────────────────────────────────────────
 // Crédite player_transport du montant stocké dans le path de l'action.
+// F2 V2 : fracten/common_metals/leather_fur comme ressources principales.
 async function completeBankToPlayerTransfer(
-  playerId: string, gold: number, food: number,
-  wood = 0, stone = 0, iron = 0,
-  copper = 0, coal = 0, oil = 0, herbs = 0, fur = 0,
+  playerId: string,
+  fracten: number,
+  food: number,
+  wood = 0, stone = 0,
+  commonMetals = 0,
+  coal = 0, oil = 0, herbs = 0,
+  leatherFur = 0,
   tx: any = db,
 ): Promise<void> {
-  if (gold === 0 && food === 0 && wood === 0 && stone === 0 && iron === 0
-      && copper === 0 && coal === 0 && oil === 0 && herbs === 0 && fur === 0) return;
+  if (fracten === 0 && food === 0 && wood === 0 && stone === 0 && commonMetals === 0
+      && coal === 0 && oil === 0 && herbs === 0 && leatherFur === 0) return;
   const now = new Date();
 
   await tx
     .insert(playerTransport)
-    .values({ playerId, gold, food, wood, stone, iron, copper, coal, oil, herbs, fur, updatedAt: now })
+    .values({
+      playerId,
+      fracten, food, wood, stone,
+      common_metals: commonMetals,
+      coal, oil, herbs,
+      leather_fur: leatherFur,
+      updatedAt: now,
+    } as any)
     .onConflictDoUpdate({
       target: playerTransport.playerId,
       set: {
-        gold:      sql`${playerTransport.gold}   + ${gold}`,
-        food:      sql`${playerTransport.food}   + ${food}`,
-        wood:      sql`${playerTransport.wood}   + ${wood}`,
-        stone:     sql`${playerTransport.stone}  + ${stone}`,
-        iron:      sql`${playerTransport.iron}   + ${iron}`,
-        copper:    sql`${playerTransport.copper} + ${copper}`,
-        coal:      sql`${playerTransport.coal}   + ${coal}`,
-        oil:       sql`${playerTransport.oil}    + ${oil}`,
-        herbs:     sql`${playerTransport.herbs}  + ${herbs}`,
-        fur:       sql`${playerTransport.fur}    + ${fur}`,
+        fracten:       sql`${(playerTransport as any).fracten}       + ${fracten}`,      // F2 V2
+        food:          sql`${playerTransport.food}                   + ${food}`,
+        wood:          sql`${playerTransport.wood}                   + ${wood}`,
+        stone:         sql`${playerTransport.stone}                  + ${stone}`,
+        common_metals: sql`${(playerTransport as any).common_metals} + ${commonMetals}`, // F2 V2
+        coal:          sql`${playerTransport.coal}                   + ${coal}`,
+        oil:           sql`${playerTransport.oil}                    + ${oil}`,
+        herbs:         sql`${playerTransport.herbs}                  + ${herbs}`,
+        leather_fur:   sql`${(playerTransport as any).leather_fur}   + ${leatherFur}`,   // F2 V2
         updatedAt: now,
       },
     });
 
   console.log(
-    `[Transfer] banque→joueur playerId=${playerId} +${gold}g+${food}f+${wood}w+${stone}s+${iron}i` +
-    `+${copper}cu+${coal}co+${oil}oil+${herbs}herbs+${fur}fur → player_transport`
+    `[Transfer] banque→joueur playerId=${playerId} F2 V2` +
+    ` +${fracten}fr+${food}f+${wood}w+${stone}s+${commonMetals}cm` +
+    `+${coal}co+${oil}oil+${herbs}herbs+${leatherFur}lf → player_transport`
   );
 }
 
@@ -778,22 +810,33 @@ export async function createCollectHarvestAction(
 // ─── createTransferBankToCityAction ──────────────────────────────────────────
 // Débite player_bank et crée une action transfer_bank_to_city.
 // À complétion : crédite city_inventory.
-// Matériaux V1 : gold, food, wood, stone, iron.
+// F2 V2 : fracten/commonMetals/leatherFur comme ressources principales.
+// V1 legacy : gold/iron/copper/fur en fallback backward-compat.
 export async function createTransferBankToCityAction(
-  playerId:  string,
-  cityId:    number,
+  playerId:   string,
+  cityId:     number,
   cityWorldX: number,
   cityWorldY: number,
-  gold:      number,
-  food:      number,
-  context:   ActorContext = { role: 'player' },
-  wood   = 0, stone  = 0, iron   = 0,
-  copper = 0, coal   = 0, oil    = 0, herbs = 0, fur = 0,
+  // V2 principal F2
+  fracten:      number,
+  food:         number,
+  context:      ActorContext = { role: 'player' },
+  wood        = 0, stone       = 0,
+  commonMetals = 0,
+  coal        = 0, oil         = 0, herbs     = 0,
+  leatherFur  = 0,
+  // V1 legacy backward-compat (utilisés si V2 = 0)
+  gold        = 0, iron        = 0, copper    = 0, fur = 0,
 ): Promise<PlayerAction> {
-  if (gold < 0 || food < 0 || wood < 0 || stone < 0 || iron < 0
-      || copper < 0 || coal < 0 || oil < 0 || herbs < 0 || fur < 0
-      || (gold === 0 && food === 0 && wood === 0 && stone === 0 && iron === 0
-          && copper === 0 && coal === 0 && oil === 0 && herbs === 0 && fur === 0)) {
+  // Résolution F2 : V2 prioritaire, V1 fallback si V2 absent
+  const effectiveFracten      = fracten      > 0 ? fracten      : gold;
+  const effectiveCommonMetals = commonMetals > 0 ? commonMetals : iron + copper;
+  const effectiveLeatherFur   = leatherFur   > 0 ? leatherFur   : fur;
+
+  if (effectiveFracten < 0 || food < 0 || wood < 0 || stone < 0
+      || effectiveCommonMetals < 0 || coal < 0 || oil < 0 || herbs < 0 || effectiveLeatherFur < 0
+      || (effectiveFracten === 0 && food === 0 && wood === 0 && stone === 0
+          && effectiveCommonMetals === 0 && coal === 0 && oil === 0 && herbs === 0 && effectiveLeatherFur === 0)) {
     throw new Error("INVALID_AMOUNT: les montants doivent être positifs et non nuls");
   }
 
@@ -809,43 +852,76 @@ export async function createTransferBankToCityAction(
     .where(eq(playerBank.playerId, playerId))
     .limit(1);
 
-  const bank = bankRows[0] ?? { gold: 0, food: 0, wood: 0, stone: 0, iron: 0, copper: 0, coal: 0, oil: 0, herbs: 0, fur: 0 };
-  if (bank.gold   < gold)   throw new Error(`INSUFFICIENT_BANK_FRACTEN: banque=${bank.gold} requis=${gold}`);       // F1 V2 renommé
-  if (bank.food   < food)   throw new Error(`INSUFFICIENT_BANK_FOOD: banque=${bank.food} requis=${food}`);
-  if (bank.wood   < wood)   throw new Error(`INSUFFICIENT_BANK_WOOD: banque=${bank.wood} requis=${wood}`);
-  if (bank.stone  < stone)  throw new Error(`INSUFFICIENT_BANK_STONE: banque=${bank.stone} requis=${stone}`);
-  if (bank.iron   < iron)   throw new Error(`INSUFFICIENT_BANK_COMMON_METALS: banque=${bank.iron} requis=${iron}`); // F1 V2 renommé
-  if ((bank.copper ?? 0) < copper) throw new Error(`INSUFFICIENT_BANK_COMMON_METALS: banque=${bank.copper} requis=${copper}`); // F1 V2 renommé
-  if ((bank.coal   ?? 0) < coal)   throw new Error(`INSUFFICIENT_BANK_COAL: banque=${bank.coal} requis=${coal}`);
-  if ((bank.oil    ?? 0) < oil)    throw new Error(`INSUFFICIENT_BANK_OIL: banque=${bank.oil} requis=${oil}`);
-  if ((bank.herbs  ?? 0) < herbs)  throw new Error(`INSUFFICIENT_BANK_HERBS: banque=${bank.herbs} requis=${herbs}`);
-  if ((bank.fur    ?? 0) < fur)    throw new Error(`INSUFFICIENT_BANK_LEATHER_FUR: banque=${bank.fur} requis=${fur}`); // F1 V2 renommé
+  const bank = bankRows[0] ?? {
+    gold: 0, fracten: 0, food: 0, wood: 0, stone: 0,
+    iron: 0, copper: 0, common_metals: 0, coal: 0, oil: 0, herbs: 0, fur: 0, leather_fur: 0,
+  };
+
+  // Checks F2 V2 — colonne V2 si param V2 fourni, colonne V1 si fallback
+  if (fracten > 0) {
+    if ((bank.fracten ?? 0) < fracten)
+      throw new Error(`INSUFFICIENT_BANK_FRACTEN: banque=${bank.fracten} requis=${fracten}`);
+  } else if (gold > 0) {
+    if (bank.gold < gold)
+      throw new Error(`INSUFFICIENT_BANK_FRACTEN: banque=${bank.gold} requis=${gold}`);
+  }
+  if (bank.food   < food)  throw new Error(`INSUFFICIENT_BANK_FOOD: banque=${bank.food} requis=${food}`);
+  if (bank.wood   < wood)  throw new Error(`INSUFFICIENT_BANK_WOOD: banque=${bank.wood} requis=${wood}`);
+  if (bank.stone  < stone) throw new Error(`INSUFFICIENT_BANK_STONE: banque=${bank.stone} requis=${stone}`);
+  if (commonMetals > 0) {
+    if ((bank.common_metals ?? 0) < commonMetals)
+      throw new Error(`INSUFFICIENT_BANK_COMMON_METALS: banque=${bank.common_metals} requis=${commonMetals}`);
+  } else if (iron + copper > 0) {
+    if (bank.iron < iron)
+      throw new Error(`INSUFFICIENT_BANK_COMMON_METALS: banque=${bank.iron} requis=${iron}`);
+    if ((bank.copper ?? 0) < copper)
+      throw new Error(`INSUFFICIENT_BANK_COMMON_METALS: banque=${bank.copper} requis=${copper}`);
+  }
+  if ((bank.coal  ?? 0) < coal)  throw new Error(`INSUFFICIENT_BANK_COAL: banque=${bank.coal} requis=${coal}`);
+  if ((bank.oil   ?? 0) < oil)   throw new Error(`INSUFFICIENT_BANK_OIL: banque=${bank.oil} requis=${oil}`);
+  if ((bank.herbs ?? 0) < herbs) throw new Error(`INSUFFICIENT_BANK_HERBS: banque=${bank.herbs} requis=${herbs}`);
+  if (leatherFur > 0) {
+    if ((bank.leather_fur ?? 0) < leatherFur)
+      throw new Error(`INSUFFICIENT_BANK_LEATHER_FUR: banque=${bank.leather_fur} requis=${leatherFur}`);
+  } else if (fur > 0) {
+    if ((bank.fur ?? 0) < fur)
+      throw new Error(`INSUFFICIENT_BANK_LEATHER_FUR: banque=${bank.fur} requis=${fur}`);
+  }
 
   const now = new Date();
 
+  // Durée via effective amounts V2
+  const totalUnits = computeTransportUnits({
+    fracten: effectiveFracten, food, wood, stone,
+    common_metals: effectiveCommonMetals, coal, oil, herbs,
+    leather_fur: effectiveLeatherFur,
+    gold: 0, iron: 0,
+  });
+  const durationSeconds = totalUnits * 5;
+  const expectedEndTime = new Date(now.getTime() + durationSeconds * 1000);
+
   // Débit banque + création action dans la même transaction.
-  // Si l'insert échoue, le débit est rollbacké — aucune ressource ne quitte la banque sans action associée.
+  // Débit V2 si param V2 fourni, V1 sinon — jamais les deux pour la même ressource logique.
   const [action] = await db.transaction(async (tx) => {
     await tx
       .update(playerBank)
       .set({
-        gold:      sql`${playerBank.gold}   - ${gold}`,
-        food:      sql`${playerBank.food}   - ${food}`,
-        wood:      sql`${playerBank.wood}   - ${wood}`,
-        stone:     sql`${playerBank.stone}  - ${stone}`,
-        iron:      sql`${playerBank.iron}   - ${iron}`,
-        copper:    sql`${playerBank.copper} - ${copper}`,
-        coal:      sql`${playerBank.coal}   - ${coal}`,
-        oil:       sql`${playerBank.oil}    - ${oil}`,
-        herbs:     sql`${playerBank.herbs}  - ${herbs}`,
-        fur:       sql`${playerBank.fur}    - ${fur}`,
+        fracten:       sql`${(playerBank as any).fracten}       - ${fracten      > 0 ? fracten      : 0}`, // F2 V2
+        gold:          sql`${playerBank.gold}                   - ${fracten      > 0 ? 0 : gold}`,          // V1 fallback
+        food:          sql`${playerBank.food}                   - ${food}`,
+        wood:          sql`${playerBank.wood}                   - ${wood}`,
+        stone:         sql`${playerBank.stone}                  - ${stone}`,
+        common_metals: sql`${(playerBank as any).common_metals} - ${commonMetals > 0 ? commonMetals : 0}`, // F2 V2
+        iron:          sql`${playerBank.iron}                   - ${commonMetals > 0 ? 0 : iron}`,          // V1 fallback
+        copper:        sql`${playerBank.copper}                 - ${commonMetals > 0 ? 0 : copper}`,        // V1 fallback
+        coal:          sql`${playerBank.coal}                   - ${coal}`,
+        oil:           sql`${playerBank.oil}                    - ${oil}`,
+        herbs:         sql`${playerBank.herbs}                  - ${herbs}`,
+        leather_fur:   sql`${(playerBank as any).leather_fur}   - ${leatherFur   > 0 ? leatherFur   : 0}`, // F2 V2
+        fur:           sql`${playerBank.fur}                    - ${leatherFur   > 0 ? 0 : fur}`,           // V1 fallback
         updatedAt: now,
       })
       .where(eq(playerBank.playerId, playerId));
-
-    const totalUnits = computeTransportUnits({ gold, food, wood, stone, iron, copper, coal, oil, herbs, fur });
-    const durationSeconds = totalUnits * 5;
-    const expectedEndTime = new Date(now.getTime() + durationSeconds * 1000);
 
     return tx
       .insert(playerActions)
@@ -857,7 +933,13 @@ export async function createTransferBankToCityAction(
         startWorldY: cityWorldY,
         endWorldX:   cityWorldX,
         endWorldY:   cityWorldY,
-        path: [{ cityId, gold, food, wood, stone, iron, copper, coal, oil, herbs, fur }] as any,
+        // Path V2 F2 — stocke les effective amounts avec clés V2
+        path: [{
+          cityId,
+          fracten: effectiveFracten, food, wood, stone,
+          common_metals: effectiveCommonMetals, coal, oil, herbs,
+          leather_fur: effectiveLeatherFur,
+        }] as any,
         totalCost: 0,
         startTime: now,
         expectedEndTime,
@@ -866,12 +948,11 @@ export async function createTransferBankToCityAction(
       .returning();
   });
 
-  const totalUnits = computeTransportUnits({ gold, food, wood, stone, iron, copper, coal, oil, herbs, fur });
-  const durationSeconds = totalUnits * 5;
   console.log(
     `[PlayerAction] Transfert banque→ville créé id=${action.id} player=${playerId}` +
-    ` cityId=${cityId} ${gold}g+${food}f+${wood}w+${stone}s+${iron}i` +
-    `+${copper}cu+${coal}co+${oil}oil+${herbs}herbs+${fur}fur totalUnits=${totalUnits} durée=${durationSeconds}s`
+    ` cityId=${cityId} F2 V2 ${effectiveFracten}fr+${food}f+${wood}w+${stone}s` +
+    `+${effectiveCommonMetals}cm+${coal}co+${oil}oil+${herbs}herbs+${effectiveLeatherFur}lf` +
+    ` totalUnits=${totalUnits} durée=${durationSeconds}s`
   );
 
   return action;
@@ -881,19 +962,30 @@ export async function createTransferBankToCityAction(
 // Débite player_bank et crée une action transfer_bank_to_player.
 // À complétion : crédite player_transport.
 // Capacité max transport : TRANSPORT_MAX_UNITS (50) unités totales (tous matériaux).
-// Matériaux V1 : gold, food, wood, stone, iron.
+// F2 V2 : fracten/commonMetals/leatherFur comme ressources principales.
+// V1 legacy : gold/iron/copper/fur en fallback backward-compat.
 export async function createTransferBankToPlayerAction(
-  playerId:  string,
-  gold:      number,
-  food:      number,
-  context:   ActorContext = { role: 'player' },
-  wood   = 0, stone  = 0, iron   = 0,
-  copper = 0, coal   = 0, oil    = 0, herbs = 0, fur = 0,
+  playerId:    string,
+  // V2 principal F2
+  fracten:     number,
+  food:        number,
+  context:     ActorContext = { role: 'player' },
+  wood        = 0, stone        = 0,
+  commonMetals = 0,
+  coal        = 0, oil          = 0, herbs      = 0,
+  leatherFur  = 0,
+  // V1 legacy backward-compat (utilisés si V2 = 0)
+  gold        = 0, iron         = 0, copper     = 0, fur = 0,
 ): Promise<PlayerAction> {
-  if (gold < 0 || food < 0 || wood < 0 || stone < 0 || iron < 0
-      || copper < 0 || coal < 0 || oil < 0 || herbs < 0 || fur < 0
-      || (gold === 0 && food === 0 && wood === 0 && stone === 0 && iron === 0
-          && copper === 0 && coal === 0 && oil === 0 && herbs === 0 && fur === 0)) {
+  // Résolution F2 : V2 prioritaire, V1 fallback si V2 absent
+  const effectiveFracten      = fracten      > 0 ? fracten      : gold;
+  const effectiveCommonMetals = commonMetals > 0 ? commonMetals : iron + copper;
+  const effectiveLeatherFur   = leatherFur   > 0 ? leatherFur   : fur;
+
+  if (effectiveFracten < 0 || food < 0 || wood < 0 || stone < 0
+      || effectiveCommonMetals < 0 || coal < 0 || oil < 0 || herbs < 0 || effectiveLeatherFur < 0
+      || (effectiveFracten === 0 && food === 0 && wood === 0 && stone === 0
+          && effectiveCommonMetals === 0 && coal === 0 && oil === 0 && herbs === 0 && effectiveLeatherFur === 0)) {
     throw new Error("INVALID_AMOUNT: les montants doivent être positifs et non nuls");
   }
 
@@ -902,7 +994,7 @@ export async function createTransferBankToPlayerAction(
     throw new Error(`ACTION_ALREADY_ACTIVE: joueur ${playerId} a déjà une action en cours (id=${existing.id})`);
   }
 
-  // Vérifier capacité de transport (tous matériaux cumulés — 10 Tier 1)
+  // Vérifier capacité de transport via effective amounts V2
   const transportRows = await db
     .select()
     .from(playerTransport)
@@ -911,7 +1003,12 @@ export async function createTransferBankToPlayerAction(
 
   const current = transportRows[0] ?? { gold: 0, food: 0, wood: 0, stone: 0, iron: 0, copper: 0, coal: 0, oil: 0, herbs: 0, fur: 0 };
   const currentTotal = computeTransportUnits(current);
-  const addTotal     = computeTransportUnits({ gold, food, wood, stone, iron, copper, coal, oil, herbs, fur });
+  const addTotal     = computeTransportUnits({
+    fracten: effectiveFracten, food, wood, stone,
+    common_metals: effectiveCommonMetals, coal, oil, herbs,
+    leather_fur: effectiveLeatherFur,
+    gold: 0, iron: 0,
+  });
 
   if (currentTotal + addTotal > TRANSPORT_MAX_UNITS) {
     throw new Error(
@@ -926,43 +1023,76 @@ export async function createTransferBankToPlayerAction(
     .where(eq(playerBank.playerId, playerId))
     .limit(1);
 
-  const bank = bankRows[0] ?? { gold: 0, food: 0, wood: 0, stone: 0, iron: 0, copper: 0, coal: 0, oil: 0, herbs: 0, fur: 0 };
-  if (bank.gold   < gold)   throw new Error(`INSUFFICIENT_BANK_FRACTEN: banque=${bank.gold} requis=${gold}`);       // F1 V2 renommé
-  if (bank.food   < food)   throw new Error(`INSUFFICIENT_BANK_FOOD: banque=${bank.food} requis=${food}`);
-  if (bank.wood   < wood)   throw new Error(`INSUFFICIENT_BANK_WOOD: banque=${bank.wood} requis=${wood}`);
-  if (bank.stone  < stone)  throw new Error(`INSUFFICIENT_BANK_STONE: banque=${bank.stone} requis=${stone}`);
-  if (bank.iron   < iron)   throw new Error(`INSUFFICIENT_BANK_COMMON_METALS: banque=${bank.iron} requis=${iron}`); // F1 V2 renommé
-  if ((bank.copper ?? 0) < copper) throw new Error(`INSUFFICIENT_BANK_COMMON_METALS: banque=${bank.copper} requis=${copper}`); // F1 V2 renommé
-  if ((bank.coal   ?? 0) < coal)   throw new Error(`INSUFFICIENT_BANK_COAL: banque=${bank.coal} requis=${coal}`);
-  if ((bank.oil    ?? 0) < oil)    throw new Error(`INSUFFICIENT_BANK_OIL: banque=${bank.oil} requis=${oil}`);
-  if ((bank.herbs  ?? 0) < herbs)  throw new Error(`INSUFFICIENT_BANK_HERBS: banque=${bank.herbs} requis=${herbs}`);
-  if ((bank.fur    ?? 0) < fur)    throw new Error(`INSUFFICIENT_BANK_LEATHER_FUR: banque=${bank.fur} requis=${fur}`); // F1 V2 renommé
+  const bank = bankRows[0] ?? {
+    gold: 0, fracten: 0, food: 0, wood: 0, stone: 0,
+    iron: 0, copper: 0, common_metals: 0, coal: 0, oil: 0, herbs: 0, fur: 0, leather_fur: 0,
+  };
+
+  // Checks F2 V2 — colonne V2 si param V2 fourni, colonne V1 si fallback
+  if (fracten > 0) {
+    if ((bank.fracten ?? 0) < fracten)
+      throw new Error(`INSUFFICIENT_BANK_FRACTEN: banque=${bank.fracten} requis=${fracten}`);
+  } else if (gold > 0) {
+    if (bank.gold < gold)
+      throw new Error(`INSUFFICIENT_BANK_FRACTEN: banque=${bank.gold} requis=${gold}`);
+  }
+  if (bank.food   < food)  throw new Error(`INSUFFICIENT_BANK_FOOD: banque=${bank.food} requis=${food}`);
+  if (bank.wood   < wood)  throw new Error(`INSUFFICIENT_BANK_WOOD: banque=${bank.wood} requis=${wood}`);
+  if (bank.stone  < stone) throw new Error(`INSUFFICIENT_BANK_STONE: banque=${bank.stone} requis=${stone}`);
+  if (commonMetals > 0) {
+    if ((bank.common_metals ?? 0) < commonMetals)
+      throw new Error(`INSUFFICIENT_BANK_COMMON_METALS: banque=${bank.common_metals} requis=${commonMetals}`);
+  } else if (iron + copper > 0) {
+    if (bank.iron < iron)
+      throw new Error(`INSUFFICIENT_BANK_COMMON_METALS: banque=${bank.iron} requis=${iron}`);
+    if ((bank.copper ?? 0) < copper)
+      throw new Error(`INSUFFICIENT_BANK_COMMON_METALS: banque=${bank.copper} requis=${copper}`);
+  }
+  if ((bank.coal  ?? 0) < coal)  throw new Error(`INSUFFICIENT_BANK_COAL: banque=${bank.coal} requis=${coal}`);
+  if ((bank.oil   ?? 0) < oil)   throw new Error(`INSUFFICIENT_BANK_OIL: banque=${bank.oil} requis=${oil}`);
+  if ((bank.herbs ?? 0) < herbs) throw new Error(`INSUFFICIENT_BANK_HERBS: banque=${bank.herbs} requis=${herbs}`);
+  if (leatherFur > 0) {
+    if ((bank.leather_fur ?? 0) < leatherFur)
+      throw new Error(`INSUFFICIENT_BANK_LEATHER_FUR: banque=${bank.leather_fur} requis=${leatherFur}`);
+  } else if (fur > 0) {
+    if ((bank.fur ?? 0) < fur)
+      throw new Error(`INSUFFICIENT_BANK_LEATHER_FUR: banque=${bank.fur} requis=${fur}`);
+  }
 
   const now = new Date();
 
+  // Durée via effective amounts V2
+  const totalUnits = computeTransportUnits({
+    fracten: effectiveFracten, food, wood, stone,
+    common_metals: effectiveCommonMetals, coal, oil, herbs,
+    leather_fur: effectiveLeatherFur,
+    gold: 0, iron: 0,
+  });
+  const durationSeconds = totalUnits * 5;
+  const expectedEndTime = new Date(now.getTime() + durationSeconds * 1000);
+
   // Débit banque + création action dans la même transaction.
-  // Si l'insert échoue, le débit est rollbacké — aucune ressource ne quitte la banque sans action associée.
+  // Débit V2 si param V2 fourni, V1 sinon — jamais les deux pour la même ressource logique.
   const [action] = await db.transaction(async (tx) => {
     await tx
       .update(playerBank)
       .set({
-        gold:      sql`${playerBank.gold}   - ${gold}`,
-        food:      sql`${playerBank.food}   - ${food}`,
-        wood:      sql`${playerBank.wood}   - ${wood}`,
-        stone:     sql`${playerBank.stone}  - ${stone}`,
-        iron:      sql`${playerBank.iron}   - ${iron}`,
-        copper:    sql`${playerBank.copper} - ${copper}`,
-        coal:      sql`${playerBank.coal}   - ${coal}`,
-        oil:       sql`${playerBank.oil}    - ${oil}`,
-        herbs:     sql`${playerBank.herbs}  - ${herbs}`,
-        fur:       sql`${playerBank.fur}    - ${fur}`,
+        fracten:       sql`${(playerBank as any).fracten}       - ${fracten      > 0 ? fracten      : 0}`, // F2 V2
+        gold:          sql`${playerBank.gold}                   - ${fracten      > 0 ? 0 : gold}`,          // V1 fallback
+        food:          sql`${playerBank.food}                   - ${food}`,
+        wood:          sql`${playerBank.wood}                   - ${wood}`,
+        stone:         sql`${playerBank.stone}                  - ${stone}`,
+        common_metals: sql`${(playerBank as any).common_metals} - ${commonMetals > 0 ? commonMetals : 0}`, // F2 V2
+        iron:          sql`${playerBank.iron}                   - ${commonMetals > 0 ? 0 : iron}`,          // V1 fallback
+        copper:        sql`${playerBank.copper}                 - ${commonMetals > 0 ? 0 : copper}`,        // V1 fallback
+        coal:          sql`${playerBank.coal}                   - ${coal}`,
+        oil:           sql`${playerBank.oil}                    - ${oil}`,
+        herbs:         sql`${playerBank.herbs}                  - ${herbs}`,
+        leather_fur:   sql`${(playerBank as any).leather_fur}   - ${leatherFur   > 0 ? leatherFur   : 0}`, // F2 V2
+        fur:           sql`${playerBank.fur}                    - ${leatherFur   > 0 ? 0 : fur}`,           // V1 fallback
         updatedAt: now,
       })
       .where(eq(playerBank.playerId, playerId));
-
-    const totalUnits = computeTransportUnits({ gold, food, wood, stone, iron, copper, coal, oil, herbs, fur });
-    const durationSeconds = totalUnits * 5;
-    const expectedEndTime = new Date(now.getTime() + durationSeconds * 1000);
 
     return tx
       .insert(playerActions)
@@ -974,7 +1104,12 @@ export async function createTransferBankToPlayerAction(
         startWorldY: 0,
         endWorldX:   0,
         endWorldY:   0,
-        path: [{ gold, food, wood, stone, iron, copper, coal, oil, herbs, fur }] as any,
+        // Path V2 F2 — stocke les effective amounts avec clés V2
+        path: [{
+          fracten: effectiveFracten, food, wood, stone,
+          common_metals: effectiveCommonMetals, coal, oil, herbs,
+          leather_fur: effectiveLeatherFur,
+        }] as any,
         totalCost: 0,
         startTime: now,
         expectedEndTime,
@@ -983,11 +1118,11 @@ export async function createTransferBankToPlayerAction(
       .returning();
   });
 
-  const totalUnits = computeTransportUnits({ gold, food, wood, stone, iron, copper, coal, oil, herbs, fur });
-  const durationSeconds = totalUnits * 5;
   console.log(
     `[PlayerAction] Transfert banque→joueur créé id=${action.id} player=${playerId}` +
-    ` ${gold}g+${food}f+${wood}w+${stone}s+${iron}i+${copper}cu+${coal}co+${oil}oil+${herbs}herbs+${fur}fur totalUnits=${totalUnits} durée=${durationSeconds}s`
+    ` F2 V2 ${effectiveFracten}fr+${food}f+${wood}w+${stone}s` +
+    `+${effectiveCommonMetals}cm+${coal}co+${oil}oil+${herbs}herbs+${effectiveLeatherFur}lf` +
+    ` totalUnits=${totalUnits} durée=${durationSeconds}s`
   );
 
   return action;

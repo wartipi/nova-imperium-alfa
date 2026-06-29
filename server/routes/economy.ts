@@ -189,33 +189,38 @@ router.get("/player-transport", requireAuth, async (req: AuthRequest, res) => {
 
 // ─── POST /api/economy/transfer-bank-to-city ─────────────────────────────────
 // Auth requise — transfère matériaux de la banque joueur vers city_inventory.
-// Body : { cityId, gold?, food?, wood?, stone?, iron? }
-// Matériaux V1 : gold, food, wood, stone, iron. Durée : 5+ceil(total/10) min. Admins : 0ms.
+// Body V2 : { cityId, fracten?, food?, wood?, stone?, common_metals?, coal?, oil?, herbs?, leather_fur? }
+// Body V1 legacy : gold?, iron?, copper?, fur? acceptés comme fallback backward-compat (F2)
 router.post("/transfer-bank-to-city", requireAuth, async (req: AuthRequest, res) => {
   try {
     const playerId = req.user!.id;
     const isAdmin  = req.user!.role === "admin";
     const {
       cityId,
-      gold = 0, food = 0, wood = 0, stone = 0, iron = 0,
-      copper = 0, coal = 0, oil = 0, herbs = 0, fur = 0,
+      // V2 principal F2
+      fracten = 0, common_metals = 0, leather_fur = 0,
+      food = 0, wood = 0, stone = 0, coal = 0, oil = 0, herbs = 0,
+      // V1 legacy backward-compat
+      gold = 0, iron = 0, copper = 0, fur = 0,
     } = req.body;
 
     if (!Number.isInteger(cityId) || cityId < 1) {
       return res.status(400).json({ error: "cityId est requis (entier > 0)" });
     }
-    const matList = [["gold",gold],["food",food],["wood",wood],["stone",stone],["iron",iron],
-                     ["copper",copper],["coal",coal],["oil",oil],["herbs",herbs],["fur",fur]];
+    const matList: Array<[string, number]> = [
+      ["fracten",fracten],["common_metals",common_metals],["leather_fur",leather_fur],
+      ["food",food],["wood",wood],["stone",stone],["coal",coal],["oil",oil],["herbs",herbs],
+      ["gold",gold],["iron",iron],["copper",copper],["fur",fur],
+    ];
     for (const [k, v] of matList) {
-      if (!Number.isInteger(v) || (v as number) < 0) {
+      if (!Number.isInteger(v) || v < 0) {
         return res.status(400).json({ error: `${k} doit être un entier >= 0` });
       }
     }
-    if (matList.every(([, v]) => (v as number) === 0)) {
+    if (matList.every(([, v]) => v === 0)) {
       return res.status(400).json({ error: "Montant nul — spécifiez au moins un matériau" });
     }
 
-    // Gate physique banque pour les non-admins.
     if (!isAdmin) {
       await resolveAccessPoint(playerId, "bank");
     }
@@ -226,19 +231,23 @@ router.post("/transfer-bank-to-city", requireAuth, async (req: AuthRequest, res)
     }
 
     const { worldX, worldY } = access;
-
-    const context = {
-      role:             req.user!.role,
-      adminModeEnabled: req.body.adminModeEnabled === true,
-    };
+    const context = { role: req.user!.role, adminModeEnabled: req.body.adminModeEnabled === true };
 
     const action = await createTransferBankToCityAction(
-      playerId, cityId, worldX, worldY, gold, food, context,
-      wood, stone, iron, copper, coal, oil, herbs, fur,
+      playerId, cityId, worldX, worldY,
+      fracten, food, context,
+      wood, stone, common_metals, coal, oil, herbs, leather_fur,
+      gold, iron, copper, fur,
     );
 
-    const ms = msRemaining(action);
+    const ms  = msRemaining(action);
     const min = Math.ceil(ms / 60000);
+
+    // Effective amounts pour la réponse (V2 prioritaire)
+    const effFracten = fracten      > 0 ? fracten      : gold;
+    const effMetals  = common_metals > 0 ? common_metals : iron + copper;
+    const effLeather = leather_fur   > 0 ? leather_fur   : fur;
+
     return res.status(201).json({
       ok: true,
       action: {
@@ -261,7 +270,10 @@ router.post("/transfer-bank-to-city", requireAuth, async (req: AuthRequest, res)
         effectiveWorldX:  action.startWorldX,
         effectiveWorldY:  action.startWorldY,
         effectiveTerrain: "",
-        gold, food, wood, stone, iron, copper, coal, oil, herbs, fur,
+        // F2 V2 response fields
+        fracten: effFracten, food, wood, stone,
+        common_metals: effMetals, coal, oil, herbs,
+        leather_fur: effLeather,
       },
     });
   } catch (err: any) {
@@ -276,45 +288,55 @@ router.post("/transfer-bank-to-city", requireAuth, async (req: AuthRequest, res)
 
 // ─── POST /api/economy/transfer-bank-to-player ───────────────────────────────
 // Auth requise — transfère matériaux de la banque vers l'inventaire de transport.
-// Body : { gold?, food?, wood?, stone?, iron?, adminModeEnabled? }
+// Body V2 : { fracten?, food?, wood?, stone?, common_metals?, coal?, oil?, herbs?, leather_fur?, adminModeEnabled? }
+// Body V1 legacy : gold?, iron?, copper?, fur? acceptés comme fallback backward-compat (F2)
 // Capacité max transport : 50 unités totales (tous matériaux cumulés). Admins : 0ms.
 router.post("/transfer-bank-to-player", requireAuth, async (req: AuthRequest, res) => {
   try {
     const playerId = req.user!.id;
     const isAdmin  = req.user!.role === "admin";
     const {
-      gold = 0, food = 0, wood = 0, stone = 0, iron = 0,
-      copper = 0, coal = 0, oil = 0, herbs = 0, fur = 0,
+      // V2 principal F2
+      fracten = 0, common_metals = 0, leather_fur = 0,
+      food = 0, wood = 0, stone = 0, coal = 0, oil = 0, herbs = 0,
+      // V1 legacy backward-compat
+      gold = 0, iron = 0, copper = 0, fur = 0,
     } = req.body;
 
-    const matList = [["gold",gold],["food",food],["wood",wood],["stone",stone],["iron",iron],
-                     ["copper",copper],["coal",coal],["oil",oil],["herbs",herbs],["fur",fur]];
+    const matList: Array<[string, number]> = [
+      ["fracten",fracten],["common_metals",common_metals],["leather_fur",leather_fur],
+      ["food",food],["wood",wood],["stone",stone],["coal",coal],["oil",oil],["herbs",herbs],
+      ["gold",gold],["iron",iron],["copper",copper],["fur",fur],
+    ];
     for (const [k, v] of matList) {
-      if (!Number.isInteger(v) || (v as number) < 0) {
+      if (!Number.isInteger(v) || v < 0) {
         return res.status(400).json({ error: `${k} doit être un entier >= 0` });
       }
     }
-    if (matList.every(([, v]) => (v as number) === 0)) {
+    if (matList.every(([, v]) => v === 0)) {
       return res.status(400).json({ error: "Montant nul — spécifiez au moins un matériau" });
     }
 
-    // Gate physique banque pour les non-admins.
     if (!isAdmin) {
       await resolveAccessPoint(playerId, "bank");
     }
 
-    const context = {
-      role:             req.user!.role,
-      adminModeEnabled: req.body.adminModeEnabled === true,
-    };
+    const context = { role: req.user!.role, adminModeEnabled: req.body.adminModeEnabled === true };
 
     const action = await createTransferBankToPlayerAction(
-      playerId, gold, food, context,
-      wood, stone, iron, copper, coal, oil, herbs, fur,
+      playerId,
+      fracten, food, context,
+      wood, stone, common_metals, coal, oil, herbs, leather_fur,
+      gold, iron, copper, fur,
     );
 
-    const ms = msRemaining(action);
+    const ms  = msRemaining(action);
     const min = Math.ceil(ms / 60000);
+
+    const effFracten = fracten      > 0 ? fracten      : gold;
+    const effMetals  = common_metals > 0 ? common_metals : iron + copper;
+    const effLeather = leather_fur   > 0 ? leather_fur   : fur;
+
     return res.status(201).json({
       ok: true,
       action: {
@@ -337,7 +359,10 @@ router.post("/transfer-bank-to-player", requireAuth, async (req: AuthRequest, re
         effectiveWorldX:  action.startWorldX,
         effectiveWorldY:  action.startWorldY,
         effectiveTerrain: "",
-        gold, food, wood, stone, iron, copper, coal, oil, herbs, fur,
+        // F2 V2 response fields
+        fracten: effFracten, food, wood, stone,
+        common_metals: effMetals, coal, oil, herbs,
+        leather_fur: effLeather,
       },
     });
   } catch (err: any) {

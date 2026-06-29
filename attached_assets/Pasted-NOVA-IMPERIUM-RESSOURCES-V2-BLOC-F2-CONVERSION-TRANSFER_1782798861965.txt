@@ -1,0 +1,259 @@
+NOVA IMPERIUM — RESSOURCES V2 — BLOC F2 / CONVERSION TRANSFERTS BANQUE ↔ VILLE / BANQUE ↔ JOUEUR
+Branche : NI-10.09
+
+OBJECTIF
+Convertir les flux de transfert encore V1 vers les ressources V2.
+
+Ce sous-bloc F2 cible les transferts :
+
+* bank → city
+* city → bank si applicable
+* bank → player
+* player → bank si applicable
+* actions planifiées liées à ces transferts
+
+Ce n’est PAS le Bloc F final.
+Ne pas supprimer de colonnes.
+Ne pas faire DROP COLUMN.
+Ne pas faire de migration destructive.
+Ne pas modifier la DB.
+
+CONTEXTE
+F1 est terminé :
+
+* construction débite maintenant city_inventory.fracten, city_inventory.common_metals, city_inventory.leather_fur
+* citiesApi.ts envoie les coûts V2
+* codes d’erreur banque renommés en V2 avec aliases V1
+* recrutement confirmé déjà V2 côté client
+
+L’audit pré-Bloc F a montré que les transferts bank-to-city / bank-to-player sont encore partiellement V1.
+
+OBJECTIF F2
+Convertir les transferts restants selon ces règles :
+
+* gold → fracten
+* iron + copper → common_metals
+* fur → leather_fur
+
+V2 doit être la source principale.
+V1 peut rester fallback temporaire seulement si nécessaire.
+Ne jamais additionner V1 + V2 pour le même transfert.
+
+PÉRIMÈTRE AUTORISÉ
+
+Auditer et modifier uniquement :
+
+Backend :
+
+* server/playerActionService.ts
+* server/routes/economy.ts si des routes de transfert direct existent
+* server/economyService.ts seulement si DTO de transfert directement concerné
+
+Frontend :
+
+* client/src/components/game/TreasuryPanel.tsx
+* client/src/lib/api/economyApi.ts
+* client/src/lib/api/citiesApi.ts seulement si transfert ville concerné
+
+INTERDICTIONS STRICTES
+
+Ne pas modifier :
+
+* shared/schema.ts sauf commentaire strictement nécessaire
+* migrations
+* db:push
+* marketService.ts
+* PublicMarketplace.tsx
+* MapGenerator.ts
+* HexTile
+* ResourceRevealSystem.ts
+* routes/market.ts
+* logique marché
+* logique carte
+* logique exploration
+* logique construction, sauf si bug direct F1 détecté
+* auth
+* cartography ownership
+* déploiement
+
+Ne pas faire :
+
+* DROP COLUMN
+* suppression de colonnes legacy
+* suppression de support legacy
+* refactor massif
+* conversion production ville
+* conversion buildingEffects
+* conversion marché legacy
+
+ÉTAPE 1 — AUDIT F2 AVANT MODIFICATION
+
+Chercher dans le périmètre :
+
+createTransferBankToCityAction
+createTransferBankToPlayerAction
+completeBankToCityTransfer
+completeBankToPlayerTransfer
+deposit-transport-to-bank
+deposit-transport-to-city
+gold
+iron
+copper
+fur
+fracten
+common_metals
+leather_fur
+INSUFFICIENT_BANK_GOLD
+INSUFFICIENT_BANK_IRON
+INSUFFICIENT_BANK_COPPER
+INSUFFICIENT_BANK_FUR
+INSUFFICIENT_BANK_FRACTEN
+INSUFFICIENT_BANK_COMMON_METALS
+INSUFFICIENT_BANK_LEATHER_FUR
+
+Classer chaque occurrence :
+
+A. Transfert actif à convertir maintenant
+B. Fallback legacy temporaire acceptable
+C. Déjà V2
+D. Hors périmètre
+E. Dangereux / incohérent
+
+ÉTAPE 2 — RÈGLES DE CONVERSION
+
+1. Monnaie
+
+* bank.gold → bank.fracten
+* transport.gold → transport.fracten
+* city_inventory.gold → city_inventory.fracten
+
+2. Métaux
+
+* bank.iron + bank.copper → bank.common_metals
+* transport.iron + transport.copper → transport.common_metals
+* city_inventory.iron + city_inventory.copper → city_inventory.common_metals
+
+3. Cuir/fourrure
+
+* bank.fur → bank.leather_fur
+* transport.fur → transport.leather_fur
+* city_inventory.fur → city_inventory.leather_fur
+
+4. Fallback legacy
+   Si nécessaire :
+
+* utiliser V1 seulement si V2 est absent ou insuffisant
+* ne jamais débiter V1 et V2 en même temps pour la même ressource logique
+* documenter chaque fallback restant
+
+ÉTAPE 3 — BACKEND ACTIONS
+
+Dans server/playerActionService.ts :
+
+Convertir :
+
+* createTransferBankToCityAction
+* completeBankToCityTransfer
+* createTransferBankToPlayerAction
+* completeBankToPlayerTransfer
+
+Attendu :
+
+* les checks utilisent fracten/common_metals/leather_fur comme source principale
+* les débits utilisent fracten/common_metals/leather_fur
+* les crédits utilisent fracten/common_metals/leather_fur
+* les anciens champs gold/iron/copper/fur restent uniquement fallback ou compatibilité
+
+ÉTAPE 4 — ROUTES ECONOMY
+
+Auditer server/routes/economy.ts pour :
+
+* deposit-transport-to-city
+* deposit-transport-to-bank
+* toute route qui déplace city_inventory ↔ player_transport ↔ player_bank
+
+Si elles sont déjà V2 depuis Bloc C :
+
+* ne pas modifier inutilement
+* confirmer seulement
+
+Si elles utilisent encore V1 comme source principale :
+
+* convertir vers V2
+* garder V1 fallback si nécessaire
+
+ÉTAPE 5 — FRONTEND TREASURY / DTO
+
+Dans TreasuryPanel.tsx et economyApi.ts :
+
+* les formulaires de transfert doivent proposer V2 comme ressources principales
+* gold/iron/copper/fur ne doivent plus être options principales
+* si legacy affiché, suffixe “legacy”
+* les payloads envoyés doivent privilégier :
+
+  * fracten
+  * common_metals
+  * leather_fur
+
+Mettre à jour les messages d’erreur si nécessaire :
+
+* INSUFFICIENT_BANK_FRACTEN
+* INSUFFICIENT_BANK_COMMON_METALS
+* INSUFFICIENT_BANK_LEATHER_FUR
+
+ÉTAPE 6 — VÉRIFICATION DOUBLE COMPTAGE
+
+Vérifier explicitement :
+
+* aucun transfert ne débite gold + fracten
+* aucun transfert ne débite iron/copper + common_metals
+* aucun transfert ne débite fur + leather_fur
+* aucun transfert ne crédite V1 + V2 pour la même valeur
+* aucun fallback ne duplique la valeur
+
+ÉTAPE 7 — VÉRIFICATION TYPESCRIPT
+
+Lancer :
+
+npm run check
+
+Puis rechercher dans les fichiers modifiés :
+
+gold
+iron
+copper
+fur
+fracten
+common_metals
+leather_fur
+INSUFFICIENT_BANK_GOLD
+INSUFFICIENT_BANK_IRON
+INSUFFICIENT_BANK_COPPER
+INSUFFICIENT_BANK_FUR
+
+Classer les occurrences restantes :
+
+A. Corrigées V2
+B. Fallback legacy temporaire
+C. Hors périmètre
+D. Dangereux / à corriger maintenant
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC F2
+2. FICHIERS AUDITÉS
+3. OCCURRENCES TRANSFERTS CLASSÉES
+4. CHANGEMENTS BACKEND ACTIONS
+5. CHANGEMENTS ROUTES ECONOMY
+6. CHANGEMENTS FRONTEND / DTO
+7. FALLBACKS LEGACY RESTANTS
+8. VÉRIFICATION DOUBLE COMPTAGE
+9. RÉSULTAT npm run check
+10. CONCLUSION : AUTORISÉ OU NON À PASSER À F3
+11. STOP
+
+STOP
+Ne pas supprimer de colonnes.
+Ne pas faire DROP COLUMN.
+Ne pas modifier la DB.
+Ne pas commencer F3.
