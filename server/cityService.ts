@@ -30,8 +30,8 @@ export interface CityDTO {
   // Phase 8 : valeurs économiques calculées serveur (base + bonus bâtiments)
   foodPerTurn:       number;
   productionPerTurn: number;
-  // Phase 9 : gold par tour — calculé via recalculateCityEconomy, stocké en DB
-  goldPerTurn:       number;
+  // Bloc B V2 : fracten par tour — remplace goldPerTurn
+  fractenPerTurn:    number;
   // Phase 11 — Ownership canonique
   ownerType:        string;
   ownerPlayerId:    string | null;
@@ -41,41 +41,40 @@ export interface CityDTO {
 }
 
 // ─── BUILDING_YIELDS ──────────────────────────────────────────────────────────
-// Catalogue canonique des bonus économiques (food + production + gold).
-// Phase 9 : gold ajouté — dépend uniquement des bâtiments (v1, sans population).
+// Catalogue canonique des bonus économiques (food + production + fracten).
+// Bloc B V2 : fracten remplace gold comme revenu monétaire des bâtiments.
 // Source de vérité unique — aucun catalogue parallèle côté client.
-const BUILDING_YIELDS: Record<string, { food?: number; production?: number; gold?: number }> = {
-  palace:     { gold: 1 },
+const BUILDING_YIELDS: Record<string, { food?: number; production?: number; fracten?: number }> = {
+  palace:     { fracten: 1 },
   granary:    { food: 2 },
   library:    {},
   barracks:   { production: 1 },
-  market:     { gold: 3 },
+  market:     { fracten: 3 },
   temple:     {},
-  courthouse: { gold: 1 },
+  courthouse: { fracten: 1 },
   university: {},
   bank:       {},  // Présence détectée pour router la production vers player_bank
   guilde_des_marchands: {},  // Gate pour le marché des ressources (market_guilds)
 };
 
 // ─── recalculateCityEconomy ───────────────────────────────────────────────────
-// Recalcule et persiste food_per_turn + production_per_turn + gold_per_turn.
+// Recalcule et persiste food_per_turn + production_per_turn + fracten_per_turn.
 // Déclenché après addBuilding() — idempotent.
-// Formule : base (food:2, production:1, gold:0) + somme des yields des bâtiments terminés.
-// Phase 9 : gold_per_turn dépend uniquement des bâtiments (pas de la population en v1).
+// Bloc B V2 : fracten remplace gold — base (food:2, production:1, fracten:0).
 async function recalculateCityEconomy(cityId: number): Promise<void> {
   const buildingRows = await db
     .select({ building: cityBuildings.building })
     .from(cityBuildings)
     .where(eq(cityBuildings.cityId, cityId));
 
-  const base = { food: 2, production: 1, gold: 0 };
+  const base = { food: 2, production: 1, fracten: 0 };
 
   const totals = buildingRows.reduce(
     (acc, { building }) => {
       const y = BUILDING_YIELDS[building] ?? {};
       acc.food       += y.food       ?? 0;
       acc.production += y.production ?? 0;
-      acc.gold       += y.gold       ?? 0;
+      acc.fracten    += y.fracten    ?? 0;
       return acc;
     },
     { ...base },
@@ -86,7 +85,8 @@ async function recalculateCityEconomy(cityId: number): Promise<void> {
     .set({
       foodPerTurn:       totals.food,
       productionPerTurn: totals.production,
-      goldPerTurn:       totals.gold,
+      fractenPerTurn:    totals.fracten,
+      goldPerTurn:       totals.fracten, // legacy V1 — sync pour compatibilité
     })
     .where(eq(cities.id, cityId));
 }
@@ -121,8 +121,8 @@ function mapCity(
     // Phase 8 : valeurs économiques depuis la DB (calculées par recalculateCityEconomy)
     foodPerTurn:       city.foodPerTurn,
     productionPerTurn: city.productionPerTurn,
-    // Phase 9 : gold par tour (palace/market/courthouse)
-    goldPerTurn:       city.goldPerTurn ?? 0,
+    // Bloc B V2 : fracten par tour (palace/market/courthouse)
+    fractenPerTurn:    city.fractenPerTurn ?? 0,
     // Phase 11 — Ownership canonique
     ownerType:        colony.ownerType,
     ownerPlayerId:    colony.ownerPlayerId    ?? null,

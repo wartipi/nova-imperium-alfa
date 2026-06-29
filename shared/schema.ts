@@ -472,8 +472,10 @@ export const cities = pgTable("cities", {
   // Phase 8 : valeurs économiques calculées côté serveur (base + bonus bâtiments)
   foodPerTurn:      integer("food_per_turn").notNull().default(2),
   productionPerTurn: integer("production_per_turn").notNull().default(1),
-  // Phase 9 : or par tour — dépend uniquement des bâtiments (v1), DEFAULT 0
+  // Phase 9 : or par tour — legacy V1, conservé pour compatibilité
   goldPerTurn:      integer("gold_per_turn").notNull().default(0),
+  // Bloc B V2 : fracten par tour — remplace goldPerTurn comme revenu monétaire
+  fractenPerTurn:   integer("fracten_per_turn").notNull().default(0),
   // Tier 1 matériaux bruts par tour (alimentés par les bâtiments d'exploitation)
   woodPerTurn:      integer("wood_per_turn").notNull().default(0),
   stonePerTurn:     integer("stone_per_turn").notNull().default(0),

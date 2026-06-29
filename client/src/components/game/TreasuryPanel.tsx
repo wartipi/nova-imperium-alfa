@@ -22,7 +22,7 @@ interface CityFull {
   name:             string;
   population:       number;
   buildings:        string[];
-  goldPerTurn:      number;
+  fractenPerTurn:   number;
   foodPerTurn:      number;
   woodPerTurn?:     number;
   stonePerTurn?:    number;
@@ -79,6 +79,7 @@ function parseAmount(s: string): number {
 }
 
 type Mats = {
+  fracten?: number;
   gold: number; food: number; wood: number; stone: number; iron: number;
   copper?: number; coal?: number; oil?: number; herbs?: number; fur?: number;
 };
@@ -90,7 +91,7 @@ function isMatsEmpty(m: Mats): boolean {
 }
 
 const MAT_ICONS: Array<[keyof Mats, string]> = [
-  ['gold','🪙'],['food','🌿'],['wood','🪵'],['stone','🪨'],['iron','⚙️'],
+  ['fracten','💎'],['gold','🪙'],['food','🌿'],['wood','🪵'],['stone','🪨'],['iron','⚙️'],
   ['copper','🟤'],['coal','🖤'],['oil','🛢️'],['herbs','🌱'],['fur','🦊'],
 ];
 
@@ -772,7 +773,8 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
                   <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-amber-700 mb-1.5 text-xs">
                     {(() => {
                       const perTurn: Mats = {
-                        gold:   city.goldPerTurn   ?? 0,
+                        fracten: city.fractenPerTurn ?? 0,
+                        gold:   0,
                         food:   city.foodPerTurn   ?? 0,
                         wood:   city.woodPerTurn   ?? 0,
                         stone:  city.stonePerTurn  ?? 0,

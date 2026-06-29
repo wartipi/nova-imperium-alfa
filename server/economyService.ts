@@ -5,12 +5,12 @@ import { cities, colonies, factionEconomy, cityBuildings, playerBank, cityPendin
 // ─── Types publics ─────────────────────────────────────────────────────────────
 
 export interface FactionIncomeDTO {
-  foodPerTurn: number;
-  goldPerTurn: number;
+  foodPerTurn:    number;
+  fractenPerTurn: number; // Bloc B V2 — remplace goldPerTurn
 }
 
 export interface FactionEconomyDTO {
-  gold:               number;
+  fracten:            number; // Bloc B V2 — remplace gold
   food:               number;
   lastProcessedTurn:  number;
   updatedAt:          string;
@@ -19,94 +19,93 @@ export interface FactionEconomyDTO {
 // ─── DebitResult ─────────────────────────────────────────────────────────────
 
 export interface DebitResult {
-  success:   boolean;
-  goldBefore: number;
-  goldAfter:  number;
-  reason?:   string;
+  success:       boolean;
+  fractenBefore: number; // Bloc B V2 — remplace goldBefore
+  fractenAfter:  number; // Bloc B V2 — remplace goldAfter
+  reason?:       string;
 }
 
 // ─── debitFactionGoldIfEnough ─────────────────────────────────────────────────
-// Débite `amount` or du stock faction_economy.
-// Atomique : UPDATE avec garde WHERE gold >= amount.
-// Retourne success:false si or insuffisant ou amount invalide.
+// Bloc B V2 : débite `amount` fracten du stock faction_economy.fracten.
+// Atomique : UPDATE avec garde WHERE fracten >= amount.
+// Retourne success:false si fracten insuffisant ou amount invalide.
 export async function debitFactionGoldIfEnough(
   factionId: number,
   amount:    number,
 ): Promise<DebitResult> {
   if (amount <= 0) {
-    return { success: false, goldBefore: 0, goldAfter: 0, reason: "Montant invalide" };
+    return { success: false, fractenBefore: 0, fractenAfter: 0, reason: "Montant invalide" };
   }
 
   // Initialise la ligne si absente, lit l'état courant.
   const current = await getFactionEconomy(factionId);
 
-  if (current.gold < amount) {
+  if (current.fracten < amount) {
     return {
-      success:   false,
-      goldBefore: current.gold,
-      goldAfter:  current.gold,
-      reason: `Or insuffisant. Coût: ${amount}, Disponible: ${current.gold}`,
+      success:       false,
+      fractenBefore: current.fracten,
+      fractenAfter:  current.fracten,
+      reason: `Fracten insuffisant. Coût: ${amount}, Disponible: ${current.fracten}`,
     };
   }
 
-  // UPDATE conditionnel — la garde WHERE gold >= amount empêche une double dépense concurrente.
+  // UPDATE conditionnel — la garde WHERE fracten >= amount empêche une double dépense concurrente.
   const updated = await db
     .update(factionEconomy)
-    .set({ gold: sql`${factionEconomy.gold} - ${amount}`, updatedAt: new Date() })
-    .where(and(eq(factionEconomy.factionId, factionId), gte(factionEconomy.gold, amount)))
-    .returning({ gold: factionEconomy.gold });
+    .set({ fracten: sql`${factionEconomy.fracten} - ${amount}`, updatedAt: new Date() })
+    .where(and(eq(factionEconomy.factionId, factionId), gte(factionEconomy.fracten, amount)))
+    .returning({ fracten: factionEconomy.fracten });
 
   if (updated.length === 0) {
-    // Race condition : une autre transaction a consommé l'or entre la lecture et l'écriture.
     return {
-      success:   false,
-      goldBefore: current.gold,
-      goldAfter:  current.gold,
-      reason: "Or insuffisant (condition concurrente)",
+      success:       false,
+      fractenBefore: current.fracten,
+      fractenAfter:  current.fracten,
+      reason: "Fracten insuffisant (condition concurrente)",
     };
   }
 
-  const goldAfter = updated[0].gold;
+  const fractenAfter = updated[0].fracten;
   console.log(
-    `[debitGold] faction=${factionId} -${amount} or` +
-    ` (${current.gold} → ${goldAfter})`
+    `[debitFracten] faction=${factionId} -${amount} fracten` +
+    ` (${current.fracten} → ${fractenAfter})`
   );
 
-  return { success: true, goldBefore: current.gold, goldAfter };
+  return { success: true, fractenBefore: current.fracten, fractenAfter };
 }
 
 // ─── creditFactionGold ────────────────────────────────────────────────────────
-// Crédite `amount` or sur la ligne faction_economy (remboursement ou bonus).
+// Bloc B V2 : crédite `amount` fracten sur faction_economy.fracten (remboursement ou bonus).
 // Initialise la ligne si absente. Retourne le stock après crédit.
 export async function creditFactionGold(
   factionId: number,
   amount:    number,
 ): Promise<number> {
-  if (amount <= 0) return (await getFactionEconomy(factionId)).gold;
+  if (amount <= 0) return (await getFactionEconomy(factionId)).fracten;
 
   // Initialise si absente, puis crédite.
   await getFactionEconomy(factionId);
 
   const updated = await db
     .update(factionEconomy)
-    .set({ gold: sql`${factionEconomy.gold} + ${amount}`, updatedAt: new Date() })
+    .set({ fracten: sql`${factionEconomy.fracten} + ${amount}`, updatedAt: new Date() })
     .where(eq(factionEconomy.factionId, factionId))
-    .returning({ gold: factionEconomy.gold });
+    .returning({ fracten: factionEconomy.fracten });
 
-  const goldAfter = updated[0]?.gold ?? 0;
-  console.log(`[creditGold] faction=${factionId} +${amount} or → ${goldAfter}`);
-  return goldAfter;
+  const fractenAfter = updated[0]?.fracten ?? 0;
+  console.log(`[creditFracten] faction=${factionId} +${amount} fracten → ${fractenAfter}`);
+  return fractenAfter;
 }
 
 // ─── aggregateFactionIncome ───────────────────────────────────────────────────
-// Phase 11 : somme food_per_turn + gold_per_turn sur toutes les villes
+// Bloc B V2 : somme food_per_turn + fracten_per_turn sur toutes les villes
 // dont l'ownerFactionId correspond à la faction (ownership canonique).
 // Ne passe pas par CityDTO ni par le client.
 export async function aggregateFactionIncome(factionId: number): Promise<FactionIncomeDTO> {
   const rows = await db
     .select({
-      totalFood: sql<number>`COALESCE(SUM(${cities.foodPerTurn}), 0)`,
-      totalGold: sql<number>`COALESCE(SUM(${cities.goldPerTurn}), 0)`,
+      totalFood:    sql<number>`COALESCE(SUM(${cities.foodPerTurn}), 0)`,
+      totalFracten: sql<number>`COALESCE(SUM(${cities.fractenPerTurn}), 0)`,
     })
     .from(cities)
     .innerJoin(colonies, eq(cities.colonyId, colonies.id))
@@ -114,8 +113,8 @@ export async function aggregateFactionIncome(factionId: number): Promise<Faction
 
   const row = rows[0];
   return {
-    foodPerTurn: Number(row?.totalFood ?? 0),
-    goldPerTurn: Number(row?.totalGold ?? 0),
+    foodPerTurn:    Number(row?.totalFood    ?? 0),
+    fractenPerTurn: Number(row?.totalFracten ?? 0),
   };
 }
 
@@ -133,7 +132,7 @@ export async function getFactionEconomy(factionId: number): Promise<FactionEcono
   if (rows.length > 0) {
     const r = rows[0];
     return {
-      gold:              r.gold,
+      fracten:           r.fracten,  // Bloc B V2
       food:              r.food,
       lastProcessedTurn: r.lastProcessedTurn,
       updatedAt:         r.updatedAt.toISOString(),
@@ -143,7 +142,7 @@ export async function getFactionEconomy(factionId: number): Promise<FactionEcono
   // Initialisation paresseuse — première lecture pour cette faction.
   const [inserted] = await db
     .insert(factionEconomy)
-    .values({ factionId, gold: 0, food: 0, lastProcessedTurn: 0 })
+    .values({ factionId, gold: 0, fracten: 0, food: 0, lastProcessedTurn: 0 })
     .onConflictDoNothing()
     .returning();
 
@@ -155,7 +154,7 @@ export async function getFactionEconomy(factionId: number): Promise<FactionEcono
       .where(eq(factionEconomy.factionId, factionId))
       .limit(1);
     return {
-      gold:              retry.gold,
+      fracten:           retry.fracten,
       food:              retry.food,
       lastProcessedTurn: retry.lastProcessedTurn,
       updatedAt:         retry.updatedAt.toISOString(),
@@ -163,7 +162,7 @@ export async function getFactionEconomy(factionId: number): Promise<FactionEcono
   }
 
   return {
-    gold:              inserted.gold,
+    fracten:           inserted.fracten,
     food:              inserted.food,
     lastProcessedTurn: inserted.lastProcessedTurn,
     updatedAt:         inserted.updatedAt.toISOString(),
@@ -193,16 +192,16 @@ export async function applyFactionEconomyTick(
   // Agrégation des revenus depuis les villes de la faction.
   const income = await aggregateFactionIncome(factionId);
 
-  // Application des revenus — v1 sans dépenses.
-  const newGold = current.gold + income.goldPerTurn;
-  const newFood = current.food + income.foodPerTurn;
+  // Bloc B V2 : fracten remplace gold comme monnaie de production.
+  const newFracten = current.fracten + income.fractenPerTurn;
+  const newFood    = current.food    + income.foodPerTurn;
 
   const now = new Date();
 
   await db
     .update(factionEconomy)
     .set({
-      gold:              newGold,
+      fracten:           newFracten,
       food:              newFood,
       lastProcessedTurn: currentTurn,
       updatedAt:         now,
@@ -211,14 +210,14 @@ export async function applyFactionEconomyTick(
 
   console.log(
     `[economyTick] faction=${factionId} tour=${currentTurn}` +
-    ` +food=${income.foodPerTurn} +gold=${income.goldPerTurn}` +
-    ` → stocks: food=${newFood} gold=${newGold}`
+    ` +food=${income.foodPerTurn} +fracten=${income.fractenPerTurn}` +
+    ` → stocks: food=${newFood} fracten=${newFracten}`
   );
 
   return {
     applied: true,
     economy: {
-      gold:              newGold,
+      fracten:           newFracten,
       food:              newFood,
       lastProcessedTurn: currentTurn,
       updatedAt:         now.toISOString(),
@@ -229,7 +228,8 @@ export async function applyFactionEconomyTick(
 // ─── PlayerBankDTO ────────────────────────────────────────────────────────────
 
 export interface PlayerBankDTO {
-  gold:               number;
+  fracten:            number; // Bloc B V2 — monnaie de production
+  gold:               number; // V1 legacy — conservé pour compatibilité
   food:               number;
   wood:               number;
   stone:              number;
@@ -267,6 +267,7 @@ export async function getOrInitPlayerBank(playerId: string): Promise<PlayerBankD
   const rows = await db.select().from(playerBank).where(eq(playerBank.playerId, playerId)).limit(1);
   function rowToDTO(r: typeof playerBank.$inferSelect): PlayerBankDTO {
     return {
+      fracten: r.fracten, // Bloc B V2
       gold: r.gold, food: r.food,
       wood: r.wood ?? 0, stone: r.stone ?? 0, iron: r.iron ?? 0,
       copper: r.copper ?? 0, coal: r.coal ?? 0, oil: r.oil ?? 0,
@@ -277,7 +278,7 @@ export async function getOrInitPlayerBank(playerId: string): Promise<PlayerBankD
   if (rows.length > 0) return rowToDTO(rows[0]);
   const [ins] = await db
     .insert(playerBank)
-    .values({ playerId, gold: 0, food: 0, wood: 0, stone: 0, iron: 0,
+    .values({ playerId, gold: 0, fracten: 0, food: 0, wood: 0, stone: 0, iron: 0,
               copper: 0, coal: 0, oil: 0, herbs: 0, fur: 0, lastProductionTurn: 0 })
     .onConflictDoNothing()
     .returning();
@@ -317,10 +318,10 @@ export async function applyProductionTickPerCity(
 
   const cityRows = await db
     .select({
-      cityId:        cities.id,
-      name:          cities.name,
-      goldPerTurn:   cities.goldPerTurn,
-      foodPerTurn:   cities.foodPerTurn,
+      cityId:          cities.id,
+      name:            cities.name,
+      fractenPerTurn:  cities.fractenPerTurn, // Bloc B V2
+      foodPerTurn:     cities.foodPerTurn,
       woodPerTurn:   cities.woodPerTurn,
       stonePerTurn:  cities.stonePerTurn,
       ironPerTurn:   cities.ironPerTurn,
@@ -350,7 +351,7 @@ export async function applyProductionTickPerCity(
 
   const results: ProductionTickResult['cities'] = [];
   // Accumulateurs banque pour toutes les villes-avec-banque de la faction
-  let bankGoldDelta   = 0;
+  let bankFractenDelta = 0; // Bloc B V2 — remplace bankGoldDelta
   let bankFoodDelta   = 0;
   let bankWoodDelta   = 0;
   let bankStoneDelta  = 0;
@@ -363,16 +364,16 @@ export async function applyProductionTickPerCity(
   const now = new Date();
 
   for (const city of cityRows) {
-    const g      = Number(city.goldPerTurn   ?? 0);
-    const f      = Number(city.foodPerTurn   ?? 0);
-    const w      = Number(city.woodPerTurn   ?? 0);
-    const s      = Number(city.stonePerTurn  ?? 0);
-    const ir     = Number(city.ironPerTurn   ?? 0);
-    const cu     = Number(city.copperPerTurn ?? 0);
-    const co     = Number(city.coalPerTurn   ?? 0);
-    const oil    = Number(city.oilPerTurn    ?? 0);
-    const herbs  = Number(city.herbsPerTurn  ?? 0);
-    const fur    = Number(city.furPerTurn    ?? 0);
+    const g      = Number(city.fractenPerTurn ?? 0); // Bloc B V2 — fractenPerTurn
+    const f      = Number(city.foodPerTurn    ?? 0);
+    const w      = Number(city.woodPerTurn    ?? 0);
+    const s      = Number(city.stonePerTurn   ?? 0);
+    const ir     = Number(city.ironPerTurn    ?? 0);
+    const cu     = Number(city.copperPerTurn  ?? 0);
+    const co     = Number(city.coalPerTurn    ?? 0);
+    const oil    = Number(city.oilPerTurn     ?? 0);
+    const herbs  = Number(city.herbsPerTurn   ?? 0);
+    const fur    = Number(city.furPerTurn     ?? 0);
 
     if (g === 0 && f === 0 && w === 0 && s === 0 && ir === 0
         && cu === 0 && co === 0 && oil === 0 && herbs === 0 && fur === 0) continue;
@@ -380,7 +381,7 @@ export async function applyProductionTickPerCity(
     const hasBank = cityHasBank.get(city.cityId) === true;
 
     if (hasBank) {
-      bankGoldDelta   += g;
+      bankFractenDelta += g; // Bloc B V2
       bankFoodDelta   += f;
       bankWoodDelta   += w;
       bankStoneDelta  += s;
@@ -392,19 +393,19 @@ export async function applyProductionTickPerCity(
       bankFurDelta    += fur;
       results.push({ cityId: city.cityId, name: city.name, gold: g, food: f, wood: w, stone: s, iron: ir, copper: cu, coal: co, oil, herbs, fur, destination: 'bank' });
     } else {
-      // Accumulation dans pending_harvest (UPSERT) — 10 matériaux Tier 1.
+      // Accumulation dans pending_harvest (UPSERT) — Bloc B V2 : fracten remplace gold.
       await db
         .insert(cityPendingHarvest)
         .values({
           cityId: city.cityId,
-          gold: g, food: f, wood: w, stone: s, iron: ir,
+          gold: 0, fracten: g, food: f, wood: w, stone: s, iron: ir,
           copper: cu, coal: co, oil, herbs, fur,
           updatedAt: now,
         })
         .onConflictDoUpdate({
           target: cityPendingHarvest.cityId,
           set: {
-            gold:      sql`${cityPendingHarvest.gold}   + ${g}`,
+            fracten:   sql`${cityPendingHarvest.fracten} + ${g}`, // Bloc B V2
             food:      sql`${cityPendingHarvest.food}   + ${f}`,
             wood:      sql`${cityPendingHarvest.wood}   + ${w}`,
             stone:     sql`${cityPendingHarvest.stone}  + ${s}`,
@@ -422,11 +423,12 @@ export async function applyProductionTickPerCity(
   }
 
   // Crédit banque joueur groupé + mise à jour garde de tour.
+  // Bloc B V2 : fracten crédité dans playerBank.fracten, gold reste à 0 (V1 legacy).
   await db
     .insert(playerBank)
     .values({
       playerId,
-      gold: bankGoldDelta, food: bankFoodDelta, wood: bankWoodDelta,
+      gold: 0, fracten: bankFractenDelta, food: bankFoodDelta, wood: bankWoodDelta,
       stone: bankStoneDelta, iron: bankIronDelta, copper: bankCopperDelta,
       coal: bankCoalDelta, oil: bankOilDelta, herbs: bankHerbsDelta,
       fur: bankFurDelta, lastProductionTurn: currentTurn, updatedAt: now,
@@ -434,7 +436,7 @@ export async function applyProductionTickPerCity(
     .onConflictDoUpdate({
       target: playerBank.playerId,
       set: {
-        gold:               sql`${playerBank.gold}   + ${bankGoldDelta}`,
+        fracten:            sql`${playerBank.fracten} + ${bankFractenDelta}`, // V2
         food:               sql`${playerBank.food}   + ${bankFoodDelta}`,
         wood:               sql`${playerBank.wood}   + ${bankWoodDelta}`,
         stone:              sql`${playerBank.stone}  + ${bankStoneDelta}`,
@@ -449,7 +451,7 @@ export async function applyProductionTickPerCity(
       },
     });
 
-  const matLog = `+${bankGoldDelta}g+${bankFoodDelta}f+${bankWoodDelta}w+${bankStoneDelta}s`
+  const matLog = `+${bankFractenDelta}fr+${bankFoodDelta}f+${bankWoodDelta}w+${bankStoneDelta}s`
                + `+${bankIronDelta}ir+${bankCopperDelta}cu+${bankCoalDelta}co`
                + `+${bankOilDelta}oil+${bankHerbsDelta}herbs+${bankFurDelta}fur`;
   console.log(

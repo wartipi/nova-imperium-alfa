@@ -56,11 +56,11 @@ router.get("/me", requireAuth, async (req: AuthRequest, res) => {
     ]);
 
     return res.json({
-      gold:              economy.gold,
+      fracten:           economy.fracten,    // Bloc B V2
       food:              economy.food,
       lastProcessedTurn: economy.lastProcessedTurn,
       updatedAt:         economy.updatedAt,
-      goldPerTurn:       income.goldPerTurn,
+      fractenPerTurn:    income.fractenPerTurn, // Bloc B V2
       foodPerTurn:       income.foodPerTurn,
     });
   } catch (err) {
@@ -92,7 +92,7 @@ router.post("/tick", requireAuth, async (req: AuthRequest, res) => {
     return res.json({
       applied: result.applied,
       economy: {
-        gold:              result.economy.gold,
+        fracten:           result.economy.fracten, // Bloc B V2
         food:              result.economy.food,
         lastProcessedTurn: result.economy.lastProcessedTurn,
         updatedAt:         result.economy.updatedAt,

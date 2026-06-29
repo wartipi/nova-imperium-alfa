@@ -7,18 +7,18 @@ function getAuthHeaders(): Record<string, string> {
 }
 
 export interface EconomyDTO {
-  gold:              number;
+  fracten:           number;
   food:              number;
   lastProcessedTurn: number;
   updatedAt:         string;
-  goldPerTurn:       number;
+  fractenPerTurn:    number;
   foodPerTurn:       number;
 }
 
 export interface TickResponseDTO {
   applied: boolean;
   economy: {
-    gold:              number;
+    fracten:           number;
     food:              number;
     lastProcessedTurn: number;
     updatedAt:         string;
@@ -92,7 +92,8 @@ export async function postProductionTick(currentTurn: number): Promise<Productio
 
 export interface PlayerBankDTO {
   playerId:           string;
-  gold:               number;
+  fracten:            number; // Bloc B V2 — monnaie de production
+  gold:               number; // V1 legacy
   food:               number;
   wood:               number;
   stone:              number;

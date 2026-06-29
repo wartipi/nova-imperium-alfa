@@ -30,8 +30,8 @@ export interface CityDTO {
   // Phase 8 : économie calculée serveur (base + bonus bâtiments)
   foodPerTurn:       number;
   productionPerTurn: number;
-  // Phase 9 : gold par tour (palace/market/courthouse)
-  goldPerTurn:       number;
+  // Bloc B V2 : fracten par tour (palace/market/courthouse)
+  fractenPerTurn:    number;
   // Phase 11 — Ownership canonique
   ownerType:        string;
   ownerPlayerId:    string | null;

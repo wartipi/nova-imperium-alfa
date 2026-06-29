@@ -1,0 +1,215 @@
+NOVA IMPERIUM — RESSOURCES V2 — BLOC B PRODUCTION VILLE / ÉCONOMIE FACTION
+Branche : NI-10.09
+
+OBJECTIF
+Convertir uniquement la production économique de monnaie de gold vers fracten.
+
+Ce bloc concerne :
+
+* production ville
+* économie faction
+* revenus par tour
+* affichage trésorerie
+* API associées aux revenus économiques
+
+Ce bloc ne doit pas toucher au marché, aux inventaires physiques ou aux transferts.
+
+CONTEXTE
+Bloc A terminé :
+
+* HexTile.gold → HexTile.fracten
+* MapGenerator client corrigé
+* dette carte client nettoyée
+
+Maintenant Bloc B doit convertir la monnaie économique serveur :
+
+* goldPerTurn → fractenPerTurn
+* BUILDING_YIELDS.gold → BUILDING_YIELDS.fracten
+* factionEconomy.gold → factionEconomy.fracten
+* playerBank.gold utilisé comme monnaie de production → playerBank.fracten
+
+PÉRIMÈTRE AUTORISÉ
+
+Fichiers probables à auditer et modifier :
+
+* server/cityService.ts
+* server/economyService.ts
+* server/routes/economy.ts
+* server/routes/cities.ts si nécessaire pour DTO ville
+* client/src/components/game/TreasuryPanel.tsx
+* client/src/lib/api/citiesApi.ts
+* client/src/lib/api/economyApi.ts
+* shared/schema.ts seulement si le champ city goldPerTurn doit devenir fractenPerTurn
+
+INTERDICTIONS STRICTES
+
+Ne pas modifier :
+
+* marketService.ts
+* routes market
+* PublicMarketplace.tsx
+* city_inventory
+* player_transport
+* player_market_box
+* systèmes de transfert
+* systèmes de récolte physique
+* common_metals / leather_fur
+* suppression de colonnes legacy
+* migrations destructives
+* auth
+* cartography ownership
+* unités
+* déploiement
+
+Ne pas faire :
+
+* DROP COLUMN
+* suppression de gold globale
+* conversion marché
+* conversion inventaires
+* refactor massif
+
+ÉTAPE 1 — AUDIT AVANT MODIFICATION
+
+Chercher toutes les occurrences liées à la monnaie de production :
+
+goldPerTurn
+gold_per_turn
+BUILDING_YIELDS
+factionEconomy.gold
+playerBank.gold
+economy.gold
+totalGold
+feeAmount
+
+Classer les occurrences :
+
+A. Bloc B — à convertir maintenant
+B. Hors Bloc B — marché / inventaires / legacy acceptable
+C. Commentaire/TODO
+D. Dangereux
+
+Ne modifier que les occurrences Bloc B.
+
+ÉTAPE 2 — CONVERSION ATTENDUE
+
+1. Production ville
+
+Si cityService.ts contient :
+
+BUILDING_YIELDS = {
+...
+gold: X
+}
+
+remplacer par :
+
+fracten: X
+
+2. Table cities
+
+Si shared/schema.ts contient :
+
+goldPerTurn: integer("gold_per_turn")
+
+remplacer par :
+
+fractenPerTurn: integer("fracten_per_turn")
+
+Seulement si le code serveur utilise réellement ce champ comme revenu monétaire de ville.
+
+Si une migration additive est nécessaire :
+
+* ajouter fracten_per_turn
+* backfill fracten_per_turn = gold_per_turn
+* conserver gold_per_turn comme legacy temporaire
+* ne pas drop gold_per_turn dans ce bloc
+
+3. Économie faction
+
+Toute production qui écrit dans factionEconomy.gold doit écrire dans factionEconomy.fracten.
+
+4. Banque joueur
+
+Toute production de monnaie qui écrit dans playerBank.gold doit écrire dans playerBank.fracten.
+
+Attention :
+Ne pas convertir les transferts manuels, inventaires, marché ou boîtes de marché dans ce bloc.
+
+5. DTO / API
+
+Les réponses API liées à la trésorerie doivent exposer :
+
+fracten
+fractenPerTurn
+
+et non plus :
+
+gold
+goldPerTurn
+
+Sauf si gold est conservé en legacy dans une section clairement marquée.
+
+6. UI
+
+TreasuryPanel doit afficher :
+
+Fracten
+Fracten / tour
+
+et ne plus afficher :
+
+Gold
+Or
+goldPerTurn
+
+ÉTAPE 3 — COMPATIBILITÉ
+
+Si certaines colonnes V1 restent nécessaires :
+
+* les conserver
+* ne pas les supprimer
+* ne pas les utiliser comme source principale de monnaie V2
+
+Si backfill nécessaire :
+
+* fracten = gold
+* fracten_per_turn = gold_per_turn
+
+Mais ne jamais supprimer les colonnes V1 dans ce bloc.
+
+ÉTAPE 4 — VÉRIFICATION
+
+Lancer :
+
+npm run check
+
+Puis chercher :
+
+goldPerTurn
+gold_per_turn
+BUILDING_YIELDS.gold
+factionEconomy.gold
+playerBank.gold
+
+Pour chaque occurrence restante :
+
+* expliquer si elle est hors Bloc B
+* expliquer si elle est legacy temporaire
+* expliquer si elle doit être traitée en Bloc C/D/F
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC BLOC B
+2. OCCURRENCES MONNAIE CLASSÉES
+3. FICHIERS MODIFIÉS
+4. CHANGEMENTS APPLIQUÉS
+5. BACKFILL / DB SI APPLIQUÉ
+6. OCCURRENCES GOLD RESTANTES
+7. RÉSULTAT npm run check
+8. STOP
+
+STOP
+Ne pas ouvrir Bloc C.
+Ne pas ouvrir Bloc D.
+Ne pas supprimer les colonnes legacy.
