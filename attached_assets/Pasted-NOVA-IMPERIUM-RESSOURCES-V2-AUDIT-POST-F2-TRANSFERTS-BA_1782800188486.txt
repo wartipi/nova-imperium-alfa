@@ -1,0 +1,251 @@
+NOVA IMPERIUM — RESSOURCES V2 — AUDIT POST-F2 TRANSFERTS BANQUE
+Branche : NI-10.09
+
+OBJECTIF
+Vérifier que le Bloc F2 est complet, cohérent, et sans double débit / double crédit avant de passer à F3.
+
+Ce n’est PAS F3.
+Ne pas supprimer de colonnes.
+Ne pas faire DROP COLUMN.
+Ne pas modifier la DB.
+Ne pas faire de migration destructive.
+
+CONTEXTE
+F2 vient de convertir les transferts :
+
+* bank → city
+* bank → player
+
+Ressources V2 attendues :
+
+* fracten
+* common_metals
+* leather_fur
+
+Fallback legacy temporaire :
+
+* gold
+* iron
+* copper
+* fur
+
+RISQUES À AUDITER
+
+1. Double débit
+   Vérifier qu’un transfert ne débite jamais :
+
+* fracten + gold
+* common_metals + iron/copper
+* leather_fur + fur
+
+2. Double crédit
+   Vérifier qu’une complétion ne crédite jamais :
+
+* fracten + gold
+* common_metals + iron/copper
+* leather_fur + fur
+
+3. Path d’action
+   Vérifier que les actions créées stockent bien les clés V2 :
+
+* fracten
+* common_metals
+* leather_fur
+
+Et non les anciennes clés principales :
+
+* gold
+* iron
+* copper
+* fur
+
+4. UI TreasuryPanel
+   Vérifier que les formulaires envoient bien les champs V2 :
+
+* fracten
+* common_metals
+* leather_fur
+
+Et que les champs V1 ne sont pas envoyés comme choix principal.
+
+5. API client
+   Vérifier que postTransferBankToCity et postTransferBankToPlayer envoient V2 en priorité.
+
+PÉRIMÈTRE AUTORISÉ
+
+Auditer uniquement :
+
+* server/playerActionService.ts
+* server/routes/economy.ts
+* client/src/lib/api/economyApi.ts
+* client/src/components/game/TreasuryPanel.tsx
+
+Corrections autorisées seulement si elles corrigent :
+
+* double débit
+* double crédit
+* mauvais champ envoyé par l’UI
+* mauvais champ stocké dans le path
+* mauvais champ crédité à la complétion
+* erreur TypeScript directement causée par F2
+
+INTERDICTIONS STRICTES
+
+Ne pas modifier :
+
+* shared/schema.ts
+* migrations
+* DB
+* marketService.ts
+* PublicMarketplace.tsx
+* MapGenerator.ts
+* HexTile
+* ResourceRevealSystem.ts
+* routes/market.ts
+* routes/cities.ts sauf bug direct F2 bloquant
+* economyService.ts sauf bug direct F2 bloquant
+* logique construction F1
+* logique production ville
+
+Ne pas faire :
+
+* F3
+* DROP COLUMN
+* suppression de colonnes legacy
+* suppression des fallbacks legacy
+* refactor massif
+
+ÉTAPE 1 — AUDIT BACKEND ACTIONS
+
+Auditer :
+
+* createTransferBankToCityAction
+* completeBankToCityTransfer
+* createTransferBankToPlayerAction
+* completeBankToPlayerTransfer
+* completion handler des actions transfer_bank_to_city et transfer_bank_to_player
+
+Confirmer pour chaque fonction :
+
+* champs V2 lus
+* champs V2 écrits
+* champs V1 seulement fallback
+* aucun débit V1+V2 simultané
+* aucun crédit V1+V2 simultané
+
+ÉTAPE 2 — AUDIT ROUTES ECONOMY
+
+Auditer :
+
+* POST /api/economy/transfer-bank-to-city
+* POST /api/economy/transfer-bank-to-player
+
+Confirmer :
+
+* body V2 accepté
+* body V1 fallback accepté seulement en compatibilité
+* réponse action contient les champs V2
+* les effective amounts ne dupliquent pas V1 + V2
+
+ÉTAPE 3 — AUDIT FRONTEND
+
+Auditer :
+
+* TreasuryPanel.tsx
+* economyApi.ts
+
+Confirmer :
+
+* TransferState contient les champs V2
+* EMPTY_TRANSFER initialise les champs V2
+* handleTransferToCity envoie les champs V2
+* handleTransferToPlayer envoie les champs V2
+* reset success remet bien à zéro les champs V2
+* gold/iron/copper/fur ne sont pas des options principales
+
+ÉTAPE 4 — TEST DE SCÉNARIOS LOGIQUES
+
+Vérifier mentalement ou avec logs simples :
+
+Scénario A :
+
+* envoyer 100 fracten bank → city
+  Résultat attendu :
+* player_bank.fracten -100
+* city_inventory.fracten +100
+* player_bank.gold inchangé
+* city_inventory.gold inchangé
+
+Scénario B :
+
+* envoyer 10 common_metals bank → player
+  Résultat attendu :
+* player_bank.common_metals -10
+* player_transport.common_metals +10
+* player_bank.iron/copper inchangés
+* player_transport.iron/copper inchangés
+
+Scénario C :
+
+* envoyer 5 leather_fur bank → city
+  Résultat attendu :
+* player_bank.leather_fur -5
+* city_inventory.leather_fur +5
+* fur inchangé
+
+Scénario D legacy :
+
+* envoyer gold seulement depuis un vieux client
+  Résultat attendu :
+* fallback accepté
+* pas de débit fracten en plus
+* path converti vers fracten effectif ou clairement documenté
+
+ÉTAPE 5 — VÉRIFICATION
+
+Lancer :
+
+npm run check
+
+Puis rechercher dans le périmètre :
+
+gold
+iron
+copper
+fur
+fracten
+common_metals
+leather_fur
+INSUFFICIENT_BANK_GOLD
+INSUFFICIENT_BANK_IRON
+INSUFFICIENT_BANK_COPPER
+INSUFFICIENT_BANK_FUR
+INSUFFICIENT_BANK_FRACTEN
+INSUFFICIENT_BANK_COMMON_METALS
+INSUFFICIENT_BANK_LEATHER_FUR
+
+Classer les occurrences restantes :
+
+A. V2 principal
+B. Fallback legacy acceptable
+C. Hors périmètre
+D. Dangereux / à corriger maintenant
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC POST-F2
+2. AUDIT BACKEND ACTIONS
+3. AUDIT ROUTES ECONOMY
+4. AUDIT FRONTEND
+5. TESTS LOGIQUES
+6. DOUBLE DÉBIT / DOUBLE CRÉDIT TROUVÉ ?
+7. CORRECTIONS APPLIQUÉES, SI NÉCESSAIRE
+8. OCCURRENCES LEGACY RESTANTES CLASSÉES
+9. RÉSULTAT npm run check
+10. CONCLUSION : AUTORISÉ OU NON À PASSER À F3
+11. STOP
+
+STOP
+Ne pas commencer F3.
+Ne pas supprimer de colonnes.
+Ne pas modifier la DB.
