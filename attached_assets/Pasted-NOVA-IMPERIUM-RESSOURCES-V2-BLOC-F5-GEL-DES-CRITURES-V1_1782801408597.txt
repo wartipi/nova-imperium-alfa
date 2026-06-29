@@ -1,0 +1,268 @@
+NOVA IMPERIUM — RESSOURCES V2 — BLOC F5 / GEL DES ÉCRITURES V1 & BACKFILL FINAL
+Branche : NI-10.09
+
+OBJECTIF
+Préparer la suppression future des colonnes legacy sans encore les supprimer.
+
+Ce bloc doit :
+
+* vérifier toutes les écritures V1 restantes
+* geler les écritures V1 non nécessaires
+* convertir les valeurs V1 restantes vers V2 par backfill final
+* produire une matrice claire des colonnes encore bloquantes
+
+Ce bloc ne doit pas supprimer de colonnes.
+Ce bloc ne doit pas faire DROP COLUMN.
+Ce bloc ne doit pas faire de migration destructive.
+
+CONTEXTE
+Blocs terminés :
+
+* A : carte / HexTile / yields
+* B : fracten production ville
+* C : inventaires / récolte / transport / banque
+* D : marché V2
+* E : UI labels/icônes
+* F1 : coûts construction/recrutement V2
+* F2 : transferts banque V2
+* F3 : flux transport ↔ ville ↔ banque validé
+* F4 : production ville / buildingEffects V2
+
+Après F4 :
+
+* buildingEffects écrit common_metals_per_turn / leather_fur_per_turn
+* economyService lit V2-first avec fallback V1
+* city_pending_harvest et player_bank reçoivent common_metals / leather_fur depuis production
+* V1 per-turn reste fallback legacy
+
+OBJECTIF F5
+Identifier et stopper les écritures actives vers :
+
+* gold
+* iron
+* copper
+* fur
+* gold_per_turn
+* iron_per_turn
+* copper_per_turn
+* fur_per_turn
+* total_gold
+
+Sauf si elles sont explicitement requises comme fallback legacy temporaire.
+
+PÉRIMÈTRE AUTORISÉ
+
+Auditer et modifier uniquement :
+
+Backend :
+
+* server/economyService.ts
+* server/buildingEffects.ts
+* server/playerActionService.ts
+* server/routes/economy.ts
+* server/routes/cities.ts
+* server/marketService.ts seulement pour legacy storage total_gold / market box
+* shared/schema.ts commentaires seulement, sauf ajout additif strictement nécessaire
+
+Frontend :
+
+* client/src/lib/api/economyApi.ts
+* client/src/lib/api/citiesApi.ts
+* client/src/lib/api/marketApi.ts
+* client/src/components/game/TreasuryPanel.tsx
+* client/src/components/game/PlayerTransportPanel.tsx
+* client/src/components/game/PublicMarketplace.tsx
+
+INTERDICTIONS STRICTES
+
+Ne pas modifier :
+
+* MapGenerator.ts
+* HexTile
+* ResourceRevealSystem.ts
+* auth
+* cartography ownership
+* déploiement
+* unités sauf lien direct avec coût/ressource
+
+Ne pas faire :
+
+* DROP COLUMN
+* suppression de colonnes legacy
+* migration destructive
+* F6
+* refactor massif
+* retrait brutal support anciennes données
+
+ÉTAPE 1 — AUDIT DES ÉCRITURES V1
+
+Chercher dans tout le projet les écritures vers :
+
+gold:
+iron:
+copper:
+fur:
+goldPerTurn:
+ironPerTurn:
+copperPerTurn:
+furPerTurn:
+gold_per_turn
+iron_per_turn
+copper_per_turn
+fur_per_turn
+totalGold
+total_gold
+
+Pour chaque occurrence, classer :
+
+A. Écriture V1 active à stopper maintenant
+B. Écriture V1 fallback nécessaire temporaire
+C. Initialisation zéro legacy acceptable
+D. Stockage legacy DB temporaire
+E. Commentaire/TODO
+F. Dangereux / incohérent
+
+ÉTAPE 2 — BACKFILL FINAL NON DESTRUCTIF
+
+Vérifier et exécuter si nécessaire uniquement des backfills additifs :
+
+Tables principales :
+
+1. player_bank
+
+* fracten = fracten + gold si gold > 0 et fracten = 0 selon stratégie sûre
+* common_metals = common_metals + iron + copper si common_metals = 0
+* leather_fur = leather_fur + fur si leather_fur = 0
+
+2. city_inventory
+
+* fracten ← gold si nécessaire
+* common_metals ← iron + copper si nécessaire
+* leather_fur ← fur si nécessaire
+
+3. city_pending_harvest
+
+* fracten ← gold si nécessaire
+* common_metals ← iron + copper si nécessaire
+* leather_fur ← fur si nécessaire
+
+4. player_transport
+
+* fracten ← gold si nécessaire
+* common_metals ← iron + copper si nécessaire
+* leather_fur ← fur si nécessaire
+
+5. player_market_box
+
+* fracten ← gold si nécessaire
+* common_metals ← iron + copper si nécessaire
+* leather_fur ← fur si nécessaire
+
+6. market_fee_box
+
+* fracten ← gold si nécessaire
+
+7. market_trades
+
+* ne pas modifier total_gold sans plan dédié ; seulement documenter.
+
+Règle de sécurité :
+
+* ne jamais additionner V1 dans V2 si V2 contient déjà une valeur non nulle représentant le même stock
+* préférer stratégie conservatrice :
+
+  * si V2 = 0, migrer V1 vers V2
+  * si V2 > 0 et V1 > 0, signaler conflit au lieu d’additionner automatiquement
+
+ÉTAPE 3 — GEL DES ÉCRITURES V1
+
+Après backfill, stopper les nouvelles écritures V1 quand possible.
+
+Exemples attendus :
+
+* production ne doit plus écrire iron/copper/fur
+* construction ne doit plus débiter gold/iron/copper/fur en source principale
+* transferts ne doivent plus écrire V1 sauf fallback explicite
+* marché ne doit plus écrire gold/iron/copper/fur sauf legacy order existant
+* total_gold reste legacy storage seulement si pas de colonne total_fracten
+
+ÉTAPE 4 — MATRICE DE SUPPRESSION FUTURE
+
+Produire une matrice par colonne :
+
+Colonnes :
+
+* table
+* colonne legacy
+* encore lue ?
+* encore écrite ?
+* fallback ?
+* données non nulles ?
+* supprimable maintenant ?
+* bloquant restant
+* sous-bloc recommandé
+
+ÉTAPE 5 — CONTRÔLE DES DONNÉES
+
+Lancer des requêtes SQL de diagnostic :
+
+SELECT COUNT(*) / SUM pour chaque colonne legacy :
+
+* player_bank.gold, iron, copper, fur
+* city_inventory.gold, iron, copper, fur
+* city_pending_harvest.gold, iron, copper, fur
+* player_transport.gold, iron, copper, fur
+* player_market_box.gold, iron, copper, fur
+* market_fee_box.gold
+* cities.gold_per_turn, iron_per_turn, copper_per_turn, fur_per_turn
+* market_trades.total_gold
+
+Objectif :
+
+* savoir ce qui contient encore des valeurs
+* ne rien supprimer sans preuve
+
+ÉTAPE 6 — VÉRIFICATION
+
+Lancer :
+
+npm run check
+
+Puis chercher toutes les écritures restantes vers :
+gold
+iron
+copper
+fur
+goldPerTurn
+ironPerTurn
+copperPerTurn
+furPerTurn
+totalGold
+total_gold
+
+Classer les occurrences restantes :
+
+A. Gelée / stoppée
+B. Fallback legacy documenté
+C. Stockage DB legacy temporaire
+D. Dangereux / à corriger maintenant
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC F5
+2. ÉCRITURES V1 TROUVÉES
+3. ÉCRITURES V1 STOPPÉES
+4. BACKFILL FINAL EXÉCUTÉ OU NON
+5. CONFLITS DE DONNÉES V1/V2 TROUVÉS
+6. MATRICE DES COLONNES LEGACY
+7. REQUÊTES SQL DE CONTRÔLE ET RÉSULTATS
+8. FALLBACKS LEGACY RESTANTS
+9. RÉSULTAT npm run check
+10. CONCLUSION : SUPPRESSION LEGACY AUTORISÉE OU NON
+11. STOP
+
+STOP
+Ne pas commencer F6.
+Ne pas supprimer de colonnes.
+Ne pas faire DROP COLUMN.
+Ne pas faire de migration destructive.
