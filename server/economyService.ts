@@ -266,8 +266,11 @@ export interface ProductionTickResult {
   cities:  Array<{
     cityId: number; name: string;
     fracten: number; // Bloc C V2 — remplace gold dans ce résultat
-    food: number; wood: number; stone: number; iron: number;
-    copper: number; coal: number; oil: number; herbs: number; fur: number;
+    food: number; wood: number; stone: number;
+    // F4 V2 : common_metals + leather_fur remplacent iron/copper/fur
+    common_metals: number; leather_fur: number;
+    // V1 legacy — toujours présents à 0 pour backward-compat
+    iron: number; copper: number; coal: number; oil: number; herbs: number; fur: number;
     destination: 'bank' | 'pending';
   }>;
 }
@@ -333,12 +336,16 @@ export async function applyProductionTickPerCity(
 
   const cityRows = await db
     .select({
-      cityId:          cities.id,
-      name:            cities.name,
-      fractenPerTurn:  cities.fractenPerTurn, // Bloc B V2
-      foodPerTurn:     cities.foodPerTurn,
-      woodPerTurn:   cities.woodPerTurn,
-      stonePerTurn:  cities.stonePerTurn,
+      cityId:              cities.id,
+      name:                cities.name,
+      fractenPerTurn:      cities.fractenPerTurn,      // Bloc B V2
+      foodPerTurn:         cities.foodPerTurn,
+      woodPerTurn:         cities.woodPerTurn,
+      stonePerTurn:        cities.stonePerTurn,
+      // F4 V2 principal
+      commonMetalsPerTurn: (cities as any).commonMetalsPerTurn,
+      leatherFurPerTurn:   (cities as any).leatherFurPerTurn,
+      // V1 legacy — fallback si V2 absent ou 0
       ironPerTurn:   cities.ironPerTurn,
       copperPerTurn: cities.copperPerTurn,
       coalPerTurn:   cities.coalPerTurn,
@@ -366,109 +373,125 @@ export async function applyProductionTickPerCity(
 
   const results: ProductionTickResult['cities'] = [];
   // Accumulateurs banque pour toutes les villes-avec-banque de la faction
-  let bankFractenDelta = 0; // Bloc B V2 — remplace bankGoldDelta
-  let bankFoodDelta   = 0;
-  let bankWoodDelta   = 0;
-  let bankStoneDelta  = 0;
-  let bankIronDelta   = 0;
-  let bankCopperDelta = 0;
-  let bankCoalDelta   = 0;
-  let bankOilDelta    = 0;
-  let bankHerbsDelta  = 0;
-  let bankFurDelta    = 0;
+  let bankFractenDelta      = 0; // Bloc B V2 — remplace bankGoldDelta
+  let bankFoodDelta         = 0;
+  let bankWoodDelta         = 0;
+  let bankStoneDelta        = 0;
+  // F4 V2 : common_metals + leather_fur remplacent iron/copper/fur comme production principale
+  let bankCommonMetalsDelta = 0;
+  let bankLeatherFurDelta   = 0;
+  // Non-V2 restants (coal/oil/herbs inchangés)
+  let bankCoalDelta         = 0;
+  let bankOilDelta          = 0;
+  let bankHerbsDelta        = 0;
   const now = new Date();
 
   for (const city of cityRows) {
-    const g      = Number(city.fractenPerTurn ?? 0); // Bloc B V2 — fractenPerTurn
-    const f      = Number(city.foodPerTurn    ?? 0);
-    const w      = Number(city.woodPerTurn    ?? 0);
-    const s      = Number(city.stonePerTurn   ?? 0);
-    const ir     = Number(city.ironPerTurn    ?? 0);
-    const cu     = Number(city.copperPerTurn  ?? 0);
-    const co     = Number(city.coalPerTurn    ?? 0);
-    const oil    = Number(city.oilPerTurn     ?? 0);
-    const herbs  = Number(city.herbsPerTurn   ?? 0);
-    const fur    = Number(city.furPerTurn     ?? 0);
+    const g   = Number(city.fractenPerTurn ?? 0); // Bloc B V2 — fractenPerTurn
+    const f   = Number(city.foodPerTurn    ?? 0);
+    const w   = Number(city.woodPerTurn    ?? 0);
+    const s   = Number(city.stonePerTurn   ?? 0);
+    const co  = Number(city.coalPerTurn    ?? 0);
+    const oil = Number(city.oilPerTurn     ?? 0);
+    const herbs = Number(city.herbsPerTurn ?? 0);
 
-    if (g === 0 && f === 0 && w === 0 && s === 0 && ir === 0
-        && cu === 0 && co === 0 && oil === 0 && herbs === 0 && fur === 0) continue;
+    // F4 V2 : lire V2 en priorité, fallback V1 si V2 absent ou 0 (anti-double-comptage).
+    const cmV2 = Number((city as any).commonMetalsPerTurn ?? 0);
+    const lfV2 = Number((city as any).leatherFurPerTurn   ?? 0);
+    const irV1 = Number(city.ironPerTurn   ?? 0);
+    const cuV1 = Number(city.copperPerTurn ?? 0);
+    const furV1 = Number(city.furPerTurn   ?? 0);
+
+    // Anti-double-comptage : V2 prioritaire, V1 fallback exclusif
+    const cm = cmV2 > 0 ? cmV2 : (irV1 + cuV1); // common_metals effectif
+    const lf = lfV2 > 0 ? lfV2 : furV1;          // leather_fur effectif
+
+    if (g === 0 && f === 0 && w === 0 && s === 0 && cm === 0
+        && lf === 0 && co === 0 && oil === 0 && herbs === 0) continue;
 
     const hasBank = cityHasBank.get(city.cityId) === true;
 
     if (hasBank) {
-      bankFractenDelta += g; // Bloc B V2
-      bankFoodDelta   += f;
-      bankWoodDelta   += w;
-      bankStoneDelta  += s;
-      bankIronDelta   += ir;
-      bankCopperDelta += cu;
-      bankCoalDelta   += co;
-      bankOilDelta    += oil;
-      bankHerbsDelta  += herbs;
-      bankFurDelta    += fur;
-      results.push({ cityId: city.cityId, name: city.name, fracten: g, food: f, wood: w, stone: s, iron: ir, copper: cu, coal: co, oil, herbs, fur, destination: 'bank' }); // Bloc C V2 gold→fracten
+      bankFractenDelta      += g; // Bloc B V2
+      bankFoodDelta         += f;
+      bankWoodDelta         += w;
+      bankStoneDelta        += s;
+      bankCommonMetalsDelta += cm; // F4 V2
+      bankLeatherFurDelta   += lf; // F4 V2
+      bankCoalDelta         += co;
+      bankOilDelta          += oil;
+      bankHerbsDelta        += herbs;
+      results.push({ cityId: city.cityId, name: city.name, fracten: g, food: f, wood: w, stone: s,
+        iron: 0, copper: 0, coal: co, oil, herbs, fur: 0,
+        common_metals: cm, leather_fur: lf, destination: 'bank' }); // F4 V2
     } else {
-      // Accumulation dans pending_harvest (UPSERT) — Bloc B V2 : fracten remplace gold.
+      // Accumulation dans pending_harvest (UPSERT) — F4 V2 : common_metals + leather_fur.
       await db
         .insert(cityPendingHarvest)
         .values({
           cityId: city.cityId,
-          gold: 0, fracten: g, food: f, wood: w, stone: s, iron: ir,
-          copper: cu, coal: co, oil, herbs, fur,
+          gold: 0, fracten: g, food: f, wood: w, stone: s,
+          iron: 0, copper: 0,
+          common_metals: cm, leather_fur: lf,
+          coal: co, oil, herbs, fur: 0,
           updatedAt: now,
-        })
+        } as any)
         .onConflictDoUpdate({
           target: cityPendingHarvest.cityId,
           set: {
-            fracten:   sql`${cityPendingHarvest.fracten} + ${g}`, // Bloc B V2
-            food:      sql`${cityPendingHarvest.food}   + ${f}`,
-            wood:      sql`${cityPendingHarvest.wood}   + ${w}`,
-            stone:     sql`${cityPendingHarvest.stone}  + ${s}`,
-            iron:      sql`${cityPendingHarvest.iron}   + ${ir}`,
-            copper:    sql`${cityPendingHarvest.copper} + ${cu}`,
-            coal:      sql`${cityPendingHarvest.coal}   + ${co}`,
-            oil:       sql`${cityPendingHarvest.oil}    + ${oil}`,
-            herbs:     sql`${cityPendingHarvest.herbs}  + ${herbs}`,
-            fur:       sql`${cityPendingHarvest.fur}    + ${fur}`,
+            fracten:       sql`${cityPendingHarvest.fracten} + ${g}`, // Bloc B V2
+            food:          sql`${cityPendingHarvest.food}    + ${f}`,
+            wood:          sql`${cityPendingHarvest.wood}    + ${w}`,
+            stone:         sql`${cityPendingHarvest.stone}   + ${s}`,
+            // F4 V2 : common_metals + leather_fur (ne plus écrire iron/copper/fur)
+            common_metals: sql`${(cityPendingHarvest as any).common_metals} + ${cm}`,
+            leather_fur:   sql`${(cityPendingHarvest as any).leather_fur}   + ${lf}`,
+            coal:          sql`${cityPendingHarvest.coal}    + ${co}`,
+            oil:           sql`${cityPendingHarvest.oil}     + ${oil}`,
+            herbs:         sql`${cityPendingHarvest.herbs}   + ${herbs}`,
             updatedAt: now,
-          },
+          } as any,
         });
-      results.push({ cityId: city.cityId, name: city.name, fracten: g, food: f, wood: w, stone: s, iron: ir, copper: cu, coal: co, oil, herbs, fur, destination: 'pending' }); // Bloc C V2 gold→fracten
+      results.push({ cityId: city.cityId, name: city.name, fracten: g, food: f, wood: w, stone: s,
+        iron: 0, copper: 0, coal: co, oil, herbs, fur: 0,
+        common_metals: cm, leather_fur: lf, destination: 'pending' }); // F4 V2
     }
   }
 
   // Crédit banque joueur groupé + mise à jour garde de tour.
   // Bloc B V2 : fracten crédité dans playerBank.fracten, gold reste à 0 (V1 legacy).
+  // F4 V2 : common_metals + leather_fur remplacent iron/copper/fur dans la banque.
   await db
     .insert(playerBank)
     .values({
       playerId,
       gold: 0, fracten: bankFractenDelta, food: bankFoodDelta, wood: bankWoodDelta,
-      stone: bankStoneDelta, iron: bankIronDelta, copper: bankCopperDelta,
+      stone: bankStoneDelta, iron: 0, copper: 0,
+      common_metals: bankCommonMetalsDelta, leather_fur: bankLeatherFurDelta,
       coal: bankCoalDelta, oil: bankOilDelta, herbs: bankHerbsDelta,
-      fur: bankFurDelta, lastProductionTurn: currentTurn, updatedAt: now,
+      fur: 0, lastProductionTurn: currentTurn, updatedAt: now,
     })
     .onConflictDoUpdate({
       target: playerBank.playerId,
       set: {
-        fracten:            sql`${playerBank.fracten} + ${bankFractenDelta}`, // V2
+        fracten:            sql`${playerBank.fracten} + ${bankFractenDelta}`, // Bloc B V2
         food:               sql`${playerBank.food}   + ${bankFoodDelta}`,
         wood:               sql`${playerBank.wood}   + ${bankWoodDelta}`,
         stone:              sql`${playerBank.stone}  + ${bankStoneDelta}`,
-        iron:               sql`${playerBank.iron}   + ${bankIronDelta}`,
-        copper:             sql`${playerBank.copper} + ${bankCopperDelta}`,
+        // F4 V2 : common_metals + leather_fur ; iron/copper/fur ne reçoivent plus de production
+        common_metals:      sql`${(playerBank as any).common_metals} + ${bankCommonMetalsDelta}`,
+        leather_fur:        sql`${(playerBank as any).leather_fur}   + ${bankLeatherFurDelta}`,
         coal:               sql`${playerBank.coal}   + ${bankCoalDelta}`,
         oil:                sql`${playerBank.oil}    + ${bankOilDelta}`,
         herbs:              sql`${playerBank.herbs}  + ${bankHerbsDelta}`,
-        fur:                sql`${playerBank.fur}    + ${bankFurDelta}`,
         lastProductionTurn: currentTurn,
         updatedAt:          now,
-      },
+      } as any,
     });
 
   const matLog = `+${bankFractenDelta}fr+${bankFoodDelta}f+${bankWoodDelta}w+${bankStoneDelta}s`
-               + `+${bankIronDelta}ir+${bankCopperDelta}cu+${bankCoalDelta}co`
-               + `+${bankOilDelta}oil+${bankHerbsDelta}herbs+${bankFurDelta}fur`;
+               + `+${bankCommonMetalsDelta}cm+${bankLeatherFurDelta}lf+${bankCoalDelta}co`
+               + `+${bankOilDelta}oil+${bankHerbsDelta}herbs`;
   console.log(
     `[productionTick] player=${playerId} faction=${factionId ?? 'aucune'} tour=${currentTurn}` +
     ` villes=${cityRows.length} bank${matLog}` +

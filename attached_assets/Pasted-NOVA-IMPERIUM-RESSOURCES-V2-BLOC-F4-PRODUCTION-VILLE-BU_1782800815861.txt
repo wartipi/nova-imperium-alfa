@@ -1,0 +1,298 @@
+NOVA IMPERIUM — RESSOURCES V2 — BLOC F4 / PRODUCTION VILLE & BUILDING EFFECTS
+Branche : NI-10.09
+
+OBJECTIF
+Convertir les productions de ville encore V1 vers les ressources V2.
+
+Ce bloc cible :
+
+* buildingEffects.ts
+* production par tour des villes
+* colonnes per-turn encore V1
+* city production tick
+* pending harvest / player bank si alimentés par les per-turn V1
+
+Ce bloc ne doit pas supprimer de colonnes.
+Ce bloc ne doit pas faire DROP COLUMN.
+Ce bloc ne doit pas faire de migration destructive.
+
+CONTEXTE
+Blocs terminés :
+
+* Bloc A : carte / HexTile / yields client
+* Bloc B : fracten production ville
+* Bloc C : inventaires / récolte / transport / banque
+* Bloc D : marché V2
+* Bloc E : UI labels/icônes
+* F1 : coûts construction/recrutement V2
+* F2 : transferts banque V2
+* F3 : flux transport ↔ ville ↔ banque validé
+
+L’audit pré-Bloc F a identifié un bloqueur majeur restant :
+
+* buildingEffects.ts écrit encore ironPerTurn / copperPerTurn / furPerTurn
+* economyService.ts lit encore ironPerTurn / copperPerTurn / furPerTurn
+* city_pending_harvest et player_bank reçoivent encore iron / copper / fur depuis la production ville
+
+OBJECTIF F4
+Convertir la production ville selon :
+
+* ironPerTurn + copperPerTurn → commonMetalsPerTurn
+* furPerTurn → leatherFurPerTurn
+* goldPerTurn → fractenPerTurn, déjà majoritairement traité mais à vérifier
+
+Les flux de production doivent écrire vers :
+
+* fracten
+* common_metals
+* leather_fur
+
+Et non plus comme source principale vers :
+
+* gold
+* iron
+* copper
+* fur
+
+PÉRIMÈTRE AUTORISÉ
+
+Auditer et modifier uniquement :
+
+Backend :
+
+* server/buildingEffects.ts
+* server/economyService.ts
+* server/cityService.ts seulement si DTO/per-turn ville concerné
+* server/routes/economy.ts seulement si production-tick concerné
+* shared/schema.ts seulement pour ajout additif strictement nécessaire
+
+Frontend :
+
+* client/src/lib/api/citiesApi.ts si DTO ville per-turn concerné
+* client/src/lib/api/economyApi.ts si DTO production tick concerné
+* client/src/components/game/TreasuryPanel.tsx seulement si production par tour affichée
+* client/src/components/game/TileInfoPanel.tsx seulement si production ville affichée
+
+INTERDICTIONS STRICTES
+
+Ne pas modifier :
+
+* marketService.ts
+* PublicMarketplace.tsx
+* routes/market.ts
+* MapGenerator.ts
+* HexTile
+* ResourceRevealSystem.ts
+* PlayerTransportPanel.tsx sauf bug direct
+* HarvestPanel.tsx sauf bug direct production/pending
+* logique construction F1
+* logique transferts F2/F3
+* auth
+* cartography ownership
+* déploiement
+
+Ne pas faire :
+
+* DROP COLUMN
+* suppression des colonnes legacy
+* migration destructive
+* refactor massif
+* F5
+* retrait support legacy marché
+
+ÉTAPE 1 — AUDIT F4 AVANT MODIFICATION
+
+Chercher dans le périmètre :
+
+buildingEffects
+ironPerTurn
+copperPerTurn
+furPerTurn
+goldPerTurn
+commonMetalsPerTurn
+leatherFurPerTurn
+fractenPerTurn
+iron_per_turn
+copper_per_turn
+fur_per_turn
+gold_per_turn
+common_metals_per_turn
+leather_fur_per_turn
+fracten_per_turn
+cityPendingHarvest.iron
+cityPendingHarvest.copper
+cityPendingHarvest.fur
+cityPendingHarvest.common_metals
+cityPendingHarvest.leather_fur
+playerBank.iron
+playerBank.copper
+playerBank.fur
+playerBank.common_metals
+playerBank.leather_fur
+
+Classer chaque occurrence :
+
+A. Production active V1 à convertir maintenant
+B. Déjà V2
+C. Fallback legacy temporaire acceptable
+D. Hors périmètre
+E. Dangereux / incohérent
+
+ÉTAPE 2 — VÉRIFIER LES COLONNES V2 PER-TURN
+
+Vérifier si les colonnes suivantes existent déjà :
+
+cities.common_metals_per_turn
+cities.leather_fur_per_turn
+
+Si elles existent :
+
+* ne pas les recréer
+
+Si elles n’existent pas :
+
+* proposer un ajout additif uniquement
+* pas de suppression des anciennes colonnes
+* pas de DROP COLUMN
+
+Backfill additif si nécessaire :
+
+* common_metals_per_turn = iron_per_turn + copper_per_turn
+* leather_fur_per_turn = fur_per_turn
+
+ÉTAPE 3 — BUILDING EFFECTS
+
+Dans buildingEffects.ts :
+
+Convertir les effets de production :
+
+* ironPerTurn + copperPerTurn doivent devenir commonMetalsPerTurn
+* furPerTurn doit devenir leatherFurPerTurn
+* goldPerTurn doit rester legacy ou être remplacé par fractenPerTurn si encore actif
+
+Règle :
+
+* les nouveaux bâtiments ou effets actifs doivent écrire V2
+* les champs V1 peuvent rester en commentaire/fallback si nécessaire
+* ne pas écrire V1 et V2 pour la même production logique, sauf sync legacy explicitement documentée
+
+ÉTAPE 4 — ECONOMY SERVICE / PRODUCTION TICK
+
+Dans economyService.ts :
+
+Convertir la lecture de production ville :
+
+Avant :
+
+* city.ironPerTurn
+* city.copperPerTurn
+* city.furPerTurn
+
+Après :
+
+* city.commonMetalsPerTurn
+* city.leatherFurPerTurn
+
+Destination production :
+
+* si ville avec banque : player_bank.common_metals / player_bank.leather_fur
+* si ville sans banque : city_pending_harvest.common_metals / city_pending_harvest.leather_fur
+
+Ne plus écrire iron/copper/fur comme source principale.
+
+Fallback acceptable :
+
+* si commonMetalsPerTurn absent ou 0, lire ironPerTurn + copperPerTurn comme fallback
+* si leatherFurPerTurn absent ou 0, lire furPerTurn comme fallback
+* ne jamais additionner V1 + V2 si V2 existe
+
+ÉTAPE 5 — CITY DTO / API
+
+Vérifier si CityDTO ou autres DTO exposent encore :
+
+* ironPerTurn
+* copperPerTurn
+* furPerTurn
+
+Ajouter ou prioriser :
+
+* commonMetalsPerTurn
+* leatherFurPerTurn
+
+Les champs V1 peuvent rester optionnels ou legacy, mais l’UI doit utiliser V2.
+
+ÉTAPE 6 — UI / AFFICHAGE PRODUCTION
+
+Si la production par tour est affichée :
+
+* afficher Métaux communs / tour
+* afficher Cuir et fourrure / tour
+* ne pas afficher Fer / Cuivre / Fourrure comme production principale
+* si V1 affiché, suffixe “legacy”
+
+ÉTAPE 7 — DOUBLE PRODUCTION / DOUBLE CRÉDIT
+
+Vérifier explicitement :
+
+* pas de common_metals + iron/copper générés simultanément pour la même production
+* pas de leather_fur + fur générés simultanément
+* pas de fracten + gold générés simultanément
+* pas de pending_harvest V1 + V2 pour la même valeur
+* pas de player_bank V1 + V2 pour la même valeur
+
+ÉTAPE 8 — VÉRIFICATION
+
+Lancer :
+
+npm run check
+
+Puis rechercher dans les fichiers modifiés :
+
+ironPerTurn
+copperPerTurn
+furPerTurn
+goldPerTurn
+commonMetalsPerTurn
+leatherFurPerTurn
+fractenPerTurn
+iron_per_turn
+copper_per_turn
+fur_per_turn
+gold_per_turn
+common_metals_per_turn
+leather_fur_per_turn
+fracten_per_turn
+cityPendingHarvest.iron
+cityPendingHarvest.copper
+cityPendingHarvest.fur
+playerBank.iron
+playerBank.copper
+playerBank.fur
+
+Classer les occurrences restantes :
+
+A. V2 principal
+B. Fallback legacy acceptable
+C. Hors périmètre
+D. Dangereux / à corriger maintenant
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC F4
+2. FICHIERS AUDITÉS
+3. COLONNES V2 PER-TURN DISPONIBLES OU AJOUTÉES
+4. CHANGEMENTS BUILDING EFFECTS
+5. CHANGEMENTS PRODUCTION TICK
+6. CHANGEMENTS DTO / API
+7. CHANGEMENTS UI SI APPLICABLE
+8. VÉRIFICATION DOUBLE PRODUCTION / DOUBLE CRÉDIT
+9. FALLBACKS LEGACY RESTANTS
+10. RÉSULTAT npm run check
+11. CONCLUSION : AUTORISÉ OU NON À PASSER À F5
+12. STOP
+
+STOP
+Ne pas commencer F5.
+Ne pas supprimer de colonnes.
+Ne pas faire DROP COLUMN.
+Ne pas faire de migration destructive.

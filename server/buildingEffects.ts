@@ -7,20 +7,35 @@
 // Clés = buildingId côté client (ConstructionPanel.tsx).
 // Valeurs = { matériau: quantité_par_tour }.
 // Seuls les matériaux Tier 1 logistiques sont présents ici.
+//
+// F4 V2 : iron + copper → common_metals, fur → leather_fur
+// Les colonnes V1 (iron_per_turn, copper_per_turn, fur_per_turn) sont conservées
+// mais ne sont plus la source principale de production.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { db, pool } from "./db";
 import { cities, mapTiles } from "../shared/schema";
 import { eq, sql, and, gte, lte } from "drizzle-orm";
 
-export type T1Material = 'food' | 'wood' | 'stone' | 'iron' | 'copper' | 'coal' | 'oil' | 'herbs' | 'fur';
+// F4 V2 : common_metals remplace iron+copper, leather_fur remplace fur.
+// Les V1 (iron, copper, fur) sont conservés comme types legacy pour backward-compat.
+export type T1Material =
+  | 'food' | 'wood' | 'stone' | 'coal' | 'oil' | 'herbs'
+  // V2 principal F4
+  | 'common_metals' | 'leather_fur'
+  // V1 legacy (backward-compat uniquement — ne plus utiliser dans BUILDING_PRODUCTION)
+  | 'iron' | 'copper' | 'fur';
 
 export type BuildingProduction = Partial<Record<T1Material, number>>;
 
+// F4 V2 : productions V2 uniquement.
+// mine : stone + common_metals (remplace iron).
+// advanced_mine : common_metals (remplace iron+copper) + coal.
+// hunting_post : leather_fur (remplace fur) + food.
 export const BUILDING_PRODUCTION: Record<string, BuildingProduction> = {
   // ── Forêt ──────────────────────────────────────────────────────────────────
   sawmill:          { wood: 2 },
-  hunting_post:     { fur: 1, food: 1 },
+  hunting_post:     { leather_fur: 1, food: 1 }, // F4 V2 : fur → leather_fur
   herbalist_house:  { herbs: 2 },
 
   // ── Terre fertile ──────────────────────────────────────────────────────────
@@ -31,8 +46,8 @@ export const BUILDING_PRODUCTION: Record<string, BuildingProduction> = {
   fishing_post:     { food: 2 },
 
   // ── Montagnes / collines / cavernes ────────────────────────────────────────
-  mine:             { stone: 1, iron: 1 },
-  advanced_mine:    { iron: 2, copper: 1, coal: 1 },
+  mine:             { stone: 1, common_metals: 1 }, // F4 V2 : iron → common_metals
+  advanced_mine:    { common_metals: 3, coal: 1 },  // F4 V2 : iron+copper → common_metals
 
   // ── Désert / marais / wasteland (huile) ────────────────────────────────────
   oil_camp:         { oil: 2 },
@@ -69,17 +84,22 @@ export const BUILDING_RESOURCE_PREREQS: Record<string, string[]> = {
 };
 
 // Colonnes cities affectées pour l'incrément/décrément production.
-// Ordre canonique Tier 1.
+// F4 V2 : common_metals → common_metals_per_turn, leather_fur → leather_fur_per_turn.
+// V1 legacy (iron, copper, fur) conservés pour backward-compat.
 export const T1_CITY_COLUMNS: Record<T1Material, string> = {
-  food:   'food_per_turn',
-  wood:   'wood_per_turn',
-  stone:  'stone_per_turn',
-  iron:   'iron_per_turn',
-  copper: 'copper_per_turn',
-  coal:   'coal_per_turn',
-  oil:    'oil_per_turn',
-  herbs:  'herbs_per_turn',
-  fur:    'fur_per_turn',
+  food:          'food_per_turn',
+  wood:          'wood_per_turn',
+  stone:         'stone_per_turn',
+  // F4 V2 principal
+  common_metals: 'common_metals_per_turn',
+  leather_fur:   'leather_fur_per_turn',
+  coal:          'coal_per_turn',
+  oil:           'oil_per_turn',
+  herbs:         'herbs_per_turn',
+  // V1 legacy — conservés pour bâtiments existants pré-F4
+  iron:          'iron_per_turn',
+  copper:        'copper_per_turn',
+  fur:           'fur_per_turn',
 };
 
 // ─── getCityControlledTerrains ────────────────────────────────────────────────
@@ -173,20 +193,26 @@ export function checkBuildingResourcePrereq(
 // ─── applyBuildingEffects ─────────────────────────────────────────────────────
 // Incrémente les colonnes *PerTurn de la ville selon le bâtiment posé.
 // Appeler APRÈS addBuilding() pour chaque nouveau bâtiment.
+// F4 V2 : common_metals → cities.commonMetalsPerTurn, leather_fur → cities.leatherFurPerTurn.
+// V1 legacy : iron/copper/fur conservés pour bâtiments pré-F4 seulement.
 export async function applyBuildingEffects(cityId: number, buildingId: string): Promise<void> {
   const prod = BUILDING_PRODUCTION[buildingId];
   if (!prod) return;
 
   const updates: Record<string, unknown> = {};
-  if (prod.food)   updates.foodPerTurn   = sql`${cities.foodPerTurn}   + ${prod.food}`;
-  if (prod.wood)   updates.woodPerTurn   = sql`${cities.woodPerTurn}   + ${prod.wood}`;
-  if (prod.stone)  updates.stonePerTurn  = sql`${cities.stonePerTurn}  + ${prod.stone}`;
-  if (prod.iron)   updates.ironPerTurn   = sql`${cities.ironPerTurn}   + ${prod.iron}`;
-  if (prod.copper) updates.copperPerTurn = sql`${cities.copperPerTurn} + ${prod.copper}`;
-  if (prod.coal)   updates.coalPerTurn   = sql`${cities.coalPerTurn}   + ${prod.coal}`;
-  if (prod.oil)    updates.oilPerTurn    = sql`${cities.oilPerTurn}    + ${prod.oil}`;
-  if (prod.herbs)  updates.herbsPerTurn  = sql`${cities.herbsPerTurn}  + ${prod.herbs}`;
-  if (prod.fur)    updates.furPerTurn    = sql`${cities.furPerTurn}    + ${prod.fur}`;
+  if (prod.food)          updates.foodPerTurn          = sql`${cities.foodPerTurn}          + ${prod.food}`;
+  if (prod.wood)          updates.woodPerTurn          = sql`${cities.woodPerTurn}          + ${prod.wood}`;
+  if (prod.stone)         updates.stonePerTurn         = sql`${cities.stonePerTurn}         + ${prod.stone}`;
+  // F4 V2 principal
+  if (prod.common_metals) updates.commonMetalsPerTurn  = sql`${(cities as any).commonMetalsPerTurn} + ${prod.common_metals}`;
+  if (prod.leather_fur)   updates.leatherFurPerTurn    = sql`${(cities as any).leatherFurPerTurn}   + ${prod.leather_fur}`;
+  if (prod.coal)          updates.coalPerTurn          = sql`${cities.coalPerTurn}          + ${prod.coal}`;
+  if (prod.oil)           updates.oilPerTurn           = sql`${cities.oilPerTurn}           + ${prod.oil}`;
+  if (prod.herbs)         updates.herbsPerTurn         = sql`${cities.herbsPerTurn}         + ${prod.herbs}`;
+  // V1 legacy — bâtiments pré-F4 (ne devrait plus être atteint pour iron/copper/fur)
+  if (prod.iron)          updates.ironPerTurn          = sql`${cities.ironPerTurn}          + ${prod.iron}`;
+  if (prod.copper)        updates.copperPerTurn        = sql`${cities.copperPerTurn}        + ${prod.copper}`;
+  if (prod.fur)           updates.furPerTurn           = sql`${cities.furPerTurn}           + ${prod.fur}`;
 
   if (Object.keys(updates).length === 0) return;
 

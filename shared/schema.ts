@@ -481,6 +481,9 @@ export const cities = pgTable("cities", {
   stonePerTurn:     integer("stone_per_turn").notNull().default(0),
   ironPerTurn:      integer("iron_per_turn").notNull().default(0),
   copperPerTurn:    integer("copper_per_turn").notNull().default(0),
+  // F4 V2 : métaux communs et cuir/fourrure par tour — remplacent iron+copper et fur
+  commonMetalsPerTurn: integer("common_metals_per_turn").notNull().default(0),
+  leatherFurPerTurn:   integer("leather_fur_per_turn").notNull().default(0),
   coalPerTurn:      integer("coal_per_turn").notNull().default(0),
   oilPerTurn:       integer("oil_per_turn").notNull().default(0),
   herbsPerTurn:     integer("herbs_per_turn").notNull().default(0),
