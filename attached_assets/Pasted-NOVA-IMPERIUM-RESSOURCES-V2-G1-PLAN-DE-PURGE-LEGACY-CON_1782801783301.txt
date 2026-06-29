@@ -1,0 +1,263 @@
+NOVA IMPERIUM — RESSOURCES V2 — G1 / PLAN DE PURGE LEGACY CONTRÔLÉE
+Branche : NI-10.09
+
+OBJECTIF
+Préparer la vraie suppression legacy, mais sans supprimer de colonnes maintenant.
+
+Ce bloc doit transformer le résultat F5 en plan de purge sécurisé.
+
+But :
+
+* identifier les colonnes V1 qui contiennent encore des données miroir
+* décider comment neutraliser ces données sans perte
+* déterminer quelles lectures V1 peuvent être retirées
+* déterminer quels fallbacks V1 doivent encore rester
+* produire un plan G2/G3/G4 avant tout DROP COLUMN
+
+CE BLOC EST UN AUDIT + PLAN.
+Ne pas supprimer de colonnes.
+Ne pas faire DROP COLUMN.
+Ne pas faire de migration destructive.
+Ne pas effacer les valeurs V1 sans validation explicite.
+
+CONTEXTE
+F5 a conclu :
+
+* aucune écriture V1 active classe A
+* les écritures V1 restantes sont fallback, zéro init, stockage legacy ou DTO
+* les données V1 non nulles sont des miroirs déjà migrés vers V2
+* market_trades.total_gold reste legacy storage exclusif
+* suppression legacy non encore autorisée
+
+Données V1 miroir connues :
+
+* player_bank.gold / iron / copper / fur
+* player_transport.gold / copper
+* player_market_box.copper
+
+Stockage legacy spécifique :
+
+* market_trades.total_gold
+
+OBJECTIF G1
+Produire une stratégie claire pour les blocs suivants :
+
+G2 — désactiver l’affichage et les inputs legacy quand les données sont miroir
+G3 — neutraliser les valeurs V1 miroir après validation
+G4 — retirer les fallbacks V1 dans le code
+G5 — ajouter colonnes modernes manquantes si nécessaire, par exemple total_fracten
+G6 — seulement plus tard : DROP COLUMN
+
+PÉRIMÈTRE AUTORISÉ
+
+Auditer seulement :
+
+Backend :
+
+* server/marketService.ts
+* server/routes/economy.ts
+* server/playerActionService.ts
+* server/economyService.ts
+* server/routes/cities.ts
+* shared/schema.ts
+
+Frontend :
+
+* client/src/lib/api/economyApi.ts
+* client/src/lib/api/marketApi.ts
+* client/src/components/game/TreasuryPanel.tsx
+* client/src/components/game/PlayerTransportPanel.tsx
+* client/src/components/game/PublicMarketplace.tsx
+* client/src/components/game/HarvestPanel.tsx
+
+DB :
+
+* lecture SQL seulement
+* aucun UPDATE sans validation explicite
+* aucun DELETE
+* aucun DROP
+
+INTERDICTIONS STRICTES
+
+Ne pas modifier :
+
+* MapGenerator.ts
+* HexTile
+* ResourceRevealSystem.ts
+* buildingEffects.ts sauf lecture/audit
+* logique production F4 sauf lecture/audit
+* auth
+* cartography ownership
+* déploiement
+
+Ne pas faire :
+
+* DROP COLUMN
+* UPDATE destructif
+* DELETE
+* suppression de fallbacks
+* suppression de DTO
+* refactor massif
+* G2 sans validation
+
+ÉTAPE 1 — CONFIRMER LES DONNÉES MIROIR
+
+Lancer des requêtes SQL de diagnostic pour confirmer :
+
+player_bank :
+
+* gold = fracten ?
+* iron + copper = common_metals ?
+* fur = leather_fur ?
+
+player_transport :
+
+* gold = fracten ?
+* iron + copper = common_metals ?
+* fur = leather_fur ?
+
+player_market_box :
+
+* gold = fracten ?
+* iron + copper = common_metals ?
+* fur = leather_fur ?
+
+city_inventory :
+
+* gold = fracten ?
+* iron + copper = common_metals ?
+* fur = leather_fur ?
+
+city_pending_harvest :
+
+* gold = fracten ?
+* iron + copper = common_metals ?
+* fur = leather_fur ?
+
+market_fee_box :
+
+* gold = fracten ?
+
+cities :
+
+* gold_per_turn = fracten_per_turn ?
+* iron_per_turn + copper_per_turn = common_metals_per_turn ?
+* fur_per_turn = leather_fur_per_turn ?
+
+market_trades :
+
+* total_gold existe
+* vérifier s’il existe total_fracten
+* si total_fracten n’existe pas, proposer ajout additif plus tard, pas maintenant
+
+ÉTAPE 2 — CLASSER CHAQUE COLONNE LEGACY
+
+Pour chaque colonne legacy :
+
+* table
+* colonne
+* valeur totale
+* miroir exact avec V2 ?
+* lue par le code ?
+* écrite par le code ?
+* affichée par UI ?
+* fallback actif ?
+* peut être masquée UI ?
+* peut être neutralisée plus tard ?
+* peut être supprimée plus tard ?
+* bloc recommandé
+
+Colonnes à couvrir :
+
+* player_bank.gold / iron / copper / fur
+* player_transport.gold / iron / copper / fur
+* player_market_box.gold / iron / copper / fur
+* city_inventory.gold / iron / copper / fur
+* city_pending_harvest.gold / iron / copper / fur
+* market_fee_box.gold
+* cities.gold_per_turn / iron_per_turn / copper_per_turn / fur_per_turn
+* market_trades.total_gold
+
+ÉTAPE 3 — PLAN G2 UI
+
+Proposer un plan pour masquer les ressources legacy dans l’UI quand elles sont miroir.
+
+Exemples :
+
+* ne plus afficher gold/iron/copper/fur si V2 équivalent contient déjà la même valeur
+* afficher legacy seulement si V1 non nul ET V2 équivalent nul ou conflit
+* garder un mode debug legacy si nécessaire
+
+Ne pas coder maintenant.
+
+ÉTAPE 4 — PLAN G3 NEUTRALISATION V1
+
+Proposer un plan de neutralisation future :
+
+Exemple :
+
+* après validation manuelle, UPDATE player_bank SET gold=0, iron=0, copper=0, fur=0 si V2 miroir exact
+* idem pour transport/market_box/etc.
+
+Important :
+
+* ce plan ne doit pas être exécuté maintenant
+* il doit inclure les requêtes SQL exactes mais commentées comme “à exécuter plus tard”
+* il doit prévoir rollback
+
+ÉTAPE 5 — PLAN G4 RETRAIT FALLBACKS CODE
+
+Lister les fallbacks V1 à retirer plus tard :
+
+* server/playerActionService.ts
+* server/routes/economy.ts
+* server/marketService.ts
+* economyApi.ts
+* TreasuryPanel.tsx
+* PlayerTransportPanel.tsx
+* PublicMarketplace.tsx
+
+Classer :
+
+* retirable après neutralisation V1
+* à conserver jusqu’à purge market orders
+* à conserver jusqu’à migration total_gold
+
+ÉTAPE 6 — PLAN G5 MARKET TRADES
+
+Analyser `market_trades.total_gold`.
+
+Si `total_fracten` n’existe pas :
+
+* proposer ajout additif `total_fracten`
+* backfill `total_fracten = total_gold`
+* modifier code marché pour écrire `total_fracten`
+* garder `total_gold` legacy jusqu’à G6
+
+Ne pas exécuter maintenant.
+
+ÉTAPE 7 — RÉSULTAT FINAL
+
+Ne pas lancer npm run check si aucun code n’est modifié.
+Si un fichier est modifié seulement pour documentation, lancer npm run check.
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC G1
+2. DONNÉES MIROIR CONFIRMÉES
+3. COLONNES LEGACY CLASSÉES
+4. LECTURES V1 RESTANTES
+5. ÉCRITURES V1 RESTANTES
+6. PLAN G2 UI
+7. PLAN G3 NEUTRALISATION V1
+8. PLAN G4 RETRAIT FALLBACKS CODE
+9. PLAN G5 MARKET_TRADES / TOTAL_FRACTEN
+10. RISQUES ET ROLLBACK
+11. CONCLUSION : G2 AUTORISÉ OU NON
+12. STOP
+
+STOP
+Ne pas commencer G2.
+Ne pas supprimer de colonnes.
+Ne pas modifier la DB.
+Ne pas faire DROP COLUMN.
