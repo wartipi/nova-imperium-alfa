@@ -25,6 +25,9 @@ export const TERRAIN_MOVEMENT_COSTS: Record<TerrainType, number> = {
   // Terrains aquatiques (impossible sans navire)
   shallow_water: 999,     // Eau peu profonde - nécessite un bateau
   deep_water: 999,        // Eau profonde - nécessite un navire
+
+  // Terrains standards
+  plains: 1,              // Plaine - terrain facile
 };
 
 // Fonction pour obtenir le coût de déplacement d'un terrain

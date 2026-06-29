@@ -45,14 +45,11 @@ const createInitialNovaImperiums = (): NovaImperium[] => {
       resources: {
         food: 40,
         action_points: 25,
-        gold: 80,
-        // Strategic resources
-        iron: 5,
+        fracten: 80,
+        common_metals: 5,
         stone: 10,
         wood: 15,
-        precious_metals: 8,
-        // Magical resources for Nova Imperium
-        mana: 20,
+        leather_fur: 8,
         crystals: 3,
         ancient_knowledge: 5
       },
@@ -72,14 +69,11 @@ const createInitialNovaImperiums = (): NovaImperium[] => {
       resources: {
         food: 30,
         action_points: 20,
-        gold: 60,
-        // Strategic resources
-        iron: 3,
+        fracten: 60,
+        common_metals: 3,
         stone: 6,
         wood: 12,
-        precious_metals: 4,
-        // Magical resources for Nova Imperium
-        mana: 15,
+        leather_fur: 4,
         crystals: 2,
         ancient_knowledge: 3
       },
@@ -180,7 +174,7 @@ export const useNovaImperium = create<NovaImperiumState>()(
         const updatedNIs = state.novaImperiums.map(ni => 
           ni.id === state.currentNovaImperiumId ? {
             ...ni,
-            resources: resourceCost && !isAdmin ? {
+            resources: (resourceCost && !isAdmin ? {
               ...ni.resources,
               ...Object.fromEntries(
                 Object.entries(resourceCost).map(([resource, amount]) => [
@@ -188,7 +182,7 @@ export const useNovaImperium = create<NovaImperiumState>()(
                   Math.max(0, (ni.resources[resource as keyof Resources] || 0) - amount)
                 ])
               )
-            } : ni.resources,
+            } : ni.resources) as Resources,
             cities: ni.cities.map(city => 
               city.id === cityId ? {
                 ...city,
@@ -217,8 +211,8 @@ export const useNovaImperium = create<NovaImperiumState>()(
         }
         
         return {
-          novaImperiums: updatedNIs,
-          currentNovaImperium: updatedCurrentNI
+          novaImperiums: updatedNIs as NovaImperium[],
+          currentNovaImperium: updatedCurrentNI as NovaImperium | null
         };
       });
 
@@ -265,7 +259,7 @@ export const useNovaImperium = create<NovaImperiumState>()(
         const updatedNIs = state.novaImperiums.map(ni => 
           ni.id === state.currentNovaImperiumId ? {
             ...ni,
-            resources: cost ? {
+            resources: (cost ? {
               ...ni.resources,
               ...Object.fromEntries(
                 Object.entries(cost).map(([resource, amount]) => [
@@ -273,7 +267,7 @@ export const useNovaImperium = create<NovaImperiumState>()(
                   Math.max(0, (ni.resources[resource as keyof Resources] || 0) - amount)
                 ])
               )
-            } : ni.resources,
+            } : ni.resources) as Resources,
             cities: ni.cities.map(city => 
               city.id === cityId ? {
                 ...city,
@@ -291,8 +285,8 @@ export const useNovaImperium = create<NovaImperiumState>()(
         const updatedCurrentNI = updatedNIs.find(ni => ni.id === state.currentNovaImperiumId) || null;
         
         return {
-          novaImperiums: updatedNIs,
-          currentNovaImperium: updatedCurrentNI
+          novaImperiums: updatedNIs as NovaImperium[],
+          currentNovaImperium: updatedCurrentNI as NovaImperium | null
         };
       });
 

@@ -1,0 +1,1 @@
+- [Resources V2 migration](resources-v2.md) — fracten/common_metals/leather_fur ajoutés en passe additive; V1 (gold/iron/copper/fur) gardés comme legacy pendant migration.

@@ -1,0 +1,467 @@
+NOVA IMPERIUM — RESSOURCES V2 — VRAI REFACTOR CONTRÔLÉ
+Branche : NI-10.3
+
+CHANGEMENT DE DIRECTION
+On ne veut plus seulement une compatibilité d’affichage temporaire.
+On veut maintenant un vrai refactor des clés de ressources vers la nouvelle base officielle.
+
+IMPORTANT
+Ce n’est pas une permission pour faire un refactor massif non contrôlé.
+Le travail doit être fait en phases séparées, avec vérification après chaque phase.
+
+RÔLE
+Tu agis comme cadreur technique et refactor assistant sous contrainte stricte.
+
+Méthode obligatoire :
+1. Audit
+2. Plan par phases
+3. Implémentation phase par phase
+4. Vérification après chaque phase
+5. Stop si une phase révèle un risque DB ou TypeScript non trivial
+
+PRIORITÉS
+1. Simplicité
+2. Lisibilité
+3. Stabilité
+4. Compatibilité
+5. Refactor complet mais contrôlé
+
+OBJECTIF FINAL
+Remplacer réellement les anciennes ressources par les nouvelles ressources officielles de Nova Imperium.
+
+Il ne faut pas garder gold comme clé monétaire finale.
+Il ne faut pas garder iron/copper comme ressources finales si le modèle officiel utilise common_metals.
+Il ne faut pas garder fur comme ressource finale si le modèle officiel utilise leather_fur.
+Il ne faut pas garder gems comme ressource finale si le modèle officiel utilise precious_stones.
+
+LISTE OFFICIELLE FINALE
+
+1. COMMUNES
+Ressources naturelles de carte.
+
+- food
+  Nom : Nourriture
+
+- wood
+  Nom : Bois
+
+- leather_fur
+  Nom : Cuir et fourrure
+
+- stone
+  Nom : Pierre
+
+- common_metals
+  Nom : Métaux communs
+
+- coal
+  Nom : Charbon
+
+- oil
+  Nom : Huile
+
+- herbs
+  Nom : Herbes
+
+2. STRATÉGIQUES
+Ressources produites par bâtiments.
+Ne doivent jamais apparaître naturellement sur la carte.
+
+- basic_equipment
+  Nom : Équipement basique
+
+- intermediate_equipment
+  Nom : Équipement intermédiaire
+
+- advanced_equipment
+  Nom : Équipement avancé
+
+- epic_equipment
+  Nom : Équipement épique
+
+- legendary_equipment
+  Nom : Équipement légendaire
+
+3. RARES
+Ressources naturelles de carte.
+
+- rare_metals_alloys
+  Nom : Métaux et alliages rares
+
+- textiles
+  Nom : Textiles
+
+- spices
+  Nom : Épices
+
+- precious_stones
+  Nom : Pierres précieuses
+
+4. MAGIQUES
+Ressources naturelles de carte.
+Révélation seulement niveau d’exploration 3+ si le système existe.
+
+- crystals
+  Nom : Cristaux
+
+- sacred_stones
+  Nom : Pierres sacrées
+
+- ancient_artifacts
+  Nom : Artefacts anciens
+
+- enchanted_wood
+  Nom : Bois enchanté
+
+- mana_crystals
+  Nom : Cristaux de mana
+
+- arcane_stones
+  Nom : Pierres arcaniques
+
+- elemental_essence
+  Nom : Essence élémentaire
+
+- spirit_stones
+  Nom : Pierres d’esprit
+
+- void_shards
+  Nom : Éclats du vide
+
+5. MONNAIE OFFICIELLE
+
+- fracten
+  Nom : Fracten
+  Type : currency
+  Ne doit jamais apparaître comme ressource naturelle de carte.
+
+RESSOURCES À SUPPRIMER OU REMPLACER
+
+- wheat → food
+- fish → food
+- cattle → leather_fur
+- fur → leather_fur
+- iron → common_metals
+- copper → common_metals
+- gold comme monnaie → fracten
+- gold comme ressource rare → rare_metals_alloys
+- uranium → supprimer
+- silk → textiles
+- petroleum / pétrole → oil avec label Huile
+- ivory → supprimer
+- dragon_scales → supprimer
+- phoenix_feathers → supprimer
+- mana_stones → supprimer
+- gems → precious_stones
+- siege_equipment → supprimer comme ressource finale
+
+RÈGLE IMPORTANTE
+Si plusieurs anciennes ressources fusionnent vers une nouvelle :
+- iron + copper → common_metals
+- wheat + fish → food
+- cattle + fur → leather_fur
+
+Il faut vérifier tous les flux :
+- génération carte
+- récolte
+- inventaire ville
+- inventaire joueur
+- production bâtiments
+- marché
+- coûts de bâtiments
+- coûts d’unités
+- UI
+
+PHASE 1 — AUDIT COMPLET AVANT MODIFICATION
+
+Lire et lister tous les fichiers qui contiennent les anciennes clés :
+
+gold
+iron
+copper
+fur
+cattle
+wheat
+fish
+gems
+silk
+uranium
+ivory
+dragon_scales
+phoenix_feathers
+mana_stones
+siege_equipment
+
+Lire aussi les fichiers liés à :
+- ResourceType
+- catalogues de ressources
+- génération de carte
+- seed de carte
+- inventaires
+- marché
+- économie
+- bâtiments
+- production
+- coûts
+- affichage UI
+
+Répondre d’abord avec :
+1. fichiers touchés par les ressources
+2. fichiers qui nécessitent une vraie modification
+3. fichiers à ne pas toucher
+4. risques DB
+5. proposition de découpage exact
+
+Ne rien modifier avant ce diagnostic.
+
+PHASE 2 — CATALOGUE ET TYPES
+
+Après validation du diagnostic, modifier :
+- types de ressources
+- catalogue central ou constantes existantes
+- labels français
+- catégories
+- règles de révélation
+
+Objectif :
+- les nouvelles clés officielles existent
+- les anciennes clés ne sont plus considérées comme ressources officielles
+- les catégories sont propres
+
+Lancer :
+npm run check
+
+Si erreur TypeScript :
+- corriger uniquement les erreurs liées aux ressources
+- ne pas refactorer autre chose
+
+PHASE 3 — DB / SCHEMA / STOCKAGE
+
+Analyser si les ressources sont stockées :
+- comme colonnes fixes
+- comme JSON
+- comme enum TypeScript seulement
+- comme string libre
+
+Si elles sont en colonnes fixes dans shared/schema.ts :
+- proposer explicitement le changement avant de le faire
+- expliquer les colonnes à renommer ou ajouter/supprimer
+- expliquer s’il faut une migration ou un backfill
+
+Objectif final désiré :
+- gold doit devenir fracten
+- iron/copper doivent disparaître au profit de common_metals
+- fur doit devenir leather_fur
+- gems doit devenir precious_stones si stocké
+- silk doit devenir textiles si stocké
+
+Ne pas faire de suppression dangereuse de données sans migration/backfill.
+
+Si les données existantes doivent être préservées, prévoir une conversion :
+- new.common_metals = old.iron + old.copper
+- new.leather_fur = old.fur + old.cattle si cattle existe en stockage
+- new.fracten = old.gold
+- new.precious_stones = old.gems
+- new.textiles = old.silk
+
+Après modification :
+npm run check
+
+PHASE 4 — SERVICES ÉCONOMIE / PRODUCTION / MARCHÉ
+
+Adapter tous les services qui utilisent les anciennes ressources.
+
+Inclure :
+- economyService
+- marketService
+- buildingEffects
+- routes économie / marché si nécessaire
+- coûts de bâtiments
+- coûts d’unités si codés en ressources
+- production de bâtiments
+
+Objectif :
+- aucune logique économique ne dépend encore de gold, iron, copper, fur, gems, silk comme clés finales
+- fracten devient la monnaie officielle
+- common_metals devient la ressource métal commune
+- leather_fur devient la ressource animale exploitable
+- precious_stones devient la ressource rare précieuse
+- textiles remplace silk
+
+Après modification :
+npm run check
+
+PHASE 5 — CARTE / GÉNÉRATION / SEEDS
+
+Adapter :
+- MapGenerator
+- mapSeed
+- updateResources si existant
+- ResourceRevealSystem
+
+Règle :
+Peuvent apparaître sur les tuiles :
+- food
+- wood
+- leather_fur
+- stone
+- common_metals
+- coal
+- oil
+- herbs
+- rare_metals_alloys
+- textiles
+- spices
+- precious_stones
+- crystals
+- sacred_stones
+- ancient_artifacts
+- enchanted_wood
+- mana_crystals
+- arcane_stones
+- elemental_essence
+- spirit_stones
+- void_shards
+
+Ne doivent jamais apparaître sur les tuiles :
+- fracten
+- basic_equipment
+- intermediate_equipment
+- advanced_equipment
+- epic_equipment
+- legendary_equipment
+
+Règles de révélation :
+- communes : niveau 1
+- rares : niveau 1
+- magiques : niveau 3+
+
+Après modification :
+npm run check
+
+PHASE 6 — UI
+
+Modifier les composants d’affichage pour utiliser les nouveaux noms.
+
+L’UI ne doit plus afficher :
+- Gold / Or comme monnaie
+- Iron / Fer
+- Copper / Cuivre
+- Fur / Fourrure seule
+- Gems / Gemmes
+- Silk / Soie
+- Petroleum / Pétrole
+- Uranium
+- Ivory / Ivoire
+- Dragon scales
+- Phoenix feathers
+- Mana stones
+- Siege equipment comme ressource finale
+
+L’UI doit afficher :
+- Fracten
+- Métaux communs
+- Cuir et fourrure
+- Pierres précieuses
+- Textiles
+- Huile
+
+Après modification :
+npm run check
+
+PHASE 7 — RECHERCHE FINALE
+
+Faire une recherche texte dans le repo pour les anciennes clés :
+
+gold
+iron
+copper
+fur
+cattle
+wheat
+fish
+gems
+silk
+uranium
+ivory
+dragon_scales
+phoenix_feathers
+mana_stones
+siege_equipment
+
+Pour chaque occurrence restante :
+- dire si elle est acceptable
+- dire si elle est dans un commentaire de migration
+- dire si elle est une dette restante
+- dire si elle doit être corrigée maintenant ou dans un autre segment
+
+PHASE 8 — BUILD
+
+Lancer :
+
+npm run check
+
+Puis si possible :
+
+npm run build
+
+VÉRIFICATION OBLIGATOIRE
+
+A. TypeScript
+- npm run check sans erreur
+
+B. Build
+- npm run build sans erreur si exécuté
+
+C. Ressources finales
+Confirmer que la liste finale contient :
+- 8 communes
+- 5 stratégiques
+- 4 rares
+- 9 magiques
+- 1 monnaie officielle
+
+D. Génération carte
+Confirmer que :
+- les équipements stratégiques ne sont pas générés sur la carte
+- fracten n’est pas généré sur la carte
+- les ressources magiques sont révélées seulement niveau 3+ si le système de révélation est actif
+
+E. Économie
+Confirmer que :
+- fracten remplace gold comme monnaie finale
+- common_metals remplace iron/copper
+- leather_fur remplace fur/cattle
+- precious_stones remplace gems
+- textiles remplace silk
+
+F. Non-régression
+Confirmer :
+- aucun changement auth
+- aucun changement cartography ownership
+- aucun changement combat hors dépendance directe aux ressources
+- aucun fichier supprimé
+- aucun refactor hors ressources
+
+FORMAT DE RÉPONSE FINAL OBLIGATOIRE
+
+Répondre avec exactement ces sections :
+
+1. DIAGNOSTIC INITIAL
+2. PLAN PAR PHASES
+3. PHASES APPLIQUÉES
+4. FICHIERS MODIFIÉS
+5. LISTE FINALE DES RESSOURCES
+6. CHANGEMENTS DB / STOCKAGE
+7. CHANGEMENTS ÉCONOMIE / PRODUCTION / MARCHÉ
+8. CHANGEMENTS CARTE / SEEDS
+9. CHANGEMENTS UI
+10. OCCURRENCES ANCIENNES RESTANTES
+11. VÉRIFICATION
+12. RISQUES RESTANTS
+13. STOP
+
+STOP FINAL
+Ne pas ouvrir d’autre chantier.
+Ne pas corriger cartography ownership dans ce segment.
+Ne pas changer le déploiement Replit dans ce segment.

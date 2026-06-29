@@ -65,28 +65,56 @@ export type ImprovementType =
   | 'plantation' 
   | 'quarry';
 
-export type ResourceType = 
-  // Basic Resources (révélées niveau 1+)
-  | 'wheat' | 'cattle' | 'fish' | 'stone' | 'copper' | 'iron' | 'gold' | 'wood'
-  // Strategic Resources (révélées niveau 1+)
-  | 'oil' | 'coal' | 'uranium' | 'silk' | 'spices' | 'gems' | 'ivory'
-  // Magical Resources (révélées niveau 3+)
-  | 'herbs' | 'crystals' | 'sacred_stones' | 'ancient_artifacts' | 'mana_stones' | 'enchanted_wood'
-  // Advanced Magical Resources (révélées niveau 3+)
-  | 'mana_crystals' | 'dragon_scales' | 'phoenix_feathers' | 'arcane_stones' 
-  | 'elemental_essence' | 'spirit_stones' | 'void_shards';
+// ─── LISTE OFFICIELLE DES RESSOURCES NOVA IMPERIUM V2 ────────────────────────
+
+export type ResourceType =
+  // A. COMMUNES — ressources naturelles de carte (révélées niveau 1+)
+  | 'food'           // Nourriture
+  | 'wood'           // Bois
+  | 'leather_fur'    // Cuir et fourrure  (remplace cattle + fur)
+  | 'stone'          // Pierre
+  | 'common_metals'  // Métaux communs    (remplace iron + copper)
+  | 'coal'           // Charbon
+  | 'oil'            // Huile             (anciennement Pétrole)
+  | 'herbs'          // Herbes            (était magique, maintenant commune)
+
+  // B. STRATÉGIQUES — produites par bâtiments, jamais sur la carte
+  | 'basic_equipment'        // Équipement basique
+  | 'intermediate_equipment' // Équipement intermédiaire
+  | 'advanced_equipment'     // Équipement avancé
+  | 'epic_equipment'         // Équipement épique
+  | 'legendary_equipment'    // Équipement légendaire
+
+  // C. RARES — ressources naturelles de carte (révélées niveau 1+)
+  | 'rare_metals_alloys' // Métaux et alliages rares (remplace gold comme ressource rare)
+  | 'textiles'           // Textiles              (remplace silk)
+  | 'spices'             // Épices
+  | 'precious_stones'    // Pierres précieuses    (remplace gems)
+
+  // D. MAGIQUES — ressources naturelles de carte (révélées niveau 3+)
+  | 'crystals'           // Cristaux
+  | 'sacred_stones'      // Pierres sacrées
+  | 'ancient_artifacts'  // Artefacts anciens
+  | 'enchanted_wood'     // Bois enchanté
+  | 'mana_crystals'      // Cristaux de mana
+  | 'arcane_stones'      // Pierres arcaniques
+  | 'elemental_essence'  // Essence élémentaire
+  | 'spirit_stones'      // Pierres d'esprit
+  | 'void_shards';       // Éclats du vide
+
+// E. MONNAIE — fracten (jamais sur la carte, remplace gold comme monnaie)
+export type CurrencyType = 'fracten';
 
 export interface Resources {
   food: number;
   action_points: number;
-  gold: number;
-  // Strategic resources
-  iron: number;
+  fracten: number;         // Monnaie officielle (remplace gold)
+  // Ressources communes
+  common_metals: number;   // Métaux communs (remplace iron + copper)
   stone: number;
   wood: number;
-  precious_metals: number;
-  // Magical resources for Nova Imperium
-  mana: number;
+  leather_fur: number;     // Cuir et fourrure (remplace fur + cattle)
+  // Ressources magiques
   crystals: number;
   ancient_knowledge: number;
 }
@@ -97,7 +125,7 @@ export interface HexTile {
   terrain: TerrainType;
   food: number;
   action_points: number;
-  gold: number;
+  gold: number;            // TODO: migration → fracten (valeur économique héritée du générateur)
   resource: ResourceType | null;
   resources: string[];
   hasRiver: boolean;

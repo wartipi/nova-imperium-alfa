@@ -83,9 +83,9 @@ export function ConstructionPanel() {
   ];
 
   // Fonctions utilitaires
-  const formatResourceCost = (cost: Resources) => {
+  const formatResourceCost = (cost: Record<string, number | undefined>) => {
     return Object.entries(cost)
-      .filter(([key]) => key !== 'action_points')
+      .filter(([key, value]) => key !== 'action_points' && value !== undefined && value > 0)
       .map(([key, value]) => `${value} ${getResourceIcon(key)}`)
       .join(', ');
   };
@@ -93,14 +93,14 @@ export function ConstructionPanel() {
   const getResourceIcon = (resource: string) => {
     const icons: { [key: string]: string } = {
       food: '🌾',
-      gold: '💰',
+      fracten: '💰',
       wood: '🪵',
       stone: '🪨',
-      iron: '⚙️',
-      precious_metals: '💎',
-      mana: '✨',
-      crystals: '💎',
-      ancient_knowledge: '📜'
+      common_metals: '⚙️',
+      rare_metals_alloys: '🥇',
+      crystals: '💠',
+      arcane_stones: '⚡',
+      leather_fur: '🦊',
     };
     return icons[resource] || resource;
   };

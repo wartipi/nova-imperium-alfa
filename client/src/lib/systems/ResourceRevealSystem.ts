@@ -1,6 +1,6 @@
 /**
- * Système de révélation des ressources pour Nova Imperium
- * Niveau 1 d'Exploration révèle les ressources rares et stratégiques dans le champ de vision
+ * Système de révélation des ressources pour Nova Imperium V2
+ * Liste officielle : 8 communes + 5 stratégiques + 4 rares + 9 magiques + 1 monnaie
  */
 
 import type { ResourceType, HexTile } from '../game/types';
@@ -11,155 +11,106 @@ export interface ResourceInfo {
   symbol: string;
   color: string;
   revealLevel: number; // Niveau d'exploration requis pour révéler
+  label: string;       // Nom français officiel
 }
 
 export class ResourceRevealSystem {
-  // Classification des ressources par rareté et niveau de révélation
   private static readonly RESOURCE_INFO: Record<ResourceType, ResourceInfo> = {
-    // Ressources communes (invisibles sans exploration niveau 1)
-    wheat: { type: 'wheat', rarity: 'common', symbol: '🌾', color: '#FFD700', revealLevel: 1 },
-    cattle: { type: 'cattle', rarity: 'common', symbol: '🐄', color: '#8B4513', revealLevel: 1 },
-    fish: { type: 'fish', rarity: 'common', symbol: '🐟', color: '#4682B4', revealLevel: 1 },
-    wood: { type: 'wood', rarity: 'common', symbol: '🪵', color: '#8B4513', revealLevel: 1 },
-    
-    // Ressources stratégiques (révélées niveau 1)
-    stone: { type: 'stone', rarity: 'strategic', symbol: '🪨', color: '#708090', revealLevel: 1 },
-    copper: { type: 'copper', rarity: 'strategic', symbol: '🔶', color: '#B87333', revealLevel: 1 },
-    iron: { type: 'iron', rarity: 'strategic', symbol: '⚒️', color: '#C0C0C0', revealLevel: 1 },
-    coal: { type: 'coal', rarity: 'strategic', symbol: '⚫', color: '#2F2F2F', revealLevel: 1 },
-    
-    // Ressources rares (révélées niveau 1)
-    gold: { type: 'gold', rarity: 'rare', symbol: '🥇', color: '#FFD700', revealLevel: 1 },
-    oil: { type: 'oil', rarity: 'rare', symbol: '🛢️', color: '#8B4513', revealLevel: 1 },
-    uranium: { type: 'uranium', rarity: 'rare', symbol: '☢️', color: '#7CFC00', revealLevel: 1 },
-    silk: { type: 'silk', rarity: 'rare', symbol: '🧵', color: '#DDA0DD', revealLevel: 1 },
-    spices: { type: 'spices', rarity: 'rare', symbol: '🌶️', color: '#FF6347', revealLevel: 1 },
-    gems: { type: 'gems', rarity: 'rare', symbol: '💎', color: '#00CED1', revealLevel: 1 },
-    ivory: { type: 'ivory', rarity: 'rare', symbol: '🦴', color: '#FFF8DC', revealLevel: 1 },
-    
-    // Ressources magiques (révélées niveau 3+ seulement)
-    herbs: { type: 'herbs', rarity: 'magical', symbol: '🌿', color: '#32CD32', revealLevel: 3 },
-    crystals: { type: 'crystals', rarity: 'magical', symbol: '💠', color: '#9370DB', revealLevel: 3 },
-    sacred_stones: { type: 'sacred_stones', rarity: 'magical', symbol: '🔮', color: '#8A2BE2', revealLevel: 3 },
-    ancient_artifacts: { type: 'ancient_artifacts', rarity: 'magical', symbol: '📿', color: '#DAA520', revealLevel: 3 },
-    mana_stones: { type: 'mana_stones', rarity: 'magical', symbol: '✨', color: '#4169E1', revealLevel: 3 },
-    enchanted_wood: { type: 'enchanted_wood', rarity: 'magical', symbol: '🌳', color: '#228B22', revealLevel: 3 },
-    
-    // Nouvelles ressources magiques avancées (niveau 3+)
-    mana_crystals: { type: 'mana_crystals', rarity: 'magical', symbol: '🔵', color: '#0066FF', revealLevel: 3 },
-    dragon_scales: { type: 'dragon_scales', rarity: 'magical', symbol: '🐲', color: '#FF4500', revealLevel: 3 },
-    phoenix_feathers: { type: 'phoenix_feathers', rarity: 'magical', symbol: '🔥', color: '#FF6600', revealLevel: 3 },
-    arcane_stones: { type: 'arcane_stones', rarity: 'magical', symbol: '⚡', color: '#9932CC', revealLevel: 3 },
-    elemental_essence: { type: 'elemental_essence', rarity: 'magical', symbol: '🌀', color: '#00FFFF', revealLevel: 3 },
-    spirit_stones: { type: 'spirit_stones', rarity: 'magical', symbol: '👻', color: '#E6E6FA', revealLevel: 3 },
-    void_shards: { type: 'void_shards', rarity: 'magical', symbol: '🕳️', color: '#2F2F2F', revealLevel: 3 }
+    // A. COMMUNES — révélées niveau 1
+    food:           { type: 'food',           rarity: 'common',    symbol: '🌿', color: '#7EC850', revealLevel: 1, label: 'Nourriture'          },
+    wood:           { type: 'wood',           rarity: 'common',    symbol: '🪵', color: '#8B4513', revealLevel: 1, label: 'Bois'                 },
+    leather_fur:    { type: 'leather_fur',    rarity: 'common',    symbol: '🦊', color: '#A0522D', revealLevel: 1, label: 'Cuir et fourrure'     },
+    stone:          { type: 'stone',          rarity: 'common',    symbol: '🪨', color: '#708090', revealLevel: 1, label: 'Pierre'               },
+    common_metals:  { type: 'common_metals',  rarity: 'common',    symbol: '⚙️', color: '#C0C0C0', revealLevel: 1, label: 'Métaux communs'       },
+    coal:           { type: 'coal',           rarity: 'common',    symbol: '⚫', color: '#2F2F2F', revealLevel: 1, label: 'Charbon'              },
+    oil:            { type: 'oil',            rarity: 'common',    symbol: '🛢️', color: '#5C4033', revealLevel: 1, label: 'Huile'                },
+    herbs:          { type: 'herbs',          rarity: 'common',    symbol: '🌿', color: '#32CD32', revealLevel: 1, label: 'Herbes'               },
+
+    // B. STRATÉGIQUES — produites par bâtiments, ne sont jamais révélées sur la carte
+    basic_equipment:        { type: 'basic_equipment',        rarity: 'strategic', symbol: '🛡️', color: '#808080', revealLevel: 99, label: 'Équipement basique'       },
+    intermediate_equipment: { type: 'intermediate_equipment', rarity: 'strategic', symbol: '⚔️', color: '#708090', revealLevel: 99, label: 'Équipement intermédiaire'  },
+    advanced_equipment:     { type: 'advanced_equipment',     rarity: 'strategic', symbol: '🗡️', color: '#607090', revealLevel: 99, label: 'Équipement avancé'         },
+    epic_equipment:         { type: 'epic_equipment',         rarity: 'strategic', symbol: '🏹', color: '#9370DB', revealLevel: 99, label: 'Équipement épique'          },
+    legendary_equipment:    { type: 'legendary_equipment',    rarity: 'strategic', symbol: '👑', color: '#FFD700', revealLevel: 99, label: 'Équipement légendaire'      },
+
+    // C. RARES — révélées niveau 1
+    rare_metals_alloys: { type: 'rare_metals_alloys', rarity: 'rare', symbol: '🥇', color: '#DAA520', revealLevel: 1, label: 'Métaux et alliages rares' },
+    textiles:           { type: 'textiles',           rarity: 'rare', symbol: '🧵', color: '#DDA0DD', revealLevel: 1, label: 'Textiles'                 },
+    spices:             { type: 'spices',             rarity: 'rare', symbol: '🌶️', color: '#FF6347', revealLevel: 1, label: 'Épices'                   },
+    precious_stones:    { type: 'precious_stones',    rarity: 'rare', symbol: '💎', color: '#00CED1', revealLevel: 1, label: 'Pierres précieuses'        },
+
+    // D. MAGIQUES — révélées niveau 3+
+    crystals:          { type: 'crystals',          rarity: 'magical', symbol: '💠', color: '#9370DB', revealLevel: 3, label: 'Cristaux'             },
+    sacred_stones:     { type: 'sacred_stones',     rarity: 'magical', symbol: '🔮', color: '#8A2BE2', revealLevel: 3, label: 'Pierres sacrées'      },
+    ancient_artifacts: { type: 'ancient_artifacts', rarity: 'magical', symbol: '📿', color: '#DAA520', revealLevel: 3, label: 'Artefacts anciens'    },
+    enchanted_wood:    { type: 'enchanted_wood',    rarity: 'magical', symbol: '🌳', color: '#228B22', revealLevel: 3, label: 'Bois enchanté'        },
+    mana_crystals:     { type: 'mana_crystals',     rarity: 'magical', symbol: '🔵', color: '#0066FF', revealLevel: 3, label: 'Cristaux de mana'     },
+    arcane_stones:     { type: 'arcane_stones',     rarity: 'magical', symbol: '⚡', color: '#9932CC', revealLevel: 3, label: 'Pierres arcaniques'   },
+    elemental_essence: { type: 'elemental_essence', rarity: 'magical', symbol: '🌀', color: '#00FFFF', revealLevel: 3, label: 'Essence élémentaire'  },
+    spirit_stones:     { type: 'spirit_stones',     rarity: 'magical', symbol: '👻', color: '#E6E6FA', revealLevel: 3, label: 'Pierres d\'esprit'    },
+    void_shards:       { type: 'void_shards',       rarity: 'magical', symbol: '🕳️', color: '#1a1a2e', revealLevel: 3, label: 'Éclats du vide'      },
   };
 
-  /**
-   * Vérifie si une ressource peut être révélée selon le niveau d'exploration
-   */
   static canRevealResource(resource: ResourceType, explorationLevel: number): boolean {
-    const resourceInfo = this.RESOURCE_INFO[resource];
-    return resourceInfo && explorationLevel >= resourceInfo.revealLevel;
+    const info = this.RESOURCE_INFO[resource];
+    return !!info && explorationLevel >= info.revealLevel;
   }
 
-  /**
-   * Obtient les informations d'affichage d'une ressource
-   */
   static getResourceDisplayInfo(resource: ResourceType): ResourceInfo | null {
     return this.RESOURCE_INFO[resource] || null;
   }
 
-  /**
-   * Obtient toutes les ressources visibles dans un hexagone selon le niveau d'exploration ET l'exploration active
-   */
   static getVisibleResources(hex: HexTile, explorationLevel: number, isResourceDiscovered?: boolean): ResourceInfo[] {
-    const visibleResources: ResourceInfo[] = [];
-    
-    // Les ressources ne sont visibles que si :
-    // 1. Le joueur a la compétence exploration niveau 1+
-    // 2. Cette case a été explorée avec l'action "Explorer la Zone"
-    // 3. Le niveau d'exploration permet de voir ce type de ressource
+    const visible: ResourceInfo[] = [];
     if (hex.resource && explorationLevel >= 1 && isResourceDiscovered) {
-      const resourceInfo = this.getResourceDisplayInfo(hex.resource);
-      if (resourceInfo && this.canRevealResource(hex.resource, explorationLevel)) {
-        visibleResources.push(resourceInfo);
+      const info = this.getResourceDisplayInfo(hex.resource);
+      if (info && this.canRevealResource(hex.resource, explorationLevel)) {
+        visible.push(info);
       }
     }
-    
-    return visibleResources;
+    return visible;
   }
 
-  /**
-   * Obtient le symbole d'affichage pour un hexagone avec ressources
-   */
   static getHexResourceSymbol(hex: HexTile, explorationLevel: number): string | null {
-    const visibleResources = this.getVisibleResources(hex, explorationLevel);
-    
-    if (visibleResources.length > 0) {
-      // Prioriser les ressources les plus rares
-      const priorityOrder = ['magical', 'rare', 'strategic', 'common'];
-      
-      for (const priority of priorityOrder) {
-        const resource = visibleResources.find(r => r.rarity === priority);
-        if (resource) {
-          return resource.symbol;
-        }
-      }
+    const visible = this.getVisibleResources(hex, explorationLevel);
+    if (visible.length === 0) return null;
+    const priority = ['magical', 'rare', 'strategic', 'common'];
+    for (const p of priority) {
+      const r = visible.find(x => x.rarity === p);
+      if (r) return r.symbol;
     }
-    
     return null;
   }
 
-  /**
-   * Obtient la couleur d'arrière-plan pour un hexagone avec ressources
-   */
   static getHexResourceColor(hex: HexTile, explorationLevel: number): string | null {
-    const visibleResources = this.getVisibleResources(hex, explorationLevel);
-    
-    if (visibleResources.length > 0) {
-      // Prioriser les ressources les plus rares
-      const priorityOrder = ['magical', 'rare', 'strategic', 'common'];
-      
-      for (const priority of priorityOrder) {
-        const resource = visibleResources.find(r => r.rarity === priority);
-        if (resource) {
-          return resource.color;
-        }
-      }
+    const visible = this.getVisibleResources(hex, explorationLevel);
+    if (visible.length === 0) return null;
+    const priority = ['magical', 'rare', 'strategic', 'common'];
+    for (const p of priority) {
+      const r = visible.find(x => x.rarity === p);
+      if (r) return r.color;
     }
-    
     return null;
   }
 
-  /**
-   * Vérifie si un hexagone a des ressources révélables
-   */
   static hasRevealableResources(hex: HexTile, explorationLevel: number): boolean {
     return this.getVisibleResources(hex, explorationLevel).length > 0;
   }
 
-  /**
-   * Obtient une description textuelle des ressources visibles
-   */
   static getResourceDescription(hex: HexTile, explorationLevel: number): string {
-    const visibleResources = this.getVisibleResources(hex, explorationLevel);
-    
-    if (visibleResources.length === 0) {
+    const visible = this.getVisibleResources(hex, explorationLevel);
+    if (visible.length === 0) {
       return explorationLevel >= 1 ? 'Aucune ressource détectée' : 'Exploration requise pour détecter les ressources';
     }
-    
-    const descriptions = visibleResources.map(r => {
-      const rarityLabel = {
-        common: 'Commune',
-        strategic: 'Stratégique',
-        rare: 'Rare',
-        magical: 'Magique'
-      }[r.rarity];
-      
-      return `${r.symbol} ${r.type} (${rarityLabel})`;
-    });
-    
-    return descriptions.join(', ');
+    const rarityLabel: Record<string, string> = {
+      common: 'Commune', strategic: 'Stratégique', rare: 'Rare', magical: 'Magique'
+    };
+    return visible.map(r => `${r.symbol} ${r.label} (${rarityLabel[r.rarity]})`).join(', ');
+  }
+
+  // Utilitaire : retourne le label français d'une clé de ressource
+  static getLabel(resource: string): string {
+    const info = this.RESOURCE_INFO[resource as ResourceType];
+    return info?.label ?? resource;
   }
 }

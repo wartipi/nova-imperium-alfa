@@ -14,50 +14,51 @@ export function RecruitmentPanel() {
   if (!currentNovaImperium) return null;
 
   const units = [
-    { id: 'warrior', name: 'Guerrier', cost: { food: 10, iron: 5, gold: 8 }, recruitmentTime: 2, description: 'Unité de base au corps à corps', icon: '⚔️', strength: 4, category: 'Infanterie' },
-    { id: 'spearman', name: 'Lancier', cost: { food: 12, iron: 8, wood: 4 }, recruitmentTime: 2, description: 'Unité défensive contre la cavalerie', icon: '🗡️', strength: 5, category: 'Infanterie' },
-    { id: 'swordsman', name: 'Épéiste', cost: { food: 15, iron: 12, gold: 10 }, recruitmentTime: 3, description: 'Guerrier amélioré avec épée', icon: '🗡️', strength: 7, category: 'Infanterie' },
+    { id: 'warrior', name: 'Guerrier', cost: { food: 10, common_metals: 5, fracten: 8 }, recruitmentTime: 2, description: 'Unité de base au corps à corps', icon: '⚔️', strength: 4, category: 'Infanterie' },
+    { id: 'spearman', name: 'Lancier', cost: { food: 12, common_metals: 8, wood: 4 }, recruitmentTime: 2, description: 'Unité défensive contre la cavalerie', icon: '🗡️', strength: 5, category: 'Infanterie' },
+    { id: 'swordsman', name: 'Épéiste', cost: { food: 15, common_metals: 12, fracten: 10 }, recruitmentTime: 3, description: 'Guerrier amélioré avec épée', icon: '🗡️', strength: 7, category: 'Infanterie' },
     
     // Ranged Units - 2-3 tours
-    { id: 'archer', name: 'Archer', cost: { food: 8, wood: 10, gold: 6 }, recruitmentTime: 2, description: 'Unité de tir à distance', icon: '🏹', strength: 3, category: 'Distance' },
-    { id: 'crossbowman', name: 'Arbalétrier', cost: { food: 12, wood: 8, iron: 6, gold: 8 }, recruitmentTime: 3, description: 'Tireur d\'élite avec arbalète', icon: '🎯', strength: 5, category: 'Distance' },
+    { id: 'archer', name: 'Archer', cost: { food: 8, wood: 10, fracten: 6 }, recruitmentTime: 2, description: 'Unité de tir à distance', icon: '🏹', strength: 3, category: 'Distance' },
+    { id: 'crossbowman', name: 'Arbalétrier', cost: { food: 12, wood: 8, common_metals: 6, fracten: 8 }, recruitmentTime: 3, description: 'Tireur d\'élite avec arbalète', icon: '🎯', strength: 5, category: 'Distance' },
     
     // Siege Units - 4-5 tours
-    { id: 'catapult', name: 'Catapulte', cost: { wood: 20, iron: 15, stone: 10, gold: 12 }, recruitmentTime: 4, description: 'Engin de siège pour détruire les murs', icon: '🏹', strength: 8, category: 'Siège' },
-    { id: 'trebuchet', name: 'Trébuchet', cost: { wood: 25, iron: 20, stone: 15, gold: 18 }, recruitmentTime: 5, description: 'Engin de siège lourd', icon: '🏰', strength: 10, category: 'Siège' },
+    { id: 'catapult', name: 'Catapulte', cost: { wood: 20, common_metals: 15, stone: 10, fracten: 12 }, recruitmentTime: 4, description: 'Engin de siège pour détruire les murs', icon: '🏹', strength: 8, category: 'Siège' },
+    { id: 'trebuchet', name: 'Trébuchet', cost: { wood: 25, common_metals: 20, stone: 15, fracten: 18 }, recruitmentTime: 5, description: 'Engin de siège lourd', icon: '🏰', strength: 10, category: 'Siège' },
     
     // Cavalry - 3-4 tours
-    { id: 'horseman', name: 'Cavalier', cost: { food: 20, iron: 8, gold: 15 }, recruitmentTime: 3, description: 'Unité montée rapide', icon: '🐎', strength: 6, category: 'Cavalerie' },
-    { id: 'knight', name: 'Chevalier', cost: { food: 25, iron: 18, gold: 20, precious_metals: 3 }, recruitmentTime: 4, description: 'Cavalerie lourde blindée', icon: '🛡️', strength: 9, category: 'Cavalerie' },
+    { id: 'horseman', name: 'Cavalier', cost: { food: 20, common_metals: 8, fracten: 15 }, recruitmentTime: 3, description: 'Unité montée rapide', icon: '🐎', strength: 6, category: 'Cavalerie' },
+    { id: 'knight', name: 'Chevalier', cost: { food: 25, common_metals: 18, fracten: 20, rare_metals_alloys: 3 }, recruitmentTime: 4, description: 'Cavalerie lourde blindée', icon: '🛡️', strength: 9, category: 'Cavalerie' },
     
     // Naval Units - 3-4 tours
-    { id: 'galley', name: 'Galère', cost: { wood: 15, iron: 8, food: 10, gold: 12 }, recruitmentTime: 3, description: 'Navire de guerre léger', icon: '🚤', strength: 4, category: 'Marine' },
-    { id: 'warship', name: 'Navire de Guerre', cost: { wood: 25, iron: 15, food: 15, gold: 18 }, recruitmentTime: 4, description: 'Navire de combat lourd', icon: '⛵', strength: 7, category: 'Marine' },
+    { id: 'galley', name: 'Galère', cost: { wood: 15, common_metals: 8, food: 10, fracten: 12 }, recruitmentTime: 3, description: 'Navire de guerre léger', icon: '🚤', strength: 4, category: 'Marine' },
+    { id: 'warship', name: 'Navire de Guerre', cost: { wood: 25, common_metals: 15, food: 15, fracten: 18 }, recruitmentTime: 4, description: 'Navire de combat lourd', icon: '⛵', strength: 7, category: 'Marine' },
     
     // Special Units - 1-3 tours
-    { id: 'scout', name: 'Éclaireur', cost: { food: 6, gold: 4 }, recruitmentTime: 1, description: 'Unité d\'exploration rapide', icon: '🔍', strength: 2, category: 'Spécial' },
-    { id: 'settler', name: 'Colon', cost: { food: 25, wood: 15, stone: 10, iron: 8, gold: 20 }, recruitmentTime: 3, description: 'Fonde de nouvelles villes', icon: '🏕️', strength: 0, category: 'Spécial' },
-    { id: 'diplomat', name: 'Diplomate', cost: { food: 10, gold: 15, precious_metals: 2 }, recruitmentTime: 2, description: 'Négociateur pour les relations', icon: '🤝', strength: 0, category: 'Spécial' },
-    { id: 'spy', name: 'Espion', cost: { food: 12, gold: 18, mana: 3 }, recruitmentTime: 2, description: 'Unité d\'espionnage et sabotage', icon: '🕵️', strength: 1, category: 'Spécial' }
+    { id: 'scout', name: 'Éclaireur', cost: { food: 6, fracten: 4 }, recruitmentTime: 1, description: 'Unité d\'exploration rapide', icon: '🔍', strength: 2, category: 'Spécial' },
+    { id: 'settler', name: 'Colon', cost: { food: 25, wood: 15, stone: 10, common_metals: 8, fracten: 20 }, recruitmentTime: 3, description: 'Fonde de nouvelles villes', icon: '🏕️', strength: 0, category: 'Spécial' },
+    { id: 'diplomat', name: 'Diplomate', cost: { food: 10, fracten: 15, rare_metals_alloys: 2 }, recruitmentTime: 2, description: 'Négociateur pour les relations', icon: '🤝', strength: 0, category: 'Spécial' },
+    { id: 'spy', name: 'Espion', cost: { food: 12, fracten: 18, crystals: 3 }, recruitmentTime: 2, description: 'Unité d\'espionnage et sabotage', icon: '🕵️', strength: 1, category: 'Spécial' }
   ];
 
   const getResourceIcon = (resource: string): string => {
     const icons: Record<string, string> = {
       food: '🍞',
-      gold: '💰',
+      fracten: '💰',
       wood: '🪵',
       stone: '🪨',
-      iron: '⚔️',
-      precious_metals: '🥇',
-      mana: '🔮',
-      crystals: '💎',
-      ancient_knowledge: '📜'
+      common_metals: '⚙️',
+      rare_metals_alloys: '🥇',
+      crystals: '💠',
+      arcane_stones: '⚡',
+      leather_fur: '🦊',
     };
     return icons[resource] || '❓';
   };
 
-  const formatResourceCost = (cost: Record<string, number>): string => {
+  const formatResourceCost = (cost: Record<string, number | undefined>): string => {
     return Object.entries(cost)
+      .filter(([, amount]) => amount !== undefined && amount > 0)
       .map(([resource, amount]) => `${amount} ${getResourceIcon(resource)}`)
       .join(', ');
   };
@@ -87,7 +88,7 @@ export function RecruitmentPanel() {
     if (canAffordUnit(unitId)) {
       const success = spendActionPoints(actionCost);
       if (success) {
-        trainUnit(cityId, unitId, unit.cost, unit.recruitmentTime);
+        trainUnit(cityId, unitId, unit.cost as unknown as Record<string, number>, unit.recruitmentTime);
         console.log(`Recrutement de ${unitId} lancé pour ${unit.recruitmentTime} tours, ${actionCost} PA et ressources déduites`);
       }
     } else {

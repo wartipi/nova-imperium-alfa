@@ -35,7 +35,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
   const [showColonyList, setShowColonyList] = useState<boolean>(false);
 
   // Inventaires de villes (stock local) : keyed by city.id (string du serveur)
-  const [cityInventories, setCityInventories] = useState<Record<string, { gold: number; food: number; wood: number; stone: number; iron: number; copper: number; coal: number; oil: number; herbs: number; fur: number }>>({});
+  const [cityInventories, setCityInventories] = useState<Record<string, { fracten: number; food: number; wood: number; stone: number; common_metals: number; coal: number; oil: number; herbs: number; leather_fur: number }>>({});
   // Contextes d'exploitation serveur : keyed by city.id
   const [exploitationContexts, setExploitationContexts] = useState<Record<string, ExploitationContext>>({});
   // Messages de construction : keyed par cityId
@@ -49,19 +49,18 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
         return { id: c.id, inv };
       })
     );
-    const map: Record<string, { gold: number; food: number; wood: number; stone: number; iron: number; copper: number; coal: number; oil: number; herbs: number; fur: number }> = {};
+    const map: Record<string, { fracten: number; food: number; wood: number; stone: number; common_metals: number; coal: number; oil: number; herbs: number; leather_fur: number }> = {};
     for (const r of entries) {
       if (r.status === 'fulfilled') map[r.value.id] = {
-        gold:   r.value.inv.gold,
-        food:   r.value.inv.food,
-        wood:   r.value.inv.wood   ?? 0,
-        stone:  r.value.inv.stone  ?? 0,
-        iron:   r.value.inv.iron   ?? 0,
-        copper: r.value.inv.copper ?? 0,
-        coal:   r.value.inv.coal   ?? 0,
-        oil:    r.value.inv.oil    ?? 0,
-        herbs:  r.value.inv.herbs  ?? 0,
-        fur:    r.value.inv.fur    ?? 0,
+        fracten:       (r.value.inv as unknown as Record<string, number>)['fracten'] ?? (r.value.inv as unknown as Record<string, number>)['gold'] ?? 0,
+        food:          r.value.inv.food,
+        wood:          (r.value.inv as unknown as Record<string, number>)['wood']    ?? 0,
+        stone:         (r.value.inv as unknown as Record<string, number>)['stone']   ?? 0,
+        common_metals: ((r.value.inv as unknown as Record<string, number>)['common_metals'] ?? 0) + ((r.value.inv as unknown as Record<string, number>)['iron'] ?? 0) + ((r.value.inv as unknown as Record<string, number>)['copper'] ?? 0),
+        coal:          (r.value.inv as unknown as Record<string, number>)['coal']    ?? 0,
+        oil:           (r.value.inv as unknown as Record<string, number>)['oil']     ?? 0,
+        herbs:         (r.value.inv as unknown as Record<string, number>)['herbs']   ?? 0,
+        leather_fur:   ((r.value.inv as unknown as Record<string, number>)['leather_fur'] ?? 0) + ((r.value.inv as unknown as Record<string, number>)['fur'] ?? 0),
       };
     }
     setCityInventories(map);
@@ -185,7 +184,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     { 
       id: 'sawmill', 
       name: 'Scierie', 
-      cost: { wood: 12, iron: 4, action_points: 18 }, 
+      cost: { wood: 12, common_metals: 4, action_points: 18 }, 
       constructionTime: 4, 
       description: 'Exploitation du bois', 
       icon: '🪚', 
@@ -207,7 +206,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     { 
       id: 'druidic_temple', 
       name: 'Temple druidique', 
-      cost: { wood: 15, mana: 8, action_points: 25 }, 
+      cost: { wood: 15, crystals: 8, action_points: 25 }, 
       constructionTime: 6, 
       description: 'Temple en harmonie avec la nature', 
       icon: '🌳', 
@@ -231,7 +230,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     { 
       id: 'mine', 
       name: 'Mine', 
-      cost: { wood: 8, iron: 12, action_points: 30 }, 
+      cost: { wood: 8, common_metals: 12, action_points: 30 }, 
       constructionTime: 8, 
       description: 'Extraction de minerai', 
       icon: '⛏️', 
@@ -242,7 +241,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     { 
       id: 'fortress', 
       name: 'Forteresse', 
-      cost: { stone: 30, iron: 20, action_points: 45 }, 
+      cost: { stone: 30, common_metals: 20, action_points: 45 }, 
       constructionTime: 12, 
       description: 'Défense militaire majeure', 
       icon: '🏰', 
@@ -264,7 +263,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     { 
       id: 'magic_forge', 
       name: 'Forge magique', 
-      cost: { iron: 20, crystals: 10, mana: 15, action_points: 40 }, 
+      cost: { common_metals: 20, crystals: 25, action_points: 40 }, 
       constructionTime: 10, 
       description: 'Forge d\'objets enchantés', 
       icon: '🔥', 
@@ -310,7 +309,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     { 
       id: 'market', 
       name: 'Marché', 
-      cost: { wood: 15, gold: 20, action_points: 18 }, 
+      cost: { wood: 15, fracten: 20, action_points: 18 }, 
       constructionTime: 4, 
       description: 'Commerce et échange', 
       icon: '🏪', 
@@ -321,7 +320,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     { 
       id: 'monastery', 
       name: 'Monastère', 
-      cost: { stone: 20, gold: 15, action_points: 25 }, 
+      cost: { stone: 20, fracten: 15, action_points: 25 }, 
       constructionTime: 6, 
       description: 'Centre spirituel et d\'apprentissage', 
       icon: '⛪', 
@@ -332,7 +331,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     { 
       id: 'agricultural_academy', 
       name: 'Académie agricole', 
-      cost: { wood: 18, stone: 12, gold: 25, action_points: 30 }, 
+      cost: { wood: 18, stone: 12, fracten: 25, action_points: 30 }, 
       constructionTime: 7, 
       description: 'Formation agricole avancée', 
       icon: '🎓', 
@@ -356,7 +355,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     { 
       id: 'ceremony_place', 
       name: 'Lieu de cérémonie', 
-      cost: { stone: 15, mana: 5, action_points: 20 }, 
+      cost: { stone: 15, crystals: 5, action_points: 20 }, 
       constructionTime: 5, 
       description: 'Site rituel sur position élevée', 
       icon: '🗿', 
@@ -367,7 +366,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     { 
       id: 'altitude_beacon', 
       name: 'Phare d\'altitude', 
-      cost: { stone: 18, iron: 6, action_points: 22 }, 
+      cost: { stone: 18, common_metals: 6, action_points: 22 }, 
       constructionTime: 5, 
       description: 'Signal de navigation élevé', 
       icon: '🕯️', 
@@ -391,7 +390,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     { 
       id: 'shipyard', 
       name: 'Chantier naval', 
-      cost: { wood: 25, iron: 12, action_points: 40 }, 
+      cost: { wood: 25, common_metals: 12, action_points: 40 }, 
       constructionTime: 10, 
       description: 'Construction navale', 
       icon: '⚓', 
@@ -413,7 +412,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     { 
       id: 'marine_tower', 
       name: 'Tour marine', 
-      cost: { stone: 20, iron: 8, action_points: 25 }, 
+      cost: { stone: 20, common_metals: 8, action_points: 25 }, 
       constructionTime: 6, 
       description: 'Défense côtière', 
       icon: '🗼', 
@@ -426,7 +425,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     { 
       id: 'occult_sanctuary', 
       name: 'Sanctuaire occulte', 
-      cost: { wood: 12, mana: 12, ancient_knowledge: 5, action_points: 30 }, 
+      cost: { wood: 12, crystals: 12, arcane_stones: 5, action_points: 30 }, 
       constructionTime: 8, 
       description: 'Site de magie sombre', 
       icon: '🕯️', 
@@ -448,7 +447,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     {
       id: 'oil_camp',
       name: 'Camp d\'extraction pétrolière',
-      cost: { wood: 10, iron: 8, action_points: 25 },
+      cost: { wood: 10, common_metals: 8, action_points: 25 },
       constructionTime: 6,
       description: 'Exploitation de gisements pétroliers. Requiert du pétrole réel sur les cases contrôlées (marais/désert/friche). Produit 2 pétrole/tour.',
       icon: '🛢️',
@@ -483,7 +482,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     { 
       id: 'glassworks', 
       name: 'Verrerie', 
-      cost: { stone: 15, iron: 8, action_points: 25 }, 
+      cost: { stone: 15, common_metals: 8, action_points: 25 }, 
       constructionTime: 6, 
       description: 'Artisanat du verre', 
       icon: '💎', 
@@ -496,7 +495,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     { 
       id: 'stone_circle', 
       name: 'Cercle de pierre', 
-      cost: { stone: 30, mana: 15, action_points: 40 }, 
+      cost: { stone: 30, crystals: 15, action_points: 40 }, 
       constructionTime: 10, 
       description: 'Site rituel ancien', 
       icon: '⭕', 
@@ -507,7 +506,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     { 
       id: 'forgotten_temple', 
       name: 'Temple oublié', 
-      cost: { stone: 35, ancient_knowledge: 10, mana: 20, action_points: 50 }, 
+      cost: { stone: 35, arcane_stones: 10, crystals: 20, action_points: 50 }, 
       constructionTime: 12, 
       description: 'Sanctuaire des anciens', 
       icon: '🏛️', 
@@ -518,7 +517,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     { 
       id: 'mystic_portal', 
       name: 'Portail mystique', 
-      cost: { crystals: 15, mana: 25, ancient_knowledge: 8, action_points: 60 }, 
+      cost: { crystals: 40, arcane_stones: 8, action_points: 60 }, 
       constructionTime: 15, 
       description: 'Portail dimensionnel', 
       icon: '🌀', 
@@ -531,7 +530,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     { 
       id: 'fortified_entrance', 
       name: 'Entrée fortifiée', 
-      cost: { stone: 20, iron: 12, action_points: 25 }, 
+      cost: { stone: 20, common_metals: 12, action_points: 25 }, 
       constructionTime: 6, 
       description: 'Sécurisation d\'entrée souterraine', 
       icon: '🚪', 
@@ -542,7 +541,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     { 
       id: 'advanced_mine', 
       name: 'Mine avancée', 
-      cost: { wood: 15, iron: 20, action_points: 35 }, 
+      cost: { wood: 15, common_metals: 20, action_points: 35 }, 
       constructionTime: 9, 
       description: 'Exploitation minière profonde', 
       icon: '⛏️', 
@@ -553,7 +552,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     { 
       id: 'underground_base', 
       name: 'Base souterraine', 
-      cost: { stone: 25, iron: 15, action_points: 40 }, 
+      cost: { stone: 25, common_metals: 15, action_points: 40 }, 
       constructionTime: 10, 
       description: 'Complexe souterrain fortifié', 
       icon: '🕳️', 
@@ -566,7 +565,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     { 
       id: 'lost_library', 
       name: 'Bibliothèque perdue', 
-      cost: { wood: 20, ancient_knowledge: 15, action_points: 45 }, 
+      cost: { wood: 20, arcane_stones: 15, action_points: 45 }, 
       constructionTime: 10, 
       description: 'Restauration du savoir ancien', 
       icon: '📚', 
@@ -577,7 +576,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     { 
       id: 'restored_sanctuary', 
       name: 'Sanctuaire restauré', 
-      cost: { stone: 25, mana: 12, ancient_knowledge: 8, action_points: 40 }, 
+      cost: { stone: 25, crystals: 12, arcane_stones: 8, action_points: 40 }, 
       constructionTime: 9, 
       description: 'Ancien temple remis en état', 
       icon: '🏛️', 
@@ -588,7 +587,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     { 
       id: 'ancient_hall', 
       name: 'Hall antique', 
-      cost: { stone: 30, ancient_knowledge: 20, mana: 10, action_points: 50 }, 
+      cost: { stone: 30, arcane_stones: 20, crystals: 10, action_points: 50 }, 
       constructionTime: 12, 
       description: 'Grande salle des anciens', 
       icon: '🏚️', 
@@ -601,7 +600,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     { 
       id: 'legendary_forge', 
       name: 'Forge légendaire', 
-      cost: { iron: 30, crystals: 15, mana: 20, action_points: 60 }, 
+      cost: { common_metals: 30, crystals: 35, action_points: 60 }, 
       constructionTime: 15, 
       description: 'Forge utilisant la puissance volcanique', 
       icon: '🔥', 
@@ -612,7 +611,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     { 
       id: 'fire_temple', 
       name: 'Temple du feu', 
-      cost: { stone: 25, crystals: 10, mana: 15, action_points: 45 }, 
+      cost: { stone: 25, crystals: 25, action_points: 45 }, 
       constructionTime: 11, 
       description: 'Sanctuaire dédié aux flammes', 
       icon: '🔥', 
@@ -623,7 +622,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     { 
       id: 'elemental_laboratory', 
       name: 'Laboratoire élémentaire', 
-      cost: { stone: 20, crystals: 12, mana: 18, action_points: 40 }, 
+      cost: { stone: 20, crystals: 30, action_points: 40 }, 
       constructionTime: 10, 
       description: 'Recherche sur la magie élémentaire', 
       icon: '🧪', 
@@ -636,7 +635,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     { 
       id: 'awakening_garden', 
       name: 'Jardin d\'éveil', 
-      cost: { wood: 15, mana: 10, action_points: 25 }, 
+      cost: { wood: 15, crystals: 10, action_points: 25 }, 
       constructionTime: 6, 
       description: 'Jardin magique régénérant', 
       icon: '🌸', 
@@ -647,7 +646,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     { 
       id: 'mana_fountain', 
       name: 'Fontaine de mana', 
-      cost: { stone: 18, crystals: 8, mana: 15, action_points: 35 }, 
+      cost: { stone: 18, crystals: 23, action_points: 35 }, 
       constructionTime: 8, 
       description: 'Source d\'énergie magique', 
       icon: '⛲', 
@@ -658,7 +657,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     { 
       id: 'spirit_tree', 
       name: 'Arbre des esprits', 
-      cost: { wood: 25, mana: 20, ancient_knowledge: 5, action_points: 45 }, 
+      cost: { wood: 25, crystals: 20, arcane_stones: 5, action_points: 45 }, 
       constructionTime: 10, 
       description: 'Arbre sacré connecté aux esprits', 
       icon: '🌳', 
@@ -671,7 +670,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     {
       id: 'guilde_des_marchands',
       name: 'Guilde des Marchands',
-      cost: { wood: 20, stone: 15, gold: 30, action_points: 25 },
+      cost: { wood: 20, stone: 15, fracten: 30, action_points: 25 },
       constructionTime: 6,
       description: 'Débloque l\'accès au marché des ressources entre joueurs',
       icon: '🏦',
@@ -682,7 +681,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     {
       id: 'bank',
       name: 'Banque',
-      cost: { stone: 20, gold: 40, action_points: 30 },
+      cost: { stone: 20, fracten: 40, action_points: 30 },
       constructionTime: 7,
       description: 'Verse automatiquement la production de la ville dans la banque du joueur',
       icon: '🏛️',
@@ -746,33 +745,33 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     const productions: Record<string, Record<string, number>> = {
       // ── Exploitation Tier 1 (source de vérité : BUILDING_PRODUCTION serveur) ──
       'sawmill':         { wood: 2 },
-      'hunting_post':    { fur: 1, food: 1 },
+      'hunting_post':    { leather_fur: 1, food: 1 },
       'herbalist_house': { herbs: 2 },
       'farm':            { food: 3 },
       'granary':         { food: 1 },
       'fishing_post':    { food: 2 },
-      'mine':            { stone: 1, iron: 1 },
-      'advanced_mine':   { iron: 2, copper: 1, coal: 1 },
+      'mine':            { stone: 1, common_metals: 1 },
+      'advanced_mine':   { common_metals: 3, coal: 1 },
       'oil_camp':        { oil: 2 },
 
       // ── Autres bâtiments ────────────────────────────────────────────────────
       'garden':          { food: 2 },
-      'port':            { gold: 4, food: 1 },
-      'market':          { gold: 6 },
-      'road':            { gold: 2 },
-      'shipyard':        { gold: 3, wood: 1 },
+      'port':            { fracten: 4, food: 1 },
+      'market':          { fracten: 6 },
+      'road':            { fracten: 2 },
+      'shipyard':        { fracten: 3, wood: 1 },
       'fortress':        {},
       'watchtower':      {},
       'fortifications':  {},
-      'library':         { ancient_knowledge: 1 },
-      'temple':          { gold: 2, mana: 1 },
-      'sanctuary':       { mana: 2 },
-      'obelisk':         { gold: 1 },
-      'mystic_portal':   { mana: 3, ancient_knowledge: 1 },
-      'legendary_forge': { precious_metals: 2, crystals: 1 },
-      'laboratory':      { mana: 2, crystals: 1, ancient_knowledge: 1 },
-      'ancient_hall':    { ancient_knowledge: 3, mana: 1 },
-      'underground_base':{ stone: 2, iron: 1 },
+      'library':         { arcane_stones: 1 },
+      'temple':          { fracten: 2, crystals: 1 },
+      'sanctuary':       { crystals: 2 },
+      'obelisk':         { fracten: 1 },
+      'mystic_portal':   { crystals: 3, arcane_stones: 1 },
+      'legendary_forge': { rare_metals_alloys: 2, crystals: 1 },
+      'laboratory':      { crystals: 3, arcane_stones: 1 },
+      'ancient_hall':    { arcane_stones: 3, crystals: 1 },
+      'underground_base':{ stone: 2, common_metals: 1 },
       'cave_dwelling':   { stone: 1, food: 1 },
     };
     return productions[buildingId] || {};
@@ -823,32 +822,32 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
     }
 
     // Extraire les coûts V1 depuis building.cost
-    const goldCost   = Number(building.cost['gold']   ?? 0);
-    const foodCost   = Number(building.cost['food']   ?? 0);
-    const woodCost   = Number(building.cost['wood']   ?? 0);
-    const stoneCost  = Number(building.cost['stone']  ?? 0);
-    const ironCost   = Number(building.cost['iron']   ?? 0);
-    const copperCost = Number(building.cost['copper'] ?? 0);
-    const coalCost   = Number(building.cost['coal']   ?? 0);
-    const oilCost    = Number(building.cost['oil']    ?? 0);
-    const herbsCost  = Number(building.cost['herbs']  ?? 0);
-    const furCost    = Number(building.cost['fur']    ?? 0);
+    const cost = building.cost as Record<string, number | undefined>;
+    const fractenCost      = Number(cost['fracten']       ?? cost['gold']   ?? 0);
+    const foodCost         = Number(cost['food']          ?? 0);
+    const woodCost         = Number(cost['wood']          ?? 0);
+    const stoneCost        = Number(cost['stone']         ?? 0);
+    const commonMetalsCost = Number(cost['common_metals'] ?? cost['iron']   ?? 0);
+    const coalCost         = Number(cost['coal']          ?? 0);
+    const oilCost          = Number(cost['oil']           ?? 0);
+    const herbsCost        = Number(cost['herbs']         ?? 0);
+    const leatherFurCost   = Number(cost['leather_fur']   ?? cost['fur']    ?? 0);
 
     try {
       const result = await apiStartConstruction(
         cityId,
         buildingId,
-        goldCost,
+        fractenCost,
         foodCost,
         building.constructionTime,
         woodCost,
         stoneCost,
-        ironCost,
-        copperCost,
+        commonMetalsCost,
+        0,
         coalCost,
         oilCost,
         herbsCost,
-        furCost,
+        leatherFurCost,
       );
 
       if (result.mode === 'instant') {
@@ -1100,21 +1099,20 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
           {/* Inventaire local de la ville */}
           {(() => {
             const inv = cityInventories[city.id];
-            const isEmpty = inv && [inv.gold, inv.food, inv.wood, inv.stone, inv.iron, inv.copper, inv.coal, inv.oil, inv.herbs, inv.fur].every(v => v === 0);
+            const isEmpty = inv && [inv.fracten, inv.food, inv.wood, inv.stone, inv.common_metals, inv.coal, inv.oil, inv.herbs, inv.leather_fur].every(v => v === 0);
             return inv !== undefined ? (
               <div className="text-xs bg-amber-100 border border-amber-300 rounded px-2 py-1 mb-2">
                 <div className="flex flex-wrap gap-x-3 gap-y-0.5">
                   <span className="font-medium text-amber-800">📦 Stock ville :</span>
-                  <span className="text-amber-700">{inv.gold}🪙</span>
+                  <span className="text-amber-700">{inv.fracten}🪙</span>
                   <span className="text-amber-700">{inv.food}🌿</span>
                   <span className="text-amber-700">{inv.wood}🪵</span>
                   <span className="text-amber-700">{inv.stone}🪨</span>
-                  <span className="text-amber-700">{inv.iron}⚙️</span>
-                  {inv.copper > 0 && <span className="text-amber-700">{inv.copper}🟤</span>}
-                  {inv.coal   > 0 && <span className="text-amber-700">{inv.coal}🖤</span>}
-                  {inv.oil    > 0 && <span className="text-amber-700">{inv.oil}🛢️</span>}
-                  {inv.herbs  > 0 && <span className="text-amber-700">{inv.herbs}🌱</span>}
-                  {inv.fur    > 0 && <span className="text-amber-700">{inv.fur}🦊</span>}
+                  <span className="text-amber-700">{inv.common_metals}⚙️</span>
+                  {inv.coal          > 0 && <span className="text-amber-700">{inv.coal}🖤</span>}
+                  {inv.oil           > 0 && <span className="text-amber-700">{inv.oil}🛢️</span>}
+                  {inv.herbs         > 0 && <span className="text-amber-700">{inv.herbs}🌱</span>}
+                  {inv.leather_fur   > 0 && <span className="text-amber-700">{inv.leather_fur}🦊</span>}
                 </div>
                 {isEmpty && <div className="text-amber-500 italic mt-0.5">Vide — transférez depuis la banque</div>}
               </div>

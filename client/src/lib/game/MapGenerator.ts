@@ -308,22 +308,23 @@ export class MapGenerator {
     }
   }
 
-  private static getSuitableResources(terrain: TerrainType): string[] {
-    const resourceMap = {
-      wasteland: ['stone', 'oil'],
-      forest: ['deer', 'fur', 'herbs'],
-      mountains: ['copper', 'iron', 'gold', 'coal', 'stone'],
-      fertile_land: ['wheat', 'cattle', 'herbs'],
-      hills: ['stone', 'copper', 'iron'],
-      shallow_water: ['fish', 'crabs'],
-      deep_water: ['fish', 'whales'],
-      swamp: ['herbs', 'oil'],
-      desert: ['oil', 'gold'],
-      sacred_plains: ['sacred_stones', 'herbs'],
-      caves: ['iron', 'copper', 'crystals'],
-      ancient_ruins: ['ancient_artifacts', 'gold'],
-      volcano: ['sulfur', 'obsidian', 'iron'],
-      enchanted_meadow: ['crystals', 'herbs', 'sacred_stones']
+  private static getSuitableResources(terrain: TerrainType): import('./types').ResourceType[] {
+    const resourceMap: Record<TerrainType, import('./types').ResourceType[]> = {
+      wasteland:        ['stone', 'oil', 'coal'],
+      forest:           ['leather_fur', 'herbs', 'wood'],
+      mountains:        ['common_metals', 'coal', 'stone', 'rare_metals_alloys'],
+      fertile_land:     ['food', 'herbs', 'leather_fur'],
+      hills:            ['stone', 'common_metals', 'coal'],
+      shallow_water:    ['food', 'oil'],
+      deep_water:       ['food', 'oil'],
+      swamp:            ['herbs', 'oil', 'leather_fur'],
+      desert:           ['oil', 'rare_metals_alloys', 'spices'],
+      sacred_plains:    ['sacred_stones', 'herbs', 'precious_stones'],
+      caves:            ['common_metals', 'crystals', 'coal'],
+      ancient_ruins:    ['ancient_artifacts', 'arcane_stones', 'rare_metals_alloys'],
+      volcano:          ['common_metals', 'coal', 'crystals'],
+      enchanted_meadow: ['crystals', 'herbs', 'sacred_stones', 'enchanted_wood'],
+      plains:           ['food', 'leather_fur', 'herbs'],
     };
     
     return resourceMap[terrain] || [];
@@ -335,26 +336,23 @@ export class MapGenerator {
   }
 
   private static applyResourceYields(hex: HexTile, resource: string) {
-    const resourceYields = {
-      wheat: { food: 2 },
-      cattle: { food: 1, gold: 1 },
-      fish: { food: 2 },
-      stone: { gold: 1 },
-      copper: { gold: 1 },
-      iron: { gold: 2 },
-      gold: { gold: 3 },
-      coal: { gold: 2 },
-      oil: { gold: 3 },
-      deer: { food: 1 },
-      fur: { gold: 2 },
-      herbs: { food: 1 },
-      crabs: { food: 1 },
-      whales: { food: 3, gold: 1 },
-      sacred_stones: { gold: 2 },
-      crystals: { gold: 3 },
-      ancient_artifacts: { gold: 5 },
-      sulfur: { gold: 1 },
-      obsidian: { gold: 2 }
+    const resourceYields: Record<string, { food?: number; gold?: number }> = {
+      food:               { food: 2 },
+      leather_fur:        { food: 1, gold: 1 },
+      wood:               { gold: 1 },
+      stone:              { gold: 1 },
+      common_metals:      { gold: 2 },
+      rare_metals_alloys: { gold: 3 },
+      coal:               { gold: 2 },
+      oil:                { gold: 3 },
+      herbs:              { food: 1 },
+      spices:             { gold: 2 },
+      precious_stones:    { gold: 3 },
+      sacred_stones:      { gold: 2 },
+      crystals:           { gold: 3 },
+      ancient_artifacts:  { gold: 5 },
+      arcane_stones:      { gold: 2 },
+      enchanted_wood:     { food: 1, gold: 1 },
     };
     
     const yields = resourceYields[resource as keyof typeof resourceYields];
