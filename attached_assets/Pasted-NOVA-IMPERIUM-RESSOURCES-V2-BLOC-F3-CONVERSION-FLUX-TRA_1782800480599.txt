@@ -1,0 +1,272 @@
+NOVA IMPERIUM — RESSOURCES V2 — BLOC F3 / CONVERSION FLUX TRANSPORT ↔ VILLE ↔ BANQUE
+Branche : NI-10.09
+
+OBJECTIF
+Convertir et auditer les derniers flux directs de ressources entre :
+
+* player_transport → city_inventory
+* city_inventory → player_transport
+* player_transport → player_bank
+* city_inventory → player_bank, si applicable
+
+Ce sous-bloc F3 ne doit pas toucher à la production ville ni à buildingEffects.
+Ce sous-bloc F3 ne doit pas supprimer de colonnes.
+
+CONTEXTE
+F1 terminé :
+
+* construction utilise les coûts V2
+* city_inventory.fracten / common_metals / leather_fur sont utilisés pour payer la construction
+
+F2 terminé :
+
+* bank → city converti V2
+* bank → player converti V2
+* post-F2 validé : pas de double débit ni double crédit
+
+Il reste à vérifier et corriger les flux de déplacement de stocks autour du transport.
+
+Ressources V2 principales :
+
+* fracten
+* common_metals
+* leather_fur
+
+Fallbacks legacy temporaires :
+
+* gold
+* iron
+* copper
+* fur
+
+PÉRIMÈTRE AUTORISÉ
+
+Auditer et modifier uniquement :
+
+Backend :
+
+* server/routes/economy.ts
+* server/playerActionService.ts seulement si une action planifiée de transport est concernée
+* server/economyService.ts seulement si DTO de transport/banque/inventaire concerné
+
+Frontend :
+
+* client/src/components/game/PlayerTransportPanel.tsx
+* client/src/components/game/HarvestPanel.tsx seulement si interaction directe transport/inventory
+* client/src/components/game/TreasuryPanel.tsx seulement si affichage transport/bank directement concerné
+* client/src/lib/api/economyApi.ts
+
+INTERDICTIONS STRICTES
+
+Ne pas modifier :
+
+* shared/schema.ts
+* migrations
+* DB
+* db:push
+* marketService.ts
+* PublicMarketplace.tsx
+* routes/market.ts
+* MapGenerator.ts
+* HexTile
+* ResourceRevealSystem.ts
+* buildingEffects.ts
+* production ville
+* cityService.ts sauf DTO strictement nécessaire
+* logique construction F1
+* logique bank→city/bank→player F2 sauf bug direct
+* auth
+* cartography ownership
+* déploiement
+
+Ne pas faire :
+
+* DROP COLUMN
+* suppression de colonnes legacy
+* suppression des fallbacks legacy
+* refactor massif
+* Bloc F4
+* conversion production ville
+
+ÉTAPE 1 — AUDIT F3 AVANT MODIFICATION
+
+Chercher dans le périmètre :
+
+deposit-transport-to-city
+deposit-transport-to-bank
+player_transport
+city_inventory
+player_bank
+gold
+iron
+copper
+fur
+fracten
+common_metals
+leather_fur
+computeTransportUnits
+TRANSPORT_CAPACITY_EXCEEDED
+INSUFFICIENT_TRANSPORT
+INSUFFICIENT_CITY_INVENTORY
+
+Classer chaque occurrence :
+
+A. Flux transport actif à convertir maintenant
+B. Déjà V2
+C. Fallback legacy temporaire acceptable
+D. Hors périmètre
+E. Dangereux / incohérent
+
+ÉTAPE 2 — RÈGLES DE CONVERSION
+
+Règle générale :
+
+* V2 est source principale
+* V1 est fallback seulement si V2 absent ou égal à 0
+* ne jamais additionner V1 + V2 pour une même ressource logique
+
+Conversions :
+
+* gold → fracten
+* iron + copper → common_metals
+* fur → leather_fur
+
+Pour chaque flux :
+
+* débit V2 ou fallback V1, jamais les deux
+* crédit V2 en sortie principale
+* les vieux flux V1 peuvent être convertis vers V2 à destination si sécuritaire
+* documenter toute compatibilité legacy conservée
+
+ÉTAPE 3 — FLUX À AUDITER
+
+1. player_transport → city_inventory
+   Exemple attendu :
+
+* player_transport.fracten -X
+* city_inventory.fracten +X
+* gold inchangé si transfert V2
+
+2. city_inventory → player_transport
+   Si ce flux existe :
+
+* city_inventory.fracten -X
+* player_transport.fracten +X
+* gold inchangé si transfert V2
+
+3. player_transport → player_bank
+   Exemple attendu :
+
+* player_transport.common_metals -X
+* player_bank.common_metals +X
+* iron/copper inchangés si transfert V2
+
+4. player_bank → player_transport
+   Déjà traité en F2, mais vérifier qu’il reste cohérent avec F3.
+
+ÉTAPE 4 — CAPACITÉ TRANSPORT
+
+Auditer computeTransportUnits et son usage dans :
+
+* transport actuel
+* ajout au transport
+* dépôt depuis transport
+* retour ville → transport si applicable
+
+Confirmer :
+
+* fracten compte avec stack 250
+* common_metals compte 1 unité
+* leather_fur compte 1 unité
+* gold est fallback seulement
+* iron/copper sont fallback seulement
+* fur est fallback seulement
+* aucun double comptage V1 + V2
+
+ÉTAPE 5 — FRONTEND
+
+Auditer PlayerTransportPanel.tsx et economyApi.ts :
+
+* les formulaires doivent envoyer V2 comme principal
+* les champs V1 ne doivent plus être options principales
+* gold/iron/copper/fur affichés seulement legacy si présents
+* les labels doivent rester V2
+* les réponses API doivent être normalisées vers V2 si possible
+
+ÉTAPE 6 — TESTS LOGIQUES
+
+Tester ou raisonner :
+
+A. Transport → ville avec 100 fracten
+Attendu :
+
+* player_transport.fracten -100
+* city_inventory.fracten +100
+* gold inchangé
+
+B. Transport → banque avec 10 common_metals
+Attendu :
+
+* player_transport.common_metals -10
+* player_bank.common_metals +10
+* iron/copper inchangés
+
+C. Transport → ville avec 5 leather_fur
+Attendu :
+
+* player_transport.leather_fur -5
+* city_inventory.leather_fur +5
+* fur inchangé
+
+D. Fallback legacy ancien client
+Attendu :
+
+* gold/iron/copper/fur accepté si nécessaire
+* pas de double débit V1+V2
+* destination idéalement créditée en V2 ou clairement documentée si V1 conservé
+
+ÉTAPE 7 — VÉRIFICATION
+
+Lancer :
+
+npm run check
+
+Puis rechercher dans les fichiers modifiés :
+
+gold
+iron
+copper
+fur
+fracten
+common_metals
+leather_fur
+INSUFFICIENT_TRANSPORT
+INSUFFICIENT_CITY_INVENTORY
+TRANSPORT_CAPACITY_EXCEEDED
+
+Classer les occurrences restantes :
+
+A. V2 principal
+B. Fallback legacy acceptable
+C. Hors périmètre
+D. Dangereux / à corriger maintenant
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC F3
+2. FICHIERS AUDITÉS
+3. FLUX TRANSPORT ↔ VILLE ↔ BANQUE AUDITÉS
+4. CHANGEMENTS BACKEND
+5. CHANGEMENTS FRONTEND / DTO
+6. VÉRIFICATION CAPACITÉ TRANSPORT
+7. TESTS LOGIQUES
+8. DOUBLE DÉBIT / DOUBLE CRÉDIT TROUVÉ ?
+9. FALLBACKS LEGACY RESTANTS
+10. RÉSULTAT npm run check
+11. CONCLUSION : AUTORISÉ OU NON À PASSER À F4
+12. STOP
+
+STOP
+Ne pas commencer F4.
+Ne pas supprimer de colonnes.
+Ne pas modifier la DB.
