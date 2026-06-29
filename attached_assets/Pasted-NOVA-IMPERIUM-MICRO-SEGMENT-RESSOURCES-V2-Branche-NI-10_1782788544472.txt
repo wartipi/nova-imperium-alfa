@@ -1,0 +1,701 @@
+NOVA IMPERIUM — MICRO-SEGMENT RESSOURCES V2
+Branche : NI-10.3
+
+RÔLE
+Tu agis comme correcteur technique sous contrainte stricte.
+
+Méthode obligatoire :
+
+1. Audit ciblé
+2. Diagnostic
+3. Proposition minimale
+4. Implémentation seulement après avoir identifié les fichiers concernés
+5. Vérification
+
+Priorités :
+
+1. Simplicité
+2. Lisibilité
+3. Stabilité
+4. Compatibilité
+
+INTERDICTIONS
+
+* Aucun refactor massif
+* Aucune suppression de fichiers
+* Aucun nettoyage de code mort
+* Aucun changement d’architecture
+* Aucun changement auth
+* Aucun changement frontend non lié aux ressources
+* Aucun changement de logique économique complexe si non nécessaire
+* Ne pas toucher aux unités, sauf si le code force actuellement une dépendance directe aux ressources
+* Ne pas inventer de nouvelles mécaniques
+* Ne pas faire de migration risquée sans diagnostic clair
+
+OBJECTIF
+Convertir le jeu vers la nouvelle liste officielle de ressources Nova Imperium.
+
+Le but est de remplacer l’ancien catalogue de ressources par un catalogue plus propre, structuré en catégories simples :
+
+1. Communes
+2. Stratégiques
+3. Rares
+4. Magiques
+5. Monnaie officielle
+
+IMPORTANT
+Les ressources stratégiques ne sont pas des ressources naturelles de carte.
+Elles sont produites par bâtiments.
+Elles ne doivent pas être générées naturellement sur les tuiles.
+
+La monnaie officielle Fracten n’est pas une ressource naturelle de carte.
+Elle remplace Gold/Or comme monnaie principale.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux lire et modifier uniquement les fichiers nécessaires liés à :
+
+* catalogue des ressources
+* types de ressources
+* génération / assignation des ressources sur la carte
+* affichage des ressources
+* inventaire / économie si les clés de ressources y sont codées en dur
+* production des bâtiments si les ressources y sont codées en dur
+* marché si les anciennes ressources y sont codées en dur
+
+Fichiers probables à auditer :
+
+* shared/schema.ts
+* shared/resource constants ou fichiers équivalents s’ils existent
+* server/map generation / map service
+* server/routes liées aux ressources, marché, économie, bâtiments
+* client constants liées aux ressources
+* composants UI affichant les ressources
+* fichiers contenant les anciennes clés : gold, food, wood, stone, iron, copper, coal, oil, herbs, fur, mana, crystals, etc.
+
+PÉRIMÈTRE INTERDIT
+Ne modifie pas :
+
+* auth
+* routes cartography ownership
+* frontend public home/register
+* système de combat
+* architecture DB globale
+* migrations lourdes
+* unités de transport
+* système de tour
+* fichiers non liés aux ressources
+
+LISTE OFFICIELLE DES RESSOURCES
+
+A. RESSOURCES COMMUNES
+Ces ressources peuvent être naturelles / présentes sur la carte.
+
+1. food
+   Nom affiché : Nourriture
+   Catégorie : common
+   Type : natural_map_resource
+   Description : nourriture générale, fusion de blé, poisson et autres sources alimentaires.
+
+2. wood
+   Nom affiché : Bois
+   Catégorie : common
+   Type : natural_map_resource
+
+3. leather_fur
+   Nom affiché : Cuir et fourrure
+   Catégorie : common
+   Type : natural_map_resource
+   Remplace l’ancien bétail comme ressource animale exploitable.
+
+4. stone
+   Nom affiché : Pierre
+   Catégorie : common
+   Type : natural_map_resource
+
+5. common_metals
+   Nom affiché : Métaux communs
+   Catégorie : common
+   Type : natural_map_resource
+   Remplace Fer + Cuivre.
+
+6. coal
+   Nom affiché : Charbon
+   Catégorie : common
+   Type : natural_map_resource
+
+7. oil
+   Nom affiché : Huile
+   Catégorie : common
+   Type : natural_map_resource
+   Remplace Pétrole.
+   Conserver l’ID interne oil si cela réduit les risques, mais afficher Huile.
+
+8. herbs
+   Nom affiché : Herbes
+   Catégorie : common
+   Type : natural_map_resource
+   Anciennement magique, maintenant commune.
+
+B. RESSOURCES STRATÉGIQUES
+Ces ressources ne sont pas naturelles.
+Elles sont produites par bâtiments.
+Elles ne doivent pas apparaître comme ressources générées sur les tuiles.
+
+1. basic_equipment
+   Nom affiché : Équipement basique
+   Catégorie : strategic
+   Type : produced_by_building
+
+2. intermediate_equipment
+   Nom affiché : Équipement intermédiaire
+   Catégorie : strategic
+   Type : produced_by_building
+
+3. advanced_equipment
+   Nom affiché : Équipement avancé
+   Catégorie : strategic
+   Type : produced_by_building
+
+4. epic_equipment
+   Nom affiché : Équipement épique
+   Catégorie : strategic
+   Type : produced_by_building
+
+5. legendary_equipment
+   Nom affiché : Équipement légendaire
+   Catégorie : strategic
+   Type : produced_by_building
+
+NOTE DESIGN STRATÉGIQUE
+Les équipements stratégiques représentent des niveaux généraux de matériel.
+Ils ne sont pas limités à l’infanterie, ni aux armes.
+Ils couvrent :
+
+* outils
+* armes
+* armures
+* matériel de campagne
+* logistique
+* entraînement
+* soutien opérationnel
+* préparation d’unités ou de campagnes
+
+C. RESSOURCES RARES
+Ces ressources peuvent être naturelles / présentes sur la carte.
+
+1. rare_metals_alloys
+   Nom affiché : Métaux et alliages rares
+   Catégorie : rare
+   Type : natural_map_resource
+   Remplace Gold/Or comme ressource rare.
+
+2. textiles
+   Nom affiché : Textiles
+   Catégorie : rare
+   Type : natural_map_resource
+   Remplace Soie.
+
+3. spices
+   Nom affiché : Épices
+   Catégorie : rare
+   Type : natural_map_resource
+
+4. precious_stones
+   Nom affiché : Pierres précieuses
+   Catégorie : rare
+   Type : natural_map_resource
+   Remplace Gemmes.
+
+D. RESSOURCES MAGIQUES
+Ces ressources sont révélées seulement à exploration niveau 3+ si le système de révélation existe déjà.
+
+1. crystals
+   Nom affiché : Cristaux
+   Catégorie : magical
+   Type : natural_map_resource
+   Révélation : exploration_level >= 3
+
+2. sacred_stones
+   Nom affiché : Pierres sacrées
+   Catégorie : magical
+   Type : natural_map_resource
+   Révélation : exploration_level >= 3
+
+3. ancient_artifacts
+   Nom affiché : Artefacts anciens
+   Catégorie : magical
+   Type : natural_map_resource
+   Révélation : exploration_level >= 3
+
+4. enchanted_wood
+   Nom affiché : Bois enchanté
+   Catégorie : magical
+   Type : natural_map_resource
+   Révélation : exploration_level >= 3
+
+5. mana_crystals
+   Nom affiché : Cristaux de mana
+   Catégorie : magical
+   Type : natural_map_resource
+   Révélation : exploration_level >= 3
+
+6. arcane_stones
+   Nom affiché : Pierres arcaniques
+   Catégorie : magical
+   Type : natural_map_resource
+   Révélation : exploration_level >= 3
+
+7. elemental_essence
+   Nom affiché : Essence élémentaire
+   Catégorie : magical
+   Type : natural_map_resource
+   Révélation : exploration_level >= 3
+
+8. spirit_stones
+   Nom affiché : Pierres d’esprit
+   Catégorie : magical
+   Type : natural_map_resource
+   Révélation : exploration_level >= 3
+
+9. void_shards
+   Nom affiché : Éclats du vide
+   Catégorie : magical
+   Type : natural_map_resource
+   Révélation : exploration_level >= 3
+
+E. MONNAIE OFFICIELLE
+
+1. fracten
+   Nom affiché : Fracten
+   Catégorie : currency
+   Type : currency
+   Remplace Gold/Or comme monnaie principale.
+   Ne doit pas être généré comme ressource naturelle de carte.
+
+RESSOURCES À RETIRER / REMPLACER
+
+Retirer ou remplacer les anciennes ressources suivantes :
+
+* wheat / Blé → remplacé par food / Nourriture
+* fish / Poisson → fusionné dans food / Nourriture
+* cattle / Bétail → remplacé par leather_fur / Cuir et fourrure
+* iron / Fer → remplacé par common_metals / Métaux communs
+* copper / Cuivre → remplacé par common_metals / Métaux communs
+* gold / Or comme monnaie → remplacé par fracten / Fracten
+* gold / Or comme ressource rare → remplacé par rare_metals_alloys / Métaux et alliages rares
+* uranium / Uranium → supprimé
+* silk / Soie → remplacé par textiles / Textiles
+* oil affiché comme Pétrole → afficher Huile
+* ivory / Ivoire → supprimé
+* dragon_scales / Écailles de dragon → supprimé
+* phoenix_feathers / Plumes de phénix → supprimé
+* mana_stones / Pierres de mana → supprimé, redondance avec mana_crystals
+* gems / Gemmes → remplacer par precious_stones / Pierres précieuses ou conserver l’ID gems seulement si nécessaire pour compatibilité, mais afficher Pierres précieuses
+* siege_equipment / Équipement de siège → ne plus utiliser comme ressource stratégique dans cette version
+
+CAS SPÉCIAL : COMPATIBILITÉ
+Si certaines anciennes clés sont profondément utilisées dans le code et que les remplacer directement crée trop de risque, appliquer une stratégie minimale :
+
+1. Garder temporairement l’ancienne clé interne.
+2. Changer le nom affiché.
+3. Ajouter un commentaire TODO clair pour migration ultérieure.
+4. Ne pas faire de migration massive dans ce segment.
+
+Exemples acceptables :
+
+* oil peut rester ID interne oil, affiché Huile.
+* gems peut rester ID interne gems si nécessaire, affiché Pierres précieuses.
+* gold peut temporairement rester comme clé monétaire seulement si le remplacement direct par fracten est trop risqué, mais l’UI doit afficher Fracten et un TODO doit documenter la dette.
+
+Cependant, si le remplacement est simple et localisé, utiliser directement les nouveaux IDs officiels.
+
+ÉTAPE 1 — AUDIT CIBLÉ
+
+Chercher toutes les occurrences des anciennes ressources :
+
+wheat
+fish
+cattle
+iron
+copper
+gold
+uranium
+silk
+oil
+petroleum
+ivory
+dragon_scales
+phoenix_feathers
+mana_stones
+gems
+herbs
+fur
+mana
+crystals
+stone
+wood
+coal
+
+Identifier :
+
+1. Le ou les catalogues de ressources existants.
+2. Les ressources stockées en DB.
+3. Les ressources générées sur la carte.
+4. Les ressources affichées dans l’UI.
+5. Les ressources utilisées dans l’économie / bâtiments / marché.
+6. Les ressources utilisées pour unités ou production.
+
+Ne rien modifier avant d’avoir identifié les fichiers réellement concernés.
+
+ÉTAPE 2 — PROPOSITION DE CORRECTION MINIMALE
+
+Après audit, proposer le plus petit plan possible.
+
+La correction doit viser :
+
+* catalogue centralisé si déjà existant
+* remplacement des anciennes ressources dans la génération de carte
+* correction des noms affichés
+* séparation claire :
+
+  * ressources naturelles de carte
+  * ressources stratégiques produites par bâtiments
+  * monnaie officielle
+
+Ne pas créer une grosse architecture de ressources si elle n’existe pas déjà.
+Si aucun catalogue central n’existe, créer un petit fichier simple seulement si cela réduit la duplication.
+Sinon modifier les constantes existantes.
+
+ÉTAPE 3 — IMPLÉMENTATION
+
+Implémenter la liste finale.
+
+Structure logique attendue, si un catalogue central existe ou peut être créé sans refactor massif :
+
+resources = {
+food: {
+label: "Nourriture",
+category: "common",
+type: "natural_map_resource"
+},
+wood: {
+label: "Bois",
+category: "common",
+type: "natural_map_resource"
+},
+leather_fur: {
+label: "Cuir et fourrure",
+category: "common",
+type: "natural_map_resource"
+},
+stone: {
+label: "Pierre",
+category: "common",
+type: "natural_map_resource"
+},
+common_metals: {
+label: "Métaux communs",
+category: "common",
+type: "natural_map_resource"
+},
+coal: {
+label: "Charbon",
+category: "common",
+type: "natural_map_resource"
+},
+oil: {
+label: "Huile",
+category: "common",
+type: "natural_map_resource"
+},
+herbs: {
+label: "Herbes",
+category: "common",
+type: "natural_map_resource"
+},
+
+basic_equipment: {
+label: "Équipement basique",
+category: "strategic",
+type: "produced_by_building"
+},
+intermediate_equipment: {
+label: "Équipement intermédiaire",
+category: "strategic",
+type: "produced_by_building"
+},
+advanced_equipment: {
+label: "Équipement avancé",
+category: "strategic",
+type: "produced_by_building"
+},
+epic_equipment: {
+label: "Équipement épique",
+category: "strategic",
+type: "produced_by_building"
+},
+legendary_equipment: {
+label: "Équipement légendaire",
+category: "strategic",
+type: "produced_by_building"
+},
+
+rare_metals_alloys: {
+label: "Métaux et alliages rares",
+category: "rare",
+type: "natural_map_resource"
+},
+textiles: {
+label: "Textiles",
+category: "rare",
+type: "natural_map_resource"
+},
+spices: {
+label: "Épices",
+category: "rare",
+type: "natural_map_resource"
+},
+precious_stones: {
+label: "Pierres précieuses",
+category: "rare",
+type: "natural_map_resource"
+},
+
+crystals: {
+label: "Cristaux",
+category: "magical",
+type: "natural_map_resource",
+revealLevel: 3
+},
+sacred_stones: {
+label: "Pierres sacrées",
+category: "magical",
+type: "natural_map_resource",
+revealLevel: 3
+},
+ancient_artifacts: {
+label: "Artefacts anciens",
+category: "magical",
+type: "natural_map_resource",
+revealLevel: 3
+},
+enchanted_wood: {
+label: "Bois enchanté",
+category: "magical",
+type: "natural_map_resource",
+revealLevel: 3
+},
+mana_crystals: {
+label: "Cristaux de mana",
+category: "magical",
+type: "natural_map_resource",
+revealLevel: 3
+},
+arcane_stones: {
+label: "Pierres arcaniques",
+category: "magical",
+type: "natural_map_resource",
+revealLevel: 3
+},
+elemental_essence: {
+label: "Essence élémentaire",
+category: "magical",
+type: "natural_map_resource",
+revealLevel: 3
+},
+spirit_stones: {
+label: "Pierres d’esprit",
+category: "magical",
+type: "natural_map_resource",
+revealLevel: 3
+},
+void_shards: {
+label: "Éclats du vide",
+category: "magical",
+type: "natural_map_resource",
+revealLevel: 3
+},
+
+fracten: {
+label: "Fracten",
+category: "currency",
+type: "currency"
+}
+};
+
+RÈGLES DE GÉNÉRATION DE CARTE
+
+Les ressources naturelles autorisées sur la carte sont seulement :
+
+Communes :
+
+* food
+* wood
+* leather_fur
+* stone
+* common_metals
+* coal
+* oil
+* herbs
+
+Rares :
+
+* rare_metals_alloys
+* textiles
+* spices
+* precious_stones
+
+Magiques :
+
+* crystals
+* sacred_stones
+* ancient_artifacts
+* enchanted_wood
+* mana_crystals
+* arcane_stones
+* elemental_essence
+* spirit_stones
+* void_shards
+
+Ne jamais générer naturellement :
+
+* basic_equipment
+* intermediate_equipment
+* advanced_equipment
+* epic_equipment
+* legendary_equipment
+* fracten
+
+RÈGLES D’AFFICHAGE
+
+Afficher les catégories dans cet ordre :
+
+1. Communes
+2. Stratégiques
+3. Rares
+4. Magiques
+5. Monnaie officielle
+
+Afficher les noms français officiels.
+
+RÈGLES ÉCONOMIQUES MINIMALES
+
+Si le système économique actuel contient encore les ressources :
+
+* gold
+* iron
+* copper
+* fur
+* mana
+
+Ne pas forcer une migration complète si cela casse trop de choses.
+
+Appliquer plutôt un correctif minimal :
+
+* gold affiché comme Fracten, ou remplacé par fracten si simple
+* iron/copper convertis ou remplacés par common_metals si simple
+* fur converti ou remplacé par leather_fur si simple
+* mana ne doit pas remplacer automatiquement les ressources magiques sans diagnostic
+
+Si une conversion temporaire est nécessaire :
+
+* wheat, fish → food
+* cattle, fur → leather_fur
+* iron, copper → common_metals
+* gold monnaie → fracten
+* gold ressource rare → rare_metals_alloys
+* silk → textiles
+* gems → precious_stones
+* petroleum/pétrole → oil affiché Huile
+* mana_stones → mana_crystals ou suppression selon contexte
+
+ÉTAPE 4 — VÉRIFICATIONS OBLIGATOIRES
+
+Lancer :
+
+npm run check
+
+Si possible :
+
+npm run build
+
+Vérifier :
+
+A. TypeScript
+
+* aucune erreur TypeScript
+
+B. Catalogue
+
+* les 26 ressources sont présentes
+* la monnaie Fracten est présente
+* les anciennes ressources retirées ne sont plus générées naturellement
+
+C. Génération carte
+
+* seules les ressources naturelles apparaissent sur les tuiles
+* les équipements stratégiques ne sont pas générés sur les tuiles
+* Fracten n’est pas généré sur les tuiles
+
+D. UI
+
+* noms français affichés correctement
+* Gemmes n’apparaît plus, remplacé par Pierres précieuses
+* Pétrole n’apparaît plus, remplacé par Huile
+* Or n’apparaît plus comme monnaie, remplacé par Fracten
+* Fer et Cuivre n’apparaissent plus, remplacés par Métaux communs
+
+E. Non-régression
+
+* aucune route auth modifiée
+* aucune route cartography ownership modifiée
+* aucun refactor massif
+* aucun fichier supprimé
+
+FORMAT DE RÉPONSE FINAL OBLIGATOIRE
+
+Répondre avec exactement ces sections :
+
+1. DIAGNOSTIC
+
+* expliquer où les ressources étaient définies
+* expliquer quelles anciennes clés existaient
+* identifier les risques de compatibilité
+
+2. PLAN MINIMAL APPLIQUÉ
+
+* dire si un catalogue central existait déjà ou non
+* expliquer l’approche choisie
+
+3. FICHIERS MODIFIÉS
+
+* liste courte des fichiers réellement modifiés
+
+4. LISTE FINALE IMPLÉMENTÉE
+
+* Communes
+* Stratégiques
+* Rares
+* Magiques
+* Monnaie officielle
+
+5. RÈGLES DE GÉNÉRATION
+
+* confirmer quelles ressources peuvent apparaître sur la carte
+* confirmer que les équipements et Fracten ne sont pas générés naturellement
+
+6. COMPATIBILITÉ
+
+* expliquer les anciennes clés conservées temporairement s’il y en a
+* expliquer les TODO ajoutés s’il y en a
+
+7. VÉRIFICATION
+
+* résultat de npm run check
+* résultat de npm run build si exécuté
+* statut des tests A à E
+
+8. STOP
+
+* confirmer qu’aucun chantier hors périmètre n’a été ouvert
+* confirmer qu’aucun refactor massif n’a été fait
