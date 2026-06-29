@@ -19,9 +19,24 @@ const MAT_ROWS: Array<[MatKey, string, string]> = [
   ['fracten','💎','Fracten'],['common_metals','⚒️','Métaux communs'],['leather_fur','🦺','Cuir & Fourrure'],
   ['food','🌿','Nourriture'],['wood','🪵','Bois'],['stone','🪨','Pierre'],
   ['coal','🖤','Charbon'],['oil','🛢️','Pétrole'],['herbs','🌱','Herbes'],
-  // V1 legacy
+  // V1 legacy — masqués si V2 équivalent non nul (sauf ?debug=legacy)
   ['gold','🪙','Or (legacy)'],['iron','⚙️','Fer (legacy)'],['copper','🟤','Cuivre (legacy)'],['fur','🦊','Fourrure (legacy)'],
 ];
+
+// G2 — Masquage legacy : affiche V1 seulement si orphelin ou mode debug.
+const showLegacyDebug =
+  typeof window !== "undefined" &&
+  new URLSearchParams(window.location.search).get("debug") === "legacy";
+
+function isTransportLegacyOrphan(key: MatKey, t: Record<string, number | undefined | null>): boolean {
+  if (key === 'gold')   return (t.fracten       ?? 0) === 0;
+  if (key === 'iron')   return (t.common_metals ?? 0) === 0;
+  if (key === 'copper') return (t.common_metals ?? 0) === 0;
+  if (key === 'fur')    return (t.leather_fur   ?? 0) === 0;
+  return true;
+}
+
+const LEGACY_MAT_KEYS = new Set<MatKey>(['gold', 'iron', 'copper', 'fur']);
 
 // ─── Slots d'équipement ───────────────────────────────────────────────────────
 
@@ -132,7 +147,14 @@ export function PlayerTransportPanel() {
     }
   };
 
-  const active = transport ? MAT_ROWS.filter(([k]) => (transport[k] ?? 0) > 0) : [];
+  const active = transport
+    ? MAT_ROWS.filter(([k]) => {
+        const val = (transport as any)[k] ?? 0;
+        if (val <= 0) return false;
+        if (LEGACY_MAT_KEYS.has(k)) return showLegacyDebug || isTransportLegacyOrphan(k, transport as any);
+        return true;
+      })
+    : [];
   const onQtyChange = (key: MatKey, raw: string) => {
     const v = parseInt(raw, 10);
     setDepositQty(prev => ({ ...prev, [key]: isNaN(v) || v < 0 ? 0 : v }));

@@ -148,11 +148,40 @@ const RESOURCE_DEFS: ResourceDef[] = [
   { key: 'fur',           icon: '🦊', label: 'Fourrure (legacy)'     },
 ];
 
+// ─── G2 — Masquage legacy ─────────────────────────────────────────────────────
+// Afficher les ressources V1 seulement si orphelines (V2 équivalent = 0)
+// ou si ?debug=legacy est dans l'URL.
+const showLegacyDebug =
+  typeof window !== "undefined" &&
+  new URLSearchParams(window.location.search).get("debug") === "legacy";
+
+const LEGACY_KEYS = new Set<ResourceKey>(['gold', 'iron', 'copper', 'fur']);
+
+// Retourne true si ce champ legacy n'a PAS d'équivalent V2 non nul (= orphelin).
+function isLegacyOrphan(key: ResourceKey, src: Record<string, number | undefined | null>): boolean {
+  if (key === 'gold')   return (src.fracten       ?? 0) === 0;
+  if (key === 'iron')   return (src.common_metals ?? 0) === 0;
+  if (key === 'copper') return (src.common_metals ?? 0) === 0;
+  if (key === 'fur')    return (src.leather_fur   ?? 0) === 0;
+  return true;
+}
+
 function visibleResources(
   defs: ResourceDef[],
   source: Record<string, number | undefined | null>,
+  showLegacy = showLegacyDebug,
 ): ResourceDef[] {
-  return defs.filter(d => (source[d.key] ?? 0) > 0);
+  return defs
+    .filter(d => {
+      if ((source[d.key] ?? 0) <= 0) return false;
+      if (LEGACY_KEYS.has(d.key)) return showLegacy || isLegacyOrphan(d.key, source);
+      return true;
+    })
+    .map(d =>
+      showLegacy && LEGACY_KEYS.has(d.key)
+        ? { ...d, label: d.label.replace(' (legacy)', ' (legacy debug)') }
+        : d
+    );
 }
 
 // ─── Composant de ligne de ressource unique ───────────────────────────────────
@@ -506,15 +535,21 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
 
   const handleDepositToBank = async () => {
     const mats = {
-      gold:   parseAmount(toBank.gold),
+      // V2 principal
+      fracten:       parseAmount(toBank.fracten),
+      common_metals: parseAmount(toBank.common_metals),
+      leather_fur:   parseAmount(toBank.leather_fur),
+      // Autres V2
       food:   parseAmount(toBank.food),
       wood:   parseAmount(toBank.wood),
       stone:  parseAmount(toBank.stone),
-      iron:   parseAmount(toBank.iron),
-      copper: parseAmount(toBank.copper),
       coal:   parseAmount(toBank.coal),
       oil:    parseAmount(toBank.oil),
       herbs:  parseAmount(toBank.herbs),
+      // V1 legacy (fallback backward-compat)
+      gold:   parseAmount(toBank.gold),
+      iron:   parseAmount(toBank.iron),
+      copper: parseAmount(toBank.copper),
       fur:    parseAmount(toBank.fur),
     };
     if (Object.values(mats).every(v => v === 0)) {

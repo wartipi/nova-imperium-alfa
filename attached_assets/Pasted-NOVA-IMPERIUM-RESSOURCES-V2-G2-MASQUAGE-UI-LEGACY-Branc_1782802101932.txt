@@ -1,0 +1,299 @@
+NOVA IMPERIUM — RESSOURCES V2 — G2 / MASQUAGE UI LEGACY
+Branche : NI-10.09
+
+OBJECTIF
+Masquer les ressources legacy V1 dans l’UI quand elles sont déjà représentées par leur équivalent V2.
+
+Ce bloc ne doit modifier que l’affichage et les inputs UI.
+Ce bloc ne doit pas modifier la DB.
+Ce bloc ne doit pas neutraliser les données V1.
+Ce bloc ne doit pas supprimer les fallbacks backend.
+Ce bloc ne doit pas faire DROP COLUMN.
+
+CONTEXTE
+G1 a confirmé :
+
+* toutes les données V1 sont des miroirs exacts de V2
+* aucun orphelin V1 n’existe
+* G2 est autorisé
+* market_trades.total_gold est un cas séparé pour G5
+
+Règles de miroir :
+
+* gold = fracten
+* iron + copper = common_metals
+* fur = leather_fur
+
+But G2 :
+
+* ne plus afficher Or/Fer/Cuivre/Fourrure legacy quand V2 contient déjà la même valeur
+* conserver l’affichage legacy seulement si V1 est orphelin ou en conflit
+* ajouter un mode debug legacy optionnel pour forcer l’affichage V1
+
+PÉRIMÈTRE AUTORISÉ
+
+Frontend uniquement :
+
+* client/src/components/game/TreasuryPanel.tsx
+* client/src/components/game/PlayerTransportPanel.tsx
+* client/src/components/game/PublicMarketplace.tsx
+* client/src/components/game/HarvestPanel.tsx seulement si nécessaire
+* client/src/lib/api/economyApi.ts seulement si type nécessaire
+* client/src/lib/api/marketApi.ts seulement si label ou type nécessaire
+
+INTERDICTIONS STRICTES
+
+Ne pas modifier :
+
+* server/*
+* shared/schema.ts
+* DB
+* migrations
+* routes
+* marketService.ts
+* economyService.ts
+* playerActionService.ts
+* buildingEffects.ts
+* MapGenerator.ts
+* HexTile
+* ResourceRevealSystem.ts
+* auth
+* cartography ownership
+
+Ne pas faire :
+
+* UPDATE SQL
+* DELETE SQL
+* DROP COLUMN
+* suppression de colonnes
+* suppression de fallback backend
+* neutralisation V1
+* G3
+
+ÉTAPE 1 — AUDIT UI AVANT MODIFICATION
+
+Lire et auditer :
+
+* TreasuryPanel.tsx
+* PlayerTransportPanel.tsx
+* PublicMarketplace.tsx
+* HarvestPanel.tsx
+* economyApi.ts
+* marketApi.ts
+
+Chercher :
+
+gold
+iron
+copper
+fur
+fracten
+common_metals
+leather_fur
+legacy
+Or (legacy)
+Fer (legacy)
+Cuivre (legacy)
+Fourrure (legacy)
+totalGold
+totalFracten
+
+Classer chaque occurrence :
+
+A. UI legacy à masquer maintenant
+B. UI legacy à conserver car orphelin possible
+C. Type/DTO backward-compat, ne pas modifier
+D. Label marché legacy nécessaire pour ordres V1
+E. Hors périmètre
+F. Dangereux / incohérent
+
+ÉTAPE 2 — MODE DEBUG LEGACY
+
+Ajouter un mode debug UI simple :
+
+const showLegacyDebug =
+new URLSearchParams(window.location.search).get("debug") === "legacy";
+
+Règle :
+
+* si ?debug=legacy est dans l’URL, afficher les lignes legacy même si miroir
+* sinon, masquer les lignes legacy miroir
+
+Ne pas créer de nouveau système global.
+Ne pas ajouter de store.
+Ne pas modifier backend.
+
+ÉTAPE 3 — RÈGLES DE MASQUAGE
+
+Définir des helpers UI locaux ou partagés dans les composants touchés.
+
+Règles :
+
+1. gold
+   Afficher gold legacy seulement si :
+
+* showLegacyDebug === true
+  OU
+* gold > 0 ET fracten === 0
+
+Sinon masquer.
+
+2. iron
+   Afficher iron legacy seulement si :
+
+* showLegacyDebug === true
+  OU
+* iron > 0 ET common_metals === 0
+
+Sinon masquer.
+
+3. copper
+   Afficher copper legacy seulement si :
+
+* showLegacyDebug === true
+  OU
+* copper > 0 ET common_metals === 0
+
+Sinon masquer.
+
+4. fur
+   Afficher fur legacy seulement si :
+
+* showLegacyDebug === true
+  OU
+* fur > 0 ET leather_fur === 0
+
+Sinon masquer.
+
+Important :
+
+* ne jamais masquer Fracten, Métaux communs, Cuir & Fourrure
+* ne pas modifier les valeurs envoyées au backend sauf pour empêcher un input legacy miroir d’être saisi par défaut
+* les champs V1 doivent rester techniquement supportés dans les DTO
+
+ÉTAPE 4 — TREASURYPANEL
+
+Dans TreasuryPanel.tsx :
+
+* masquer les lignes legacy dans RESOURCE_DEFS ou dans le rendu selon les règles ci-dessus
+* garder les champs V2 toujours visibles :
+
+  * fracten
+  * common_metals
+  * leather_fur
+* si showLegacyDebug=true, afficher les legacy avec suffixe "(legacy debug)"
+* les inputs de transfert gold/iron/copper/fur ne doivent plus apparaître si V2 contient déjà l’équivalent miroir
+* ne pas supprimer les champs du TransferState
+* ne pas supprimer les aliases d’erreur V1
+* ne pas supprimer les DTO V1
+
+ÉTAPE 5 — PLAYERTRANSPORTPANEL
+
+Dans PlayerTransportPanel.tsx :
+
+* filtrer MAT_ROWS pour masquer :
+
+  * gold si fracten > 0
+  * iron/copper si common_metals > 0
+  * fur si leather_fur > 0
+* afficher legacy seulement si V1 est orphelin ou debug legacy
+* le dépôt doit envoyer seulement les champs visibles/saisis
+* ne pas modifier postDepositTransportToCity / postDepositTransportToBank
+* ne pas modifier backend
+
+ÉTAPE 6 — PUBLICMARKETPLACE
+
+Dans PublicMarketplace.tsx :
+
+* masquer market_fee_box.gold si fracten existe ou si gold=0
+* conserver l’affichage legacy seulement si :
+
+  * gold > 0 ET fracten === 0
+  * ou showLegacyDebug=true
+* ne pas modifier les ordres legacy V1 actifs
+* ne pas supprimer les labels legacy de marketApi.ts si encore nécessaires pour ordres V1
+
+ÉTAPE 7 — HARVESTPANEL
+
+Dans HarvestPanel.tsx :
+
+* vérifier si les lignes legacy s’affichent encore alors que V2 miroir existe
+* si oui, appliquer le même masquage
+* si le filtre actuel masque déjà les zéros correctement, ne pas modifier inutilement
+
+ÉTAPE 8 — VÉRIFICATION UI
+
+Vérifier les scénarios :
+
+A. player_bank admin :
+
+* gold=5, fracten=5
+* UI doit afficher Fracten 5
+* UI ne doit pas afficher Or legacy sauf ?debug=legacy
+
+B. player_bank admin :
+
+* iron=100, copper=127, common_metals=227
+* UI doit afficher Métaux communs 227
+* UI ne doit pas afficher Fer/Cuivre legacy sauf ?debug=legacy
+
+C. player_transport admin :
+
+* gold=75, fracten=75
+* UI doit afficher Fracten 75
+* UI ne doit pas afficher Or legacy sauf ?debug=legacy
+
+D. player_transport admin :
+
+* copper=14, common_metals=14
+* UI doit afficher Métaux communs 14
+* UI ne doit pas afficher Cuivre legacy sauf ?debug=legacy
+
+E. debug :
+
+* avec ?debug=legacy, afficher les lignes legacy avec mention claire
+
+ÉTAPE 9 — VÉRIFICATION TYPESCRIPT
+
+Lancer :
+
+npm run check
+
+Puis chercher dans les fichiers modifiés :
+
+gold
+iron
+copper
+fur
+legacy
+showLegacyDebug
+debug=legacy
+
+Classer les occurrences restantes :
+
+A. V2 principal
+B. Legacy masqué correctement
+C. Legacy debug uniquement
+D. DTO backward-compat
+E. Dangereux / à corriger maintenant
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC G2
+2. FICHIERS AUDITÉS
+3. OCCURRENCES UI CLASSÉES
+4. CHANGEMENTS TREASURYPANEL
+5. CHANGEMENTS PLAYERTRANSPORTPANEL
+6. CHANGEMENTS PUBLICMARKETPLACE
+7. CHANGEMENTS HARVESTPANEL SI APPLICABLE
+8. MODE DEBUG LEGACY
+9. SCÉNARIOS UI VALIDÉS
+10. RÉSULTAT npm run check
+11. CONCLUSION : AUTORISÉ OU NON À PASSER À G3
+12. STOP
+
+STOP
+Ne pas commencer G3.
+Ne pas modifier la DB.
+Ne pas modifier le backend.
+Ne pas supprimer les fallbacks.

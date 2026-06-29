@@ -9,6 +9,11 @@ import {
 import { getPlayerTransport, type PlayerTransportDTO } from "../../lib/api/economyApi";
 import { NovaConfirmModal, type NovaConfirmLine } from "./NovaConfirmModal";
 
+// G2 — Masquage legacy : affiche gold seulement si orphelin (fracten=0) ou mode debug.
+const showLegacyDebug =
+  typeof window !== "undefined" &&
+  new URLSearchParams(window.location.search).get("debug") === "legacy";
+
 interface PublicMarketplaceProps {
   playerId: string;
   onClose: () => void;
@@ -510,12 +515,25 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                   <div className="mt-2 bg-amber-100 border border-amber-300 rounded-lg p-2.5 flex items-center gap-3 text-sm">
                     <span className="font-semibold text-amber-900">🏛️ Caisse locale</span>
                     <span className="text-amber-800">
-                      {(rmFeeBox.fracten + rmFeeBox.gold) > 0
-                        ? <><strong>{rmFeeBox.fracten + rmFeeBox.gold} fr</strong> — commissions sans banque</>
-                        : <em className="text-amber-500">Vide</em>
-                      }
+                      {(() => {
+                        // G2 : gold legacy masqué si fracten V2 le couvre, sauf ?debug=legacy
+                        const showGoldLegacy = showLegacyDebug || rmFeeBox.fracten === 0;
+                        const total = rmFeeBox.fracten + (showGoldLegacy ? rmFeeBox.gold : 0);
+                        if (total <= 0) return <em className="text-amber-500">Vide</em>;
+                        return (
+                          <>
+                            <strong>{total} fr</strong>
+                            {" — commissions sans banque"}
+                            {showLegacyDebug && rmFeeBox.gold > 0 && (
+                              <span className="text-amber-500 text-xs ml-1">
+                                (dont {rmFeeBox.gold} Or legacy debug)
+                              </span>
+                            )}
+                          </>
+                        );
+                      })()}
                     </span>
-                    {(rmFeeBox.fracten + rmFeeBox.gold) > 0 && (
+                    {(rmFeeBox.fracten + (showLegacyDebug || rmFeeBox.fracten === 0 ? rmFeeBox.gold : 0)) > 0 && (
                       <button
                         onClick={async () => {
                           const cityId = access.cityId ?? 0;
