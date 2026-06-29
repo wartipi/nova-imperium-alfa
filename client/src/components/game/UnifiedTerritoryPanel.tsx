@@ -19,13 +19,47 @@ const TERRAIN_LABELS: Record<string, string> = {
   shallow_water: 'Eau peu profonde', deep_water: 'Eau profonde',
 };
 
+// V2 officielles en tête — V1 legacy conservées avec suffixe pour stocks existants.
 const RESOURCE_LABELS: Record<string, string> = {
-  wheat: '🌾 Blé', cattle: '🐄 Bétail', fish: '🐟 Poisson', deer: '🦌 Cerf',
-  stone: '🪨 Pierre', copper: '🔶 Cuivre', iron: '⚒️ Fer', coal: '⚫ Charbon',
-  gold: '🥇 Or', oil: '🛢️ Pétrole', gems: '💎 Gemmes', herbs: '🌿 Herbes',
-  crystals: '💠 Cristaux', crabs: '🦀 Crabes', whales: '🐋 Baleines',
-  sulfur: '🔥 Soufre', obsidian: '⚫ Obsidienne', ancient_artifacts: '📿 Artefacts',
-  sacred_stones: '🔮 Pierres sacrées', fur: '🧥 Fourrure',
+  // ─── V2 monnaie + ressources officielles ────────────────────────────────────
+  fracten:            '🪙 Fracten',
+  food:               '🌾 Nourriture',
+  wood:               '🪵 Bois',
+  stone:              '🪨 Pierre',
+  coal:               '⚫ Charbon',
+  oil:                '🛢️ Pétrole',
+  herbs:              '🌿 Herbes',
+  common_metals:      '⚙️ Métaux communs',
+  leather_fur:        '🦊 Cuir & fourrure',
+  rare_metals_alloys: '🔩 Métaux & alliages rares',
+  textiles:           '🧵 Textiles',
+  spices:             '🌶️ Épices',
+  precious_stones:    '💎 Pierres précieuses',
+  crystals:           '🔮 Cristaux',
+  sacred_stones:      '🗿 Pierres sacrées',
+  ancient_artifacts:  '🏺 Artefacts anciens',
+  enchanted_wood:     '🌳 Bois enchanté',
+  mana_crystals:      '✨ Cristaux de mana',
+  arcane_stones:      '🌀 Pierres arcaniques',
+  elemental_essence:  '🔥 Essence élémentaire',
+  spirit_stones:      '👻 Pierres spirituelles',
+  void_shards:        '🌌 Éclats du vide',
+  // ─── Ressources naturelles (carte/exploration) ────────────────────────────
+  deer:               '🦌 Cerf',
+  crabs:              '🦀 Crabes',
+  whales:             '🐋 Baleines',
+  sulfur:             '🟡 Soufre',
+  obsidian:           '⚫ Obsidienne',
+  // ─── V1 legacy — stocks existants uniquement ─────────────────────────────
+  wheat:              '🌾 Blé (legacy)',
+  cattle:             '🐄 Bétail (legacy)',
+  fish:               '🐟 Poisson (legacy)',
+  fur:                '🧥 Fourrure (legacy)',
+  copper:             '🔶 Cuivre (legacy)',
+  iron:               '⚒️ Fer (legacy)',
+  gold:               '🥇 Or (legacy)',
+  gems:               '💠 Gemmes (legacy)',
+  silk:               '🕸️ Soie (legacy)',
 };
 
 const BUILDING_LABELS: Record<string, string> = {

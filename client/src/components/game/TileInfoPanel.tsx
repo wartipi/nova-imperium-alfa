@@ -40,33 +40,51 @@ function getMovementCostInfo(terrain: string) {
 }
 
 // Fonction pour obtenir le symbole et nom des ressources
+// V2 : fracten + ressources officielles en tête. V1 legacy conservées avec suffixe.
 function getResourceInfo(resource: string) {
   const resourceData = {
-    // Ressources communes
-    wheat: { symbol: '🌾', name: 'Blé', color: '#FFD700' },
-    cattle: { symbol: '🐄', name: 'Bétail', color: '#8B4513' },
-    fish: { symbol: '🐟', name: 'Poisson', color: '#4682B4' },
-    deer: { symbol: '🦌', name: 'Cerf', color: '#8B4513' },
-    // Ressources stratégiques
-    stone: { symbol: '🪨', name: 'Pierre', color: '#708090' },
-    copper: { symbol: '🔶', name: 'Cuivre', color: '#B87333' },
-    iron: { symbol: '⚒️', name: 'Fer', color: '#C0C0C0' },
-    coal: { symbol: '⚫', name: 'Charbon', color: '#2F2F2F' },
-    // Ressources rares
-    gold: { symbol: '🥇', name: 'Or', color: '#FFD700' },
-    oil: { symbol: '🛢️', name: 'Pétrole', color: '#8B4513' },
-    gems: { symbol: '💎', name: 'Gemmes', color: '#00CED1' },
-    // Ressources spéciales archipel
-    herbs: { symbol: '🌿', name: 'Herbes', color: '#32CD32' },
-    crystals: { symbol: '💠', name: 'Cristaux', color: '#9370DB' },
-    crabs: { symbol: '🦀', name: 'Crabes', color: '#FF6347' },
-    whales: { symbol: '🐋', name: 'Baleines', color: '#4682B4' },
-    sulfur: { symbol: '🔥', name: 'Soufre', color: '#FFD700' },
-    obsidian: { symbol: '⚫', name: 'Obsidienne', color: '#2F2F2F' },
-    ancient_artifacts: { symbol: '📿', name: 'Artefacts anciens', color: '#DAA520' },
-    sacred_stones: { symbol: '🔮', name: 'Pierres sacrées', color: '#8A2BE2' },
+    // ─── V2 monnaie ───────────────────────────────────────────────────────────
+    fracten:            { symbol: '🪙', name: 'Fracten', color: '#FFD700' },
+    // ─── V2 ressources de base ────────────────────────────────────────────────
+    food:               { symbol: '🌾', name: 'Nourriture', color: '#7CFC00' },
+    wood:               { symbol: '🪵', name: 'Bois', color: '#8B4513' },
+    stone:              { symbol: '🪨', name: 'Pierre', color: '#708090' },
+    coal:               { symbol: '⚫', name: 'Charbon', color: '#2F2F2F' },
+    oil:                { symbol: '🛢️', name: 'Pétrole', color: '#8B4513' },
+    herbs:              { symbol: '🌿', name: 'Herbes', color: '#32CD32' },
+    common_metals:      { symbol: '⚙️', name: 'Métaux communs', color: '#A8A8A8' },
+    leather_fur:        { symbol: '🦊', name: 'Cuir & fourrure', color: '#8B4513' },
+    // ─── V2 ressources rares ──────────────────────────────────────────────────
+    rare_metals_alloys: { symbol: '🔩', name: 'Métaux & alliages rares', color: '#DAA520' },
+    textiles:           { symbol: '🧵', name: 'Textiles', color: '#DDA0DD' },
+    spices:             { symbol: '🌶️', name: 'Épices', color: '#FF4500' },
+    precious_stones:    { symbol: '💎', name: 'Pierres précieuses', color: '#00CED1' },
+    crystals:           { symbol: '🔮', name: 'Cristaux', color: '#9370DB' },
+    sacred_stones:      { symbol: '🗿', name: 'Pierres sacrées', color: '#8A2BE2' },
+    ancient_artifacts:  { symbol: '🏺', name: 'Artefacts anciens', color: '#DAA520' },
+    enchanted_wood:     { symbol: '🌳', name: 'Bois enchanté', color: '#228B22' },
+    mana_crystals:      { symbol: '✨', name: 'Cristaux de mana', color: '#9400D3' },
+    arcane_stones:      { symbol: '🌀', name: 'Pierres arcaniques', color: '#483D8B' },
+    elemental_essence:  { symbol: '🔥', name: 'Essence élémentaire', color: '#FF4500' },
+    spirit_stones:      { symbol: '👻', name: 'Pierres spirituelles', color: '#F0F8FF' },
+    void_shards:        { symbol: '🌌', name: 'Éclats du vide', color: '#4B0082' },
+    // ─── Ressources naturelles (carte/exploration) ────────────────────────────
+    deer:               { symbol: '🦌', name: 'Cerf', color: '#8B4513' },
+    crabs:              { symbol: '🦀', name: 'Crabes', color: '#FF6347' },
+    whales:             { symbol: '🐋', name: 'Baleines', color: '#4682B4' },
+    sulfur:             { symbol: '🟡', name: 'Soufre', color: '#FFFF00' },
+    obsidian:           { symbol: '⚫', name: 'Obsidienne', color: '#2F2F2F' },
+    // ─── V1 legacy — stocks existants uniquement ──────────────────────────────
+    wheat:              { symbol: '🌾', name: 'Blé (legacy)', color: '#FFD700' },
+    cattle:             { symbol: '🐄', name: 'Bétail (legacy)', color: '#8B4513' },
+    fish:               { symbol: '🐟', name: 'Poisson (legacy)', color: '#4682B4' },
+    fur:                { symbol: '🧥', name: 'Fourrure (legacy)', color: '#654321' },
+    copper:             { symbol: '🔶', name: 'Cuivre (legacy)', color: '#B87333' },
+    iron:               { symbol: '⚒️', name: 'Fer (legacy)', color: '#C0C0C0' },
+    gold:               { symbol: '🥇', name: 'Or (legacy)', color: '#FFD700' },
+    gems:               { symbol: '💠', name: 'Gemmes (legacy)', color: '#00CED1' },
   };
-  return resourceData[resource as keyof typeof resourceData] || { symbol: '💎', name: resource, color: '#808080' };
+  return resourceData[resource as keyof typeof resourceData] || { symbol: '❓', name: resource, color: '#808080' };
 }
 
 // Composant pour les informations de colonie
@@ -490,30 +508,46 @@ export function TileInfoPanel() {
     return names[terrain as keyof typeof names] || terrain;
   };
 
-  // Get resource display name
+  // Get resource display name — V2 officielles en principal, V1 legacy avec suffixe
   const getResourceName = (resource: string): string => {
     const names = {
-      // Basic resources
-      gold: 'Or',
-      iron: 'Fer',
-      copper: 'Cuivre',
-      stone: 'Pierre',
-      coal: 'Charbon',
-      oil: 'Pétrole',
-      wheat: 'Blé',
-      cattle: 'Bétail',
-      fish: 'Poisson',
-      deer: 'Cerf',
-      fur: 'Fourrure',
-      // Special resources for archipelago world
-      herbs: 'Herbes',
-      crystals: 'Cristaux',
-      sacred_stones: 'Pierres sacrées',
-      ancient_artifacts: 'Artefacts anciens',
-      sulfur: 'Soufre',
-      obsidian: 'Obsidienne',
-      crabs: 'Crabes',
-      whales: 'Baleines'
+      // V2 monnaie + ressources officielles
+      fracten:            'Fracten',
+      food:               'Nourriture',
+      wood:               'Bois',
+      stone:              'Pierre',
+      coal:               'Charbon',
+      oil:                'Pétrole',
+      herbs:              'Herbes',
+      common_metals:      'Métaux communs',
+      leather_fur:        'Cuir & fourrure',
+      rare_metals_alloys: 'Métaux & alliages rares',
+      textiles:           'Textiles',
+      spices:             'Épices',
+      precious_stones:    'Pierres précieuses',
+      crystals:           'Cristaux',
+      sacred_stones:      'Pierres sacrées',
+      ancient_artifacts:  'Artefacts anciens',
+      enchanted_wood:     'Bois enchanté',
+      mana_crystals:      'Cristaux de mana',
+      arcane_stones:      'Pierres arcaniques',
+      elemental_essence:  'Essence élémentaire',
+      spirit_stones:      'Pierres spirituelles',
+      void_shards:        'Éclats du vide',
+      // Ressources naturelles (carte/exploration)
+      deer:               'Cerf',
+      sulfur:             'Soufre',
+      obsidian:           'Obsidienne',
+      crabs:              'Crabes',
+      whales:             'Baleines',
+      // V1 legacy
+      gold:               'Or (legacy)',
+      iron:               'Fer (legacy)',
+      copper:             'Cuivre (legacy)',
+      wheat:              'Blé (legacy)',
+      cattle:             'Bétail (legacy)',
+      fish:               'Poisson (legacy)',
+      fur:                'Fourrure (legacy)',
     };
     return names[resource as keyof typeof names] || resource;
   };

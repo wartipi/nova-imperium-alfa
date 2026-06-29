@@ -693,21 +693,39 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
 
   const getResourceIcon = (resource: string): string => {
     const icons: Record<string, string> = {
-      food:              '🍞',
-      gold:              '💰',
-      wood:              '🪵',
-      stone:             '🪨',
-      iron:              '⚙️',
-      copper:            '🟤',
-      coal:              '🖤',
-      oil:               '🛢️',
-      herbs:             '🌱',
-      fur:               '🦊',
-      precious_metals:   '🥇',
-      mana:              '🔮',
-      crystals:          '💎',
-      ancient_knowledge: '📜',
-      action_points:     '⚡',
+      // V2 — monnaie + ressources officielles
+      fracten:            '🪙',
+      food:               '🌾',
+      wood:               '🪵',
+      stone:              '🪨',
+      coal:               '⚫',
+      oil:                '🛢️',
+      herbs:              '🌿',
+      common_metals:      '⚙️',
+      leather_fur:        '🦊',
+      rare_metals_alloys: '🔩',
+      textiles:           '🧵',
+      spices:             '🌶️',
+      precious_stones:    '💎',
+      crystals:           '🔮',
+      sacred_stones:      '🗿',
+      ancient_artifacts:  '🏺',
+      enchanted_wood:     '🌳',
+      mana_crystals:      '✨',
+      arcane_stones:      '🌀',
+      elemental_essence:  '🔥',
+      spirit_stones:      '👻',
+      void_shards:        '🌌',
+      // Divers
+      precious_metals:    '🔩',
+      mana:               '🔮',
+      ancient_knowledge:  '📜',
+      action_points:      '⚡',
+      // V1 legacy — constructions existantes
+      gold:               '🥇',
+      iron:               '⚒️',
+      copper:             '🔶',
+      fur:                '🧥',
     };
     return icons[resource] || '❓';
   };
@@ -886,8 +904,14 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
       } else if (body?.error === 'RESOURCE_PREREQUISITE_NOT_MET') {
         const required: string[] = body.required ?? [];
         const resourceLabels: Record<string, string> = {
-          deer: 'gibier (cerf)', fur: 'fourrure', herbs: 'herbes', wheat: 'blé', cattle: 'bétail',
-          fish: 'poisson', stone: 'pierre', iron: 'fer', copper: 'cuivre', coal: 'charbon', oil: 'pétrole',
+          // V2 officielles
+          food: 'nourriture', wood: 'bois', stone: 'pierre', coal: 'charbon', oil: 'pétrole',
+          herbs: 'herbes', common_metals: 'métaux communs', leather_fur: 'cuir & fourrure',
+          // Ressources naturelles (exploration/terrain)
+          deer: 'gibier (cerf)',
+          // V1 legacy — labels avec suffixe
+          fur: 'fourrure (legacy)', wheat: 'blé (legacy)', cattle: 'bétail (legacy)',
+          fish: 'poisson (legacy)', iron: 'fer (legacy)', copper: 'cuivre (legacy)',
         };
         const reqStr = required.map(r => resourceLabels[r] ?? r).join(' ou ');
         const msg = `❌ Ressource absente du territoire : ${reqStr} — aucune case contrôlée ne fournit cette ressource`;
@@ -896,12 +920,20 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
       } else if (body?.error === 'INSUFFICIENT_CITY_INVENTORY') {
         const miss = body.missing as Partial<Record<string, number>>;
         const labels: Record<string, string> = {
-          gold: 'or', food: 'nourriture', wood: 'bois', stone: 'pierre', iron: 'fer',
-          copper: 'cuivre', coal: 'charbon', oil: 'pétrole', herbs: 'herbes', fur: 'fourrure',
+          // V2 officielles
+          fracten: 'fracten', food: 'nourriture', wood: 'bois', stone: 'pierre',
+          coal: 'charbon', oil: 'pétrole', herbs: 'herbes',
+          common_metals: 'métaux communs', leather_fur: 'cuir & fourrure',
+          // V1 legacy
+          gold: 'or (legacy)', iron: 'fer (legacy)', copper: 'cuivre (legacy)', fur: 'fourrure (legacy)',
         };
         const icons: Record<string, string> = {
-          gold: '🪙', food: '🌿', wood: '🪵', stone: '🪨', iron: '⚙️',
-          copper: '🟤', coal: '🖤', oil: '🛢️', herbs: '🌱', fur: '🦊',
+          // V2 officielles
+          fracten: '🪙', food: '🌾', wood: '🪵', stone: '🪨',
+          coal: '⚫', oil: '🛢️', herbs: '🌿',
+          common_metals: '⚙️', leather_fur: '🦊',
+          // V1 legacy
+          gold: '🥇', iron: '⚒️', copper: '🔶', fur: '🧥',
         };
         const parts = Object.entries(miss).filter(([, v]) => v! > 0).map(([k, v]) => `${v}${icons[k] ?? ''} ${labels[k] ?? k}`);
         const msg = `❌ ${parts.join(', ')} manquant${parts.length > 1 ? 's' : ''} — transférez depuis la banque`;
@@ -1070,9 +1102,14 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
               ancient_ruins: 'Ruines', volcano: 'Volcan', plains: 'Plaines',
             };
             const RESOURCE_ICONS: Record<string, string> = {
-              deer: '🦌', fur: '🦊', herbs: '🌱', wheat: '🌾', cattle: '🐄',
-              fish: '🐟', stone: '🪨', iron: '⚙️', copper: '🟤', coal: '🖤',
-              oil: '🛢️', crystals: '💎', sacred_stones: '✨', ancient_artifacts: '📿',
+              // V2 officielles
+              food: '🌾', wood: '🪵', stone: '🪨', coal: '⚫', oil: '🛢️',
+              herbs: '🌿', common_metals: '⚙️', leather_fur: '🦊',
+              crystals: '🔮', sacred_stones: '🗿', ancient_artifacts: '🏺',
+              // Ressources naturelles
+              deer: '🦌',
+              // V1 legacy
+              fur: '🧥', wheat: '🌾', cattle: '🐄', fish: '🐟', iron: '⚒️', copper: '🔶',
             };
             return (
               <div className="mb-2 space-y-1">

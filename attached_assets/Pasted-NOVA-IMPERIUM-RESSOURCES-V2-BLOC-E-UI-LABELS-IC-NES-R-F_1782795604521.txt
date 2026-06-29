@@ -1,0 +1,273 @@
+NOVA IMPERIUM — RESSOURCES V2 — BLOC E UI / LABELS / ICÔNES / RÉFÉRENCES RESTANTES
+Branche : NI-10.09
+
+OBJECTIF
+Nettoyer les libellés, icônes, listes d’affichage et références utilisateur restantes pour que l’interface utilise les ressources V2 comme vocabulaire principal.
+
+Ce bloc ne doit pas supprimer les colonnes legacy.
+Ce bloc ne doit pas faire de migration destructive.
+Ce bloc ne doit pas changer la logique serveur critique.
+
+CONTEXTE
+Blocs terminés :
+
+* Bloc A : carte / HexTile / yields client
+* Bloc B : production ville / économie faction / fracten
+* Bloc C : inventaires / récolte / transport / banque
+* Audit post-Bloc C : double comptage corrigé
+* Bloc D : marché V2
+* Audit post-Bloc D : marché autorisé pour suite
+
+Ressources V2 officielles principales :
+
+* fracten
+* food
+* wood
+* stone
+* common_metals
+* coal
+* oil
+* herbs
+* leather_fur
+* rare_metals_alloys
+* textiles
+* spices
+* precious_stones
+* crystals
+* sacred_stones
+* ancient_artifacts
+* enchanted_wood
+* mana_crystals
+* arcane_stones
+* elemental_essence
+* spirit_stones
+* void_shards
+
+RESSOURCES V1 À NE PLUS AFFICHER COMME PRINCIPALES
+
+* gold / Or
+* iron / Fer
+* copper / Cuivre
+* fur / Fourrure seule
+* wheat
+* cattle
+* fish
+* silk
+* gems
+* ivory
+* uranium
+* mana_stones
+
+PÉRIMÈTRE AUTORISÉ
+
+Auditer et modifier uniquement les fichiers d’interface, labels, icônes, listes client, types client non critiques et commentaires.
+
+Fichiers probables :
+
+* client/src/lib/shared/ResourceIcons.ts
+* client/src/components/game/TileInfoPanel.tsx
+* client/src/components/game/UnifiedTerritoryPanel.tsx
+* client/src/components/game/TreasuryPanel.tsx
+* client/src/components/game/ConstructionPanel.tsx
+* client/src/components/game/ConstructionPanelSimple.tsx
+* client/src/components/game/RecruitmentPanel.tsx
+* client/src/components/game/HarvestPanel.tsx
+* client/src/components/game/PlayerTransportPanel.tsx
+* client/src/components/game/PublicMarketplace.tsx
+* client/src/lib/api/*.ts si labels/types UI seulement
+* client/src/lib/game/types.ts si commentaires ou labels uniquement
+* shared/schema.ts commentaires seulement si nécessaire
+
+INTERDICTIONS STRICTES
+
+Ne pas modifier :
+
+* colonnes DB
+* migrations
+* db:push
+* server/marketService.ts
+* server/economyService.ts
+* server/playerActionService.ts
+* routes serveur sauf commentaire strictement nécessaire
+* MapGenerator.ts sauf commentaire strictement nécessaire
+* logique de récolte
+* logique de marché
+* logique de transport
+* logique de production
+* auth
+* cartography ownership
+* unités
+* déploiement
+
+Ne pas faire :
+
+* Bloc F
+* DROP COLUMN
+* suppression legacy
+* refactor massif
+* changement de comportement serveur
+
+ÉTAPE 1 — AUDIT UI / LABELS
+
+Chercher dans le client :
+
+gold
+Gold
+or
+Or
+iron
+fer
+Fer
+copper
+cuivre
+Cuivre
+fur
+fourrure
+Fourrure
+wheat
+cattle
+fish
+silk
+gems
+ivory
+uranium
+mana_stones
+
+Classer chaque occurrence :
+
+A. Bloc E — à corriger maintenant comme label/icône/liste UI
+B. Legacy volontaire affiché avec suffixe “legacy”
+C. Commentaire/TODO acceptable
+D. Dangereux / confusion utilisateur
+
+ÉTAPE 2 — RÈGLES D’AFFICHAGE
+
+Remplacer les affichages principaux par :
+
+* gold / Or → Fracten
+* iron + copper / Fer + Cuivre → Métaux communs
+* fur / Fourrure → Cuir et fourrure
+* gems / Gemmes → Pierres précieuses
+* silk / Soie → Textiles
+* mana_stones / Pierres de mana → Cristaux de mana ou supprimer selon contexte
+* wheat / cattle / fish → Nourriture
+
+Les anciennes ressources peuvent rester visibles seulement si :
+
+* elles représentent un stock legacy réel
+* elles sont clairement marquées “legacy”
+* elles ne sont pas proposées comme option principale de nouveau contenu
+
+ÉTAPE 3 — ICÔNES
+
+Centraliser ou corriger les icônes si nécessaire :
+
+Suggestions :
+
+* fracten : 🪙
+* food : 🌾
+* wood : 🪵
+* stone : 🪨
+* common_metals : ⚙️
+* coal : ⚫
+* oil : 🛢️
+* herbs : 🌿
+* leather_fur : 🦊
+* rare_metals_alloys : 🔩
+* textiles : 🧵
+* spices : 🌶️
+* precious_stones : 💎
+* crystals : 🔮
+* sacred_stones : 🗿
+* ancient_artifacts : 🏺
+* enchanted_wood : 🌳
+* mana_crystals : ✨
+* arcane_stones : 🌀
+* elemental_essence : 🔥
+* spirit_stones : 👻
+* void_shards : 🌌
+
+Ne pas casser les imports existants.
+
+ÉTAPE 4 — LISTES D’OPTIONS
+
+Vérifier que les listes d’options principales n’incluent plus :
+
+* iron
+* copper
+* fur
+* gold
+* wheat
+* cattle
+* fish
+* silk
+* gems
+* ivory
+* uranium
+* mana_stones
+
+Sauf listes legacy explicitement nommées.
+
+ÉTAPE 5 — COMMENTAIRES ET TEXTES UTILISATEUR
+
+Mettre à jour les textes visibles et commentaires évidents qui parlent encore de :
+
+* Or
+* Gold
+* Fer
+* Cuivre
+* Fourrure seule
+* Gemmes
+* Soie
+
+Ne pas perdre le sens legacy si un champ DB ancien est encore présent.
+
+ÉTAPE 6 — VÉRIFICATION
+
+Lancer :
+
+npm run check
+
+Puis rechercher dans le client :
+
+gold
+Gold
+or
+Or
+iron
+copper
+fur
+wheat
+cattle
+fish
+silk
+gems
+ivory
+uranium
+mana_stones
+
+Classer les occurrences restantes :
+
+A. Corrigées V2
+B. Legacy volontaire affiché clairement
+C. Commentaire/TODO acceptable
+D. Dangereux / à corriger maintenant
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC BLOC E
+2. FICHIERS AUDITÉS
+3. OCCURRENCES UI CLASSÉES
+4. FICHIERS MODIFIÉS
+5. CHANGEMENTS LABELS / ICÔNES
+6. CHANGEMENTS LISTES D’OPTIONS
+7. OCCURRENCES LEGACY RESTANTES
+8. RÉSULTAT npm run check
+9. CONCLUSION : AUTORISÉ OU NON À PASSER AU BLOC F
+10. STOP
+
+STOP
+Ne pas commencer Bloc F.
+Ne pas supprimer les colonnes legacy.
+Ne pas toucher à la DB.
+Ne pas modifier la logique serveur.

@@ -112,17 +112,18 @@ interface ResourceDef {
   label: string;
 }
 
+// V2 : labels mis à jour. Clés DB (gold/iron/copper/fur) intactes — monnaie principale = fracten.
 const RESOURCE_DEFS: ResourceDef[] = [
-  { key: 'gold',   icon: '🪙', label: 'Or'         },
-  { key: 'food',   icon: '🌿', label: 'Nourriture'  },
-  { key: 'wood',   icon: '🪵', label: 'Bois'        },
-  { key: 'stone',  icon: '🪨', label: 'Pierre'      },
-  { key: 'iron',   icon: '⚙️', label: 'Fer'         },
-  { key: 'copper', icon: '🟤', label: 'Cuivre'      },
-  { key: 'coal',   icon: '🖤', label: 'Charbon'     },
-  { key: 'oil',    icon: '🛢️', label: 'Pétrole'     },
-  { key: 'herbs',  icon: '🌱', label: 'Herbes'      },
-  { key: 'fur',    icon: '🦊', label: 'Fourrure'    },
+  { key: 'gold',   icon: '🥇', label: 'Or (legacy)'         },
+  { key: 'food',   icon: '🌾', label: 'Nourriture'           },
+  { key: 'wood',   icon: '🪵', label: 'Bois'                 },
+  { key: 'stone',  icon: '🪨', label: 'Pierre'               },
+  { key: 'iron',   icon: '⚒️', label: 'Fer (legacy)'         },
+  { key: 'copper', icon: '🔶', label: 'Cuivre (legacy)'      },
+  { key: 'coal',   icon: '⚫', label: 'Charbon'              },
+  { key: 'oil',    icon: '🛢️', label: 'Pétrole'              },
+  { key: 'herbs',  icon: '🌿', label: 'Herbes'               },
+  { key: 'fur',    icon: '🧥', label: 'Fourrure (legacy)'    },
 ];
 
 function visibleResources(
