@@ -810,16 +810,16 @@ export async function createTransferBankToCityAction(
     .limit(1);
 
   const bank = bankRows[0] ?? { gold: 0, food: 0, wood: 0, stone: 0, iron: 0, copper: 0, coal: 0, oil: 0, herbs: 0, fur: 0 };
-  if (bank.gold   < gold)   throw new Error(`INSUFFICIENT_BANK_GOLD: banque=${bank.gold} requis=${gold}`);
+  if (bank.gold   < gold)   throw new Error(`INSUFFICIENT_BANK_FRACTEN: banque=${bank.gold} requis=${gold}`);       // F1 V2 renommé
   if (bank.food   < food)   throw new Error(`INSUFFICIENT_BANK_FOOD: banque=${bank.food} requis=${food}`);
   if (bank.wood   < wood)   throw new Error(`INSUFFICIENT_BANK_WOOD: banque=${bank.wood} requis=${wood}`);
   if (bank.stone  < stone)  throw new Error(`INSUFFICIENT_BANK_STONE: banque=${bank.stone} requis=${stone}`);
-  if (bank.iron   < iron)   throw new Error(`INSUFFICIENT_BANK_IRON: banque=${bank.iron} requis=${iron}`);
-  if ((bank.copper ?? 0) < copper) throw new Error(`INSUFFICIENT_BANK_COPPER: banque=${bank.copper} requis=${copper}`);
+  if (bank.iron   < iron)   throw new Error(`INSUFFICIENT_BANK_COMMON_METALS: banque=${bank.iron} requis=${iron}`); // F1 V2 renommé
+  if ((bank.copper ?? 0) < copper) throw new Error(`INSUFFICIENT_BANK_COMMON_METALS: banque=${bank.copper} requis=${copper}`); // F1 V2 renommé
   if ((bank.coal   ?? 0) < coal)   throw new Error(`INSUFFICIENT_BANK_COAL: banque=${bank.coal} requis=${coal}`);
   if ((bank.oil    ?? 0) < oil)    throw new Error(`INSUFFICIENT_BANK_OIL: banque=${bank.oil} requis=${oil}`);
   if ((bank.herbs  ?? 0) < herbs)  throw new Error(`INSUFFICIENT_BANK_HERBS: banque=${bank.herbs} requis=${herbs}`);
-  if ((bank.fur    ?? 0) < fur)    throw new Error(`INSUFFICIENT_BANK_FUR: banque=${bank.fur} requis=${fur}`);
+  if ((bank.fur    ?? 0) < fur)    throw new Error(`INSUFFICIENT_BANK_LEATHER_FUR: banque=${bank.fur} requis=${fur}`); // F1 V2 renommé
 
   const now = new Date();
 
@@ -927,16 +927,16 @@ export async function createTransferBankToPlayerAction(
     .limit(1);
 
   const bank = bankRows[0] ?? { gold: 0, food: 0, wood: 0, stone: 0, iron: 0, copper: 0, coal: 0, oil: 0, herbs: 0, fur: 0 };
-  if (bank.gold   < gold)   throw new Error(`INSUFFICIENT_BANK_GOLD: banque=${bank.gold} requis=${gold}`);
+  if (bank.gold   < gold)   throw new Error(`INSUFFICIENT_BANK_FRACTEN: banque=${bank.gold} requis=${gold}`);       // F1 V2 renommé
   if (bank.food   < food)   throw new Error(`INSUFFICIENT_BANK_FOOD: banque=${bank.food} requis=${food}`);
   if (bank.wood   < wood)   throw new Error(`INSUFFICIENT_BANK_WOOD: banque=${bank.wood} requis=${wood}`);
   if (bank.stone  < stone)  throw new Error(`INSUFFICIENT_BANK_STONE: banque=${bank.stone} requis=${stone}`);
-  if (bank.iron   < iron)   throw new Error(`INSUFFICIENT_BANK_IRON: banque=${bank.iron} requis=${iron}`);
-  if ((bank.copper ?? 0) < copper) throw new Error(`INSUFFICIENT_BANK_COPPER: banque=${bank.copper} requis=${copper}`);
+  if (bank.iron   < iron)   throw new Error(`INSUFFICIENT_BANK_COMMON_METALS: banque=${bank.iron} requis=${iron}`); // F1 V2 renommé
+  if ((bank.copper ?? 0) < copper) throw new Error(`INSUFFICIENT_BANK_COMMON_METALS: banque=${bank.copper} requis=${copper}`); // F1 V2 renommé
   if ((bank.coal   ?? 0) < coal)   throw new Error(`INSUFFICIENT_BANK_COAL: banque=${bank.coal} requis=${coal}`);
   if ((bank.oil    ?? 0) < oil)    throw new Error(`INSUFFICIENT_BANK_OIL: banque=${bank.oil} requis=${oil}`);
   if ((bank.herbs  ?? 0) < herbs)  throw new Error(`INSUFFICIENT_BANK_HERBS: banque=${bank.herbs} requis=${herbs}`);
-  if ((bank.fur    ?? 0) < fur)    throw new Error(`INSUFFICIENT_BANK_FUR: banque=${bank.fur} requis=${fur}`);
+  if ((bank.fur    ?? 0) < fur)    throw new Error(`INSUFFICIENT_BANK_LEATHER_FUR: banque=${bank.fur} requis=${fur}`); // F1 V2 renommé
 
   const now = new Date();
 

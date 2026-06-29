@@ -389,17 +389,20 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
     } catch (err: any) {
       const raw = err.message ?? "Erreur transfert";
       let msg = `❌ ${raw}`;
-      if (raw.includes("INSUFFICIENT_BANK_GOLD"))         msg = "❌ Or insuffisant en banque";
-      else if (raw.includes("INSUFFICIENT_BANK_FOOD"))    msg = "❌ Nourriture insuffisante en banque";
-      else if (raw.includes("INSUFFICIENT_BANK_WOOD"))    msg = "❌ Bois insuffisant en banque";
-      else if (raw.includes("INSUFFICIENT_BANK_STONE"))   msg = "❌ Pierre insuffisante en banque";
-      else if (raw.includes("INSUFFICIENT_BANK_IRON"))    msg = "❌ Fer insuffisant en banque";
-      else if (raw.includes("INSUFFICIENT_BANK_COPPER"))  msg = "❌ Cuivre insuffisant en banque";
-      else if (raw.includes("INSUFFICIENT_BANK_COAL"))    msg = "❌ Charbon insuffisant en banque";
-      else if (raw.includes("INSUFFICIENT_BANK_OIL"))     msg = "❌ Pétrole insuffisant en banque";
-      else if (raw.includes("INSUFFICIENT_BANK_HERBS"))   msg = "❌ Herbes insuffisantes en banque";
-      else if (raw.includes("INSUFFICIENT_BANK_FUR"))     msg = "❌ Fourrure insuffisante en banque";
-      else if (raw.includes("ACTION_ALREADY_ACTIVE"))     msg = "⚠️ Action déjà en cours";
+      // F1 V2 — codes renommés (+ aliases V1 pour backward-compat)
+      if (raw.includes("INSUFFICIENT_BANK_FRACTEN") || raw.includes("INSUFFICIENT_BANK_GOLD"))
+                                                               msg = "❌ Fracten insuffisant en banque";
+      else if (raw.includes("INSUFFICIENT_BANK_FOOD"))        msg = "❌ Nourriture insuffisante en banque";
+      else if (raw.includes("INSUFFICIENT_BANK_WOOD"))        msg = "❌ Bois insuffisant en banque";
+      else if (raw.includes("INSUFFICIENT_BANK_STONE"))       msg = "❌ Pierre insuffisante en banque";
+      else if (raw.includes("INSUFFICIENT_BANK_COMMON_METALS") || raw.includes("INSUFFICIENT_BANK_IRON") || raw.includes("INSUFFICIENT_BANK_COPPER"))
+                                                               msg = "❌ Métaux communs insuffisants en banque";
+      else if (raw.includes("INSUFFICIENT_BANK_COAL"))        msg = "❌ Charbon insuffisant en banque";
+      else if (raw.includes("INSUFFICIENT_BANK_OIL"))         msg = "❌ Pétrole insuffisant en banque";
+      else if (raw.includes("INSUFFICIENT_BANK_HERBS"))       msg = "❌ Herbes insuffisantes en banque";
+      else if (raw.includes("INSUFFICIENT_BANK_LEATHER_FUR") || raw.includes("INSUFFICIENT_BANK_FUR"))
+                                                               msg = "❌ Cuir & fourrure insuffisants en banque";
+      else if (raw.includes("ACTION_ALREADY_ACTIVE"))          msg = "⚠️ Action déjà en cours";
       setToCity(prev => ({ ...prev, loading: false, message: msg }));
     }
   };
@@ -443,18 +446,21 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
     } catch (err: any) {
       const raw = err.message ?? "Erreur transfert";
       let msg = `❌ ${raw}`;
-      if (raw.includes("INSUFFICIENT_BANK_GOLD"))           msg = "❌ Or insuffisant en banque";
-      else if (raw.includes("INSUFFICIENT_BANK_FOOD"))      msg = "❌ Nourriture insuffisante en banque";
-      else if (raw.includes("INSUFFICIENT_BANK_WOOD"))      msg = "❌ Bois insuffisant en banque";
-      else if (raw.includes("INSUFFICIENT_BANK_STONE"))     msg = "❌ Pierre insuffisante en banque";
-      else if (raw.includes("INSUFFICIENT_BANK_IRON"))      msg = "❌ Fer insuffisant en banque";
-      else if (raw.includes("INSUFFICIENT_BANK_COPPER"))    msg = "❌ Cuivre insuffisant en banque";
-      else if (raw.includes("INSUFFICIENT_BANK_COAL"))      msg = "❌ Charbon insuffisant en banque";
-      else if (raw.includes("INSUFFICIENT_BANK_OIL"))       msg = "❌ Pétrole insuffisant en banque";
-      else if (raw.includes("INSUFFICIENT_BANK_HERBS"))     msg = "❌ Herbes insuffisantes en banque";
-      else if (raw.includes("INSUFFICIENT_BANK_FUR"))       msg = "❌ Fourrure insuffisante en banque";
-      else if (raw.includes("ACTION_ALREADY_ACTIVE"))       msg = "⚠️ Action déjà en cours";
-      else if (raw.includes("TRANSPORT_CAPACITY_EXCEEDED")) msg = "❌ Capacité de transport dépassée (max 50 unités)";
+      // F1 V2 — codes renommés (+ aliases V1 pour backward-compat)
+      if (raw.includes("INSUFFICIENT_BANK_FRACTEN") || raw.includes("INSUFFICIENT_BANK_GOLD"))
+                                                               msg = "❌ Fracten insuffisant en banque";
+      else if (raw.includes("INSUFFICIENT_BANK_FOOD"))        msg = "❌ Nourriture insuffisante en banque";
+      else if (raw.includes("INSUFFICIENT_BANK_WOOD"))        msg = "❌ Bois insuffisant en banque";
+      else if (raw.includes("INSUFFICIENT_BANK_STONE"))       msg = "❌ Pierre insuffisante en banque";
+      else if (raw.includes("INSUFFICIENT_BANK_COMMON_METALS") || raw.includes("INSUFFICIENT_BANK_IRON") || raw.includes("INSUFFICIENT_BANK_COPPER"))
+                                                               msg = "❌ Métaux communs insuffisants en banque";
+      else if (raw.includes("INSUFFICIENT_BANK_COAL"))        msg = "❌ Charbon insuffisant en banque";
+      else if (raw.includes("INSUFFICIENT_BANK_OIL"))         msg = "❌ Pétrole insuffisant en banque";
+      else if (raw.includes("INSUFFICIENT_BANK_HERBS"))       msg = "❌ Herbes insuffisantes en banque";
+      else if (raw.includes("INSUFFICIENT_BANK_LEATHER_FUR") || raw.includes("INSUFFICIENT_BANK_FUR"))
+                                                               msg = "❌ Cuir & fourrure insuffisants en banque";
+      else if (raw.includes("ACTION_ALREADY_ACTIVE"))          msg = "⚠️ Action déjà en cours";
+      else if (raw.includes("TRANSPORT_CAPACITY_EXCEEDED"))    msg = "❌ Capacité de transport dépassée (max 50 unités)";
       setToPlayer(prev => ({ ...prev, loading: false, message: msg }));
     }
   };

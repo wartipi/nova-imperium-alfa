@@ -1,0 +1,273 @@
+NOVA IMPERIUM — RESSOURCES V2 — BLOC F1 / CONVERSION COÛTS CONSTRUCTION & RECRUTEMENT
+Branche : NI-10.09
+
+OBJECTIF
+Commencer le nettoyage legacy sans supprimer de colonnes.
+
+Ce sous-bloc F1 doit convertir les coûts actifs encore V1 vers V2, principalement :
+
+* construction
+* recrutement
+* codes d’erreur liés aux coûts
+* DTO/API liés aux coûts si nécessaire
+
+Ce n’est PAS le Bloc F final.
+Ne pas supprimer de colonnes.
+Ne pas faire DROP COLUMN.
+Ne pas faire de migration destructive.
+
+CONTEXTE
+L’audit pré-Bloc F a conclu que la suppression legacy est interdite pour l’instant.
+
+Bloqueurs majeurs identifiés :
+
+* Construction costs encore en gold / iron / copper / fur
+* routes/cities.ts débite encore city_inventory.gold / iron / copper / fur
+* codes d’erreur encore INSUFFICIENT_BANK_GOLD / IRON / COPPER / FUR
+* transferts bank-to-city / bank-to-player encore partiellement V1
+* recruitment costs non audités en détail
+* colonnes V1 encore lues/écrites dans plusieurs flux actifs
+
+OBJECTIF F1
+Convertir les coûts de construction et recrutement vers les ressources V2 :
+
+* gold → fracten
+* iron + copper → common_metals
+* fur → leather_fur
+
+PÉRIMÈTRE AUTORISÉ
+
+Auditer et modifier uniquement ce qui est nécessaire pour les coûts :
+
+Fichiers probables :
+
+* server/routes/cities.ts
+* server/playerActionService.ts si utilisé pour transferts/coûts
+* server/economyService.ts seulement si DTO de coûts directement concerné
+* client/src/components/game/ConstructionPanel.tsx
+* client/src/components/game/ConstructionPanelSimple.tsx
+* client/src/components/game/RecruitmentPanel.tsx
+* client/src/lib/api/citiesApi.ts
+* client/src/lib/api/economyApi.ts
+* fichiers catalogue de bâtiments/unités si les coûts y sont définis
+
+INTERDICTIONS STRICTES
+
+Ne pas modifier :
+
+* DB schema sauf commentaire strictement nécessaire
+* migrations
+* db:push
+* marketService.ts
+* PublicMarketplace.tsx
+* MapGenerator.ts
+* HexTile
+* ResourceRevealSystem.ts
+* routes/market.ts
+* logique marché
+* logique carte
+* logique exploration
+* auth
+* cartography ownership
+* déploiement
+
+Ne pas faire :
+
+* DROP COLUMN
+* suppression de colonnes legacy
+* suppression de support legacy
+* refactor massif
+* conversion complète des transferts hors coûts si non nécessaire
+
+ÉTAPE 1 — AUDIT F1 AVANT MODIFICATION
+
+Chercher dans les fichiers du périmètre :
+
+goldCost
+ironCost
+copperCost
+furCost
+fractenCost
+commonMetalsCost
+leatherFurCost
+INSUFFICIENT_BANK_GOLD
+INSUFFICIENT_BANK_IRON
+INSUFFICIENT_BANK_COPPER
+INSUFFICIENT_BANK_FUR
+INSUFFICIENT_CITY_INVENTORY
+cost.gold
+cost.iron
+cost.copper
+cost.fur
+gold:
+iron:
+copper:
+fur:
+
+Classer chaque occurrence :
+
+A. Coût construction actif à convertir maintenant
+B. Coût recrutement actif à convertir maintenant
+C. Code d’erreur actif à renommer ou mapper V2
+D. Fallback legacy acceptable temporaire
+E. Hors périmètre
+F. Dangereux / incohérent
+
+ÉTAPE 2 — RÈGLES DE CONVERSION DES COÛTS
+
+Appliquer ces règles :
+
+1. Monnaie
+
+* goldCost → fractenCost
+* cost.gold → cost.fracten
+* city_inventory.gold ne doit plus être la source principale pour payer une construction V2
+* player_bank.gold ne doit plus être la source principale pour payer un recrutement V2
+
+2. Métaux
+
+* ironCost + copperCost → commonMetalsCost
+* cost.iron + cost.copper → cost.common_metals
+* city_inventory.common_metals devient la source principale
+* player_bank.common_metals devient la source principale
+
+3. Cuir/fourrure
+
+* furCost → leatherFurCost
+* cost.fur → cost.leather_fur
+* city_inventory.leather_fur devient la source principale
+* player_bank.leather_fur devient la source principale
+
+4. Fallback legacy
+   Si des données anciennes existent :
+
+* V2 doit être prioritaire
+* V1 peut être fallback seulement si V2 est absent ou 0
+* ne jamais additionner V1 + V2 pour payer le même coût
+
+ÉTAPE 3 — BACKEND CONSTRUCTION
+
+Dans routes/cities.ts ou le fichier serveur concerné :
+
+* remplacer les checks de coûts V1 par des checks V2
+* remplacer les débits V1 par des débits V2
+* conserver les colonnes V1 seulement comme fallback temporaire si nécessaire
+* ne pas supprimer les anciens champs
+
+Exemple logique attendue :
+
+* coût fracten payé depuis city_inventory.fracten
+* coût common_metals payé depuis city_inventory.common_metals
+* coût leather_fur payé depuis city_inventory.leather_fur
+
+Si fallback nécessaire :
+
+* utiliser gold seulement si fracten insuffisant ou absent ET documenter
+* utiliser iron/copper seulement si common_metals absent ET documenter
+* utiliser fur seulement si leather_fur absent ET documenter
+
+ÉTAPE 4 — BACKEND RECRUTEMENT
+
+Auditer RecruitmentPanel et le serveur associé au recrutement.
+
+Si le recrutement paie depuis player_bank :
+
+* fracten doit remplacer gold
+* common_metals doit remplacer iron/copper
+* leather_fur doit remplacer fur
+
+Si le recrutement est seulement client-side pour l’instant :
+
+* convertir les types et labels
+* ne pas inventer une route serveur
+
+ÉTAPE 5 — CODES D’ERREUR
+
+Renommer ou mapper les codes d’erreur visibles :
+
+Ancien :
+
+* INSUFFICIENT_BANK_GOLD
+* INSUFFICIENT_BANK_IRON
+* INSUFFICIENT_BANK_COPPER
+* INSUFFICIENT_BANK_FUR
+
+Nouveau recommandé :
+
+* INSUFFICIENT_BANK_FRACTEN
+* INSUFFICIENT_BANK_COMMON_METALS
+* INSUFFICIENT_BANK_LEATHER_FUR
+
+Pour city inventory :
+
+* INSUFFICIENT_CITY_FRACTEN
+* INSUFFICIENT_CITY_COMMON_METALS
+* INSUFFICIENT_CITY_LEATHER_FUR
+
+Si les anciens codes doivent rester pour compatibilité :
+
+* les mapper vers des messages V2
+* ne pas afficher Or/Fer/Cuivre/Fourrure comme ressources principales
+
+ÉTAPE 6 — FRONTEND
+
+Mettre à jour les panneaux :
+
+ConstructionPanel.tsx
+ConstructionPanelSimple.tsx
+RecruitmentPanel.tsx
+
+Règles :
+
+* afficher Fracten, Métaux communs, Cuir et fourrure
+* ne plus afficher Or, Fer, Cuivre, Fourrure comme coûts principaux
+* si V1 est encore affiché, il doit être marqué “legacy”
+* les boutons de construction/recrutement doivent lire les stocks V2 comme source principale
+
+ÉTAPE 7 — VÉRIFICATION
+
+Lancer :
+
+npm run check
+
+Puis rechercher dans les fichiers modifiés :
+
+goldCost
+ironCost
+copperCost
+furCost
+cost.gold
+cost.iron
+cost.copper
+cost.fur
+INSUFFICIENT_BANK_GOLD
+INSUFFICIENT_BANK_IRON
+INSUFFICIENT_BANK_COPPER
+INSUFFICIENT_BANK_FUR
+
+Classer les occurrences restantes :
+
+A. Corrigées V2
+B. Fallback legacy temporaire
+C. Hors périmètre
+D. Dangereux / à corriger maintenant
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC F1
+2. FICHIERS AUDITÉS
+3. OCCURRENCES COÛTS CLASSÉES
+4. CHANGEMENTS BACKEND CONSTRUCTION
+5. CHANGEMENTS BACKEND RECRUTEMENT
+6. CHANGEMENTS FRONTEND
+7. CODES D’ERREUR MODIFIÉS OU MAPPÉS
+8. FALLBACKS LEGACY RESTANTS
+9. RÉSULTAT npm run check
+10. CONCLUSION : AUTORISÉ OU NON À PASSER À F2
+11. STOP
+
+STOP
+Ne pas supprimer de colonnes.
+Ne pas faire DROP COLUMN.
+Ne pas modifier la DB.
+Ne pas commencer F2.

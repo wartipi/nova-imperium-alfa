@@ -460,7 +460,8 @@ router.post("/:cityId/collect-harvest", requireAuth, async (req: AuthRequest, re
 // Auth requise — démarre une construction avec validation city_inventory.
 // Admin : construction instantanée (bypass stock).
 // Joueur : vérifie et débite city_inventory, puis met en file de production.
-// Body : { building, goldCost?, foodCost?, woodCost?, stoneCost?, ironCost?, constructionTime? }
+// Body V2 : { building, fractenCost?, foodCost?, woodCost?, stoneCost?, commonMetalsCost?, leatherFurCost?, constructionTime? }
+// Backward-compat V1 : goldCost/ironCost/copperCost/furCost acceptés comme aliases (F1)
 router.post("/:cityId/start-construction", requireAuth, async (req: AuthRequest, res) => {
   try {
     const cityId = parseInt(req.params.cityId, 10);
@@ -468,18 +469,29 @@ router.post("/:cityId/start-construction", requireAuth, async (req: AuthRequest,
 
     const {
       building,
-      goldCost   = 0,
+      // V2 — noms officiels F1
+      fractenCost      = 0,
+      commonMetalsCost = 0,
+      leatherFurCost   = 0,
+      // Ressources communes non renommées
       foodCost   = 0,
       woodCost   = 0,
       stoneCost  = 0,
-      ironCost   = 0,
-      copperCost = 0,
       coalCost   = 0,
       oilCost    = 0,
       herbsCost  = 0,
+      // V1 legacy — backward-compat si client envoie anciens noms
+      goldCost   = 0,
+      ironCost   = 0,
+      copperCost = 0,
       furCost    = 0,
       constructionTime = 50,
     } = req.body;
+
+    // Résolution F1 : V2 prioritaire, V1 comme fallback si V2 absent
+    const effectiveFractenCost      = fractenCost      > 0 ? fractenCost      : goldCost;              // F1 V2
+    const effectiveCommonMetalsCost = commonMetalsCost > 0 ? commonMetalsCost : ironCost + copperCost; // F1 V2
+    const effectiveLeatherFurCost   = leatherFurCost   > 0 ? leatherFurCost   : furCost;               // F1 V2
     if (!building || typeof building !== "string") {
       return res.status(400).json({ error: "building est requis (string)" });
     }
@@ -536,7 +548,7 @@ router.post("/:cityId/start-construction", requireAuth, async (req: AuthRequest,
       );
     }
 
-    // Mode joueur : vérifier et débiter city_inventory
+    // Mode joueur : vérifier et débiter city_inventory (V2 — F1)
     const invRows = await db
       .select()
       .from(cityInventory)
@@ -545,34 +557,32 @@ router.post("/:cityId/start-construction", requireAuth, async (req: AuthRequest,
 
     const invRow = invRows[0] ?? {};
     const inv = {
-      gold:   (invRow as any).gold   ?? 0,
-      food:   (invRow as any).food   ?? 0,
-      wood:   (invRow as any).wood   ?? 0,
-      stone:  (invRow as any).stone  ?? 0,
-      iron:   (invRow as any).iron   ?? 0,
-      copper: (invRow as any).copper ?? 0,
-      coal:   (invRow as any).coal   ?? 0,
-      oil:    (invRow as any).oil    ?? 0,
-      herbs:  (invRow as any).herbs  ?? 0,
-      fur:    (invRow as any).fur    ?? 0,
+      fracten:       (invRow as any).fracten       ?? 0, // V2 — F1
+      food:          (invRow as any).food          ?? 0,
+      wood:          (invRow as any).wood          ?? 0,
+      stone:         (invRow as any).stone         ?? 0,
+      common_metals: (invRow as any).common_metals ?? 0, // V2 — F1
+      coal:          (invRow as any).coal          ?? 0,
+      oil:           (invRow as any).oil           ?? 0,
+      herbs:         (invRow as any).herbs         ?? 0,
+      leather_fur:   (invRow as any).leather_fur   ?? 0, // V2 — F1
     };
 
     const insufficient: Record<string, number> = {};
-    if (inv.gold   < goldCost)   insufficient.gold   = goldCost   - inv.gold;
-    if (inv.food   < foodCost)   insufficient.food   = foodCost   - inv.food;
-    if (inv.wood   < woodCost)   insufficient.wood   = woodCost   - inv.wood;
-    if (inv.stone  < stoneCost)  insufficient.stone  = stoneCost  - inv.stone;
-    if (inv.iron   < ironCost)   insufficient.iron   = ironCost   - inv.iron;
-    if (inv.copper < copperCost) insufficient.copper = copperCost - inv.copper;
-    if (inv.coal   < coalCost)   insufficient.coal   = coalCost   - inv.coal;
-    if (inv.oil    < oilCost)    insufficient.oil    = oilCost    - inv.oil;
-    if (inv.herbs  < herbsCost)  insufficient.herbs  = herbsCost  - inv.herbs;
-    if (inv.fur    < furCost)    insufficient.fur    = furCost    - inv.fur;
+    if (inv.fracten       < effectiveFractenCost)      insufficient.fracten       = effectiveFractenCost      - inv.fracten;
+    if (inv.food          < foodCost)                  insufficient.food          = foodCost                  - inv.food;
+    if (inv.wood          < woodCost)                  insufficient.wood          = woodCost                  - inv.wood;
+    if (inv.stone         < stoneCost)                 insufficient.stone         = stoneCost                 - inv.stone;
+    if (inv.common_metals < effectiveCommonMetalsCost) insufficient.common_metals = effectiveCommonMetalsCost - inv.common_metals;
+    if (inv.coal          < coalCost)                  insufficient.coal          = coalCost                  - inv.coal;
+    if (inv.oil           < oilCost)                   insufficient.oil           = oilCost                   - inv.oil;
+    if (inv.herbs         < herbsCost)                 insufficient.herbs         = herbsCost                 - inv.herbs;
+    if (inv.leather_fur   < effectiveLeatherFurCost)   insufficient.leather_fur   = effectiveLeatherFurCost   - inv.leather_fur;
 
     if (Object.keys(insufficient).length > 0) {
       return res.status(422).json({
         error:     "INSUFFICIENT_CITY_INVENTORY",
-        required:  { gold: goldCost, food: foodCost, wood: woodCost, stone: stoneCost, iron: ironCost, copper: copperCost, coal: coalCost, oil: oilCost, herbs: herbsCost, fur: furCost },
+        required:  { fracten: effectiveFractenCost, food: foodCost, wood: woodCost, stone: stoneCost, common_metals: effectiveCommonMetalsCost, coal: coalCost, oil: oilCost, herbs: herbsCost, leather_fur: effectiveLeatherFurCost },
         available: inv,
         missing:   insufficient,
       });
@@ -580,22 +590,22 @@ router.post("/:cityId/start-construction", requireAuth, async (req: AuthRequest,
 
     const now = new Date();
 
-    // Débit city_inventory (10 matériaux Tier 1)
-    if (goldCost > 0 || foodCost > 0 || woodCost > 0 || stoneCost > 0 || ironCost > 0
-        || copperCost > 0 || coalCost > 0 || oilCost > 0 || herbsCost > 0 || furCost > 0) {
+    // Débit city_inventory V2 — F1 (fracten, common_metals, leather_fur)
+    if (effectiveFractenCost > 0 || foodCost > 0 || woodCost > 0 || stoneCost > 0
+        || effectiveCommonMetalsCost > 0 || coalCost > 0 || oilCost > 0
+        || herbsCost > 0 || effectiveLeatherFurCost > 0) {
       await db
         .update(cityInventory)
         .set({
-          gold:      sql`${cityInventory.gold}   - ${goldCost}`,
-          food:      sql`${cityInventory.food}   - ${foodCost}`,
-          wood:      sql`${cityInventory.wood}   - ${woodCost}`,
-          stone:     sql`${cityInventory.stone}  - ${stoneCost}`,
-          iron:      sql`${cityInventory.iron}   - ${ironCost}`,
-          copper:    sql`${cityInventory.copper} - ${copperCost}`,
-          coal:      sql`${cityInventory.coal}   - ${coalCost}`,
-          oil:       sql`${cityInventory.oil}    - ${oilCost}`,
-          herbs:     sql`${cityInventory.herbs}  - ${herbsCost}`,
-          fur:       sql`${cityInventory.fur}    - ${furCost}`,
+          fracten:       sql`${cityInventory.fracten}       - ${effectiveFractenCost}`,      // F1 V2
+          food:          sql`${cityInventory.food}          - ${foodCost}`,
+          wood:          sql`${cityInventory.wood}          - ${woodCost}`,
+          stone:         sql`${cityInventory.stone}         - ${stoneCost}`,
+          common_metals: sql`${cityInventory.common_metals} - ${effectiveCommonMetalsCost}`, // F1 V2
+          coal:          sql`${cityInventory.coal}          - ${coalCost}`,
+          oil:           sql`${cityInventory.oil}           - ${oilCost}`,
+          herbs:         sql`${cityInventory.herbs}         - ${herbsCost}`,
+          leather_fur:   sql`${cityInventory.leather_fur}   - ${effectiveLeatherFurCost}`,   // F1 V2
           updatedAt: now,
         })
         .where(eq(cityInventory.cityId, cityId));
@@ -611,15 +621,16 @@ router.post("/:cityId/start-construction", requireAuth, async (req: AuthRequest,
 
     console.log(
       `[start-construction] Queued ${building} cityId=${cityId}` +
-      ` -${goldCost}g-${foodCost}f-${woodCost}w-${stoneCost}s-${ironCost}i-${copperCost}cu-${coalCost}co-${oilCost}oil-${herbsCost}h-${furCost}fur` +
-      ` → city_inventory durée=${constructionTime} tours`
+      ` -${effectiveFractenCost}fr-${foodCost}f-${woodCost}w-${stoneCost}s` +
+      `-${effectiveCommonMetalsCost}cm-${coalCost}co-${oilCost}oil-${herbsCost}h-${effectiveLeatherFurCost}lf` +
+      ` → city_inventory V2 durée=${constructionTime} tours`
     );
 
     return res.status(201).json({
       ok:   true,
       mode: 'queued',
       building,
-      deducted: { gold: goldCost, food: foodCost, wood: woodCost, stone: stoneCost, iron: ironCost, copper: copperCost, coal: coalCost, oil: oilCost, herbs: herbsCost, fur: furCost },
+      deducted: { fracten: effectiveFractenCost, food: foodCost, wood: woodCost, stone: stoneCost, common_metals: effectiveCommonMetalsCost, coal: coalCost, oil: oilCost, herbs: herbsCost, leather_fur: effectiveLeatherFurCost },
     });
   } catch (err) {
     console.error("[POST /api/cities/:cityId/start-construction] Erreur:", err);

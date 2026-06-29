@@ -82,30 +82,32 @@ export interface StartConstructionResult {
   mode:     'instant' | 'queued';
   building: string;
   deducted?: {
-    gold: number; food: number; wood: number; stone: number; iron: number;
-    copper: number; coal: number; oil: number; herbs: number; fur: number;
+    // V2 — F1
+    fracten: number; food: number; wood: number; stone: number;
+    common_metals: number; coal: number; oil: number; herbs: number;
+    leather_fur: number;
   };
 }
 
 export async function apiStartConstruction(
   cityId:           string,
   building:         string,
-  goldCost:         number,
+  fractenCost:      number,           // F1 V2 — remplace goldCost
   foodCost:         number,
   constructionTime: number,
-  woodCost   = 0,
-  stoneCost  = 0,
-  ironCost   = 0,
-  copperCost = 0,
-  coalCost   = 0,
-  oilCost    = 0,
-  herbsCost  = 0,
-  furCost    = 0,
+  woodCost          = 0,
+  stoneCost         = 0,
+  commonMetalsCost  = 0,              // F1 V2 — remplace ironCost
+  _copperCostUnused = 0,              // V1 ignoré — fusionné dans commonMetalsCost côté serveur
+  coalCost          = 0,
+  oilCost           = 0,
+  herbsCost         = 0,
+  leatherFurCost    = 0,              // F1 V2 — remplace furCost
 ): Promise<StartConstructionResult> {
   const res = await fetch(`/api/cities/${cityId}/start-construction`, {
     method:  "POST",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-    body:    JSON.stringify({ building, goldCost, foodCost, woodCost, stoneCost, ironCost, copperCost, coalCost, oilCost, herbsCost, furCost, constructionTime }),
+    body:    JSON.stringify({ building, fractenCost, foodCost, woodCost, stoneCost, commonMetalsCost, coalCost, oilCost, herbsCost, leatherFurCost, constructionTime }),
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
