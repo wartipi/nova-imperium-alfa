@@ -13,12 +13,14 @@ import { CompetenceTree } from "./CompetenceTree";
 
 // ─── Matériaux ────────────────────────────────────────────────────────────────
 
-type MatKey = 'gold'|'food'|'wood'|'stone'|'iron'|'copper'|'coal'|'oil'|'herbs'|'fur';
+// Bloc C V2 — V2 en premier, legacy conservés pour affichage si > 0
+type MatKey = 'fracten'|'common_metals'|'leather_fur'|'gold'|'food'|'wood'|'stone'|'iron'|'copper'|'coal'|'oil'|'herbs'|'fur';
 const MAT_ROWS: Array<[MatKey, string, string]> = [
-  ['gold','🪙','Or'],['food','🌿','Nourriture'],['wood','🪵','Bois'],
-  ['stone','🪨','Pierre'],['iron','⚙️','Fer'],['copper','🟤','Cuivre'],
+  ['fracten','💎','Fracten'],['common_metals','⚒️','Métaux communs'],['leather_fur','🦺','Cuir & Fourrure'],
+  ['food','🌿','Nourriture'],['wood','🪵','Bois'],['stone','🪨','Pierre'],
   ['coal','🖤','Charbon'],['oil','🛢️','Pétrole'],['herbs','🌱','Herbes'],
-  ['fur','🦊','Fourrure'],
+  // V1 legacy
+  ['gold','🪙','Or (legacy)'],['iron','⚙️','Fer (legacy)'],['copper','🟤','Cuivre (legacy)'],['fur','🦊','Fourrure (legacy)'],
 ];
 
 // ─── Slots d'équipement ───────────────────────────────────────────────────────

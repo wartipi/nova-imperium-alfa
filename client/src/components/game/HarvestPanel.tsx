@@ -32,12 +32,14 @@ interface Props {
 
 // ─── Matériaux ────────────────────────────────────────────────────────────
 
-type MatKey = 'gold'|'food'|'wood'|'stone'|'iron'|'copper'|'coal'|'oil'|'herbs'|'fur';
+// Bloc C V2 — clés V2 en premier, V1 legacy conservées pour affichage si non nuls
+type MatKey = 'fracten'|'common_metals'|'leather_fur'|'gold'|'food'|'wood'|'stone'|'iron'|'copper'|'coal'|'oil'|'herbs'|'fur';
 const MAT_ICONS: Array<[MatKey, string, string]> = [
-  ['gold','🪙','Or'],['food','🌿','Nourriture'],['wood','🪵','Bois'],
-  ['stone','🪨','Pierre'],['iron','⚙️','Fer'],['copper','🟤','Cuivre'],
-  ['coal','🖤','Charbon'],['oil','🛢️','Pétrole'],['herbs','🌱','Herbes'],
-  ['fur','🦊','Fourrure'],
+  ['fracten','💎','Fracten'],['common_metals','⚒️','Métaux communs'],['leather_fur','🦺','Cuir & Fourrure'],
+  ['food','🌿','Nourriture'],['wood','🪵','Bois'],
+  ['stone','🪨','Pierre'],['coal','🖤','Charbon'],['oil','🛢️','Pétrole'],['herbs','🌱','Herbes'],
+  // V1 legacy — s'affichent si > 0 (données existantes)
+  ['gold','🪙','Or (legacy)'],['iron','⚙️','Fer (legacy)'],['copper','🟤','Cuivre (legacy)'],['fur','🦊','Fourrure (legacy)'],
 ];
 
 function isMatsEmpty(m: Record<MatKey, number>): boolean {

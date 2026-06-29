@@ -228,17 +228,19 @@ export async function applyFactionEconomyTick(
 // ─── PlayerBankDTO ────────────────────────────────────────────────────────────
 
 export interface PlayerBankDTO {
-  fracten:            number; // Bloc B V2 — monnaie de production
-  gold:               number; // V1 legacy — conservé pour compatibilité
+  fracten:            number; // Bloc B V2 — monnaie officielle
+  common_metals:      number; // Bloc C V2 — iron + copper fusionnés
+  leather_fur:        number; // Bloc C V2 — fur renommé
+  gold:               number; // V1 legacy
   food:               number;
   wood:               number;
   stone:              number;
-  iron:               number;
-  copper:             number;
+  iron:               number; // V1 legacy
+  copper:             number; // V1 legacy
   coal:               number;
   oil:                number;
   herbs:              number;
-  fur:                number;
+  fur:                number;  // V1 legacy
   lastProductionTurn: number;
   updatedAt:          string;
 }
@@ -247,15 +249,24 @@ export interface CityHarvestDTO {
   cityId:   number;
   name:     string;
   hasBank:  boolean;
-  pending:  { gold: number; food: number };
-  inventory: { gold: number; food: number };
+  pending:  {
+    fracten: number; common_metals: number; leather_fur: number; // Bloc C V2
+    gold: number; food: number; wood: number; stone: number; iron: number;
+    copper: number; coal: number; oil: number; herbs: number; fur: number;
+  };
+  inventory: {
+    fracten: number; common_metals: number; leather_fur: number; // Bloc C V2
+    gold: number; food: number; wood: number; stone: number; iron: number;
+    copper: number; coal: number; oil: number; herbs: number; fur: number;
+  };
 }
 
 export interface ProductionTickResult {
   applied: boolean;
   cities:  Array<{
     cityId: number; name: string;
-    gold: number; food: number; wood: number; stone: number; iron: number;
+    fracten: number; // Bloc C V2 — remplace gold dans ce résultat
+    food: number; wood: number; stone: number; iron: number;
     copper: number; coal: number; oil: number; herbs: number; fur: number;
     destination: 'bank' | 'pending';
   }>;
@@ -267,7 +278,9 @@ export async function getOrInitPlayerBank(playerId: string): Promise<PlayerBankD
   const rows = await db.select().from(playerBank).where(eq(playerBank.playerId, playerId)).limit(1);
   function rowToDTO(r: typeof playerBank.$inferSelect): PlayerBankDTO {
     return {
-      fracten: r.fracten, // Bloc B V2
+      fracten:       r.fracten,            // Bloc B V2
+      common_metals: r.common_metals ?? 0, // Bloc C V2
+      leather_fur:   r.leather_fur   ?? 0, // Bloc C V2
       gold: r.gold, food: r.food,
       wood: r.wood ?? 0, stone: r.stone ?? 0, iron: r.iron ?? 0,
       copper: r.copper ?? 0, coal: r.coal ?? 0, oil: r.oil ?? 0,
@@ -279,7 +292,9 @@ export async function getOrInitPlayerBank(playerId: string): Promise<PlayerBankD
   const [ins] = await db
     .insert(playerBank)
     .values({ playerId, gold: 0, fracten: 0, food: 0, wood: 0, stone: 0, iron: 0,
-              copper: 0, coal: 0, oil: 0, herbs: 0, fur: 0, lastProductionTurn: 0 })
+              copper: 0, coal: 0, oil: 0, herbs: 0, fur: 0,
+              common_metals: 0, leather_fur: 0, // Bloc C V2
+              lastProductionTurn: 0 })
     .onConflictDoNothing()
     .returning();
   if (!ins) {
@@ -391,7 +406,7 @@ export async function applyProductionTickPerCity(
       bankOilDelta    += oil;
       bankHerbsDelta  += herbs;
       bankFurDelta    += fur;
-      results.push({ cityId: city.cityId, name: city.name, gold: g, food: f, wood: w, stone: s, iron: ir, copper: cu, coal: co, oil, herbs, fur, destination: 'bank' });
+      results.push({ cityId: city.cityId, name: city.name, fracten: g, food: f, wood: w, stone: s, iron: ir, copper: cu, coal: co, oil, herbs, fur, destination: 'bank' }); // Bloc C V2 gold→fracten
     } else {
       // Accumulation dans pending_harvest (UPSERT) — Bloc B V2 : fracten remplace gold.
       await db
@@ -418,7 +433,7 @@ export async function applyProductionTickPerCity(
             updatedAt: now,
           },
         });
-      results.push({ cityId: city.cityId, name: city.name, gold: g, food: f, wood: w, stone: s, iron: ir, copper: cu, coal: co, oil, herbs, fur, destination: 'pending' });
+      results.push({ cityId: city.cityId, name: city.name, fracten: g, food: f, wood: w, stone: s, iron: ir, copper: cu, coal: co, oil, herbs, fur, destination: 'pending' }); // Bloc C V2 gold→fracten
     }
   }
 

@@ -276,7 +276,10 @@ router.get("/:cityId/inventory", requireAuth, async (req: AuthRequest, res) => {
     const inv = rows ?? {};
     return res.json({
       cityId,
-      gold:   (inv as any).gold   ?? 0,
+      fracten:       (inv as any).fracten       ?? 0, // Bloc C V2
+      common_metals: (inv as any).common_metals ?? 0, // Bloc C V2
+      leather_fur:   (inv as any).leather_fur   ?? 0, // Bloc C V2
+      gold:   (inv as any).gold   ?? 0, // V1 legacy
       food:   (inv as any).food   ?? 0,
       wood:   (inv as any).wood   ?? 0,
       stone:  (inv as any).stone  ?? 0,
@@ -318,6 +321,9 @@ router.get("/:cityId/harvest", requireAuth, async (req: AuthRequest, res) => {
       cityId,
       hasBank,
       pending: {
+        fracten:       (pending as any).fracten       ?? 0, // Bloc C V2
+        common_metals: (pending as any).common_metals ?? 0, // Bloc C V2
+        leather_fur:   (pending as any).leather_fur   ?? 0, // Bloc C V2
         gold:   (pending as any).gold   ?? 0,
         food:   (pending as any).food   ?? 0,
         wood:   (pending as any).wood   ?? 0,
@@ -330,6 +336,9 @@ router.get("/:cityId/harvest", requireAuth, async (req: AuthRequest, res) => {
         fur:    (pending as any).fur    ?? 0,
       },
       inventory: {
+        fracten:       (inventory as any).fracten       ?? 0, // Bloc C V2
+        common_metals: (inventory as any).common_metals ?? 0, // Bloc C V2
+        leather_fur:   (inventory as any).leather_fur   ?? 0, // Bloc C V2
         gold:   (inventory as any).gold   ?? 0,
         food:   (inventory as any).food   ?? 0,
         wood:   (inventory as any).wood   ?? 0,
@@ -372,9 +381,14 @@ router.post("/:cityId/collect-harvest", requireAuth, async (req: AuthRequest, re
       return res.status(400).json({ error: "Cette ville a une banque — la production est versée automatiquement" });
     }
 
-    // Lit le pending harvest (10 matériaux Tier 1)
+    // Lit le pending harvest — colonnes V2 + V1 legacy
     const [pendingRow] = await db.select().from(cityPendingHarvest)
       .where(eq(cityPendingHarvest.cityId, cityId)).limit(1);
+    // Bloc C V2 — nouvelles ressources
+    const pendingFracten      = (pendingRow as any)?.fracten       ?? 0;
+    const pendingCommonMetals = (pendingRow as any)?.common_metals ?? 0;
+    const pendingLeatherFur   = (pendingRow as any)?.leather_fur   ?? 0;
+    // V1 legacy
     const pendingGold   = pendingRow?.gold   ?? 0;
     const pendingFood   = pendingRow?.food   ?? 0;
     const pendingWood   = pendingRow?.wood   ?? 0;
@@ -386,7 +400,9 @@ router.post("/:cityId/collect-harvest", requireAuth, async (req: AuthRequest, re
     const pendingHerbs  = (pendingRow as any)?.herbs  ?? 0;
     const pendingFur    = (pendingRow as any)?.fur    ?? 0;
 
-    if (pendingGold === 0 && pendingFood === 0 && pendingWood === 0 && pendingStone === 0 && pendingIron === 0
+    // Vérification : rien en attente (V2 + V1)
+    if (pendingFracten === 0 && pendingCommonMetals === 0 && pendingLeatherFur === 0
+        && pendingGold === 0 && pendingFood === 0 && pendingWood === 0 && pendingStone === 0 && pendingIron === 0
         && pendingCopper === 0 && pendingCoal === 0 && pendingOil === 0 && pendingHerbs === 0 && pendingFur === 0) {
       return res.status(400).json({ error: "Aucune récolte en attente pour cette ville" });
     }
@@ -424,6 +440,9 @@ router.post("/:cityId/collect-harvest", requireAuth, async (req: AuthRequest, re
         status:          action.status,
         msRemaining:     msRemaining(action),
         expectedEndTime: action.expectedEndTime,
+        // Bloc C V2 — ressources V2
+        pendingFracten, pendingCommonMetals, pendingLeatherFur,
+        // V1 legacy
         pendingGold, pendingFood, pendingWood, pendingStone, pendingIron,
         pendingCopper, pendingCoal, pendingOil, pendingHerbs, pendingFur,
       },

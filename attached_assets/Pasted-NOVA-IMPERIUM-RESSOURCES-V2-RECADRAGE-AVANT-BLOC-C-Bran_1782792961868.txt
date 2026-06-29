@@ -1,0 +1,312 @@
+NOVA IMPERIUM — RESSOURCES V2 — RECADRAGE AVANT BLOC C
+Branche : NI-10.09
+
+CORRECTION DE CADRAGE
+
+Tu as proposé :
+
+“Bloc C — ressources communes : iron/copper → common_metals, fur → leather_fur côté HexTile + yields carte”
+
+Ce cadrage est incorrect.
+
+La partie carte / HexTile / yields carte a déjà été traitée dans le Bloc A.
+
+Le vrai Bloc C doit être :
+
+BLOC C — INVENTAIRES / RÉCOLTE / TRANSPORT / BANQUE
+
+OBJECTIF DU BLOC C
+
+Convertir les flux d’inventaire et de récolte vers les ressources V2 :
+
+* gold → fracten
+* iron + copper → common_metals
+* fur → leather_fur
+
+Ce bloc concerne les stocks et transferts de ressources, pas la génération de carte.
+
+PÉRIMÈTRE BLOC C
+
+Auditer et modifier uniquement les flux suivants :
+
+1. Production de ville vers city_pending_harvest
+2. city_pending_harvest vers city_inventory
+3. city_inventory vers player_transport
+4. player_transport vers player_bank
+5. player_bank DTO / API si lié aux stocks
+6. HarvestPanel
+7. PlayerTransportPanel
+8. API economy liée aux inventaires/transferts
+
+Fichiers probables :
+
+* server/economyService.ts
+* server/routes/economy.ts
+* server/routes/cities.ts
+* client/src/components/game/HarvestPanel.tsx
+* client/src/components/game/PlayerTransportPanel.tsx
+* client/src/lib/api/economyApi.ts
+* shared/schema.ts seulement si nécessaire pour lire/écrire les colonnes V2 déjà ajoutées
+
+RESSOURCES À CONVERTIR DANS CE BLOC
+
+1. Monnaie / stockage
+
+* gold → fracten
+
+2. Métaux communs
+
+* iron + copper → common_metals
+
+3. Ressource animale
+
+* fur → leather_fur
+
+RÈGLE DE FUSION
+
+Quand une ancienne donnée existe dans deux colonnes :
+
+iron + copper → common_metals
+
+La valeur V2 doit être la somme logique des deux anciennes valeurs, sauf si un backfill a déjà été fait.
+
+Quand une ancienne donnée existe dans une seule colonne :
+
+fur → leather_fur
+gold → fracten
+
+INTERDICTIONS STRICTES
+
+Ne pas modifier :
+
+* MapGenerator.ts
+* HexTile
+* mapAdapter.ts
+* TileInfoPanel.tsx
+* ResourceRevealSystem.ts
+* marketService.ts
+* routes market
+* PublicMarketplace.tsx
+* market_orders
+* market_trades
+* auth
+* cartography ownership
+* unités
+* déploiement
+
+Ne pas faire :
+
+* Bloc D marché
+* suppression des colonnes legacy
+* DROP COLUMN
+* migration destructive
+* refactor massif
+* changement de règles de carte
+
+ÉTAPE 1 — AUDIT BLOC C AVANT MODIFICATION
+
+Chercher toutes les occurrences liées aux inventaires / transferts / récolte :
+
+gold
+iron
+copper
+fur
+fracten
+common_metals
+leather_fur
+
+Mais classifier uniquement les occurrences dans les flux d’inventaire.
+
+Classification obligatoire :
+
+A. Bloc C — à convertir maintenant
+B. Hors Bloc C — marché, UI marché ou legacy acceptable
+C. Déjà V2
+D. Dangereux / incohérent
+
+ÉTAPE 2 — VÉRIFIER LES COLONNES DISPONIBLES
+
+Confirmer que les colonnes V2 existent déjà dans les tables concernées :
+
+* player_bank.fracten
+
+* player_bank.common_metals
+
+* player_bank.leather_fur
+
+* city_pending_harvest.fracten
+
+* city_pending_harvest.common_metals
+
+* city_pending_harvest.leather_fur
+
+* city_inventory.fracten
+
+* city_inventory.common_metals
+
+* city_inventory.leather_fur
+
+* player_transport.fracten
+
+* player_transport.common_metals
+
+* player_transport.leather_fur
+
+Si elles existent déjà :
+
+* ne pas les recréer
+* ne pas lancer db:push inutilement
+
+ÉTAPE 3 — CONVERSION DES FLUX
+
+Convertir les flux d’inventaire pour utiliser les colonnes V2 comme source principale.
+
+A. city_pending_harvest
+
+Utiliser :
+
+* fracten
+* common_metals
+* leather_fur
+
+Ne plus produire vers :
+
+* gold
+* iron
+* copper
+* fur
+
+Sauf écriture legacy temporaire explicitement synchronisée si nécessaire.
+
+B. city_inventory
+
+Lors de la collecte :
+
+* city_pending_harvest.fracten → city_inventory.fracten
+* city_pending_harvest.common_metals → city_inventory.common_metals
+* city_pending_harvest.leather_fur → city_inventory.leather_fur
+
+Ne pas continuer à transférer seulement gold/iron/copper/fur.
+
+C. player_transport
+
+Lors des transferts :
+
+* city_inventory.fracten → player_transport.fracten
+* city_inventory.common_metals → player_transport.common_metals
+* city_inventory.leather_fur → player_transport.leather_fur
+
+D. player_bank
+
+Lors du dépôt :
+
+* player_transport.fracten → player_bank.fracten
+* player_transport.common_metals → player_bank.common_metals
+* player_transport.leather_fur → player_bank.leather_fur
+
+E. DTO / API
+
+Les DTO d’inventaire doivent exposer :
+
+* fracten
+* common_metals
+* leather_fur
+
+Et ne plus exposer les anciennes clés comme ressources principales :
+
+* gold
+* iron
+* copper
+* fur
+
+Les anciennes clés peuvent rester uniquement si clairement marquées legacy et non utilisées par l’UI V2.
+
+F. UI
+
+HarvestPanel et PlayerTransportPanel doivent afficher :
+
+* Fracten
+* Métaux communs
+* Cuir et fourrure
+
+Et ne plus afficher comme ressources principales :
+
+* Gold / Or
+* Fer
+* Cuivre
+* Fourrure seule
+
+ÉTAPE 4 — BACKFILL SI NÉCESSAIRE
+
+Si le backfill V2 a déjà été fait :
+
+* ne pas le refaire inutilement
+
+Sinon, appliquer uniquement un backfill non destructif :
+
+* fracten = gold
+* common_metals = iron + copper
+* leather_fur = fur
+
+Ne jamais supprimer les anciennes colonnes dans ce bloc.
+
+ÉTAPE 5 — VÉRIFICATION
+
+Lancer :
+
+npm run check
+
+Puis chercher dans les fichiers du Bloc C :
+
+gold
+iron
+copper
+fur
+
+Pour chaque occurrence restante :
+
+* expliquer si elle est legacy temporaire
+* expliquer si elle est hors Bloc C
+* expliquer si elle devra être traitée en Bloc D ou F
+
+FORMAT FINAL OBLIGATOIRE
+
+1. RECADRAGE CONFIRMÉ
+
+* confirmer que Bloc C ne concerne pas HexTile / carte / yields
+* confirmer que Bloc C concerne inventaires / récolte / transport / banque
+
+2. DIAGNOSTIC BLOC C
+
+* fichiers audités
+* flux identifiés
+
+3. COLONNES V2 DISPONIBLES
+
+* confirmer les tables et colonnes
+
+4. CHANGEMENTS APPLIQUÉS
+
+* par fichier
+* par flux
+
+5. BACKFILL
+
+* dire s’il a été fait, déjà fait, ou non nécessaire
+
+6. OCCURRENCES LEGACY RESTANTES
+
+* gold
+* iron
+* copper
+* fur
+
+7. RÉSULTAT npm run check
+
+8. STOP
+
+STOP
+Ne pas ouvrir Bloc D.
+Ne pas toucher au marché.
+Ne pas supprimer les colonnes legacy.
+Ne pas modifier la carte.

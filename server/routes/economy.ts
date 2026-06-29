@@ -386,12 +386,16 @@ router.post("/deposit-transport-to-city", requireAuth, async (req: AuthRequest, 
   try {
     const playerId = req.user!.id;
     const {
+      // Bloc C V2 — ressources V2
+      fracten = 0, common_metals = 0, leather_fur = 0,
+      // V1 legacy
       gold = 0, food = 0, wood = 0, stone = 0, iron = 0,
       copper = 0, coal = 0, oil = 0, herbs = 0, fur = 0,
     } = req.body;
 
-    // Validation des types
+    // Validation des types (V2 + V1)
     const matList: Array<[string, number]> = [
+      ["fracten",fracten],["common_metals",common_metals],["leather_fur",leather_fur],
       ["gold",gold],["food",food],["wood",wood],["stone",stone],["iron",iron],
       ["copper",copper],["coal",coal],["oil",oil],["herbs",herbs],["fur",fur],
     ];
@@ -416,16 +420,17 @@ router.post("/deposit-transport-to-city", requireAuth, async (req: AuthRequest, 
       });
     }
 
-    // ── Vérification capacité entrepôt ───────────────────────────────────────
+    // ── Vérification capacité entrepôt (V2 + V1) ─────────────────────────────
     const [inv] = await db
       .select()
       .from(cityInventory)
       .where(eq(cityInventory.cityId, cityId))
       .limit(1);
     const currentTotal = inv
-      ? (inv.gold + inv.food + inv.wood + inv.stone + inv.iron + inv.copper + inv.coal + inv.oil + inv.herbs + inv.fur)
+      ? ((inv as any).fracten ?? 0) + ((inv as any).common_metals ?? 0) + ((inv as any).leather_fur ?? 0)
+        + inv.gold + inv.food + inv.wood + inv.stone + inv.iron + inv.copper + inv.coal + inv.oil + inv.herbs + inv.fur
       : 0;
-    const depositTotal = gold + food + wood + stone + iron + copper + coal + oil + herbs + fur;
+    const depositTotal = fracten + common_metals + leather_fur + gold + food + wood + stone + iron + copper + coal + oil + herbs + fur;
     if (currentTotal + depositTotal > wh.capacity) {
       return res.status(422).json({
         error: `WAREHOUSE_CAPACITY_EXCEEDED: capacité entrepôt ${wh.capacity} dépassée — stock actuel ${currentTotal}, dépôt demandé ${depositTotal}`,
@@ -435,8 +440,11 @@ router.post("/deposit-transport-to-city", requireAuth, async (req: AuthRequest, 
     // Lecture du transport courant du joueur
     const transport = await getOrInitPlayerTransport(playerId);
 
-    // Vérification des stocks
+    // Vérification des stocks (V2 + V1)
     const insufficiant: string[] = [];
+    if (fracten       > ((transport as any).fracten       ?? 0)) insufficiant.push(`fracten (dispo: ${(transport as any).fracten ?? 0})`);
+    if (common_metals > ((transport as any).common_metals ?? 0)) insufficiant.push(`métaux communs (dispo: ${(transport as any).common_metals ?? 0})`);
+    if (leather_fur   > ((transport as any).leather_fur   ?? 0)) insufficiant.push(`cuir/fourrure (dispo: ${(transport as any).leather_fur ?? 0})`);
     if (gold   > transport.gold)   insufficiant.push(`or (dispo: ${transport.gold})`);
     if (food   > transport.food)   insufficiant.push(`nourriture (dispo: ${transport.food})`);
     if (wood   > transport.wood)   insufficiant.push(`bois (dispo: ${transport.wood})`);
@@ -458,10 +466,13 @@ router.post("/deposit-transport-to-city", requireAuth, async (req: AuthRequest, 
 
     // Transaction atomique : débit transport + crédit city_inventory
     await db.transaction(async (tx) => {
-      // 1. Décrémenter player_transport
+      // 1. Décrémenter player_transport (V2 + V1)
       await tx
         .update(playerTransport)
         .set({
+          fracten:       sql`${(playerTransport as any).fracten}       - ${fracten}`,       // V2
+          common_metals: sql`${(playerTransport as any).common_metals} - ${common_metals}`, // V2
+          leather_fur:   sql`${(playerTransport as any).leather_fur}   - ${leather_fur}`,   // V2
           gold:      sql`${playerTransport.gold}   - ${gold}`,
           food:      sql`${playerTransport.food}   - ${food}`,
           wood:      sql`${playerTransport.wood}   - ${wood}`,
@@ -476,13 +487,19 @@ router.post("/deposit-transport-to-city", requireAuth, async (req: AuthRequest, 
         })
         .where(eq(playerTransport.playerId, playerId));
 
-      // 2. Créditer city_inventory (UPSERT)
+      // 2. Créditer city_inventory (UPSERT) — V2 + V1
       await tx
         .insert(cityInventory)
-        .values({ cityId, gold, food, wood, stone, iron, copper, coal, oil, herbs, fur, updatedAt: now })
+        .values({ cityId,
+          fracten, common_metals, leather_fur, // V2
+          gold, food, wood, stone, iron, copper, coal, oil, herbs, fur,
+          updatedAt: now } as any)
         .onConflictDoUpdate({
           target: cityInventory.cityId,
           set: {
+            fracten:       sql`${(cityInventory as any).fracten}       + ${fracten}`,       // V2
+            common_metals: sql`${(cityInventory as any).common_metals} + ${common_metals}`, // V2
+            leather_fur:   sql`${(cityInventory as any).leather_fur}   + ${leather_fur}`,   // V2
             gold:      sql`${cityInventory.gold}   + ${gold}`,
             food:      sql`${cityInventory.food}   + ${food}`,
             wood:      sql`${cityInventory.wood}   + ${wood}`,
@@ -499,7 +516,8 @@ router.post("/deposit-transport-to-city", requireAuth, async (req: AuthRequest, 
     });
 
     const matLog =
-      `${gold}g ${food}f ${wood}w ${stone}s ${iron}ir` +
+      `fr${fracten} cm${common_metals} lf${leather_fur}` +
+      ` ${gold}g ${food}f ${wood}w ${stone}s ${iron}ir` +
       ` ${copper}cu ${coal}co ${oil}oil ${herbs}herbs ${fur}fur`;
     console.log(
       `[Deposit] player=${playerId} transport→city${cityId}(${cityName}) ${matLog}`
@@ -509,7 +527,7 @@ router.post("/deposit-transport-to-city", requireAuth, async (req: AuthRequest, 
       ok:        true,
       cityId,
       cityName,
-      deposited: { gold, food, wood, stone, iron, copper, coal, oil, herbs, fur },
+      deposited: { fracten, common_metals, leather_fur, gold, food, wood, stone, iron, copper, coal, oil, herbs, fur }, // V2+V1
     });
 
   } catch (err: any) {
@@ -542,11 +560,15 @@ router.post("/deposit-transport-to-bank", requireAuth, async (req: AuthRequest, 
     }
 
     const {
+      // Bloc C V2
+      fracten = 0, common_metals = 0, leather_fur = 0,
+      // V1 legacy
       gold = 0, food = 0, wood = 0, stone = 0, iron = 0,
       copper = 0, coal = 0, oil = 0, herbs = 0, fur = 0,
     } = req.body;
 
     const matList: Array<[string, number]> = [
+      ["fracten",fracten],["common_metals",common_metals],["leather_fur",leather_fur],
       ["gold",gold],["food",food],["wood",wood],["stone",stone],["iron",iron],
       ["copper",copper],["coal",coal],["oil",oil],["herbs",herbs],["fur",fur],
     ];
@@ -562,6 +584,9 @@ router.post("/deposit-transport-to-bank", requireAuth, async (req: AuthRequest, 
     const transport = await getOrInitPlayerTransport(playerId);
 
     const insuffisant: string[] = [];
+    if (fracten       > ((transport as any).fracten       ?? 0)) insuffisant.push(`fracten (dispo: ${(transport as any).fracten ?? 0})`);
+    if (common_metals > ((transport as any).common_metals ?? 0)) insuffisant.push(`métaux communs (dispo: ${(transport as any).common_metals ?? 0})`);
+    if (leather_fur   > ((transport as any).leather_fur   ?? 0)) insuffisant.push(`cuir/fourrure (dispo: ${(transport as any).leather_fur ?? 0})`);
     if (gold   > transport.gold)   insuffisant.push(`or (dispo: ${transport.gold})`);
     if (food   > transport.food)   insuffisant.push(`nourriture (dispo: ${transport.food})`);
     if (wood   > transport.wood)   insuffisant.push(`bois (dispo: ${transport.wood})`);
@@ -582,10 +607,13 @@ router.post("/deposit-transport-to-bank", requireAuth, async (req: AuthRequest, 
     const now = new Date();
 
     await db.transaction(async (tx) => {
-      // 1. Décrémenter player_transport
+      // 1. Décrémenter player_transport (V2 + V1)
       await tx
         .update(playerTransport)
         .set({
+          fracten:       sql`${(playerTransport as any).fracten}       - ${fracten}`,       // V2
+          common_metals: sql`${(playerTransport as any).common_metals} - ${common_metals}`, // V2
+          leather_fur:   sql`${(playerTransport as any).leather_fur}   - ${leather_fur}`,   // V2
           gold:      sql`${playerTransport.gold}   - ${gold}`,
           food:      sql`${playerTransport.food}   - ${food}`,
           wood:      sql`${playerTransport.wood}   - ${wood}`,
@@ -600,13 +628,19 @@ router.post("/deposit-transport-to-bank", requireAuth, async (req: AuthRequest, 
         })
         .where(eq(playerTransport.playerId, playerId));
 
-      // 2. Créditer player_bank (UPSERT)
+      // 2. Créditer player_bank (UPSERT) — V2 + V1
       await tx
         .insert(playerBank)
-        .values({ playerId, gold, food, wood, stone, iron, copper, coal, oil, herbs, fur, lastProductionTurn: 0, updatedAt: now })
+        .values({ playerId,
+          fracten, common_metals, leather_fur, // V2
+          gold, food, wood, stone, iron, copper, coal, oil, herbs, fur,
+          lastProductionTurn: 0, updatedAt: now } as any)
         .onConflictDoUpdate({
           target: playerBank.playerId,
           set: {
+            fracten:       sql`${(playerBank as any).fracten}       + ${fracten}`,       // V2
+            common_metals: sql`${(playerBank as any).common_metals} + ${common_metals}`, // V2
+            leather_fur:   sql`${(playerBank as any).leather_fur}   + ${leather_fur}`,   // V2
             gold:      sql`${playerBank.gold}   + ${gold}`,
             food:      sql`${playerBank.food}   + ${food}`,
             wood:      sql`${playerBank.wood}   + ${wood}`,
@@ -623,13 +657,14 @@ router.post("/deposit-transport-to-bank", requireAuth, async (req: AuthRequest, 
     });
 
     console.log(
-      `[Deposit] player=${playerId} transport→bank ${gold}g ${food}f ${wood}w ${stone}s ${iron}ir` +
+      `[Deposit] player=${playerId} transport→bank fr${fracten} cm${common_metals} lf${leather_fur}` +
+      ` ${gold}g ${food}f ${wood}w ${stone}s ${iron}ir` +
       ` ${copper}cu ${coal}co ${oil}oil ${herbs}herbs ${fur}fur`
     );
 
     return res.json({
       ok:          true,
-      deposited:   { gold, food, wood, stone, iron, copper, coal, oil, herbs, fur },
+      deposited:   { fracten, common_metals, leather_fur, gold, food, wood, stone, iron, copper, coal, oil, herbs, fur }, // V2+V1
       destination: "player_bank",
     });
 
@@ -659,7 +694,8 @@ router.get("/city-warehouse-info/:cityId", requireAuth, async (req: AuthRequest,
       .limit(1);
 
     const currentTotal = inv
-      ? (inv.gold + inv.food + inv.wood + inv.stone + inv.iron + inv.copper + inv.coal + inv.oil + inv.herbs + inv.fur)
+      ? ((inv as any).fracten ?? 0) + ((inv as any).common_metals ?? 0) + ((inv as any).leather_fur ?? 0) // V2
+        + inv.gold + inv.food + inv.wood + inv.stone + inv.iron + inv.copper + inv.coal + inv.oil + inv.herbs + inv.fur
       : 0;
 
     return res.json({

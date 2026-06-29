@@ -55,6 +55,11 @@ export async function postEconomyTick(currentTurn: number): Promise<TickResponse
 // ─── Types matériaux Tier 1 (partagé) ────────────────────────────────────────
 
 export interface T1Materials {
+  // Bloc C V2 — ressources principales
+  fracten:       number;
+  common_metals: number;
+  leather_fur:   number;
+  // V1 legacy (conservé pour compatibilité)
   gold:   number;
   food:   number;
   wood:   number;
@@ -144,6 +149,11 @@ export interface CollectHarvestResult {
     status:          string;
     msRemaining:     number;
     expectedEndTime: string;
+    // Bloc C V2
+    pendingFracten:      number;
+    pendingCommonMetals: number;
+    pendingLeatherFur:   number;
+    // V1 legacy
     pendingGold:     number;
     pendingFood:     number;
     pendingWood:     number;
@@ -160,7 +170,12 @@ export interface CollectHarvestResult {
 // ─── Inventaire de transport joueur ──────────────────────────────────────────
 
 export interface PlayerTransportDTO {
-  playerId:  string;
+  playerId:      string;
+  // Bloc C V2
+  fracten:       number;
+  common_metals: number;
+  leather_fur:   number;
+  // V1 legacy
   gold:      number;
   food:      number;
   wood:      number;
@@ -206,6 +221,11 @@ export async function getPlayerCurrentCity(): Promise<PlayerCurrentCityDTO> {
 // ─── Dépôt transport → inventaire ville ──────────────────────────────────────
 
 export interface T1Mats {
+  // Bloc C V2
+  fracten?:       number;
+  common_metals?: number;
+  leather_fur?:   number;
+  // V1 legacy
   gold?:   number;
   food?:   number;
   wood?:   number;
@@ -370,7 +390,12 @@ export async function postTransferBankToPlayer(
 // ─── Inventaire ville ─────────────────────────────────────────────────────────
 
 export interface CityInventoryDTO {
-  cityId: number;
+  cityId:        number;
+  // Bloc C V2
+  fracten:       number;
+  common_metals: number;
+  leather_fur:   number;
+  // V1 legacy
   gold:   number;
   food:   number;
   wood:   number;

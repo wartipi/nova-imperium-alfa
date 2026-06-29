@@ -18,34 +18,43 @@ const MS_PER_HOUR = 3600 * 1000;
 
 // Capacité max de transport (unités canoniques : or compressé 1/250, autres ressources 1 chacune)
 export const TRANSPORT_MAX_UNITS = 50;
-// Stack de compression de l'or : 1 unité de transport = 250 pièces d'or.
+// Stack de compression de l'or (V1 legacy) : 1 unité = 250 pièces.
 export const GOLD_TRANSPORT_STACK_SIZE = 250;
+// Bloc C V2 : fracten — même compression que gold : 1 unité = 250 fracten.
+export const FRACTEN_TRANSPORT_STACK_SIZE = 250;
 
 // ─── Helper canonique de calcul des unités transport ─────────────────────────
-// Règle : gold = ceil(gold / GOLD_TRANSPORT_STACK_SIZE), autres ressources = 1 unité chacune.
+// Règle V2 : fracten = ceil(fracten / 250), common_metals = 1u chacun, leather_fur = 1u chacun.
+// Règle legacy : gold = ceil(gold / 250), iron/copper/fur = 1u chacun.
 // Source de vérité unique — utilisée partout où on calcule usedUnits / currentTotal.
 export function computeTransportUnits(t: {
-  gold:    number;
-  food:    number;
-  wood:    number;
-  stone:   number;
-  iron:    number;
-  copper?: number | null;
-  coal?:   number | null;
-  oil?:    number | null;
-  herbs?:  number | null;
-  fur?:    number | null;
+  gold:           number;
+  food:           number;
+  wood:           number;
+  stone:          number;
+  iron:           number;
+  copper?:        number | null;
+  coal?:          number | null;
+  oil?:           number | null;
+  herbs?:         number | null;
+  fur?:           number | null;
+  fracten?:       number | null; // Bloc C V2
+  common_metals?: number | null; // Bloc C V2
+  leather_fur?:   number | null; // Bloc C V2
 }): number {
   return (t.gold > 0 ? Math.ceil(t.gold / GOLD_TRANSPORT_STACK_SIZE) : 0)
+       + ((t.fracten ?? 0) > 0 ? Math.ceil((t.fracten ?? 0) / FRACTEN_TRANSPORT_STACK_SIZE) : 0) // V2
        + t.food
        + t.wood
        + t.stone
        + t.iron
-       + (t.copper ?? 0)
-       + (t.coal   ?? 0)
-       + (t.oil    ?? 0)
-       + (t.herbs  ?? 0)
-       + (t.fur    ?? 0);
+       + (t.copper        ?? 0)
+       + (t.coal          ?? 0)
+       + (t.oil           ?? 0)
+       + (t.herbs         ?? 0)
+       + (t.fur           ?? 0)
+       + (t.common_metals ?? 0) // V2
+       + (t.leather_fur   ?? 0); // V2
 }
 
 // ─── Types enrichis retournés par le service ──────────────────────────────────
@@ -951,7 +960,9 @@ export async function getOrInitPlayerTransport(playerId: string) {
   const [row] = await db
     .insert(playerTransport)
     .values({ playerId, gold: 0, food: 0, wood: 0, stone: 0, iron: 0,
-              copper: 0, coal: 0, oil: 0, herbs: 0, fur: 0, updatedAt: now })
+              copper: 0, coal: 0, oil: 0, herbs: 0, fur: 0,
+              fracten: 0, common_metals: 0, leather_fur: 0, // Bloc C V2
+              updatedAt: now })
     .onConflictDoUpdate({
       target: playerTransport.playerId,
       set: { updatedAt: now },
