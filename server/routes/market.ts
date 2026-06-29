@@ -283,7 +283,8 @@ router.get("/fee-box/:cityId", requireAuth, async (req: AuthRequest, res) => {
       }
     }
 
-    res.json({ gold: canCollect ? feeBox.gold : 0, canCollect });
+    // V2 : expose fracten (monnaie officielle). gold = legacy storage.
+    res.json({ fracten: canCollect ? feeBox.fracten : 0, gold: canCollect ? feeBox.gold : 0, canCollect });
   } catch (err: any) {
     res.status(err.status ?? 500).json({ error: err.message });
   }

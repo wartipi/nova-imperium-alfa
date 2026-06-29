@@ -1,10 +1,12 @@
 // ─── marketApi.ts ─────────────────────────────────────────────────────────────
 // API client pour le marché des ressources (/api/market/*).
+// V2 : fracten comme monnaie officielle, common_metals/leather_fur remplacent iron/copper/fur.
 // Distinct de marketplaceApi (cartes/objets uniques in-memory).
 
 export type ResourceType =
-  | "food" | "wood" | "stone" | "iron" | "copper"
-  | "coal"  | "oil"  | "herbs" | "fur";
+  | "food" | "wood" | "stone" | "coal" | "oil" | "herbs"
+  | "common_metals" | "leather_fur"       // V2 — ressources officielles
+  | "iron" | "copper" | "fur";            // V1 legacy — ordres anciens uniquement
 
 export type OrderSide   = "buy" | "sell";
 export type OrderStatus = "open" | "filled" | "cancelled";
@@ -50,7 +52,8 @@ export interface MarketTrade {
   resourceType:  ResourceType;
   quantity:      number;
   pricePerUnit:  number;
-  totalGold:     number;
+  totalFracten:  number;   // V2 monnaie officielle (stocké dans colonne DB totalGold legacy)
+  totalGold:     number;   // V1 legacy storage — même valeur que totalFracten
   feeBpsApplied: number;
   feeAmount:     number;
   executedAt:    string;
@@ -105,20 +108,30 @@ export async function cancelMarketOrder(cityId: number, orderId: number): Promis
 }
 
 // ─── POST /api/market/:cityId/orders/:orderId/fill ────────────────────────────
+// V2 : retourne totalFracten (monnaie officielle). totalGold = même valeur, legacy.
 export async function fillMarketOrder(
   cityId: number,
   orderId: number,
   quantity: number,
-): Promise<{ tradeId: number; totalGold: number; feeAmount: number }> {
-  return apiCall(`/api/market/${cityId}/orders/${orderId}/fill`, {
-    method: "POST",
-    body: JSON.stringify({ quantity }),
-  });
+): Promise<{ tradeId: number; totalFracten: number; totalGold: number; feeAmount: number }> {
+  const r = await apiCall<{ tradeId: number; totalFracten?: number; totalGold?: number; feeAmount: number }>(
+    `/api/market/${cityId}/orders/${orderId}/fill`,
+    { method: "POST", body: JSON.stringify({ quantity }) }
+  );
+  // Normalisation : totalFracten prioritaire, fallback sur totalGold legacy
+  const totalFracten = r.totalFracten ?? r.totalGold ?? 0;
+  return { tradeId: r.tradeId, totalFracten, totalGold: totalFracten, feeAmount: r.feeAmount };
 }
 
 // ─── GET /api/market/:cityId/trades ──────────────────────────────────────────
 export async function fetchMarketTrades(cityId: number): Promise<MarketTrade[]> {
-  return apiCall(`/api/market/${cityId}/trades`);
+  const trades = await apiCall<any[]>(`/api/market/${cityId}/trades`);
+  // Normalisation : totalFracten = totalGold (legacy storage)
+  return trades.map(t => ({
+    ...t,
+    totalFracten: t.totalFracten ?? t.totalGold ?? 0,
+    totalGold:    t.totalGold ?? 0,
+  }));
 }
 
 // ─── PATCH /api/market/:cityId/guild/fee ──────────────────────────────────────
@@ -130,8 +143,12 @@ export async function updateMarketFee(cityId: number, feeBps: number): Promise<{
 }
 
 // ─── GET /api/market/fee-box/:cityId ─────────────────────────────────────────
-export async function fetchMarketFeeBox(cityId: number): Promise<{ gold: number; canCollect: boolean }> {
-  return apiCall(`/api/market/fee-box/${cityId}`);
+// V2 : expose fracten (monnaie officielle). gold = legacy storage.
+export async function fetchMarketFeeBox(cityId: number): Promise<{ fracten: number; gold: number; canCollect: boolean }> {
+  const r = await apiCall<{ fracten?: number; gold?: number; canCollect: boolean }>(
+    `/api/market/fee-box/${cityId}`
+  );
+  return { fracten: r.fracten ?? r.gold ?? 0, gold: r.gold ?? 0, canCollect: r.canCollect };
 }
 
 // ─── POST /api/market/fee-box/:cityId/collect ─────────────────────────────────
@@ -139,18 +156,25 @@ export async function collectMarketFeeBox(cityId: number): Promise<{ collected: 
   return apiCall(`/api/market/fee-box/${cityId}/collect`, { method: "POST" });
 }
 
+// ─── Labels V2 ────────────────────────────────────────────────────────────────
 export const RESOURCE_LABELS: Record<ResourceType, string> = {
-  food:   "Nourriture",
-  wood:   "Bois",
-  stone:  "Pierre",
-  iron:   "Fer",
-  copper: "Cuivre",
-  coal:   "Charbon",
-  oil:    "Huile",
-  herbs:  "Herbes",
-  fur:    "Fourrure",
+  food:          "Nourriture",
+  wood:          "Bois",
+  stone:         "Pierre",
+  coal:          "Charbon",
+  oil:           "Huile",
+  herbs:         "Herbes",
+  common_metals: "Métaux communs",   // V2
+  leather_fur:   "Cuir & fourrure",  // V2
+  iron:          "Fer (legacy)",     // V1 legacy
+  copper:        "Cuivre (legacy)",  // V1 legacy
+  fur:           "Fourrure (legacy)", // V1 legacy
 };
 
+// V2 : ressources autorisées pour les NOUVEAUX ordres.
 export const ALL_RESOURCES: ResourceType[] = [
-  "food","wood","stone","iron","copper","coal","oil","herbs","fur",
+  "food","wood","stone","coal","oil","herbs","common_metals","leather_fur",
 ];
+
+// V1 legacy : pour lecture des anciens ordres uniquement.
+export const LEGACY_RESOURCES: ResourceType[] = ["iron","copper","fur"];

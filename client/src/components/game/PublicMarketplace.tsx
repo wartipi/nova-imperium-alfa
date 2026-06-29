@@ -34,7 +34,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
   // ─── Marché ───────────────────────────────────────────────────────────────────
   const [rmGuild,   setRmGuild]   = useState<MarketGuild | null>(null);
   const [rmOwner,   setRmOwner]   = useState<MarketOwner | null>(null);
-  const [rmFeeBox,  setRmFeeBox]  = useState<{ gold: number; canCollect: boolean } | null>(null);
+  const [rmFeeBox,  setRmFeeBox]  = useState<{ fracten: number; gold: number; canCollect: boolean } | null>(null);
   const [rmOrders,  setRmOrders]  = useState<MarketOrder[]>([]);
   const [rmTrades,  setRmTrades]  = useState<MarketTrade[]>([]);
   const [rmLoading, setRmLoading] = useState(false);
@@ -163,7 +163,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
         safeId > 0 ? fetchMarketGuild(safeId) : Promise.resolve({ guild: null, hasGuild: false, feeBps: 0, owner: null }),
         fetchMarketOrders(safeId > 0 ? safeId : 1),
         fetchMarketTrades(safeId > 0 ? safeId : 1),
-        safeId > 0 ? fetchMarketFeeBox(safeId).catch(() => ({ gold: 0, canCollect: false })) : Promise.resolve({ gold: 0, canCollect: false }),
+        safeId > 0 ? fetchMarketFeeBox(safeId).catch(() => ({ fracten: 0, gold: 0, canCollect: false })) : Promise.resolve({ fracten: 0, gold: 0, canCollect: false }),
       ]);
       setRmGuild((guildData as any).guild ?? null);
       setRmOwner((guildData as any).owner ?? null);
@@ -227,8 +227,8 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
       lines: [
         { label: "Ressource",  value: RESOURCE_LABELS[resource] },
         { label: "Quantité",   value: `${draft.qty}` },
-        { label: "Prix/u",     value: `${draft.price} or` },
-        { label: "Revenu brut", value: `${total} or (si vendu)` },
+        { label: "Prix/u",     value: `${draft.price} fr` },
+        { label: "Revenu brut", value: `${total} fr (si vendu)` },
       ],
       note: "La ressource sera immédiatement retirée de votre transport et placée en escrow sur le marché.",
       onConfirm: async () => {
@@ -255,8 +255,8 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
       lines: [
         { label: "Ressource",  value: RESOURCE_LABELS[resource] },
         { label: "Quantité",   value: `${draft.qty}` },
-        { label: "Prix/u",     value: `${draft.price} or` },
-        { label: "Coût total", value: `${total} or (mis en escrow)` },
+        { label: "Prix/u",     value: `${draft.price} fr` },
+        { label: "Coût total", value: `${total} fr (mis en escrow fracten)` },
       ],
       note: "Les ressources achetées seront créditées dans votre Boîte de règlement.",
       onConfirm: async () => {
@@ -266,7 +266,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
             side: "buy", resourceType: resource,
             quantity: draft.qty, pricePerUnit: draft.price,
           });
-          setRmMsg(`✅ Ordre achat #${result.orderId} créé — ${total} or en escrow.`);
+          setRmMsg(`✅ Ordre achat #${result.orderId} créé — ${total} fr en escrow.`);
           rmLoadMarket(cityId);
           loadTransport();
         } catch (e: any) { setRmMsg(`❌ ${e.message}`); }
@@ -297,15 +297,15 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
           lines: [
             { label: "Ressource",  value: RESOURCE_LABELS[order.resourceType as ResourceType] },
             { label: "Quantité",   value: `${qty}` },
-            { label: "Prix/u",     value: `${order.pricePerUnit} or` },
-            { label: "Coût total", value: `${total} or` },
+            { label: "Prix/u",     value: `${order.pricePerUnit} fr` },
+            { label: "Coût total", value: `${total} fr (fracten)` },
           ],
           note: "Les ressources seront créditées dans votre Boîte de règlement.",
           onConfirm: async () => {
             closeConfirm();
             try {
               const r = await fillMarketOrder(cityId > 0 ? cityId : 1, orderId, qty);
-              setRmMsg(`✅ Fill #${orderId} — ${qty} unités — ${r.totalGold}g (frais: ${r.feeAmount}g)`);
+              setRmMsg(`✅ Fill #${orderId} — ${qty} unités — ${r.totalFracten} fr (frais: ${r.feeAmount} fr)`);
               rmLoadMarket(cityId);
               loadTransport();
             } catch (e: any) { setRmMsg(`❌ ${e.message}`); }
@@ -326,17 +326,17 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
         lines: [
           { label: "Ressource",    value: RESOURCE_LABELS[buyOrder.resourceType as ResourceType] },
           { label: "Quantité",     value: `${qty}` },
-          { label: "Prix/u",       value: `${buyOrder.pricePerUnit} or` },
-          { label: "Revenu brut",  value: `${total} or` },
-          { label: "Commission ≈", value: `${feeEst} or (${(feeBps / 100).toFixed(2)} %)` },
-          { label: "Net estimé ≈", value: `${netEst} or` },
+          { label: "Prix/u",       value: `${buyOrder.pricePerUnit} fr` },
+          { label: "Revenu brut",  value: `${total} fr` },
+          { label: "Commission ≈", value: `${feeEst} fr (${(feeBps / 100).toFixed(2)} %)` },
+          { label: "Net estimé ≈", value: `${netEst} fr` },
         ],
-        note: "L'or net sera crédité dans votre Boîte de règlement après déduction de la commission.",
+        note: "Le fracten net sera crédité dans votre Boîte de règlement après déduction de la commission.",
         onConfirm: async () => {
           closeConfirm();
           try {
             const r = await fillMarketOrder(cityId > 0 ? cityId : 1, orderId, qty);
-            setRmMsg(`✅ Vente #${orderId} — ${qty} unités — ${r.totalGold}g brut (frais: ${r.feeAmount}g)`);
+            setRmMsg(`✅ Vente #${orderId} — ${qty} unités — ${r.totalFracten} fr brut (frais: ${r.feeAmount} fr)`);
             rmLoadMarket(cityId);
             loadTransport();
           } catch (e: any) { setRmMsg(`❌ ${e.message}`); }
@@ -510,19 +510,19 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                   <div className="mt-2 bg-amber-100 border border-amber-300 rounded-lg p-2.5 flex items-center gap-3 text-sm">
                     <span className="font-semibold text-amber-900">🏛️ Caisse locale</span>
                     <span className="text-amber-800">
-                      {rmFeeBox.gold > 0
-                        ? <><strong>{rmFeeBox.gold} or</strong> — commissions sans banque</>
+                      {(rmFeeBox.fracten + rmFeeBox.gold) > 0
+                        ? <><strong>{rmFeeBox.fracten + rmFeeBox.gold} fr</strong> — commissions sans banque</>
                         : <em className="text-amber-500">Vide</em>
                       }
                     </span>
-                    {rmFeeBox.gold > 0 && (
+                    {(rmFeeBox.fracten + rmFeeBox.gold) > 0 && (
                       <button
                         onClick={async () => {
                           const cityId = access.cityId ?? 0;
                           if (cityId <= 0) return;
                           try {
                             const r = await collectMarketFeeBox(cityId);
-                            setRmMsg(`✅ Caisse collectée : ${r.collected} or → compte propriétaire`);
+                            setRmMsg(`✅ Caisse collectée : ${r.collected} fr → compte propriétaire`);
                             rmLoadMarket(cityId);
                           } catch (e: any) { setRmMsg(`❌ ${e.message}`); }
                         }}
@@ -560,12 +560,12 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                         </span>
                       </div>
                       <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
-                        {/* Or */}
-                        {transport.gold > 0 && (
+                        {/* Fracten (V2) */}
+                        {(transport as any).fracten > 0 && (
                           <div className="flex items-center gap-1 bg-yellow-50 border border-yellow-200 rounded px-2 py-1 text-xs">
-                            <span>💰</span>
-                            <span className="text-yellow-800 font-semibold">{transport.gold}</span>
-                            <span className="text-yellow-600 truncate">Or</span>
+                            <span>🪙</span>
+                            <span className="text-yellow-800 font-semibold">{(transport as any).fracten}</span>
+                            <span className="text-yellow-600 truncate">Fracten</span>
                           </div>
                         )}
                         {/* Ressources */}
@@ -579,7 +579,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                             </div>
                           );
                         })}
-                        {transport.gold === 0 && transport.usedUnits === 0 && (
+                        {((transport as any).fracten ?? 0) === 0 && transport.usedUnits === 0 && (
                           <span className="col-span-5 text-xs text-gray-400 italic">Inventaire vide</span>
                         )}
                       </div>
@@ -588,8 +588,9 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
 
                   {/* ─── Boîte de règlement ───────────────────────────────── */}
                   {marketBox && (() => {
-                    const MB_RESOURCES = ['food','wood','stone','iron','copper','coal','oil','herbs','fur'] as const;
-                    const hasContent = (marketBox.gold ?? 0) > 0
+                    // V2 — ressources V2 + legacy (pour affichage boîte historique)
+                    const MB_RESOURCES = ['food','wood','stone','common_metals','leather_fur','coal','oil','herbs','iron','copper','fur'] as const;
+                    const hasContent = (marketBox.fracten ?? marketBox.gold ?? 0) > 0
                       || MB_RESOURCES.some(r => (marketBox[r] ?? 0) > 0);
                     return (
                       <div className="bg-white border border-purple-200 rounded-lg p-3">
@@ -631,11 +632,12 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                         )}
                         {hasContent ? (
                           <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
-                            {(marketBox.gold ?? 0) > 0 && (
+                            {/* Fracten V2 (ou gold legacy) */}
+                            {(marketBox.fracten ?? marketBox.gold ?? 0) > 0 && (
                               <div className="flex items-center gap-1 bg-yellow-50 border border-yellow-200 rounded px-2 py-1 text-xs">
-                                <span>💰</span>
-                                <span className="text-yellow-800 font-semibold">{marketBox.gold}</span>
-                                <span className="text-yellow-600 truncate">Or</span>
+                                <span>🪙</span>
+                                <span className="text-yellow-800 font-semibold">{marketBox.fracten ?? marketBox.gold}</span>
+                                <span className="text-yellow-600 truncate">Fracten</span>
                               </div>
                             )}
                             {MB_RESOURCES.map(r => {
@@ -658,9 +660,10 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
 
                   {/* ─── SELL — Mettre en vente ────────────────────────────── */}
                   {(() => {
-                    const ICONS: Record<ResourceType, string> = {
-                      food:'🌿', wood:'🪵', stone:'🪨', iron:'⚙️',
-                      copper:'🟤', coal:'🖤', oil:'🛢️', herbs:'🌱', fur:'🦊',
+                    const ICONS: Record<string, string> = {
+                      food:'🌿', wood:'🪵', stone:'🪨', coal:'🖤', oil:'🛢️', herbs:'🌱',
+                      common_metals:'⚙️', leather_fur:'🦊',
+                      iron:'🔩', copper:'🟤', fur:'🧸',
                     };
                     const available = ALL_RESOURCES.filter(r => transport && (transport as any)[r] > 0);
                     return (
@@ -722,9 +725,10 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
 
                   {/* ─── BUY — Passer un ordre d'achat ────────────────────── */}
                   {(() => {
-                    const ICONS: Record<ResourceType, string> = {
-                      food:'🌿', wood:'🪵', stone:'🪨', iron:'⚙️',
-                      copper:'🟤', coal:'🖤', oil:'🛢️', herbs:'🌱', fur:'🦊',
+                    const ICONS: Record<string, string> = {
+                      food:'🌿', wood:'🪵', stone:'🪨', coal:'🖤', oil:'🛢️', herbs:'🌱',
+                      common_metals:'⚙️', leather_fur:'🦊',
+                      iron:'🔩', copper:'🟤', fur:'🧸',
                     };
                     // Dernier prix vendu par ressource — calculé explicitement sur executedAt
                     const latestPrice: Partial<Record<ResourceType, number>> = {};
@@ -758,7 +762,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                                 <span className="text-sm">{ICONS[r]}</span>
                                 <span className="text-xs text-blue-900 font-medium truncate">{RESOURCE_LABELS[r]}</span>
                                 <span className={`text-xs truncate ${last != null ? "text-gray-500" : "text-gray-300 italic"}`}>
-                                  {last != null ? `${last} g/u` : "—"}
+                                  {last != null ? `${last} fr/u` : "—"}
                                 </span>
                                 <input
                                   type="number" min={1}
@@ -770,11 +774,13 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                                   type="button"
                                   onClick={() => {
                                     if (!transport || draft.price <= 0) return;
-                                    const maxQty = Math.floor((transport as any).gold / draft.price);
+                                    // V2 : fracten comme monnaie. Fallback gold legacy.
+                                    const available = (transport as any).fracten ?? (transport as any).gold ?? 0;
+                                    const maxQty = Math.floor(available / draft.price);
                                     if (maxQty < 1) return;
                                     setBuyDrafts(d => ({ ...d, [r]: { ...d[r], qty: maxQty } }));
                                   }}
-                                  disabled={!transport || draft.price <= 0 || Math.floor(((transport as any).gold ?? 0) / draft.price) < 1}
+                                  disabled={!transport || draft.price <= 0 || Math.floor(((transport as any).fracten ?? (transport as any).gold ?? 0) / draft.price) < 1}
                                   className="w-full py-0.5 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 rounded border border-blue-300 disabled:opacity-40 disabled:cursor-not-allowed"
                                   style={{ pointerEvents: "auto" }}
                                 >Max</button>
@@ -811,7 +817,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                           <div key={o.id} className="border border-blue-100 rounded p-2 mb-2 text-xs">
                             <div className="flex justify-between font-semibold">
                               <span>{RESOURCE_LABELS[o.resourceType as ResourceType]}</span>
-                              <span className="text-blue-700">{o.pricePerUnit} g/u</span>
+                              <span className="text-blue-700">{o.pricePerUnit} fr/u</span>
                             </div>
                             <div className="text-gray-600">Qté : {o.quantityRemaining}/{o.quantityTotal} — {o.playerName}</div>
                             <div className="flex gap-2 mt-1.5 items-center">
@@ -852,7 +858,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                           <div key={o.id} className="border border-red-100 rounded p-2 mb-2 text-xs">
                             <div className="flex justify-between font-semibold">
                               <span>{RESOURCE_LABELS[o.resourceType as ResourceType]}</span>
-                              <span className="text-red-700">{o.pricePerUnit} g/u</span>
+                              <span className="text-red-700">{o.pricePerUnit} fr/u</span>
                             </div>
                             <div className="text-gray-600">Qté : {o.quantityRemaining}/{o.quantityTotal} — {o.playerName}</div>
                             <div className="flex gap-2 mt-1.5 items-center">
@@ -893,8 +899,8 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                             <div key={t.id} className="flex gap-3 text-xs text-gray-700 border-b border-gray-100 pb-1">
                               <span className="text-gray-400">{new Date(t.executedAt).toLocaleString()}</span>
                               <span className="font-semibold">{t.quantity}× {RESOURCE_LABELS[t.resourceType as ResourceType]}</span>
-                              <span>@ {t.pricePerUnit}g/u = {t.totalGold}g</span>
-                              <span className="text-gray-400">frais: {t.feeAmount}g</span>
+                              <span>@ {t.pricePerUnit} fr/u = {t.totalFracten} fr</span>
+                              <span className="text-gray-400">frais: {t.feeAmount} fr</span>
                             </div>
                           ))}
                         </div>

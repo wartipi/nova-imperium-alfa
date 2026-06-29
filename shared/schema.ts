@@ -813,9 +813,11 @@ export type GameClock = typeof gameClock.$inferSelect;
 // ─── market_fee_box ─────────────────────────────────────────────────────────
 // Caisse locale de commission : utilisée quand la ville du marché
 // ne possède pas de bâtiment "bank". Collecte manuelle par le propriétaire.
+// V2 : fracten ajouté (monnaie officielle). gold conservé legacy storage.
 export const marketFeeBox = pgTable("market_fee_box", {
   cityId:    integer("city_id").primaryKey().references(() => cities.id, { onDelete: "cascade" }),
-  gold:      integer("gold").notNull().default(0),
+  gold:      integer("gold").notNull().default(0),      // V1 legacy storage
+  fracten:   integer("fracten").notNull().default(0),   // V2 monnaie officielle
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 export type MarketFeeBox = typeof marketFeeBox.$inferSelect;

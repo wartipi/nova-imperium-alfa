@@ -1,0 +1,292 @@
+NOVA IMPERIUM — RESSOURCES V2 — BLOC D MARCHÉ
+Branche : NI-10.09
+
+OBJECTIF
+Convertir le marché des ressources vers les ressources V2 et la monnaie officielle fracten.
+
+Le marché doit maintenant utiliser :
+
+* fracten comme monnaie de prix, paiement, frais et règlement
+* common_metals au lieu de iron + copper
+* leather_fur au lieu de fur
+
+Ce bloc concerne uniquement le marché.
+
+CONTEXTE
+Blocs terminés :
+
+* Bloc A : carte / HexTile / yields client
+* Bloc B : production ville / économie faction / fracten
+* Bloc C : inventaires / récolte / transport / banque
+* Audit post-Bloc C : double comptage corrigé, fracten collect_harvest corrigé
+
+PÉRIMÈTRE AUTORISÉ
+
+Auditer et modifier uniquement :
+
+* server/marketService.ts
+* server/routes/market.ts, si présent
+* client/src/lib/api/marketApi.ts
+* client/src/components/game/PublicMarketplace.tsx
+* shared/schema.ts seulement pour commentaires ou ajout additif strictement nécessaire
+* éventuellement economyApi.ts seulement si types partagés nécessaires au marché
+
+INTERDICTIONS STRICTES
+
+Ne pas modifier :
+
+* MapGenerator.ts
+* HexTile
+* ResourceRevealSystem.ts
+* cityService.ts
+* economyService.ts sauf si une fonction utilitaire marché y est directement appelée
+* playerActionService.ts sauf si un règlement marché utilise transport/capacité, mais éviter si possible
+* routes/cities.ts
+* routes/economy.ts hors endpoint marché
+* HarvestPanel.tsx
+* PlayerTransportPanel.tsx
+* TreasuryPanel.tsx sauf affichage marché strictement nécessaire
+* auth
+* cartography ownership
+* unités
+* déploiement
+
+Ne pas faire :
+
+* suppression de colonnes legacy
+* DROP COLUMN
+* migration destructive
+* db:push sauf ajout additif strictement nécessaire
+* refactor massif
+* changement des règles de ville ou de récolte
+
+ÉTAPE 1 — AUDIT BLOC D AVANT MODIFICATION
+
+Chercher et classer toutes les occurrences marché de :
+
+gold
+totalGold
+feeAmount
+iron
+copper
+fur
+fracten
+totalFracten
+common_metals
+leather_fur
+resourceType
+pricePerUnit
+marketOrders
+marketTrades
+playerMarketBox
+marketFeeBox
+
+Classification obligatoire :
+
+A. Bloc D — à convertir maintenant
+B. Hors Bloc D — legacy acceptable
+C. Déjà V2
+D. Dangereux / incohérent
+
+Ne modifier que les occurrences A ou D dans le périmètre marché.
+
+ÉTAPE 2 — RÈGLES V2 DU MARCHÉ
+
+Monnaie :
+
+* fracten est la monnaie officielle du marché.
+* Les prix restent pricePerUnit, mais ils doivent être interprétés comme fracten par unité.
+* totalGold doit devenir totalFracten dans les DTO/API/UI si possible.
+* Si la DB garde une colonne total_gold legacy, elle peut être utilisée temporairement en stockage, mais l’API/UI doit exposer totalFracten.
+
+Ressources échangeables V2 :
+
+* food
+* wood
+* stone
+* common_metals
+* coal
+* oil
+* herbs
+* leather_fur
+
+Optionnel si déjà supporté sans casser :
+
+* textiles
+* spices
+* precious_stones
+* rare_metals_alloys
+
+Ne pas inclure :
+
+* iron
+* copper
+* fur
+* gold comme ressource de marché
+
+ÉTAPE 3 — BACKEND MARCHÉ
+
+Dans server/marketService.ts et routes marché :
+
+1. Resource allowlist
+   Remplacer les ressources V1 :
+
+* iron
+* copper
+* fur
+
+par :
+
+* common_metals
+* leather_fur
+
+2. Paiement achat
+   Tout débit de monnaie doit utiliser :
+
+* playerBank.fracten ou le stock V2 pertinent
+
+et non :
+
+* playerBank.gold
+
+3. Paiement vendeur
+   Tout crédit vendeur doit utiliser :
+
+* playerMarketBox.fracten ou playerBank.fracten selon le flux existant
+
+et non :
+
+* gold comme monnaie principale
+
+4. Règlement ressource
+   Lorsqu’une ressource est vendue :
+
+* débiter la ressource V2 correspondante
+* créditer la ressource V2 correspondante
+
+Exemples :
+
+* common_metals → common_metals
+* leather_fur → leather_fur
+
+Ne pas débiter iron/copper/fur pour les nouvelles offres V2.
+
+5. Frais marché
+   Les frais doivent être calculés sur le total en fracten.
+
+Si la table market_trades garde totalGold / feeAmount :
+
+* ne pas supprimer les colonnes
+* documenter comme legacy de stockage
+* exposer totalFracten côté DTO
+* utiliser fracten pour le calcul logique
+
+6. Caisse de frais
+   Si marketFeeBox contient encore seulement gold :
+
+* ne pas faire de migration destructive
+* soit ajouter fracten de manière additive si nécessaire
+* soit documenter que marketFeeBox.gold est legacy storage mais représente fracten temporairement
+* préférer ajout additif fracten si simple et non risqué
+
+ÉTAPE 4 — FRONTEND MARCHÉ
+
+Dans PublicMarketplace.tsx et marketApi.ts :
+
+1. Ressources affichées
+   Afficher :
+
+* Nourriture
+* Bois
+* Pierre
+* Métaux communs
+* Charbon
+* Huile
+* Herbes
+* Cuir et fourrure
+
+Ne plus afficher comme options principales :
+
+* Fer
+* Cuivre
+* Fourrure
+* Or / Gold
+
+2. Monnaie
+   Afficher :
+
+* Fracten
+* Fracten / unité
+* Total fracten
+* Frais en fracten
+
+Ne plus afficher :
+
+* Gold
+* Or
+* totalGold comme libellé utilisateur
+
+3. DTO
+   Remplacer les DTO client :
+
+* totalGold → totalFracten
+* gold fields de paiement → fracten quand c’est marché/monnaie
+
+ÉTAPE 5 — COMPATIBILITÉ
+
+Les anciennes colonnes DB peuvent rester.
+
+Règle :
+
+* V2 est source principale.
+* V1 ne sert que fallback ou stockage legacy temporaire.
+* Ne pas additionner V1 + V2 pour un même montant.
+* Ne pas créer une offre V1 nouvelle avec iron/copper/fur/gold.
+* Les anciennes offres ouvertes V1 doivent être soit :
+  A. supportées en lecture legacy avec label “legacy”, ou
+  B. ignorées/refusées proprement avec message clair.
+  Choisir l’option la plus sûre et documenter.
+
+ÉTAPE 6 — VÉRIFICATION
+
+Lancer :
+
+npm run check
+
+Puis chercher dans le périmètre Bloc D :
+
+gold
+totalGold
+iron
+copper
+fur
+fracten
+totalFracten
+common_metals
+leather_fur
+
+Classer les occurrences restantes :
+
+A. V2 principal
+B. V1 fallback acceptable
+C. Legacy stockage DB temporaire
+D. Dangereux / à corriger maintenant
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC BLOC D
+2. OCCURRENCES MARCHÉ CLASSÉES
+3. RÈGLES V2 APPLIQUÉES
+4. FICHIERS MODIFIÉS
+5. CHANGEMENTS BACKEND
+6. CHANGEMENTS FRONTEND
+7. COMPATIBILITÉ ANCIENNES OFFRES
+8. BACKFILL / DB SI APPLIQUÉ
+9. OCCURRENCES LEGACY RESTANTES
+10. RÉSULTAT npm run check
+11. STOP
+
+STOP
+Ne pas supprimer les colonnes legacy.
+Ne pas ouvrir Bloc E ou F.
+Ne pas toucher à la carte, récolte, transport ou production hors dépendance marché directe.
