@@ -1,0 +1,247 @@
+NOVA IMPERIUM — RESSOURCES V2 — AUDIT POST-BLOC D MARCHÉ
+Branche : NI-10.09
+
+OBJECTIF
+Vérifier que le Bloc D marché n’a pas créé de double débit, double crédit, double comptage, ou incohérence entre les colonnes V1 legacy et les colonnes V2.
+
+Ce n’est PAS le Bloc E ou F.
+Ne pas supprimer les colonnes legacy.
+Ne pas faire de migration destructive.
+
+CONTEXTE
+Blocs terminés :
+
+* Bloc A : carte / HexTile / yields client
+* Bloc B : production ville / économie faction / fracten
+* Bloc C : inventaires / récolte / transport / banque
+* Audit post-Bloc C : double comptage corrigé
+* Bloc D : marché V2
+
+Le Bloc D a converti le marché vers :
+
+* fracten
+* common_metals
+* leather_fur
+
+Mais les champs legacy existent encore :
+
+* gold
+* iron
+* copper
+* fur
+* totalGold
+* marketFeeBox.gold
+
+RISQUES À AUDITER
+
+1. Paiement achat
+   Vérifier qu’un achat ne débite pas à la fois :
+
+* fracten et gold
+
+2. Règlement vendeur
+   Vérifier qu’un vendeur ne reçoit pas à la fois :
+
+* fracten et gold
+
+3. Ressources vendues
+   Vérifier qu’une vente ne débite pas à la fois :
+
+* common_metals et iron/copper
+* leather_fur et fur
+
+4. Boîte marché
+   Vérifier que playerMarketBox ne crédite pas à la fois :
+
+* fracten et gold
+* common_metals et iron/copper
+* leather_fur et fur
+
+5. Caisse de commission
+   Vérifier que marketFeeBox ne double pas :
+
+* fracten + gold
+
+Si gold est seulement fallback legacy, le documenter clairement.
+Si fracten et gold sont additionnés dans l’UI pour afficher “total disponible”, vérifier que la collecte ne crédite pas deux fois.
+
+6. Anciennes offres V1
+   Vérifier le comportement des ordres existants avec :
+
+* iron
+* copper
+* fur
+* gold
+
+Ils doivent être soit :
+A. refusés proprement comme legacy non supporté
+ou
+B. supportés en lecture/annulation legacy sans créer de nouveaux ordres V1
+
+Mais les nouveaux ordres ne doivent jamais utiliser :
+
+* iron
+* copper
+* fur
+* gold
+
+PÉRIMÈTRE AUTORISÉ
+
+Auditer uniquement :
+
+* server/marketService.ts
+* server/routes/market.ts
+* client/src/lib/api/marketApi.ts
+* client/src/components/game/PublicMarketplace.tsx
+* shared/schema.ts pour confirmer marketFeeBox.fracten et commentaires
+
+Corrections autorisées seulement si elles corrigent :
+
+* double débit
+* double crédit
+* double comptage
+* ordre V1 encore créable
+* affichage trompeur gold/fracten
+* totalGold exposé comme monnaie principale
+
+INTERDICTIONS STRICTES
+
+Ne pas modifier :
+
+* MapGenerator.ts
+* HexTile
+* ResourceRevealSystem.ts
+* cityService.ts
+* economyService.ts
+* playerActionService.ts
+* routes/cities.ts
+* routes/economy.ts
+* HarvestPanel.tsx
+* PlayerTransportPanel.tsx
+* TreasuryPanel.tsx
+* auth
+* cartography ownership
+* unités
+* déploiement
+
+Ne pas faire :
+
+* Bloc E
+* Bloc F
+* suppression de colonnes legacy
+* DROP COLUMN
+* db:push
+* migration destructive
+* refactor massif
+
+ÉTAPE 1 — AUDIT BACKEND MARCHÉ
+
+Auditer les fonctions suivantes ou leurs équivalents :
+
+* placeOrder
+* fillOrder
+* cancelOrder
+* claimToTransport
+* claimToBank
+* getFeeBox
+* collectFeeBox
+* debit buyer
+* credit seller
+* debit seller resource
+* credit buyer resource
+* fee calculation
+
+Pour chaque fonction, confirmer :
+
+* champs lus
+* champs écrits
+* V2 principal
+* V1 fallback éventuel
+* risque de double débit/crédit
+
+ÉTAPE 2 — AUDIT FRONTEND MARCHÉ
+
+Auditer :
+
+* liste des ressources vendables
+* liste des ressources achetables
+* labels
+* boutons Max
+* modales confirmation
+* carnet d’ordres
+* historique
+* boîte de règlement
+* caisse de commission
+
+Confirmer :
+
+* nouveaux ordres V2 seulement
+* fracten affiché comme monnaie
+* totalFracten utilisé côté UI
+* totalGold non affiché comme monnaie principale
+* iron/copper/fur non proposés comme ressources principales
+
+ÉTAPE 3 — AUDIT DB / LEGACY
+
+Confirmer :
+
+* marketFeeBox.fracten existe
+* marketFeeBox.gold est legacy
+* marketTrades.totalGold est soit legacy storage, soit normalisé vers totalFracten côté API
+* marketOrders.resourceType peut contenir legacy historique mais ne doit plus accepter de nouveaux ordres V1
+
+ÉTAPE 4 — CORRECTIONS AUTORISÉES
+
+Si un problème D est trouvé :
+
+* corriger uniquement le bug concerné
+* documenter la règle V2 principal / V1 fallback
+* ne pas élargir le scope
+
+Si aucun problème D :
+
+* ne rien modifier inutilement
+* produire le rapport
+
+ÉTAPE 5 — VÉRIFICATION
+
+Lancer :
+
+npm run check
+
+Puis chercher dans le périmètre Bloc D :
+
+gold
+totalGold
+iron
+copper
+fur
+fracten
+totalFracten
+common_metals
+leather_fur
+
+Classer les occurrences restantes :
+
+A. V2 principal
+B. V1 fallback acceptable
+C. Legacy stockage DB temporaire
+D. Dangereux / à corriger maintenant
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC POST-BLOC D
+2. AUDIT BACKEND MARCHÉ
+3. AUDIT FRONTEND MARCHÉ
+4. AUDIT DB / LEGACY
+5. DOUBLE DÉBIT / DOUBLE CRÉDIT TROUVÉ ?
+6. CORRECTIONS APPLIQUÉES, SI NÉCESSAIRE
+7. OCCURRENCES LEGACY RESTANTES CLASSÉES
+8. RÉSULTAT npm run check
+9. CONCLUSION : AUTORISÉ OU NON À PASSER AU BLOC E
+10. STOP
+
+STOP
+Ne pas commencer Bloc E.
+Ne pas supprimer les colonnes legacy.
+Ne pas toucher aux systèmes hors marché.

@@ -714,7 +714,8 @@ export type MarketGuildRecord = typeof marketGuilds.$inferSelect;
 // ─── market_orders ────────────────────────────────────────────────────────────
 // Carnet d'ordres du marché des ressources.
 // side = 'buy' | 'sell'
-// resourceType ∈ food|wood|stone|iron|copper|coal|oil|herbs|fur
+// resourceType V2 (nouveaux ordres) : food|wood|stone|coal|oil|herbs|common_metals|leather_fur
+// resourceType V1 legacy (lecture/annulation seulement) : iron|copper|fur
 // status = 'open' | 'filled' | 'cancelled'
 // quantityRemaining : décrémenté à chaque fill partiel.
 export const marketOrders = pgTable("market_orders", {
