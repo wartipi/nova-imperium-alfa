@@ -1,0 +1,98 @@
+NOVA IMPERIUM — RESSOURCES V2 — BLOC A CARTE / HEXTILE / YIELDS
+Branche : NI-10.09
+
+OBJECTIF
+Corriger uniquement la dette client autour de HexTile.gold.
+
+On veut remplacer le champ legacy :
+
+* HexTile.gold
+
+par :
+
+* HexTile.fracten
+
+Ce changement concerne seulement la carte client, les yields visuels de tuiles et les composants qui lisent cette valeur.
+
+PÉRIMÈTRE AUTORISÉ
+Tu peux modifier uniquement les fichiers nécessaires liés à :
+
+* HexTile
+* MapGenerator
+* rendu / affichage des infos de tuiles
+* adaptateurs de carte client si nécessaires
+
+Fichiers probables :
+
+* client/src/lib/game/types.ts
+* client/src/lib/game/MapGenerator.ts
+* composants ou moteurs qui lisent tile.gold / hex.gold
+* TileInfoPanel / GameEngine / MapAdapter si concernés
+
+INTERDICTIONS
+Ne pas modifier :
+
+* shared/schema.ts
+* DB
+* migrations
+* economyService.ts
+* marketService.ts
+* server/routes/economy.ts
+* server/routes/market.ts
+* inventaires
+* production ville
+* marché
+* auth
+* cartography ownership
+* unités
+
+CHANGEMENT ATTENDU
+
+1. Dans HexTile :
+   remplacer gold:number par fracten:number.
+
+2. Dans MapGenerator :
+   remplacer TERRAIN_YIELDS.gold par TERRAIN_YIELDS.fracten.
+
+3. Dans applyResourceYields :
+   remplacer le type :
+   { food?: number; gold?: number }
+
+   par :
+   { food?: number; fracten?: number }
+
+   et remplacer :
+   hex.gold += ...
+
+   par :
+   hex.fracten += ...
+
+4. Corriger tous les lecteurs client de tile.gold / hex.gold liés à HexTile.
+
+5. Ne pas confondre ce champ avec les colonnes DB gold/fracten.
+   Ici, on parle seulement du yield visuel ou local des tuiles client.
+
+VÉRIFICATION
+Lancer :
+
+npm run check
+
+Puis rechercher dans le client :
+
+hex.gold
+tile.gold
+.gold
+
+Classifier les occurrences restantes :
+
+* acceptables si elles concernent encore une API serveur V1 hors Bloc A
+* à corriger si elles concernent HexTile ou MapGenerator
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC BLOC A
+2. FICHIERS MODIFIÉS
+3. CHANGEMENTS APPLIQUÉS
+4. OCCURRENCES gold RESTANTES CÔTÉ CLIENT
+5. RÉSULTAT npm run check
+6. STOP

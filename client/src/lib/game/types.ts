@@ -125,7 +125,7 @@ export interface HexTile {
   terrain: TerrainType;
   food: number;
   action_points: number;
-  gold: number;            // TODO: migration → fracten (valeur économique héritée du générateur)
+  fracten: number;         // Bloc A V2 : yield visuel de la tuile (remplace gold hérité du générateur)
   resource: ResourceType | null;
   resources: string[];
   hasRiver: boolean;

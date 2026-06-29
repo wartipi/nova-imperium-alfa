@@ -28,25 +28,23 @@ export class MapGenerator {
   // TODO V2 : constante RESOURCES V1 supprimée — getSuitableResources() utilise désormais la liste V2 officielle
   // (leather_fur, common_metals, fracten, rare_metals_alloys, etc.)
 
-  // TODO V2 (Bloc A) : le champ `gold` ici alimente HexTile.gold — dette économique héritée.
-  // À remplacer par un yield `fracten` ou supprimer le yield économique de la tuile (Bloc A).
-  // Ne pas modifier avant que HexTile.gold soit migré vers fracten côté rendu.
+  // Bloc A V2 : fracten remplace gold comme yield visuel des tuiles.
   private static readonly TERRAIN_YIELDS = {
-    wasteland:        { food: 0, action_points: 0, gold: 0 },
-    forest:           { food: 1, action_points: 0, gold: 0 },
-    mountains:        { food: 0, action_points: 0, gold: 1 },
-    fertile_land:     { food: 3, action_points: 0, gold: 1 },
-    hills:            { food: 1, action_points: 0, gold: 0 },
-    shallow_water:    { food: 2, action_points: 0, gold: 1 },
-    deep_water:       { food: 1, action_points: 0, gold: 2 },
-    swamp:            { food: 1, action_points: 0, gold: 0 },
-    desert:           { food: 0, action_points: 0, gold: 1 },
-    sacred_plains:    { food: 2, action_points: 0, gold: 0 },
-    caves:            { food: 0, action_points: 0, gold: 0 },
-    ancient_ruins:    { food: 0, action_points: 0, gold: 1 },
-    volcano:          { food: 0, action_points: 0, gold: 0 },
-    enchanted_meadow: { food: 2, action_points: 0, gold: 0 },
-    plains:           { food: 2, action_points: 0, gold: 0 }
+    wasteland:        { food: 0, action_points: 0, fracten: 0 },
+    forest:           { food: 1, action_points: 0, fracten: 0 },
+    mountains:        { food: 0, action_points: 0, fracten: 1 },
+    fertile_land:     { food: 3, action_points: 0, fracten: 1 },
+    hills:            { food: 1, action_points: 0, fracten: 0 },
+    shallow_water:    { food: 2, action_points: 0, fracten: 1 },
+    deep_water:       { food: 1, action_points: 0, fracten: 2 },
+    swamp:            { food: 1, action_points: 0, fracten: 0 },
+    desert:           { food: 0, action_points: 0, fracten: 1 },
+    sacred_plains:    { food: 2, action_points: 0, fracten: 0 },
+    caves:            { food: 0, action_points: 0, fracten: 0 },
+    ancient_ruins:    { food: 0, action_points: 0, fracten: 1 },
+    volcano:          { food: 0, action_points: 0, fracten: 0 },
+    enchanted_meadow: { food: 2, action_points: 0, fracten: 0 },
+    plains:           { food: 2, action_points: 0, fracten: 0 }
   };
 
   static generateMap(width: number, height: number): HexTile[][] {
@@ -62,7 +60,7 @@ export class MapGenerator {
           terrain: 'deep_water',
           food: yields.food,
           action_points: yields.action_points,
-          gold: yields.gold,
+          fracten: yields.fracten,
           resource: null,
           resources: [],
           hasRiver: false,
@@ -129,7 +127,7 @@ export class MapGenerator {
               terrain: 'shallow_water',
               food: yields.food,
               action_points: yields.action_points,
-              gold: yields.gold,
+              fracten: yields.fracten,
               resource: null,
               resources: [],
               hasRiver: false,
@@ -199,7 +197,7 @@ export class MapGenerator {
       terrain,
       food: yields.food,
       action_points: yields.action_points,
-      gold: yields.gold,
+      fracten: yields.fracten,
       resource: null,
       resources: [],
       hasRiver: false,
@@ -337,31 +335,31 @@ export class MapGenerator {
 
   private static applyResourceYields(hex: HexTile, resource: string) {
     // TODO V2 (Bloc A) : `gold` ici = champ legacy HexTile.gold (non affiché comme fracten).
-    // Ces yields n'alimentent PAS player_bank ni faction_economy — ils restent dans HexTile comme
-    // indicateur visuel uniquement. À convertir en fracten quand HexTile.gold sera migré (Bloc A).
-    const resourceYields: Record<string, { food?: number; gold?: number }> = {
+    // Bloc A V2 : fracten remplace gold — yield visuel de la tuile uniquement (HexTile.fracten).
+    // Ces yields n'alimentent PAS player_bank ni faction_economy.
+    const resourceYields: Record<string, { food?: number; fracten?: number }> = {
       food:               { food: 2 },
-      leather_fur:        { food: 1, gold: 1 },
-      wood:               { gold: 1 },
-      stone:              { gold: 1 },
-      common_metals:      { gold: 2 },
-      rare_metals_alloys: { gold: 3 },
-      coal:               { gold: 2 },
-      oil:                { gold: 3 },
+      leather_fur:        { food: 1, fracten: 1 },
+      wood:               { fracten: 1 },
+      stone:              { fracten: 1 },
+      common_metals:      { fracten: 2 },
+      rare_metals_alloys: { fracten: 3 },
+      coal:               { fracten: 2 },
+      oil:                { fracten: 3 },
       herbs:              { food: 1 },
-      spices:             { gold: 2 },
-      precious_stones:    { gold: 3 },
-      sacred_stones:      { gold: 2 },
-      crystals:           { gold: 3 },
-      ancient_artifacts:  { gold: 5 },
-      arcane_stones:      { gold: 2 },
-      enchanted_wood:     { food: 1, gold: 1 },
+      spices:             { fracten: 2 },
+      precious_stones:    { fracten: 3 },
+      sacred_stones:      { fracten: 2 },
+      crystals:           { fracten: 3 },
+      ancient_artifacts:  { fracten: 5 },
+      arcane_stones:      { fracten: 2 },
+      enchanted_wood:     { food: 1, fracten: 1 },
     };
     
     const yields = resourceYields[resource as keyof typeof resourceYields];
     if (yields) {
-      hex.food += yields.food || 0;
-      hex.gold += yields.gold || 0;
+      hex.food    += yields.food    || 0;
+      hex.fracten += yields.fracten || 0;
     }
   }
 

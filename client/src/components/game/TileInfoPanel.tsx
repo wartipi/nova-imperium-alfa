@@ -617,7 +617,7 @@ export function TileInfoPanel() {
             </div>
             <div className="flex items-center gap-1">
               <span className="text-yellow-600">💰</span>
-              <span className="text-amber-700">Or: {selectedHex.gold}</span>
+              <span className="text-amber-700">Fracten: {selectedHex.fracten}</span>
             </div>
 
           </div>
@@ -734,7 +734,7 @@ export function TileInfoPanel() {
               <div className="font-medium mb-1">Rendements détaillés:</div>
               <div>• <strong>Nourriture:</strong> {selectedHex.food}</div>
               <div>• <strong>Points d'Action:</strong> {selectedHex.actionPoints || selectedHex.action_points || 0}</div>
-              <div>• <strong>Or:</strong> {selectedHex.gold}</div>
+              <div>• <strong>Fracten:</strong> {selectedHex.fracten}</div>
               <div>• <strong>Commerce:</strong> {selectedHex.commerce || 0}</div>
             </div>
 
@@ -757,7 +757,7 @@ export function TileInfoPanel() {
                   yields: {
                     food: selectedHex.food,
                     actionPoints: selectedHex.actionPoints || selectedHex.action_points || 0,
-                    gold: selectedHex.gold,
+                    fracten: selectedHex.fracten,
                     commerce: selectedHex.commerce || 0
                   },
                   exploration: {
