@@ -1,0 +1,278 @@
+NOVA IMPERIUM — RESSOURCES V2 — G3 / NEUTRALISATION DONNÉES V1 MIROIR
+Branche : NI-10.09
+
+OBJECTIF
+Neutraliser les valeurs V1 miroir dans la DB, sans supprimer de colonnes.
+
+Ce bloc doit :
+
+* exécuter uniquement des UPDATE SQL protégés par conditions miroir exactes
+* mettre à zéro les colonnes V1 qui sont déjà représentées par V2
+* ne toucher aucune ligne en cas d’incohérence
+* produire un rapport avant/après avec preuves SQL
+
+Ce bloc ne doit pas supprimer de colonnes.
+Ce bloc ne doit pas faire DROP COLUMN.
+Ce bloc ne doit pas retirer les fallbacks backend.
+Ce bloc ne doit pas modifier le schéma.
+
+CONTEXTE
+G1 a confirmé :
+
+* toutes les données V1 sont des miroirs exacts de V2
+* aucun orphelin V1
+* market_trades.total_gold est un cas séparé pour G5
+
+G2 a confirmé :
+
+* UI legacy masquée
+* mode debug legacy disponible via ?debug=legacy
+* aucune modification DB
+* aucun backend modifié
+
+Règles de miroir :
+
+* gold = fracten
+* iron + copper = common_metals
+* fur = leather_fur
+
+PÉRIMÈTRE AUTORISÉ
+
+DB uniquement :
+
+* player_bank
+* player_transport
+* player_market_box
+* city_inventory
+* city_pending_harvest
+* market_fee_box
+* cities
+
+Lecture SQL :
+
+* market_orders pour vérifier les ordres V1 actifs
+* market_trades seulement en lecture
+
+INTERDICTIONS STRICTES
+
+Ne pas modifier :
+
+* code frontend
+* code backend
+* shared/schema.ts
+* migrations
+* market_trades.total_gold
+* market_orders
+* marketService.ts
+* routes
+* DTO
+* UI
+
+Ne pas faire :
+
+* DROP COLUMN
+* DELETE
+* UPDATE sans WHERE miroir exact
+* neutralisation de market_trades.total_gold
+* suppression de fallbacks
+* G4
+
+ÉTAPE 1 — SNAPSHOT AVANT G3
+
+Créer un checkpoint Replit avant toute modification.
+
+Ensuite exécuter les requêtes de diagnostic AVANT :
+
+SELECT
+'player_bank' AS table_name,
+COUNT(*) AS rows,
+SUM(gold) AS gold_sum,
+SUM(fracten) AS fracten_sum,
+SUM(iron) AS iron_sum,
+SUM(copper) AS copper_sum,
+SUM(common_metals) AS common_metals_sum,
+SUM(fur) AS fur_sum,
+SUM(leather_fur) AS leather_fur_sum,
+SUM(CASE WHEN gold = fracten AND iron + copper = common_metals AND fur = leather_fur THEN 0 ELSE 1 END) AS conflicts
+FROM player_bank;
+
+Répéter même logique pour :
+
+* player_transport
+* player_market_box
+* city_inventory
+* city_pending_harvest si table non vide
+* market_fee_box avec gold/fracten
+* cities avec gold_per_turn/fracten_per_turn, iron_per_turn+copper_per_turn/common_metals_per_turn, fur_per_turn/leather_fur_per_turn
+
+Vérifier aussi :
+
+SELECT COUNT(*) AS active_legacy_orders
+FROM market_orders
+WHERE resource_type IN ('gold','iron','copper','fur')
+AND status IN ('open','partial');
+
+Si active_legacy_orders > 0 :
+
+* ne pas neutraliser player_market_box
+* documenter le blocage
+* continuer seulement les autres tables sûres
+
+ÉTAPE 2 — UPDATE PROTÉGÉS
+
+Exécuter les UPDATE seulement si le diagnostic confirme conflicts = 0.
+
+A. player_bank
+
+BEGIN;
+UPDATE player_bank
+SET gold = 0,
+iron = 0,
+copper = 0,
+fur = 0
+WHERE gold = fracten
+AND iron + copper = common_metals
+AND fur = leather_fur;
+COMMIT;
+
+B. player_transport
+
+BEGIN;
+UPDATE player_transport
+SET gold = 0,
+iron = 0,
+copper = 0,
+fur = 0
+WHERE gold = fracten
+AND iron + copper = common_metals
+AND fur = leather_fur;
+COMMIT;
+
+C. player_market_box
+
+Avant d’exécuter, vérifier active_legacy_orders.
+
+Si active_legacy_orders = 0 :
+
+BEGIN;
+UPDATE player_market_box
+SET gold = 0,
+iron = 0,
+copper = 0,
+fur = 0
+WHERE gold = fracten
+AND iron + copper = common_metals
+AND fur = leather_fur;
+COMMIT;
+
+Si active_legacy_orders > 0 :
+
+* ne pas exécuter
+* classer comme bloqué jusqu’à clôture/migration ordres V1
+
+D. city_inventory
+
+BEGIN;
+UPDATE city_inventory
+SET gold = 0,
+iron = 0,
+copper = 0,
+fur = 0
+WHERE gold = fracten
+AND iron + copper = common_metals
+AND fur = leather_fur;
+COMMIT;
+
+E. city_pending_harvest
+
+BEGIN;
+UPDATE city_pending_harvest
+SET gold = 0,
+iron = 0,
+copper = 0,
+fur = 0
+WHERE gold = fracten
+AND iron + copper = common_metals
+AND fur = leather_fur;
+COMMIT;
+
+F. market_fee_box
+
+BEGIN;
+UPDATE market_fee_box
+SET gold = 0
+WHERE gold = fracten;
+COMMIT;
+
+G. cities per-turn
+
+BEGIN;
+UPDATE cities
+SET gold_per_turn = 0,
+iron_per_turn = 0,
+copper_per_turn = 0,
+fur_per_turn = 0
+WHERE gold_per_turn = fracten_per_turn
+AND iron_per_turn + copper_per_turn = common_metals_per_turn
+AND fur_per_turn = leather_fur_per_turn;
+COMMIT;
+
+ÉTAPE 3 — DIAGNOSTIC APRÈS G3
+
+Relancer les mêmes requêtes après UPDATE.
+
+Résultats attendus :
+
+* player_bank V1 sums = 0
+* player_transport V1 sums = 0
+* player_market_box V1 sums = 0 si non bloqué
+* city_inventory V1 sums = 0
+* city_pending_harvest V1 sums = 0
+* market_fee_box.gold = 0
+* cities gold_per_turn/iron_per_turn/copper_per_turn/fur_per_turn = 0
+* V2 sums inchangés
+* conflicts = 0
+
+ÉTAPE 4 — CONTRÔLE INTÉGRITÉ
+
+Vérifier que les valeurs V2 n’ont pas changé.
+
+Comparer avant/après :
+
+* SUM(fracten)
+* SUM(common_metals)
+* SUM(leather_fur)
+* SUM(fracten_per_turn)
+* SUM(common_metals_per_turn)
+* SUM(leather_fur_per_turn)
+
+Aucune valeur V2 ne doit diminuer.
+
+ÉTAPE 5 — AUCUN CODE
+
+Ne pas lancer npm run check sauf si un fichier a été modifié.
+Normalement, G3 ne modifie aucun fichier de code.
+
+ÉTAPE 6 — RAPPORT FINAL
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC G3
+2. CHECKPOINT CRÉÉ ?
+3. SQL AVANT — RÉSULTATS
+4. ACTIVE LEGACY ORDERS
+5. UPDATE EXÉCUTÉS
+6. UPDATE BLOQUÉS, SI APPLICABLE
+7. SQL APRÈS — RÉSULTATS
+8. CONTRÔLE V2 INCHANGÉ
+9. TABLES ENCORE BLOQUANTES
+10. ROLLBACK DISPONIBLE
+11. CONCLUSION : AUTORISÉ OU NON À PASSER À G4
+12. STOP
+
+STOP
+Ne pas commencer G4.
+Ne pas modifier le code.
+Ne pas supprimer de colonnes.
+Ne pas faire DROP COLUMN.
+Ne pas toucher market_trades.total_gold.
