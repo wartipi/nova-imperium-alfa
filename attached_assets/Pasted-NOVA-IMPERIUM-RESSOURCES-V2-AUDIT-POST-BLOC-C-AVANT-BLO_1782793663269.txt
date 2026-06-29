@@ -1,0 +1,215 @@
+NOVA IMPERIUM — RESSOURCES V2 — AUDIT POST-BLOC C AVANT BLOC D
+Branche : NI-10.09
+
+OBJECTIF
+Avant d’ouvrir le Bloc D marché, vérifier que le Bloc C n’a pas créé de double comptage ou de flux incohérent entre les colonnes legacy V1 et les colonnes V2.
+
+Ce n’est PAS le Bloc D.
+Ne pas modifier le marché.
+Ne pas modifier marketService.ts.
+Ne pas modifier PublicMarketplace.tsx.
+
+CONTEXTE
+Blocs terminés :
+
+* Bloc A : carte / HexTile / yields client
+* Bloc B : production ville / économie faction / fracten
+* Bloc C : inventaires / récolte / transport / banque
+
+Le Bloc C a ajouté les flux V2 :
+
+* fracten
+* common_metals
+* leather_fur
+
+Mais les colonnes legacy existent encore :
+
+* gold
+* iron
+* copper
+* fur
+
+RISQUE À AUDITER
+Comme les données V2 ont été backfillées depuis V1 :
+
+* fracten = gold
+* common_metals = iron + copper
+* leather_fur = fur
+
+Il faut vérifier qu’on ne compte pas à la fois V1 et V2 dans les mêmes calculs.
+
+Exemples de risque :
+
+* capacité transport qui additionne gold + fracten
+* capacité transport qui additionne iron + copper + common_metals
+* capacité transport qui additionne fur + leather_fur
+* transfert qui retire V2 mais vérifie V1
+* UI qui affiche V1 + V2 comme si ce sont deux stocks différents
+* dépôt banque qui crédite V2 mais laisse V1 affiché comme ressource utilisable
+
+PÉRIMÈTRE AUTORISÉ
+
+Auditer uniquement :
+
+* server/playerActionService.ts
+* server/economyService.ts
+* server/routes/cities.ts
+* server/routes/economy.ts
+* client/src/lib/api/economyApi.ts
+* client/src/components/game/HarvestPanel.tsx
+* client/src/components/game/PlayerTransportPanel.tsx
+
+Corrections autorisées seulement si elles sont nécessaires pour empêcher :
+
+* double comptage
+* transfert incohérent
+* capacité incorrecte
+* affichage V1/V2 trompeur dans HarvestPanel ou PlayerTransportPanel
+
+INTERDICTIONS STRICTES
+
+Ne pas modifier :
+
+* marketService.ts
+* routes market
+* PublicMarketplace.tsx
+* market_orders
+* market_trades
+* MapGenerator.ts
+* HexTile
+* ResourceRevealSystem.ts
+* shared/schema.ts, sauf commentaire strictement nécessaire
+* auth
+* cartography ownership
+* unités
+* déploiement
+
+Ne pas faire :
+
+* Bloc D marché
+* suppression de colonnes legacy
+* DROP COLUMN
+* migration destructive
+* db:push
+* refactor massif
+
+ÉTAPE 1 — AUDIT DES CAPACITÉS
+
+Auditer la fonction de capacité transport.
+
+Vérifier précisément :
+
+1. fracten
+
+* fracten doit utiliser FRACTEN_TRANSPORT_STACK_SIZE = 250
+* gold legacy ne doit pas être compté en plus de fracten si fracten représente déjà la valeur backfillée
+
+2. common_metals
+
+* common_metals doit compter comme 1 unité par ressource
+* iron + copper ne doivent pas être ajoutés en plus si common_metals est déjà présent comme valeur fusionnée
+
+3. leather_fur
+
+* leather_fur doit compter comme 1 unité par ressource
+* fur ne doit pas être ajouté en plus si leather_fur est déjà présent comme valeur migrée
+
+Règle recommandée :
+
+* Les champs V2 sont la source principale.
+* Les champs V1 ne doivent servir que de fallback si le champ V2 est absent ou égal à 0 ET qu’il n’y a pas encore eu migration/backfill.
+* Ne jamais additionner V1 + V2 pour une même ressource fusionnée dans un calcul de capacité.
+
+ÉTAPE 2 — AUDIT DES FLUX
+
+Auditer ces flux :
+
+1. city_pending_harvest → city_inventory
+2. city_inventory → player_transport
+3. player_transport → player_bank
+4. player_transport → city_inventory, si route inverse existe
+5. réponses DTO vers HarvestPanel
+6. réponses DTO vers PlayerTransportPanel
+
+Pour chaque flux, confirmer :
+
+* source lue
+* destination écrite
+* champs V2 utilisés
+* champs V1 encore présents
+* risque de double crédit ou double affichage
+
+ÉTAPE 3 — AUDIT UI
+
+HarvestPanel :
+
+* Afficher les ressources V2 comme ressources principales :
+
+  * Fracten
+  * Métaux communs
+  * Cuir et fourrure
+* Les legacy gold/iron/copper/fur ne doivent apparaître que si nécessaire et clairement en fallback/legacy.
+* Ne pas afficher V1 + V2 comme si le joueur possédait deux stocks distincts équivalents.
+
+PlayerTransportPanel :
+
+* Même règle :
+
+  * V2 en principal
+  * V1 seulement legacy/fallback
+  * aucun double affichage trompeur
+
+ÉTAPE 4 — CORRECTIONS AUTORISÉES
+
+Si un double comptage est trouvé :
+
+* corriger uniquement le calcul concerné
+* documenter la règle V2 principal / V1 fallback
+* ne pas convertir le marché
+* ne pas supprimer les colonnes V1
+
+Si aucun double comptage n’est trouvé :
+
+* ne rien modifier inutilement
+* produire seulement le rapport
+
+ÉTAPE 5 — VÉRIFICATION
+
+Lancer :
+
+npm run check
+
+Puis rechercher dans les fichiers du périmètre :
+
+gold
+iron
+copper
+fur
+fracten
+common_metals
+leather_fur
+
+Classer les occurrences restantes :
+
+A. V2 principal
+B. V1 fallback acceptable
+C. Legacy à supprimer plus tard Bloc F
+D. Dangereux / à corriger maintenant
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC POST-BLOC C
+2. AUDIT CAPACITÉ TRANSPORT
+3. AUDIT DES FLUX
+4. AUDIT UI
+5. DOUBLE COMPTAGE TROUVÉ ?
+6. CORRECTIONS APPLIQUÉES, SI NÉCESSAIRE
+7. OCCURRENCES LEGACY RESTANTES CLASSÉES
+8. RÉSULTAT npm run check
+9. CONCLUSION : AUTORISÉ OU NON À PASSER AU BLOC D
+10. STOP
+
+STOP
+Ne pas commencer le Bloc D.
+Ne pas toucher au marché.
+Ne pas supprimer les colonnes legacy.

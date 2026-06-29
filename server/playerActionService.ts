@@ -42,19 +42,37 @@ export function computeTransportUnits(t: {
   common_metals?: number | null; // Bloc C V2
   leather_fur?:   number | null; // Bloc C V2
 }): number {
-  return (t.gold > 0 ? Math.ceil(t.gold / GOLD_TRANSPORT_STACK_SIZE) : 0)
-       + ((t.fracten ?? 0) > 0 ? Math.ceil((t.fracten ?? 0) / FRACTEN_TRANSPORT_STACK_SIZE) : 0) // V2
+  // Règle anti-double-comptage V2 principal / V1 fallback :
+  //   - fracten > 0       → utiliser fracten, ignorer gold (même stock monétaire)
+  //   - common_metals > 0 → utiliser common_metals, ignorer iron + copper (même stock métaux)
+  //   - leather_fur > 0   → utiliser leather_fur, ignorer fur (même stock cuir)
+  // Si V2 = 0, V1 sert de fallback (données legacy non encore migrées).
+  // Ne jamais additionner V1 + V2 pour un même stock fusionné.
+  const fracten       = t.fracten       ?? 0;
+  const common_metals = t.common_metals ?? 0;
+  const leather_fur   = t.leather_fur   ?? 0;
+
+  const effectiveFracten  = fracten > 0
+    ? Math.ceil(fracten / FRACTEN_TRANSPORT_STACK_SIZE)
+    : (t.gold > 0 ? Math.ceil(t.gold / GOLD_TRANSPORT_STACK_SIZE) : 0); // V1 fallback
+
+  const effectiveMetals = common_metals > 0
+    ? common_metals                                                       // V2 principal
+    : (t.iron + (t.copper ?? 0));                                        // V1 fallback
+
+  const effectiveLeather = leather_fur > 0
+    ? leather_fur                                                         // V2 principal
+    : (t.fur ?? 0);                                                       // V1 fallback
+
+  return effectiveFracten
+       + effectiveMetals
+       + effectiveLeather
        + t.food
        + t.wood
        + t.stone
-       + t.iron
-       + (t.copper        ?? 0)
-       + (t.coal          ?? 0)
-       + (t.oil           ?? 0)
-       + (t.herbs         ?? 0)
-       + (t.fur           ?? 0)
-       + (t.common_metals ?? 0) // V2
-       + (t.leather_fur   ?? 0); // V2
+       + (t.coal  ?? 0)
+       + (t.oil   ?? 0)
+       + (t.herbs ?? 0);
 }
 
 // ─── Types enrichis retournés par le service ──────────────────────────────────
@@ -492,18 +510,39 @@ async function completeHarvestTransfer(cityId: number, tx: any = db): Promise<vo
     .limit(1);
 
   if (!rows.length) return;
-  const { gold, food, wood, stone, iron, copper, coal, oil, herbs, fur } = rows[0];
-  if (gold === 0 && food === 0 && wood === 0 && stone === 0 && iron === 0
+  const row = rows[0];
+
+  // Champs V2 (Bloc C) — lus via cast any car Drizzle peut ne pas les exposer typiquement
+  const fracten       = (row as any).fracten       ?? 0;
+  const common_metals = (row as any).common_metals ?? 0;
+  const leather_fur   = (row as any).leather_fur   ?? 0;
+  // Champs V1 legacy
+  const { gold, food, wood, stone, iron, copper, coal, oil, herbs, fur } = row;
+
+  // Vérification vide : V2 + V1
+  if (fracten === 0 && common_metals === 0 && leather_fur === 0
+      && gold === 0 && food === 0 && wood === 0 && stone === 0 && iron === 0
       && copper === 0 && coal === 0 && oil === 0 && herbs === 0 && fur === 0) return;
 
   const now = new Date();
 
+  // Crédit city_inventory — V2 + V1 (INSERT initial + UPSERT)
   await tx
     .insert(cityInventory)
-    .values({ cityId, gold, food, wood, stone, iron, copper, coal, oil, herbs, fur, updatedAt: now })
+    .values({ cityId,
+      // V2
+      fracten, common_metals, leather_fur,
+      // V1
+      gold, food, wood, stone, iron, copper, coal, oil, herbs, fur,
+      updatedAt: now } as any)
     .onConflictDoUpdate({
       target: cityInventory.cityId,
       set: {
+        // V2
+        fracten:       sql`${(cityInventory as any).fracten}       + ${fracten}`,
+        common_metals: sql`${(cityInventory as any).common_metals} + ${common_metals}`,
+        leather_fur:   sql`${(cityInventory as any).leather_fur}   + ${leather_fur}`,
+        // V1
         gold:      sql`${cityInventory.gold}   + ${gold}`,
         food:      sql`${cityInventory.food}   + ${food}`,
         wood:      sql`${cityInventory.wood}   + ${wood}`,
@@ -518,14 +557,22 @@ async function completeHarvestTransfer(cityId: number, tx: any = db): Promise<vo
       },
     });
 
+  // Remise à zéro pending — V2 + V1
   await tx
     .update(cityPendingHarvest)
-    .set({ gold: 0, food: 0, wood: 0, stone: 0, iron: 0,
-           copper: 0, coal: 0, oil: 0, herbs: 0, fur: 0, updatedAt: now })
+    .set({
+      // V2
+      fracten: 0, common_metals: 0, leather_fur: 0,
+      // V1
+      gold: 0, food: 0, wood: 0, stone: 0, iron: 0,
+      copper: 0, coal: 0, oil: 0, herbs: 0, fur: 0,
+      updatedAt: now,
+    } as any)
     .where(eq(cityPendingHarvest.cityId, cityId));
 
   console.log(
-    `[Harvest] cityId=${cityId} transfert +${gold}g+${food}f+${wood}w+${stone}s+${iron}i` +
+    `[Harvest] cityId=${cityId} transfert fr${fracten}+cm${common_metals}+lf${leather_fur}` +
+    `+${gold}g+${food}f+${wood}w+${stone}s+${iron}i` +
     `+${copper}cu+${coal}co+${oil}oil+${herbs}herbs+${fur}fur → city_inventory`
   );
 }
