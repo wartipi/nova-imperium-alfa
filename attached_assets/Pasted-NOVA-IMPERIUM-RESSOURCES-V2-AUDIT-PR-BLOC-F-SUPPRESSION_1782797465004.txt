@@ -1,0 +1,279 @@
+NOVA IMPERIUM — RESSOURCES V2 — AUDIT PRÉ-BLOC F / SUPPRESSION LEGACY
+Branche : NI-10.09
+
+OBJECTIF
+Préparer le Bloc F sans l’exécuter.
+
+Ce bloc est uniquement un audit.
+Ne pas supprimer de colonnes.
+Ne pas lancer de DROP COLUMN.
+Ne pas faire de migration destructive.
+Ne pas modifier la DB.
+Ne pas faire db:push.
+
+Le but est de déterminer précisément quelles colonnes legacy V1 sont encore :
+
+* lues
+* écrites
+* affichées
+* utilisées comme fallback
+* réellement supprimables plus tard
+
+CONTEXTE
+Blocs terminés :
+
+* Bloc A : carte / HexTile / yields client
+* Bloc B : production ville / économie faction / fracten
+* Bloc C : inventaires / récolte / transport / banque
+* Audit post-Bloc C : double comptage corrigé
+* Bloc D : marché V2
+* Audit post-Bloc D : marché validé
+* Bloc E : UI / labels / icônes / références V2
+
+Ressources V2 officielles :
+
+* fracten
+* food
+* wood
+* stone
+* common_metals
+* coal
+* oil
+* herbs
+* leather_fur
+* rare_metals_alloys
+* textiles
+* spices
+* precious_stones
+* crystals
+* sacred_stones
+* ancient_artifacts
+* enchanted_wood
+* mana_crystals
+* arcane_stones
+* elemental_essence
+* spirit_stones
+* void_shards
+
+Colonnes / clés V1 legacy à auditer :
+
+* gold
+* gold_per_turn
+* goldPerTurn
+* iron
+* iron_per_turn
+* ironPerTurn
+* copper
+* copper_per_turn
+* copperPerTurn
+* fur
+* fur_per_turn
+* furPerTurn
+* totalGold
+* total_gold
+* wheat
+* cattle
+* fish
+* silk
+* gems
+* ivory
+* uranium
+* mana_stones
+
+ÉTAPE 1 — AUDIT GLOBAL DES OCCURRENCES
+
+Chercher dans tout le projet :
+
+gold
+gold_per_turn
+goldPerTurn
+iron
+iron_per_turn
+ironPerTurn
+copper
+copper_per_turn
+copperPerTurn
+fur
+fur_per_turn
+furPerTurn
+totalGold
+total_gold
+wheat
+cattle
+fish
+silk
+gems
+ivory
+uranium
+mana_stones
+
+Pour chaque occurrence pertinente, classer :
+
+A. Encore lue en logique active
+B. Encore écrite en logique active
+C. Seulement fallback legacy
+D. Seulement affichage legacy clairement marqué
+E. Seulement commentaire/TODO
+F. Stockage DB legacy
+G. Supprimable plus tard après validation
+H. Dangereux / incohérent
+
+ÉTAPE 2 — AUDIT PAR TABLE DB
+
+Auditer précisément les tables contenant encore des colonnes V1 :
+
+1. cities
+
+* gold_per_turn
+* iron_per_turn
+* copper_per_turn
+* fur_per_turn
+
+2. faction_economy
+
+* gold
+
+3. player_bank
+
+* gold
+* iron
+* copper
+* fur
+
+4. city_pending_harvest
+
+* gold
+* iron
+* copper
+* fur
+
+5. city_inventory
+
+* gold
+* iron
+* copper
+* fur
+
+6. player_transport
+
+* gold
+* iron
+* copper
+* fur
+
+7. player_market_box
+
+* gold
+* iron
+* copper
+* fur
+
+8. market_fee_box
+
+* gold
+
+9. market_trades
+
+* total_gold
+
+Pour chaque colonne :
+
+* est-elle encore lue ?
+* est-elle encore écrite ?
+* est-elle utilisée comme fallback ?
+* est-elle affichée ?
+* est-elle nécessaire pour anciennes données ?
+* peut-elle être supprimée maintenant ?
+* si non, quelles étapes manquent ?
+
+ÉTAPE 3 — AUDIT PAR FLUX
+
+Auditer les flux suivants :
+
+1. Production ville
+2. Récolte pending → inventory
+3. Inventory → transport
+4. Transport → bank
+5. Bank → city / city → bank si applicable
+6. Marché : création ordre
+7. Marché : remplissage ordre
+8. Marché : annulation ordre
+9. Marché : claim box
+10. Marché : fee box
+11. UI affichage stocks
+12. Construction costs
+13. Recruitment costs
+
+Pour chaque flux :
+
+* V2 est-il source principale ?
+* V1 est-il encore utilisé ?
+* pourquoi ?
+* suppression possible ou non ?
+
+ÉTAPE 4 — IDENTIFIER LES BLOQUEURS AVANT SUPPRESSION
+
+Produire une liste claire des bloqueurs.
+
+Exemples de bloqueurs possibles :
+
+* fonctions encore nommées debitFactionGoldIfEnough
+* codes d’erreur encore INSUFFICIENT_BANK_GOLD
+* coûts de bâtiments encore définis en gold/iron/copper/fur
+* transferts bank-to-city ou bank-to-player encore V1
+* anciennes offres marché V1 encore supportées
+* DTO client miroir des colonnes DB
+* UI legacy encore volontairement affichée
+
+ÉTAPE 5 — PLAN BLOC F RÉEL
+
+Ne pas exécuter.
+Proposer seulement un plan en sous-blocs sécurisés :
+
+F1 — Renommage fonctions / codes d’erreur / DTO legacy
+F2 — Conversion coûts construction / recrutement restants
+F3 — Conversion transferts bank-to-city / bank-to-player restants
+F4 — Retrait support legacy marché si désiré
+F5 — Backfill final et gel écritures V1
+F6 — Suppression colonnes DB legacy une par une
+F7 — Nettoyage types Drizzle / client DTO
+F8 — Vérification globale
+
+Pour chaque sous-bloc :
+
+* fichiers concernés
+* risque
+* validation nécessaire
+* possibilité de rollback
+
+ÉTAPE 6 — VÉRIFICATION
+
+Lancer :
+
+npm run check
+
+Ne pas corriger hors audit sauf si bug critique évident, et seulement après l’avoir signalé.
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC PRÉ-BLOC F
+2. TABLES DB LEGACY AUDITÉES
+3. OCCURRENCES CLASSÉES
+4. FLUX AUDITÉS
+5. COLONNES ENCORE LUES
+6. COLONNES ENCORE ÉCRITES
+7. COLONNES SEULEMENT FALLBACK
+8. COLONNES SEULEMENT AFFICHAGE LEGACY
+9. COLONNES POTENTIELLEMENT SUPPRIMABLES PLUS TARD
+10. BLOQUEURS AVANT SUPPRESSION
+11. PLAN BLOC F EN SOUS-BLOCS
+12. RÉSULTAT npm run check
+13. CONCLUSION : SUPPRESSION AUTORISÉE OU NON
+14. STOP
+
+STOP
+Ne pas supprimer de colonnes.
+Ne pas faire DROP COLUMN.
+Ne pas modifier la DB.
+Ne pas commencer Bloc F réel.
+Ne pas faire de migration destructive.
