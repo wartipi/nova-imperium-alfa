@@ -1,0 +1,135 @@
+NOVA IMPERIUM — RESSOURCES V2 — AUDIT DE COHÉRENCE APRÈS PASSE ADDITIVE
+Branche : NI-10.09
+
+RÔLE
+Tu dois maintenant auditer et stabiliser le refactor ressources V2 déjà commencé.
+Ne fais aucune suppression de colonnes.
+Ne fais aucune migration destructive.
+Ne continue pas directement vers une “Passe 2” massive.
+
+OBJECTIF
+Vérifier précisément l’état réel après la passe additive V2 et produire un plan de correction par micro-blocs.
+
+CONTEXTE
+La branche contient déjà :
+
+* ResourceType V2 côté client
+* catalogue ResourceRevealSystem V2
+* MapGenerator partiellement V2
+* colonnes DB V2 ajoutées : fracten, common_metals, leather_fur
+* anciennes colonnes encore présentes : gold, iron, copper, fur
+
+PROBLÈMES DÉJÀ IDENTIFIÉS À VÉRIFIER
+
+1. MapGenerator.ts contient encore une constante RESOURCES avec anciennes clés :
+   wheat, cattle, fish, copper, iron, gold, uranium, silk, gems, ivory, mana_stones
+
+2. HexTile contient encore gold:number.
+
+3. applyResourceYields() écrit encore dans gold au lieu de fracten ou d’un autre système.
+
+4. market_orders / market_trades semblent encore utiliser l’ancien modèle :
+   iron, copper, fur, gold / totalGold.
+
+5. Certaines tables gardent les colonnes V1 et V2 en parallèle.
+   C’est acceptable temporairement, mais il faut documenter clairement qui lit quoi et qui écrit quoi.
+
+INTERDICTIONS
+
+* Ne supprime aucune colonne DB.
+* Ne lance aucune migration destructive.
+* Ne touche pas à auth.
+* Ne touche pas à cartography ownership.
+* Ne touche pas au déploiement.
+* Ne modifie pas les unités sauf dépendance directe aux ressources.
+* Ne fais pas de refactor massif.
+
+ÉTAPE 1 — AUDIT TEXTE
+Cherche toutes les occurrences restantes de :
+
+gold
+iron
+copper
+fur
+wheat
+fish
+cattle
+gems
+silk
+uranium
+ivory
+dragon_scales
+phoenix_feathers
+mana_stones
+siege_equipment
+totalGold
+goldPerTurn
+ironPerTurn
+copperPerTurn
+furPerTurn
+
+Pour chaque occurrence, classe-la dans une catégorie :
+
+A. À convertir maintenant
+B. Legacy temporaire acceptable
+C. Commentaire/TODO acceptable
+D. Dangereux / incohérent
+
+ÉTAPE 2 — AUDIT FLUX
+Documente précisément les flux suivants :
+
+1. Ressource de tuile → récolte
+2. Récolte → city_pending_harvest
+3. city_pending_harvest → city_inventory
+4. city_inventory → player_transport
+5. player_transport → player_bank
+6. marché : ordre achat/vente → trade → fee → box
+7. production bâtiments → ressources générées
+8. coûts bâtiments / unités → ressources consommées
+
+Pour chaque flux, indique s’il utilise encore V1 ou V2.
+
+ÉTAPE 3 — CORRECTIONS IMMÉDIATES AUTORISÉES
+Tu peux corriger uniquement les incohérences simples suivantes :
+
+1. Supprimer ou remplacer la constante morte RESOURCES dans MapGenerator.ts si elle n’est pas utilisée.
+   Si elle est utilisée, la convertir vers la liste V2 officielle.
+
+2. Remplacer les commentaires manifestement faux qui listent encore seulement iron/copper/fur comme ressources finales.
+
+3. Si HexTile.gold est encore nécessaire temporairement, renommer le commentaire en dette claire :
+   TODO V2 : remplacer gold yield par fracten yield ou retirer ce yield économique de la tuile.
+
+4. Ne pas changer la DB dans cette étape.
+
+ÉTAPE 4 — PLAN DE MIGRATION NON DESTRUCTIF
+Propose ensuite un plan en micro-blocs :
+
+Bloc A — Carte / HexTile / yields
+Bloc B — Production ville
+Bloc C — Inventaires
+Bloc D — Marché
+Bloc E — UI
+Bloc F — suppression legacy seulement après validation
+
+Chaque bloc doit pouvoir compiler indépendamment.
+
+VÉRIFICATION
+Lancer :
+
+npm run check
+
+Si possible :
+
+npm run build
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC RÉEL
+2. OCCURRENCES RESTANTES CLASSÉES
+3. FLUX V1/V2
+4. CORRECTIONS IMMÉDIATES APPLIQUÉES
+5. FICHIERS MODIFIÉS
+6. PLAN DE MIGRATION PAR MICRO-BLOCS
+7. VÉRIFICATION
+8. STOP

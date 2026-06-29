@@ -811,8 +811,10 @@ export const usePlayer = create<PlayerState>((set, get) => {
           // Vérifier directement si la ressource peut être révélée selon le niveau
           // Ressources de base : révélées niveau 1+
           // Ressources magiques : révélées niveau 3+
-          const basicResources = ['wheat', 'cattle', 'fish', 'wood', 'stone', 'copper', 'iron', 'coal', 'gold', 'oil', 'uranium', 'silk', 'spices', 'gems', 'ivory'];
-          const magicalResources = ['herbs', 'crystals', 'sacred_stones', 'ancient_artifacts', 'mana_stones', 'enchanted_wood', 'mana_crystals', 'dragon_scales', 'phoenix_feathers', 'arcane_stones', 'elemental_essence', 'spirit_stones', 'void_shards'];
+          // V2 : liste des ressources communes (révélées niveau 1+)
+          const basicResources = ['food', 'wood', 'stone', 'coal', 'oil', 'leather_fur', 'common_metals', 'spices', 'rare_metals_alloys', 'textiles'];
+          // V2 : liste des ressources magiques (révélées niveau 3+)
+          const magicalResources = ['herbs', 'crystals', 'sacred_stones', 'ancient_artifacts', 'enchanted_wood', 'arcane_stones', 'elemental_essence', 'spirit_stones', 'void_shards', 'precious_stones', 'dragon_scales', 'phoenix_feathers'];
           
           let canReveal = false;
           if (basicResources.includes(tileData.resource) && explorationLevel >= 1) {
