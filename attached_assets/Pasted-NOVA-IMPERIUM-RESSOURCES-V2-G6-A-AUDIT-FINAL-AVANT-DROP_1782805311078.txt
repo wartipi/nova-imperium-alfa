@@ -1,0 +1,313 @@
+NOVA IMPERIUM — RESSOURCES V2 — G6-A / AUDIT FINAL AVANT DROP LEGACY
+Branche : NI-10.09
+
+OBJECTIF
+Faire l’audit final avant toute suppression de colonnes legacy.
+
+Ce bloc est un audit uniquement.
+Ne pas supprimer de colonnes.
+Ne pas faire DROP COLUMN.
+Ne pas modifier la DB.
+Ne pas modifier le code sauf rapport.
+
+CONTEXTE
+G3 :
+
+* toutes les valeurs V1 miroir ont été neutralisées à 0
+* V2 inchangé
+* market_trades.total_gold non touché
+
+G4 :
+
+* fallbacks backend V1 retirés pour transferts, dépôts transport, production
+* LEGACY_RESOURCE_DISABLED utilisé pour entrées V1 restantes
+* marketService partiellement conservé si nécessaire
+
+G5 :
+
+* market_trades.total_fracten ajouté
+* backfill total_fracten = total_gold exécuté
+* nouveaux trades écrivent totalFracten principal + totalGold sync legacy
+* total_gold conservé temporairement
+* aucun DROP COLUMN
+
+OBJECTIF G6-A
+Vérifier si les colonnes legacy suivantes sont maintenant supprimables ou encore bloquées :
+
+Ressources principales :
+
+* gold
+* iron
+* copper
+* fur
+
+Per-turn :
+
+* gold_per_turn
+* iron_per_turn
+* copper_per_turn
+* fur_per_turn
+
+Marché :
+
+* total_gold
+
+PÉRIMÈTRE AUTORISÉ
+
+Audit seulement :
+
+Backend :
+
+* server/playerActionService.ts
+* server/routes/economy.ts
+* server/economyService.ts
+* server/buildingEffects.ts
+* server/marketService.ts
+* server/cityService.ts
+* server/routes/cities.ts
+* server/routes/market.ts
+
+Frontend :
+
+* client/src/lib/api/economyApi.ts
+* client/src/lib/api/citiesApi.ts
+* client/src/lib/api/marketApi.ts
+* client/src/components/game/TreasuryPanel.tsx
+* client/src/components/game/PlayerTransportPanel.tsx
+* client/src/components/game/PublicMarketplace.tsx
+* client/src/components/game/HarvestPanel.tsx
+
+Shared :
+
+* shared/schema.ts
+
+DB :
+
+* SELECT uniquement
+
+INTERDICTIONS STRICTES
+
+Ne pas faire :
+
+* DROP COLUMN
+* ALTER TABLE
+* UPDATE
+* DELETE
+* suppression code
+* suppression schema
+* modification frontend/backend
+* G6-B
+
+ÉTAPE 1 — AUDIT CODE GLOBAL
+
+Chercher dans tout le projet :
+
+gold
+iron
+copper
+fur
+goldPerTurn
+ironPerTurn
+copperPerTurn
+furPerTurn
+gold_per_turn
+iron_per_turn
+copper_per_turn
+fur_per_turn
+totalGold
+total_gold
+totalFracten
+total_fracten
+LEGACY_RESOURCE_DISABLED
+LEGACY_RESOURCES
+
+Classer chaque occurrence :
+
+A. Référence legacy encore active bloquante
+B. Rejet legacy explicite acceptable
+C. DTO/API backward-compat encore présent
+D. UI debug legacy seulement
+E. Schema DB legacy
+F. total_gold sync temporaire
+G. Commentaire/rapport
+H. Dangereux / incohérent
+
+ÉTAPE 2 — AUDIT DB GLOBAL
+
+Exécuter SELECT de contrôle :
+
+1. Ressources V1 neutralisées
+
+SELECT 'player_bank' AS table_name,
+COALESCE(SUM(gold),0) AS gold,
+COALESCE(SUM(iron),0) AS iron,
+COALESCE(SUM(copper),0) AS copper,
+COALESCE(SUM(fur),0) AS fur
+FROM player_bank;
+
+Répéter pour :
+
+* player_transport
+* player_market_box
+* city_inventory
+* city_pending_harvest
+
+2. market_fee_box
+
+SELECT
+COALESCE(SUM(gold),0) AS gold,
+COALESCE(SUM(fracten),0) AS fracten
+FROM market_fee_box;
+
+3. cities per-turn
+
+SELECT
+COALESCE(SUM(gold_per_turn),0) AS gold_per_turn,
+COALESCE(SUM(iron_per_turn),0) AS iron_per_turn,
+COALESCE(SUM(copper_per_turn),0) AS copper_per_turn,
+COALESCE(SUM(fur_per_turn),0) AS fur_per_turn,
+COALESCE(SUM(fracten_per_turn),0) AS fracten_per_turn,
+COALESCE(SUM(common_metals_per_turn),0) AS common_metals_per_turn,
+COALESCE(SUM(leather_fur_per_turn),0) AS leather_fur_per_turn
+FROM cities;
+
+4. market_trades
+
+SELECT
+COUNT(*) AS trade_count,
+COALESCE(SUM(total_gold),0) AS total_gold_sum,
+COALESCE(SUM(total_fracten),0) AS total_fracten_sum,
+SUM(CASE WHEN total_gold = total_fracten THEN 0 ELSE 1 END) AS mismatches
+FROM market_trades;
+
+5. market_orders legacy
+
+SELECT resource_type, status, COUNT(*) AS count
+FROM market_orders
+WHERE resource_type IN ('gold','iron','copper','fur')
+GROUP BY resource_type, status
+ORDER BY resource_type, status;
+
+ÉTAPE 3 — MATRICE DE SUPPRESSION
+
+Produire une matrice par colonne :
+
+Colonnes :
+
+* table
+* colonne
+* somme DB
+* encore lue par code ?
+* encore écrite par code ?
+* DTO/UI dépendant ?
+* fallback/rejet actif ?
+* supprimable maintenant ?
+* risque
+* action recommandée
+
+Tables/colonnes à couvrir :
+
+player_bank :
+
+* gold
+* iron
+* copper
+* fur
+
+player_transport :
+
+* gold
+* iron
+* copper
+* fur
+
+player_market_box :
+
+* gold
+* iron
+* copper
+* fur
+
+city_inventory :
+
+* gold
+* iron
+* copper
+* fur
+
+city_pending_harvest :
+
+* gold
+* iron
+* copper
+* fur
+
+market_fee_box :
+
+* gold
+
+cities :
+
+* gold_per_turn
+* iron_per_turn
+* copper_per_turn
+* fur_per_turn
+
+market_trades :
+
+* total_gold
+
+ÉTAPE 4 — RISQUE TYPESCRIPT / SCHEMA
+
+Vérifier dans shared/schema.ts :
+
+* quelles tables exposent encore ces colonnes
+* quels types Drizzle ou insert/select dépendent encore d’elles
+* quels fichiers casseraient si elles sont supprimées du schema
+
+Ne rien supprimer maintenant.
+
+ÉTAPE 5 — PLAN G6-B SI AUTORISÉ
+
+Si toutes les conditions sont sûres :
+
+* proposer un plan G6-B en sous-blocs, pas un DROP massif
+
+Ordre recommandé :
+
+1. retirer DTO/UI legacy restants
+2. retirer références schema TS dans code
+3. faire npm run check
+4. créer snapshot DB
+5. DROP colonnes table par table
+6. tester serveur
+7. commit rapport
+
+Si conditions non sûres :
+
+* lister les blocages restants
+* proposer G6-fix avant DROP
+
+ÉTAPE 6 — RÉSULTAT FINAL
+
+Ne pas lancer npm run check sauf si un fichier est modifié.
+Comme G6-A est audit-only, normalement aucun check requis.
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC G6-A
+2. AUDIT CODE GLOBAL
+3. AUDIT DB GLOBAL
+4. MARKET_ORDERS LEGACY
+5. MATRICE DE SUPPRESSION
+6. RISQUE TYPESCRIPT / SCHEMA
+7. BLOQUANTS RESTANTS
+8. PLAN G6-B RECOMMANDÉ
+9. CONCLUSION : DROP COLUMN AUTORISÉ OU NON
+10. STOP
+
+STOP
+Ne pas commencer G6-B.
+Ne pas supprimer de colonnes.
+Ne pas modifier la DB.
+Ne pas modifier le code.
