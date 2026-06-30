@@ -209,10 +209,8 @@ export async function applyBuildingEffects(cityId: number, buildingId: string): 
   if (prod.coal)          updates.coalPerTurn          = sql`${cities.coalPerTurn}          + ${prod.coal}`;
   if (prod.oil)           updates.oilPerTurn           = sql`${cities.oilPerTurn}           + ${prod.oil}`;
   if (prod.herbs)         updates.herbsPerTurn         = sql`${cities.herbsPerTurn}         + ${prod.herbs}`;
-  // V1 legacy — bâtiments pré-F4 (ne devrait plus être atteint pour iron/copper/fur)
-  if (prod.iron)          updates.ironPerTurn          = sql`${cities.ironPerTurn}          + ${prod.iron}`;
-  if (prod.copper)        updates.copperPerTurn        = sql`${cities.copperPerTurn}        + ${prod.copper}`;
-  if (prod.fur)           updates.furPerTurn           = sql`${cities.furPerTurn}           + ${prod.fur}`;
+  // G4 : branches V1 iron/copper/fur supprimées — BUILDING_PRODUCTION ne contient que V2 depuis F4.
+  // ironPerTurn/copperPerTurn/furPerTurn ne reçoivent plus de production.
 
   if (Object.keys(updates).length === 0) return;
 

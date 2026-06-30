@@ -243,10 +243,13 @@ router.post("/transfer-bank-to-city", requireAuth, async (req: AuthRequest, res)
     const ms  = msRemaining(action);
     const min = Math.ceil(ms / 60000);
 
-    // Effective amounts pour la réponse (V2 prioritaire)
-    const effFracten = fracten      > 0 ? fracten      : gold;
-    const effMetals  = common_metals > 0 ? common_metals : iron + copper;
-    const effLeather = leather_fur   > 0 ? leather_fur   : fur;
+    // G4 : rejet explicite des ressources V1 legacy — utiliser fracten/common_metals/leather_fur.
+    if (gold > 0 || iron > 0 || copper > 0 || fur > 0) {
+      return res.status(400).json({
+        error: "LEGACY_RESOURCE_DISABLED",
+        message: "Utilisez fracten, common_metals, leather_fur (V2). gold/iron/copper/fur ne sont plus acceptés.",
+      });
+    }
 
     return res.status(201).json({
       ok: true,
@@ -270,10 +273,10 @@ router.post("/transfer-bank-to-city", requireAuth, async (req: AuthRequest, res)
         effectiveWorldX:  action.startWorldX,
         effectiveWorldY:  action.startWorldY,
         effectiveTerrain: "",
-        // F2 V2 response fields
-        fracten: effFracten, food, wood, stone,
-        common_metals: effMetals, coal, oil, herbs,
-        leather_fur: effLeather,
+        // G4 V2 response fields — fracten/common_metals/leather_fur uniquement
+        fracten, food, wood, stone,
+        common_metals, coal, oil, herbs,
+        leather_fur,
       },
     });
   } catch (err: any) {
@@ -281,6 +284,7 @@ router.post("/transfer-bank-to-city", requireAuth, async (req: AuthRequest, res)
     if (msg.startsWith("ACTION_ALREADY_ACTIVE"))    return res.status(409).json({ error: msg });
     if (msg.startsWith("INSUFFICIENT_BANK"))        return res.status(422).json({ error: msg });
     if (msg.startsWith("INVALID_AMOUNT"))           return res.status(400).json({ error: msg });
+    if (msg.startsWith("LEGACY_RESOURCE_DISABLED")) return res.status(400).json({ error: msg });
     console.error("[POST /api/economy/transfer-bank-to-city] Erreur:", err);
     return res.status(500).json({ error: "Impossible de créer le transfert" });
   }
@@ -333,9 +337,13 @@ router.post("/transfer-bank-to-player", requireAuth, async (req: AuthRequest, re
     const ms  = msRemaining(action);
     const min = Math.ceil(ms / 60000);
 
-    const effFracten = fracten      > 0 ? fracten      : gold;
-    const effMetals  = common_metals > 0 ? common_metals : iron + copper;
-    const effLeather = leather_fur   > 0 ? leather_fur   : fur;
+    // G4 : rejet explicite des ressources V1 legacy — utiliser fracten/common_metals/leather_fur.
+    if (gold > 0 || iron > 0 || copper > 0 || fur > 0) {
+      return res.status(400).json({
+        error: "LEGACY_RESOURCE_DISABLED",
+        message: "Utilisez fracten, common_metals, leather_fur (V2). gold/iron/copper/fur ne sont plus acceptés.",
+      });
+    }
 
     return res.status(201).json({
       ok: true,
@@ -359,10 +367,10 @@ router.post("/transfer-bank-to-player", requireAuth, async (req: AuthRequest, re
         effectiveWorldX:  action.startWorldX,
         effectiveWorldY:  action.startWorldY,
         effectiveTerrain: "",
-        // F2 V2 response fields
-        fracten: effFracten, food, wood, stone,
-        common_metals: effMetals, coal, oil, herbs,
-        leather_fur: effLeather,
+        // G4 V2 response fields — fracten/common_metals/leather_fur uniquement
+        fracten, food, wood, stone,
+        common_metals, coal, oil, herbs,
+        leather_fur,
       },
     });
   } catch (err: any) {
@@ -371,6 +379,7 @@ router.post("/transfer-bank-to-player", requireAuth, async (req: AuthRequest, re
     if (msg.startsWith("INSUFFICIENT_BANK"))             return res.status(422).json({ error: msg });
     if (msg.startsWith("TRANSPORT_CAPACITY_EXCEEDED"))   return res.status(422).json({ error: msg });
     if (msg.startsWith("INVALID_AMOUNT"))                return res.status(400).json({ error: msg });
+    if (msg.startsWith("LEGACY_RESOURCE_DISABLED"))      return res.status(400).json({ error: msg });
     console.error("[POST /api/economy/transfer-bank-to-player] Erreur:", err);
     return res.status(500).json({ error: "Impossible de créer le transfert" });
   }
@@ -465,21 +474,25 @@ router.post("/deposit-transport-to-city", requireAuth, async (req: AuthRequest, 
     // Lecture du transport courant du joueur
     const transport = await getOrInitPlayerTransport(playerId);
 
-    // Vérification des stocks (V2 + V1)
+    // G4 : rejet explicite des ressources V1 legacy.
+    if (gold > 0 || iron > 0 || copper > 0 || fur > 0) {
+      return res.status(400).json({
+        error: "LEGACY_RESOURCE_DISABLED",
+        message: "Utilisez fracten, common_metals, leather_fur (V2). gold/iron/copper/fur ne sont plus acceptés.",
+      });
+    }
+
+    // Vérification des stocks (V2 uniquement)
     const insufficiant: string[] = [];
     if (fracten       > ((transport as any).fracten       ?? 0)) insufficiant.push(`fracten (dispo: ${(transport as any).fracten ?? 0})`);
     if (common_metals > ((transport as any).common_metals ?? 0)) insufficiant.push(`métaux communs (dispo: ${(transport as any).common_metals ?? 0})`);
     if (leather_fur   > ((transport as any).leather_fur   ?? 0)) insufficiant.push(`cuir/fourrure (dispo: ${(transport as any).leather_fur ?? 0})`);
-    if (gold   > transport.gold)   insufficiant.push(`or (dispo: ${transport.gold})`);
     if (food   > transport.food)   insufficiant.push(`nourriture (dispo: ${transport.food})`);
     if (wood   > transport.wood)   insufficiant.push(`bois (dispo: ${transport.wood})`);
     if (stone  > transport.stone)  insufficiant.push(`pierre (dispo: ${transport.stone})`);
-    if (iron   > transport.iron)   insufficiant.push(`fer (dispo: ${transport.iron})`);
-    if (copper > transport.copper) insufficiant.push(`cuivre (dispo: ${transport.copper})`);
     if (coal   > transport.coal)   insufficiant.push(`charbon (dispo: ${transport.coal})`);
     if (oil    > transport.oil)    insufficiant.push(`pétrole (dispo: ${transport.oil})`);
     if (herbs  > transport.herbs)  insufficiant.push(`herbes (dispo: ${transport.herbs})`);
-    if (fur    > transport.fur)    insufficiant.push(`fourrure (dispo: ${transport.fur})`);
 
     if (insufficiant.length > 0) {
       return res.status(422).json({
@@ -489,35 +502,31 @@ router.post("/deposit-transport-to-city", requireAuth, async (req: AuthRequest, 
 
     const now = new Date();
 
-    // Transaction atomique : débit transport + crédit city_inventory
+    // G4 : Transaction V2 uniquement — gold/iron/copper/fur non débités/crédités.
     await db.transaction(async (tx) => {
-      // 1. Décrémenter player_transport (V2 + V1)
+      // 1. Décrémenter player_transport (V2 uniquement)
       await tx
         .update(playerTransport)
         .set({
           fracten:       sql`${(playerTransport as any).fracten}       - ${fracten}`,       // V2
           common_metals: sql`${(playerTransport as any).common_metals} - ${common_metals}`, // V2
           leather_fur:   sql`${(playerTransport as any).leather_fur}   - ${leather_fur}`,   // V2
-          gold:      sql`${playerTransport.gold}   - ${gold}`,
           food:      sql`${playerTransport.food}   - ${food}`,
           wood:      sql`${playerTransport.wood}   - ${wood}`,
           stone:     sql`${playerTransport.stone}  - ${stone}`,
-          iron:      sql`${playerTransport.iron}   - ${iron}`,
-          copper:    sql`${playerTransport.copper} - ${copper}`,
           coal:      sql`${playerTransport.coal}   - ${coal}`,
           oil:       sql`${playerTransport.oil}    - ${oil}`,
           herbs:     sql`${playerTransport.herbs}  - ${herbs}`,
-          fur:       sql`${playerTransport.fur}    - ${fur}`,
           updatedAt: now,
         })
         .where(eq(playerTransport.playerId, playerId));
 
-      // 2. Créditer city_inventory (UPSERT) — V2 + V1
+      // 2. Créditer city_inventory (UPSERT) — V2 uniquement
       await tx
         .insert(cityInventory)
         .values({ cityId,
           fracten, common_metals, leather_fur, // V2
-          gold, food, wood, stone, iron, copper, coal, oil, herbs, fur,
+          gold: 0, food, wood, stone, iron: 0, copper: 0, coal, oil, herbs, fur: 0,
           updatedAt: now } as any)
         .onConflictDoUpdate({
           target: cityInventory.cityId,
@@ -525,16 +534,12 @@ router.post("/deposit-transport-to-city", requireAuth, async (req: AuthRequest, 
             fracten:       sql`${(cityInventory as any).fracten}       + ${fracten}`,       // V2
             common_metals: sql`${(cityInventory as any).common_metals} + ${common_metals}`, // V2
             leather_fur:   sql`${(cityInventory as any).leather_fur}   + ${leather_fur}`,   // V2
-            gold:      sql`${cityInventory.gold}   + ${gold}`,
             food:      sql`${cityInventory.food}   + ${food}`,
             wood:      sql`${cityInventory.wood}   + ${wood}`,
             stone:     sql`${cityInventory.stone}  + ${stone}`,
-            iron:      sql`${cityInventory.iron}   + ${iron}`,
-            copper:    sql`${cityInventory.copper} + ${copper}`,
             coal:      sql`${cityInventory.coal}   + ${coal}`,
             oil:       sql`${cityInventory.oil}    + ${oil}`,
             herbs:     sql`${cityInventory.herbs}  + ${herbs}`,
-            fur:       sql`${cityInventory.fur}    + ${fur}`,
             updatedAt: now,
           },
         });
@@ -608,20 +613,25 @@ router.post("/deposit-transport-to-bank", requireAuth, async (req: AuthRequest, 
 
     const transport = await getOrInitPlayerTransport(playerId);
 
+    // G4 : rejet explicite des ressources V1 legacy.
+    if (gold > 0 || iron > 0 || copper > 0 || fur > 0) {
+      return res.status(400).json({
+        error: "LEGACY_RESOURCE_DISABLED",
+        message: "Utilisez fracten, common_metals, leather_fur (V2). gold/iron/copper/fur ne sont plus acceptés.",
+      });
+    }
+
+    // Vérification des stocks (V2 uniquement)
     const insuffisant: string[] = [];
     if (fracten       > ((transport as any).fracten       ?? 0)) insuffisant.push(`fracten (dispo: ${(transport as any).fracten ?? 0})`);
     if (common_metals > ((transport as any).common_metals ?? 0)) insuffisant.push(`métaux communs (dispo: ${(transport as any).common_metals ?? 0})`);
     if (leather_fur   > ((transport as any).leather_fur   ?? 0)) insuffisant.push(`cuir/fourrure (dispo: ${(transport as any).leather_fur ?? 0})`);
-    if (gold   > transport.gold)   insuffisant.push(`or (dispo: ${transport.gold})`);
     if (food   > transport.food)   insuffisant.push(`nourriture (dispo: ${transport.food})`);
     if (wood   > transport.wood)   insuffisant.push(`bois (dispo: ${transport.wood})`);
     if (stone  > transport.stone)  insuffisant.push(`pierre (dispo: ${transport.stone})`);
-    if (iron   > transport.iron)   insuffisant.push(`fer (dispo: ${transport.iron})`);
-    if (copper > transport.copper) insuffisant.push(`cuivre (dispo: ${transport.copper})`);
     if (coal   > transport.coal)   insuffisant.push(`charbon (dispo: ${transport.coal})`);
     if (oil    > transport.oil)    insuffisant.push(`pétrole (dispo: ${transport.oil})`);
     if (herbs  > transport.herbs)  insuffisant.push(`herbes (dispo: ${transport.herbs})`);
-    if (fur    > transport.fur)    insuffisant.push(`fourrure (dispo: ${transport.fur})`);
 
     if (insuffisant.length > 0) {
       return res.status(422).json({
@@ -632,33 +642,29 @@ router.post("/deposit-transport-to-bank", requireAuth, async (req: AuthRequest, 
     const now = new Date();
 
     await db.transaction(async (tx) => {
-      // 1. Décrémenter player_transport (V2 + V1)
+      // 1. Décrémenter player_transport (V2 uniquement — G4)
       await tx
         .update(playerTransport)
         .set({
           fracten:       sql`${(playerTransport as any).fracten}       - ${fracten}`,       // V2
           common_metals: sql`${(playerTransport as any).common_metals} - ${common_metals}`, // V2
           leather_fur:   sql`${(playerTransport as any).leather_fur}   - ${leather_fur}`,   // V2
-          gold:      sql`${playerTransport.gold}   - ${gold}`,
           food:      sql`${playerTransport.food}   - ${food}`,
           wood:      sql`${playerTransport.wood}   - ${wood}`,
           stone:     sql`${playerTransport.stone}  - ${stone}`,
-          iron:      sql`${playerTransport.iron}   - ${iron}`,
-          copper:    sql`${playerTransport.copper} - ${copper}`,
           coal:      sql`${playerTransport.coal}   - ${coal}`,
           oil:       sql`${playerTransport.oil}    - ${oil}`,
           herbs:     sql`${playerTransport.herbs}  - ${herbs}`,
-          fur:       sql`${playerTransport.fur}    - ${fur}`,
           updatedAt: now,
         })
         .where(eq(playerTransport.playerId, playerId));
 
-      // 2. Créditer player_bank (UPSERT) — V2 + V1
+      // 2. Créditer player_bank (UPSERT) — V2 uniquement (G4)
       await tx
         .insert(playerBank)
         .values({ playerId,
           fracten, common_metals, leather_fur, // V2
-          gold, food, wood, stone, iron, copper, coal, oil, herbs, fur,
+          gold: 0, food, wood, stone, iron: 0, copper: 0, coal, oil, herbs, fur: 0,
           lastProductionTurn: 0, updatedAt: now } as any)
         .onConflictDoUpdate({
           target: playerBank.playerId,
@@ -666,16 +672,12 @@ router.post("/deposit-transport-to-bank", requireAuth, async (req: AuthRequest, 
             fracten:       sql`${(playerBank as any).fracten}       + ${fracten}`,       // V2
             common_metals: sql`${(playerBank as any).common_metals} + ${common_metals}`, // V2
             leather_fur:   sql`${(playerBank as any).leather_fur}   + ${leather_fur}`,   // V2
-            gold:      sql`${playerBank.gold}   + ${gold}`,
             food:      sql`${playerBank.food}   + ${food}`,
             wood:      sql`${playerBank.wood}   + ${wood}`,
             stone:     sql`${playerBank.stone}  + ${stone}`,
-            iron:      sql`${playerBank.iron}   + ${iron}`,
-            copper:    sql`${playerBank.copper} + ${copper}`,
             coal:      sql`${playerBank.coal}   + ${coal}`,
             oil:       sql`${playerBank.oil}    + ${oil}`,
             herbs:     sql`${playerBank.herbs}  + ${herbs}`,
-            fur:       sql`${playerBank.fur}    + ${fur}`,
             updatedAt: now,
           },
         });

@@ -825,13 +825,18 @@ export async function createTransferBankToCityAction(
   commonMetals = 0,
   coal        = 0, oil         = 0, herbs     = 0,
   leatherFur  = 0,
-  // V1 legacy backward-compat (utilisés si V2 = 0)
+  // V1 legacy — conservé dans la signature pour backward-compat DTO, rejeté si > 0 (G4)
   gold        = 0, iron        = 0, copper    = 0, fur = 0,
 ): Promise<PlayerAction> {
-  // Résolution F2 : V2 prioritaire, V1 fallback si V2 absent
-  const effectiveFracten      = fracten      > 0 ? fracten      : gold;
-  const effectiveCommonMetals = commonMetals > 0 ? commonMetals : iron + copper;
-  const effectiveLeatherFur   = leatherFur   > 0 ? leatherFur   : fur;
+  // G4 : rejet explicite des ressources V1 legacy.
+  if (gold > 0 || iron > 0 || copper > 0 || fur > 0) {
+    throw new Error("LEGACY_RESOURCE_DISABLED: utilisez fracten, common_metals, leather_fur (V2)");
+  }
+
+  // G4 : V2 uniquement — plus de fallback V1.
+  const effectiveFracten      = fracten;
+  const effectiveCommonMetals = commonMetals;
+  const effectiveLeatherFur   = leatherFur;
 
   if (effectiveFracten < 0 || food < 0 || wood < 0 || stone < 0
       || effectiveCommonMetals < 0 || coal < 0 || oil < 0 || herbs < 0 || effectiveLeatherFur < 0
@@ -857,36 +862,19 @@ export async function createTransferBankToCityAction(
     iron: 0, copper: 0, common_metals: 0, coal: 0, oil: 0, herbs: 0, fur: 0, leather_fur: 0,
   };
 
-  // Checks F2 V2 — colonne V2 si param V2 fourni, colonne V1 si fallback
-  if (fracten > 0) {
-    if ((bank.fracten ?? 0) < fracten)
-      throw new Error(`INSUFFICIENT_BANK_FRACTEN: banque=${bank.fracten} requis=${fracten}`);
-  } else if (gold > 0) {
-    if (bank.gold < gold)
-      throw new Error(`INSUFFICIENT_BANK_FRACTEN: banque=${bank.gold} requis=${gold}`);
-  }
+  // G4 : checks V2 uniquement — branches V1 fallback supprimées.
+  if ((bank.fracten ?? 0) < fracten)
+    throw new Error(`INSUFFICIENT_BANK_FRACTEN: banque=${bank.fracten} requis=${fracten}`);
   if (bank.food   < food)  throw new Error(`INSUFFICIENT_BANK_FOOD: banque=${bank.food} requis=${food}`);
   if (bank.wood   < wood)  throw new Error(`INSUFFICIENT_BANK_WOOD: banque=${bank.wood} requis=${wood}`);
   if (bank.stone  < stone) throw new Error(`INSUFFICIENT_BANK_STONE: banque=${bank.stone} requis=${stone}`);
-  if (commonMetals > 0) {
-    if ((bank.common_metals ?? 0) < commonMetals)
-      throw new Error(`INSUFFICIENT_BANK_COMMON_METALS: banque=${bank.common_metals} requis=${commonMetals}`);
-  } else if (iron + copper > 0) {
-    if (bank.iron < iron)
-      throw new Error(`INSUFFICIENT_BANK_COMMON_METALS: banque=${bank.iron} requis=${iron}`);
-    if ((bank.copper ?? 0) < copper)
-      throw new Error(`INSUFFICIENT_BANK_COMMON_METALS: banque=${bank.copper} requis=${copper}`);
-  }
+  if ((bank.common_metals ?? 0) < commonMetals)
+    throw new Error(`INSUFFICIENT_BANK_COMMON_METALS: banque=${bank.common_metals} requis=${commonMetals}`);
   if ((bank.coal  ?? 0) < coal)  throw new Error(`INSUFFICIENT_BANK_COAL: banque=${bank.coal} requis=${coal}`);
   if ((bank.oil   ?? 0) < oil)   throw new Error(`INSUFFICIENT_BANK_OIL: banque=${bank.oil} requis=${oil}`);
   if ((bank.herbs ?? 0) < herbs) throw new Error(`INSUFFICIENT_BANK_HERBS: banque=${bank.herbs} requis=${herbs}`);
-  if (leatherFur > 0) {
-    if ((bank.leather_fur ?? 0) < leatherFur)
-      throw new Error(`INSUFFICIENT_BANK_LEATHER_FUR: banque=${bank.leather_fur} requis=${leatherFur}`);
-  } else if (fur > 0) {
-    if ((bank.fur ?? 0) < fur)
-      throw new Error(`INSUFFICIENT_BANK_LEATHER_FUR: banque=${bank.fur} requis=${fur}`);
-  }
+  if ((bank.leather_fur ?? 0) < leatherFur)
+    throw new Error(`INSUFFICIENT_BANK_LEATHER_FUR: banque=${bank.leather_fur} requis=${leatherFur}`);
 
   const now = new Date();
 
@@ -906,19 +894,15 @@ export async function createTransferBankToCityAction(
     await tx
       .update(playerBank)
       .set({
-        fracten:       sql`${(playerBank as any).fracten}       - ${fracten      > 0 ? fracten      : 0}`, // F2 V2
-        gold:          sql`${playerBank.gold}                   - ${fracten      > 0 ? 0 : gold}`,          // V1 fallback
+        fracten:       sql`${(playerBank as any).fracten}       - ${fracten}`,       // G4 V2
         food:          sql`${playerBank.food}                   - ${food}`,
         wood:          sql`${playerBank.wood}                   - ${wood}`,
         stone:         sql`${playerBank.stone}                  - ${stone}`,
-        common_metals: sql`${(playerBank as any).common_metals} - ${commonMetals > 0 ? commonMetals : 0}`, // F2 V2
-        iron:          sql`${playerBank.iron}                   - ${commonMetals > 0 ? 0 : iron}`,          // V1 fallback
-        copper:        sql`${playerBank.copper}                 - ${commonMetals > 0 ? 0 : copper}`,        // V1 fallback
+        common_metals: sql`${(playerBank as any).common_metals} - ${commonMetals}`, // G4 V2
         coal:          sql`${playerBank.coal}                   - ${coal}`,
         oil:           sql`${playerBank.oil}                    - ${oil}`,
         herbs:         sql`${playerBank.herbs}                  - ${herbs}`,
-        leather_fur:   sql`${(playerBank as any).leather_fur}   - ${leatherFur   > 0 ? leatherFur   : 0}`, // F2 V2
-        fur:           sql`${playerBank.fur}                    - ${leatherFur   > 0 ? 0 : fur}`,           // V1 fallback
+        leather_fur:   sql`${(playerBank as any).leather_fur}   - ${leatherFur}`,   // G4 V2
         updatedAt: now,
       })
       .where(eq(playerBank.playerId, playerId));
@@ -974,13 +958,18 @@ export async function createTransferBankToPlayerAction(
   commonMetals = 0,
   coal        = 0, oil          = 0, herbs      = 0,
   leatherFur  = 0,
-  // V1 legacy backward-compat (utilisés si V2 = 0)
+  // V1 legacy — conservé dans la signature pour backward-compat DTO, rejeté si > 0 (G4)
   gold        = 0, iron         = 0, copper     = 0, fur = 0,
 ): Promise<PlayerAction> {
-  // Résolution F2 : V2 prioritaire, V1 fallback si V2 absent
-  const effectiveFracten      = fracten      > 0 ? fracten      : gold;
-  const effectiveCommonMetals = commonMetals > 0 ? commonMetals : iron + copper;
-  const effectiveLeatherFur   = leatherFur   > 0 ? leatherFur   : fur;
+  // G4 : rejet explicite des ressources V1 legacy.
+  if (gold > 0 || iron > 0 || copper > 0 || fur > 0) {
+    throw new Error("LEGACY_RESOURCE_DISABLED: utilisez fracten, common_metals, leather_fur (V2)");
+  }
+
+  // G4 : V2 uniquement — plus de fallback V1.
+  const effectiveFracten      = fracten;
+  const effectiveCommonMetals = commonMetals;
+  const effectiveLeatherFur   = leatherFur;
 
   if (effectiveFracten < 0 || food < 0 || wood < 0 || stone < 0
       || effectiveCommonMetals < 0 || coal < 0 || oil < 0 || herbs < 0 || effectiveLeatherFur < 0
@@ -1028,36 +1017,19 @@ export async function createTransferBankToPlayerAction(
     iron: 0, copper: 0, common_metals: 0, coal: 0, oil: 0, herbs: 0, fur: 0, leather_fur: 0,
   };
 
-  // Checks F2 V2 — colonne V2 si param V2 fourni, colonne V1 si fallback
-  if (fracten > 0) {
-    if ((bank.fracten ?? 0) < fracten)
-      throw new Error(`INSUFFICIENT_BANK_FRACTEN: banque=${bank.fracten} requis=${fracten}`);
-  } else if (gold > 0) {
-    if (bank.gold < gold)
-      throw new Error(`INSUFFICIENT_BANK_FRACTEN: banque=${bank.gold} requis=${gold}`);
-  }
+  // G4 : checks V2 uniquement — branches V1 fallback supprimées.
+  if ((bank.fracten ?? 0) < fracten)
+    throw new Error(`INSUFFICIENT_BANK_FRACTEN: banque=${bank.fracten} requis=${fracten}`);
   if (bank.food   < food)  throw new Error(`INSUFFICIENT_BANK_FOOD: banque=${bank.food} requis=${food}`);
   if (bank.wood   < wood)  throw new Error(`INSUFFICIENT_BANK_WOOD: banque=${bank.wood} requis=${wood}`);
   if (bank.stone  < stone) throw new Error(`INSUFFICIENT_BANK_STONE: banque=${bank.stone} requis=${stone}`);
-  if (commonMetals > 0) {
-    if ((bank.common_metals ?? 0) < commonMetals)
-      throw new Error(`INSUFFICIENT_BANK_COMMON_METALS: banque=${bank.common_metals} requis=${commonMetals}`);
-  } else if (iron + copper > 0) {
-    if (bank.iron < iron)
-      throw new Error(`INSUFFICIENT_BANK_COMMON_METALS: banque=${bank.iron} requis=${iron}`);
-    if ((bank.copper ?? 0) < copper)
-      throw new Error(`INSUFFICIENT_BANK_COMMON_METALS: banque=${bank.copper} requis=${copper}`);
-  }
+  if ((bank.common_metals ?? 0) < commonMetals)
+    throw new Error(`INSUFFICIENT_BANK_COMMON_METALS: banque=${bank.common_metals} requis=${commonMetals}`);
   if ((bank.coal  ?? 0) < coal)  throw new Error(`INSUFFICIENT_BANK_COAL: banque=${bank.coal} requis=${coal}`);
   if ((bank.oil   ?? 0) < oil)   throw new Error(`INSUFFICIENT_BANK_OIL: banque=${bank.oil} requis=${oil}`);
   if ((bank.herbs ?? 0) < herbs) throw new Error(`INSUFFICIENT_BANK_HERBS: banque=${bank.herbs} requis=${herbs}`);
-  if (leatherFur > 0) {
-    if ((bank.leather_fur ?? 0) < leatherFur)
-      throw new Error(`INSUFFICIENT_BANK_LEATHER_FUR: banque=${bank.leather_fur} requis=${leatherFur}`);
-  } else if (fur > 0) {
-    if ((bank.fur ?? 0) < fur)
-      throw new Error(`INSUFFICIENT_BANK_LEATHER_FUR: banque=${bank.fur} requis=${fur}`);
-  }
+  if ((bank.leather_fur ?? 0) < leatherFur)
+    throw new Error(`INSUFFICIENT_BANK_LEATHER_FUR: banque=${bank.leather_fur} requis=${leatherFur}`);
 
   const now = new Date();
 
@@ -1071,25 +1043,20 @@ export async function createTransferBankToPlayerAction(
   const durationSeconds = totalUnits * 5;
   const expectedEndTime = new Date(now.getTime() + durationSeconds * 1000);
 
-  // Débit banque + création action dans la même transaction.
-  // Débit V2 si param V2 fourni, V1 sinon — jamais les deux pour la même ressource logique.
+  // G4 : Débit V2 uniquement — colonnes gold/iron/copper/fur non débitées.
   const [action] = await db.transaction(async (tx) => {
     await tx
       .update(playerBank)
       .set({
-        fracten:       sql`${(playerBank as any).fracten}       - ${fracten      > 0 ? fracten      : 0}`, // F2 V2
-        gold:          sql`${playerBank.gold}                   - ${fracten      > 0 ? 0 : gold}`,          // V1 fallback
+        fracten:       sql`${(playerBank as any).fracten}       - ${fracten}`,       // G4 V2
         food:          sql`${playerBank.food}                   - ${food}`,
         wood:          sql`${playerBank.wood}                   - ${wood}`,
         stone:         sql`${playerBank.stone}                  - ${stone}`,
-        common_metals: sql`${(playerBank as any).common_metals} - ${commonMetals > 0 ? commonMetals : 0}`, // F2 V2
-        iron:          sql`${playerBank.iron}                   - ${commonMetals > 0 ? 0 : iron}`,          // V1 fallback
-        copper:        sql`${playerBank.copper}                 - ${commonMetals > 0 ? 0 : copper}`,        // V1 fallback
+        common_metals: sql`${(playerBank as any).common_metals} - ${commonMetals}`, // G4 V2
         coal:          sql`${playerBank.coal}                   - ${coal}`,
         oil:           sql`${playerBank.oil}                    - ${oil}`,
         herbs:         sql`${playerBank.herbs}                  - ${herbs}`,
-        leather_fur:   sql`${(playerBank as any).leather_fur}   - ${leatherFur   > 0 ? leatherFur   : 0}`, // F2 V2
-        fur:           sql`${playerBank.fur}                    - ${leatherFur   > 0 ? 0 : fur}`,           // V1 fallback
+        leather_fur:   sql`${(playerBank as any).leather_fur}   - ${leatherFur}`,   // G4 V2
         updatedAt: now,
       })
       .where(eq(playerBank.playerId, playerId));

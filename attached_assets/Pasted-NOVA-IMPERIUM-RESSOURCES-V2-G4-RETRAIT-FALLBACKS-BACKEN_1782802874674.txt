@@ -1,0 +1,323 @@
+NOVA IMPERIUM — RESSOURCES V2 — G4 / RETRAIT FALLBACKS BACKEND V1
+Branche : NI-10.09
+
+OBJECTIF
+Retirer les fallbacks backend V1 devenus inutiles après G3.
+
+Ce bloc doit :
+
+* retirer les lectures/débits/crédits fallback V1 qui ciblaient gold/iron/copper/fur
+* conserver les colonnes DB legacy
+* conserver les DTO legacy si nécessaire
+* ne pas supprimer de colonnes
+* ne pas toucher market_trades.total_gold
+
+Ce bloc est du code backend ciblé.
+Ce bloc ne doit pas modifier la DB.
+Ce bloc ne doit pas faire DROP COLUMN.
+
+CONTEXTE
+G1 :
+
+* toutes les données V1 étaient miroir exact de V2
+
+G2 :
+
+* UI legacy masquée
+* mode debug legacy disponible
+
+G3 :
+
+* valeurs V1 miroir neutralisées à zéro dans :
+
+  * player_bank
+  * player_transport
+  * player_market_box
+  * city_inventory
+  * city_pending_harvest
+  * market_fee_box
+  * cities per-turn
+* active_legacy_orders = 0
+* toutes les valeurs V2 inchangées
+* market_trades.total_gold non touché
+
+Après G3, les fallbacks V1 backend ne sont plus nécessaires pour :
+
+* bank transfers
+* transport deposits
+* city production fallback
+* player_market_box V1 resources
+
+PÉRIMÈTRE AUTORISÉ
+
+Backend :
+
+* server/playerActionService.ts
+* server/routes/economy.ts
+* server/economyService.ts
+* server/buildingEffects.ts
+* server/marketService.ts uniquement pour retirer support gold/iron/copper/fur des box et ordres V1 si safe
+* server/cityService.ts uniquement pour goldPerTurn sync legacy si safe
+
+Frontend :
+
+* aucun changement sauf si TypeScript exige un type mineur
+* ne pas modifier UI G2
+
+Shared :
+
+* shared/schema.ts commentaires seulement si nécessaire
+* ne pas retirer de colonnes schema dans G4
+
+INTERDICTIONS STRICTES
+
+Ne pas modifier :
+
+* DB
+* migrations
+* market_trades.total_gold
+* market_trades schema total_gold
+* frontend UI G2 sauf bug direct
+* MapGenerator.ts
+* HexTile
+* ResourceRevealSystem.ts
+* auth
+* cartography ownership
+* déploiement
+
+Ne pas faire :
+
+* DROP COLUMN
+* DELETE
+* UPDATE SQL
+* suppression colonnes schema
+* G5
+* refactor massif
+
+ÉTAPE 1 — AUDIT AVANT MODIFICATION
+
+Chercher dans les fichiers autorisés :
+
+gold
+iron
+copper
+fur
+goldPerTurn
+ironPerTurn
+copperPerTurn
+furPerTurn
+gold_per_turn
+iron_per_turn
+copper_per_turn
+fur_per_turn
+LEGACY_RESOURCES
+totalGold
+total_gold
+
+Classer chaque occurrence :
+
+A. Fallback V1 backend à retirer maintenant
+B. Zéro init legacy à conserver temporairement
+C. DTO/schema legacy à conserver temporairement
+D. market_trades.total_gold à conserver pour G5
+E. Commentaire ou label
+F. Dangereux / incohérent
+
+ÉTAPE 2 — PLAYERACTIONSERVICE
+
+Dans server/playerActionService.ts :
+
+Retirer les débits fallback V1 dans :
+
+* createTransferBankToCityAction
+* createTransferBankToPlayerAction
+
+Après G4 :
+
+* seuls fracten/commonMetals/leatherFur doivent être débités
+* gold/iron/copper/fur ne doivent plus être débités
+* les paramètres V1 peuvent rester dans la signature temporairement, mais ignorés ou rejetés proprement
+* si un vieux client envoie V1 sans V2, retourner une erreur claire :
+  LEGACY_RESOURCE_DISABLED
+
+Ne pas modifier computeTransportUnits sauf si nécessaire.
+Ne pas supprimer les colonnes schema.
+
+ÉTAPE 3 — ROUTES ECONOMY
+
+Dans server/routes/economy.ts :
+
+Retirer les débits/crédits V1 dans :
+
+* deposit-transport-to-city
+* deposit-transport-to-bank
+* transfer-bank-to-city
+* transfer-bank-to-player si encore body V1 fallback actif
+
+Après G4 :
+
+* body V2 accepté
+* body V1 peut être validé mais doit être rejeté si > 0 :
+  LEGACY_RESOURCE_DISABLED
+* ne plus créditer city_inventory.gold/iron/copper/fur
+* ne plus créditer player_bank.gold/iron/copper/fur
+* ne plus débiter player_transport.gold/iron/copper/fur
+
+ÉTAPE 4 — ECONOMYSERVICE / PRODUCTION
+
+Dans server/economyService.ts :
+
+Retirer fallback per-turn V1 :
+
+* ironPerTurn
+* copperPerTurn
+* furPerTurn
+
+Après G4 :
+
+* production lit commonMetalsPerTurn et leatherFurPerTurn uniquement
+* ne plus lire ironPerTurn/copperPerTurn/furPerTurn comme fallback
+* goldPerTurn legacy sync peut rester seulement si strictement nécessaire pour ancien DTO, mais ne doit pas piloter la production
+
+ÉTAPE 5 — BUILDINGEFFECTS
+
+Dans server/buildingEffects.ts :
+
+Retirer ou désactiver les branches de production V1 :
+
+* prod.iron
+* prod.copper
+* prod.fur
+
+Après G4 :
+
+* BUILDING_PRODUCTION ne doit contenir que V2 pour métaux/cuir
+* T1_CITY_COLUMNS peut garder les mappings legacy seulement si types exigent
+* applyBuildingEffects ne doit plus écrire ironPerTurn/copperPerTurn/furPerTurn
+
+ÉTAPE 6 — MARKETSERVICE
+
+Dans server/marketService.ts :
+
+Avant modification :
+
+* vérifier par SQL ou commentaire dans rapport que active_legacy_orders = 0
+
+Retirer le support V1 pour ressources de marché si safe :
+
+* gold
+* iron
+* copper
+* fur dans LEGACY_RESOURCES
+* lectures playerBank.iron/copper/fur
+* lectures playerTransport.iron/copper/fur
+* lectures playerMarketBox.iron/copper/fur
+* crédits V1 vers playerTransport/playerBank lors buy/withdraw
+* reset V1 market box si inutile
+
+Conserver :
+
+* totalGold / total_gold pour G5
+* normalisation totalFracten/totalGold si encore nécessaire
+* market_trades.total_gold intact
+
+Si le retrait marché est trop risqué :
+
+* ne pas le faire dans G4
+* documenter comme bloc G4b ou G5 prérequis
+
+ÉTAPE 7 — CITYSERVICE
+
+Dans server/cityService.ts :
+
+Auditer goldPerTurn sync legacy.
+Si aucun DTO/UI ne dépend de goldPerTurn :
+
+* retirer la sync goldPerTurn = totals.fracten
+  Sinon :
+* conserver temporairement et classer B/C
+
+Ne pas retirer fractenPerTurn.
+
+ÉTAPE 8 — VÉRIFICATION TYPESCRIPT
+
+Lancer :
+
+npm run check
+
+Puis rechercher dans les fichiers modifiés :
+
+gold
+iron
+copper
+fur
+goldPerTurn
+ironPerTurn
+copperPerTurn
+furPerTurn
+LEGACY_RESOURCE_DISABLED
+totalGold
+total_gold
+
+Classer les occurrences restantes :
+
+A. Retiré
+B. Rejet legacy explicite
+C. DTO/schema temporaire
+D. total_gold réservé G5
+E. Dangereux / à corriger maintenant
+
+ÉTAPE 9 — TESTS LOGIQUES
+
+Vérifier :
+
+1. Transfert bank → city avec V2
+
+* fracten/common_metals/leather_fur fonctionne
+
+2. Transfert bank → city avec V1
+
+* gold/iron/copper/fur > 0 retourne LEGACY_RESOURCE_DISABLED
+
+3. Deposit transport → bank avec V2
+
+* fonctionne
+
+4. Deposit transport → bank avec V1
+
+* retourne LEGACY_RESOURCE_DISABLED
+
+5. Production ville
+
+* common_metals_per_turn crédite common_metals
+* leather_fur_per_turn crédite leather_fur
+* iron_per_turn/copper_per_turn/fur_per_turn ne sont plus lus
+
+6. Marché
+
+* ordres V2 fonctionnent
+* aucun ordre V1 actif
+* total_gold non touché
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC G4
+2. AUDIT AVANT MODIFICATION
+3. CHANGEMENTS PLAYERACTIONSERVICE
+4. CHANGEMENTS ROUTES ECONOMY
+5. CHANGEMENTS ECONOMYSERVICE
+6. CHANGEMENTS BUILDINGEFFECTS
+7. CHANGEMENTS MARKETSERVICE
+8. CHANGEMENTS CITYSERVICE
+9. OCCURRENCES LEGACY RESTANTES
+10. TESTS LOGIQUES
+11. RÉSULTAT npm run check
+12. CONCLUSION : AUTORISÉ OU NON À PASSER À G5
+13. STOP
+
+STOP
+Ne pas commencer G5.
+Ne pas modifier la DB.
+Ne pas supprimer de colonnes.
+Ne pas faire DROP COLUMN.
+Ne pas toucher market_trades.total_gold.

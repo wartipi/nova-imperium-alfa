@@ -345,13 +345,10 @@ export async function applyProductionTickPerCity(
       // F4 V2 principal
       commonMetalsPerTurn: (cities as any).commonMetalsPerTurn,
       leatherFurPerTurn:   (cities as any).leatherFurPerTurn,
-      // V1 legacy — fallback si V2 absent ou 0
-      ironPerTurn:   cities.ironPerTurn,
-      copperPerTurn: cities.copperPerTurn,
+      // G4 : ironPerTurn/copperPerTurn/furPerTurn retirés — ne pilotent plus la production.
       coalPerTurn:   cities.coalPerTurn,
       oilPerTurn:    cities.oilPerTurn,
       herbsPerTurn:  cities.herbsPerTurn,
-      furPerTurn:    cities.furPerTurn,
     })
     .from(cities)
     .innerJoin(colonies, eq(cities.colonyId, colonies.id))
@@ -395,16 +392,10 @@ export async function applyProductionTickPerCity(
     const oil = Number(city.oilPerTurn     ?? 0);
     const herbs = Number(city.herbsPerTurn ?? 0);
 
-    // F4 V2 : lire V2 en priorité, fallback V1 si V2 absent ou 0 (anti-double-comptage).
-    const cmV2 = Number((city as any).commonMetalsPerTurn ?? 0);
-    const lfV2 = Number((city as any).leatherFurPerTurn   ?? 0);
-    const irV1 = Number(city.ironPerTurn   ?? 0);
-    const cuV1 = Number(city.copperPerTurn ?? 0);
-    const furV1 = Number(city.furPerTurn   ?? 0);
-
-    // Anti-double-comptage : V2 prioritaire, V1 fallback exclusif
-    const cm = cmV2 > 0 ? cmV2 : (irV1 + cuV1); // common_metals effectif
-    const lf = lfV2 > 0 ? lfV2 : furV1;          // leather_fur effectif
+    // G4 : lecture V2 uniquement — ironPerTurn/copperPerTurn/furPerTurn ne pilotent plus la production.
+    // Les colonnes V1 per-turn sont à zéro en DB depuis G3, fallback supprimé.
+    const cm = Number((city as any).commonMetalsPerTurn ?? 0); // G4 V2 seul
+    const lf = Number((city as any).leatherFurPerTurn   ?? 0); // G4 V2 seul
 
     if (g === 0 && f === 0 && w === 0 && s === 0 && cm === 0
         && lf === 0 && co === 0 && oil === 0 && herbs === 0) continue;
