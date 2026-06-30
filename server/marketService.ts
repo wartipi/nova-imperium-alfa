@@ -592,7 +592,7 @@ export async function fillOrder(
       .where(eq(marketOrders.id, orderId));
 
     // 6. Enregistrement du trade
-    // totalGold = colonne legacy storage → on y stocke totalFracten pour compatibilité DB.
+    // G5 : totalFracten = colonne principale V2 ; totalGold = legacy sync temporaire.
     const actualBuyOrderId  = order.side === "buy"  ? order.id : -1;
     const actualSellOrderId = order.side === "sell" ? order.id : -1;
 
@@ -607,7 +607,8 @@ export async function fillOrder(
         resourceType: res,
         quantity,
         pricePerUnit: order.pricePerUnit,
-        totalGold:    totalFracten, // V2 : legacy storage — représente fracten
+        totalFracten: totalFracten,   // G5 V2 — stockage principal
+        totalGold:    totalFracten,   // G5 legacy sync temporaire — suppression G6+
         feeBpsApplied: feeBps,
         feeAmount,
       })

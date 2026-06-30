@@ -752,7 +752,8 @@ export const marketTrades = pgTable("market_trades", {
   resourceType: text("resource_type").notNull(),
   quantity:     integer("quantity").notNull(),
   pricePerUnit: integer("price_per_unit").notNull(),
-  totalGold:    integer("total_gold").notNull(),
+  totalFracten: integer("total_fracten").notNull().default(0), // G5 V2 — monnaie officielle (fracten)
+  totalGold:    integer("total_gold").notNull(),               // G5 legacy sync temporaire — suppression G6+
   feeBpsApplied:integer("fee_bps_applied").notNull(),
   feeAmount:    integer("fee_amount").notNull(),
   executedAt:   timestamp("executed_at").notNull().defaultNow(),

@@ -1,0 +1,349 @@
+NOVA IMPERIUM — RESSOURCES V2 — G5 / MARKET_TRADES TOTAL_FRACTEN & FEE BOX V2
+Branche : NI-10.09
+
+OBJECTIF
+Convertir le stockage historique du marché encore basé sur total_gold vers total_fracten, sans supprimer total_gold.
+
+Ce bloc doit :
+
+* ajouter total_fracten à market_trades si absent
+* backfill total_fracten = total_gold pour les trades existants
+* faire écrire total_fracten comme champ principal
+* conserver total_gold comme legacy sync temporaire
+* vérifier market_fee_box.fracten
+* ne pas faire DROP COLUMN
+* ne pas supprimer total_gold
+
+CONTEXTE
+G3 :
+
+* toutes les colonnes V1 miroir ont été neutralisées à 0
+* V2 inchangé
+* market_trades.total_gold non touché
+
+G4 :
+
+* fallbacks backend V1 retirés pour transferts banque, dépôts transport, production
+* LEGACY_RESOURCE_DISABLED utilisé pour les entrées V1
+* marketService partiellement conservé car total_gold reste le dernier stockage legacy important
+
+Reste bloquant :
+
+* market_trades.total_gold existe
+* market_trades.total_fracten n’existe pas encore ou n’est pas utilisé comme stockage principal
+* market_fee_box.fracten doit être vérifié/normalisé
+
+PÉRIMÈTRE AUTORISÉ
+
+Backend :
+
+* server/marketService.ts
+* server/routes/market.ts seulement si nécessaire
+* shared/schema.ts ajout additif seulement
+
+Frontend :
+
+* client/src/lib/api/marketApi.ts
+* client/src/components/game/PublicMarketplace.tsx seulement si affichage totalFracten/feeBox concerné
+
+DB :
+
+* ALTER TABLE additif seulement
+* UPDATE de backfill non destructif seulement
+
+INTERDICTIONS STRICTES
+
+Ne pas modifier :
+
+* playerActionService.ts
+* routes/economy.ts
+* economyService.ts
+* buildingEffects.ts
+* cityService.ts
+* MapGenerator.ts
+* HexTile
+* ResourceRevealSystem.ts
+* auth
+* cartography ownership
+* déploiement
+
+Ne pas faire :
+
+* DROP COLUMN
+* DELETE
+* suppression de total_gold
+* suppression de colonnes legacy
+* migration destructive
+* G6
+* refactor massif
+
+ÉTAPE 1 — AUDIT AVANT MODIFICATION
+
+Auditer :
+
+* shared/schema.ts
+* server/marketService.ts
+* server/routes/market.ts
+* client/src/lib/api/marketApi.ts
+* client/src/components/game/PublicMarketplace.tsx
+
+Chercher :
+
+totalGold
+total_gold
+totalFracten
+total_fracten
+feeBox
+marketFeeBox
+gold
+fracten
+LEGACY_RESOURCES
+resource_type
+gold
+iron
+copper
+fur
+
+Classer chaque occurrence :
+
+A. total_gold stockage principal à convertir maintenant
+B. total_gold legacy sync à conserver temporairement
+C. total_fracten déjà V2
+D. fee box V1 à convertir ou vérifier
+E. labels/DTO backward-compat
+F. dangereux / incohérent
+
+ÉTAPE 2 — VÉRIFIER STRUCTURE DB
+
+Exécuter diagnostics :
+
+SELECT column_name
+FROM information_schema.columns
+WHERE table_name = 'market_trades'
+ORDER BY ordinal_position;
+
+Vérifier :
+
+* total_gold existe
+* total_fracten existe ou non
+
+Puis :
+
+SELECT COUNT(*) AS trade_count,
+COALESCE(SUM(total_gold), 0) AS total_gold_sum
+FROM market_trades;
+
+Si total_fracten existe déjà :
+
+SELECT COUNT(*) AS trade_count,
+COALESCE(SUM(total_gold), 0) AS total_gold_sum,
+COALESCE(SUM(total_fracten), 0) AS total_fracten_sum
+FROM market_trades;
+
+ÉTAPE 3 — AJOUT ADDITIF DB
+
+Si total_fracten n’existe pas :
+
+ALTER TABLE market_trades
+ADD COLUMN IF NOT EXISTS total_fracten INTEGER NOT NULL DEFAULT 0;
+
+Ne pas supprimer total_gold.
+
+ÉTAPE 4 — BACKFILL NON DESTRUCTIF
+
+Exécuter :
+
+UPDATE market_trades
+SET total_fracten = total_gold
+WHERE total_fracten = 0
+AND total_gold > 0;
+
+Puis vérifier :
+
+SELECT COUNT(*) AS trade_count,
+COALESCE(SUM(total_gold), 0) AS total_gold_sum,
+COALESCE(SUM(total_fracten), 0) AS total_fracten_sum,
+SUM(CASE WHEN total_fracten = total_gold THEN 0 ELSE 1 END) AS mismatches
+FROM market_trades;
+
+Résultat attendu :
+
+* mismatches = 0
+* total_fracten_sum = total_gold_sum
+
+ÉTAPE 5 — SHARED SCHEMA
+
+Dans shared/schema.ts :
+
+Ajouter totalFracten si absent :
+
+totalFracten: integer("total_fracten").notNull().default(0),
+
+Conserver :
+
+totalGold: integer("total_gold").notNull().default(0),
+
+Commenter clairement :
+
+* totalFracten = V2 principal
+* totalGold = legacy sync temporaire, suppression future G6+
+
+Ne pas retirer totalGold.
+
+ÉTAPE 6 — MARKETSERVICE
+
+Dans server/marketService.ts :
+
+Trouver les insertions dans market_trades.
+
+Avant probable :
+
+* totalGold: totalFracten
+
+Après G5 :
+
+* totalFracten: totalFracten
+* totalGold: totalFracten // legacy sync temporaire
+
+Règle :
+
+* total_fracten devient source principale
+* total_gold reste synchronisé pour compat temporaire
+* ne plus considérer total_gold comme donnée principale
+
+Vérifier aussi la lecture des trades :
+
+* si totalFracten existe, retourner totalFracten
+* totalGold peut rester dans la réponse pour compat, mais ne doit pas piloter l’UI si totalFracten existe
+
+ÉTAPE 7 — MARKET FEE BOX
+
+Vérifier structure :
+
+SELECT column_name
+FROM information_schema.columns
+WHERE table_name = 'market_fee_box'
+ORDER BY ordinal_position;
+
+Vérifier :
+
+* fracten existe
+* gold existe encore legacy
+
+Si fracten n’existe pas :
+
+ALTER TABLE market_fee_box
+ADD COLUMN IF NOT EXISTS fracten INTEGER NOT NULL DEFAULT 0;
+
+Puis backfill :
+
+UPDATE market_fee_box
+SET fracten = gold
+WHERE fracten = 0
+AND gold > 0;
+
+Dans marketService.ts :
+
+* getFeeBox doit retourner fracten comme principal
+* collectFeeBox doit collecter fracten comme principal
+* gold doit rester legacy seulement si nécessaire, mais ne doit pas être additionné si fracten contient déjà la même valeur
+
+ÉTAPE 8 — FRONTEND MARKET API
+
+Dans client/src/lib/api/marketApi.ts :
+
+Vérifier que :
+
+* totalFracten est lu en priorité
+* totalGold n’est qu’un fallback
+* aucun affichage principal n’utilise totalGold si totalFracten existe
+
+Règle :
+
+* totalFracten ?? totalGold ?? 0 acceptable
+* totalGold + totalFracten interdit
+
+ÉTAPE 9 — PUBLICMARKETPLACE
+
+Dans PublicMarketplace.tsx :
+
+Vérifier :
+
+* les historiques de trades affichent totalFracten
+* fee box affiche fracten
+* gold legacy n’est affiché qu’en debug ou fallback réel
+* ne pas additionner fracten + gold si gold est miroir legacy
+
+ÉTAPE 10 — TESTS LOGIQUES
+
+Tester ou raisonner :
+
+A. Trade historique existant
+
+* total_gold = 220 cumul
+* après backfill total_fracten = 220 cumul
+* UI affiche 220 fracten via totalFracten
+
+B. Nouveau trade
+
+* écrit total_fracten
+* écrit aussi total_gold sync legacy
+* total_fracten = total_gold
+
+C. Fee box
+
+* frais ajoutés à market_fee_box.fracten
+* gold ne double pas le total affiché
+* collectFeeBox crédite fracten
+
+D. Aucun DROP
+
+* total_gold reste présent
+* gold fee box reste présent si colonne existante
+
+ÉTAPE 11 — VÉRIFICATION
+
+Lancer :
+
+npm run check
+
+Puis rechercher dans les fichiers modifiés :
+
+totalGold
+total_gold
+totalFracten
+total_fracten
+marketFeeBox.gold
+marketFeeBox.fracten
+feeBox.gold
+feeBox.fracten
+gold
+fracten
+
+Classer les occurrences restantes :
+
+A. V2 principal
+B. Legacy sync temporaire
+C. Fallback affichage/API
+D. Dangereux / à corriger maintenant
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC G5
+2. STRUCTURE DB AVANT
+3. AJOUT TOTAL_FRACTEN / FEE BOX SI APPLICABLE
+4. BACKFILL EXÉCUTÉ
+5. CHANGEMENTS SHARED SCHEMA
+6. CHANGEMENTS MARKETSERVICE
+7. CHANGEMENTS MARKET API / PUBLICMARKETPLACE
+8. TESTS LOGIQUES
+9. OCCURRENCES LEGACY RESTANTES
+10. RÉSULTAT npm run check
+11. CONCLUSION : AUTORISÉ OU NON À PASSER À G6
+12. STOP
+
+STOP
+Ne pas commencer G6.
+Ne pas supprimer total_gold.
+Ne pas supprimer de colonnes.
+Ne pas faire DROP COLUMN.
