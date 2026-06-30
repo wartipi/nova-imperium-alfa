@@ -142,7 +142,7 @@ export async function getFactionEconomy(factionId: number): Promise<FactionEcono
   // Initialisation paresseuse — première lecture pour cette faction.
   const [inserted] = await db
     .insert(factionEconomy)
-    .values({ factionId, gold: 0, fracten: 0, food: 0, lastProcessedTurn: 0 })
+    .values({ factionId, fracten: 0, food: 0, lastProcessedTurn: 0 })
     .onConflictDoNothing()
     .returning();
 
@@ -228,19 +228,15 @@ export async function applyFactionEconomyTick(
 // ─── PlayerBankDTO ────────────────────────────────────────────────────────────
 
 export interface PlayerBankDTO {
-  fracten:            number; // Bloc B V2 — monnaie officielle
-  common_metals:      number; // Bloc C V2 — iron + copper fusionnés
-  leather_fur:        number; // Bloc C V2 — fur renommé
-  gold:               number; // V1 legacy
+  fracten:            number;
+  common_metals:      number;
+  leather_fur:        number;
   food:               number;
   wood:               number;
   stone:              number;
-  iron:               number; // V1 legacy
-  copper:             number; // V1 legacy
   coal:               number;
   oil:                number;
   herbs:              number;
-  fur:                number;  // V1 legacy
   lastProductionTurn: number;
   updatedAt:          string;
 }
@@ -279,23 +275,21 @@ export async function getOrInitPlayerBank(playerId: string): Promise<PlayerBankD
   const rows = await db.select().from(playerBank).where(eq(playerBank.playerId, playerId)).limit(1);
   function rowToDTO(r: typeof playerBank.$inferSelect): PlayerBankDTO {
     return {
-      fracten:       r.fracten,            // Bloc B V2
-      common_metals: r.common_metals ?? 0, // Bloc C V2
-      leather_fur:   r.leather_fur   ?? 0, // Bloc C V2
-      gold: r.gold, food: r.food,
-      wood: r.wood ?? 0, stone: r.stone ?? 0, iron: r.iron ?? 0,
-      copper: r.copper ?? 0, coal: r.coal ?? 0, oil: r.oil ?? 0,
-      herbs: r.herbs ?? 0, fur: r.fur ?? 0,
+      fracten:       r.fracten,
+      common_metals: r.common_metals,
+      leather_fur:   r.leather_fur,
+      food: r.food, wood: r.wood, stone: r.stone,
+      coal: r.coal, oil: r.oil, herbs: r.herbs,
       lastProductionTurn: r.lastProductionTurn, updatedAt: r.updatedAt.toISOString(),
     };
   }
   if (rows.length > 0) return rowToDTO(rows[0]);
   const [ins] = await db
     .insert(playerBank)
-    .values({ playerId, gold: 0, fracten: 0, food: 0, wood: 0, stone: 0,
+    .values({ playerId, fracten: 0, food: 0, wood: 0, stone: 0,
               coal: 0, oil: 0, herbs: 0,
               common_metals: 0, leather_fur: 0,
-              lastProductionTurn: 0 } as any)
+              lastProductionTurn: 0 })
     .onConflictDoNothing()
     .returning();
   if (!ins) {

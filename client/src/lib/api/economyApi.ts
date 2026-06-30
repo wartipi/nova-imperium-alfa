@@ -90,18 +90,16 @@ export async function postProductionTick(currentTurn: number): Promise<Productio
 // ─── Banque joueur ───────────────────────────────────────────────────────────
 
 export interface PlayerBankDTO {
-  playerId:           string;
-  fracten:            number; // Bloc B V2 — monnaie de production
-  gold:               number; // V1 legacy
+  playerId?:          string;
+  fracten:            number;
+  common_metals:      number;
+  leather_fur:        number;
   food:               number;
   wood:               number;
   stone:              number;
-  iron:               number;
-  copper:             number;
   coal:               number;
   oil:                number;
   herbs:              number;
-  fur:                number;
   lastProductionTurn: number;
   updatedAt:          string;
 }
@@ -159,21 +157,15 @@ export interface CollectHarvestResult {
 
 export interface PlayerTransportDTO {
   playerId:      string;
-  // Bloc C V2
   fracten:       number;
   common_metals: number;
   leather_fur:   number;
-  // V1 legacy
-  gold:      number;
   food:      number;
   wood:      number;
   stone:     number;
-  iron:      number;
-  copper:    number;
   coal:      number;
   oil:       number;
   herbs:     number;
-  fur:       number;
   updatedAt: string;
   maxUnits:  number;
   usedUnits: number;
@@ -209,21 +201,15 @@ export async function getPlayerCurrentCity(): Promise<PlayerCurrentCityDTO> {
 // ─── Dépôt transport → inventaire ville ──────────────────────────────────────
 
 export interface T1Mats {
-  // Bloc C V2
   fracten?:       number;
   common_metals?: number;
   leather_fur?:   number;
-  // V1 legacy
-  gold?:   number;
   food?:   number;
   wood?:   number;
   stone?:  number;
-  iron?:   number;
-  copper?: number;
   coal?:   number;
   oil?:    number;
   herbs?:  number;
-  fur?:    number;
 }
 
 export interface DepositResult {

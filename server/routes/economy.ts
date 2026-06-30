@@ -462,7 +462,7 @@ router.post("/deposit-transport-to-city", requireAuth, async (req: AuthRequest, 
       .limit(1);
     const currentTotal = inv
       ? ((inv as any).fracten ?? 0) + ((inv as any).common_metals ?? 0) + ((inv as any).leather_fur ?? 0)
-        + inv.gold + inv.food + inv.wood + inv.stone + inv.iron + inv.copper + inv.coal + inv.oil + inv.herbs + inv.fur
+        + inv.food + inv.wood + inv.stone + inv.coal + inv.oil + inv.herbs
       : 0;
     const depositTotal = fracten + common_metals + leather_fur + gold + food + wood + stone + iron + copper + coal + oil + herbs + fur;
     if (currentTotal + depositTotal > wh.capacity) {
@@ -525,9 +525,9 @@ router.post("/deposit-transport-to-city", requireAuth, async (req: AuthRequest, 
       await tx
         .insert(cityInventory)
         .values({ cityId,
-          fracten, common_metals, leather_fur, // V2
-          gold: 0, food, wood, stone, iron: 0, copper: 0, coal, oil, herbs, fur: 0,
-          updatedAt: now } as any)
+          fracten, common_metals, leather_fur,
+          food, wood, stone, coal, oil, herbs,
+          updatedAt: now })
         .onConflictDoUpdate({
           target: cityInventory.cityId,
           set: {
@@ -545,19 +545,16 @@ router.post("/deposit-transport-to-city", requireAuth, async (req: AuthRequest, 
         });
     });
 
-    const matLog =
-      `fr${fracten} cm${common_metals} lf${leather_fur}` +
-      ` ${gold}g ${food}f ${wood}w ${stone}s ${iron}ir` +
-      ` ${copper}cu ${coal}co ${oil}oil ${herbs}herbs ${fur}fur`;
     console.log(
-      `[Deposit] player=${playerId} transport→city${cityId}(${cityName}) ${matLog}`
+      `[Deposit] player=${playerId} transport→city${cityId}(${cityName})` +
+      ` fr${fracten} cm${common_metals} lf${leather_fur} ${food}f ${wood}w ${stone}s ${coal}co ${oil}oil ${herbs}herbs`
     );
 
     return res.json({
       ok:        true,
       cityId,
       cityName,
-      deposited: { fracten, common_metals, leather_fur, gold, food, wood, stone, iron, copper, coal, oil, herbs, fur }, // V2+V1
+      deposited: { fracten, common_metals, leather_fur, food, wood, stone, coal, oil, herbs },
     });
 
   } catch (err: any) {
@@ -663,9 +660,9 @@ router.post("/deposit-transport-to-bank", requireAuth, async (req: AuthRequest, 
       await tx
         .insert(playerBank)
         .values({ playerId,
-          fracten, common_metals, leather_fur, // V2
-          gold: 0, food, wood, stone, iron: 0, copper: 0, coal, oil, herbs, fur: 0,
-          lastProductionTurn: 0, updatedAt: now } as any)
+          fracten, common_metals, leather_fur,
+          food, wood, stone, coal, oil, herbs,
+          lastProductionTurn: 0, updatedAt: now })
         .onConflictDoUpdate({
           target: playerBank.playerId,
           set: {
@@ -685,13 +682,12 @@ router.post("/deposit-transport-to-bank", requireAuth, async (req: AuthRequest, 
 
     console.log(
       `[Deposit] player=${playerId} transport→bank fr${fracten} cm${common_metals} lf${leather_fur}` +
-      ` ${gold}g ${food}f ${wood}w ${stone}s ${iron}ir` +
-      ` ${copper}cu ${coal}co ${oil}oil ${herbs}herbs ${fur}fur`
+      ` ${food}f ${wood}w ${stone}s ${coal}co ${oil}oil ${herbs}herbs`
     );
 
     return res.json({
       ok:          true,
-      deposited:   { fracten, common_metals, leather_fur, gold, food, wood, stone, iron, copper, coal, oil, herbs, fur }, // V2+V1
+      deposited:   { fracten, common_metals, leather_fur, food, wood, stone, coal, oil, herbs },
       destination: "player_bank",
     });
 
@@ -721,8 +717,8 @@ router.get("/city-warehouse-info/:cityId", requireAuth, async (req: AuthRequest,
       .limit(1);
 
     const currentTotal = inv
-      ? ((inv as any).fracten ?? 0) + ((inv as any).common_metals ?? 0) + ((inv as any).leather_fur ?? 0) // V2
-        + inv.gold + inv.food + inv.wood + inv.stone + inv.iron + inv.copper + inv.coal + inv.oil + inv.herbs + inv.fur
+      ? ((inv as any).fracten ?? 0) + ((inv as any).common_metals ?? 0) + ((inv as any).leather_fur ?? 0)
+        + inv.food + inv.wood + inv.stone + inv.coal + inv.oil + inv.herbs
       : 0;
 
     return res.json({

@@ -1,0 +1,332 @@
+NOVA IMPERIUM — RESSOURCES V2 — G6-B3 / RETRAIT SCHÉMA DRIZZLE LEGACY + CORRECTIONS TS
+Branche : NI-10.09
+
+OBJECTIF
+Retirer les colonnes legacy V1 du schéma TypeScript/Drizzle et corriger les erreurs TypeScript associées.
+
+Ce bloc doit :
+
+* retirer les colonnes legacy de shared/schema.ts
+* retirer ou adapter les références TS restantes causées par ce retrait
+* garder la DB intacte
+* ne faire aucun DROP COLUMN
+* ne faire aucun ALTER TABLE
+* ne modifier aucune donnée
+
+Ce bloc prépare G6-B4, qui sera le snapshot DB + DROP colonnes table par table.
+
+CONTEXTE
+G6-B2 + audit post-G6-B2 ont confirmé :
+
+* toutes les valeurs DB V1 = 0
+* aucune occurrence classe A
+* les écritures/lectures V1 actives ont été retirées ou bloquées
+* total_gold = total_fracten sur market_trades
+* G6-B3 est autorisé
+* admin mode est un changement parallèle non bloquant
+
+PÉRIMÈTRE AUTORISÉ
+
+Shared :
+
+* shared/schema.ts
+* shared/gameSchema.ts si nécessaire
+
+Backend :
+
+* server/economyService.ts
+* server/playerActionService.ts
+* server/marketService.ts
+* server/routes/cities.ts
+* server/routes/economy.ts
+* server/routes/market.ts
+* server/cityService.ts si erreurs TS liées à per-turn
+* server/buildingEffects.ts si erreurs TS liées à per-turn
+
+Frontend :
+
+* client/src/lib/api/economyApi.ts
+* client/src/lib/api/citiesApi.ts
+* client/src/lib/api/marketApi.ts
+* client/src/components/game/TreasuryPanel.tsx
+* client/src/components/game/PlayerTransportPanel.tsx
+* client/src/components/game/HarvestPanel.tsx
+* client/src/components/game/PublicMarketplace.tsx
+* client/src/components/game/ConstructionPanel.tsx
+* client/src/components/game/MedievalHUD.tsx
+* client/src/components/game/ConstructionPanelZustand.tsx seulement si TS casse
+
+DB :
+
+* SELECT uniquement si nécessaire
+
+INTERDICTIONS STRICTES
+
+Ne pas faire :
+
+* DROP COLUMN
+* ALTER TABLE
+* UPDATE SQL
+* DELETE SQL
+* migration destructive
+* G6-B4
+* retrait physique DB
+* refactor massif
+
+Ne pas modifier :
+
+* MapGenerator.ts
+* HexTile
+* ResourceRevealSystem.ts
+* auth
+* cartography ownership
+* déploiement
+* admin mode sauf erreur TS directe
+
+ÉTAPE 1 — SNAPSHOT LOGIQUE AVANT CODE
+
+Avant modification, relancer rapidement :
+
+SELECT
+COUNT(*) AS trade_count,
+COALESCE(SUM(total_gold),0) AS total_gold_sum,
+COALESCE(SUM(total_fracten),0) AS total_fracten_sum,
+SUM(CASE WHEN total_gold = total_fracten THEN 0 ELSE 1 END) AS mismatches
+FROM market_trades;
+
+Vérifier :
+
+* mismatches = 0
+
+Ne pas modifier DB.
+
+ÉTAPE 2 — RETRAIT shared/schema.ts
+
+Dans shared/schema.ts, retirer uniquement les colonnes legacy suivantes :
+
+player_bank :
+
+* gold
+* iron
+* copper
+* fur
+
+player_transport :
+
+* gold
+* iron
+* copper
+* fur
+
+player_market_box :
+
+* gold
+* iron
+* copper
+* fur
+
+city_inventory :
+
+* gold
+* iron
+* copper
+* fur
+
+city_pending_harvest :
+
+* gold
+* iron
+* copper
+* fur
+
+market_fee_box :
+
+* gold
+
+cities :
+
+* gold_per_turn
+* iron_per_turn
+* copper_per_turn
+* fur_per_turn
+
+market_trades :
+
+* total_gold
+
+faction_economy si présent :
+
+* gold
+
+Ne pas retirer :
+
+* fracten
+* common_metals
+* leather_fur
+* total_fracten
+* gold terrain si ce n’est pas une colonne DB économique active
+* resource_type historique dans market_orders
+
+ÉTAPE 3 — RETRAIT shared/gameSchema.ts
+
+Si shared/gameSchema.ts contient encore :
+
+gold: z.number()
+
+et que ce champ est lié aux ressources économiques V1 :
+
+* le retirer ou le remplacer par fracten selon le contexte
+
+Ne pas modifier si c’est un schéma terrain indépendant non lié au flux économique.
+
+ÉTAPE 4 — CORRECTIONS BACKEND
+
+Corriger toutes les erreurs TS causées par le retrait schema.
+
+Priorités :
+
+server/economyService.ts :
+
+* retirer rowToDTO gold/iron/copper/fur
+* retirer PlayerBankDTO legacy
+* retirer faction_economy.gold si présent
+* conserver fracten/common_metals/leather_fur
+
+server/playerActionService.ts :
+
+* retirer objets init gold/iron/copper/fur restants
+* retirer fallback transportRow gold/iron/copper/fur
+* conserver LEGACY_RESOURCE_DISABLED seulement pour body legacy rejeté si encore typé manuellement
+
+server/marketService.ts :
+
+* retirer ensure gold:0 dans market_fee_box/player_bank/player_transport/player_market_box
+* retirer getFeeBox.gold
+* retirer totalGold sync et lire/écrire uniquement totalFracten
+* conserver ResourceType historique iron/copper/fur seulement si market_orders historiques l’exigent, sans dépendre de colonnes DB supprimées
+
+server/routes/market.ts :
+
+* retirer gold du JSON feeBox
+* conserver fracten seulement
+
+server/routes/cities.ts :
+
+* retirer gold/iron/copper/fur des DTO si encore présents
+* conserver V2 uniquement
+
+server/routes/economy.ts :
+
+* conserver rejet LEGACY_RESOURCE_DISABLED si vieux body V1 arrive
+* ne pas dépendre des colonnes DB supprimées
+
+server/cityService.ts :
+
+* retirer goldPerTurn legacy si TS casse
+* conserver fractenPerTurn
+
+ÉTAPE 5 — CORRECTIONS FRONTEND
+
+client/src/lib/api/economyApi.ts :
+
+* retirer gold/iron/copper/fur des DTO actifs
+* conserver seulement fracten/common_metals/leather_fur
+* si un body legacy est encore possible, le typer localement sans dépendre du DTO serveur
+
+client/src/lib/api/marketApi.ts :
+
+* retirer totalGold comme fallback si totalFracten est garanti
+* fetchMarketFeeBox doit retourner seulement fracten
+* garder ResourceType legacy iron/copper/fur seulement pour affichage historique si nécessaire
+
+TreasuryPanel.tsx :
+
+* retirer références gold/iron/copper/fur restantes liées aux ressources économiques
+* conserver seulement V2
+
+PlayerTransportPanel.tsx :
+
+* conserver seulement V2
+
+HarvestPanel.tsx :
+
+* conserver seulement V2
+
+PublicMarketplace.tsx :
+
+* ne plus afficher feeBox.gold
+* afficher totalFracten
+* ne pas casser les anciens ordres copper cancelled/filled
+
+ConstructionPanel.tsx / MedievalHUD.tsx :
+
+* retirer fallbacks gold/iron/copper/fur si TS casse
+* remplacer par V2 si le contexte est économique
+* ne pas casser terrain/resource icons non liés
+
+ÉTAPE 6 — VÉRIFICATION
+
+Lancer :
+
+npm run check
+
+Puis rechercher dans tout le projet :
+
+gold
+iron
+copper
+fur
+goldPerTurn
+ironPerTurn
+copperPerTurn
+furPerTurn
+gold_per_turn
+iron_per_turn
+copper_per_turn
+fur_per_turn
+totalGold
+total_gold
+totalFracten
+total_fracten
+
+Classer les occurrences restantes :
+
+A. Ressource économique V1 restante bloquante
+B. Market order historique acceptable
+C. Terrain/resource icon non économique acceptable
+D. Rejet legacy manuel acceptable
+E. totalFracten V2 attendu
+F. Dangereux / à corriger maintenant
+
+ÉTAPE 7 — TESTS LOGIQUES
+
+Vérifier :
+
+1. Le serveur démarre.
+2. npm run check ne contient pas de nouvelle erreur liée aux fichiers G6-B3.
+3. Les DTO banque/transport/inventaire ne contiennent plus V1.
+4. Le marché affiche totalFracten.
+5. feeBox n’expose plus gold.
+6. Aucun code ne dépend de total_gold.
+7. Aucun code ne dépend des colonnes V1 supprimées du schema.
+8. Aucun DROP DB n’a été fait.
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC G6-B3
+2. SNAPSHOT LOGIQUE AVANT
+3. COLONNES RETIRÉES DE shared/schema.ts
+4. CHANGEMENTS shared/gameSchema.ts SI APPLICABLE
+5. CORRECTIONS BACKEND
+6. CORRECTIONS FRONTEND
+7. OCCURRENCES LEGACY RESTANTES
+8. TESTS LOGIQUES
+9. RÉSULTAT npm run check
+10. CONCLUSION : AUTORISÉ OU NON À PASSER À G6-B4
+11. STOP
+
+STOP
+Ne pas commencer G6-B4.
+Ne pas modifier la DB.
+Ne pas faire DROP COLUMN.
+Ne pas faire ALTER TABLE.

@@ -105,7 +105,7 @@ async function ensureMarketFeeBox(
 ): Promise<void> {
   await (tx as typeof db)
     .insert(marketFeeBox)
-    .values({ cityId, gold: 0, fracten: 0, updatedAt: new Date() })
+    .values({ cityId, fracten: 0, updatedAt: new Date() })
     .onConflictDoNothing();
 }
 
@@ -207,9 +207,9 @@ async function ensurePlayerBank(playerId: string, tx?: any) {
   const target = tx ?? db;
   await target
     .insert(playerBank)
-    .values({ playerId, gold: 0, fracten: 0, food: 0, wood: 0, stone: 0,
+    .values({ playerId, fracten: 0, food: 0, wood: 0, stone: 0,
               common_metals: 0, coal: 0, oil: 0, herbs: 0, leather_fur: 0,
-              lastProductionTurn: 0 } as any)
+              lastProductionTurn: 0 })
     .onConflictDoNothing();
 }
 
@@ -281,8 +281,8 @@ async function ensurePlayerTransport(playerId: string, tx?: any) {
   const target = tx ?? db;
   await target
     .insert(playerTransport)
-    .values({ playerId, gold: 0, fracten: 0, food: 0, wood: 0, stone: 0,
-              common_metals: 0, coal: 0, oil: 0, herbs: 0, leather_fur: 0 } as any)
+    .values({ playerId, fracten: 0, food: 0, wood: 0, stone: 0,
+              common_metals: 0, coal: 0, oil: 0, herbs: 0, leather_fur: 0 })
     .onConflictDoNothing();
 }
 
@@ -338,8 +338,8 @@ async function ensurePlayerMarketBox(playerId: string, tx?: any) {
   const target = tx ?? db;
   await target
     .insert(playerMarketBox)
-    .values({ playerId, gold: 0, fracten: 0, food: 0, wood: 0, stone: 0,
-              common_metals: 0, coal: 0, oil: 0, herbs: 0, leather_fur: 0 } as any)
+    .values({ playerId, fracten: 0, food: 0, wood: 0, stone: 0,
+              common_metals: 0, coal: 0, oil: 0, herbs: 0, leather_fur: 0 })
     .onConflictDoNothing();
 }
 
@@ -567,9 +567,9 @@ export async function fillOrder(
       } else {
         // Ville sans banque : commission stockée dans la caisse locale en fracten.
         await ensureMarketFeeBox(order.cityId, tx);
-        await (tx as typeof db)
+        await tx
           .update(marketFeeBox)
-          .set({ fracten: sql`${(marketFeeBox as any).fracten} + ${feeAmount}`, updatedAt: new Date() })
+          .set({ fracten: sql`${marketFeeBox.fracten} + ${feeAmount}`, updatedAt: new Date() })
           .where(eq(marketFeeBox.cityId, order.cityId));
       }
     }
@@ -598,8 +598,7 @@ export async function fillOrder(
         resourceType: res,
         quantity,
         pricePerUnit: order.pricePerUnit,
-        totalFracten: totalFracten,   // G5 V2 — stockage principal
-        totalGold:    totalFracten,   // G5 legacy sync temporaire — suppression G6+
+        totalFracten: totalFracten,
         feeBpsApplied: feeBps,
         feeAmount,
       })
@@ -831,15 +830,14 @@ export async function claimMarketBoxToBank(playerId: string): Promise<{ ok: true
 
 // ─── getFeeBox ────────────────────────────────────────────────────────────────
 // Lit la caisse locale de commission d'un marché (cityId).
-// V2 : expose fracten (monnaie officielle). gold = legacy storage conservé.
-// Retourne { fracten: 0, gold: 0 } si aucune caisse n'existe encore.
-export async function getFeeBox(cityId: number): Promise<{ fracten: number; gold: number }> {
+// Retourne { fracten: 0 } si aucune caisse n'existe encore.
+export async function getFeeBox(cityId: number): Promise<{ fracten: number }> {
   const [row] = await db
-    .select({ fracten: (marketFeeBox as any).fracten, gold: marketFeeBox.gold })
+    .select({ fracten: marketFeeBox.fracten })
     .from(marketFeeBox)
     .where(eq(marketFeeBox.cityId, cityId))
     .limit(1);
-  return { fracten: row?.fracten ?? 0, gold: row?.gold ?? 0 };
+  return { fracten: row?.fracten ?? 0 };
 }
 
 // ─── collectFeeBox ────────────────────────────────────────────────────────────
@@ -852,12 +850,11 @@ export async function collectFeeBox(
   isAdmin:   boolean,
 ): Promise<{ collected: number }> {
   const [row] = await db
-    .select({ fracten: (marketFeeBox as any).fracten, gold: marketFeeBox.gold })
+    .select({ fracten: marketFeeBox.fracten })
     .from(marketFeeBox)
     .where(eq(marketFeeBox.cityId, cityId))
     .limit(1);
 
-  // V2 : fracten uniquement — G6-B1 : goldLegacy retiré (toujours = 0)
   const fracten = row?.fracten ?? 0;
   const totalCollected = fracten;
   if (totalCollected <= 0) throw Object.assign(new Error("Caisse locale vide"), { status: 400 });

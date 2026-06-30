@@ -52,8 +52,7 @@ export interface MarketTrade {
   resourceType:  ResourceType;
   quantity:      number;
   pricePerUnit:  number;
-  totalFracten:  number;   // V2 monnaie officielle (stocké dans colonne DB totalGold legacy)
-  totalGold:     number;   // V1 legacy storage — même valeur que totalFracten
+  totalFracten:  number;
   feeBpsApplied: number;
   feeAmount:     number;
   executedAt:    string;
@@ -108,30 +107,21 @@ export async function cancelMarketOrder(cityId: number, orderId: number): Promis
 }
 
 // ─── POST /api/market/:cityId/orders/:orderId/fill ────────────────────────────
-// V2 : retourne totalFracten (monnaie officielle). totalGold = même valeur, legacy.
 export async function fillMarketOrder(
   cityId: number,
   orderId: number,
   quantity: number,
-): Promise<{ tradeId: number; totalFracten: number; totalGold: number; feeAmount: number }> {
-  const r = await apiCall<{ tradeId: number; totalFracten?: number; totalGold?: number; feeAmount: number }>(
+): Promise<{ tradeId: number; totalFracten: number; feeAmount: number }> {
+  const r = await apiCall<{ tradeId: number; totalFracten: number; feeAmount: number }>(
     `/api/market/${cityId}/orders/${orderId}/fill`,
     { method: "POST", body: JSON.stringify({ quantity }) }
   );
-  // Normalisation : totalFracten prioritaire, fallback sur totalGold legacy
-  const totalFracten = r.totalFracten ?? r.totalGold ?? 0;
-  return { tradeId: r.tradeId, totalFracten, totalGold: totalFracten, feeAmount: r.feeAmount };
+  return { tradeId: r.tradeId, totalFracten: r.totalFracten, feeAmount: r.feeAmount };
 }
 
 // ─── GET /api/market/:cityId/trades ──────────────────────────────────────────
 export async function fetchMarketTrades(cityId: number): Promise<MarketTrade[]> {
-  const trades = await apiCall<any[]>(`/api/market/${cityId}/trades`);
-  // Normalisation : totalFracten = totalGold (legacy storage)
-  return trades.map(t => ({
-    ...t,
-    totalFracten: t.totalFracten ?? t.totalGold ?? 0,
-    totalGold:    t.totalGold ?? 0,
-  }));
+  return apiCall<MarketTrade[]>(`/api/market/${cityId}/trades`);
 }
 
 // ─── PATCH /api/market/:cityId/guild/fee ──────────────────────────────────────
@@ -143,12 +133,8 @@ export async function updateMarketFee(cityId: number, feeBps: number): Promise<{
 }
 
 // ─── GET /api/market/fee-box/:cityId ─────────────────────────────────────────
-// V2 : expose fracten (monnaie officielle). gold = legacy storage.
-export async function fetchMarketFeeBox(cityId: number): Promise<{ fracten: number; gold: number; canCollect: boolean }> {
-  const r = await apiCall<{ fracten?: number; gold?: number; canCollect: boolean }>(
-    `/api/market/fee-box/${cityId}`
-  );
-  return { fracten: r.fracten ?? r.gold ?? 0, gold: r.gold ?? 0, canCollect: r.canCollect };
+export async function fetchMarketFeeBox(cityId: number): Promise<{ fracten: number; canCollect: boolean }> {
+  return apiCall<{ fracten: number; canCollect: boolean }>(`/api/market/fee-box/${cityId}`);
 }
 
 // ─── POST /api/market/fee-box/:cityId/collect ─────────────────────────────────

@@ -472,22 +472,17 @@ export const cities = pgTable("cities", {
   // Phase 8 : valeurs économiques calculées côté serveur (base + bonus bâtiments)
   foodPerTurn:      integer("food_per_turn").notNull().default(2),
   productionPerTurn: integer("production_per_turn").notNull().default(1),
-  // Phase 9 : or par tour — legacy V1, conservé pour compatibilité
-  goldPerTurn:      integer("gold_per_turn").notNull().default(0),
-  // Bloc B V2 : fracten par tour — remplace goldPerTurn comme revenu monétaire
-  fractenPerTurn:   integer("fracten_per_turn").notNull().default(0),
+  // V2 : fracten par tour — monnaie officielle
+  fractenPerTurn:      integer("fracten_per_turn").notNull().default(0),
   // Tier 1 matériaux bruts par tour (alimentés par les bâtiments d'exploitation)
-  woodPerTurn:      integer("wood_per_turn").notNull().default(0),
-  stonePerTurn:     integer("stone_per_turn").notNull().default(0),
-  ironPerTurn:      integer("iron_per_turn").notNull().default(0),
-  copperPerTurn:    integer("copper_per_turn").notNull().default(0),
-  // F4 V2 : métaux communs et cuir/fourrure par tour — remplacent iron+copper et fur
+  woodPerTurn:         integer("wood_per_turn").notNull().default(0),
+  stonePerTurn:        integer("stone_per_turn").notNull().default(0),
+  // V2 : métaux communs et cuir/fourrure par tour
   commonMetalsPerTurn: integer("common_metals_per_turn").notNull().default(0),
   leatherFurPerTurn:   integer("leather_fur_per_turn").notNull().default(0),
-  coalPerTurn:      integer("coal_per_turn").notNull().default(0),
-  oilPerTurn:       integer("oil_per_turn").notNull().default(0),
-  herbsPerTurn:     integer("herbs_per_turn").notNull().default(0),
-  furPerTurn:       integer("fur_per_turn").notNull().default(0),
+  coalPerTurn:         integer("coal_per_turn").notNull().default(0),
+  oilPerTurn:          integer("oil_per_turn").notNull().default(0),
+  herbsPerTurn:        integer("herbs_per_turn").notNull().default(0),
 });
 
 export type CityRecord = typeof cities.$inferSelect;
@@ -562,11 +557,10 @@ export type TreatySignatureRecord = typeof treatySignatures.$inferSelect;
 // ─── Tables Phase 9 : économie globale de faction ─────────────────────────────
 // Une ligne par faction — stocks persistés mis à jour au tick de tour.
 // lastProcessedTurn : garde d'idempotence — empêche un double tick sur le même tour.
-// V2 : fracten remplace gold comme monnaie officielle.
+// V2 : fracten est la monnaie officielle.
 export const factionEconomy = pgTable("faction_economy", {
   id:                 serial("id").primaryKey(),
   factionId:          integer("faction_id").notNull().unique().references(() => factions.id),
-  gold:               integer("gold").notNull().default(0),    // V1 legacy — conserver pendant migration
   fracten:            integer("fracten").notNull().default(0), // V2 — monnaie officielle Nova Imperium
   food:               integer("food").notNull().default(0),
   lastProcessedTurn:  integer("last_processed_turn").notNull().default(0),
@@ -579,21 +573,17 @@ export type FactionEconomyRecord = typeof factionEconomy.$inferSelect;
 // Réserve personnelle du joueur.
 // Alimentée par les villes ayant une banque à chaque tick de production.
 // lastProductionTurn : garde d'idempotence du tick de production par-ville.
-// V2 : fracten remplace gold, common_metals remplace iron+copper, leather_fur remplace fur.
+// V2 : fracten, common_metals, leather_fur.
 export const playerBank = pgTable("player_bank", {
   playerId:           text("player_id").primaryKey(),
-  gold:               integer("gold").notNull().default(0),          // V1 legacy
   fracten:            integer("fracten").notNull().default(0),       // V2 monnaie
   food:               integer("food").notNull().default(0),
   wood:               integer("wood").notNull().default(0),
   stone:              integer("stone").notNull().default(0),
-  iron:               integer("iron").notNull().default(0),          // V1 legacy
-  copper:             integer("copper").notNull().default(0),        // V1 legacy
   common_metals:      integer("common_metals").notNull().default(0), // V2 métaux communs
   coal:               integer("coal").notNull().default(0),
   oil:                integer("oil").notNull().default(0),
   herbs:              integer("herbs").notNull().default(0),
-  fur:                integer("fur").notNull().default(0),           // V1 legacy
   leather_fur:        integer("leather_fur").notNull().default(0),   // V2 cuir et fourrure
   lastProductionTurn: integer("last_production_turn").notNull().default(0),
   updatedAt:          timestamp("updated_at").notNull().defaultNow(),
@@ -604,21 +594,17 @@ export type PlayerBankRecord = typeof playerBank.$inferSelect;
 // ─── city_pending_harvest ─────────────────────────────────────────────────────
 // Production en attente pour les villes sans banque.
 // Accumulée à chaque tick. Transférée vers city_inventory à la collecte.
-// V2 : nouvelles colonnes fracten, common_metals, leather_fur ajoutées.
+// V2 : fracten, common_metals, leather_fur.
 export const cityPendingHarvest = pgTable("city_pending_harvest", {
   cityId:        integer("city_id").primaryKey().references(() => cities.id),
-  gold:          integer("gold").notNull().default(0),          // V1 legacy
   fracten:       integer("fracten").notNull().default(0),       // V2
   food:          integer("food").notNull().default(0),
   wood:          integer("wood").notNull().default(0),
   stone:         integer("stone").notNull().default(0),
-  iron:          integer("iron").notNull().default(0),          // V1 legacy
-  copper:        integer("copper").notNull().default(0),        // V1 legacy
   common_metals: integer("common_metals").notNull().default(0), // V2
   coal:          integer("coal").notNull().default(0),
   oil:           integer("oil").notNull().default(0),
   herbs:         integer("herbs").notNull().default(0),
-  fur:           integer("fur").notNull().default(0),           // V1 legacy
   leather_fur:   integer("leather_fur").notNull().default(0),   // V2
   updatedAt:     timestamp("updated_at").notNull().defaultNow(),
 });
@@ -628,21 +614,17 @@ export type CityPendingHarvestRecord = typeof cityPendingHarvest.$inferSelect;
 // ─── city_inventory ───────────────────────────────────────────────────────────
 // Stocks physiques d'une ville après collecte.
 // Alimenté par l'action collect_harvest (pending_harvest → city_inventory).
-// V2 : nouvelles colonnes fracten, common_metals, leather_fur ajoutées.
+// V2 : fracten, common_metals, leather_fur.
 export const cityInventory = pgTable("city_inventory", {
   cityId:        integer("city_id").primaryKey().references(() => cities.id),
-  gold:          integer("gold").notNull().default(0),          // V1 legacy
   fracten:       integer("fracten").notNull().default(0),       // V2
   food:          integer("food").notNull().default(0),
   wood:          integer("wood").notNull().default(0),
   stone:         integer("stone").notNull().default(0),
-  iron:          integer("iron").notNull().default(0),          // V1 legacy
-  copper:        integer("copper").notNull().default(0),        // V1 legacy
   common_metals: integer("common_metals").notNull().default(0), // V2
   coal:          integer("coal").notNull().default(0),
   oil:           integer("oil").notNull().default(0),
   herbs:         integer("herbs").notNull().default(0),
-  fur:           integer("fur").notNull().default(0),           // V1 legacy
   leather_fur:   integer("leather_fur").notNull().default(0),   // V2
   updatedAt:     timestamp("updated_at").notNull().defaultNow(),
 });
@@ -653,21 +635,17 @@ export type CityInventoryRecord = typeof cityInventory.$inferSelect;
 // Ressources physiquement portées par le joueur (inventaire de transport).
 // Alimenté par l'action transfer_bank_to_player à complétion.
 // Capacité max : 50 unités totales. fracten compressé : 1 unité = 250 pièces (ceil(fracten/250)). Autres : 1 unité chacune.
-// V2 : fracten, common_metals, leather_fur ajoutés.
+// V2 : fracten, common_metals, leather_fur.
 export const playerTransport = pgTable("player_transport", {
   playerId:      text("player_id").primaryKey(),
-  gold:          integer("gold").notNull().default(0),          // V1 legacy
   fracten:       integer("fracten").notNull().default(0),       // V2 monnaie
   food:          integer("food").notNull().default(0),
   wood:          integer("wood").notNull().default(0),
   stone:         integer("stone").notNull().default(0),
-  iron:          integer("iron").notNull().default(0),          // V1 legacy
-  copper:        integer("copper").notNull().default(0),        // V1 legacy
   common_metals: integer("common_metals").notNull().default(0), // V2
   coal:          integer("coal").notNull().default(0),
   oil:           integer("oil").notNull().default(0),
   herbs:         integer("herbs").notNull().default(0),
-  fur:           integer("fur").notNull().default(0),           // V1 legacy
   leather_fur:   integer("leather_fur").notNull().default(0),   // V2
   updatedAt:     timestamp("updated_at").notNull().defaultNow(),
 });
@@ -741,7 +719,7 @@ export type MarketOrderRecord = typeof marketOrders.$inferSelect;
 // ─── market_trades ────────────────────────────────────────────────────────────
 // Journal des transactions exécutées sur le marché des ressources.
 // feeBpsApplied : fee actif au moment du fill (post lazy-promotion éventuelle).
-// feeAmount     : floor(totalGold × feeBpsApplied / 10000)
+// feeAmount     : floor(totalFracten × feeBpsApplied / 10000)
 export const marketTrades = pgTable("market_trades", {
   id:           serial("id").primaryKey(),
   cityId:       integer("city_id").notNull().references(() => cities.id),
@@ -752,8 +730,7 @@ export const marketTrades = pgTable("market_trades", {
   resourceType: text("resource_type").notNull(),
   quantity:     integer("quantity").notNull(),
   pricePerUnit: integer("price_per_unit").notNull(),
-  totalFracten: integer("total_fracten").notNull().default(0), // G5 V2 — monnaie officielle (fracten)
-  totalGold:    integer("total_gold").notNull(),               // G5 legacy sync temporaire — suppression G6+
+  totalFracten: integer("total_fracten").notNull().default(0), // V2 monnaie officielle
   feeBpsApplied:integer("fee_bps_applied").notNull(),
   feeAmount:    integer("fee_amount").notNull(),
   executedAt:   timestamp("executed_at").notNull().defaultNow(),
@@ -782,21 +759,17 @@ export type PlayerDiscoveredTileRecord = typeof playerDiscoveredTiles.$inferSele
 // Globale par joueur (PAS par ville, PAS par ordre).
 // Aucune capacité : ne bloque jamais un règlement de marché.
 // Le joueur récupère manuellement vers son transport ou sa banque.
-// V2 : fracten, common_metals, leather_fur ajoutés (passe additive).
+// V2 : fracten, common_metals, leather_fur.
 export const playerMarketBox = pgTable("player_market_box", {
   playerId:      text("player_id").primaryKey(),
-  gold:          integer("gold").notNull().default(0),          // V1 legacy
   fracten:       integer("fracten").notNull().default(0),       // V2
   food:          integer("food").notNull().default(0),
   wood:          integer("wood").notNull().default(0),
   stone:         integer("stone").notNull().default(0),
-  iron:          integer("iron").notNull().default(0),          // V1 legacy
-  copper:        integer("copper").notNull().default(0),        // V1 legacy
   common_metals: integer("common_metals").notNull().default(0), // V2
   coal:          integer("coal").notNull().default(0),
   oil:           integer("oil").notNull().default(0),
   herbs:         integer("herbs").notNull().default(0),
-  fur:           integer("fur").notNull().default(0),           // V1 legacy
   leather_fur:   integer("leather_fur").notNull().default(0),   // V2
   updatedAt:     timestamp("updated_at").notNull().defaultNow(),
 });
@@ -818,10 +791,9 @@ export type GameClock = typeof gameClock.$inferSelect;
 // ─── market_fee_box ─────────────────────────────────────────────────────────
 // Caisse locale de commission : utilisée quand la ville du marché
 // ne possède pas de bâtiment "bank". Collecte manuelle par le propriétaire.
-// V2 : fracten ajouté (monnaie officielle). gold conservé legacy storage.
+// V2 : fracten monnaie officielle.
 export const marketFeeBox = pgTable("market_fee_box", {
   cityId:    integer("city_id").primaryKey().references(() => cities.id, { onDelete: "cascade" }),
-  gold:      integer("gold").notNull().default(0),      // V1 legacy storage
   fracten:   integer("fracten").notNull().default(0),   // V2 monnaie officielle
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

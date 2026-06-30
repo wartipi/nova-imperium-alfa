@@ -829,7 +829,7 @@ export async function createTransferBankToCityAction(
     .limit(1);
 
   const bank = bankRows[0] ?? {
-    gold: 0, fracten: 0, food: 0, wood: 0, stone: 0,
+    fracten: 0, food: 0, wood: 0, stone: 0,
     common_metals: 0, coal: 0, oil: 0, herbs: 0, leather_fur: 0,
   };
 
@@ -960,7 +960,7 @@ export async function createTransferBankToPlayerAction(
     .where(eq(playerTransport.playerId, playerId))
     .limit(1);
 
-  const current = transportRows[0] ?? { gold: 0, fracten: 0, food: 0, wood: 0, stone: 0, common_metals: 0, coal: 0, oil: 0, herbs: 0, leather_fur: 0 };
+  const current = transportRows[0] ?? { fracten: 0, food: 0, wood: 0, stone: 0, common_metals: 0, coal: 0, oil: 0, herbs: 0, leather_fur: 0 };
   const currentTotal = computeTransportUnits(current);
   const addTotal     = computeTransportUnits({
     fracten: effectiveFracten, food, wood, stone,
@@ -982,7 +982,7 @@ export async function createTransferBankToPlayerAction(
     .limit(1);
 
   const bank = bankRows[0] ?? {
-    gold: 0, fracten: 0, food: 0, wood: 0, stone: 0,
+    fracten: 0, food: 0, wood: 0, stone: 0,
     common_metals: 0, coal: 0, oil: 0, herbs: 0, leather_fur: 0,
   };
 
@@ -1076,10 +1076,10 @@ export async function getOrInitPlayerTransport(playerId: string) {
   const now = new Date();
   const [row] = await db
     .insert(playerTransport)
-    .values({ playerId, gold: 0, food: 0, wood: 0, stone: 0,
+    .values({ playerId, fracten: 0, food: 0, wood: 0, stone: 0,
               coal: 0, oil: 0, herbs: 0,
-              fracten: 0, common_metals: 0, leather_fur: 0,
-              updatedAt: now } as any)
+              common_metals: 0, leather_fur: 0,
+              updatedAt: now })
     .onConflictDoUpdate({
       target: playerTransport.playerId,
       set: { updatedAt: now },
