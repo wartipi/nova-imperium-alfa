@@ -10,6 +10,7 @@ export interface ResourceIconConfig {
   symbol: string;
   color: string;
   name?: string;
+  tooltip?: string;
   legacy?: boolean; // true = ressource V1, non proposée dans les nouveaux contenus
 }
 
@@ -20,7 +21,7 @@ export interface ResourceIconConfig {
 export const RESOURCE_ICONS: Record<string, ResourceIconConfig> = {
 
   // ─── V2 — Monnaie ────────────────────────────────────────────────────────
-  fracten:          { symbol: '🪙', color: '#FFD700', name: 'Fracten' },
+  fracten:          { symbol: 'Ⓕ', color: '#B87333', name: 'Fracten', tooltip: 'Monnaie officielle' },
 
   // ─── V2 — Ressources de base ──────────────────────────────────────────────
   food:             { symbol: '🌾', color: '#7CFC00', name: 'Nourriture' },

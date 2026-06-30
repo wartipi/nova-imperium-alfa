@@ -1,0 +1,88 @@
+NOVA IMPERIUM — UI RESSOURCES V2 — ICÔNE FRACTEN
+Branche : NI-10.09
+
+OBJECTIF
+Affiner l’identité visuelle de la ressource monnaie `fracten`.
+
+Décision visuelle :
+
+* `fracten` doit être représenté par un cercle/pièce couleur cuivre
+* ajouter un `F` stylisé au centre
+* ne pas utiliser une pièce de cuivre réaliste sans symbole
+* ne pas nommer la ressource “cuivre”
+* le label affiché reste “Fracten”
+
+RAISON
+Le Fracten est la monnaie officielle.
+Il peut avoir une couleur cuivre pour rappeler une pièce, mais il ne doit pas être confondu avec une ressource de cuivre ou de métal.
+
+RÈGLE UI
+Partout où `fracten` apparaît :
+
+* icône : cercle couleur cuivre + F stylisé
+* label : Fracten
+* tooltip : Monnaie officielle
+* ne jamais afficher “or”, “gold”, “cuivre” ou “copper” pour cette monnaie
+
+PÉRIMÈTRE À AUDITER
+
+Chercher les icônes et labels de ressources dans :
+
+* client/src/lib/shared/ResourceIcons.ts
+* client/src/components/game/TreasuryPanel.tsx
+* client/src/components/game/PlayerTransportPanel.tsx
+* client/src/components/game/PublicMarketplace.tsx
+* client/src/components/game/HarvestPanel.tsx
+* client/src/components/game/ConstructionPanel.tsx
+* client/src/components/game/TileInfoPanel.tsx
+* client/src/components/game/UnifiedTerritoryPanel.tsx
+
+MODIFICATION DEMANDÉE
+
+1. Dans ResourceIcons.ts :
+
+* définir l’icône de `fracten` comme une pièce/cercle cuivre avec un F
+* utiliser un rendu simple, lisible, non réaliste
+* garder une icône compatible petit format
+
+2. Vérifier tous les labels :
+
+* `fracten` → “Fracten”
+* aucun “gold”
+* aucun “or”
+* aucun “cuivre”
+* aucun “copper”
+
+3. Vérifier les tooltips :
+
+* `fracten` doit être décrit comme monnaie officielle
+* ne pas le décrire comme métal ou ressource minière
+
+4. Ne pas modifier :
+
+* DB
+* backend
+* schema
+* logique marché
+* logique économie
+* calculs
+* migrations
+
+5. Lancer :
+   npm run check
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC
+2. FICHIERS MODIFIÉS
+3. ICÔNE FRACTEN AVANT / APRÈS
+4. LABELS VÉRIFIÉS
+5. TOOLTIP / DESCRIPTION
+6. RÉSULTAT npm run check
+7. CONCLUSION
+8. STOP
+
+STOP
+Ne pas modifier la logique économique.
+Ne pas modifier la DB.
+Ne pas lancer un autre bloc.

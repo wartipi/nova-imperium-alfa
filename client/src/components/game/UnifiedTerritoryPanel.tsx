@@ -22,7 +22,7 @@ const TERRAIN_LABELS: Record<string, string> = {
 // V2 officielles en tête — V1 legacy conservées avec suffixe pour stocks existants.
 const RESOURCE_LABELS: Record<string, string> = {
   // ─── V2 monnaie + ressources officielles ────────────────────────────────────
-  fracten:            '🪙 Fracten',
+  fracten:            'Ⓕ Fracten',
   food:               '🌾 Nourriture',
   wood:               '🪵 Bois',
   stone:              '🪨 Pierre',

@@ -15,7 +15,7 @@ import { CompetenceTree } from "./CompetenceTree";
 
 type MatKey = 'fracten'|'common_metals'|'leather_fur'|'food'|'wood'|'stone'|'coal'|'oil'|'herbs';
 const MAT_ROWS: Array<[MatKey, string, string]> = [
-  ['fracten','💎','Fracten'],['common_metals','⚒️','Métaux communs'],['leather_fur','🦺','Cuir & Fourrure'],
+  ['fracten','Ⓕ','Fracten'],['common_metals','⚒️','Métaux communs'],['leather_fur','🦺','Cuir & Fourrure'],
   ['food','🌿','Nourriture'],['wood','🪵','Bois'],['stone','🪨','Pierre'],
   ['coal','🖤','Charbon'],['oil','🛢️','Pétrole'],['herbs','🌱','Herbes'],
 ];

@@ -117,7 +117,7 @@ interface ResourceDef {
 }
 
 const RESOURCE_DEFS: ResourceDef[] = [
-  { key: 'fracten',       icon: '💎', label: 'Fracten'               },
+  { key: 'fracten',       icon: 'Ⓕ', label: 'Fracten'               },
   { key: 'common_metals', icon: '⚒️', label: 'Métaux communs'        },
   { key: 'leather_fur',   icon: '🧥', label: 'Cuir & fourrure'       },
   { key: 'food',          icon: '🌾', label: 'Nourriture'            },
