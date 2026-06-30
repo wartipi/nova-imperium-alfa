@@ -1141,7 +1141,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
               <div className="text-xs bg-amber-100 border border-amber-300 rounded px-2 py-1 mb-2">
                 <div className="flex flex-wrap gap-x-3 gap-y-0.5">
                   <span className="font-medium text-amber-800">📦 Stock ville :</span>
-                  <span className="text-amber-700">{inv.fracten}Ⓕ</span>
+                  <span className="text-amber-700">{inv.fracten}<span style={{ fontSize: '1.2em', lineHeight: 1 }}>Ⓕ</span></span>
                   <span className="text-amber-700">{inv.food}🌿</span>
                   <span className="text-amber-700">{inv.wood}🪵</span>
                   <span className="text-amber-700">{inv.stone}🪨</span>

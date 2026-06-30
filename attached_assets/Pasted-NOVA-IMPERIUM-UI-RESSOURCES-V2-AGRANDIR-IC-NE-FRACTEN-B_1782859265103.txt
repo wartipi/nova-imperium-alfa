@@ -1,0 +1,94 @@
+NOVA IMPERIUM — UI RESSOURCES V2 — AGRANDIR ICÔNE FRACTEN
+Branche : NI-10.09
+
+OBJECTIF
+Agrandir légèrement l’icône visuelle du Fracten dans l’interface.
+
+Conserver :
+
+* symbole : Ⓕ
+* couleur cuivre : #B87333
+* label : Fracten
+* tooltip : Monnaie officielle
+* aucune modification DB
+* aucune modification backend
+* aucune modification logique économique
+
+PROBLÈME
+L’icône Fracten est correcte visuellement, mais trop petite dans certains panneaux.
+
+MODIFICATION DEMANDÉE
+Agrandir seulement le rendu visuel du symbole Fracten d’environ 15% à 25%.
+
+PÉRIMÈTRE
+
+Vérifier et ajuster uniquement si nécessaire :
+
+* client/src/lib/shared/ResourceIcons.ts
+* client/src/components/game/TreasuryPanel.tsx
+* client/src/components/game/PlayerTransportPanel.tsx
+* client/src/components/game/ConstructionPanel.tsx
+* client/src/components/game/UnifiedTerritoryPanel.tsx
+
+RÈGLE D’AJUSTEMENT
+
+Si l’icône est rendue dans un span ou une cellule :
+
+* ajouter une classe ou style local pour Fracten seulement
+* augmenter font-size légèrement
+* garder vertical-align propre
+* ne pas agrandir toutes les ressources
+* ne pas modifier les icônes des autres ressources
+
+Exemple acceptable :
+
+* fractenIconClass = "text-lg leading-none"
+* ou style={{ fontSize: "1.15em", lineHeight: 1 }}
+
+Ne pas utiliser une image externe.
+Ne pas changer le symbole Ⓕ.
+Ne pas changer la couleur cuivre.
+
+VÉRIFICATIONS
+
+1. TreasuryPanel :
+
+* Fracten plus lisible
+* alignement des lignes conservé
+
+2. PlayerTransportPanel :
+
+* Fracten plus lisible
+* pas de décalage de tableau
+
+3. ConstructionPanel :
+
+* Fracten plus lisible dans coûts et inventaire
+* pas de casse layout
+
+4. UnifiedTerritoryPanel :
+
+* “Ⓕ Fracten” reste aligné
+
+5. ResourceIcons :
+
+* si une taille globale existe, ne pas impacter les autres ressources
+
+Lancer :
+npm run check
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC
+2. FICHIERS MODIFIÉS
+3. AJUSTEMENT DE TAILLE APPLIQUÉ
+4. VÉRIFICATION ALIGNEMENT
+5. RÉSULTAT npm run check
+6. CONCLUSION
+7. STOP
+
+STOP
+Ne pas modifier la DB.
+Ne pas modifier le backend.
+Ne pas modifier la logique économique.
+Ne pas changer le symbole Fracten.

@@ -290,7 +290,7 @@ export function PlayerTransportPanel() {
                   <div className="grid grid-cols-2 gap-1.5">
                     {active.map(([k, icon, label]) => (
                       <div key={k} className="bg-white border border-amber-200 rounded p-1.5 flex items-center gap-1.5">
-                        <span>{icon}</span>
+                        <span style={k === 'fracten' ? { fontSize: '1.2em', lineHeight: 1 } : {}}>{icon}</span>
                         <div>
                           <div className="text-xs text-amber-500 leading-tight">{label}</div>
                           <div className="font-bold text-amber-900 text-sm leading-tight">
@@ -322,7 +322,7 @@ export function PlayerTransportPanel() {
                     <div className="grid grid-cols-2 gap-1.5 mt-1">
                       {active.map(([k, icon, label]) => (
                         <div key={k} className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded p-1">
-                          <span className="text-sm">{icon}</span>
+                          <span className={k === 'fracten' ? 'text-lg leading-none' : 'text-sm'}>{icon}</span>
                           <div className="flex-1 min-w-0">
                             <div className="text-xs text-amber-500 truncate">{label}</div>
                             <div className="flex items-center gap-1">

@@ -149,7 +149,7 @@ function ActiveResourceRow({
 }) {
   return (
     <div className="flex items-center gap-2 py-0.5">
-      <span className="w-5 text-center">{icon}</span>
+      <span className={`w-5 text-center${icon === 'Ⓕ' ? ' text-lg leading-none' : ''}`}>{icon}</span>
       <span className="text-xs text-amber-800 w-20 shrink-0">{label}</span>
       <span className="text-xs text-amber-500 w-12 shrink-0">· {available}</span>
       <input
@@ -573,7 +573,7 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
                 <div className="space-y-0.5">
                   {bankVisible.map(({ key, icon, label }) => (
                     <div key={key} className="flex items-center gap-1.5 text-xs text-amber-800">
-                      <span>{icon}</span>
+                      <span style={key === 'fracten' ? { fontSize: '1.2em', lineHeight: 1 } : {}}>{icon}</span>
                       <span className="font-medium">{label}</span>
                       <span className="text-amber-500">·</span>
                       <span className="font-bold text-amber-900">{(bank as any)[key] ?? 0}</span>
