@@ -1,0 +1,256 @@
+NOVA IMPERIUM — RESSOURCES V2 — AUDIT POST-G6-B2 / PRÉ-G6-B3
+Branche : NI-10.09
+
+OBJECTIF
+Vérifier que G6-B2 a bien retiré les lectures V1 et DTO/frontend legacy avant de passer au retrait du schéma Drizzle.
+
+Ce bloc est un audit seulement.
+Ne pas modifier le code.
+Ne pas modifier la DB.
+Ne pas supprimer de colonnes.
+Ne pas faire DROP COLUMN.
+Ne pas modifier shared/schema.ts.
+
+CONTEXTE
+G6-B1 :
+
+* écritures V1 backend critiques retirées
+
+G6-B2 :
+
+* lectures V1 backend nettoyées
+* DTO/frontend legacy nettoyés
+* UI legacy retirée ou isolée
+* aucun DROP COLUMN
+
+ATTENTION
+Le dernier rapport mentionne aussi un changement hors-série lié au mode admin déplacement :
+
+* X-Admin-Mode
+* adminModeEnabled
+* requestMove
+* shouldIgnoreActionTimers
+* server/routes/playerActions.ts
+* server/types/actorContext.ts
+* client/src/lib/api/playerActionsApi.ts
+* client/src/components/game/GameCanvas.tsx
+
+Ce changement doit être audité séparément pour confirmer qu’il n’a pas contaminé le bloc ressources V2.
+
+PÉRIMÈTRE AUDITÉ
+
+Ressources V2 :
+
+* server/playerActionService.ts
+* server/marketService.ts
+* server/economyService.ts
+* server/routes/cities.ts
+* server/routes/economy.ts
+* server/routes/market.ts
+* client/src/lib/api/economyApi.ts
+* client/src/lib/api/citiesApi.ts
+* client/src/lib/api/marketApi.ts
+* client/src/components/game/TreasuryPanel.tsx
+* client/src/components/game/PlayerTransportPanel.tsx
+* client/src/components/game/HarvestPanel.tsx
+* client/src/components/game/PublicMarketplace.tsx
+* shared/schema.ts
+
+Audit hors-série admin mode :
+
+* server/types/actorContext.ts
+* server/routes/playerActions.ts
+* server/playerActionService.ts
+* client/src/lib/api/playerActionsApi.ts
+* client/src/components/game/GameCanvas.tsx
+
+DB :
+
+* SELECT uniquement
+
+INTERDICTIONS STRICTES
+
+Ne pas faire :
+
+* modification de code
+* modification DB
+* ALTER TABLE
+* UPDATE SQL
+* DELETE SQL
+* DROP COLUMN
+* retrait shared/schema.ts
+* G6-B3
+
+ÉTAPE 1 — SCAN CODE RESSOURCES V1
+
+Chercher dans tout le projet :
+
+gold
+iron
+copper
+fur
+goldPerTurn
+ironPerTurn
+copperPerTurn
+furPerTurn
+gold_per_turn
+iron_per_turn
+copper_per_turn
+fur_per_turn
+LEGACY_KEYS
+LEGACY_MAT_KEYS
+showLegacyDebug
+debug=legacy
+LEGACY_RESOURCE_DISABLED
+LEGACY_RESOURCES
+totalGold
+total_gold
+totalFracten
+total_fracten
+
+Classer chaque occurrence :
+
+A. Référence V1 active bloquante
+B. Rejet legacy acceptable
+C. shared/schema legacy attendu avant G6-B3
+D. totalGold/total_gold G5 attendu avant G6 final
+E. historique market_orders legacy acceptable
+F. commentaire/rapport
+G. dangereux / à corriger avant G6-B3
+
+ÉTAPE 2 — AUDIT DB POST-G6-B2
+
+Exécuter :
+
+SELECT 'player_bank' AS table_name,
+COALESCE(SUM(gold),0) AS gold,
+COALESCE(SUM(iron),0) AS iron,
+COALESCE(SUM(copper),0) AS copper,
+COALESCE(SUM(fur),0) AS fur
+FROM player_bank;
+
+Répéter pour :
+
+* player_transport
+* player_market_box
+* city_inventory
+* city_pending_harvest
+
+Puis :
+
+SELECT
+COALESCE(SUM(gold),0) AS gold,
+COALESCE(SUM(fracten),0) AS fracten
+FROM market_fee_box;
+
+SELECT
+COALESCE(SUM(gold_per_turn),0) AS gold_per_turn,
+COALESCE(SUM(iron_per_turn),0) AS iron_per_turn,
+COALESCE(SUM(copper_per_turn),0) AS copper_per_turn,
+COALESCE(SUM(fur_per_turn),0) AS fur_per_turn,
+COALESCE(SUM(fracten_per_turn),0) AS fracten_per_turn,
+COALESCE(SUM(common_metals_per_turn),0) AS common_metals_per_turn,
+COALESCE(SUM(leather_fur_per_turn),0) AS leather_fur_per_turn
+FROM cities;
+
+SELECT
+COUNT(*) AS trade_count,
+COALESCE(SUM(total_gold),0) AS total_gold_sum,
+COALESCE(SUM(total_fracten),0) AS total_fracten_sum,
+SUM(CASE WHEN total_gold = total_fracten THEN 0 ELSE 1 END) AS mismatches
+FROM market_trades;
+
+SELECT resource_type, status, COUNT(*) AS count
+FROM market_orders
+WHERE resource_type IN ('gold','iron','copper','fur')
+GROUP BY resource_type, status
+ORDER BY resource_type, status;
+
+ÉTAPE 3 — AUDIT SHARED/SCHEMA AVANT G6-B3
+
+Dans shared/schema.ts, lister toutes les colonnes encore présentes :
+
+* player_bank.gold/iron/copper/fur
+* player_transport.gold/iron/copper/fur
+* player_market_box.gold/iron/copper/fur
+* city_inventory.gold/iron/copper/fur
+* city_pending_harvest.gold/iron/copper/fur
+* market_fee_box.gold
+* cities.gold_per_turn/iron_per_turn/copper_per_turn/fur_per_turn
+* market_trades.total_gold
+
+Pour chaque colonne :
+
+* DB sum = 0 ou miroir ?
+* encore référencée hors schema ?
+* supprimable du schema en G6-B3 ?
+* risque TS attendu ?
+
+ÉTAPE 4 — AUDIT ADMIN MODE HORS-SÉRIE
+
+Vérifier les changements liés à :
+
+* X-Admin-Mode
+* adminModeEnabled
+* ActorContext
+* shouldIgnoreActionTimers
+* requestMove
+* GameCanvas.tsx
+
+Confirmer :
+
+1. Non-admin ne peut jamais forcer adminModeEnabled=true
+2. Admin + header absent garde comportement historique si voulu
+3. Admin + header false applique durée normale
+4. Admin + header true applique durée 0
+5. shouldIgnoreActionPointCosts n’a pas été modifié hors périmètre
+6. Aucun lien avec ressources V2
+7. Aucun risque de sécurité évident
+
+Si ce changement est hors scope mais valide :
+
+* le classer comme changement parallèle non bloquant
+  Si risque :
+* bloquer G6-B3 jusqu’à correction
+
+ÉTAPE 5 — MATRICE PRÉ-G6-B3
+
+Produire une matrice :
+
+Colonne :
+
+* table
+* colonne legacy
+* somme DB
+* référence code hors schema ?
+* type/frontend encore dépendant ?
+* supprimable de shared/schema.ts ?
+* supprimable DB plus tard ?
+* bloc recommandé
+
+ÉTAPE 6 — CONCLUSION
+
+Déterminer :
+
+* G6-B3 autorisé ou non
+* si oui : G6-B3 doit retirer uniquement shared/schema.ts + corriger TS éventuel
+* aucun DROP DB en G6-B3
+* G6-B4 sera le snapshot + DROP table par table
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC AUDIT POST-G6-B2
+2. SCAN CODE RESSOURCES V1
+3. AUDIT DB POST-G6-B2
+4. AUDIT SHARED/SCHEMA
+5. AUDIT ADMIN MODE HORS-SÉRIE
+6. MATRICE PRÉ-G6-B3
+7. BLOQUANTS RESTANTS
+8. CONCLUSION : G6-B3 AUTORISÉ OU NON
+9. STOP
+
+STOP
+Ne pas commencer G6-B3.
+Ne pas modifier le code.
+Ne pas modifier la DB.
+Ne pas faire DROP COLUMN.
