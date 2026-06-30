@@ -1,0 +1,375 @@
+NOVA IMPERIUM — RESSOURCES V2 — G6-B4 / SNAPSHOT DB + DROP COLONNES LEGACY
+Branche : NI-10.09
+
+OBJECTIF
+Supprimer physiquement les colonnes legacy V1 de la base de données, table par table, après validation du schéma TypeScript G6-B3.
+
+Ce bloc doit :
+
+* créer un checkpoint/snapshot avant DROP
+* vérifier que toutes les colonnes V1 ciblées existent encore en DB
+* vérifier que toutes les valeurs V1 sont déjà à zéro ou synchronisées
+* exécuter les DROP COLUMN table par table
+* relancer les contrôles DB après suppression
+* redémarrer le serveur
+* produire un rapport complet
+
+Ce bloc est le premier bloc autorisé à faire DROP COLUMN.
+Ne pas faire de refactor code.
+Ne pas modifier la logique applicative.
+Ne pas modifier frontend/backend sauf rapport.
+
+CONTEXTE
+G6-B3 terminé :
+
+* shared/schema.ts ne dépend plus des colonnes V1
+* corrections TS faites
+* serveur démarre
+* aucun accès ORM aux colonnes supprimables
+* DB pas encore modifiée
+
+Colonnes à supprimer physiquement :
+
+player_bank :
+
+* gold
+* iron
+* copper
+* fur
+
+player_transport :
+
+* gold
+* iron
+* copper
+* fur
+
+player_market_box :
+
+* gold
+* iron
+* copper
+* fur
+
+city_inventory :
+
+* gold
+* iron
+* copper
+* fur
+
+city_pending_harvest :
+
+* gold
+* iron
+* copper
+* fur
+
+market_fee_box :
+
+* gold
+
+cities :
+
+* gold_per_turn
+* iron_per_turn
+* copper_per_turn
+* fur_per_turn
+
+market_trades :
+
+* total_gold
+
+faction_economy si colonne présente :
+
+* gold
+
+PÉRIMÈTRE AUTORISÉ
+
+DB :
+
+* SELECT
+* ALTER TABLE ... DROP COLUMN IF EXISTS
+
+Code :
+
+* aucun changement de logique
+* rapport attached_assets seulement
+
+INTERDICTIONS STRICTES
+
+Ne pas modifier :
+
+* code frontend
+* code backend
+* shared/schema.ts
+* routes
+* services
+* UI
+* MapGenerator.ts
+* HexTile
+* ResourceRevealSystem.ts
+* auth
+* admin mode
+* cartography ownership
+* déploiement
+
+Ne pas faire :
+
+* DELETE
+* UPDATE
+* DROP TABLE
+* DROP DATABASE
+* refactor
+* G6-B5
+* suppression de données V2
+* migration autre que DROP des colonnes explicitement listées
+
+ÉTAPE 1 — SNAPSHOT / CHECKPOINT
+
+Créer un checkpoint Replit immédiatement avant tout DROP.
+
+Le rapport doit inclure :
+
+* timestamp
+* hash/nom checkpoint si disponible
+* confirmation rollback possible
+
+Ne pas continuer sans checkpoint.
+
+ÉTAPE 2 — STRUCTURE DB AVANT
+
+Lister les colonnes présentes :
+
+SELECT table_name, column_name
+FROM information_schema.columns
+WHERE table_name IN (
+'player_bank',
+'player_transport',
+'player_market_box',
+'city_inventory',
+'city_pending_harvest',
+'market_fee_box',
+'cities',
+'market_trades',
+'faction_economy'
+)
+ORDER BY table_name, ordinal_position;
+
+Confirmer que les colonnes legacy ciblées existent ou sont déjà absentes.
+
+ÉTAPE 3 — CONTRÔLE VALEURS AVANT DROP
+
+Vérifier une dernière fois :
+
+SELECT 'player_bank' AS table_name,
+COALESCE(SUM(gold),0) AS gold,
+COALESCE(SUM(iron),0) AS iron,
+COALESCE(SUM(copper),0) AS copper,
+COALESCE(SUM(fur),0) AS fur
+FROM player_bank;
+
+Répéter pour :
+
+* player_transport
+* player_market_box
+* city_inventory
+* city_pending_harvest
+
+Puis :
+
+SELECT
+COALESCE(SUM(gold),0) AS gold,
+COALESCE(SUM(fracten),0) AS fracten
+FROM market_fee_box;
+
+SELECT
+COALESCE(SUM(gold_per_turn),0) AS gold_per_turn,
+COALESCE(SUM(iron_per_turn),0) AS iron_per_turn,
+COALESCE(SUM(copper_per_turn),0) AS copper_per_turn,
+COALESCE(SUM(fur_per_turn),0) AS fur_per_turn,
+COALESCE(SUM(fracten_per_turn),0) AS fracten_per_turn,
+COALESCE(SUM(common_metals_per_turn),0) AS common_metals_per_turn,
+COALESCE(SUM(leather_fur_per_turn),0) AS leather_fur_per_turn
+FROM cities;
+
+SELECT
+COUNT(*) AS trade_count,
+COALESCE(SUM(total_gold),0) AS total_gold_sum,
+COALESCE(SUM(total_fracten),0) AS total_fracten_sum,
+SUM(CASE WHEN total_gold = total_fracten THEN 0 ELSE 1 END) AS mismatches
+FROM market_trades;
+
+Conditions :
+
+* toutes les ressources V1 = 0
+* market_trades mismatches = 0
+* total_fracten_sum = total_gold_sum
+
+Si une condition échoue :
+
+* STOP
+* ne pas DROP
+* rapporter le blocage
+
+ÉTAPE 4 — DROP TABLE PAR TABLE
+
+Exécuter en séquence, une table à la fois.
+
+1. market_fee_box
+
+ALTER TABLE market_fee_box
+DROP COLUMN IF EXISTS gold;
+
+2. market_trades
+
+ALTER TABLE market_trades
+DROP COLUMN IF EXISTS total_gold;
+
+3. cities
+
+ALTER TABLE cities
+DROP COLUMN IF EXISTS gold_per_turn,
+DROP COLUMN IF EXISTS iron_per_turn,
+DROP COLUMN IF EXISTS copper_per_turn,
+DROP COLUMN IF EXISTS fur_per_turn;
+
+4. city_pending_harvest
+
+ALTER TABLE city_pending_harvest
+DROP COLUMN IF EXISTS gold,
+DROP COLUMN IF EXISTS iron,
+DROP COLUMN IF EXISTS copper,
+DROP COLUMN IF EXISTS fur;
+
+5. city_inventory
+
+ALTER TABLE city_inventory
+DROP COLUMN IF EXISTS gold,
+DROP COLUMN IF EXISTS iron,
+DROP COLUMN IF EXISTS copper,
+DROP COLUMN IF EXISTS fur;
+
+6. player_market_box
+
+ALTER TABLE player_market_box
+DROP COLUMN IF EXISTS gold,
+DROP COLUMN IF EXISTS iron,
+DROP COLUMN IF EXISTS copper,
+DROP COLUMN IF EXISTS fur;
+
+7. player_transport
+
+ALTER TABLE player_transport
+DROP COLUMN IF EXISTS gold,
+DROP COLUMN IF EXISTS iron,
+DROP COLUMN IF EXISTS copper,
+DROP COLUMN IF EXISTS fur;
+
+8. player_bank
+
+ALTER TABLE player_bank
+DROP COLUMN IF EXISTS gold,
+DROP COLUMN IF EXISTS iron,
+DROP COLUMN IF EXISTS copper,
+DROP COLUMN IF EXISTS fur;
+
+9. faction_economy si colonne gold existe
+
+ALTER TABLE faction_economy
+DROP COLUMN IF EXISTS gold;
+
+Après chaque table :
+
+* confirmer succès
+* si erreur : STOP et rapporter la table/colonne
+
+ÉTAPE 5 — STRUCTURE DB APRÈS
+
+Relancer :
+
+SELECT table_name, column_name
+FROM information_schema.columns
+WHERE table_name IN (
+'player_bank',
+'player_transport',
+'player_market_box',
+'city_inventory',
+'city_pending_harvest',
+'market_fee_box',
+'cities',
+'market_trades',
+'faction_economy'
+)
+ORDER BY table_name, ordinal_position;
+
+Vérifier :
+
+* aucune colonne legacy supprimée ne reste
+* colonnes V2 présentes :
+
+  * fracten
+  * common_metals
+  * leather_fur
+  * total_fracten
+  * fracten_per_turn
+  * common_metals_per_turn
+  * leather_fur_per_turn
+
+ÉTAPE 6 — TESTS DB APRÈS
+
+Exécuter des SELECT V2 seulement :
+
+SELECT COALESCE(SUM(fracten),0), COALESCE(SUM(common_metals),0), COALESCE(SUM(leather_fur),0)
+FROM player_bank;
+
+SELECT COALESCE(SUM(fracten),0), COALESCE(SUM(common_metals),0), COALESCE(SUM(leather_fur),0)
+FROM player_transport;
+
+SELECT COALESCE(SUM(fracten),0), COALESCE(SUM(common_metals),0), COALESCE(SUM(leather_fur),0)
+FROM city_inventory;
+
+SELECT COUNT(*) AS trade_count, COALESCE(SUM(total_fracten),0) AS total_fracten_sum
+FROM market_trades;
+
+ÉTAPE 7 — TEST SERVEUR
+
+Redémarrer le serveur.
+
+Vérifier :
+
+* serveur démarre sans erreur
+* aucune erreur SQL colonne manquante
+* routes economy/market/cities ne crashent pas au démarrage
+
+Lancer si possible :
+
+npm run check
+
+Ne pas corriger de code dans G6-B4 sauf si erreur directe causée par DROP et trivialement liée à colonne supprimée. Si erreur non triviale :
+
+* STOP
+* rapporter
+* préparer G6-B5 correction code
+
+ÉTAPE 8 — RAPPORT FINAL
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC G6-B4
+2. SNAPSHOT / CHECKPOINT
+3. STRUCTURE DB AVANT
+4. CONTRÔLE VALEURS AVANT DROP
+5. DROP EXÉCUTÉS TABLE PAR TABLE
+6. STRUCTURE DB APRÈS
+7. TESTS DB V2 APRÈS
+8. TEST SERVEUR
+9. RÉSULTAT npm run check SI LANCÉ
+10. INCIDENTS / ROLLBACK SI APPLICABLE
+11. CONCLUSION : G6-B4 VALIDÉ OU NON
+12. STOP
+
+STOP
+Ne pas commencer G6-B5.
+Ne pas modifier le code sauf rapport.
+Ne pas toucher aux données V2.
