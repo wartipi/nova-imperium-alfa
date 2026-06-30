@@ -1,0 +1,374 @@
+NOVA IMPERIUM — RESSOURCES V2 — AUDIT POST-MIGRATION FINAL
+Branche : NI-10.09
+
+OBJECTIF
+Faire l’audit final après migration complète V1 → V2.
+
+Ce bloc est un audit uniquement.
+Il doit vérifier qu’il ne reste plus de dépendance active aux anciennes ressources économiques :
+
+* gold
+* iron
+* copper
+* fur
+* gold_per_turn
+* iron_per_turn
+* copper_per_turn
+* fur_per_turn
+* total_gold
+
+Ce bloc doit aussi classer les références textuelles restantes :
+
+* UI démo
+* anciennes seeds
+* terrain/resource icons
+* historiques market_orders
+* rapports attached_assets
+* commentaires
+* lore ou textes non techniques
+
+Ne pas modifier le code.
+Ne pas modifier la DB.
+Ne pas faire DROP COLUMN.
+Ne pas faire ALTER TABLE.
+Ne pas commencer un nouveau refactor.
+
+CONTEXTE
+Migration V2 complétée :
+
+G3 :
+
+* valeurs V1 neutralisées à 0
+
+G4 :
+
+* fallbacks backend V1 retirés
+
+G5 :
+
+* total_fracten ajouté et backfillé
+* total_gold remplacé puis retiré plus tard
+
+G6-B1 :
+
+* écritures V1 backend critiques retirées
+
+G6-B2 :
+
+* lectures V1 backend + DTO/frontend nettoyés
+
+G6-B3 :
+
+* colonnes legacy retirées de shared/schema.ts
+* corrections TypeScript faites
+
+G6-B4 :
+
+* 26 colonnes legacy V1 supprimées physiquement de la DB
+* serveur démarre sans erreur SQL
+* check ciblé G6 : 0 erreur
+
+PÉRIMÈTRE AUDITÉ
+
+Tout le projet :
+
+Backend :
+
+* server/
+
+Frontend :
+
+* client/src/
+
+Shared :
+
+* shared/
+
+Assets/rapports :
+
+* attached_assets/
+
+DB :
+
+* SELECT uniquement
+
+INTERDICTIONS STRICTES
+
+Ne pas faire :
+
+* modification de code
+* modification DB
+* ALTER TABLE
+* UPDATE SQL
+* DELETE SQL
+* DROP COLUMN
+* DROP TABLE
+* refactor
+* correction automatique
+* migration
+
+ÉTAPE 1 — AUDIT DB POST-MIGRATION
+
+Lister les colonnes économiques restantes dans les tables principales :
+
+SELECT table_name, column_name
+FROM information_schema.columns
+WHERE table_name IN (
+'player_bank',
+'player_transport',
+'player_market_box',
+'city_inventory',
+'city_pending_harvest',
+'market_fee_box',
+'cities',
+'market_trades',
+'faction_economy',
+'market_orders'
+)
+ORDER BY table_name, ordinal_position;
+
+Vérifier que ces colonnes sont absentes :
+
+* gold
+* iron
+* copper
+* fur
+* gold_per_turn
+* iron_per_turn
+* copper_per_turn
+* fur_per_turn
+* total_gold
+
+Vérifier que ces colonnes V2 sont présentes :
+
+* fracten
+* common_metals
+* leather_fur
+* fracten_per_turn
+* common_metals_per_turn
+* leather_fur_per_turn
+* total_fracten
+
+ÉTAPE 2 — TESTS DB V2
+
+Exécuter :
+
+SELECT
+COALESCE(SUM(fracten),0) AS fracten,
+COALESCE(SUM(common_metals),0) AS common_metals,
+COALESCE(SUM(leather_fur),0) AS leather_fur
+FROM player_bank;
+
+SELECT
+COALESCE(SUM(fracten),0) AS fracten,
+COALESCE(SUM(common_metals),0) AS common_metals,
+COALESCE(SUM(leather_fur),0) AS leather_fur
+FROM player_transport;
+
+SELECT
+COALESCE(SUM(fracten),0) AS fracten,
+COALESCE(SUM(common_metals),0) AS common_metals,
+COALESCE(SUM(leather_fur),0) AS leather_fur
+FROM player_market_box;
+
+SELECT
+COALESCE(SUM(fracten),0) AS fracten,
+COALESCE(SUM(common_metals),0) AS common_metals,
+COALESCE(SUM(leather_fur),0) AS leather_fur
+FROM city_inventory;
+
+SELECT
+COALESCE(SUM(fracten),0) AS fracten,
+COALESCE(SUM(common_metals),0) AS common_metals,
+COALESCE(SUM(leather_fur),0) AS leather_fur
+FROM city_pending_harvest;
+
+SELECT
+COALESCE(SUM(fracten),0) AS fracten
+FROM market_fee_box;
+
+SELECT
+COALESCE(SUM(fracten_per_turn),0) AS fracten_per_turn,
+COALESCE(SUM(common_metals_per_turn),0) AS common_metals_per_turn,
+COALESCE(SUM(leather_fur_per_turn),0) AS leather_fur_per_turn
+FROM cities;
+
+SELECT
+COUNT(*) AS trade_count,
+COALESCE(SUM(total_fracten),0) AS total_fracten_sum
+FROM market_trades;
+
+ÉTAPE 3 — MARKET_ORDERS HISTORIQUES
+
+Vérifier les anciens ordres V1 :
+
+SELECT resource_type, status, COUNT(*) AS count
+FROM market_orders
+WHERE resource_type IN ('gold','iron','copper','fur')
+GROUP BY resource_type, status
+ORDER BY resource_type, status;
+
+Classer :
+
+* open / partial = bloquant
+* filled / cancelled = historique acceptable
+
+Aucun ordre V1 ne doit être open ou partial.
+
+ÉTAPE 4 — SCAN CODE GLOBAL
+
+Chercher dans tout le projet :
+
+gold
+iron
+copper
+fur
+goldPerTurn
+ironPerTurn
+copperPerTurn
+furPerTurn
+gold_per_turn
+iron_per_turn
+copper_per_turn
+fur_per_turn
+totalGold
+total_gold
+totalFracten
+total_fracten
+LEGACY_RESOURCE_DISABLED
+LEGACY_RESOURCES
+
+Classer chaque occurrence :
+
+A. Référence économique V1 active bloquante
+B. Ancien market_order historique acceptable
+C. Terrain / ressource naturelle non économique acceptable
+D. UI démo ou ancien composant non connecté
+E. Seed ou outil de migration non actif
+F. Rapport attached_assets
+G. Commentaire / texte / documentation
+H. Rejet legacy volontaire
+I. V2 attendu : totalFracten / total_fracten
+J. Dangereux / à corriger dans un prochain bloc
+
+ÉTAPE 5 — AUDIT ROUTES ACTIVES
+
+Vérifier spécifiquement les routes actives :
+
+* server/routes/economy.ts
+* server/routes/cities.ts
+* server/routes/market.ts
+* server/playerActionService.ts
+* server/economyService.ts
+* server/marketService.ts
+* server/cityService.ts
+* server/buildingEffects.ts
+
+Confirmer :
+
+* aucun SELECT vers colonnes V1 supprimées
+* aucun INSERT vers colonnes V1 supprimées
+* aucun UPDATE vers colonnes V1 supprimées
+* aucun total_gold
+* aucun gold_per_turn / iron_per_turn / copper_per_turn / fur_per_turn
+* les vieux bodies V1 sont rejetés proprement si encore parsés
+
+ÉTAPE 6 — AUDIT FRONTEND ACTIF
+
+Vérifier spécifiquement :
+
+* TreasuryPanel.tsx
+* PlayerTransportPanel.tsx
+* HarvestPanel.tsx
+* PublicMarketplace.tsx
+* ConstructionPanel.tsx
+* MedievalHUD.tsx
+* economyApi.ts
+* marketApi.ts
+* citiesApi.ts
+
+Confirmer :
+
+* affichage principal V2 seulement
+* transferts V2 seulement
+* transport V2 seulement
+* marché totalFracten seulement
+* feeBox fracten seulement
+* aucun champ actif gold/iron/copper/fur dans les flux économiques
+
+Classer les occurrences restantes comme :
+
+* composant démo
+* historique
+* terrain
+* à corriger plus tard
+
+ÉTAPE 7 — CHECK TYPESCRIPT ET SERVEUR
+
+Lancer :
+
+npm run check
+
+Redémarrer le serveur.
+
+Vérifier :
+
+* serveur démarre
+* aucune erreur SQL colonne manquante
+* aucune erreur liée aux fichiers ressources V2
+* erreurs restantes, si présentes, classées préexistantes ou hors scope
+
+ÉTAPE 8 — MATRICE FINALE
+
+Produire une matrice :
+
+Colonnes :
+
+* fichier/table
+* occurrence legacy
+* type d’occurrence
+* actif ou non actif
+* risque
+* action recommandée
+* bloc futur si nécessaire
+
+Catégories :
+
+1. DB
+2. Backend actif
+3. Frontend actif
+4. Market historique
+5. Terrain / map
+6. Démo / ancien composant
+7. Rapports / documentation
+
+ÉTAPE 9 — CONCLUSION
+
+Déterminer :
+
+* migration V1 → V2 entièrement validée ou non
+* si aucun blocage actif reste
+* si un nettoyage cosmétique futur est recommandé
+* si la branche NI-10.09 peut être considérée stable côté ressources V2
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC AUDIT POST-MIGRATION
+2. AUDIT DB STRUCTURE
+3. TESTS DB V2
+4. MARKET_ORDERS HISTORIQUES
+5. SCAN CODE GLOBAL
+6. AUDIT ROUTES ACTIVES
+7. AUDIT FRONTEND ACTIF
+8. RÉSULTAT npm run check
+9. TEST SERVEUR
+10. MATRICE FINALE DES RÉSIDUS
+11. BLOQUANTS RESTANTS
+12. RECOMMANDATIONS FUTURES
+13. CONCLUSION FINALE
+14. STOP
+
+STOP
+Ne pas modifier le code.
+Ne pas modifier la DB.
+Ne pas lancer un nouveau bloc.
