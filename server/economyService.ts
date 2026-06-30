@@ -421,10 +421,9 @@ export async function applyProductionTickPerCity(
         .insert(cityPendingHarvest)
         .values({
           cityId: city.cityId,
-          gold: 0, fracten: g, food: f, wood: w, stone: s,
-          iron: 0, copper: 0,
+          fracten: g, food: f, wood: w, stone: s,
           common_metals: cm, leather_fur: lf,
-          coal: co, oil, herbs, fur: 0,
+          coal: co, oil, herbs,
           updatedAt: now,
         } as any)
         .onConflictDoUpdate({
@@ -456,11 +455,11 @@ export async function applyProductionTickPerCity(
     .insert(playerBank)
     .values({
       playerId,
-      gold: 0, fracten: bankFractenDelta, food: bankFoodDelta, wood: bankWoodDelta,
-      stone: bankStoneDelta, iron: 0, copper: 0,
+      fracten: bankFractenDelta, food: bankFoodDelta, wood: bankWoodDelta,
+      stone: bankStoneDelta,
       common_metals: bankCommonMetalsDelta, leather_fur: bankLeatherFurDelta,
       coal: bankCoalDelta, oil: bankOilDelta, herbs: bankHerbsDelta,
-      fur: 0, lastProductionTurn: currentTurn, updatedAt: now,
+      lastProductionTurn: currentTurn, updatedAt: now,
     })
     .onConflictDoUpdate({
       target: playerBank.playerId,

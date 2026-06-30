@@ -1,0 +1,339 @@
+NOVA IMPERIUM — RESSOURCES V2 — G6-B1 / NETTOYAGE ÉCRITURES V1 BACKEND CRITIQUES
+Branche : NI-10.09
+
+OBJECTIF
+Retirer les écritures backend actives vers les colonnes legacy V1 avant toute suppression future de colonnes.
+
+Ce bloc doit corriger uniquement les bloquants critiques identifiés par G6-A :
+
+* écritures vers city_inventory.gold/iron/copper/fur
+* lectures legacy city_pending_harvest.gold/iron/copper/fur si inutiles
+* écritures zéro vers player_bank.gold/iron/copper/fur
+* mappings buildingEffects vers gold/iron/copper/fur per-turn
+* écritures zéro market box / bank / transport si elles bloquent un futur DROP
+
+Ce bloc ne doit pas supprimer de colonnes.
+Ce bloc ne doit pas modifier la DB.
+Ce bloc ne doit pas faire DROP COLUMN.
+Ce bloc ne doit pas retirer shared/schema.ts pour l’instant.
+Ce bloc ne doit pas nettoyer tout le frontend.
+
+CONTEXTE
+G6-A a conclu :
+
+* toutes les valeurs DB V1 sont à 0
+* market_trades.total_gold = total_fracten, mais total_gold reste conservé temporairement
+* DROP COLUMN non autorisé
+* bloquants critiques restants : écritures/lectures V1 actives dans le backend
+
+PÉRIMÈTRE AUTORISÉ
+
+Backend uniquement :
+
+* server/playerActionService.ts
+* server/economyService.ts
+* server/buildingEffects.ts
+* server/marketService.ts
+
+Shared :
+
+* shared/schema.ts seulement commentaires si nécessaire
+* ne pas supprimer de colonnes schema
+
+Frontend :
+
+* aucun changement
+
+DB :
+
+* aucune modification
+
+INTERDICTIONS STRICTES
+
+Ne pas modifier :
+
+* routes/economy.ts sauf bug direct causé par ce bloc
+* routes/cities.ts
+* routes/market.ts
+* frontend
+* shared/schema.ts sauf commentaire
+* DB
+* migrations
+* market_trades.total_gold
+* totalGold / totalFracten G5
+* MapGenerator.ts
+* HexTile
+* ResourceRevealSystem.ts
+
+Ne pas faire :
+
+* DROP COLUMN
+* ALTER TABLE
+* UPDATE SQL
+* DELETE SQL
+* retrait complet DTO/frontend
+* G6-B2
+* refactor massif
+
+ÉTAPE 1 — AUDIT CIBLÉ AVANT MODIFICATION
+
+Lire et auditer :
+
+* server/playerActionService.ts
+* server/economyService.ts
+* server/buildingEffects.ts
+* server/marketService.ts
+
+Chercher :
+
+cityInventory.gold
+cityInventory.iron
+cityInventory.copper
+cityInventory.fur
+cityPendingHarvest.gold
+cityPendingHarvest.iron
+cityPendingHarvest.copper
+cityPendingHarvest.fur
+playerBank.gold
+playerBank.iron
+playerBank.copper
+playerBank.fur
+playerTransport.gold
+playerTransport.iron
+playerTransport.copper
+playerTransport.fur
+playerMarketBox.gold
+playerMarketBox.iron
+playerMarketBox.copper
+playerMarketBox.fur
+goldPerTurn
+ironPerTurn
+copperPerTurn
+furPerTurn
+T1_CITY_COLUMNS
+ResourceKey
+LEGACY_RESOURCES
+totalGold
+totalFracten
+
+Classer chaque occurrence :
+
+A. Écriture V1 critique à retirer maintenant
+B. Lecture V1 critique à retirer maintenant
+C. Zéro init V1 à retirer maintenant
+D. Type/schema legacy à conserver temporairement
+E. totalGold/totalFracten G5 à conserver
+F. Hors périmètre
+G. Dangereux / incohérent
+
+ÉTAPE 2 — PLAYERACTIONSERVICE
+
+Dans server/playerActionService.ts :
+
+Cible 1 — completeHarvestTransfer
+Retirer les écritures vers :
+
+* city_inventory.gold
+* city_inventory.iron
+* city_inventory.copper
+* city_inventory.fur
+
+La complétion doit créditer seulement :
+
+* fracten
+* food
+* wood
+* stone
+* common_metals
+* coal
+* oil
+* herbs
+* leather_fur
+
+Retirer aussi les variables pendingGold/pendingIron/pendingCopper/pendingFur si elles ne sont plus utiles.
+
+Cible 2 — lecture city_pending_harvest
+Retirer la lecture active de :
+
+* pending.gold
+* pending.iron
+* pending.copper
+* pending.fur
+
+La logique doit utiliser seulement :
+
+* pending.fracten
+* pending.common_metals
+* pending.leather_fur
+
+Ne pas modifier :
+
+* logique path hors V2
+* calcul de durée sauf si les V1 étaient incluses
+* interfaces schema
+
+ÉTAPE 3 — ECONOMYSERVICE
+
+Dans server/economyService.ts :
+
+Retirer les écritures explicites :
+
+* gold: 0
+* iron: 0
+* copper: 0
+* fur: 0
+
+Dans les INSERT/UPSERT :
+
+* player_bank
+* city_pending_harvest si présent
+* faction_economy si gold legacy encore écrit à 0
+
+Ne pas retirer :
+
+* fracten
+* common_metals
+* leather_fur
+* totalFracten
+* V2 production
+
+Retirer les champs V1 dans interfaces locales si elles ne servent plus.
+
+ÉTAPE 4 — BUILDINGEFFECTS
+
+Dans server/buildingEffects.ts :
+
+Retirer les mappings actifs :
+
+* iron → iron_per_turn
+* copper → copper_per_turn
+* fur → fur_per_turn
+* gold → gold_per_turn si présent
+
+Retirer les types ResourceKey/T1Material legacy seulement si cela ne casse pas le build.
+
+Après G6-B1 :
+
+* applyBuildingEffects ne doit plus pouvoir écrire ironPerTurn/copperPerTurn/furPerTurn
+* T1_CITY_COLUMNS ne doit plus exposer ces colonnes comme destinations actives
+
+Conserver les colonnes DB dans schema pour plus tard.
+
+ÉTAPE 5 — MARKETSERVICE
+
+Dans server/marketService.ts :
+
+Retirer les écritures zéro bloquantes :
+
+* gold: 0
+* iron: 0
+* copper: 0
+* fur: 0
+
+dans :
+
+* playerBank insert/upsert
+* playerTransport insert/upsert
+* playerMarketBox insert/upsert
+* marketFeeBox si gold:0 inutile
+
+Auditer sans refactor massif :
+
+* resourceCol(playerBank).iron/copper/fur
+* resourceColTransport.iron/copper/fur
+* resourceColMarketBox.iron/copper/fur
+
+Si ces lectures peuvent être retirées sans casser les ordres V2 :
+
+* les retirer maintenant
+  Sinon :
+* les classer comme G6-B2
+
+Ne pas toucher :
+
+* totalGold
+* totalFracten
+* market_trades.total_gold
+* insert trade G5
+
+ÉTAPE 6 — TESTS LOGIQUES
+
+Vérifier :
+
+1. Harvest completion
+
+* pending_harvest.fracten crédite city_inventory.fracten
+* pending_harvest.common_metals crédite city_inventory.common_metals
+* pending_harvest.leather_fur crédite city_inventory.leather_fur
+* aucun gold/iron/copper/fur crédité
+
+2. Production tick
+
+* player_bank.common_metals écrit correctement
+* player_bank.leather_fur écrit correctement
+* aucun iron/copper/fur écrit même à 0
+
+3. Building effects
+
+* mine écrit common_metals_per_turn
+* hunting_post écrit leather_fur_per_turn
+* aucune écriture per-turn V1
+
+4. Market V2
+
+* ordres fracten/common_metals/leather_fur fonctionnent
+* totalFracten/totalGold G5 inchangés
+* aucune écriture zéro V1 nouvelle
+
+ÉTAPE 7 — VÉRIFICATION
+
+Lancer :
+
+npm run check
+
+Puis rechercher dans les fichiers modifiés :
+
+gold
+iron
+copper
+fur
+goldPerTurn
+ironPerTurn
+copperPerTurn
+furPerTurn
+cityInventory.gold
+cityPendingHarvest.gold
+playerBank.iron
+playerTransport.copper
+playerMarketBox.fur
+totalGold
+totalFracten
+
+Classer les occurrences restantes :
+
+A. Retiré
+B. Type/schema legacy conservé temporairement
+C. totalGold/totalFracten G5 conservé
+D. Lecture restante reportée G6-B2
+E. Dangereux / à corriger maintenant
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC G6-B1
+2. AUDIT CIBLÉ AVANT MODIFICATION
+3. CHANGEMENTS PLAYERACTIONSERVICE
+4. CHANGEMENTS ECONOMYSERVICE
+5. CHANGEMENTS BUILDINGEFFECTS
+6. CHANGEMENTS MARKETSERVICE
+7. OCCURRENCES LEGACY RESTANTES
+8. TESTS LOGIQUES
+9. RÉSULTAT npm run check
+10. CONCLUSION : AUTORISÉ OU NON À PASSER À G6-B2
+11. STOP
+
+STOP
+Ne pas commencer G6-B2.
+Ne pas modifier la DB.
+Ne pas supprimer de colonnes.
+Ne pas faire DROP COLUMN.
+Ne pas toucher market_trades.total_gold.

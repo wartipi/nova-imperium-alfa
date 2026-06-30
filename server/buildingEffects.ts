@@ -19,12 +19,10 @@ import { eq, sql, and, gte, lte } from "drizzle-orm";
 
 // F4 V2 : common_metals remplace iron+copper, leather_fur remplace fur.
 // Les V1 (iron, copper, fur) sont conservés comme types legacy pour backward-compat.
+// G6-B1 : iron/copper/fur retirés — BUILDING_PRODUCTION ne produit que V2.
 export type T1Material =
   | 'food' | 'wood' | 'stone' | 'coal' | 'oil' | 'herbs'
-  // V2 principal F4
-  | 'common_metals' | 'leather_fur'
-  // V1 legacy (backward-compat uniquement — ne plus utiliser dans BUILDING_PRODUCTION)
-  | 'iron' | 'copper' | 'fur';
+  | 'common_metals' | 'leather_fur';
 
 export type BuildingProduction = Partial<Record<T1Material, number>>;
 
@@ -84,22 +82,16 @@ export const BUILDING_RESOURCE_PREREQS: Record<string, string[]> = {
 };
 
 // Colonnes cities affectées pour l'incrément/décrément production.
-// F4 V2 : common_metals → common_metals_per_turn, leather_fur → leather_fur_per_turn.
-// V1 legacy (iron, copper, fur) conservés pour backward-compat.
+// G6-B1 : iron/copper/fur retirés — T1Material ne contient plus que V2.
 export const T1_CITY_COLUMNS: Record<T1Material, string> = {
   food:          'food_per_turn',
   wood:          'wood_per_turn',
   stone:         'stone_per_turn',
-  // F4 V2 principal
   common_metals: 'common_metals_per_turn',
   leather_fur:   'leather_fur_per_turn',
   coal:          'coal_per_turn',
   oil:           'oil_per_turn',
   herbs:         'herbs_per_turn',
-  // V1 legacy — conservés pour bâtiments existants pré-F4
-  iron:          'iron_per_turn',
-  copper:        'copper_per_turn',
-  fur:           'fur_per_turn',
 };
 
 // ─── getCityControlledTerrains ────────────────────────────────────────────────

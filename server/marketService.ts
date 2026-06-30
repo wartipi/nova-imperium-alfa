@@ -188,20 +188,17 @@ export async function getTradeHistory(_cityId: number) {
 
 // ─── Helpers ressource player_bank ───────────────────────────────────────────
 // Accède dynamiquement à la colonne de ressource correcte.
-// V2 : common_metals, leather_fur ajoutés. iron/copper/fur conservés pour ordres legacy.
+// G6-B1 : iron/copper/fur retirés — aucun ordre V1 open en DB.
 function resourceCol(res: ResourceType): any {
-  const map: Record<ResourceType, any> = {
+  const map: Partial<Record<ResourceType, any>> = {
     food:          playerBank.food,
     wood:          playerBank.wood,
     stone:         playerBank.stone,
     coal:          playerBank.coal,
     oil:           playerBank.oil,
     herbs:         playerBank.herbs,
-    common_metals: (playerBank as any).common_metals,   // V2
-    leather_fur:   (playerBank as any).leather_fur,     // V2
-    iron:          playerBank.iron,                     // V1 legacy
-    copper:        playerBank.copper,                   // V1 legacy
-    fur:           playerBank.fur,                      // V1 legacy
+    common_metals: (playerBank as any).common_metals,
+    leather_fur:   (playerBank as any).leather_fur,
   };
   return map[res];
 }
@@ -212,7 +209,7 @@ async function ensurePlayerBank(playerId: string, tx?: any) {
     .insert(playerBank)
     .values({ playerId, gold: 0, fracten: 0, food: 0, wood: 0, stone: 0,
               common_metals: 0, coal: 0, oil: 0, herbs: 0, leather_fur: 0,
-              iron: 0, copper: 0, fur: 0, lastProductionTurn: 0 } as any)
+              lastProductionTurn: 0 } as any)
     .onConflictDoNothing();
 }
 
@@ -265,19 +262,17 @@ async function creditFractenPlayer(playerId: string, amount: number, tx?: any): 
 // Marché V2 transport-based, sans réservation de capacité.
 // Overflow toléré pour ne pas bloquer escrow/cancel/fill.
 
+// G6-B1 : iron/copper/fur retirés — aucun ordre V1 open en DB.
 function transportResourceCol(res: ResourceType): any {
-  const map: Record<ResourceType, any> = {
+  const map: Partial<Record<ResourceType, any>> = {
     food:          playerTransport.food,
     wood:          playerTransport.wood,
     stone:         playerTransport.stone,
     coal:          playerTransport.coal,
     oil:           playerTransport.oil,
     herbs:         playerTransport.herbs,
-    common_metals: (playerTransport as any).common_metals,  // V2
-    leather_fur:   (playerTransport as any).leather_fur,    // V2
-    iron:          playerTransport.iron,                    // V1 legacy
-    copper:        playerTransport.copper,                  // V1 legacy
-    fur:           playerTransport.fur,                     // V1 legacy
+    common_metals: (playerTransport as any).common_metals,
+    leather_fur:   (playerTransport as any).leather_fur,
   };
   return map[res];
 }
@@ -287,8 +282,7 @@ async function ensurePlayerTransport(playerId: string, tx?: any) {
   await target
     .insert(playerTransport)
     .values({ playerId, gold: 0, fracten: 0, food: 0, wood: 0, stone: 0,
-              common_metals: 0, coal: 0, oil: 0, herbs: 0, leather_fur: 0,
-              iron: 0, copper: 0, fur: 0 } as any)
+              common_metals: 0, coal: 0, oil: 0, herbs: 0, leather_fur: 0 } as any)
     .onConflictDoNothing();
 }
 
@@ -345,8 +339,7 @@ async function ensurePlayerMarketBox(playerId: string, tx?: any) {
   await target
     .insert(playerMarketBox)
     .values({ playerId, gold: 0, fracten: 0, food: 0, wood: 0, stone: 0,
-              common_metals: 0, coal: 0, oil: 0, herbs: 0, leather_fur: 0,
-              iron: 0, copper: 0, fur: 0 } as any)
+              common_metals: 0, coal: 0, oil: 0, herbs: 0, leather_fur: 0 } as any)
     .onConflictDoNothing();
 }
 
@@ -360,19 +353,17 @@ async function creditMarketBoxFracten(playerId: string, amount: number, tx?: any
     .where(eq(playerMarketBox.playerId, playerId));
 }
 
+// G6-B1 : iron/copper/fur retirés — aucun ordre V1 open en DB.
 function marketBoxResourceCol(res: ResourceType): any {
-  const map: Record<ResourceType, any> = {
+  const map: Partial<Record<ResourceType, any>> = {
     food:          playerMarketBox.food,
     wood:          playerMarketBox.wood,
     stone:         playerMarketBox.stone,
     coal:          playerMarketBox.coal,
     oil:           playerMarketBox.oil,
     herbs:         playerMarketBox.herbs,
-    common_metals: (playerMarketBox as any).common_metals,  // V2
-    leather_fur:   (playerMarketBox as any).leather_fur,    // V2
-    iron:          playerMarketBox.iron,                    // V1 legacy
-    copper:        playerMarketBox.copper,                  // V1 legacy
-    fur:           playerMarketBox.fur,                     // V1 legacy
+    common_metals: (playerMarketBox as any).common_metals,
+    leather_fur:   (playerMarketBox as any).leather_fur,
   };
   return map[res];
 }
@@ -746,38 +737,33 @@ export async function claimMarketBoxToTransport(playerId: string): Promise<{ ok:
 
   const now = new Date();
   await db.transaction(async (tx) => {
-    // Créditer transport — V2 + V1
+    // Créditer transport — V2 + communs (G6-B1 : iron/copper/fur retirés)
     await tx
       .update(playerTransport)
       .set({
-        // V2
         fracten:       sql`${(playerTransport as any).fracten}       + ${boxV2.fracten ?? 0}`,
         common_metals: sql`${(playerTransport as any).common_metals} + ${boxV2.common_metals ?? 0}`,
         leather_fur:   sql`${(playerTransport as any).leather_fur}   + ${boxV2.leather_fur ?? 0}`,
-        // V1
         food:      sql`${playerTransport.food}   + ${box.food}`,
         wood:      sql`${playerTransport.wood}   + ${box.wood}`,
         stone:     sql`${playerTransport.stone}  + ${box.stone}`,
-        iron:      sql`${playerTransport.iron}   + ${box.iron}`,
-        copper:    sql`${playerTransport.copper} + ${box.copper}`,
         coal:      sql`${playerTransport.coal}   + ${box.coal}`,
         oil:       sql`${playerTransport.oil}    + ${box.oil}`,
         herbs:     sql`${playerTransport.herbs}  + ${box.herbs}`,
-        fur:       sql`${playerTransport.fur}    + ${box.fur}`,
         updatedAt: now,
       } as any)
       .where(eq(playerTransport.playerId, playerId));
 
-    // Vider la boîte — V2 + V1
+    // Vider la boîte — V2 + communs (G6-B1 : iron/copper/fur retirés)
     await tx
       .update(playerMarketBox)
       .set({ fracten: 0, common_metals: 0, leather_fur: 0,
-             food: 0, wood: 0, stone: 0, iron: 0,
-             copper: 0, coal: 0, oil: 0, herbs: 0, fur: 0, updatedAt: now } as any)
+             food: 0, wood: 0, stone: 0,
+             coal: 0, oil: 0, herbs: 0, updatedAt: now } as any)
       .where(eq(playerMarketBox.playerId, playerId));
   });
 
-  console.log(`[market] claimToTransport player=${playerId} +${toAdd}u (gold=${box.gold})`);
+  console.log(`[market] claimToTransport player=${playerId} +${toAdd}u`);
   return { ok: true };
 }
 
@@ -797,42 +783,37 @@ export async function claimMarketBoxToBank(playerId: string): Promise<{ ok: true
   if (!box) throw Object.assign(new Error("Boîte introuvable"), { status: 500 });
 
   const b2 = box as any;
+  // G6-B1 : iron/copper/fur retirés du check hasContent
   const hasContent = (b2.fracten ?? 0) > 0 || (b2.common_metals ?? 0) > 0 || (b2.leather_fur ?? 0) > 0
     || box.food > 0 || box.wood > 0 || box.stone > 0
-    || box.iron > 0 || box.copper > 0 || box.coal > 0 || box.oil > 0
-    || box.herbs > 0 || box.fur > 0;
+    || box.coal > 0 || box.oil > 0 || box.herbs > 0;
   if (!hasContent) throw Object.assign(new Error("Boîte de règlement vide"), { status: 400 });
 
   const now = new Date();
   await db.transaction(async (tx) => {
-    // Créditer banque — V2 + V1
+    // Créditer banque — V2 + communs (G6-B1 : iron/copper/fur retirés)
     await tx
       .update(playerBank)
       .set({
-        // V2
         fracten:       sql`${(playerBank as any).fracten}       + ${b2.fracten ?? 0}`,
         common_metals: sql`${(playerBank as any).common_metals} + ${b2.common_metals ?? 0}`,
         leather_fur:   sql`${(playerBank as any).leather_fur}   + ${b2.leather_fur ?? 0}`,
-        // V1
         food:      sql`${playerBank.food}   + ${box.food}`,
         wood:      sql`${playerBank.wood}   + ${box.wood}`,
         stone:     sql`${playerBank.stone}  + ${box.stone}`,
-        iron:      sql`${playerBank.iron}   + ${box.iron}`,
-        copper:    sql`${playerBank.copper} + ${box.copper}`,
         coal:      sql`${playerBank.coal}   + ${box.coal}`,
         oil:       sql`${playerBank.oil}    + ${box.oil}`,
         herbs:     sql`${playerBank.herbs}  + ${box.herbs}`,
-        fur:       sql`${playerBank.fur}    + ${box.fur}`,
         updatedAt: now,
       } as any)
       .where(eq(playerBank.playerId, playerId));
 
-    // Vider la boîte — V2 + V1
+    // Vider la boîte — V2 + communs (G6-B1 : iron/copper/fur retirés)
     await tx
       .update(playerMarketBox)
       .set({ fracten: 0, common_metals: 0, leather_fur: 0,
-             food: 0, wood: 0, stone: 0, iron: 0,
-             copper: 0, coal: 0, oil: 0, herbs: 0, fur: 0, updatedAt: now } as any)
+             food: 0, wood: 0, stone: 0,
+             coal: 0, oil: 0, herbs: 0, updatedAt: now } as any)
       .where(eq(playerMarketBox.playerId, playerId));
   });
 
@@ -868,10 +849,9 @@ export async function collectFeeBox(
     .where(eq(marketFeeBox.cityId, cityId))
     .limit(1);
 
-  // V2 : collecter fracten principalement ; gold legacy comme fallback
+  // V2 : fracten uniquement — G6-B1 : goldLegacy retiré (toujours = 0)
   const fracten = row?.fracten ?? 0;
-  const goldLegacy = row?.gold ?? 0;
-  const totalCollected = fracten + goldLegacy; // somme pour reporting — V2 > 0 en pratique
+  const totalCollected = fracten;
   if (totalCollected <= 0) throw Object.assign(new Error("Caisse locale vide"), { status: 400 });
 
   const owner = await deriveMarketOwner(cityId);
@@ -895,10 +875,10 @@ export async function collectFeeBox(
   }
 
   await db.transaction(async (tx) => {
-    // Vider la caisse — fracten + gold legacy
+    // Vider la caisse — fracten uniquement (G6-B1 : gold: 0 retiré)
     await tx
       .update(marketFeeBox)
-      .set({ fracten: 0, gold: 0, updatedAt: new Date() } as any)
+      .set({ fracten: 0, updatedAt: new Date() } as any)
       .where(eq(marketFeeBox.cityId, cityId));
 
     // Transférer vers le compte propriétaire en fracten (V2)
