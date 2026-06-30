@@ -26,12 +26,11 @@ interface CityFull {
   foodPerTurn:      number;
   woodPerTurn?:     number;
   stonePerTurn?:    number;
-  ironPerTurn?:     number;
-  copperPerTurn?:   number;
+  commonMetalsPerTurn?: number;
   coalPerTurn?:     number;
   oilPerTurn?:      number;
   herbsPerTurn?:    number;
-  furPerTurn?:      number;
+  leatherFurPerTurn?: number;
 }
 
 interface CityHarvestState {
@@ -43,7 +42,6 @@ interface CityHarvestState {
 }
 
 interface TransferState {
-  // V2 principal F2
   fracten:       string;
   common_metals: string;
   leather_fur:   string;
@@ -53,11 +51,6 @@ interface TransferState {
   coal:          string;
   oil:           string;
   herbs:         string;
-  // V1 legacy (conservés pour backward-compat)
-  gold:    string;
-  iron:    string;
-  copper:  string;
-  fur:     string;
   cityId:  string;
   loading: boolean;
   message: string | null;
@@ -84,7 +77,6 @@ function parseAmount(s: string): number {
 }
 
 type Mats = {
-  // V2 principal F2
   fracten?:       number;
   common_metals?: number;
   leather_fur?:   number;
@@ -94,24 +86,17 @@ type Mats = {
   coal?:          number;
   oil?:           number;
   herbs?:         number;
-  // V1 legacy
-  gold?:   number;
-  iron?:   number;
-  copper?: number;
-  fur?:    number;
 };
 
 function isMatsEmpty(m: Mats): boolean {
   return (m.fracten ?? 0) === 0 && (m.common_metals ?? 0) === 0 && (m.leather_fur ?? 0) === 0
       && (m.food ?? 0) === 0 && (m.wood ?? 0) === 0 && (m.stone ?? 0) === 0
-      && (m.coal ?? 0) === 0 && (m.oil ?? 0) === 0 && (m.herbs ?? 0) === 0
-      && (m.gold ?? 0) === 0 && (m.iron ?? 0) === 0 && (m.copper ?? 0) === 0 && (m.fur ?? 0) === 0;
+      && (m.coal ?? 0) === 0 && (m.oil ?? 0) === 0 && (m.herbs ?? 0) === 0;
 }
 
 const MAT_ICONS: Array<[keyof Mats, string]> = [
   ['fracten','💎'],['common_metals','⚒️'],['leather_fur','🧥'],
   ['food','🌾'],['wood','🪵'],['stone','🪨'],['coal','⚫'],['oil','🛢️'],['herbs','🌿'],
-  ['gold','🪙'],['iron','⚙️'],['copper','🟤'],['fur','🦊'],
 ];
 
 function formatMats(m: Mats): string {
@@ -131,7 +116,6 @@ interface ResourceDef {
   label: string;
 }
 
-// F2 V2 : ressources V2 en premier, V1 legacy en dernier.
 const RESOURCE_DEFS: ResourceDef[] = [
   { key: 'fracten',       icon: '💎', label: 'Fracten'               },
   { key: 'common_metals', icon: '⚒️', label: 'Métaux communs'        },
@@ -142,46 +126,13 @@ const RESOURCE_DEFS: ResourceDef[] = [
   { key: 'coal',          icon: '⚫', label: 'Charbon'               },
   { key: 'oil',           icon: '🛢️', label: 'Pétrole'               },
   { key: 'herbs',         icon: '🌿', label: 'Herbes'                },
-  { key: 'gold',          icon: '🥇', label: 'Or (legacy)'           },
-  { key: 'iron',          icon: '⚙️', label: 'Fer (legacy)'          },
-  { key: 'copper',        icon: '🔶', label: 'Cuivre (legacy)'       },
-  { key: 'fur',           icon: '🦊', label: 'Fourrure (legacy)'     },
 ];
-
-// ─── G2 — Masquage legacy ─────────────────────────────────────────────────────
-// Afficher les ressources V1 seulement si orphelines (V2 équivalent = 0)
-// ou si ?debug=legacy est dans l'URL.
-const showLegacyDebug =
-  typeof window !== "undefined" &&
-  new URLSearchParams(window.location.search).get("debug") === "legacy";
-
-const LEGACY_KEYS = new Set<ResourceKey>(['gold', 'iron', 'copper', 'fur']);
-
-// Retourne true si ce champ legacy n'a PAS d'équivalent V2 non nul (= orphelin).
-function isLegacyOrphan(key: ResourceKey, src: Record<string, number | undefined | null>): boolean {
-  if (key === 'gold')   return (src.fracten       ?? 0) === 0;
-  if (key === 'iron')   return (src.common_metals ?? 0) === 0;
-  if (key === 'copper') return (src.common_metals ?? 0) === 0;
-  if (key === 'fur')    return (src.leather_fur   ?? 0) === 0;
-  return true;
-}
 
 function visibleResources(
   defs: ResourceDef[],
   source: Record<string, number | undefined | null>,
-  showLegacy = showLegacyDebug,
 ): ResourceDef[] {
-  return defs
-    .filter(d => {
-      if ((source[d.key] ?? 0) <= 0) return false;
-      if (LEGACY_KEYS.has(d.key)) return showLegacy || isLegacyOrphan(d.key, source);
-      return true;
-    })
-    .map(d =>
-      showLegacy && LEGACY_KEYS.has(d.key)
-        ? { ...d, label: d.label.replace(' (legacy)', ' (legacy debug)') }
-        : d
-    );
+  return defs.filter(d => (source[d.key] ?? 0) > 0);
 }
 
 // ─── Composant de ligne de ressource unique ───────────────────────────────────
@@ -300,11 +251,8 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
 
   // États transfert
   const EMPTY_TRANSFER: TransferState = {
-    // V2 principal F2
     fracten: "", common_metals: "", leather_fur: "",
     food: "", wood: "", stone: "", coal: "", oil: "", herbs: "",
-    // V1 legacy
-    gold: "", iron: "", copper: "", fur: "",
     cityId: "", loading: false, message: null,
   };
 
@@ -406,7 +354,6 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
   const handleTransferToCity = async () => {
     const cityId = parseInt(toCity.cityId, 10);
     const mats = {
-      // V2 principal F2
       fracten:       parseAmount(toCity.fracten),
       common_metals: parseAmount(toCity.common_metals),
       leather_fur:   parseAmount(toCity.leather_fur),
@@ -416,11 +363,6 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
       coal:          parseAmount(toCity.coal),
       oil:           parseAmount(toCity.oil),
       herbs:         parseAmount(toCity.herbs),
-      // V1 legacy (si remplis par l'utilisateur)
-      gold:   parseAmount(toCity.gold),
-      iron:   parseAmount(toCity.iron),
-      copper: parseAmount(toCity.copper),
-      fur:    parseAmount(toCity.fur),
     };
     if (isNaN(cityId) || cityId < 1) {
       setToCity(prev => ({ ...prev, message: "❌ Sélectionnez une ville" }));
@@ -440,8 +382,7 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
         : `⏳ Transfert en cours — ${min} min`;
       setToCity(prev => ({ ...prev, loading: false, message: msg,
         fracten: "", common_metals: "", leather_fur: "",
-        food: "", wood: "", stone: "", coal: "", oil: "", herbs: "",
-        gold: "", iron: "", copper: "", fur: "" }));
+        food: "", wood: "", stone: "", coal: "", oil: "", herbs: "" }));
       setTimeout(() => {
         getPlayerBank().then(b => setBank(b)).catch(() => {});
         window.dispatchEvent(new CustomEvent('nova:logistic-refresh'));
@@ -471,7 +412,6 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
 
   const handleTransferToPlayer = async () => {
     const mats = {
-      // V2 principal F2
       fracten:       parseAmount(toPlayer.fracten),
       common_metals: parseAmount(toPlayer.common_metals),
       leather_fur:   parseAmount(toPlayer.leather_fur),
@@ -481,11 +421,6 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
       coal:          parseAmount(toPlayer.coal),
       oil:           parseAmount(toPlayer.oil),
       herbs:         parseAmount(toPlayer.herbs),
-      // V1 legacy
-      gold:   parseAmount(toPlayer.gold),
-      iron:   parseAmount(toPlayer.iron),
-      copper: parseAmount(toPlayer.copper),
-      fur:    parseAmount(toPlayer.fur),
     };
     if (isMatsEmpty(mats)) {
       setToPlayer(prev => ({ ...prev, message: "❌ Montant nul" }));
@@ -501,8 +436,7 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
         : `⏳ Transfert en cours — ${min} min`;
       setToPlayer(prev => ({ ...prev, loading: false, message: msg,
         fracten: "", common_metals: "", leather_fur: "",
-        food: "", wood: "", stone: "", coal: "", oil: "", herbs: "",
-        gold: "", iron: "", copper: "", fur: "" }));
+        food: "", wood: "", stone: "", coal: "", oil: "", herbs: "" }));
       // Rafraîchit uniquement la banque (déjà débitée immédiatement).
       // Le refresh inventaire transport est déclenché par ActiveActionWidget
       // à la vraie complétion (nova:logistic-refresh @ completion réelle).
@@ -535,22 +469,15 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
 
   const handleDepositToBank = async () => {
     const mats = {
-      // V2 principal
       fracten:       parseAmount(toBank.fracten),
       common_metals: parseAmount(toBank.common_metals),
       leather_fur:   parseAmount(toBank.leather_fur),
-      // Autres V2
       food:   parseAmount(toBank.food),
       wood:   parseAmount(toBank.wood),
       stone:  parseAmount(toBank.stone),
       coal:   parseAmount(toBank.coal),
       oil:    parseAmount(toBank.oil),
       herbs:  parseAmount(toBank.herbs),
-      // V1 legacy (fallback backward-compat)
-      gold:   parseAmount(toBank.gold),
-      iron:   parseAmount(toBank.iron),
-      copper: parseAmount(toBank.copper),
-      fur:    parseAmount(toBank.fur),
     };
     if (Object.values(mats).every(v => v === 0)) {
       setToBank(prev => ({ ...prev, message: "❌ Montant nul" }));
@@ -560,8 +487,8 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
     try {
       await postDepositTransportToBank(mats);
       setToBank(prev => ({ ...prev, loading: false, message: "✅ Déposé en banque",
-        gold: "", food: "", wood: "", stone: "", iron: "",
-        copper: "", coal: "", oil: "", herbs: "", fur: "" }));
+        fracten: "", common_metals: "", leather_fur: "",
+        food: "", wood: "", stone: "", coal: "", oil: "", herbs: "" }));
       setTimeout(() => {
         Promise.allSettled([getPlayerBank(), getPlayerTransport()]).then(([b, t]) => {
           if (b.status === "fulfilled") setBank(b.value);
@@ -852,17 +779,15 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
                   <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-amber-700 mb-1.5 text-xs">
                     {(() => {
                       const perTurn: Mats = {
-                        fracten: city.fractenPerTurn ?? 0,
-                        gold:   0,
-                        food:   city.foodPerTurn   ?? 0,
-                        wood:   city.woodPerTurn   ?? 0,
-                        stone:  city.stonePerTurn  ?? 0,
-                        iron:   city.ironPerTurn   ?? 0,
-                        copper: city.copperPerTurn ?? 0,
-                        coal:   city.coalPerTurn   ?? 0,
-                        oil:    city.oilPerTurn    ?? 0,
-                        herbs:  city.herbsPerTurn  ?? 0,
-                        fur:    city.furPerTurn    ?? 0,
+                        fracten:       city.fractenPerTurn      ?? 0,
+                        food:          city.foodPerTurn         ?? 0,
+                        wood:          city.woodPerTurn         ?? 0,
+                        stone:         city.stonePerTurn        ?? 0,
+                        common_metals: city.commonMetalsPerTurn ?? 0,
+                        coal:          city.coalPerTurn         ?? 0,
+                        oil:           city.oilPerTurn          ?? 0,
+                        herbs:         city.herbsPerTurn        ?? 0,
+                        leather_fur:   city.leatherFurPerTurn   ?? 0,
                       };
                       const active = MAT_ICONS.filter(([k]) => (perTurn[k] ?? 0) > 0);
                       return active.length === 0

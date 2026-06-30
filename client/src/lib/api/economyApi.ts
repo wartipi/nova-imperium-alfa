@@ -55,21 +55,15 @@ export async function postEconomyTick(currentTurn: number): Promise<TickResponse
 // ─── Types matériaux Tier 1 (partagé) ────────────────────────────────────────
 
 export interface T1Materials {
-  // Bloc C V2 — ressources principales
   fracten:       number;
   common_metals: number;
   leather_fur:   number;
-  // V1 legacy (conservé pour compatibilité)
-  gold:   number;
   food:   number;
   wood:   number;
   stone:  number;
-  iron:   number;
-  copper: number;
   coal:   number;
   oil:    number;
   herbs:  number;
-  fur:    number;
 }
 
 // ─── Production tick par-ville ───────────────────────────────────────────────
@@ -149,21 +143,15 @@ export interface CollectHarvestResult {
     status:          string;
     msRemaining:     number;
     expectedEndTime: string;
-    // Bloc C V2
     pendingFracten:      number;
     pendingCommonMetals: number;
     pendingLeatherFur:   number;
-    // V1 legacy
-    pendingGold:     number;
     pendingFood:     number;
     pendingWood:     number;
     pendingStone:    number;
-    pendingIron:     number;
-    pendingCopper:   number;
     pendingCoal:     number;
     pendingOil:      number;
     pendingHerbs:    number;
-    pendingFur:      number;
   };
 }
 
@@ -303,7 +291,6 @@ export interface TransferResult {
     effectiveWorldX:  number;
     effectiveWorldY:  number;
     effectiveTerrain: string;
-    // F2 V2 response fields
     fracten:       number;
     food:          number;
     wood:          number;
@@ -313,16 +300,10 @@ export interface TransferResult {
     oil:           number;
     herbs:         number;
     leather_fur:   number;
-    // V1 backward-compat (optionnels)
-    gold?:   number;
-    iron?:   number;
-    copper?: number;
-    fur?:    number;
   };
 }
 
 export interface TransferMaterials {
-  // V2 principal F2
   fracten?:       number;
   common_metals?: number;
   leather_fur?:   number;
@@ -332,11 +313,6 @@ export interface TransferMaterials {
   coal?:          number;
   oil?:           number;
   herbs?:         number;
-  // V1 legacy backward-compat
-  gold?:          number;
-  iron?:          number;
-  copper?:        number;
-  fur?:           number;
 }
 
 export async function postTransferBankToCity(
@@ -349,7 +325,6 @@ export async function postTransferBankToCity(
     headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
     body: JSON.stringify({
       cityId,
-      // V2 principal F2
       fracten:       materials.fracten       ?? 0,
       common_metals: materials.common_metals ?? 0,
       leather_fur:   materials.leather_fur   ?? 0,
@@ -359,11 +334,6 @@ export async function postTransferBankToCity(
       coal:          materials.coal          ?? 0,
       oil:           materials.oil           ?? 0,
       herbs:         materials.herbs         ?? 0,
-      // V1 backward-compat
-      gold:   materials.gold   ?? 0,
-      iron:   materials.iron   ?? 0,
-      copper: materials.copper ?? 0,
-      fur:    materials.fur    ?? 0,
       adminModeEnabled: adminModeEnabled ?? false,
     }),
   });
@@ -382,7 +352,6 @@ export async function postTransferBankToPlayer(
     method: "POST",
     headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
     body: JSON.stringify({
-      // V2 principal F2
       fracten:       materials.fracten       ?? 0,
       common_metals: materials.common_metals ?? 0,
       leather_fur:   materials.leather_fur   ?? 0,
@@ -392,11 +361,6 @@ export async function postTransferBankToPlayer(
       coal:          materials.coal          ?? 0,
       oil:           materials.oil           ?? 0,
       herbs:         materials.herbs         ?? 0,
-      // V1 backward-compat
-      gold:   materials.gold   ?? 0,
-      iron:   materials.iron   ?? 0,
-      copper: materials.copper ?? 0,
-      fur:    materials.fur    ?? 0,
       adminModeEnabled: adminModeEnabled ?? false,
     }),
   });
@@ -411,21 +375,15 @@ export async function postTransferBankToPlayer(
 
 export interface CityInventoryDTO {
   cityId:        number;
-  // Bloc C V2
   fracten:       number;
   common_metals: number;
   leather_fur:   number;
-  // V1 legacy
-  gold:   number;
   food:   number;
   wood:   number;
   stone:  number;
-  iron:   number;
-  copper: number;
   coal:   number;
   oil:    number;
   herbs:  number;
-  fur:    number;
 }
 
 export async function getCityInventory(cityId: number): Promise<CityInventoryDTO> {

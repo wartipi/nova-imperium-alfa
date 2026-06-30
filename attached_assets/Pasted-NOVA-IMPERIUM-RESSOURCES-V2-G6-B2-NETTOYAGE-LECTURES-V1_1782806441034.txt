@@ -1,0 +1,375 @@
+NOVA IMPERIUM — RESSOURCES V2 — G6-B2 / NETTOYAGE LECTURES V1 BACKEND + DTO FRONTEND
+Branche : NI-10.09
+
+OBJECTIF
+Retirer les lectures V1 restantes et nettoyer les DTO/frontend legacy avant retrait du schéma Drizzle.
+
+Ce bloc doit :
+
+* retirer les lectures restantes vers gold/iron/copper/fur quand elles ne servent plus
+* retirer les champs legacy des DTO frontend si possible
+* retirer ou isoler l’UI legacy debug devenue inutile
+* préparer G6-B3, qui retirera les colonnes legacy du shared/schema.ts
+
+Ce bloc ne doit pas modifier la DB.
+Ce bloc ne doit pas faire DROP COLUMN.
+Ce bloc ne doit pas modifier shared/schema.ts sauf commentaire.
+Ce bloc ne doit pas toucher market_trades.total_gold.
+
+CONTEXTE
+G3 :
+
+* toutes les valeurs V1 miroir ont été neutralisées à 0
+
+G4 :
+
+* fallbacks V1 backend retirés/rejetés
+
+G5 :
+
+* total_fracten ajouté et backfillé
+* total_gold conservé sync legacy
+
+G6-B1 :
+
+* écritures V1 backend critiques retirées dans :
+
+  * playerActionService.ts
+  * economyService.ts
+  * buildingEffects.ts
+  * marketService.ts
+* shared/schema.ts inchangé
+* frontend inchangé
+* DB inchangée
+
+Reste à nettoyer :
+
+* lectures V1 restantes
+* DTO frontend legacy
+* UI legacy debug
+* computeTransportUnits props legacy optionnelles
+* marketService lectures résiduelles de box iron/copper/fur
+* routes/cities DTO inventory/pending legacy si applicable
+
+PÉRIMÈTRE AUTORISÉ
+
+Backend :
+
+* server/playerActionService.ts
+* server/marketService.ts
+* server/economyService.ts
+* server/routes/cities.ts
+* server/routes/economy.ts seulement si DTO body legacy encore exposé
+* server/routes/market.ts seulement si feeBox gold encore exposé
+
+Frontend :
+
+* client/src/lib/api/economyApi.ts
+* client/src/lib/api/citiesApi.ts
+* client/src/lib/api/marketApi.ts
+* client/src/components/game/TreasuryPanel.tsx
+* client/src/components/game/PlayerTransportPanel.tsx
+* client/src/components/game/PublicMarketplace.tsx
+* client/src/components/game/HarvestPanel.tsx
+
+Shared :
+
+* shared/schema.ts commentaire seulement, pas de retrait de colonnes
+
+DB :
+
+* aucune modification
+
+INTERDICTIONS STRICTES
+
+Ne pas modifier :
+
+* DB
+* migrations
+* shared/schema.ts colonnes
+* market_trades.total_gold
+* totalGold/totalFracten logique G5 sauf affichage/DTO si non destructif
+* MapGenerator.ts
+* HexTile
+* ResourceRevealSystem.ts
+* auth
+* cartography ownership
+* déploiement
+
+Ne pas faire :
+
+* DROP COLUMN
+* ALTER TABLE
+* UPDATE SQL
+* DELETE SQL
+* retrait shared/schema.ts
+* G6-B3
+* refactor massif
+
+ÉTAPE 1 — AUDIT AVANT MODIFICATION
+
+Lire et chercher dans le périmètre :
+
+gold
+iron
+copper
+fur
+goldPerTurn
+ironPerTurn
+copperPerTurn
+furPerTurn
+gold_per_turn
+iron_per_turn
+copper_per_turn
+fur_per_turn
+LEGACY_KEYS
+LEGACY_MAT_KEYS
+showLegacyDebug
+debug=legacy
+LEGACY_RESOURCE_DISABLED
+LEGACY_RESOURCES
+totalGold
+totalFracten
+
+Classer chaque occurrence :
+
+A. Lecture V1 backend à retirer maintenant
+B. DTO/frontend legacy à retirer maintenant
+C. Rejet legacy explicite à conserver temporairement
+D. totalGold/totalFracten G5 à conserver
+E. shared/schema legacy à conserver jusqu’à G6-B3
+F. UI debug legacy à retirer ou isoler
+G. Hors périmètre
+H. Dangereux / incohérent
+
+ÉTAPE 2 — PLAYERACTIONSERVICE
+
+Dans server/playerActionService.ts :
+
+Retirer les props V1 optionnelles de TransportState si elles ne servent plus :
+
+* gold?
+* iron?
+* copper?
+* fur?
+
+Retirer les objets init encore du type :
+
+* gold: 0
+* iron: 0
+* copper: 0
+* fur: 0
+
+Conserver seulement :
+
+* fracten
+* food
+* wood
+* stone
+* common_metals
+* coal
+* oil
+* herbs
+* leather_fur
+
+Conserver LEGACY_RESOURCE_DISABLED seulement dans les routes/services qui rejettent explicitement un vieux body V1, si encore nécessaire.
+
+ÉTAPE 3 — MARKETSERVICE
+
+Dans server/marketService.ts :
+
+Retirer les lectures restantes :
+
+* box.iron
+* box.copper
+* box.fur
+* playerBank.iron/copper/fur
+* playerTransport.iron/copper/fur
+* playerMarketBox.iron/copper/fur
+
+Après G6-B2 :
+
+* claimToTransport ne doit plus tester iron/copper/fur
+* claimToBank ne doit plus tester iron/copper/fur
+* getFeeBox peut encore retourner gold si routes/frontend l’attendent, mais idéalement gold doit être omis ou toujours 0 jusqu’à G6-B3
+* LEGACY_RESOURCES peut rester si market_orders historiques utilisent resource_type V1, mais aucun ordre V1 open ne doit être exécutable
+
+Ne pas toucher :
+
+* totalGold
+* totalFracten
+* market_trades.total_gold
+* insert trade G5
+
+ÉTAPE 4 — ROUTES CITIES / ECONOMY
+
+Dans server/routes/cities.ts :
+
+Retirer des DTO de réponse si safe :
+
+* gold
+* iron
+* copper
+* fur
+
+dans :
+
+* city_inventory
+* city_pending_harvest
+
+Ne pas retirer les colonnes schema.
+
+Dans server/routes/economy.ts :
+
+Conserver la validation de rejet LEGACY_RESOURCE_DISABLED si body V1 > 0.
+Mais réduire les DTO/réponses legacy si possible.
+
+ÉTAPE 5 — FRONTEND DTO
+
+Dans client/src/lib/api/economyApi.ts :
+
+Retirer des interfaces si plus consommées :
+
+* gold
+* iron
+* copper
+* fur
+
+dans :
+
+* PlayerBankDTO
+* PlayerBankTransferDTO
+* PlayerTransportDTO
+* T1Mats si plus utilisé pour legacy body
+* TransferMaterials si backend rejette legacy
+
+Si TypeScript casse trop :
+
+* garder optionnel mais marquer @deprecated temporaire
+* documenter comme bloquant G6-B3
+
+Dans client/src/lib/api/citiesApi.ts :
+
+Retirer V1 des types city_inventory/pending_harvest si présent.
+
+Dans client/src/lib/api/marketApi.ts :
+
+Conserver totalGold comme fallback jusqu’à G6-B3/G6-B4.
+Conserver resource_type legacy pour historiques cancelled/filled si nécessaire.
+Ne pas casser l’historique marché.
+
+ÉTAPE 6 — FRONTEND UI
+
+Dans TreasuryPanel.tsx :
+
+Retirer ou isoler :
+
+* LEGACY_KEYS
+* showLegacyDebug
+* gold/iron/copper/fur inputs
+* affichage legacy des soldes
+* aliases d’erreur V1 si plus nécessaires
+
+Conserver seulement si backend retourne encore LEGACY_RESOURCE_DISABLED et l’UI doit l’afficher.
+
+Dans PlayerTransportPanel.tsx :
+
+Retirer :
+
+* LEGACY_MAT_KEYS
+* isTransportLegacyOrphan
+* lignes MAT_ROWS gold/iron/copper/fur
+* debug=legacy si devenu inutile
+
+Dans HarvestPanel.tsx :
+
+Retirer les icônes/labels legacy si types/API ne les retournent plus.
+
+Dans PublicMarketplace.tsx :
+
+Ne pas casser les historiques market_orders V1 cancelled/filled.
+Retirer seulement feeBox gold legacy si route ne l’expose plus.
+Conserver totalGold fallback si marketApi le garde.
+
+ÉTAPE 7 — VÉRIFICATION TYPESCRIPT
+
+Lancer :
+
+npm run check
+
+Puis rechercher dans fichiers modifiés :
+
+gold
+iron
+copper
+fur
+LEGACY_KEYS
+LEGACY_MAT_KEYS
+showLegacyDebug
+debug=legacy
+LEGACY_RESOURCE_DISABLED
+LEGACY_RESOURCES
+totalGold
+totalFracten
+
+Classer les occurrences restantes :
+
+A. Retiré
+B. Rejet legacy conservé temporairement
+C. totalGold/totalFracten G5 conservé
+D. market history legacy conservé
+E. shared/schema bloquant G6-B3
+F. Dangereux / à corriger maintenant
+
+ÉTAPE 8 — TESTS LOGIQUES
+
+Vérifier :
+
+1. TreasuryPanel
+
+* affiche seulement V2
+* transferts envoient seulement V2
+* erreur LEGACY_RESOURCE_DISABLED affichable si backend la retourne
+
+2. PlayerTransportPanel
+
+* affiche seulement V2
+* dépôt envoie seulement V2
+
+3. HarvestPanel
+
+* affiche seulement V2
+
+4. PublicMarketplace
+
+* historiques V2 fonctionnent
+* anciens ordres copper cancelled/filled ne crashent pas l’affichage
+* totalFracten utilisé en priorité
+
+5. Backend
+
+* claimToTransport / claimToBank n’utilisent plus iron/copper/fur
+* routes/cities ne retournent plus V1 si retiré
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC G6-B2
+2. AUDIT AVANT MODIFICATION
+3. CHANGEMENTS BACKEND LECTURES
+4. CHANGEMENTS DTO API
+5. CHANGEMENTS TREASURYPANEL
+6. CHANGEMENTS PLAYERTRANSPORTPANEL
+7. CHANGEMENTS HARVESTPANEL
+8. CHANGEMENTS PUBLICMARKETPLACE
+9. OCCURRENCES LEGACY RESTANTES
+10. TESTS LOGIQUES
+11. RÉSULTAT npm run check
+12. CONCLUSION : AUTORISÉ OU NON À PASSER À G6-B3
+13. STOP
+
+STOP
+Ne pas commencer G6-B3.
+Ne pas modifier la DB.
+Ne pas supprimer shared/schema.ts.
+Ne pas faire DROP COLUMN.
+Ne pas toucher market_trades.total_gold.

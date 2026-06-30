@@ -9,10 +9,6 @@ import {
 import { getPlayerTransport, type PlayerTransportDTO } from "../../lib/api/economyApi";
 import { NovaConfirmModal, type NovaConfirmLine } from "./NovaConfirmModal";
 
-// G2 — Masquage legacy : affiche gold seulement si orphelin (fracten=0) ou mode debug.
-const showLegacyDebug =
-  typeof window !== "undefined" &&
-  new URLSearchParams(window.location.search).get("debug") === "legacy";
 
 interface PublicMarketplaceProps {
   playerId: string;
@@ -39,7 +35,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
   // ─── Marché ───────────────────────────────────────────────────────────────────
   const [rmGuild,   setRmGuild]   = useState<MarketGuild | null>(null);
   const [rmOwner,   setRmOwner]   = useState<MarketOwner | null>(null);
-  const [rmFeeBox,  setRmFeeBox]  = useState<{ fracten: number; gold: number; canCollect: boolean } | null>(null);
+  const [rmFeeBox,  setRmFeeBox]  = useState<{ fracten: number; canCollect: boolean } | null>(null);
   const [rmOrders,  setRmOrders]  = useState<MarketOrder[]>([]);
   const [rmTrades,  setRmTrades]  = useState<MarketTrade[]>([]);
   const [rmLoading, setRmLoading] = useState(false);
@@ -168,7 +164,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
         safeId > 0 ? fetchMarketGuild(safeId) : Promise.resolve({ guild: null, hasGuild: false, feeBps: 0, owner: null }),
         fetchMarketOrders(safeId > 0 ? safeId : 1),
         fetchMarketTrades(safeId > 0 ? safeId : 1),
-        safeId > 0 ? fetchMarketFeeBox(safeId).catch(() => ({ fracten: 0, gold: 0, canCollect: false })) : Promise.resolve({ fracten: 0, gold: 0, canCollect: false }),
+        safeId > 0 ? fetchMarketFeeBox(safeId).catch(() => ({ fracten: 0, canCollect: false })) : Promise.resolve({ fracten: 0, canCollect: false }),
       ]);
       setRmGuild((guildData as any).guild ?? null);
       setRmOwner((guildData as any).owner ?? null);
@@ -515,25 +511,12 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                   <div className="mt-2 bg-amber-100 border border-amber-300 rounded-lg p-2.5 flex items-center gap-3 text-sm">
                     <span className="font-semibold text-amber-900">🏛️ Caisse locale</span>
                     <span className="text-amber-800">
-                      {(() => {
-                        // G2 : gold legacy masqué si fracten V2 le couvre, sauf ?debug=legacy
-                        const showGoldLegacy = showLegacyDebug || rmFeeBox.fracten === 0;
-                        const total = rmFeeBox.fracten + (showGoldLegacy ? rmFeeBox.gold : 0);
-                        if (total <= 0) return <em className="text-amber-500">Vide</em>;
-                        return (
-                          <>
-                            <strong>{total} fr</strong>
-                            {" — commissions sans banque"}
-                            {showLegacyDebug && rmFeeBox.gold > 0 && (
-                              <span className="text-amber-500 text-xs ml-1">
-                                (dont {rmFeeBox.gold} Or legacy debug)
-                              </span>
-                            )}
-                          </>
-                        );
-                      })()}
+                      {rmFeeBox.fracten <= 0
+                        ? <em className="text-amber-500">Vide</em>
+                        : <><strong>{rmFeeBox.fracten} fr</strong>{" — commissions sans banque"}</>
+                      }
                     </span>
-                    {(rmFeeBox.fracten + (showLegacyDebug || rmFeeBox.fracten === 0 ? rmFeeBox.gold : 0)) > 0 && (
+                    {rmFeeBox.fracten > 0 && (
                       <button
                         onClick={async () => {
                           const cityId = access.cityId ?? 0;
@@ -608,7 +591,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                   {marketBox && (() => {
                     // V2 — ressources V2 + legacy (pour affichage boîte historique)
                     const MB_RESOURCES = ['food','wood','stone','common_metals','leather_fur','coal','oil','herbs','iron','copper','fur'] as const;
-                    const hasContent = (marketBox.fracten ?? marketBox.gold ?? 0) > 0
+                    const hasContent = (marketBox.fracten ?? 0) > 0
                       || MB_RESOURCES.some(r => (marketBox[r] ?? 0) > 0);
                     return (
                       <div className="bg-white border border-purple-200 rounded-lg p-3">
@@ -650,11 +633,10 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                         )}
                         {hasContent ? (
                           <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
-                            {/* Fracten V2 (ou gold legacy) */}
-                            {(marketBox.fracten ?? marketBox.gold ?? 0) > 0 && (
+                            {(marketBox.fracten ?? 0) > 0 && (
                               <div className="flex items-center gap-1 bg-yellow-50 border border-yellow-200 rounded px-2 py-1 text-xs">
                                 <span>🪙</span>
-                                <span className="text-yellow-800 font-semibold">{marketBox.fracten ?? marketBox.gold}</span>
+                                <span className="text-yellow-800 font-semibold">{marketBox.fracten ?? 0}</span>
                                 <span className="text-yellow-600 truncate">Fracten</span>
                               </div>
                             )}
@@ -681,7 +663,6 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                     const ICONS: Record<string, string> = {
                       food:'🌿', wood:'🪵', stone:'🪨', coal:'🖤', oil:'🛢️', herbs:'🌱',
                       common_metals:'⚙️', leather_fur:'🦊',
-                      iron:'🔩', copper:'🟤', fur:'🧸',
                     };
                     const available = ALL_RESOURCES.filter(r => transport && (transport as any)[r] > 0);
                     return (
@@ -746,7 +727,6 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                     const ICONS: Record<string, string> = {
                       food:'🌿', wood:'🪵', stone:'🪨', coal:'🖤', oil:'🛢️', herbs:'🌱',
                       common_metals:'⚙️', leather_fur:'🦊',
-                      iron:'🔩', copper:'🟤', fur:'🧸',
                     };
                     // Dernier prix vendu par ressource — calculé explicitement sur executedAt
                     const latestPrice: Partial<Record<ResourceType, number>> = {};
@@ -792,13 +772,12 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                                   type="button"
                                   onClick={() => {
                                     if (!transport || draft.price <= 0) return;
-                                    // V2 : fracten comme monnaie. Fallback gold legacy.
-                                    const available = (transport as any).fracten ?? (transport as any).gold ?? 0;
+                                                    const available = (transport as any).fracten ?? 0;
                                     const maxQty = Math.floor(available / draft.price);
                                     if (maxQty < 1) return;
                                     setBuyDrafts(d => ({ ...d, [r]: { ...d[r], qty: maxQty } }));
                                   }}
-                                  disabled={!transport || draft.price <= 0 || Math.floor(((transport as any).fracten ?? (transport as any).gold ?? 0) / draft.price) < 1}
+                                  disabled={!transport || draft.price <= 0 || Math.floor(((transport as any).fracten ?? 0) / draft.price) < 1}
                                   className="w-full py-0.5 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 rounded border border-blue-300 disabled:opacity-40 disabled:cursor-not-allowed"
                                   style={{ pointerEvents: "auto" }}
                                 >Max</button>

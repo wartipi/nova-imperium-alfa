@@ -697,12 +697,11 @@ export async function claimMarketBoxToTransport(playerId: string): Promise<{ ok:
 
   if (!box) throw Object.assign(new Error("Boîte introuvable"), { status: 500 });
 
-  // Vérifier qu'il y a quelque chose à récupérer — V2 + V1
+  // Vérifier qu'il y a quelque chose à récupérer — V2 uniquement (G6-B2 : iron/copper/fur retirés)
   const boxV2 = box as any;
   const hasContent = (boxV2.fracten ?? 0) > 0 || (boxV2.common_metals ?? 0) > 0 || (boxV2.leather_fur ?? 0) > 0
     || box.food > 0 || box.wood > 0 || box.stone > 0
-    || box.iron > 0 || box.copper > 0 || box.coal > 0 || box.oil > 0
-    || box.herbs > 0 || box.fur > 0;
+    || box.coal > 0 || box.oil > 0 || box.herbs > 0;
   if (!hasContent) throw Object.assign(new Error("Boîte de règlement vide"), { status: 400 });
 
   // Lire transport actuel pour vérifier la capacité
@@ -713,19 +712,28 @@ export async function claimMarketBoxToTransport(playerId: string): Promise<{ ok:
     .limit(1);
 
   const cur = transport as any ?? {};
+  // G6-B2 : gold/iron/copper/fur retirés des calculs computeTransportUnits
   const usedNow = computeTransportUnits({
-    fracten: cur.fracten ?? 0, gold: cur.gold ?? 0,
-    food: cur.food ?? 0, wood: cur.wood ?? 0, stone: cur.stone ?? 0,
-    common_metals: cur.common_metals ?? 0, iron: cur.iron ?? 0, copper: cur.copper ?? 0,
-    coal: cur.coal ?? 0, oil: cur.oil ?? 0, herbs: cur.herbs ?? 0,
-    leather_fur: cur.leather_fur ?? 0, fur: cur.fur ?? 0,
+    fracten:       cur.fracten       ?? 0,
+    food:          cur.food          ?? 0,
+    wood:          cur.wood          ?? 0,
+    stone:         cur.stone         ?? 0,
+    common_metals: cur.common_metals ?? 0,
+    coal:          cur.coal          ?? 0,
+    oil:           cur.oil           ?? 0,
+    herbs:         cur.herbs         ?? 0,
+    leather_fur:   cur.leather_fur   ?? 0,
   } as any);
   const toAdd = computeTransportUnits({
-    fracten: boxV2.fracten ?? 0, gold: 0,
-    food: box.food ?? 0, wood: box.wood ?? 0, stone: box.stone ?? 0,
-    common_metals: boxV2.common_metals ?? 0, iron: box.iron ?? 0, copper: box.copper ?? 0,
-    coal: box.coal ?? 0, oil: box.oil ?? 0, herbs: box.herbs ?? 0,
-    leather_fur: boxV2.leather_fur ?? 0, fur: box.fur ?? 0,
+    fracten:       boxV2.fracten       ?? 0,
+    food:          box.food            ?? 0,
+    wood:          box.wood            ?? 0,
+    stone:         box.stone           ?? 0,
+    common_metals: boxV2.common_metals ?? 0,
+    coal:          box.coal            ?? 0,
+    oil:           box.oil             ?? 0,
+    herbs:         box.herbs           ?? 0,
+    leather_fur:   boxV2.leather_fur   ?? 0,
   } as any);
 
   if (usedNow + toAdd > TRANSPORT_MAX_UNITS) {

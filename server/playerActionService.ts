@@ -716,31 +716,33 @@ export async function createCollectHarvestAction(
   cityId:        number,
   cityWorldX:    number,
   cityWorldY:    number,
-  pendingGold:   number,
-  pendingFood:   number,
-  context:       ActorContext = { role: 'player' },
-  pendingWood:   number = 0,
-  pendingStone:  number = 0,
-  pendingIron:   number = 0,
-  pendingCopper: number = 0,
-  pendingCoal:   number = 0,
-  pendingOil:    number = 0,
-  pendingHerbs:  number = 0,
-  pendingFur:    number = 0,
+  pendingFracten:      number,
+  pendingFood:         number,
+  context:             ActorContext = { role: 'player' },
+  pendingWood:         number = 0,
+  pendingStone:        number = 0,
+  pendingCommonMetals: number = 0,
+  pendingCoal:         number = 0,
+  pendingOil:          number = 0,
+  pendingHerbs:        number = 0,
+  pendingLeatherFur:   number = 0,
 ): Promise<PlayerAction> {
   const existing = await getActiveAction(playerId);
   if (existing && existing.status === "in_progress") {
     throw new Error(`ACTION_ALREADY_ACTIVE: joueur ${playerId} a déjà une action en cours (id=${existing.id})`);
   }
 
-  // G6-B1 : gold/iron/copper/fur retirés du calcul (toujours = 0)
+  // G6-B2 : V2 complet — pendingGold/Iron/Copper/Fur retirés de la signature
   const totalUnits = computeTransportUnits({
-    food:   pendingFood,
-    wood:   pendingWood,
-    stone:  pendingStone,
-    coal:   pendingCoal,
-    oil:    pendingOil,
-    herbs:  pendingHerbs,
+    fracten:       pendingFracten,
+    food:          pendingFood,
+    wood:          pendingWood,
+    stone:         pendingStone,
+    common_metals: pendingCommonMetals,
+    coal:          pendingCoal,
+    oil:           pendingOil,
+    herbs:         pendingHerbs,
+    leather_fur:   pendingLeatherFur,
   });
   const durationMinutes = Math.max(5, 5 + Math.ceil(totalUnits / 10));
   const durationMs = durationMinutes * 60 * 1000;
@@ -768,7 +770,8 @@ export async function createCollectHarvestAction(
 
   console.log(
     `[PlayerAction] Récolte créée id=${action.id} player=${playerId}` +
-    ` cityId=${cityId} pending=${pendingGold}g+${pendingFood}f+${pendingWood}w+${pendingStone}s+${pendingIron}i` +
+    ` cityId=${cityId} pending=${pendingFracten}fr+${pendingFood}f+${pendingWood}w+${pendingStone}s` +
+    `+${pendingCommonMetals}cm+${pendingLeatherFur}lf` +
     ` durée=${durationMinutes}min`
   );
 
@@ -827,7 +830,7 @@ export async function createTransferBankToCityAction(
 
   const bank = bankRows[0] ?? {
     gold: 0, fracten: 0, food: 0, wood: 0, stone: 0,
-    iron: 0, copper: 0, common_metals: 0, coal: 0, oil: 0, herbs: 0, fur: 0, leather_fur: 0,
+    common_metals: 0, coal: 0, oil: 0, herbs: 0, leather_fur: 0,
   };
 
   // G4 : checks V2 uniquement — branches V1 fallback supprimées.
@@ -851,7 +854,6 @@ export async function createTransferBankToCityAction(
     fracten: effectiveFracten, food, wood, stone,
     common_metals: effectiveCommonMetals, coal, oil, herbs,
     leather_fur: effectiveLeatherFur,
-    gold: 0, iron: 0,
   });
   const durationSeconds = totalUnits * 5;
   const expectedEndTime = new Date(now.getTime() + durationSeconds * 1000);
@@ -958,13 +960,12 @@ export async function createTransferBankToPlayerAction(
     .where(eq(playerTransport.playerId, playerId))
     .limit(1);
 
-  const current = transportRows[0] ?? { gold: 0, food: 0, wood: 0, stone: 0, iron: 0, copper: 0, coal: 0, oil: 0, herbs: 0, fur: 0 };
+  const current = transportRows[0] ?? { gold: 0, fracten: 0, food: 0, wood: 0, stone: 0, common_metals: 0, coal: 0, oil: 0, herbs: 0, leather_fur: 0 };
   const currentTotal = computeTransportUnits(current);
   const addTotal     = computeTransportUnits({
     fracten: effectiveFracten, food, wood, stone,
     common_metals: effectiveCommonMetals, coal, oil, herbs,
     leather_fur: effectiveLeatherFur,
-    gold: 0, iron: 0,
   });
 
   if (currentTotal + addTotal > TRANSPORT_MAX_UNITS) {
@@ -982,7 +983,7 @@ export async function createTransferBankToPlayerAction(
 
   const bank = bankRows[0] ?? {
     gold: 0, fracten: 0, food: 0, wood: 0, stone: 0,
-    iron: 0, copper: 0, common_metals: 0, coal: 0, oil: 0, herbs: 0, fur: 0, leather_fur: 0,
+    common_metals: 0, coal: 0, oil: 0, herbs: 0, leather_fur: 0,
   };
 
   // G4 : checks V2 uniquement — branches V1 fallback supprimées.
@@ -1006,7 +1007,6 @@ export async function createTransferBankToPlayerAction(
     fracten: effectiveFracten, food, wood, stone,
     common_metals: effectiveCommonMetals, coal, oil, herbs,
     leather_fur: effectiveLeatherFur,
-    gold: 0, iron: 0,
   });
   const durationSeconds = totalUnits * 5;
   const expectedEndTime = new Date(now.getTime() + durationSeconds * 1000);
@@ -1076,10 +1076,10 @@ export async function getOrInitPlayerTransport(playerId: string) {
   const now = new Date();
   const [row] = await db
     .insert(playerTransport)
-    .values({ playerId, gold: 0, food: 0, wood: 0, stone: 0, iron: 0,
-              copper: 0, coal: 0, oil: 0, herbs: 0, fur: 0,
-              fracten: 0, common_metals: 0, leather_fur: 0, // Bloc C V2
-              updatedAt: now })
+    .values({ playerId, gold: 0, food: 0, wood: 0, stone: 0,
+              coal: 0, oil: 0, herbs: 0,
+              fracten: 0, common_metals: 0, leather_fur: 0,
+              updatedAt: now } as any)
     .onConflictDoUpdate({
       target: playerTransport.playerId,
       set: { updatedAt: now },

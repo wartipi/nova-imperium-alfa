@@ -276,19 +276,15 @@ router.get("/:cityId/inventory", requireAuth, async (req: AuthRequest, res) => {
     const inv = rows ?? {};
     return res.json({
       cityId,
-      fracten:       (inv as any).fracten       ?? 0, // Bloc C V2
-      common_metals: (inv as any).common_metals ?? 0, // Bloc C V2
-      leather_fur:   (inv as any).leather_fur   ?? 0, // Bloc C V2
-      gold:   (inv as any).gold   ?? 0, // V1 legacy
+      fracten:       (inv as any).fracten       ?? 0,
+      common_metals: (inv as any).common_metals ?? 0,
+      leather_fur:   (inv as any).leather_fur   ?? 0,
       food:   (inv as any).food   ?? 0,
       wood:   (inv as any).wood   ?? 0,
       stone:  (inv as any).stone  ?? 0,
-      iron:   (inv as any).iron   ?? 0,
-      copper: (inv as any).copper ?? 0,
       coal:   (inv as any).coal   ?? 0,
       oil:    (inv as any).oil    ?? 0,
       herbs:  (inv as any).herbs  ?? 0,
-      fur:    (inv as any).fur    ?? 0,
     });
   } catch (err) {
     console.error("[GET /api/cities/:cityId/inventory] Erreur:", err);
@@ -321,34 +317,26 @@ router.get("/:cityId/harvest", requireAuth, async (req: AuthRequest, res) => {
       cityId,
       hasBank,
       pending: {
-        fracten:       (pending as any).fracten       ?? 0, // Bloc C V2
-        common_metals: (pending as any).common_metals ?? 0, // Bloc C V2
-        leather_fur:   (pending as any).leather_fur   ?? 0, // Bloc C V2
-        gold:   (pending as any).gold   ?? 0,
+        fracten:       (pending as any).fracten       ?? 0,
+        common_metals: (pending as any).common_metals ?? 0,
+        leather_fur:   (pending as any).leather_fur   ?? 0,
         food:   (pending as any).food   ?? 0,
         wood:   (pending as any).wood   ?? 0,
         stone:  (pending as any).stone  ?? 0,
-        iron:   (pending as any).iron   ?? 0,
-        copper: (pending as any).copper ?? 0,
         coal:   (pending as any).coal   ?? 0,
         oil:    (pending as any).oil    ?? 0,
         herbs:  (pending as any).herbs  ?? 0,
-        fur:    (pending as any).fur    ?? 0,
       },
       inventory: {
-        fracten:       (inventory as any).fracten       ?? 0, // Bloc C V2
-        common_metals: (inventory as any).common_metals ?? 0, // Bloc C V2
-        leather_fur:   (inventory as any).leather_fur   ?? 0, // Bloc C V2
-        gold:   (inventory as any).gold   ?? 0,
+        fracten:       (inventory as any).fracten       ?? 0,
+        common_metals: (inventory as any).common_metals ?? 0,
+        leather_fur:   (inventory as any).leather_fur   ?? 0,
         food:   (inventory as any).food   ?? 0,
         wood:   (inventory as any).wood   ?? 0,
         stone:  (inventory as any).stone  ?? 0,
-        iron:   (inventory as any).iron   ?? 0,
-        copper: (inventory as any).copper ?? 0,
         coal:   (inventory as any).coal   ?? 0,
         oil:    (inventory as any).oil    ?? 0,
         herbs:  (inventory as any).herbs  ?? 0,
-        fur:    (inventory as any).fur    ?? 0,
       },
     });
   } catch (err) {
@@ -384,26 +372,21 @@ router.post("/:cityId/collect-harvest", requireAuth, async (req: AuthRequest, re
     // Lit le pending harvest — colonnes V2 + V1 legacy
     const [pendingRow] = await db.select().from(cityPendingHarvest)
       .where(eq(cityPendingHarvest.cityId, cityId)).limit(1);
-    // Bloc C V2 — nouvelles ressources
+    // G6-B2 : V2 uniquement — gold/iron/copper/fur retirés
     const pendingFracten      = (pendingRow as any)?.fracten       ?? 0;
     const pendingCommonMetals = (pendingRow as any)?.common_metals ?? 0;
     const pendingLeatherFur   = (pendingRow as any)?.leather_fur   ?? 0;
-    // V1 legacy
-    const pendingGold   = pendingRow?.gold   ?? 0;
     const pendingFood   = pendingRow?.food   ?? 0;
     const pendingWood   = pendingRow?.wood   ?? 0;
     const pendingStone  = pendingRow?.stone  ?? 0;
-    const pendingIron   = pendingRow?.iron   ?? 0;
-    const pendingCopper = (pendingRow as any)?.copper ?? 0;
     const pendingCoal   = (pendingRow as any)?.coal   ?? 0;
     const pendingOil    = (pendingRow as any)?.oil    ?? 0;
     const pendingHerbs  = (pendingRow as any)?.herbs  ?? 0;
-    const pendingFur    = (pendingRow as any)?.fur    ?? 0;
 
-    // Vérification : rien en attente (V2 + V1)
+    // Vérification : rien en attente (V2 uniquement)
     if (pendingFracten === 0 && pendingCommonMetals === 0 && pendingLeatherFur === 0
-        && pendingGold === 0 && pendingFood === 0 && pendingWood === 0 && pendingStone === 0 && pendingIron === 0
-        && pendingCopper === 0 && pendingCoal === 0 && pendingOil === 0 && pendingHerbs === 0 && pendingFur === 0) {
+        && pendingFood === 0 && pendingWood === 0 && pendingStone === 0
+        && pendingCoal === 0 && pendingOil === 0 && pendingHerbs === 0) {
       return res.status(400).json({ error: "Aucune récolte en attente pour cette ville" });
     }
 
@@ -425,11 +408,12 @@ router.post("/:cityId/collect-harvest", requireAuth, async (req: AuthRequest, re
     const cityWorldX = access.worldX;
     const cityWorldY = access.worldY;
 
+    // G6-B2 : appel V2 — pendingGold/Iron/Copper/Fur retirés de la signature
     const action = await createCollectHarvestAction(
       playerId, cityId, cityWorldX, cityWorldY,
-      pendingGold, pendingFood, context,
-      pendingWood, pendingStone, pendingIron,
-      pendingCopper, pendingCoal, pendingOil, pendingHerbs, pendingFur,
+      pendingFracten, pendingFood, context,
+      pendingWood, pendingStone, pendingCommonMetals,
+      pendingCoal, pendingOil, pendingHerbs, pendingLeatherFur,
     );
 
     return res.status(201).json({
@@ -440,11 +424,9 @@ router.post("/:cityId/collect-harvest", requireAuth, async (req: AuthRequest, re
         status:          action.status,
         msRemaining:     msRemaining(action),
         expectedEndTime: action.expectedEndTime,
-        // Bloc C V2 — ressources V2
         pendingFracten, pendingCommonMetals, pendingLeatherFur,
-        // V1 legacy
-        pendingGold, pendingFood, pendingWood, pendingStone, pendingIron,
-        pendingCopper, pendingCoal, pendingOil, pendingHerbs, pendingFur,
+        pendingFood, pendingWood, pendingStone,
+        pendingCoal, pendingOil, pendingHerbs,
       },
     });
   } catch (err: any) {

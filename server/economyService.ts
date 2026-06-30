@@ -250,14 +250,14 @@ export interface CityHarvestDTO {
   name:     string;
   hasBank:  boolean;
   pending:  {
-    fracten: number; common_metals: number; leather_fur: number; // Bloc C V2
-    gold: number; food: number; wood: number; stone: number; iron: number;
-    copper: number; coal: number; oil: number; herbs: number; fur: number;
+    fracten: number; common_metals: number; leather_fur: number;
+    food: number; wood: number; stone: number;
+    coal: number; oil: number; herbs: number;
   };
   inventory: {
-    fracten: number; common_metals: number; leather_fur: number; // Bloc C V2
-    gold: number; food: number; wood: number; stone: number; iron: number;
-    copper: number; coal: number; oil: number; herbs: number; fur: number;
+    fracten: number; common_metals: number; leather_fur: number;
+    food: number; wood: number; stone: number;
+    coal: number; oil: number; herbs: number;
   };
 }
 
@@ -265,12 +265,10 @@ export interface ProductionTickResult {
   applied: boolean;
   cities:  Array<{
     cityId: number; name: string;
-    fracten: number; // Bloc C V2 — remplace gold dans ce résultat
+    fracten: number;
     food: number; wood: number; stone: number;
-    // F4 V2 : common_metals + leather_fur remplacent iron/copper/fur
     common_metals: number; leather_fur: number;
-    // V1 legacy — toujours présents à 0 pour backward-compat
-    iron: number; copper: number; coal: number; oil: number; herbs: number; fur: number;
+    coal: number; oil: number; herbs: number;
     destination: 'bank' | 'pending';
   }>;
 }
@@ -294,10 +292,10 @@ export async function getOrInitPlayerBank(playerId: string): Promise<PlayerBankD
   if (rows.length > 0) return rowToDTO(rows[0]);
   const [ins] = await db
     .insert(playerBank)
-    .values({ playerId, gold: 0, fracten: 0, food: 0, wood: 0, stone: 0, iron: 0,
-              copper: 0, coal: 0, oil: 0, herbs: 0, fur: 0,
-              common_metals: 0, leather_fur: 0, // Bloc C V2
-              lastProductionTurn: 0 })
+    .values({ playerId, gold: 0, fracten: 0, food: 0, wood: 0, stone: 0,
+              coal: 0, oil: 0, herbs: 0,
+              common_metals: 0, leather_fur: 0,
+              lastProductionTurn: 0 } as any)
     .onConflictDoNothing()
     .returning();
   if (!ins) {
@@ -413,8 +411,8 @@ export async function applyProductionTickPerCity(
       bankOilDelta          += oil;
       bankHerbsDelta        += herbs;
       results.push({ cityId: city.cityId, name: city.name, fracten: g, food: f, wood: w, stone: s,
-        iron: 0, copper: 0, coal: co, oil, herbs, fur: 0,
-        common_metals: cm, leather_fur: lf, destination: 'bank' }); // F4 V2
+        coal: co, oil, herbs,
+        common_metals: cm, leather_fur: lf, destination: 'bank' });
     } else {
       // Accumulation dans pending_harvest (UPSERT) — F4 V2 : common_metals + leather_fur.
       await db
@@ -443,8 +441,8 @@ export async function applyProductionTickPerCity(
           } as any,
         });
       results.push({ cityId: city.cityId, name: city.name, fracten: g, food: f, wood: w, stone: s,
-        iron: 0, copper: 0, coal: co, oil, herbs, fur: 0,
-        common_metals: cm, leather_fur: lf, destination: 'pending' }); // F4 V2
+        coal: co, oil, herbs,
+        common_metals: cm, leather_fur: lf, destination: 'pending' });
     }
   }
 
