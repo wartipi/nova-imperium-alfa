@@ -1,0 +1,351 @@
+CONTEXTE NOVA IMPERIUM — ÉTAT ACTUEL NI-10.09
+
+Langue de travail : français.
+Workflow souhaité :
+- Répondre de façon concise et technique.
+- Pour Replit/Nova Imperium : toujours fournir un prompt prêt à envoyer.
+- Procédure préférée : analyser → expliquer → proposer → attendre validation.
+- Vérifier les push GitHub quand l’utilisateur dit que c’est poussé.
+- Dépôt GitHub : wartipi/nova-imperium-alfa
+- Branche active : NI-10.09
+- Branche base de comparaison : NI-10.3
+
+ÉTAT GITHUB ACTUEL
+Dernière vérification :
+- NI-10.09 est ahead de NI-10.3 par 29 commits.
+- Migration ressources V1 → V2 complète et poussée.
+- Audit post-migration final poussé.
+- Bloc UI icône Fracten poussé.
+
+MIGRATION RESSOURCES V1 → V2 TERMINÉE
+
+Anciennes ressources économiques supprimées :
+- gold
+- iron
+- copper
+- fur
+- gold_per_turn
+- iron_per_turn
+- copper_per_turn
+- fur_per_turn
+- total_gold
+
+Ressources V2 principales en place :
+- fracten
+- food
+- wood
+- stone
+- common_metals
+- coal
+- oil
+- herbs
+- leather_fur
+
+Colonnes V1 supprimées physiquement de la DB après G6-B4 :
+- player_bank.gold / iron / copper / fur
+- player_transport.gold / iron / copper / fur
+- player_market_box.gold / iron / copper / fur
+- city_inventory.gold / iron / copper / fur
+- city_pending_harvest.gold / iron / copper / fur
+- market_fee_box.gold
+- cities.gold_per_turn / iron_per_turn / copper_per_turn / fur_per_turn
+- market_trades.total_gold
+- faction_economy.gold
+
+État final validé :
+- DB V1 supprimée.
+- shared/schema.ts nettoyé.
+- Backend ne lit/écrit plus les colonnes supprimées.
+- Frontend actif utilise V2.
+- market_trades utilise total_fracten.
+- Serveur démarre sans erreur SQL colonne manquante.
+- Check ciblé fichiers migration : 0 erreur.
+- Il reste des erreurs TypeScript préexistantes hors scope, mais non liées à la migration ressources.
+
+AUDIT POST-MIGRATION FINAL
+
+Rapport poussé :
+attached_assets/Pasted-NOVA-IMPERIUM-RESSOURCES-V2-AUDIT-POST-MIGRATION-FINAL-_1782809241909.txt
+
+Verdict :
+- Migration V1 → V2 entièrement validée.
+- Aucun bloquant actif.
+- Aucune colonne V1 restante en DB.
+- Aucun ordre marché V1 open ou partial.
+- Résidus restants classés cosmétiques / historiques / terrain / démo / gardes backward-compat.
+
+Résidus non bloquants à connaître :
+- routes/economy.ts et playerActionService.ts gardent des gardes LEGACY_RESOURCE_DISABLED pour rejeter d’anciens bodies V1.
+- market_orders contient 9 anciens ordres copper historiques : 6 cancelled, 3 filled.
+- Certains fichiers terrain/cartographie/seeds parlent encore de gold/iron/copper/fur comme ressources naturelles de tuile, pas comme économie active.
+- Certains composants démo ou cosmétiques peuvent encore afficher des références legacy non actives, comme MedievalHUD, ConstructionPanel, useBusinessLogic.
+
+ICÔNE FRACTEN
+
+Décision validée :
+- Le Fracten doit être représenté par un cercle/pièce cuivre avec F stylisé.
+- Symbole choisi : Ⓕ
+- Couleur cuivre : #B87333
+- Label : Fracten
+- Tooltip : Monnaie officielle
+- Ne pas utiliser gold/or/cuivre/copper comme label de monnaie.
+
+Bloc icône Fracten poussé :
+attached_assets/Pasted-NOVA-IMPERIUM-UI-RESSOURCES-V2-IC-NE-FRACTEN-Branche-NI_1782854285709.txt
+
+Fichiers concernés :
+- client/src/lib/shared/ResourceIcons.ts
+- client/src/components/game/TreasuryPanel.tsx
+- client/src/components/game/PlayerTransportPanel.tsx
+- client/src/components/game/ConstructionPanel.tsx
+- client/src/components/game/UnifiedTerritoryPanel.tsx
+
+Dernière demande utilisateur avant changement de conversation :
+- Il souhaite que le symbole Fracten soit un peu plus gros dans l’UI.
+- Il a aussi remarqué qu’il manque encore les ressources rares et stratégiques.
+- L’ajout des ressources rares/stratégiques sera traité dans une prochaine étape, mais pas encore commencé.
+
+PROMPT PRÊT POUR AGRANDIR L’ICÔNE FRACTEN
+
+NOVA IMPERIUM — UI RESSOURCES V2 — AGRANDIR ICÔNE FRACTEN
+Branche : NI-10.09
+
+OBJECTIF
+Agrandir légèrement l’icône visuelle du Fracten dans l’interface.
+
+Conserver :
+- symbole : Ⓕ
+- couleur cuivre : #B87333
+- label : Fracten
+- tooltip : Monnaie officielle
+- aucune modification DB
+- aucune modification backend
+- aucune modification logique économique
+
+PROBLÈME
+L’icône Fracten est correcte visuellement, mais trop petite dans certains panneaux.
+
+MODIFICATION DEMANDÉE
+Agrandir seulement le rendu visuel du symbole Fracten d’environ 15% à 25%.
+
+PÉRIMÈTRE
+
+Vérifier et ajuster uniquement si nécessaire :
+
+- client/src/lib/shared/ResourceIcons.ts
+- client/src/components/game/TreasuryPanel.tsx
+- client/src/components/game/PlayerTransportPanel.tsx
+- client/src/components/game/ConstructionPanel.tsx
+- client/src/components/game/UnifiedTerritoryPanel.tsx
+
+RÈGLE D’AJUSTEMENT
+
+Si l’icône est rendue dans un span ou une cellule :
+- ajouter une classe ou style local pour Fracten seulement
+- augmenter font-size légèrement
+- garder vertical-align propre
+- ne pas agrandir toutes les ressources
+- ne pas modifier les icônes des autres ressources
+
+Exemple acceptable :
+- fractenIconClass = "text-lg leading-none"
+- ou style={{ fontSize: "1.15em", lineHeight: 1 }}
+
+Ne pas utiliser une image externe.
+Ne pas changer le symbole Ⓕ.
+Ne pas changer la couleur cuivre.
+
+VÉRIFICATIONS
+
+1. TreasuryPanel :
+- Fracten plus lisible
+- alignement des lignes conservé
+
+2. PlayerTransportPanel :
+- Fracten plus lisible
+- pas de décalage de tableau
+
+3. ConstructionPanel :
+- Fracten plus lisible dans coûts et inventaire
+- pas de casse layout
+
+4. UnifiedTerritoryPanel :
+- “Ⓕ Fracten” reste aligné
+
+5. ResourceIcons :
+- si une taille globale existe, ne pas impacter les autres ressources
+
+Lancer :
+npm run check
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC
+2. FICHIERS MODIFIÉS
+3. AJUSTEMENT DE TAILLE APPLIQUÉ
+4. VÉRIFICATION ALIGNEMENT
+5. RÉSULTAT npm run check
+6. CONCLUSION
+7. STOP
+
+STOP
+Ne pas modifier la DB.
+Ne pas modifier le backend.
+Ne pas modifier la logique économique.
+Ne pas changer le symbole Fracten.
+
+PROCHAINE GRANDE TÂCHE APRÈS ICÔNE FRACTEN
+
+Ajouter les ressources manquantes rares et stratégiques, mais procéder par étapes.
+
+Ressources stratégiques prévues :
+- basic_equipment
+- intermediate_equipment
+- advanced_equipment
+- epic_equipment
+- legendary_equipment
+
+Ressources rares prévues :
+- rare_metals_alloys
+- textiles
+- spices
+- precious_stones
+
+Ressources magiques à auditer plus tard, pas nécessairement dans le même cycle :
+- crystals
+- sacred_stones
+- ancient_artifacts
+- enchanted_wood
+- mana_crystals
+- arcane_stones
+- elemental_essence
+- spirit_stones
+- void_shards
+
+Plan recommandé :
+R1 — Audit ressources manquantes
+R2 — Catalogue + icônes + labels
+R3 — Schema DB additif pour stratégiques + rares
+R4 — Inventaires / banque / transport / ville
+R5 — Marché V2 multi-ressources
+R6 — Production bâtiments stratégiques
+R7 — Ressources rares carte / exploration si applicable
+R8 — Magiques plus tard si validé
+R9 — Audit final
+
+Prompt recommandé pour commencer cette grande tâche :
+
+NOVA IMPERIUM — RESSOURCES V2 — R1 / AUDIT RESSOURCES MANQUANTES
+Branche : NI-10.09
+
+OBJECTIF
+Auditer l’état actuel des ressources après migration V2, afin de préparer l’ajout des ressources stratégiques et rares sans casser l’économie existante.
+
+Ce bloc est un audit uniquement.
+Ne pas modifier le code.
+Ne pas modifier la DB.
+Ne pas modifier le schema.
+Ne pas ajouter de colonnes.
+Ne pas ajouter de ressources maintenant.
+
+CONTEXTE
+La migration V1 → V2 est terminée et validée.
+Les ressources actuellement actives incluent notamment :
+- fracten
+- food
+- wood
+- stone
+- common_metals
+- coal
+- oil
+- herbs
+- leather_fur
+
+Il manque encore les ressources stratégiques et rares dans les flux complets.
+
+RESSOURCES À PRÉPARER
+
+STRATÉGIQUES — produites par bâtiments, non naturelles carte :
+- basic_equipment
+- intermediate_equipment
+- advanced_equipment
+- epic_equipment
+- legendary_equipment
+
+RARES :
+- rare_metals_alloys
+- textiles
+- spices
+- precious_stones
+
+MAGIQUES — à auditer mais ne pas forcément ajouter dans ce cycle :
+- crystals
+- sacred_stones
+- ancient_artifacts
+- enchanted_wood
+- mana_crystals
+- arcane_stones
+- elemental_essence
+- spirit_stones
+- void_shards
+
+PÉRIMÈTRE À AUDITER
+
+Backend :
+- shared/schema.ts
+- server/economyService.ts
+- server/playerActionService.ts
+- server/marketService.ts
+- server/cityService.ts
+- server/buildingEffects.ts
+- server/routes/economy.ts
+- server/routes/cities.ts
+- server/routes/market.ts
+
+Frontend :
+- client/src/lib/shared/ResourceIcons.ts
+- client/src/lib/api/economyApi.ts
+- client/src/lib/api/marketApi.ts
+- client/src/lib/api/citiesApi.ts
+- client/src/components/game/TreasuryPanel.tsx
+- client/src/components/game/PlayerTransportPanel.tsx
+- client/src/components/game/HarvestPanel.tsx
+- client/src/components/game/PublicMarketplace.tsx
+- client/src/components/game/ConstructionPanel.tsx
+- client/src/components/game/TileInfoPanel.tsx
+- client/src/components/game/UnifiedTerritoryPanel.tsx
+
+DB :
+- SELECT uniquement sur les tables économiques existantes
+
+INTERDICTIONS STRICTES
+
+Ne pas faire :
+- modification code
+- modification DB
+- ALTER TABLE
+- UPDATE SQL
+- DELETE SQL
+- DROP COLUMN
+- ajout de ressource
+- ajout de colonne
+- refactor
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC R1
+2. INVENTAIRE RESSOURCES ACTUELLES
+3. AUDIT DB
+4. AUDIT RESOURCE ICONS
+5. AUDIT FLUX ÉCONOMIQUES
+6. RESSOURCES MANQUANTES
+7. RISQUES
+8. PLAN D’AJOUT PAR BLOCS
+9. MATRICE FINALE
+10. CONCLUSION
+11. STOP
+
+STOP
+Ne pas modifier le code.
+Ne pas modifier la DB.
+Ne pas ajouter de ressource.
