@@ -1,0 +1,282 @@
+NOVA IMPERIUM — CARTE — P1 / AUDIT INTÉGRATION PIXEL HD 16 TERRAINS
+Branche : NI-10.09
+
+OBJECTIF
+Auditer l’intégration possible du nouveau prototype “Édition Pixel HD” couvrant 16 terrains.
+
+Ce bloc est un audit uniquement.
+Ne pas modifier le code.
+Ne pas modifier la DB.
+Ne pas remplacer le rendu actuel.
+Ne pas changer la génération de monde.
+Ne pas changer les ressources économiques.
+Ne pas changer pathfinding, exploration, ownership, colonies ou unités.
+
+CONTEXTE
+Un prototype Pixel HD complet a été fourni.
+
+Caractéristiques :
+
+* 16 terrains couverts
+* sprites 56×49 texels
+* palettes riches 7–12 teintes
+* éclairage directionnel haut-gauche
+* détails individuels par terrain
+* canvas
+* zoom
+* drag caméra
+* HUD de tuile
+* grille
+* brouillard
+* eau animée
+* spriteCache
+* rendu déterministe par seed / terrain / variant / frame
+
+Terrains couverts par le prototype :
+
+* fertile_land
+* plains
+* sacred_plains
+* enchanted_meadow
+* forest
+* hills
+* wasteland
+* ancient_ruins
+* desert
+* caves
+* tundra
+* swamp
+* mountains
+* volcano
+* shallow_water
+* deep_water
+
+DIRECTION RETENUE
+Le style Pixel HD 56×49 est la direction visuelle préférée pour la carte Nova Imperium.
+
+Le prototype doit être utilisé comme base de renderer expérimental, pas comme remplacement direct du système de carte.
+
+PÉRIMÈTRE À AUDITER
+
+Carte actuelle :
+
+* client/src/lib/game/GameEngine.ts
+* client/src/lib/game/MapGenerator.ts
+* client/src/lib/game/types.ts
+* client/src/lib/game/mapAdapter.ts
+* client/src/lib/game/ResourceRevealSystem.ts
+* client/src/lib/game/TerrainCosts.ts
+* tout fichier lié au rendu hexagonal actuel
+
+UI liée :
+
+* TileInfoPanel.tsx
+* UnifiedTerritoryPanel.tsx
+* MedievalHUD.tsx si relié au rendu carte
+
+Prototype fourni :
+
+* géométrie hex
+* PAL_HD
+* BASECFG
+* decorateHD
+* getSprite
+* getFogSprite
+* getResIcon
+* render
+* hexToScreen
+* screenToHex
+* waterFrame
+* fogOn / gridOn / animOn
+* spriteCache
+
+INTERDICTIONS STRICTES
+
+Ne pas faire :
+
+* modification de code
+* modification DB
+* remplacement GameEngine
+* remplacement MapGenerator
+* intégration directe du prototype
+* changement génération monde
+* changement pathfinding
+* changement ownership
+* changement exploration
+* changement ressources économiques
+* refactor massif
+
+ÉTAPE 1 — AUDIT DU RENDU CARTE ACTUEL
+
+Identifier précisément :
+
+1. Où les hexagones sont dessinés actuellement.
+2. Quel système est utilisé : canvas, DOM, SVG ou hybride.
+3. Où sont gérés :
+
+   * caméra
+   * zoom
+   * hover
+   * sélection
+   * grille
+   * fog / exploration
+   * ownership
+   * colonies
+   * unités
+   * ressources de tuile
+   * overlays
+4. Quels fichiers seraient touchés pour ajouter un renderer expérimental.
+
+ÉTAPE 2 — COMPATIBILITÉ GÉOMÉTRIE
+
+Comparer la géométrie actuelle avec celle du prototype :
+
+Prototype :
+
+* hex flat-top
+* screenX = x * hexSize * 1.5
+* screenY = y * hexHeight + (x % 2) * hexHeight / 2
+* zoom par hexSize
+* caméra camX / camY
+* screenToHex approximatif
+
+Vérifier :
+
+* si le GameEngine actuel utilise la même géométrie
+* si la carte 150×90 et les segments 3×3 restent compatibles
+* si le renderer peut consommer les tuiles existantes sans recalculer la carte
+* si les coordonnées monde actuelles peuvent être conservées
+
+ÉTAPE 3 — COMPATIBILITÉ TERRAIN
+
+Comparer les terrains actuels du jeu avec les 16 terrains du prototype.
+
+Produire une table :
+
+Colonnes :
+
+* terrain actuel dans le jeu
+* existe dans prototype Pixel HD ?
+* nom exact compatible ?
+* sprite disponible ?
+* coût de mouvement actuel
+* action recommandée
+
+ÉTAPE 4 — COMPATIBILITÉ RESSOURCES
+
+Le prototype contient encore des ressources anciennes :
+
+* wheat
+* fish
+* stone
+* gold
+* iron
+* herbs
+* deer
+* crystals
+
+Auditer leur statut.
+
+Règle :
+
+* ne pas réintroduire gold / iron / copper / fur comme ressources économiques V1
+* distinguer ressource terrain visuelle et ressource économique V2
+* si une ressource est terrain-only, le dire explicitement
+* si une ressource doit être mappée vers V2, proposer le mapping
+
+Ressources économiques V2 actuelles :
+
+* fracten
+* food
+* wood
+* stone
+* common_metals
+* coal
+* oil
+* herbs
+* leather_fur
+
+Produire une table :
+
+Colonnes :
+
+* ressource prototype
+* statut actuel
+* terrain-only ou économique ?
+* équivalent V2 recommandé
+* risque
+* action recommandée
+
+ÉTAPE 5 — COMPATIBILITÉ PERFORMANCE
+
+Auditer :
+
+* nombre de sprites générés
+* taille 56×49
+* cache terrain|variant|frame
+* animation eau 700 ms
+* nombre de tuiles visibles par viewport
+* coût du fog overlay
+* coût des icônes de ressources
+* impact mobile
+* impact zoom élevé
+* impact carte 150×90
+
+Déterminer :
+
+* si le renderer peut être activé sans lag
+* si l’eau animée doit rester optionnelle
+* si la génération de sprites doit être pré-cache
+* si le cache doit être limité ou persistant
+
+ÉTAPE 6 — STRATÉGIE D’INTÉGRATION
+
+Proposer une stratégie sûre :
+
+Option préférée :
+
+* créer un PixelMapRenderer isolé
+* ne pas modifier la logique carte
+* ajouter un toggle expérimental
+* rendre seulement les terrains au début
+* ajouter ensuite fog / grille / sélection
+* ajouter ensuite ressources / colonies / unités / ownership
+* fallback immédiat vers renderer actuel
+
+ÉTAPE 7 — PLAN PAR BLOCS
+
+Proposer un plan :
+
+P1 — Audit intégration Pixel HD 16 terrains
+P2 — Extraire palettes + sprite generator Pixel HD dans fichier isolé
+P3 — Créer PixelMapRenderer expérimental non activé par défaut
+P4 — Ajouter toggle renderer actuel / Pixel HD
+P5 — Connecter terrains réels du jeu aux sprites
+P6 — Ajouter grille, hover, sélection
+P7 — Ajouter fog / exploration
+P8 — Ajouter ressources terrain V2 ou terrain-only
+P9 — Ajouter colonies / ownership / unités
+P10 — Optimisation performance
+P11 — Audit visuel final
+
+ÉTAPE 8 — RAPPORT FINAL
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC P1
+2. RENDU CARTE ACTUEL
+3. COMPATIBILITÉ GÉOMÉTRIE
+4. COMPATIBILITÉ DES 16 TERRAINS
+5. COMPATIBILITÉ RESSOURCES
+6. RISQUES PERFORMANCE
+7. STRATÉGIE D’INTÉGRATION RECOMMANDÉE
+8. PLAN PAR BLOCS
+9. BLOQUANTS
+10. CONCLUSION
+11. STOP
+
+STOP
+Ne pas modifier le code.
+Ne pas intégrer le prototype.
+Ne pas remplacer la carte actuelle.
+Ne pas modifier la DB.
