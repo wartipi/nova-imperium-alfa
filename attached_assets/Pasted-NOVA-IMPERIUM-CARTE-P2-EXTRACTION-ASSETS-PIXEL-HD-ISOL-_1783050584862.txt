@@ -1,0 +1,236 @@
+NOVA IMPERIUM — CARTE — P2 / EXTRACTION ASSETS PIXEL HD ISOLÉS
+Branche : NI-10.09
+
+OBJECTIF
+Extraire le prototype Pixel HD 16 terrains dans un ou plusieurs fichiers isolés, sans l’activer dans le rendu actuel.
+
+Ce bloc prépare l’intégration future du renderer Pixel HD, mais ne doit pas remplacer la carte actuelle.
+
+Ne pas modifier le GameEngine actuel.
+Ne pas modifier la génération de monde.
+Ne pas modifier la DB.
+Ne pas modifier les ressources économiques.
+Ne pas ajouter de toggle encore.
+Ne pas rendre la carte avec ces sprites maintenant.
+
+CONTEXTE
+P1 validé :
+
+* géométrie compatible avec GameEngine
+* 15/15 terrains actuels couverts
+* renderer isolé recommandé
+* approche progressive P2 → P11
+
+Prototype Pixel HD :
+
+* 16 terrains
+* sprites 56×49 texels
+* palettes riches 7–12 teintes
+* éclairage haut-gauche
+* détails individuels
+* cache terrain|variant|frame
+* eau animée 2 frames
+* fog sprite
+* ressources terrain pixelisées
+
+TERRAINS À SUPPORTER
+
+Terrains actuels du jeu :
+
+* plains
+* fertile_land
+* sacred_plains
+* enchanted_meadow
+* forest
+* hills
+* wasteland
+* desert
+* ancient_ruins
+* swamp
+* caves
+* mountains
+* volcano
+* shallow_water
+* deep_water
+
+Terrain présent dans le prototype mais non actif dans le jeu :
+
+* tundra
+
+Inclure `tundra` dans les assets comme sprite disponible, mais ne pas l’ajouter au jeu.
+
+PÉRIMÈTRE AUTORISÉ
+
+Créer un fichier isolé, par exemple :
+
+* client/src/lib/game/PixelHDAssets.ts
+
+Optionnel si nécessaire :
+
+* client/src/lib/game/PixelHDTypes.ts
+
+Autorisé :
+
+* palettes Pixel HD
+* fonctions de génération de sprites
+* spriteCache local
+* fonctions déterministes RNG
+* fonctions utilitaires privées
+* types TypeScript nécessaires
+* export minimal de fonctions publiques
+
+INTERDICTIONS STRICTES
+
+Ne pas modifier :
+
+* GameEngine.ts
+* MapGenerator.ts
+* mapAdapter.ts
+* TerrainCosts.ts
+* ResourceRevealSystem.ts
+* GameCanvas.tsx
+* DB
+* backend
+* schema
+* économie
+* pathfinding
+* ownership
+* exploration
+* unités
+* colonies
+
+Ne pas faire :
+
+* toggle renderer
+* branchement dans l’UI
+* remplacement du renderer actuel
+* import de PixelHDAssets dans GameEngine
+* modification de génération de carte
+* ajout du terrain tundra au jeu
+
+ÉTAPE 1 — CRÉER PixelHDAssets.ts
+
+Créer :
+client/src/lib/game/PixelHDAssets.ts
+
+Ce fichier doit contenir :
+
+* constants T = 28, SPR_W = 56, SPR_H = 49 environ
+* type PixelHDTerrain
+* type PixelHDFrame
+* PAL_HD
+* BASECFG
+* insideHex
+* px
+* mulberry32
+* baseHD
+* decorateHD
+* getPixelHDSprite
+* getPixelHDFogSprite
+* clearPixelHDCache si utile
+
+Exporter uniquement :
+
+* PIXEL_HD_TERRAINS
+* PixelHDTerrain
+* getPixelHDSprite
+* getPixelHDFogSprite
+* clearPixelHDCache
+* PIXEL_HD_SPRITE_WIDTH
+* PIXEL_HD_SPRITE_HEIGHT
+
+ÉTAPE 2 — TERRAIN TYPE
+
+Définir le type :
+
+type PixelHDTerrain =
+| "plains"
+| "fertile_land"
+| "sacred_plains"
+| "enchanted_meadow"
+| "forest"
+| "hills"
+| "wasteland"
+| "desert"
+| "ancient_ruins"
+| "swamp"
+| "caves"
+| "mountains"
+| "volcano"
+| "shallow_water"
+| "deep_water"
+| "tundra";
+
+Ne pas modifier les types du jeu actuel.
+
+ÉTAPE 3 — API PUBLIQUE
+
+La fonction principale doit être :
+
+getPixelHDSprite(
+terrain: PixelHDTerrain,
+variant?: number,
+frame?: 0 | 1
+): HTMLCanvasElement
+
+Règles :
+
+* variant par défaut : 0
+* frame par défaut : 0
+* clé cache : terrain|variant|frame
+* si terrain inconnu impossible en TypeScript
+* ne pas dépendre de React
+* ne pas dépendre du GameEngine
+
+Fog :
+
+getPixelHDFogSprite(): HTMLCanvasElement
+
+ÉTAPE 4 — DÉTERMINISME
+
+Chaque sprite doit être déterministe :
+
+* même terrain
+* même variant
+* même frame
+  = même rendu
+
+Utiliser la logique RNG du prototype.
+
+ÉTAPE 5 — VALIDATION LOCALE
+
+Ajouter si utile un petit commentaire d’usage, mais pas de composant de test.
+
+Ne pas créer de page demo.
+Ne pas ajouter de route.
+Ne pas modifier UI.
+
+ÉTAPE 6 — TYPESCRIPT
+
+Lancer :
+
+npm run check
+
+Si des erreurs TS préexistantes existent, les classer hors scope.
+Si une erreur vient de PixelHDAssets.ts, la corriger.
+
+ÉTAPE 7 — RAPPORT FINAL
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC P2
+2. FICHIERS CRÉÉS
+3. EXPORTS DISPONIBLES
+4. TERRAINS SUPPORTÉS
+5. CACHE / DÉTERMINISME
+6. CE QUI N’A PAS ÉTÉ MODIFIÉ
+7. RÉSULTAT npm run check
+8. RISQUES RESTANTS
+9. CONCLUSION
+10. STOP
+
+STOP
+Ne pas brancher les sprites dans la carte.
+Ne pas modifier GameEngine.
+Ne pas modifier la DB.
+Ne pas commencer P3.
