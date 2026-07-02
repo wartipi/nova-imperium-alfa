@@ -26,6 +26,28 @@ import { useDoubleClick } from "../../lib/hooks/useDoubleClick";
 import { useAvatarMovement } from "../../lib/hooks/useAvatarMovement";
 import { TerrainHelpers } from "../../lib/constants/TerrainTypes";
 import { VisionSystem } from "../../lib/systems/VisionSystem";
+import { renderPixelMap } from "../../lib/game/PixelMapRenderer";
+
+// ─── Bloc P4 (NI-10.09) — Toggle expérimental renderer Pixel HD ────────────
+// OFF par défaut. Persisté en localStorage. Raccourci clavier "P" pour bascule.
+// Ne remplace jamais durablement le renderer actuel : fallback try/catch strict.
+const PIXEL_HD_STORAGE_KEY = "nova_pixel_hd_renderer";
+
+function readPixelHDToggle(): boolean {
+  try {
+    return localStorage.getItem(PIXEL_HD_STORAGE_KEY) === "on";
+  } catch {
+    return false;
+  }
+}
+
+function writePixelHDToggle(enabled: boolean): void {
+  try {
+    localStorage.setItem(PIXEL_HD_STORAGE_KEY, enabled ? "on" : "off");
+  } catch {
+    // localStorage indisponible — pas bloquant, le toggle reste en mémoire seulement
+  }
+}
 
 export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -91,6 +113,79 @@ export function GameCanvas() {
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
   const [avatarMenuPosition, setAvatarMenuPosition] = useState({ x: 0, y: 0 });
 
+  // ─── Bloc P4 (NI-10.09) — État du toggle Pixel HD expérimental ────────────
+  const [pixelHDEnabled, setPixelHDEnabled] = useState<boolean>(() => readPixelHDToggle());
+  // failureRef évite de renvoyer un log console à chaque frame en cas d'échec répété.
+  const pixelHDFailLoggedRef = useRef(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignorer si focus dans un champ texte (évite les collisions avec la saisie)
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+        return;
+      }
+      if (e.key === "p" || e.key === "P") {
+        setPixelHDEnabled((prev) => {
+          const next = !prev;
+          writePixelHDToggle(next);
+          pixelHDFailLoggedRef.current = false;
+          console.log(next ? "[PixelHD] Pixel HD renderer enabled" : "[PixelHD] Pixel HD renderer disabled");
+          gameEngineRef.current?.render();
+          return next;
+        });
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [gameEngineRef]);
+
+  // ─── Bloc P4 — Overlay Pixel HD après le rendu du renderer actuel ─────────
+  // Appelé après chaque gameEngineRef.current.render(). N'affecte jamais
+  // la carte réelle (mapData), ni le renderer actuel : purement un overlay
+  // canvas optionnel, encadré par try/catch, désactivé si erreur.
+  const renderPixelHDOverlay = useCallback(() => {
+    if (!pixelHDEnabled) return;
+    const engine = gameEngineRef.current;
+    const canvas = canvasRef.current;
+    if (!engine || !canvas || !mapData) return;
+
+    try {
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      const { x: cameraX, y: cameraY } = engine.getCameraPosition();
+      const zoom = engine.getZoom();
+      const hexSize = engine.getHexSize();
+      const effectiveHexSize = hexSize * zoom;
+      const effectiveCameraX = cameraX * zoom - canvas.width / 2;
+      const effectiveCameraY = cameraY * zoom - canvas.height / 2;
+
+      renderPixelMap({
+        ctx,
+        mapData,
+        width: canvas.width,
+        height: canvas.height,
+        cameraX: effectiveCameraX,
+        cameraY: effectiveCameraY,
+        hexSize: effectiveHexSize,
+        showGrid: false,
+        selected: selectedHex ? { x: selectedHex.x, y: selectedHex.y } : null,
+        // hovered : non disponible sans modifier lourdement GameEngine (P4 — limite connue documentée)
+        hovered: null,
+        isHexVisible: isHexVisible ?? undefined,
+        isHexInFogRing: isHexInFogRing ?? undefined,
+      });
+      pixelHDFailLoggedRef.current = false;
+    } catch (err) {
+      if (!pixelHDFailLoggedRef.current) {
+        console.error("[PixelHD] Pixel HD renderer failed, falling back to current renderer", err);
+        pixelHDFailLoggedRef.current = true;
+      }
+      // Pas de re-throw : le rendu actuel (déjà dessiné par engine.render()) reste affiché.
+    }
+  }, [pixelHDEnabled, gameEngineRef, mapData, selectedHex, isHexVisible, isHexInFogRing]);
+
   // ─── Menu contextuel de case (clic droit) ─────────────────────────────────
   const [tileContextMenu, setTileContextMenu] = useState<{
     screenX:      number;
@@ -155,6 +250,7 @@ export function GameCanvas() {
       // Le fallback dans renderMap (isHexVisible === null → true) affiche tout normalement.
       // Les callbacks sont appliqués après le chargement des tuiles découvertes ci-dessous.
       gameEngineRef.current.render();
+      renderPixelHDOverlay();
 
       // Phase 6 + vision villes : hydratation villes et tuiles découvertes en parallèle.
       // Vision avatar + villes + ressources découvertes appliquées ensuite dans l'ordre.
@@ -174,6 +270,7 @@ export function GameCanvas() {
         // Enregistrer les callbacks et forcer un rendu final
         engine?.setVisionCallbacks(isHexVisible, isHexInCurrentVision, isHexInFogRing);
         engine?.render();
+        renderPixelHDOverlay();
       });
     }
   }, [mapData]);
@@ -183,7 +280,8 @@ export function GameCanvas() {
     if (!gameEngineRef.current) return;
     gameEngineRef.current.setAdminMode(isAdmin);
     renderEngine();
-  }, [isAdmin, gameEngineRef, renderEngine]);
+    renderPixelHDOverlay();
+  }, [isAdmin, gameEngineRef, renderEngine, renderPixelHDOverlay]);
 
   // IMPROVED: Memoized mouse down handler
   const handleMouseDown = useCallback((event: React.MouseEvent) => {
@@ -315,10 +413,11 @@ export function GameCanvas() {
       gameEngineRef.current.setSelectedHex(selectedHex);
       gameEngineRef.current.updateAvatar(visualAvatarPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision, visualPendingMovement, previewPathHexes, isHexInFogRing);
       gameEngineRef.current.render();
+      renderPixelHDOverlay();
       
       // Plus de centrage automatique - caméra libre
     }
-  }, [novaImperiums, selectedHex, avatarPosition, travelVisualHexPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision, isHexInFogRing, pendingMovement, previewPathHexes, activeAction, originWorldX, originWorldY]);
+  }, [novaImperiums, selectedHex, avatarPosition, travelVisualHexPosition, avatarRotation, isMoving, selectedCharacter, isHexVisible, isHexInCurrentVision, isHexInFogRing, pendingMovement, previewPathHexes, activeAction, originWorldX, originWorldY, renderPixelHDOverlay]);
 
   // Phase 5 — polling présence multijoueur
   // Dépendance unique : isAuthenticated — l'intervalle n'est pas recréé à chaque rendu
@@ -339,12 +438,13 @@ export function GameCanvas() {
       }));
       gameEngineRef.current.updateOtherPlayers(converted);
       gameEngineRef.current.render();
+      renderPixelHDOverlay();
     };
 
     poll();
     const interval = setInterval(poll, 5000);
     return () => clearInterval(interval);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, renderPixelHDOverlay]);
 
   // R2 — polling territoire automatique : synchronise claims / fondations / exploitations entre clients
   // Fréquence : 10s — indépendant du panneau territoire (toujours actif)
@@ -361,6 +461,7 @@ export function GameCanvas() {
         const { originWorldX, originWorldY } = useMap.getState();
         UnifiedTerritorySystem.loadFromServer(territories, colonies, originWorldX, originWorldY);
         gameEngineRef.current?.render();
+        renderPixelHDOverlay();
       } catch {
         // Échec silencieux — pas de crash si réseau indisponible
       }
@@ -369,7 +470,7 @@ export function GameCanvas() {
     pollTerritories();
     const territoryInterval = setInterval(pollTerritories, 10000);
     return () => clearInterval(territoryInterval);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, renderPixelHDOverlay]);
 
   // Hydratation au montage — reprend une action déjà en cours si rechargement de page
   useEffect(() => {

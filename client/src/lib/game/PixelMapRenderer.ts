@@ -1,11 +1,13 @@
 // ─── PixelMapRenderer.ts ───────────────────────────────────────────────────
 // Bloc P3 — NI-10.09 — Renderer expérimental isolé pour la carte Pixel HD.
 //
-// Ce fichier NE DOIT PAS être importé par GameEngine.ts ou GameCanvas.tsx.
-// Il n'est appelé nulle part dans l'application — préparé pour une
-// intégration future (P4+).
+// Bloc P4 : ce fichier est désormais importé UNIQUEMENT par GameCanvas.tsx,
+// derrière le toggle expérimental localStorage "nova_pixel_hd_renderer"
+// (off par défaut). Ne pas importer depuis GameEngine.ts.
 //
-// Usage futur prévu (non actif) :
+// mapData suit la convention du reste du jeu : mapData[y][x] (ligne-major).
+//
+// Usage :
 //   renderPixelMap({ ctx, mapData, width, height, cameraX, cameraY, hexSize });
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -114,6 +116,7 @@ function drawHexPath(ctx: CanvasRenderingContext2D, cx: number, cy: number, hexS
   ctx.closePath();
 }
 
+// Convention identique à GameEngine/GameCanvas : mapData[y][x] (ligne-major).
 function getVisibleBounds(
   mapData: PixelMapTile[][],
   width: number,
@@ -122,8 +125,8 @@ function getVisibleBounds(
   cameraY: number,
   hexSize: number,
 ): { x0: number; x1: number; y0: number; y1: number } {
-  const mapW = mapData.length > 0 ? mapData.length : 0;
-  const mapH = mapData.length > 0 ? mapData[0].length : 0;
+  const mapH = mapData.length > 0 ? mapData.length : 0;
+  const mapW = mapH > 0 ? mapData[0].length : 0;
   const hexHeight = hexSize * SQ3;
 
   const x0 = Math.max(0, Math.floor(cameraX / (hexSize * 1.5)) - 1);
@@ -186,11 +189,11 @@ export function renderPixelMap(options: PixelMapRenderOptions): void {
   const sprW = hexSize * 2;
   const sprH = PIXEL_HD_SPRITE_HEIGHT * ((hexSize * 2) / PIXEL_HD_SPRITE_WIDTH);
 
-  for (let x = x0; x <= x1; x++) {
-    const col = mapData[x];
-    if (!col) continue;
-    for (let y = y0; y <= y1; y++) {
-      const tile = col[y];
+  for (let y = y0; y <= y1; y++) {
+    const row = mapData[y];
+    if (!row) continue;
+    for (let x = x0; x <= x1; x++) {
+      const tile = row[x];
       if (!tile) continue;
 
       const { sx, sy } = hexToScreen(x, y, hexSize, cameraX, cameraY);
@@ -224,9 +227,9 @@ export function renderPixelMap(options: PixelMapRenderOptions): void {
 
   // Grille optionnelle
   if (showGrid) {
-    for (let x = x0; x <= x1; x++) {
-      for (let y = y0; y <= y1; y++) {
-        if (!mapData[x] || !mapData[x][y]) continue;
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        if (!mapData[y] || !mapData[y][x]) continue;
         const { sx, sy } = hexToScreen(x, y, hexSize, cameraX, cameraY);
         drawHexPath(ctx, sx, sy, hexSize);
         ctx.strokeStyle = "rgba(0,0,0,0.28)";

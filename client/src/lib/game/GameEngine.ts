@@ -1087,6 +1087,16 @@ export class GameEngine {
     return { x: this.cameraX, y: this.cameraY };
   }
 
+  // Bloc P4 (NI-10.09) — getters minimaux lecture-seule pour le toggle
+  // expérimental Pixel HD (PixelMapRenderer). N'altèrent aucun état.
+  getHexSize(): number {
+    return this.hexSize;
+  }
+
+  getZoom(): number {
+    return this.zoom;
+  }
+
   // Dessiner les contours externes des territoires (bordures entre owners différents uniquement)
   private drawTerritoryBorders(hexX: number, hexY: number, territoryInfo: any, borderColor: string, screenX: number, screenY: number) {
     // Voisins alignés sur l'ordre réel des côtés de drawHexSide(sideIndex)

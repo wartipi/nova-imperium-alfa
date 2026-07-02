@@ -1,0 +1,282 @@
+NOVA IMPERIUM — CARTE — P4 / TOGGLE EXPÉRIMENTAL RENDERER ACTUEL ↔ PIXEL HD
+Branche : NI-10.09
+
+OBJECTIF
+Ajouter un toggle expérimental permettant de basculer entre le renderer actuel et le renderer Pixel HD.
+
+Ce toggle doit être discret, réversible, et ne doit pas activer Pixel HD par défaut.
+
+Ne pas remplacer définitivement la carte actuelle.
+Ne pas modifier la génération de monde.
+Ne pas modifier la DB.
+Ne pas modifier les ressources économiques.
+Ne pas modifier pathfinding, exploration, ownership, colonies ou unités.
+
+CONTEXTE
+P1 validé et poussé :
+
+* intégration Pixel HD faisable
+* géométrie compatible
+* stratégie recommandée : renderer isolé + toggle expérimental
+
+P2 validé et poussé :
+
+* client/src/lib/game/PixelHDAssets.ts
+* sprites Pixel HD 16 terrains
+* cache déterministe
+* aucune activation
+
+P3 validé et poussé :
+
+* client/src/lib/game/PixelMapRenderer.ts
+* renderPixelMap(options)
+* renderer isolé
+* non importé ailleurs avant P4
+* aucune activation
+
+OBJECTIF P4
+Brancher PixelMapRenderer de façon expérimentale avec un toggle dev/debug.
+
+Par défaut :
+
+* renderer actuel actif
+* Pixel HD désactivé
+
+Le joueur ne doit pas être forcé en Pixel HD.
+
+PÉRIMÈTRE AUTORISÉ
+
+Modifier seulement si nécessaire :
+
+* client/src/components/game/GameCanvas.tsx
+* éventuellement le fichier qui instancie GameEngine si GameCanvas.tsx délègue ailleurs
+* éventuellement un petit état local ou localStorage dans GameCanvas.tsx
+
+Importer :
+
+* renderPixelMap depuis client/src/lib/game/PixelMapRenderer.ts
+
+INTERDICTIONS STRICTES
+
+Ne pas modifier :
+
+* GameEngine.ts sauf nécessité absolue et minime
+* MapGenerator.ts
+* mapAdapter.ts
+* TerrainCosts.ts
+* ResourceRevealSystem.ts
+* UnifiedTerritorySystem.ts
+* DB
+* backend
+* schema
+* économie
+* pathfinding
+* ownership
+* exploration
+* unités
+* colonies
+
+Ne pas faire :
+
+* remplacement permanent du renderer actuel
+* activation Pixel HD par défaut
+* refactor massif du GameEngine
+* ajout de logique de génération de carte
+* ajout du terrain tundra à la logique du jeu
+* modification des règles de visibilité
+* modification des données de tuile
+
+ÉTAPE 1 — LOCALISER LE POINT D’INTÉGRATION
+
+Inspecter GameCanvas.tsx et le flux d’instanciation GameEngine.
+
+Identifier :
+
+* où le canvas est créé
+* où GameEngine rend la carte
+* comment accéder à :
+
+  * ctx
+  * mapData
+  * cameraX / cameraY
+  * zoom ou hexSize
+  * largeur/hauteur canvas
+  * selected / hovered si disponibles
+  * callbacks vision si disponibles
+
+Si ces données ne sont pas facilement accessibles sans modifier GameEngine :
+
+* ne pas forcer un branchement complexe
+* créer seulement un toggle préparatoire
+* documenter le blocage
+
+ÉTAPE 2 — AJOUTER UN TOGGLE DEV
+
+Ajouter un toggle expérimental discret.
+
+Option préférée :
+
+* localStorage key : nova_pixel_hd_renderer
+* valeurs :
+
+  * "off" par défaut
+  * "on" si activé manuellement
+
+Ajouter une méthode de bascule accessible en dev, par exemple :
+
+* bouton discret dans GameCanvas seulement si mode debug/dev déjà existant
+* ou raccourci clavier temporaire : touche P
+* ou paramètre localStorage manuel
+
+Préférence :
+
+* commencer avec localStorage + raccourci clavier P
+* pas de gros bouton visible joueur si l’UI n’a pas déjà une zone debug
+
+Règles :
+
+* par défaut : off
+* persiste localStorage
+* fallback renderer actuel si erreur Pixel HD
+* log console clair :
+
+  * Pixel HD renderer enabled
+  * Pixel HD renderer disabled
+  * Pixel HD renderer failed, falling back to current renderer
+
+ÉTAPE 3 — BRANCHEMENT MINIMAL
+
+Si possible sans refactor massif :
+
+Quand toggle off :
+
+* laisser GameEngine rendre normalement.
+
+Quand toggle on :
+
+* essayer d’appeler renderPixelMap avec les données nécessaires.
+
+Important :
+
+* ne pas supprimer le rendu actuel
+* ne pas casser les interactions
+* si certaines couches ne sont pas encore supportées par PixelMapRenderer, accepter que le rendu Pixel HD montre seulement les terrains/fog/grille/hover/sélection selon P3
+
+Si GameEngine contrôle totalement le rendu et empêche l’interception propre :
+
+* ne pas modifier GameEngine lourdement
+* créer une préparation P4 partielle :
+
+  * toggle localStorage
+  * helper de lecture d’état
+  * rapport des données manquantes
+  * proposer P4-B pour exposer proprement un render hook
+
+ÉTAPE 4 — GÉOMÉTRIE / HEXSIZE
+
+PixelMapRenderer attend :
+
+* cameraX
+* cameraY
+* hexSize
+* width
+* height
+
+GameEngine utilise possiblement :
+
+* base hexSize
+* zoom factor
+
+Convertir proprement :
+
+* hexSizeEffectif = baseHexSize * zoom
+  ou utiliser la valeur équivalente si déjà calculée.
+
+Ne pas modifier le modèle caméra.
+
+ÉTAPE 5 — VISION / FOG
+
+Si callbacks vision sont accessibles :
+
+* transmettre isHexVisible
+* transmettre isHexInFogRing
+
+Sinon :
+
+* ne pas recréer la logique de vision
+* laisser Pixel HD sans fog avancé pour P4
+* documenter ce qui manque
+
+ÉTAPE 6 — SÉCURITÉ FALLBACK
+
+Encadrer l’appel PixelMapRenderer par try/catch.
+
+Si erreur :
+
+* log console
+* désactiver temporairement le rendu Pixel HD pour cette frame
+* laisser renderer actuel continuer
+
+Ne jamais laisser un écran noir.
+
+ÉTAPE 7 — NE PAS TOUCHER AUX COUCHES AVANCÉES
+
+Ne pas ajouter encore :
+
+* unités
+* colonies
+* ownership
+* ressources de tuile
+* routes
+* rivières
+* bâtiments
+* avatar
+* autres joueurs
+
+Ces couches restent prévues pour P6 à P9.
+
+ÉTAPE 8 — TYPESCRIPT
+
+Lancer :
+
+npm run check
+
+Si des erreurs viennent de P4, les corriger.
+Les erreurs préexistantes hors scope doivent être listées séparément.
+
+ÉTAPE 9 — TEST MANUEL MINIMAL
+
+Tester :
+
+1. Chargement normal du jeu avec toggle off.
+2. Renderer actuel toujours actif.
+3. Activer toggle Pixel HD.
+4. Le jeu ne crash pas.
+5. Désactiver toggle.
+6. Renderer actuel revient.
+7. Rechargement page conserve localStorage.
+8. Aucun écran noir.
+9. npm run check sans nouvelle erreur P4.
+
+ÉTAPE 10 — RAPPORT FINAL
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC P4
+2. FICHIERS MODIFIÉS
+3. MÉCANISME DE TOGGLE
+4. BRANCHEMENT PIXEL HD
+5. FALLBACK / SÉCURITÉ
+6. LIMITES ACTUELLES
+7. TESTS MANUELS
+8. RÉSULTAT npm run check
+9. RISQUES RESTANTS
+10. CONCLUSION
+11. STOP
+
+STOP
+Ne pas remplacer définitivement le renderer actuel.
+Ne pas activer Pixel HD par défaut.
+Ne pas modifier la DB.
+Ne pas modifier la génération de monde.
+Ne pas commencer P5.
