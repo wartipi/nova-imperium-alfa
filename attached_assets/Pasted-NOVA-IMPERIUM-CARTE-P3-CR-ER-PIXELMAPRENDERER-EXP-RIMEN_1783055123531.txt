@@ -1,0 +1,334 @@
+NOVA IMPERIUM — CARTE — P3 / CRÉER PIXELMAPRENDERER EXPÉRIMENTAL NON ACTIVÉ
+Branche : NI-10.09
+
+OBJECTIF
+Créer un renderer expérimental isolé pour la carte Pixel HD, sans l’activer par défaut et sans remplacer le GameEngine actuel.
+
+Ce bloc doit préparer le rendu Pixel HD en fichier séparé, mais ne doit pas encore modifier l’expérience joueur.
+
+Ne pas remplacer la carte actuelle.
+Ne pas modifier la génération de monde.
+Ne pas modifier la DB.
+Ne pas modifier les ressources économiques.
+Ne pas modifier pathfinding, exploration, ownership, colonies ou unités.
+Ne pas ajouter de toggle UI complet encore.
+
+CONTEXTE
+P1 validé :
+
+* rendu actuel = Canvas 2D vectoriel
+* géométrie compatible avec le prototype Pixel HD
+* 15/15 terrains actuels couverts
+* stratégie recommandée : renderer isolé avec fallback
+
+P2 validé :
+
+* fichier créé :
+
+  * client/src/lib/game/PixelHDAssets.ts
+* exports disponibles :
+
+  * PIXEL_HD_TERRAINS
+  * PixelHDTerrain
+  * getPixelHDSprite
+  * getPixelHDFogSprite
+  * clearPixelHDCache
+  * PIXEL_HD_SPRITE_WIDTH
+  * PIXEL_HD_SPRITE_HEIGHT
+* aucun branchement actuel dans GameEngine
+* aucune modification DB/backend
+
+OBJECTIF P3
+Créer :
+
+client/src/lib/game/PixelMapRenderer.ts
+
+Ce fichier doit pouvoir dessiner une carte HexTile[][] en Pixel HD sur un CanvasRenderingContext2D, mais sans être encore appelé par le jeu.
+
+PÉRIMÈTRE AUTORISÉ
+
+Créer uniquement :
+
+* client/src/lib/game/PixelMapRenderer.ts
+
+Modifier uniquement si absolument nécessaire :
+
+* aucun fichier existant normalement
+
+Ne pas importer PixelMapRenderer dans GameEngine.ts.
+Ne pas importer PixelMapRenderer dans GameCanvas.tsx.
+Ne pas activer le renderer.
+Ne pas créer de toggle.
+
+INTERDICTIONS STRICTES
+
+Ne pas modifier :
+
+* GameEngine.ts
+* GameCanvas.tsx
+* MapGenerator.ts
+* mapAdapter.ts
+* TerrainCosts.ts
+* ResourceRevealSystem.ts
+* UnifiedTerritorySystem.ts
+* DB
+* backend
+* schema
+* économie
+* pathfinding
+* ownership
+* exploration
+* unités
+* colonies
+
+Ne pas faire :
+
+* remplacement du renderer actuel
+* ajout d’un bouton visible joueur
+* modification HUD
+* modification de la génération de carte
+* ajout du terrain tundra à la logique de jeu
+* import du renderer ailleurs dans l’application
+
+ÉTAPE 1 — CRÉER PixelMapRenderer.ts
+
+Créer :
+
+client/src/lib/game/PixelMapRenderer.ts
+
+Ce fichier doit importer depuis PixelHDAssets.ts :
+
+* PixelHDTerrain
+* getPixelHDSprite
+* getPixelHDFogSprite
+* PIXEL_HD_SPRITE_WIDTH
+* PIXEL_HD_SPRITE_HEIGHT
+
+ÉTAPE 2 — TYPES PUBLICS
+
+Définir des types locaux minimaux.
+
+Le renderer doit consommer une tuile compatible avec les tuiles existantes du jeu.
+
+Créer un type local souple, par exemple :
+
+export interface PixelMapTile {
+x?: number;
+y?: number;
+terrain: string;
+resource?: string | null;
+discovered?: boolean;
+explored?: boolean;
+ownerId?: string | number | null;
+cityId?: string | number | null;
+}
+
+Créer :
+
+export interface PixelMapRenderOptions {
+ctx: CanvasRenderingContext2D;
+mapData: PixelMapTile[][];
+width: number;
+height: number;
+cameraX: number;
+cameraY: number;
+hexSize: number;
+zoom?: number;
+showGrid?: boolean;
+animateWater?: boolean;
+waterFrame?: 0 | 1;
+selected?: { x: number; y: number } | null;
+hovered?: { x: number; y: number } | null;
+isHexVisible?: (x: number, y: number) => boolean;
+isHexInFogRing?: (x: number, y: number) => boolean;
+}
+
+Important :
+
+* Ne pas importer directement HexTile si cela crée des dépendances ou erreurs.
+* Garder ce renderer indépendant.
+* Le renderer doit être adaptable plus tard.
+
+ÉTAPE 3 — TERRAIN MAPPING
+
+Créer une fonction :
+
+function toPixelHDTerrain(terrain: string): PixelHDTerrain | null
+
+Mapping direct pour les 15 terrains actuels :
+
+* plains
+* fertile_land
+* sacred_plains
+* enchanted_meadow
+* forest
+* hills
+* wasteland
+* desert
+* ancient_ruins
+* swamp
+* caves
+* mountains
+* volcano
+* shallow_water
+* deep_water
+
+Inclure tundra seulement comme support asset, mais ne jamais la générer ni l’ajouter au jeu.
+
+Si terrain inconnu :
+
+* retourner null
+* fallback visuel simple gris/brun
+* ne pas crash
+
+ÉTAPE 4 — FONCTIONS GÉOMÉTRIE
+
+Implémenter localement :
+
+* hexToScreen(x, y, hexSize, cameraX, cameraY)
+* drawHexPath(ctx, cx, cy, hexSize)
+* getVisibleBounds(mapData, width, height, cameraX, cameraY, hexSize)
+
+Utiliser la même géométrie que GameEngine :
+
+hexHeight = hexSize * Math.sqrt(3)
+screenX = x * hexSize * 1.5 - cameraX
+screenY = y * hexHeight + (x % 2) * hexHeight / 2 - cameraY
+
+ÉTAPE 5 — FONCTION PRINCIPALE
+
+Exporter :
+
+export function renderPixelMap(options: PixelMapRenderOptions): void
+
+Comportement :
+
+1. clear canvas avec fond sombre #0c0a08
+2. déterminer les bounds visibles
+3. pour chaque tuile visible :
+
+   * vérifier terrain
+   * appliquer vision/fog si callbacks fournis
+   * dessiner sprite Pixel HD si terrain supporté
+   * sinon fallback hex couleur neutre
+4. dessiner optionnellement :
+
+   * fog inconnu avec getPixelHDFogSprite()
+   * voile fog ring si isHexInFogRing
+   * grille si showGrid
+   * hover si hovered
+   * sélection si selected
+
+Ne pas dessiner encore :
+
+* unités
+* colonies
+* ownership
+* ressources de tuile
+* routes
+* rivières
+* bâtiments
+* avatar
+* autres joueurs
+
+Ces couches seront pour P6 à P9.
+
+ÉTAPE 6 — VARIANT DÉTERMINISTE
+
+Créer une fonction :
+
+function getTileVariant(x: number, y: number): number
+
+Règle :
+
+* retourner 0, 1, 2 ou 3
+* déterministe par coordonnées
+* ne pas utiliser Math.random()
+
+Exemple acceptable :
+
+* hash simple basé sur x/y
+* variant = hash % 4
+
+ÉTAPE 7 — EAU ANIMÉE
+
+Si terrain est :
+
+* shallow_water
+* deep_water
+
+et animateWater === true :
+
+* utiliser waterFrame fourni
+  sinon :
+* frame = 0
+
+ÉTAPE 8 — FOG
+
+Si isHexVisible existe et retourne false :
+
+* dessiner getPixelHDFogSprite()
+* ne pas dessiner le terrain
+
+Si isHexInFogRing existe et retourne true :
+
+* dessiner le terrain
+* ajouter un overlay sombre transparent
+
+Règles :
+
+* ne pas modifier la logique exploration
+* seulement consommer les callbacks
+* ne pas calculer la vision ici
+
+ÉTAPE 9 — FALLBACK TERRAIN INCONNU
+
+Si terrain non supporté :
+
+* dessiner un hexagone simple
+* couleur neutre #4a4436
+* contour discret
+* ne pas lancer d’erreur
+
+ÉTAPE 10 — EXPORTS
+
+Exporter uniquement :
+
+* PixelMapTile
+* PixelMapRenderOptions
+* renderPixelMap
+
+Ne pas exporter les helpers internes.
+
+ÉTAPE 11 — TYPESCRIPT
+
+Lancer :
+
+npm run check
+
+Si des erreurs TypeScript viennent de PixelMapRenderer.ts, les corriger.
+Les erreurs préexistantes hors scope doivent être listées séparément.
+
+ÉTAPE 12 — RAPPORT FINAL
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC P3
+2. FICHIERS CRÉÉS
+3. API DU RENDERER
+4. TERRAIN MAPPING
+5. GÉOMÉTRIE UTILISÉE
+6. FOG / GRILLE / HOVER / SÉLECTION
+7. CE QUI N’A PAS ÉTÉ BRANCHÉ
+8. RÉSULTAT npm run check
+9. RISQUES RESTANTS
+10. CONCLUSION
+11. STOP
+
+STOP
+Ne pas modifier GameEngine.
+Ne pas modifier GameCanvas.
+Ne pas activer le renderer.
+Ne pas ajouter de toggle.
+Ne pas modifier la DB.
+Ne pas commencer P4.
