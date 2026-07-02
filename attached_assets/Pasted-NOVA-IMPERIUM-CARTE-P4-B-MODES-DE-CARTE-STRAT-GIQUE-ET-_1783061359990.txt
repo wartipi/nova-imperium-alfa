@@ -1,0 +1,246 @@
+NOVA IMPERIUM — CARTE — P4-B / MODES DE CARTE STRATÉGIQUE ET IMMERSIVE
+Branche : NI-10.09
+
+OBJECTIF
+Transformer le toggle expérimental Pixel HD en système propre de modes de carte :
+
+* Mode stratégique : renderer actuel, cases originales, lisibilité maximale
+* Mode immersive : renderer Pixel HD, ambiance visuelle
+
+Important :
+Il ne doit pas y avoir deux cartes différentes.
+Il doit y avoir une seule carte logique avec deux modes de rendu.
+
+Ne pas modifier la DB.
+Ne pas modifier la génération de monde.
+Ne pas modifier les ressources économiques.
+Ne pas modifier pathfinding, exploration, ownership, colonies ou unités.
+Ne pas remplacer définitivement le renderer actuel.
+
+CONTEXTE
+P1 validé :
+
+* Pixel HD faisable
+* géométrie compatible
+* stratégie recommandée : renderer isolé
+
+P2 validé :
+
+* PixelHDAssets.ts
+* sprites Pixel HD 16 terrains
+
+P3 validé :
+
+* PixelMapRenderer.ts isolé
+
+P4 validé :
+
+* toggle expérimental localStorage + touche P
+* Pixel HD off par défaut
+* fallback sécurisé
+
+NOUVELLE DIRECTION PRODUIT
+Conserver deux vues disponibles pour le joueur, comme dans un jeu de stratégie type Civilization :
+
+1. Vue stratégique
+
+* renderer actuel
+* cases claires
+* lecture tactique
+* mouvements, territoires, ressources, unités plus lisibles
+
+2. Vue immersive
+
+* Pixel HD
+* rendu plus vivant
+* exploration et ambiance
+* vue esthétique de la carte
+
+Les deux vues doivent utiliser :
+
+* les mêmes tuiles
+* les mêmes coordonnées
+* le même état de jeu
+* les mêmes systèmes
+* la même DB
+* les mêmes règles
+
+PÉRIMÈTRE AUTORISÉ
+
+Modifier seulement si nécessaire :
+
+* client/src/components/game/GameCanvas.tsx
+* éventuellement un petit type local ou helper local dans GameCanvas.tsx
+
+Ne pas modifier GameEngine.ts sauf nécessité absolue.
+Ne pas modifier PixelHDAssets.ts.
+Ne pas modifier PixelMapRenderer.ts sauf correction mineure indispensable.
+
+INTERDICTIONS STRICTES
+
+Ne pas faire :
+
+* créer une deuxième carte logique
+* dupliquer mapData
+* dupliquer la génération de monde
+* changer les règles de jeu
+* changer les coûts de mouvement
+* changer l’exploration
+* changer ownership / colonies / unités
+* changer les ressources économiques
+* activer Pixel HD par défaut sans décision explicite
+* supprimer le renderer actuel
+
+ÉTAPE 1 — RENOMMER LE CONCEPT
+
+Remplacer mentalement et/ou dans le code les notions trop techniques :
+
+Ancien concept :
+
+* pixelHDEnabled
+* nova_pixel_hd_renderer
+* touche P
+
+Nouveau concept recommandé :
+
+* mapRenderMode
+* "strategic" | "immersive"
+* localStorage key : nova_map_render_mode
+
+Valeur par défaut :
+
+* "strategic"
+
+Mode immersive :
+
+* utilise PixelMapRenderer
+
+Mode strategic :
+
+* utilise renderer actuel
+
+ÉTAPE 2 — COMPATIBILITÉ LOCALSTORAGE
+
+Conserver une compatibilité douce avec l’ancienne clé P4 si elle existe :
+
+Ancienne clé :
+
+* nova_pixel_hd_renderer = "on"
+
+Migration recommandée :
+
+* si nova_map_render_mode absent et nova_pixel_hd_renderer === "on"
+  alors nova_map_render_mode = "immersive"
+
+Ensuite :
+
+* utiliser uniquement nova_map_render_mode
+
+Ne pas casser les utilisateurs qui avaient activé le toggle P4.
+
+ÉTAPE 3 — RACCOURCI CLAVIER
+
+Remplacer ou compléter le raccourci P.
+
+Recommandation :
+
+* touche M = alterner Strategic / Immersive
+* ignorer si focus dans input, textarea, select, contenteditable
+* log console clair :
+
+  * Map render mode: strategic
+  * Map render mode: immersive
+
+Option :
+
+* garder P temporairement comme alias debug si utile
+* mais documenter que M est le raccourci officiel
+
+ÉTAPE 4 — BOUTON UI DISCRET
+
+Ajouter un bouton discret seulement si GameCanvas.tsx possède déjà un overlay UI simple ou un endroit approprié.
+
+Bouton recommandé :
+
+* “Vue stratégique”
+* “Vue immersive”
+
+Règles :
+
+* petit bouton
+* ne pas encombrer l’interface
+* ne pas refaire le HUD
+* ne pas modifier MedievalHUD
+* ne pas créer un gros panneau
+
+Si aucun endroit propre n’existe :
+
+* ne pas forcer le bouton
+* garder seulement touche M + localStorage pour ce bloc
+* proposer bouton propre dans un bloc futur
+
+ÉTAPE 5 — LOGIQUE DE RENDU
+
+Quand mode strategic :
+
+* comportement actuel inchangé
+
+Quand mode immersive :
+
+* appeler renderPixelMap après le render actuel, comme P4
+* maintenir fallback try/catch
+* si erreur : rester en strategic pour éviter écran noir
+
+Important :
+
+* le renderer actuel peut continuer à être dessiné en dessous pour sécurité
+* Pixel HD fonctionne comme overlay tant que les couches avancées ne sont pas complètes
+
+ÉTAPE 6 — RAPPORTER CLAIREMENT LES LIMITES
+
+Le mode immersive ne doit pas encore promettre un remplacement complet.
+
+Mentionner :
+
+* terrains Pixel HD visibles
+* unités/colonies/ownership/ressources non finalisés si encore non rendus
+* mode stratégique reste recommandé pour jouer précisément
+* mode immersive est expérimental mais accessible
+
+ÉTAPE 7 — TESTS
+
+Tester :
+
+1. Chargement par défaut en mode strategic.
+2. Touche M alterne vers immersive.
+3. Re-touche M revient vers strategic.
+4. localStorage persiste le choix.
+5. Ancienne clé nova_pixel_hd_renderer est migrée si présente.
+6. Aucun écran noir.
+7. Mode strategic continue de fonctionner comme avant.
+8. npm run check sans nouvelle erreur liée au bloc.
+
+ÉTAPE 8 — RAPPORT FINAL
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC P4-B
+2. FICHIERS MODIFIÉS
+3. MAP RENDER MODE
+4. LOCALSTORAGE / MIGRATION
+5. RACCOURCI / UI
+6. COMPORTEMENT STRATEGIC
+7. COMPORTEMENT IMMERSIVE
+8. FALLBACK / SÉCURITÉ
+9. LIMITES ACTUELLES
+10. TESTS
+11. RÉSULTAT npm run check
+12. CONCLUSION
+13. STOP
+
+STOP
+Ne pas créer une deuxième carte logique.
+Ne pas modifier la DB.
+Ne pas modifier la génération de monde.
+Ne pas remplacer définitivement le renderer actuel.
+Ne pas commencer P5.

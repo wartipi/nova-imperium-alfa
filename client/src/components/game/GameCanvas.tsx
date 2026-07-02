@@ -28,24 +28,40 @@ import { TerrainHelpers } from "../../lib/constants/TerrainTypes";
 import { VisionSystem } from "../../lib/systems/VisionSystem";
 import { renderPixelMap } from "../../lib/game/PixelMapRenderer";
 
-// ─── Bloc P4 (NI-10.09) — Toggle expérimental renderer Pixel HD ────────────
-// OFF par défaut. Persisté en localStorage. Raccourci clavier "P" pour bascule.
-// Ne remplace jamais durablement le renderer actuel : fallback try/catch strict.
-const PIXEL_HD_STORAGE_KEY = "nova_pixel_hd_renderer";
+// ─── Bloc P4-B (NI-10.09) — Modes de carte : strategic / immersive ─────────
+// Une seule carte logique (mêmes tuiles, mêmes coordonnées, même état de jeu).
+// "strategic" (défaut) = renderer actuel. "immersive" = overlay Pixel HD.
+// Persisté en localStorage. Raccourci clavier "M" pour alterner (ancien "P" P4
+// conservé comme alias debug). Ne remplace jamais durablement le renderer actuel :
+// fallback try/catch strict — en cas d'erreur, on reste en mode strategic.
+type MapRenderMode = "strategic" | "immersive";
+const MAP_RENDER_MODE_STORAGE_KEY = "nova_map_render_mode";
+// Ancienne clé P4 — conservée uniquement pour migration douce (lue une seule fois).
+const LEGACY_PIXEL_HD_STORAGE_KEY = "nova_pixel_hd_renderer";
 
-function readPixelHDToggle(): boolean {
+function readMapRenderMode(): MapRenderMode {
   try {
-    return localStorage.getItem(PIXEL_HD_STORAGE_KEY) === "on";
+    const current = localStorage.getItem(MAP_RENDER_MODE_STORAGE_KEY);
+    if (current === "strategic" || current === "immersive") {
+      return current;
+    }
+    // Migration douce : si l'ancien toggle P4 était activé, on démarre en immersive.
+    const legacy = localStorage.getItem(LEGACY_PIXEL_HD_STORAGE_KEY);
+    if (legacy === "on") {
+      localStorage.setItem(MAP_RENDER_MODE_STORAGE_KEY, "immersive");
+      return "immersive";
+    }
+    return "strategic";
   } catch {
-    return false;
+    return "strategic";
   }
 }
 
-function writePixelHDToggle(enabled: boolean): void {
+function writeMapRenderMode(mode: MapRenderMode): void {
   try {
-    localStorage.setItem(PIXEL_HD_STORAGE_KEY, enabled ? "on" : "off");
+    localStorage.setItem(MAP_RENDER_MODE_STORAGE_KEY, mode);
   } catch {
-    // localStorage indisponible — pas bloquant, le toggle reste en mémoire seulement
+    // localStorage indisponible — pas bloquant, le mode reste en mémoire seulement
   }
 }
 
@@ -113,39 +129,45 @@ export function GameCanvas() {
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
   const [avatarMenuPosition, setAvatarMenuPosition] = useState({ x: 0, y: 0 });
 
-  // ─── Bloc P4 (NI-10.09) — État du toggle Pixel HD expérimental ────────────
-  const [pixelHDEnabled, setPixelHDEnabled] = useState<boolean>(() => readPixelHDToggle());
+  // ─── Bloc P4-B (NI-10.09) — État du mode de carte (strategic/immersive) ───
+  const [mapRenderMode, setMapRenderMode] = useState<MapRenderMode>(() => readMapRenderMode());
   // failureRef évite de renvoyer un log console à chaque frame en cas d'échec répété.
   const pixelHDFailLoggedRef = useRef(false);
+
+  const toggleMapRenderMode = useCallback(() => {
+    setMapRenderMode((prev) => {
+      const next: MapRenderMode = prev === "strategic" ? "immersive" : "strategic";
+      writeMapRenderMode(next);
+      pixelHDFailLoggedRef.current = false;
+      console.log(`[MapRenderMode] Map render mode: ${next}`);
+      gameEngineRef.current?.render();
+      return next;
+    });
+  }, [gameEngineRef]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignorer si focus dans un champ texte (évite les collisions avec la saisie)
       const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable)) {
         return;
       }
-      if (e.key === "p" || e.key === "P") {
-        setPixelHDEnabled((prev) => {
-          const next = !prev;
-          writePixelHDToggle(next);
-          pixelHDFailLoggedRef.current = false;
-          console.log(next ? "[PixelHD] Pixel HD renderer enabled" : "[PixelHD] Pixel HD renderer disabled");
-          gameEngineRef.current?.render();
-          return next;
-        });
+      // "M" = raccourci officiel. "P" conservé comme alias debug hérité de P4.
+      if (e.key === "m" || e.key === "M" || e.key === "p" || e.key === "P") {
+        toggleMapRenderMode();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [gameEngineRef]);
+  }, [toggleMapRenderMode]);
 
-  // ─── Bloc P4 — Overlay Pixel HD après le rendu du renderer actuel ─────────
+  // ─── Bloc P4-B — Overlay Pixel HD (mode immersive) après le rendu actuel ──
   // Appelé après chaque gameEngineRef.current.render(). N'affecte jamais
   // la carte réelle (mapData), ni le renderer actuel : purement un overlay
-  // canvas optionnel, encadré par try/catch, désactivé si erreur.
+  // canvas optionnel, encadré par try/catch. En cas d'erreur, on reste
+  // visuellement en mode strategic (le rendu actuel déjà dessiné persiste).
   const renderPixelHDOverlay = useCallback(() => {
-    if (!pixelHDEnabled) return;
+    if (mapRenderMode !== "immersive") return;
     const engine = gameEngineRef.current;
     const canvas = canvasRef.current;
     if (!engine || !canvas || !mapData) return;
@@ -171,7 +193,7 @@ export function GameCanvas() {
         hexSize: effectiveHexSize,
         showGrid: false,
         selected: selectedHex ? { x: selectedHex.x, y: selectedHex.y } : null,
-        // hovered : non disponible sans modifier lourdement GameEngine (P4 — limite connue documentée)
+        // hovered : non disponible sans modifier lourdement GameEngine (limite connue documentée depuis P4)
         hovered: null,
         isHexVisible: isHexVisible ?? undefined,
         isHexInFogRing: isHexInFogRing ?? undefined,
@@ -179,12 +201,12 @@ export function GameCanvas() {
       pixelHDFailLoggedRef.current = false;
     } catch (err) {
       if (!pixelHDFailLoggedRef.current) {
-        console.error("[PixelHD] Pixel HD renderer failed, falling back to current renderer", err);
+        console.error("[MapRenderMode] Immersive renderer failed, falling back to strategic view", err);
         pixelHDFailLoggedRef.current = true;
       }
-      // Pas de re-throw : le rendu actuel (déjà dessiné par engine.render()) reste affiché.
+      // Pas de re-throw : le rendu strategic (déjà dessiné par engine.render()) reste affiché.
     }
-  }, [pixelHDEnabled, gameEngineRef, mapData, selectedHex, isHexVisible, isHexInFogRing]);
+  }, [mapRenderMode, gameEngineRef, mapData, selectedHex, isHexVisible, isHexInFogRing]);
 
   // ─── Menu contextuel de case (clic droit) ─────────────────────────────────
   const [tileContextMenu, setTileContextMenu] = useState<{
@@ -658,6 +680,32 @@ export function GameCanvas() {
   return (
     <>
       <CameraControls />
+
+      {/* ─── Bloc P4-B (NI-10.09) — Bouton discret de bascule mode de carte ───
+          Strategic (défaut, renderer actuel) / Immersive (Pixel HD, expérimental).
+          Ne remplace pas MedievalHUD, pas de panneau — bouton unique et compact. */}
+      <button
+        onClick={toggleMapRenderMode}
+        title="Basculer entre vue stratégique et vue immersive (raccourci : M)"
+        style={{
+          position: 'fixed',
+          bottom: 12,
+          right: 12,
+          zIndex: 40,
+          padding: '6px 12px',
+          fontSize: '0.75rem',
+          fontFamily: 'Georgia, serif',
+          letterSpacing: '0.03em',
+          color: '#e8d9a0',
+          background: 'rgba(20, 12, 8, 0.75)',
+          border: '1px solid #6b4f2a',
+          borderRadius: 6,
+          cursor: 'pointer',
+        }}
+      >
+        {mapRenderMode === 'strategic' ? 'Vue stratégique' : 'Vue immersive'}
+      </button>
+
       <canvas
         ref={canvasRef}
         width={window.innerWidth}
