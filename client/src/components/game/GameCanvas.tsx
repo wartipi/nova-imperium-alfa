@@ -203,6 +203,21 @@ export function GameCanvas() {
         .filter((t) => t.exploitationBuildingType != null)
         .map((t) => ({ x: t.x, y: t.y, buildingType: t.exploitationBuildingType as string }));
 
+      // Bloc P7 — Ressources de tuile : réutilise EXACTEMENT la même règle de découverte
+      // que GameEngine.ts (drawHex) : isAdmin OU (explorationLevel>=1 ET ressource découverte).
+      // Aucune nouvelle logique, aucun nouveau fetch — lecture directe de usePlayer.getState().
+      const shouldShowTileResource = (
+        x: number,
+        y: number,
+        resource: string | null | undefined,
+      ): boolean => {
+        if (!resource) return false;
+        const playerState = usePlayer.getState();
+        const explorationLevel = playerState.getCompetenceLevel("exploration") || 0;
+        const hexResourceDiscovered = playerState.isResourceDiscovered?.(x, y) || false;
+        return isAdmin || (explorationLevel >= 1 && hexResourceDiscovered);
+      };
+
       renderPixelMap({
         ctx,
         mapData,
@@ -219,6 +234,8 @@ export function GameCanvas() {
         isHexInFogRing: isHexInFogRing ?? undefined,
         colonies,
         buildings,
+        showResources: true,
+        shouldShowTileResource,
       });
       pixelHDFailLoggedRef.current = false;
     } catch (err) {
@@ -228,7 +245,7 @@ export function GameCanvas() {
       }
       // Pas de re-throw : le rendu strategic (déjà dessiné par engine.render()) reste affiché.
     }
-  }, [mapRenderMode, gameEngineRef, mapData, selectedHex, isHexVisible, isHexInFogRing]);
+  }, [mapRenderMode, gameEngineRef, mapData, selectedHex, isHexVisible, isHexInFogRing, isAdmin]);
 
   // ─── Menu contextuel de case (clic droit) ─────────────────────────────────
   const [tileContextMenu, setTileContextMenu] = useState<{

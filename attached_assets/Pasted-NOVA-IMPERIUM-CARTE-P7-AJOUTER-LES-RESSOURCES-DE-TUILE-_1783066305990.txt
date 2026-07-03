@@ -1,0 +1,345 @@
+NOVA IMPERIUM — CARTE — P7 / AJOUTER LES RESSOURCES DE TUILE AU MODE IMMERSIVE
+Branche : NI-10.09
+
+OBJECTIF
+Ajouter l’affichage des ressources de tuile visibles au mode immersive Pixel HD, en utilisant uniquement les données déjà disponibles côté client et les règles existantes de découverte.
+
+Ce bloc ne doit pas ajouter encore :
+
+* unités
+* ownership / frontières politiques complètes
+* routes
+* rivières
+* avatar
+* autres joueurs
+
+Ces couches restent pour les blocs suivants.
+
+CONTEXTE VALIDÉ
+P1 poussé :
+
+* audit intégration Pixel HD validé
+
+P2 poussé :
+
+* PixelHDAssets.ts
+* sprites Pixel HD disponibles
+
+P3 poussé :
+
+* PixelMapRenderer.ts isolé
+
+P4 poussé :
+
+* toggle expérimental Pixel HD
+
+P4-B poussé :
+
+* modes de carte :
+
+  * strategic
+  * immersive
+* localStorage :
+
+  * nova_map_render_mode
+* touche M
+* bouton discret
+* strategic par défaut
+
+P5 poussé :
+
+* mode immersive stabilisé sur les terrains réels
+* mapData[y][x] validé
+* caméra / zoom validés
+
+P6 poussé :
+
+* colonies affichées en immersive
+* bâtiments d’exploitation affichés si données disponibles
+* aucune logique de jeu modifiée
+
+OBJECTIF P7
+Afficher en mode immersive les ressources de tuile déjà visibles/découvertes selon les règles existantes.
+
+Important :
+Le mode immersive ne doit pas révéler de ressource cachée.
+Il doit respecter les mêmes règles que le mode stratégique.
+
+PÉRIMÈTRE AUTORISÉ
+
+Modifier seulement si nécessaire :
+
+* client/src/lib/game/PixelMapRenderer.ts
+* client/src/components/game/GameCanvas.tsx
+* éventuellement client/src/lib/shared/ResourceIcons.ts si un mapping visuel déjà centralisé est nécessaire
+
+Éviter de modifier GameEngine.ts.
+Modifier GameEngine.ts seulement si une lecture strictement nécessaire manque, et uniquement via getter lecture-seule.
+
+Ne pas modifier :
+
+* DB
+* backend
+* schema
+* MapGenerator.ts
+* mapAdapter.ts
+* TerrainCosts.ts
+* ResourceRevealSystem.ts
+* UnifiedTerritorySystem.ts
+* économie
+* pathfinding
+* exploration
+* ownership
+* unités
+* colonies côté logique
+* règles de récolte
+* règles de découverte
+
+ÉTAPE 1 — AUDIT DES DONNÉES DISPONIBLES
+
+Inspecter :
+
+* GameCanvas.tsx
+* PixelMapRenderer.ts
+* ResourceRevealSystem.ts
+* ResourceIcons.ts
+* types de tuile existants si nécessaire
+
+Identifier précisément :
+
+* où se trouve la ressource d’une tuile :
+
+  * tile.resource
+  * tile.resourceType
+  * autre champ existant
+* comment le mode stratégique décide si la ressource est visible
+* si une fonction existante comme isResourceDiscovered est déjà accessible
+* quelles ressources V2 sont actuellement valides
+
+Ne pas inventer de nouveau champ.
+Ne pas faire de nouveau fetch.
+Ne pas dupliquer la logique de révélation si une fonction existe déjà.
+
+ÉTAPE 2 — RESPECT STRICT DE LA DÉCOUVERTE
+
+Le mode immersive doit afficher une ressource seulement si :
+
+1. la tuile est visible / explorée selon les callbacks existants ;
+2. la ressource est déjà découverte selon le système existant ;
+3. le mode stratégique l’afficherait aussi.
+
+Si la logique exacte n’est pas accessible dans PixelMapRenderer :
+
+* transmettre un callback depuis GameCanvas.tsx, par exemple :
+  shouldShowTileResource?: (x: number, y: number, resource: string | null | undefined) => boolean
+
+Important :
+
+* le callback doit utiliser la logique existante
+* ne pas recréer une logique parallèle dans PixelMapRenderer
+
+ÉTAPE 3 — TYPES
+
+Étendre PixelMapTile seulement avec les champs réellement existants.
+
+Exemple acceptable si compatible :
+
+export interface PixelMapTile {
+x?: number;
+y?: number;
+terrain: string;
+resource?: string | null;
+resourceType?: string | null;
+discovered?: boolean;
+explored?: boolean;
+ownerId?: string | number | null;
+cityId?: string | number | null;
+buildingType?: string | null;
+buildingId?: string | number | null;
+}
+
+Étendre PixelMapRenderOptions si nécessaire :
+
+showResources?: boolean;
+shouldShowTileResource?: (x: number, y: number, resource: string | null | undefined) => boolean;
+
+Valeur par défaut :
+
+* showResources true
+
+ÉTAPE 4 — MAPPING VISUEL DES RESSOURCES
+
+Utiliser les ressources V2 actuelles.
+
+Ressources actives à reconnaître :
+
+* food
+* wood
+* stone
+* common_metals
+* coal
+* oil
+* herbs
+* leather_fur
+* fracten si jamais présent comme valeur économique, mais normalement pas comme ressource de tuile
+
+Ressources futures/pas encore pleinement actives :
+
+* rare_metals_alloys
+* textiles
+* spices
+* precious_stones
+* crystals
+* sacred_stones
+* ancient_artifacts
+* enchanted_wood
+* mana_crystals
+* arcane_stones
+* elemental_essence
+* spirit_stones
+* void_shards
+
+Règles :
+
+* ne pas réintroduire gold / iron / copper / fur comme ressources économiques V1
+* si legacy gold/iron/copper/fur apparaît seulement comme ancien visuel ou donnée historique, ne pas l’afficher comme ressource économique active
+* si mapping visuel temporaire est nécessaire :
+
+  * iron peut être traité visuellement comme common_metals seulement si le système actuel le fait déjà
+  * fur peut être traité visuellement comme leather_fur seulement si le système actuel le fait déjà
+* documenter toute compatibilité legacy
+
+ÉTAPE 5 — RENDU VISUEL
+
+Ajouter une fonction interne dans PixelMapRenderer.ts :
+
+drawResourceMarker(...)
+
+Style recommandé :
+
+* petit marqueur pixel discret
+* placé près du coin haut-droit ou bas-droit de l’hex
+* ne doit pas cacher colonie/bâtiment
+* contour sombre
+* icône simple dessinée en canvas, pas emoji
+* lisible à zoom moyen
+* pas de texte massif
+
+Exemples visuels simples :
+
+* food : petit épi / point jaune
+* wood : petit tronc / arbre
+* stone : petit rocher
+* common_metals : petit lingot gris
+* coal : petit bloc noir
+* oil : goutte sombre
+* herbs : petite feuille verte
+* leather_fur : petite peau/brun
+
+Ne pas utiliser d’image externe.
+
+ÉTAPE 6 — ORDRE DES COUCHES
+
+Ordre recommandé :
+
+1. Fond canvas
+2. Terrain Pixel HD
+3. Fog total
+4. Fog ring overlay
+5. Grille
+6. Ressources de tuile
+7. Colonies
+8. Bâtiments
+9. Sélection
+
+Règles :
+
+* fog total masque les ressources
+* ressources non découvertes invisibles
+* colonies/bâtiments restent plus importants que ressources
+* sélection reste visible par-dessus
+
+ÉTAPE 7 — GAMECANVAS
+
+Dans GameCanvas.tsx :
+
+* transmettre showResources: true
+* transmettre shouldShowTileResource si nécessaire
+* utiliser la même logique que la vue stratégique
+* ne pas ajouter de nouveau state global inutile
+* ne pas faire d’appel réseau
+
+ÉTAPE 8 — FALLBACK
+
+Maintenir :
+
+* strategic inchangé
+* immersive fallback-safe
+* try/catch existant autour du renderer
+* aucune erreur ne doit produire un écran noir
+
+Si ressource inconnue :
+
+* ne rien dessiner ou fallback discret
+* log debug seulement si vraiment utile, sans spam
+
+ÉTAPE 9 — TEST MANUEL
+
+Tester :
+
+1. Chargement par défaut en strategic.
+2. Passer en immersive avec M.
+3. Vérifier que les terrains restent alignés.
+4. Vérifier qu’une ressource déjà découverte apparaît.
+5. Vérifier qu’une ressource non découverte n’apparaît pas.
+6. Vérifier que fog total masque les ressources.
+7. Vérifier que colonies/bâtiments restent visibles.
+8. Vérifier que sélection reste visible.
+9. Revenir en strategic.
+10. Vérifier que strategic reste inchangé.
+11. Console : aucune erreur PixelMapRenderer.
+12. Rechargement : mode choisi persiste.
+
+Si le test visuel automatisé ne permet pas de valider :
+
+* le dire clairement
+* faire vérification code + logs
+* demander validation utilisateur dans preview
+
+ÉTAPE 10 — TYPESCRIPT
+
+Lancer :
+
+npm run check
+
+Corriger toute erreur liée à P7.
+
+Les erreurs préexistantes hors scope doivent être listées séparément.
+
+ÉTAPE 11 — RAPPORT FINAL
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC P7
+2. FICHIERS MODIFIÉS
+3. DONNÉES RESSOURCES DISPONIBLES
+4. RÈGLES DE DÉCOUVERTE / VISIBILITÉ
+5. RENDU DES RESSOURCES
+6. COMPATIBILITÉ V2 / LEGACY
+7. ORDRE DES COUCHES
+8. FALLBACK STRATEGIC
+9. TESTS MANUELS
+10. RÉSULTAT npm run check
+11. LIMITES RESTANTES
+12. CONCLUSION
+13. STOP
+
+STOP
+Ne pas ajouter unités.
+Ne pas ajouter ownership complet.
+Ne pas ajouter routes.
+Ne pas ajouter rivières.
+Ne pas modifier DB.
+Ne pas modifier backend.
+Ne pas modifier génération de monde.
+Ne pas commencer P8.
