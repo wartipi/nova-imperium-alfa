@@ -1,0 +1,279 @@
+NOVA IMPERIUM — CARTE — P12 / MODE IMMERSIVE PAR DÉFAUT
+Branche : NI-10.09
+
+OBJECTIF
+Faire du mode immersive Pixel HD le mode de carte par défaut officiel.
+
+Le mode strategic doit rester disponible, mais il devient la vue alternative / classique, pas le mode principal par défaut.
+
+Ce bloc doit être petit, ciblé et sans changement de logique de jeu.
+
+CONTEXTE VALIDÉ
+P1 poussé :
+
+* audit intégration Pixel HD validé
+
+P2 poussé :
+
+* PixelHDAssets.ts
+* sprites Pixel HD disponibles
+
+P3 poussé :
+
+* PixelMapRenderer.ts isolé
+
+P4 poussé :
+
+* toggle expérimental Pixel HD
+
+P4-B poussé :
+
+* modes de carte :
+
+  * strategic
+  * immersive
+* localStorage :
+
+  * nova_map_render_mode
+* touche M
+* bouton discret
+
+P5 poussé :
+
+* stabilisation terrains immersive
+
+P6 poussé :
+
+* colonies et bâtiments immersive
+
+P7 poussé :
+
+* ressources de tuile immersive
+
+P8 poussé :
+
+* ownership / frontières immersive
+
+P9 poussé :
+
+* unités immersive
+
+P10 poussé :
+
+* audit visuel final
+* mode immersive jugé stable
+
+P11 poussé :
+
+* audit routes
+* aucune donnée réelle de route disponible actuellement
+* aucun code route ajouté
+
+DÉCISION CANON
+Le mode immersive est maintenant le mode de carte principal par défaut.
+
+Le mode strategic reste disponible comme vue alternative / vue classique.
+
+OBJECTIF P12
+Modifier seulement le comportement initial du mode de carte :
+
+* si aucun choix utilisateur n’existe dans localStorage :
+
+  * démarrer en immersive
+* si un choix utilisateur existe déjà dans localStorage :
+
+  * respecter ce choix
+* la touche M doit continuer à basculer entre immersive et strategic
+* le bouton de changement de vue doit continuer à fonctionner
+* aucun autre comportement de jeu ne doit changer
+
+PÉRIMÈTRE AUTORISÉ
+
+Modifier seulement si nécessaire :
+
+* client/src/components/game/GameCanvas.tsx
+* commentaires ou libellés liés aux modes de carte si nécessaire
+
+Lire seulement si nécessaire :
+
+* client/src/lib/game/PixelMapRenderer.ts
+
+Ne pas modifier :
+
+* DB
+* backend
+* schema
+* MapGenerator.ts
+* mapAdapter.ts
+* TerrainCosts.ts
+* ResourceRevealSystem.ts
+* UnifiedTerritorySystem.ts
+* économie
+* pathfinding
+* exploration
+* ownership
+* unités
+* mouvement
+* combat
+* règles de colonie
+* règles de ressources
+* routes
+* rivières
+* avatar
+* autres joueurs
+
+ÉTAPE 1 — AUDIT DU MODE ACTUEL
+
+Inspecter GameCanvas.tsx.
+
+Identifier :
+
+* la valeur initiale actuelle de mapRenderMode
+* la clé localStorage utilisée :
+
+  * nova_map_render_mode
+* comment le mode est lu au chargement
+* comment la touche M bascule le mode
+* comment le bouton UI affiche le mode actuel
+
+Confirmer si strategic est encore codé comme défaut quand localStorage est absent.
+
+ÉTAPE 2 — MODIFICATION CIBLÉE
+
+Changer uniquement la valeur par défaut.
+
+Comportement requis :
+
+```ts
+const savedMode = localStorage.getItem("nova_map_render_mode");
+
+if (savedMode === "strategic" || savedMode === "immersive") {
+  return savedMode;
+}
+
+return "immersive";
+```
+
+Ou équivalent compatible avec le code existant.
+
+Important :
+
+* ne pas écraser le choix localStorage existant
+* ne pas forcer immersive à chaque chargement
+* ne pas supprimer strategic
+* ne pas changer la touche M
+* ne pas changer le nom de la clé localStorage
+* ne pas changer la structure du renderer
+
+ÉTAPE 3 — LIBELLÉS UI
+
+Vérifier les textes du bouton de mode.
+
+Le bouton doit rester clair.
+
+Exemples acceptables :
+
+* si le mode actuel est immersive :
+
+  * bouton : “Vue immersive”
+  * ou “Mode immersive”
+* si le mode actuel est strategic :
+
+  * bouton : “Vue stratégique”
+  * ou “Mode stratégique”
+
+Ne pas ajouter de nouvelle UI majeure.
+
+ÉTAPE 4 — DOCUMENTATION / COMMENTAIRES
+
+Mettre à jour tout commentaire faux du type :
+
+* “strategic default”
+* “strategic par défaut”
+* “default strategic mode”
+
+Remplacer par :
+
+* “immersive default”
+* “mode immersive par défaut”
+* “strategic remains available as alternate mode”
+
+Ne pas faire de refactor large.
+
+ÉTAPE 5 — TESTS MANUELS
+
+Tester :
+
+1. Supprimer ou ignorer localStorage nova_map_render_mode.
+2. Recharger la page.
+3. Vérifier que le jeu démarre en immersive.
+4. Appuyer sur M.
+5. Vérifier que le mode passe en strategic.
+6. Recharger.
+7. Vérifier que strategic est conservé si c’est le choix enregistré.
+8. Appuyer sur M.
+9. Vérifier que le mode revient en immersive.
+10. Recharger.
+11. Vérifier que immersive est conservé.
+12. Vérifier que le bouton UI fonctionne encore.
+13. Vérifier que la carte ne devient pas noire.
+14. Vérifier que les couches P5–P10 restent visibles :
+
+    * terrains
+    * fog
+    * ressources
+    * colonies
+    * bâtiments
+    * ownership/frontières
+    * unités
+    * sélection
+
+Si la preview automatisée ne peut pas valider à cause de l’authentification :
+
+* le dire clairement
+* faire vérification code + logs
+* demander validation utilisateur
+
+ÉTAPE 6 — TYPESCRIPT
+
+Lancer :
+
+npm run check
+
+Corriger toute erreur liée à P12.
+
+Les erreurs préexistantes hors scope doivent être listées séparément.
+
+ÉTAPE 7 — RAPPORT FINAL
+
+Créer le rapport :
+
+attached_assets/RAPPORT_P12_mode_immersive_par_defaut.md
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC P12
+2. FICHIERS MODIFIÉS
+3. VALEUR PAR DÉFAUT AVANT
+4. VALEUR PAR DÉFAUT APRÈS
+5. LOCALSTORAGE
+6. TOUCHE M / BOUTON UI
+7. STRATEGIC COMME MODE ALTERNATIF
+8. TESTS MANUELS
+9. RÉSULTAT npm run check
+10. PROBLÈMES TROUVÉS
+11. CORRECTIONS APPLIQUÉES
+12. LIMITES RESTANTES
+13. CONCLUSION
+14. STOP
+
+STOP
+Ne pas ajouter routes.
+Ne pas ajouter rivières.
+Ne pas ajouter avatar.
+Ne pas ajouter autres joueurs.
+Ne pas modifier DB.
+Ne pas modifier backend.
+Ne pas modifier génération de monde.
+Ne pas modifier les règles de jeu.
+Ne pas commencer P13.

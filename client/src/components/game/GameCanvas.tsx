@@ -30,7 +30,9 @@ import { renderPixelMap, type PixelMapUnit } from "../../lib/game/PixelMapRender
 
 // ─── Bloc P4-B (NI-10.09) — Modes de carte : strategic / immersive ─────────
 // Une seule carte logique (mêmes tuiles, mêmes coordonnées, même état de jeu).
-// "strategic" (défaut) = renderer actuel. "immersive" = overlay Pixel HD.
+// Bloc P12 (NI-10.09) — mode immersive par défaut : "immersive" est désormais le
+// mode principal par défaut quand aucun choix n'existe en localStorage. "strategic"
+// reste disponible comme vue alternative / classique (jamais supprimé).
 // Persisté en localStorage. Raccourci clavier "M" pour alterner (ancien "P" P4
 // conservé comme alias debug). Ne remplace jamais durablement le renderer actuel :
 // fallback try/catch strict — en cas d'erreur, on reste en mode strategic.
@@ -51,9 +53,11 @@ function readMapRenderMode(): MapRenderMode {
       localStorage.setItem(MAP_RENDER_MODE_STORAGE_KEY, "immersive");
       return "immersive";
     }
-    return "strategic";
+    // Bloc P12 — aucun choix utilisateur enregistré : immersive devient le défaut.
+    return "immersive";
   } catch {
-    return "strategic";
+    // localStorage indisponible : on retombe sur le défaut P12 (immersive).
+    return "immersive";
   }
 }
 
@@ -799,7 +803,8 @@ export function GameCanvas() {
       <CameraControls />
 
       {/* ─── Bloc P4-B (NI-10.09) — Bouton discret de bascule mode de carte ───
-          Strategic (défaut, renderer actuel) / Immersive (Pixel HD, expérimental).
+          Bloc P12 — Immersive (Pixel HD) est le mode par défaut ; Strategic (renderer
+          classique) reste disponible comme vue alternative.
           Ne remplace pas MedievalHUD, pas de panneau — bouton unique et compact. */}
       <button
         onClick={toggleMapRenderMode}
