@@ -1,0 +1,415 @@
+NOVA IMPERIUM — CARTE — P11 / AJOUTER LES ROUTES AU MODE IMMERSIVE
+Branche : NI-10.09
+
+OBJECTIF
+Ajouter l’affichage visuel des routes au mode immersive Pixel HD, en utilisant uniquement les données déjà disponibles côté client.
+
+Ce bloc est visuel seulement.
+
+Il ne doit pas modifier :
+
+* la logique de déplacement
+* les coûts de déplacement
+* le pathfinding
+* la génération de monde
+* la base de données
+* le backend
+* les règles de territoire
+* les règles de construction
+
+CONTEXTE VALIDÉ
+P1 poussé :
+
+* audit intégration Pixel HD validé
+
+P2 poussé :
+
+* PixelHDAssets.ts
+* sprites Pixel HD disponibles
+
+P3 poussé :
+
+* PixelMapRenderer.ts isolé
+
+P4 poussé :
+
+* toggle expérimental Pixel HD
+
+P4-B poussé :
+
+* modes de carte :
+
+  * strategic
+  * immersive
+* localStorage :
+
+  * nova_map_render_mode
+* touche M
+* bouton discret
+* strategic par défaut
+
+P5 poussé :
+
+* stabilisation terrains immersive
+
+P6 poussé :
+
+* colonies et bâtiments immersive
+
+P7 poussé :
+
+* ressources de tuile immersive
+
+P8 poussé :
+
+* ownership / frontières immersive
+
+P9 poussé :
+
+* unités immersive
+
+P10 poussé :
+
+* audit visuel final
+* correction mineure de positionnement des unités
+* mode immersive jugé stable pour continuer
+
+OBJECTIF P11
+Afficher en mode immersive les routes existantes ou chemins déjà présents dans les données client, sans créer de nouveau système.
+
+Le rendu doit :
+
+1. afficher les routes seulement sur les tuiles visibles ;
+2. rester discret et lisible ;
+3. ne pas révéler d’information sous fog total ;
+4. ne pas modifier la logique de jeu ;
+5. respecter la géométrie hex existante.
+
+IMPORTANT
+Ne pas inventer de routes.
+Ne pas générer de routes automatiquement.
+Ne pas créer de nouveau modèle de données.
+Ne pas faire de nouveau fetch.
+Ne pas ajouter les rivières dans ce bloc.
+
+PÉRIMÈTRE AUTORISÉ
+
+Modifier seulement si nécessaire :
+
+* client/src/lib/game/PixelMapRenderer.ts
+* client/src/components/game/GameCanvas.tsx
+
+Lire seulement si nécessaire :
+
+* GameEngine.ts
+* mapAdapter.ts
+* types.ts
+* fichiers liés aux bâtiments/territoires si les routes sont représentées comme amélioration de tuile
+
+Modifier GameEngine.ts seulement si une lecture strictement nécessaire manque, et uniquement via getter lecture-seule.
+
+Ne pas modifier :
+
+* DB
+* backend
+* schema
+* MapGenerator.ts
+* TerrainCosts.ts
+* ResourceRevealSystem.ts
+* UnifiedTerritorySystem.ts
+* économie
+* pathfinding
+* exploration
+* ownership logic
+* unités logic
+* mouvement
+* combat
+* règles de colonie
+* règles de ressources
+* règles de construction
+
+Ne pas ajouter :
+
+* rivières
+* avatar
+* autres joueurs
+* animation de déplacement
+* nouveau pathfinding
+* nouveau système de construction de route
+* nouvelle UI majeure
+
+ÉTAPE 1 — AUDIT DES DONNÉES ROUTES DISPONIBLES
+
+Inspecter :
+
+* GameCanvas.tsx
+* PixelMapRenderer.ts
+* types de tuiles existants
+* mapAdapter.ts si nécessaire
+* GameEngine.ts seulement pour voir si la vue strategic affiche déjà des routes
+
+Identifier précisément :
+
+* si les routes existent déjà dans mapData
+* nom exact du champ s’il existe :
+
+  * road
+  * hasRoad
+  * route
+  * roadType
+  * improvementType
+  * infrastructure
+  * buildingType
+  * autre champ réel
+* si les routes sont des bâtiments/améliorations de tuiles
+* si la vue strategic affiche déjà quelque chose lié aux routes
+* si aucune donnée route n’existe encore
+
+Important :
+
+* si aucune donnée route n’existe, ne pas inventer
+* produire un rapport clair indiquant que P11 ne peut pas afficher de routes réelles sans source de données
+* dans ce cas, ne pas ajouter de faux rendu
+
+ÉTAPE 2 — TYPES
+
+Étendre PixelMapTile seulement avec les champs réellement disponibles.
+
+Exemple autorisé uniquement si compatible avec les données réelles :
+
+export interface PixelMapTile {
+x?: number;
+y?: number;
+terrain: string;
+resource?: string | null;
+resourceType?: string | null;
+discovered?: boolean;
+explored?: boolean;
+ownerId?: string | number | null;
+ownerType?: string | null;
+factionId?: string | number | null;
+cityId?: string | number | null;
+buildingType?: string | null;
+buildingId?: string | number | null;
+road?: boolean;
+hasRoad?: boolean;
+roadType?: string | null;
+improvementType?: string | null;
+}
+
+Étendre PixelMapRenderOptions si nécessaire :
+
+showRoutes?: boolean;
+hasTileRoad?: (x: number, y: number, tile: PixelMapTile) => boolean;
+
+Valeur par défaut :
+
+* showRoutes true
+
+Si les routes ne sont pas dans tile mais dans une structure séparée :
+
+* transmettre un callback depuis GameCanvas.tsx
+* ne pas créer de nouveau store
+* ne pas faire de fetch
+
+ÉTAPE 3 — VISIBILITÉ / FOG
+
+Règles strictes :
+
+* une route ne s’affiche jamais sur une tuile non visible
+* fog total masque les routes
+* fog ring peut assombrir les routes
+* ne jamais révéler une route cachée
+* ne pas modifier la logique d’exploration
+
+Le renderer doit seulement consommer :
+
+* isHexVisible
+* isHexInFogRing
+* données existantes de route
+* callback hasTileRoad si nécessaire
+
+ÉTAPE 4 — RENDU VISUEL DES ROUTES
+
+Ajouter dans PixelMapRenderer.ts une fonction interne :
+
+drawRoutesLayer(...)
+
+Rendu recommandé :
+
+* lignes fines style chemin de terre / pavé léger
+* couleur brun/gris discret
+* alpha modéré
+* pas de texte
+* pas d’emoji
+* pas d’image externe
+* compatible avec le style Pixel HD
+* lisible au zoom moyen
+* ne doit pas dominer terrains, frontières ou unités
+
+La route doit idéalement connecter le centre de l’hex aux côtés qui mènent vers des voisins avec route.
+
+Si la donnée ne permet pas de savoir les connexions :
+
+* dessiner un petit segment ou croix discrète au centre de l’hex
+* documenter la limite
+* ne pas inventer de réseau complet
+
+ÉTAPE 5 — CONNEXION HEX
+
+Si les routes existent sur des tuiles adjacentes :
+
+* connecter les centres des hex voisins visibles avec route
+* utiliser la géométrie hex existante
+* respecter colonnes décalées x pair / impair
+* ne pas utiliser une grille carrée
+
+Règles :
+
+* tracer connexion A → B si :
+
+  * A visible
+  * B visible
+  * A a route
+  * B a route
+* si B est sous fog total :
+
+  * ne pas tracer vers B
+  * ne pas révéler la continuité de la route
+
+ÉTAPE 6 — ORDRE DES COUCHES
+
+Ordre recommandé après P11 :
+
+1. Fond canvas
+2. Terrain Pixel HD
+3. Routes
+4. Ownership overlay léger
+5. Fog total
+6. Fog ring overlay
+7. Grille
+8. Frontières ownership
+9. Ressources de tuile
+10. Colonies
+11. Bâtiments
+12. Unités
+13. Sélection tuile
+
+Règles :
+
+* routes sous ownership/frontières pour rester discrètes
+* routes au-dessus du terrain pour être visibles
+* fog total masque routes
+* unités/colonies/bâtiments restent prioritaires visuellement
+* sélection reste au-dessus de tout
+
+ÉTAPE 7 — GAMECANVAS
+
+Dans GameCanvas.tsx :
+
+* transmettre showRoutes: true
+* transmettre hasTileRoad si nécessaire
+* utiliser seulement les données déjà chargées
+* ne pas faire de nouvel appel réseau
+* ne pas ajouter de nouveau state global inutile
+
+ÉTAPE 8 — FALLBACK SI AUCUNE DONNÉE ROUTE
+
+Si aucune donnée de route réelle n’existe actuellement :
+
+Ne pas créer de faux système.
+
+Faire seulement :
+
+* audit clair
+* éventuellement ajouter les options showRoutes / hasTileRoad prêtes pour plus tard seulement si cela reste propre et sans effet visuel
+* aucun rendu visible inventé
+* rapport final indiquant que P11 est bloqué côté données
+
+Dans ce cas, conclusion possible :
+
+* “P11 préparatoire seulement — aucune route réelle à afficher actuellement.”
+
+ÉTAPE 9 — FALLBACK TECHNIQUE
+
+Maintenir :
+
+* strategic inchangé
+* immersive fallback-safe
+* try/catch existant autour du renderer
+* aucune erreur ne doit produire un écran noir
+
+Si route inconnue :
+
+* ne rien dessiner
+* pas de log spam
+
+ÉTAPE 10 — TEST MANUEL
+
+Tester :
+
+1. Chargement par défaut en strategic.
+2. Passer en immersive avec M.
+3. Vérifier que les terrains restent alignés.
+4. Si routes réelles présentes : vérifier qu’elles apparaissent seulement sur tuiles visibles.
+5. Vérifier qu’aucune route n’apparaît sous fog total.
+6. Vérifier que ressources, colonies, bâtiments, frontières et unités restent visibles.
+7. Vérifier que la sélection de tuile reste visible.
+8. Revenir en strategic.
+9. Vérifier que strategic reste inchangé.
+10. Console : aucune erreur PixelMapRenderer.
+11. Rechargement : mode choisi persiste.
+
+Si aucune route réelle n’existe :
+
+* confirmer que rien de faux n’est affiché
+* confirmer que le mode immersive reste stable
+
+Si le test visuel automatisé ne permet pas de valider :
+
+* le dire clairement
+* faire vérification code + logs
+* demander validation utilisateur dans preview
+
+ÉTAPE 11 — TYPESCRIPT
+
+Lancer :
+
+npm run check
+
+Corriger toute erreur liée à P11.
+
+Les erreurs préexistantes hors scope doivent être listées séparément.
+
+ÉTAPE 12 — RAPPORT FINAL
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC P11
+2. FICHIERS MODIFIÉS
+3. DONNÉES ROUTES DISPONIBLES
+4. RENDU ROUTES
+5. CONNEXIONS HEX
+6. VISIBILITÉ / FOG
+7. ORDRE DES COUCHES
+8. FALLBACK SI AUCUNE DONNÉE ROUTE
+9. FALLBACK STRATEGIC
+10. TESTS MANUELS
+11. RÉSULTAT npm run check
+12. PROBLÈMES TROUVÉS
+13. CORRECTIONS APPLIQUÉES
+14. LIMITES RESTANTES
+15. CONCLUSION
+16. STOP
+
+STOP
+Ne pas ajouter rivières.
+Ne pas ajouter avatar.
+Ne pas ajouter autres joueurs.
+Ne pas modifier DB.
+Ne pas modifier backend.
+Ne pas modifier génération de monde.
+Ne pas modifier pathfinding.
+Ne pas modifier mouvement.
+Ne pas modifier règles de construction.
+Ne pas commencer P12.
