@@ -95,6 +95,9 @@ export interface PixelColonyMarker {
   x: number;
   y: number;
   name?: string;
+  // Bloc P14-A — donnée déjà transmise par le serveur (ColonyDTO.isCapital),
+  // propagée depuis UnifiedTerritorySystem. Purement informatif pour le rendu.
+  isCapital?: boolean;
 }
 
 export interface PixelBuildingMarker {
@@ -419,7 +422,13 @@ function drawFallbackHex(ctx: CanvasRenderingContext2D, sx: number, sy: number, 
 // Symbole village médiéval minimal : base sombre + toit brun/ocre + contour
 // clair + point discret. Pas d'emoji, pas d'image externe, pas de texte
 // massif (aucun label de nom pour rester lisible même à zoom moyen).
-function drawColonyMarker(ctx: CanvasRenderingContext2D, sx: number, sy: number, hexSize: number): void {
+function drawColonyMarker(
+  ctx: CanvasRenderingContext2D,
+  sx: number,
+  sy: number,
+  hexSize: number,
+  isCapital?: boolean,
+): void {
   const w = hexSize * 0.9;
   const h = hexSize * 0.7;
   const baseW = w * 0.55;
@@ -450,6 +459,34 @@ function drawColonyMarker(ctx: CanvasRenderingContext2D, sx: number, sy: number,
   ctx.arc(sx, sy - h * 0.6, Math.max(1, hexSize * 0.05), 0, Math.PI * 2);
   ctx.fillStyle = "#e8b23a";
   ctx.fill();
+
+  // ─── Bloc P14-A — petite couronne dorée pour la capitale ───────────────
+  // Dessinée uniquement si isCapital est vrai. Ce marqueur n'est jamais
+  // atteint pour une colonie non visible : l'appelant (renderPixelMap)
+  // applique déjà la garde de fog (isHexVisible) avant tout appel à
+  // drawColonyMarker, exactement comme pour le marqueur de base.
+  if (isCapital) {
+    const crownY = sy - h * 0.55 - Math.max(2, hexSize * 0.12);
+    const crownW = w * 0.32;
+    const crownH = hexSize * 0.14;
+
+    ctx.beginPath();
+    ctx.moveTo(sx - crownW / 2, crownY + crownH);
+    ctx.lineTo(sx - crownW / 2, crownY + crownH * 0.35);
+    ctx.lineTo(sx - crownW / 4, crownY + crownH);
+    ctx.lineTo(sx - crownW / 4, crownY);
+    ctx.lineTo(sx, crownY + crownH * 0.55);
+    ctx.lineTo(sx + crownW / 4, crownY);
+    ctx.lineTo(sx + crownW / 4, crownY + crownH);
+    ctx.lineTo(sx + crownW / 2, crownY + crownH * 0.35);
+    ctx.lineTo(sx + crownW / 2, crownY + crownH);
+    ctx.closePath();
+    ctx.fillStyle = "#f2c94c";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(90, 60, 10, 0.9)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
 }
 
 // ─── Bloc P6 — Étape 4 : rendu simple d'un bâtiment (marqueur secondaire) ──
@@ -856,7 +893,7 @@ export function renderPixelMap(options: PixelMapRenderOptions): void {
     for (const colony of colonies) {
       if (isHexVisible && !isHexVisible(colony.x, colony.y)) continue;
       const { sx, sy } = hexToScreen(colony.x, colony.y, hexSize, cameraX, cameraY);
-      drawColonyMarker(ctx, sx, sy, hexSize);
+      drawColonyMarker(ctx, sx, sy, hexSize, colony.isCapital);
     }
   }
 

@@ -30,7 +30,7 @@ Nova Imperium est un jeu multijoueur combinant :
 
 - **Branche active :** `NI-10.09`
 - **Base :** dernier commit consigné avant ce journal — "Document audit findings on game map features and player visibility" (bloc P13)
-- **Dernier bloc confirmé :** P13 — Audit des couches restantes du mode immersive (audit seulement, aucun code modifié)
+- **Dernier bloc confirmé :** P14-A — Icône capitale distincte en mode immersive (terminé, code ajouté)
 - **Mode carte par défaut :** immersive (Pixel HD) — décidé et implémenté en P12
 - **Mode alternatif :** strategic (renderer classique, toujours disponible via touche M ou bouton dédié)
 
@@ -268,6 +268,21 @@ Si le prompt du bloc demande aussi un rapport dans `attached_assets` :
 - **Rapport :** `attached_assets/RAPPORT_P13_audit_couches_restantes_immersive.md`.
 - **Décision importante :** recommandation de bloc suivant = P14 (icône distincte pour la capitale `is_capital`), catégorie A (faible risque). Autres décisions : voir décisions canon #6 et #7.
 - **Notes pour Claude Code :** ne pas porter la couche "autres joueurs" en immersive avant correction de la fuite de fog de `renderOtherPlayers()` (`GameEngine.ts`) ; ne pas rendre les rivières avant que `mapAdapter.ts` transporte une vraie donnée `hasRiver` depuis la DB.
+
+### P14-A — Icône capitale distincte en mode immersive
+- **Statut :** terminé
+- **Objectif :** ajouter une distinction visuelle minimale (petite couronne dorée) pour la colonie capitale en mode immersive, purement visuel, sans nouvelle logique serveur ni nouvelle donnée.
+- **Résumé :** Audit confirmé : `ColonyDTO.isCapital` est déjà calculé et transmis par le serveur (`territoryService.ts`), mais n'était pas propagé jusqu'à l'objet `Territory` utilisé côté client pour le rendu — seul chaînon manquant, purement client. Ajout du champ `isCapital` à `Territory` (`UnifiedTerritorySystem.ts`), peuplé depuis `ColonyDTO.isCapital` déjà reçu dans `loadFromServer()`. `GameCanvas.tsx` fait un simple lookup par position (`UnifiedTerritorySystem.getTerritory(x,y)?.isCapital`) pour enrichir la liste `colonies` déjà transmise à `PixelMapRenderer`. `drawColonyMarker()` dessine une petite couronne dorée uniquement si `isCapital` est vrai, en plus du marqueur de colonie existant (jamais en remplacement).
+- **Fichiers modifiés :** `client/src/lib/systems/UnifiedTerritorySystem.ts` (+4 lignes — champ `isCapital` sur `Territory`, peuplé dans `loadFromServer`), `client/src/lib/game/PixelMapRenderer.ts` (+~38 lignes — champ `isCapital` sur `PixelColonyMarker`, paramètre `isCapital` de `drawColonyMarker`, dessin de la couronne), `client/src/components/game/GameCanvas.tsx` (+~8 lignes — lookup `isCapital` lors de la construction de `colonies`).
+- **Rapport attached_assets :** aucun rapport dédié demandé par ce prompt (bloc de format P14-A, différent des blocs P1-P13) ; entrée de journal ci-présente en tenant lieu.
+- **Tests effectués :** `npx tsc --noEmit -p .` (233 erreurs au total, identique à P10-P13 ; les 2 seules erreurs dans `UnifiedTerritorySystem.ts` sont préexistantes — `MapIterator` sans `downlevelIteration`, lignes 229/303, non liées à cette modification) ; lecture de code confirmant que le marqueur couronne est dessiné dans la même boucle et sous la même garde de fog (`isHexVisible`) que le marqueur de colonie de base — aucune capitale non visible ne peut être rendue ; vérification visuelle en jeu authentifié non réalisable par l'agent (accès preview non authentifié).
+- **Résultat des tests :** aucune régression TypeScript ; garde de fog vérifiée par lecture de code (la couronne est un ajout dans `drawColonyMarker`, jamais appelé hors de la boucle déjà gardée par `isHexVisible`).
+- **Erreurs préexistantes :** 233 (dont 2 dans `UnifiedTerritorySystem.ts`, sans lien avec ce bloc).
+- **Erreurs introduites :** aucune.
+- **Décisions :** la couronne est un ajout au marqueur existant (jamais un remplacement) ; aucune nouvelle donnée serveur créée, uniquement propagation d'une donnée déjà transmise ; aucune nouvelle règle de visibilité — réutilisation stricte de la garde `isHexVisible` déjà en place pour les colonies.
+- **Limites restantes :** le mode strategic (`GameEngine.ts`) n'a pas reçu la même distinction visuelle (hors périmètre de ce bloc, qui ciblait exclusivement l'immersive) ; vérification visuelle en jeu réelle non faite par l'agent, à confirmer par l'utilisateur.
+- **Hors scope :** aucune modification hors scope. Routes, autres joueurs, rivières, schéma DB, règles de gameplay : non touchés.
+- **Prochain bloc recommandé :** parité visuelle capitale en mode strategic (si souhaité), ou traitement de la fuite de fog `renderOtherPlayers()` (décision canon #7).
 
 ---
 

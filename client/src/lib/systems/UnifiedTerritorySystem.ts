@@ -43,6 +43,9 @@ export interface Territory {
   exploitationBuildingType?: string | null;
   // Dérivé UI uniquement : vrai si exploitationBuildingType != null
   isExploited?: boolean;
+  // Bloc P14-A — vrai si cette case porte la colonie capitale (ColonyDTO.isCapital,
+  // déjà transmise par le serveur via serverColonies — aucune nouvelle donnée serveur).
+  isCapital?: boolean;
 }
 
 class UnifiedTerritorySystemClass {
@@ -106,6 +109,7 @@ class UnifiedTerritorySystemClass {
               controlledByColony: String(colony.id),
               hasMarket:          colony.hasMarket ?? false,
               hasBank:            colony.hasBank   ?? false,
+              isCapital:          colony.isCapital ?? false,
             }
           : {}),
       };

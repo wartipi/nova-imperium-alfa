@@ -195,10 +195,19 @@ export function GameCanvas() {
 
       // Bloc P6 — Colonies : même source que le rendu strategic (GameEngine.renderCivilizations()),
       // aucune nouvelle donnée ni appel API. Coordonnées locales identiques à mapData[y][x].
+      // Bloc P14-A — isCapital : donnée déjà transmise par le serveur (ColonyDTO.isCapital)
+      // et déjà propagée dans UnifiedTerritorySystem (voir loadFromServer). Simple lookup
+      // par position, aucun nouveau fetch, aucune nouvelle règle de visibilité (le fog
+      // est appliqué plus bas par renderPixelMap, exactement comme pour les colonies).
       const colonies = useNovaImperium
         .getState()
         .novaImperiums.flatMap((ni) =>
-          ni.cities.map((city) => ({ x: city.x, y: city.y, name: city.displayName || city.name })),
+          ni.cities.map((city) => ({
+            x: city.x,
+            y: city.y,
+            name: city.displayName || city.name,
+            isCapital: UnifiedTerritorySystem.getTerritory(city.x, city.y)?.isCapital ?? false,
+          })),
         );
 
       // Bloc P6 — Bâtiments : seule donnée bâtiment déjà positionnée par tuile et déjà chargée

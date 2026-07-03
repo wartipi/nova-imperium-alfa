@@ -1,0 +1,95 @@
+NOVA IMPERIUM — P14-A — ICÔNE CAPITALE DISTINCTE EN MODE IMMERSIVE
+
+Branche de travail : NI-10.09
+Base de comparaison : NI-10.3
+Repo : wartipi/nova-imperium-alfa
+
+CONTEXTE
+
+Les blocs P1 à P13 sont poussés.
+Le mode immersive Pixel HD est maintenant le mode de carte par défaut.
+Le mode strategic reste disponible comme vue alternative/classique.
+
+Résultat P13 confirmé :
+- Capitale : donnée fiable disponible
+- Capitale : pas encore distinguée visuellement
+- Routes : pas de donnée réelle exploitable, ne pas traiter maintenant
+- Autres joueurs : fuite de fog confirmée en strategic, ne pas ajouter au mode immersive
+- Rivières : logique existante mais non transmise dans les données réellement utilisées en jeu
+
+OBJECTIF UNIQUE DU BLOC
+
+Ajouter une distinction visuelle minimale pour la capitale en mode immersive Pixel HD.
+
+Ce bloc doit être purement visuel.
+
+INTERDITS
+
+- Ne pas modifier le schéma DB
+- Ne pas créer de nouvelle logique capitale côté serveur sauf si la donnée existe déjà et est déjà transmise
+- Ne pas modifier les règles de gameplay
+- Ne pas toucher aux routes
+- Ne pas toucher aux autres joueurs
+- Ne pas corriger la fuite fog dans ce bloc
+- Ne pas exposer d’information cachée par le fog
+- Ne pas afficher une capitale non visible/explorée par le joueur
+- Ne pas faire de refactor massif
+- Ne pas changer l’architecture Pixel HD
+- Ne pas remplacer le rendu strategic existant
+
+PORTÉE AUTORISÉE
+
+1. Auditer où la donnée capitale est déjà disponible côté client.
+2. Identifier le chemin utilisé par le rendu immersive pour les colonies/bâtiments.
+3. Ajouter une distinction visuelle capitale uniquement si :
+   - la ville/colonie est déjà visible selon les règles actuelles
+   - la donnée capitale est déjà présente dans l’objet utilisé
+4. Utiliser un symbole simple, lisible, déterministe :
+   - petite couronne
+   - étoile
+   - halo discret
+   - ou variante d’icône existante
+5. Garder le rendu compatible avec le style Pixel HD existant.
+6. Ne pas créer de nouvelle dépendance externe.
+
+CONTRAINTE FOG
+
+La capitale ne doit jamais devenir un canal de fuite d’information.
+Si la colonie n’est pas visible selon le fog actuel, aucune icône capitale ne doit être rendue.
+
+VÉRIFICATIONS OBLIGATOIRES
+
+Après modification :
+
+1. Lancer les checks disponibles :
+   - npm run check
+   - ou commande équivalente existante dans le projet
+2. Vérifier en jeu :
+   - mode immersive par défaut
+   - capitale visible avec icône distincte
+   - ville non capitale inchangée
+   - mode strategic toujours fonctionnel
+   - aucune information capitale affichée hors visibilité/fog
+3. Mettre à jour CLAUDE.md avec :
+   - nom du bloc P14-A
+   - objectif
+   - fichiers modifiés
+   - résumé du résultat
+   - validations effectuées
+   - limites connues
+
+RAPPORT ATTENDU
+
+Répondre avec :
+
+1. Diagnostic initial
+2. Fichiers inspectés
+3. Modification appliquée
+4. Vérifications effectuées
+5. Résultat visuel attendu
+6. Commit hash poussé sur GitHub
+7. Confirmation que CLAUDE.md a été mis à jour
+
+IMPORTANT
+
+Ne pas déclarer terminé tant que le commit n’est pas poussé sur GitHub.
