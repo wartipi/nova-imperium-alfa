@@ -26,7 +26,7 @@ import { useDoubleClick } from "../../lib/hooks/useDoubleClick";
 import { useAvatarMovement } from "../../lib/hooks/useAvatarMovement";
 import { TerrainHelpers } from "../../lib/constants/TerrainTypes";
 import { VisionSystem } from "../../lib/systems/VisionSystem";
-import { renderPixelMap } from "../../lib/game/PixelMapRenderer";
+import { renderPixelMap, type PixelMapUnit } from "../../lib/game/PixelMapRenderer";
 
 // ─── Bloc P4-B (NI-10.09) — Modes de carte : strategic / immersive ─────────
 // Une seule carte logique (mêmes tuiles, mêmes coordonnées, même état de jeu).
@@ -256,6 +256,37 @@ export function GameCanvas() {
         );
       };
 
+      // Bloc P9 — Unités : même source EXACTE que GameEngine.renderCivilizations()
+      // (novaImperiums[].units). Audit : `this.civilizations` de GameEngine.ts est
+      // alimenté par `updateCivilizations(novaImperiums)` (voir plus bas dans ce
+      // fichier) — c'est le MÊME tableau `novaImperiums`, pas une source distincte.
+      // L'itérer une seconde fois dupliquerait donc les mêmes unités. Aucun nouveau
+      // fetch, aucun nouveau store. La couleur reprend `ni.color` déjà utilisée en
+      // strategic (pas de recalcul via ownership joueur/faction, notion différente).
+      const { novaImperiums: niListForUnits } = useNovaImperium.getState();
+      const units: PixelMapUnit[] = niListForUnits.flatMap((ni) =>
+        ni.units.map((unit) => ({
+          id: unit.id,
+          type: unit.type,
+          name: unit.name,
+          x: unit.x,
+          y: unit.y,
+          ownerId: ni.id,
+          color: ni.color,
+          health: unit.health,
+          maxHealth: unit.maxHealth,
+          movement: unit.movement,
+          maxMovement: unit.maxMovement,
+        })),
+      );
+
+      // Même garde que colonies/bâtiments (P6) : isAdmin bypass identique à
+      // shouldShowTileResource (P7) — pas de nouvelle règle de visibilité,
+      // seulement la réutilisation de isHexVisible déjà transmis ci-dessous.
+      const shouldShowUnit = (unit: PixelMapUnit): boolean => {
+        return isAdmin || !isHexVisible || isHexVisible(unit.x, unit.y);
+      };
+
       renderPixelMap({
         ctx,
         mapData,
@@ -279,6 +310,10 @@ export function GameCanvas() {
         getTileOwner,
         getOwnerColor,
         isSameOwner,
+        units,
+        showUnits: true,
+        selectedUnitId: selectedUnit?.id ?? null,
+        shouldShowUnit,
       });
       pixelHDFailLoggedRef.current = false;
     } catch (err) {

@@ -41,6 +41,15 @@
 // convention de voisins hex (colonnes décalées) que `drawTerritoryBorders`
 // de GameEngine.ts. Sans callback fourni, rien n'est dessiné.
 //
+// Bloc P9 — Ajout de la couche unités. Aucune donnée nouvelle : les unités
+// proviennent de useNovaImperium.getState().novaImperiums[].units (et
+// .civilizations[].units), la même source EXACTE que GameEngine.renderCivilizations()
+// / drawUnit() en mode strategic. Ce module ne connaît PAS useNovaImperium
+// directement : GameCanvas.tsx construit la liste `units` (avec la couleur
+// `ni.color`/`civ.color` déjà utilisée en strategic) et la transmet ici en
+// lecture seule. Aucune règle de mouvement/combat/sélection n'est dupliquée :
+// `selectedUnitId` ne sert qu'à dessiner un contour, jamais à changer un état.
+//
 // mapData suit la convention du reste du jeu : mapData[y][x] (ligne-major).
 //
 // Usage :
@@ -92,6 +101,31 @@ export interface PixelBuildingMarker {
   x: number;
   y: number;
   buildingType: string;
+}
+
+// ─── Bloc P9 — Marqueur unité ───────────────────────────────────────────────
+// Champs volontairement souples (tous optionnels sauf id/x/y) : la structure
+// exacte de `Unit` (client/src/lib/game/types.ts) ne comporte pas tous ces
+// champs (pas d'ownerId/playerId/factionId/selected par ex., l'appartenance
+// étant portée par le NovaImperium/civilization parent, pas par l'unité
+// elle-même) — GameCanvas.tsx complète ce qui est disponible sans jamais
+// inventer de valeur.
+export interface PixelMapUnit {
+  id: string | number;
+  type?: string | null;
+  name?: string | null;
+  x: number;
+  y: number;
+  ownerId?: string | number | null;
+  playerId?: string | number | null;
+  factionId?: string | number | null;
+  /** Couleur d'owner déjà utilisée en strategic (ni.color / civ.color) — évite de redériver une couleur. */
+  color?: string | null;
+  health?: number | null;
+  maxHealth?: number | null;
+  movement?: number | null;
+  maxMovement?: number | null;
+  selected?: boolean;
 }
 
 // ─── Étape P5 — Responsabilité du zoom (audité, clarifié) ──────────────────
@@ -169,6 +203,18 @@ export interface PixelMapRenderOptions {
     bx: number,
     by: number,
   ) => boolean;
+  // ─── Bloc P9 — Unités ────────────────────────────────────────────────────
+  units?: PixelMapUnit[];
+  /** Défaut : true */
+  showUnits?: boolean;
+  selectedUnitId?: string | number | null;
+  /**
+   * Décide si une unité doit être affichée sur la tuile où elle se trouve.
+   * DOIT réutiliser la logique de visibilité déjà existante côté
+   * GameCanvas.tsx (isHexVisible / isAdmin) — jamais recalculée ici. Si
+   * absent, seul `isHexVisible` (déjà transmis à renderPixelMap) fait foi.
+   */
+  shouldShowUnit?: (unit: PixelMapUnit) => boolean;
 }
 
 // ─── Constantes internes ───────────────────────────────────────────────────
@@ -549,6 +595,96 @@ function drawResourceMarker(
   ctx.restore();
 }
 
+// ─── Bloc P9 — Étape 3 : forme selon type d'unité ──────────────────────────
+// worker/settler/civilian → petit losange clair. soldier/military → petit
+// bouclier. scout → petit triangle. Type inconnu → pion rond (fallback).
+// Pas d'emoji, pas d'image externe — formes canvas simples uniquement.
+const WORKER_LIKE_TYPES = new Set(["worker", "settler", "civilian", "diplomat"]);
+const SOLDIER_LIKE_TYPES = new Set([
+  "warrior",
+  "spearman",
+  "swordsman",
+  "archer",
+  "crossbowman",
+  "catapult",
+  "trebuchet",
+  "horseman",
+  "knight",
+  "galley",
+  "warship",
+  "soldier",
+  "military",
+]);
+const SCOUT_LIKE_TYPES = new Set(["scout", "spy"]);
+
+function drawUnitMarker(
+  ctx: CanvasRenderingContext2D,
+  sx: number,
+  sy: number,
+  hexSize: number,
+  type: string | null | undefined,
+  color: string,
+  isSelected: boolean,
+): void {
+  const s = Math.max(4, hexSize * 0.32);
+  const normalizedType = (type || "").toLowerCase();
+
+  ctx.save();
+  ctx.strokeStyle = "rgba(0,0,0,0.7)";
+  ctx.lineWidth = 1.5;
+  ctx.fillStyle = color;
+
+  if (WORKER_LIKE_TYPES.has(normalizedType)) {
+    // Petit losange clair
+    ctx.beginPath();
+    ctx.moveTo(sx, sy - s);
+    ctx.lineTo(sx + s * 0.75, sy);
+    ctx.lineTo(sx, sy + s);
+    ctx.lineTo(sx - s * 0.75, sy);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  } else if (SOLDIER_LIKE_TYPES.has(normalizedType)) {
+    // Petit bouclier
+    ctx.beginPath();
+    ctx.moveTo(sx - s * 0.65, sy - s * 0.7);
+    ctx.lineTo(sx + s * 0.65, sy - s * 0.7);
+    ctx.lineTo(sx + s * 0.65, sy + s * 0.15);
+    ctx.quadraticCurveTo(sx + s * 0.65, sy + s, sx, sy + s * 1.05);
+    ctx.quadraticCurveTo(sx - s * 0.65, sy + s, sx - s * 0.65, sy + s * 0.15);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  } else if (SCOUT_LIKE_TYPES.has(normalizedType)) {
+    // Petit triangle
+    ctx.beginPath();
+    ctx.moveTo(sx, sy - s);
+    ctx.lineTo(sx + s * 0.85, sy + s * 0.75);
+    ctx.lineTo(sx - s * 0.85, sy + s * 0.75);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  } else {
+    // Fallback : pion rond
+    ctx.beginPath();
+    ctx.arc(sx, sy, s * 0.75, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  ctx.restore();
+
+  if (isSelected) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(sx, sy, s * 1.25, 0, Math.PI * 2);
+    ctx.strokeStyle = "#e8b23a";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
 // ─── Étape 5 — Fonction principale ─────────────────────────────────────────
 
 export function renderPixelMap(options: PixelMapRenderOptions): void {
@@ -578,6 +714,10 @@ export function renderPixelMap(options: PixelMapRenderOptions): void {
     getTileOwner,
     getOwnerColor,
     isSameOwner,
+    units,
+    showUnits,
+    selectedUnitId,
+    shouldShowUnit,
   } = options;
 
   ctx.imageSmoothingEnabled = false;
@@ -726,6 +866,45 @@ export function renderPixelMap(options: PixelMapRenderOptions): void {
       if (isHexVisible && !isHexVisible(building.x, building.y)) continue;
       const { sx, sy } = hexToScreen(building.x, building.y, hexSize, cameraX, cameraY);
       drawBuildingMarker(ctx, sx, sy, hexSize);
+    }
+  }
+
+  // ─── Bloc P9 — Étape 3/4/5 : couche unités (après bâtiments, avant sélection) ──
+  // Une unité n'est jamais dessinée sur une case en fog total (isHexVisible
+  // false) — même garde que colonies/bâtiments. `shouldShowUnit`, si fourni,
+  // s'ajoute à cette garde (jamais à sa place) pour permettre à l'appelant de
+  // réutiliser une règle de visibilité déjà existante côté GameCanvas.tsx.
+  if (showUnits !== false && units && units.length > 0) {
+    // Regroupement par tuile pour un léger offset déterministe (stacking) —
+    // aucune logique de stacking de jeu n'est modifiée, purement visuel.
+    const unitsByTile = new Map<string, PixelMapUnit[]>();
+    for (const unit of units) {
+      const key = `${unit.x},${unit.y}`;
+      const list = unitsByTile.get(key);
+      if (list) list.push(unit);
+      else unitsByTile.set(key, [unit]);
+    }
+
+    for (const tileUnits of Array.from(unitsByTile.values())) {
+      const first = tileUnits[0];
+      if (isHexVisible && !isHexVisible(first.x, first.y)) continue;
+
+      for (let i = 0; i < tileUnits.length; i++) {
+        const unit = tileUnits[i];
+        if (shouldShowUnit && !shouldShowUnit(unit)) continue;
+
+        const { sx, sy } = hexToScreen(unit.x, unit.y, hexSize, cameraX, cameraY);
+        // Offset déterministe par index (petit cercle autour du centre) si
+        // plusieurs unités partagent la même case — pas de Math.random().
+        const offsetRadius = i === 0 ? 0 : hexSize * 0.22;
+        const angle = (i * (Math.PI * 2)) / Math.max(1, tileUnits.length);
+        const ox = sx + Math.cos(angle) * offsetRadius;
+        const oy = sy + Math.sin(angle) * offsetRadius;
+
+        const color = unit.color || resolveOwnerColor(unit.ownerId ?? unit.playerId ?? unit.factionId ?? unit.id, getOwnerColor);
+        const isSelected = unit.selected === true || (selectedUnitId != null && selectedUnitId === unit.id);
+        drawUnitMarker(ctx, ox, oy, hexSize, unit.type, color, isSelected);
+      }
     }
   }
 
