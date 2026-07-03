@@ -1,0 +1,245 @@
+NOVA IMPERIUM — JOURNAL CLAUDE.md / CONSIGNER LES COMMITS ET LES MODIFICATIONS FUTURES
+Branche : NI-10.09
+
+OBJECTIF
+Mettre à jour CLAUDE.md comme journal de transition pour Claude Code.
+
+Le but est que Claude puisse consulter plus tard :
+
+* ce qui a été fait
+* dans quel ordre
+* quels fichiers ont été touchés
+* quels rapports ont été produits
+* quelles décisions importantes ont été prises
+* quels blocs ne doivent pas être réouverts inutilement
+* comment documenter chaque modification future
+
+IMPORTANT
+Ce bloc est documentaire seulement.
+
+Modifier uniquement :
+
+* CLAUDE.md
+
+Ne pas modifier :
+
+* client/
+* server/
+* shared/
+* attached_assets/
+* DB
+* backend
+* schema
+* code du jeu
+* logique de jeu
+* fichiers de rendu
+* fichiers de stores
+* fichiers de systèmes
+
+TÂCHE
+Lire l’historique Git récent de la branche NI-10.09 et remplir CLAUDE.md comme un journal chronologique des commits/blocs.
+
+Pour chaque commit ou bloc important déjà existant, inscrire :
+
+1. Nom du bloc ou sujet
+2. Résumé court
+3. Fichiers principaux modifiés
+4. Rapport attached_assets associé, si présent
+5. Décision importante prise
+6. Limites / notes pour Claude Code
+7. Statut :
+
+   * terminé
+   * audit seulement
+   * en attente
+   * ne pas reprendre sans instruction
+
+BLOCS À CONSIGNER AU MINIMUM
+
+Consigner clairement :
+
+P1 — Audit intégration Pixel HD
+P2 — Extraction PixelHDAssets
+P3 — Création PixelMapRenderer isolé
+P4 — Toggle expérimental Pixel HD
+P4-B — Modes strategic / immersive
+P5 — Stabilisation terrains immersive
+P6 — Colonies et bâtiments immersive
+P7 — Ressources de tuile immersive
+P8 — Ownership / frontières immersive
+P9 — Unités immersive
+P10 — Audit visuel final immersive
+P11 — Audit routes immersive
+P12 — Mode immersive par défaut
+
+Ajouter aussi :
+
+* migration Ressources V2 si présente dans l’historique
+* ajout / agrandissement icône Fracten si présent
+* création initiale de CLAUDE.md si déjà présente
+* notes mémoire .agents/memory si utiles
+
+NOUVELLE RÈGLE OBLIGATOIRE À AJOUTER DANS CLAUDE.md
+
+À partir de maintenant, chaque modification future faite par Claude Code ou Replit AI doit être consignée dans CLAUDE.md.
+
+Ajouter une section obligatoire :
+
+## Règle obligatoire — Journalisation future
+
+Toute modification future doit ajouter une entrée dans CLAUDE.md avec :
+
+1. Date ou moment approximatif
+2. Nom du bloc ou sujet
+3. Outil utilisé :
+
+   * Claude Code
+   * Replit AI
+   * ChatGPT prompt / audit
+   * autre
+4. Résumé de la modification
+5. Fichiers modifiés
+6. Fichiers de rapport créés dans attached_assets, si applicable
+7. Tests effectués :
+
+   * npm run check
+   * logs
+   * preview
+   * autre
+8. Résultat des tests
+9. Erreurs préexistantes vs erreurs introduites
+10. Décisions prises
+11. Limites restantes
+12. Statut :
+
+* terminé
+* partiel
+* bloqué
+* à valider
+
+13. Prochain bloc recommandé
+14. Mention explicite :
+
+* “Aucune modification hors scope” ou lister toute exception validée
+
+Règle :
+Aucune modification future ne doit être considérée complète si elle n’est pas documentée dans CLAUDE.md.
+
+Si le prompt du bloc demande aussi un rapport dans attached_assets :
+
+* créer le rapport demandé
+* ajouter aussi une courte entrée de résumé dans CLAUDE.md
+* ne pas remplacer le rapport par CLAUDE.md
+* CLAUDE.md sert de journal global, les rapports attached_assets servent de détails par bloc
+
+DÉCISIONS IMPORTANTES À INSCRIRE
+
+1. Le mode immersive Pixel HD est maintenant le mode par défaut.
+2. Le mode strategic reste disponible comme vue alternative/classique.
+3. Les routes ne sont pas encore implémentées.
+4. Les routes doivent être traitées plus tard comme système constructible complet, pas comme simple couche visuelle.
+5. P11 a confirmé :
+
+   * aucune colonne route dans shared/schema.ts
+   * hasRoad existe mais n’est pas alimenté
+   * aucune route réelle affichable actuellement
+6. Ne pas inventer de données manquantes.
+7. Ne pas ajouter de rendu fictif.
+8. Ne pas modifier DB/backend/schema sauf instruction explicite d’un bloc futur.
+9. Respecter le fog / visibilité : ne jamais exposer de données cachées.
+10. Travailler un seul bloc fonctionnel à la fois.
+11. Documenter chaque modification future dans CLAUDE.md.
+
+FORMAT RECOMMANDÉ DANS CLAUDE.md
+
+Utiliser une structure claire :
+
+# CLAUDE.md — Journal de transition Nova Imperium
+
+## État actuel
+
+* Branche active :
+* Base :
+* Dernier bloc confirmé :
+* Mode carte par défaut :
+* Mode alternatif :
+
+## Règles de travail Claude Code
+
+* un seul bloc à la fois
+* ne pas modifier hors scope
+* ne pas inventer de données
+* toujours produire rapport si demandé
+* toujours signaler erreurs préexistantes séparément
+* ne pas commencer le bloc suivant sans validation
+* toujours mettre à jour CLAUDE.md après chaque modification
+
+## Règle obligatoire — Journalisation future
+
+Chaque modification future doit être consignée dans CLAUDE.md.
+
+Modèle d’entrée obligatoire :
+
+### [Date] — [Bloc / Sujet]
+
+* Outil utilisé :
+* Statut :
+* Résumé :
+* Fichiers modifiés :
+* Rapport attached_assets :
+* Tests effectués :
+* Résultat des tests :
+* Erreurs préexistantes :
+* Erreurs introduites :
+* Décisions :
+* Limites restantes :
+* Hors scope :
+* Prochain bloc recommandé :
+
+## Journal chronologique des blocs
+
+### P1 — ...
+
+* Statut :
+* Résumé :
+* Fichiers :
+* Rapport :
+* Notes :
+
+### P2 — ...
+
+...
+
+## Décisions canon
+
+## Zones à ne pas toucher sans prompt explicite
+
+## Prochains sujets possibles
+
+RÈGLES D’ÉCRITURE
+
+* Rester factuel.
+* Ne pas inventer de détails non vérifiés.
+* Si une information manque, écrire “à confirmer”.
+* Ne pas reformater tout le projet.
+* Ne pas ajouter de plan de code non demandé.
+* Ne pas commencer P13.
+* Ne pas modifier le code.
+* Ne pas modifier attached_assets.
+* Ne pas créer de nouveau rapport attached_assets pour ce bloc, sauf si nécessaire selon le workflow local.
+* La seule modification attendue est CLAUDE.md.
+
+VALIDATION
+Après modification, répondre avec :
+
+1. CLAUDE.md mis à jour comme journal de commits/blocs
+2. Règle de journalisation future ajoutée
+3. Nombre de blocs consignés
+4. Sections principales ajoutées
+5. Aucun code de jeu modifié
+6. STOP
+
+STOP
+Modifier uniquement CLAUDE.md.
+Ne pas commencer P13.
+Ne pas modifier le code.

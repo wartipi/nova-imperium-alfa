@@ -26,9 +26,17 @@ Nova Imperium est un jeu multijoueur combinant :
 - Dépôt GitHub officiel : https://github.com/wartipi/nova-imperium-alfa
 - Branche canonique : `NI-10.09`
 
+## État actuel
+
+- **Branche active :** `NI-10.09`
+- **Base :** dernier commit consigné avant ce journal — "Document audit findings on game map features and player visibility" (bloc P13)
+- **Dernier bloc confirmé :** P13 — Audit des couches restantes du mode immersive (audit seulement, aucun code modifié)
+- **Mode carte par défaut :** immersive (Pixel HD) — décidé et implémenté en P12
+- **Mode alternatif :** strategic (renderer classique, toujours disponible via touche M ou bouton dédié)
+
 ## Méthode de travail
 
-Nous travaillons par blocs numérotés (P2, P3, P5, P6, etc.), chacun documenté. Pour chaque tâche :
+Nous travaillons par blocs numérotés (P1, P2, P3, etc.), chacun documenté. Pour chaque tâche :
 
 1. **Analyse** — comprendre l'état actuel avant d'agir
 2. **Risques** — identifier ce qui peut casser
@@ -37,6 +45,19 @@ Nous travaillons par blocs numérotés (P2, P3, P5, P6, etc.), chacun documenté
 5. **Vérification** — montrer que ça fonctionne (tests, captures, diagrammes)
 
 Tu es un superviseur technique et validateur, pas un générateur automatique de code. Tu me pousses vers la stabilité et le déterminisme plutôt que la complexité.
+
+## Règles de travail Claude Code
+
+- Un seul bloc fonctionnel à la fois.
+- Ne jamais modifier hors du périmètre autorisé par le prompt du bloc en cours.
+- Ne jamais inventer de données manquantes (ex. routes, rivières, avatar, autres joueurs) — si la donnée réelle n'existe pas, le dire clairement plutôt que de simuler.
+- Ne jamais ajouter de rendu fictif ou de fonctionnalité non demandée.
+- Toujours produire le rapport `attached_assets/RAPPORT_P<N>_<titre>.md` si le prompt du bloc le demande.
+- Toujours signaler séparément les erreurs préexistantes (hors scope) des erreurs introduites par le bloc en cours.
+- Ne jamais corriger d'erreurs hors scope sans instruction explicite.
+- Ne jamais commencer le bloc suivant sans validation explicite de l'utilisateur.
+- Toujours mettre à jour CLAUDE.md après chaque modification (voir règle obligatoire ci-dessous).
+- Respecter strictement le fog / la visibilité : ne jamais exposer de données cachées (ressources non découvertes, positions non explorées, données admin-only) à un joueur normal.
 
 ## Règles fermes sur le code
 
@@ -68,3 +89,222 @@ Tu es un superviseur technique et validateur, pas un générateur automatique de
 - Concis quand la question est simple — pas de remplissage
 - Honnête : si tu n'es pas sûr, le dire. Si une idée est mauvaise, le dire avec respect. Si je me trompe, me corriger avec bienveillance.
 - Expliquer les concepts techniques que je ne connais pas — je préfère apprendre que subir
+
+## Décisions canon
+
+1. Le mode immersive Pixel HD est maintenant le mode de carte par défaut (décidé et implémenté en P12).
+2. Le mode strategic reste disponible comme vue alternative/classique — jamais supprimé, jamais dégradé.
+3. Les routes ne sont pas encore implémentées dans le jeu.
+4. Les routes doivent être traitées plus tard comme un système constructible complet (donnée persistée + logique de construction), pas comme une simple couche visuelle ajoutée sans données réelles.
+5. P11 a confirmé : aucune colonne route dans `shared/schema.ts`, `hasRoad` existe dans `HexTile` mais n'est jamais alimenté (toujours `false`), aucune route réelle n'est actuellement affichable dans le jeu (ni strategic, ni immersive).
+6. P13 a confirmé : les rivières disposent d'un algorithme réel de génération (`MapGenerator.ts`) et d'un rendu réel en strategic (`GameEngine.ts`), mais cette donnée n'est jamais transmise par le chemin de chargement DB réellement utilisé en jeu (`mapAdapter.ts` force `hasRiver: false`) — donc non exploitable en l'état pour un rendu fiable.
+7. P13 a identifié un risque de fuite de fog préexistant (hors scope de P13, non corrigé) : `GameEngine.ts` (`renderOtherPlayers()`) affiche la position et le pseudo des autres joueurs actifs sans aucune vérification de brouillard de guerre côté client, et l'API serveur `/api/players/positions` ne filtre pas non plus spatialement les résultats. Ne pas porter cette couche en immersive avant correction.
+8. Ne jamais inventer de données manquantes.
+9. Ne jamais ajouter de rendu fictif.
+10. Ne jamais modifier DB/backend/schema sauf instruction explicite d'un bloc futur.
+11. Toujours respecter le fog / la visibilité : ne jamais exposer de données cachées.
+12. Toujours travailler un seul bloc fonctionnel à la fois.
+13. Toujours documenter chaque modification future dans CLAUDE.md.
+
+## Zones à ne pas toucher sans prompt explicite
+
+- `shared/schema.ts` et toute migration de base de données.
+- `server/` (routes, services) — sauf lecture d'audit explicitement autorisée par un bloc.
+- `client/src/lib/game/MapGenerator.ts`, `mapAdapter.ts` — génération de carte et adaptation DB→client.
+- `client/src/lib/game/GameEngine.ts` — renderer strategic (le renderer de référence, jamais modifié sans instruction ciblée).
+- `client/src/lib/game/PixelMapRenderer.ts` — renderer immersive isolé (modifications uniquement bloc par bloc, jamais de refonte large).
+- Pathfinding, mouvement, combat, règles de colonie, règles de ressources, économie — logique de jeu jamais touchée par les blocs visuels immersive (P4-B à P13).
+- Lore et canon narratif — jamais modifiés sans validation explicite de canonicité.
+
+## Prochains sujets possibles
+
+- **P14 recommandé (issu de l'audit P13) :** icône distincte pour la capitale (`is_capital`) en immersive et en strategic — donnée déjà fiable, faible risque gameplay et fog, changement purement visuel.
+- Alternative : traiter en priorité la fuite de fog de `renderOtherPlayers()` (voir décision canon #7) avant tout ajout visuel lié aux joueurs.
+- Système de routes constructible complet (donnée persistée + logique de construction) — nécessite un bloc dédié hors périmètre purement visuel, avec modification DB explicitement validée.
+- Branchement réel des rivières sur le chemin de données DB (`mapAdapter.ts`) avant tout rendu immersive des rivières.
+
+---
+
+## Règle obligatoire — Journalisation future
+
+À partir de maintenant, chaque modification future faite par Claude Code ou Replit AI doit être consignée dans CLAUDE.md. Aucune modification future ne doit être considérée complète si elle n'est pas documentée ici.
+
+Si le prompt du bloc demande aussi un rapport dans `attached_assets` :
+- créer le rapport demandé (détails complets du bloc) ;
+- ajouter aussi une courte entrée de résumé dans CLAUDE.md (ce journal) ;
+- ne jamais remplacer le rapport par CLAUDE.md — CLAUDE.md sert de journal global chronologique, les rapports `attached_assets` servent de détails par bloc.
+
+### Modèle d'entrée obligatoire
+
+```
+### [Date] — [Bloc / Sujet]
+
+- Outil utilisé : Claude Code / Replit AI / ChatGPT prompt-audit / autre
+- Statut : terminé / partiel / bloqué / à valider
+- Résumé :
+- Fichiers modifiés :
+- Rapport attached_assets :
+- Tests effectués : npm run check / logs / preview / autre
+- Résultat des tests :
+- Erreurs préexistantes :
+- Erreurs introduites :
+- Décisions :
+- Limites restantes :
+- Hors scope : "Aucune modification hors scope" ou lister toute exception validée
+- Prochain bloc recommandé :
+```
+
+## Journal chronologique des blocs
+
+### P1 — Audit intégration Pixel HD
+- **Statut :** terminé (audit seulement)
+- **Résumé :** Audit de faisabilité pour intégrer un nouveau style visuel Pixel HD sur la carte de jeu — compatibilité des terrains et cohérence géométrique avec le renderer hexagonal existant.
+- **Fichiers principaux :** aucun fichier de code — audit documentaire uniquement.
+- **Rapport :** `attached_assets/Pasted-...AUDIT-INT-GRATION-PIXEL-HD-16-TE...txt` (rapport d'audit P1).
+- **Décision importante :** l'intégration Pixel HD est jugée faisable sans casser le renderer strategic existant, à condition de l'isoler complètement (base des blocs P2/P3).
+- **Notes pour Claude Code :** bloc purement préparatoire, aucune donnée ni logique créée.
+
+### P2 — Extraction PixelHDAssets
+- **Statut :** terminé
+- **Résumé :** Création du module `PixelHDAssets.ts` contenant les assets graphiques et la logique du renderer Pixel HD (16 types de terrain, génération de sprites, cache), **sans intégration** au moteur de jeu principal.
+- **Fichiers principaux :** `client/src/lib/game/PixelHDAssets.ts` (création).
+- **Rapport :** aucun rapport `attached_assets` dédié identifié séparément de l'audit P1.
+- **Décision importante :** les sprites Pixel HD sont générés/cachés de façon isolée, sans toucher `GameEngine.ts`.
+- **Notes pour Claude Code :** module autonome, ne pas fusionner avec `GameEngine.ts`.
+
+### P3 — Création PixelMapRenderer isolé
+- **Statut :** terminé
+- **Résumé :** Création de `PixelMapRenderer.ts`, un renderer expérimental capable de dessiner la carte avec les assets Pixel HD, sans intégration au moteur de jeu principal à ce stade.
+- **Fichiers principaux :** `client/src/lib/game/PixelMapRenderer.ts` (création).
+- **Rapport :** non identifié séparément dans `attached_assets`.
+- **Décision importante :** `PixelMapRenderer.ts` reste un fichier isolé, importé plus tard uniquement par `GameCanvas.tsx` (jamais par `GameEngine.ts`).
+- **Notes pour Claude Code :** fichier central de tout le pipeline immersive — voir règle "Zones à ne pas toucher sans prompt explicite".
+
+### P4 — Toggle expérimental Pixel HD
+- **Statut :** terminé (remplacé fonctionnellement par P4-B)
+- **Résumé :** Intégration d'un toggle expérimental pour le renderer Pixel HD, accessible via localStorage et un raccourci clavier. Ajout des getters nécessaires dans `GameEngine` et correction de l'indexation des données de carte dans `PixelMapRenderer.ts`.
+- **Fichiers principaux :** `client/src/lib/game/GameEngine.ts` (getters), `client/src/lib/game/PixelMapRenderer.ts`.
+- **Rapport :** non identifié séparément dans `attached_assets`.
+- **Décision importante :** clé localStorage historique `nova_pixel_hd_renderer` — conservée ensuite en P4-B uniquement pour une migration douce.
+- **Notes pour Claude Code :** ce toggle binaire (on/off) est obsolète depuis P4-B (remplacé par un choix à 2 modes strategic/immersive) ; ne pas le réactiver, seule la clé legacy est encore lue pour compatibilité ascendante.
+
+### P4-B — Modes strategic / immersive
+- **Statut :** terminé
+- **Résumé :** Remplacement du toggle binaire par un vrai système à deux modes de carte : `strategic` (renderer classique, défaut à l'époque) et `immersive` (overlay Pixel HD). Persistance via localStorage (clé `nova_map_render_mode`), bascule au clavier (touche `M`, alias `P` conservé), bouton discret dans l'UI.
+- **Fichiers principaux :** `client/src/components/game/GameCanvas.tsx`.
+- **Rapport :** `attached_assets/RAPPORT_P4-B_modes_carte_strategique_immersive.md`.
+- **Décision importante :** une seule carte logique (mêmes tuiles, mêmes coordonnées) ; fallback try/catch strict — en cas d'erreur du renderer immersive, retour silencieux au rendu strategic déjà affiché.
+- **Notes pour Claude Code :** la clé localStorage `nova_map_render_mode` est la source de vérité du mode actif — ne jamais la renommer.
+
+### P5 — Stabilisation terrains immersive
+- **Statut :** terminé
+- **Résumé :** Stabilisation du rendu des terrains en mode immersive (convention `mapData[y][x]`, cohérence des transformations de caméra).
+- **Fichiers principaux :** `client/src/lib/game/PixelMapRenderer.ts`.
+- **Rapport :** `attached_assets/RAPPORT_P5_stabilisation_mode_immersive.md`.
+- **Décision importante :** alignement strict sur la géométrie hex odd-q déjà utilisée par `GameEngine.ts` — aucune nouvelle convention introduite.
+- **Notes pour Claude Code :** référence pour toute future couche visuelle — respecter la même convention de coordonnées.
+
+### P6 — Colonies et bâtiments immersive
+- **Statut :** terminé
+- **Résumé :** Ajout des marqueurs visuels pour les colonies et bâtiments dans la vue immersive, à partir des mêmes données déjà chargées côté client que le rendu strategic (aucun nouveau fetch).
+- **Fichiers principaux :** `client/src/lib/game/PixelMapRenderer.ts` (`drawColonyMarker`, `drawBuildingMarker`).
+- **Rapport :** `attached_assets/RAPPORT_P6_colonies_batiments_immersive.md`.
+- **Décision importante :** icône générique pour tous les types de bâtiments et toutes les colonies (pas de distinction visuelle par type ou par statut, ex. capitale) — point relevé à nouveau en P13.
+- **Notes pour Claude Code :** `drawBuildingMarker`/`drawColonyMarker` sont volontairement génériques ; toute distinction visuelle future (ex. capitale) est un ajout scopé, pas une correction de bug.
+
+### P7 — Ressources de tuile immersive
+- **Statut :** terminé
+- **Résumé :** Ajout de la couche ressources de tuile en immersive, réutilisant le champ `tile.resource` déjà existant, avec respect des règles de découverte (niveau d'exploration, bypass admin).
+- **Fichiers principaux :** `client/src/lib/game/PixelMapRenderer.ts` (`drawResourceMarker`, `getResourceVisualColor`).
+- **Rapport :** `attached_assets/RAPPORT_P7_ressources_tuile_immersive.md`.
+- **Décision importante :** la garde de visibilité des ressources en immersive reproduit exactement celle du strategic (`isAdmin || (explorationLevel>=1 && hexResourceDiscovered)`).
+- **Notes pour Claude Code :** ne jamais afficher une ressource non découverte hors mode admin — règle de fog stricte, déjà vérifiée conforme en P13.
+
+### P8 — Ownership / frontières immersive
+- **Statut :** terminé
+- **Résumé :** Ajout de l'ownership visuel (voile intérieur de couleur + frontières entre territoires) en immersive, à partir des mêmes données d'ownership que le strategic.
+- **Fichiers principaux :** `client/src/lib/game/PixelMapRenderer.ts` (`drawOwnershipOverlay`, `drawTileBorders`, `resolveOwnerColor`, `hashOwnerIdToColor`).
+- **Rapport :** `attached_assets/RAPPORT_P8_frontieres_ownership_immersive.md`.
+- **Décision importante :** couleurs stables dérivées d'un hash de l'identifiant du propriétaire (jamais de `Math.random()`), cohérentes avec les couleurs bleu joueur / vert faction déjà utilisées en strategic.
+- **Notes pour Claude Code :** `ownerType`/`ownerPlayerName`/`ownerFactionName` (harmonisation canonique post-Phase 12 du jeu) sont la source de vérité pour l'ownership affiché.
+
+### P9 — Unités immersive
+- **Statut :** terminé
+- **Résumé :** Ajout de la couche unités en immersive (marqueurs typés par type d'unité), sans nouvelle donnée — réutilisation stricte des données déjà chargées.
+- **Fichiers principaux :** `client/src/lib/game/PixelMapRenderer.ts` (`drawUnitMarker`).
+- **Rapport :** `attached_assets/RAPPORT_P9_unites_immersive.md`.
+- **Décision importante :** les unités respectent le même filtrage de visibilité que les tuiles (`isAdmin || !isHexVisible || isHexVisible(unit.x, unit.y)`).
+- **Notes pour Claude Code :** un ajustement mineur de positionnement (ancre des marqueurs) a suivi en P10, pas en P9.
+
+### P10 — Audit visuel final immersive
+- **Statut :** terminé (audit + une correction mineure)
+- **Résumé :** Audit complet du pipeline immersive (P4-B à P9) jugé stable. Une correction mineure appliquée : l'ancre des marqueurs d'unités a été déplacée du centre exact vers le quadrant bas-gauche pour éviter le chevauchement visuel avec les colonies/bâtiments.
+- **Fichiers principaux :** `client/src/lib/game/PixelMapRenderer.ts` (ajustement de positionnement uniquement).
+- **Rapport :** `attached_assets/RAPPORT_P10_audit_visuel_final.md`.
+- **Décision importante :** le mode immersive est déclaré stable et prêt à devenir un mode candidat pour un usage élargi (base de la décision P12).
+- **Notes pour Claude Code :** `tsc --noEmit` : 233 erreurs préexistantes mesurées à ce stade — chiffre de référence pour tous les blocs suivants (inchangé jusqu'à P13 inclus).
+
+### P11 — Audit routes immersive
+- **Statut :** terminé (audit seulement, aucun code ajouté)
+- **Résumé :** Recherche exhaustive de données route (`HexTile.hasRoad`, `mapAdapter.ts`, `MapGenerator.ts`, `shared/schema.ts`, `GameEngine.ts`, tables de coûts). Conclusion : `hasRoad` existe mais est hardcodé à `false` partout ; aucune colonne DB route ; `BuildingType='road'` existe seulement en théorie (coûts) jamais assigné réellement ; le strategic n'affiche déjà aucune route.
+- **Fichiers principaux :** aucun fichier de code modifié — audit seul (confirmé par `git diff --stat` vide).
+- **Rapport :** `attached_assets/RAPPORT_P11_routes_immersive.md`.
+- **Décision importante :** ne pas ajouter d'options `showRoutes`/`hasTileRoad` non exploitées (plomberie prête pour plus tard mais optionnelle selon la spec) — décision de ne pas introduire de code mort.
+- **Notes pour Claude Code :** voir décision canon #5 — aucune route réelle à afficher tant qu'une vraie donnée n'est pas introduite par un bloc dédié système-routes.
+
+### P12 — Mode immersive par défaut
+- **Statut :** terminé
+- **Résumé :** Le mode immersive devient le mode de carte par défaut officiel quand aucun choix n'existe en localStorage. Le mode strategic reste disponible comme vue alternative. Changement strictement limité aux deux branches de repli de `readMapRenderMode()` (absence de choix / erreur localStorage), qui retournaient `"strategic"` et retournent désormais `"immersive"`. Choix utilisateur déjà enregistré : jamais écrasé.
+- **Fichiers principaux :** `client/src/components/game/GameCanvas.tsx` (9 insertions, 4 suppressions — fonction `readMapRenderMode()` + 2 commentaires mis à jour).
+- **Rapport :** `attached_assets/RAPPORT_P12_mode_immersive_par_defaut.md`.
+- **Tests effectués :** `npm run check` (233 erreurs, inchangé), logs serveur (aucune erreur), vérification par lecture de code des branches de repli ; vérification visuelle du canvas de jeu authentifié non réalisable par l'agent (accès preview non authentifié) — validation utilisateur demandée.
+- **Décision importante :** voir décisions canon #1 et #2. La clé localStorage `nova_map_render_mode`, la touche `M`, le bouton UI et le mécanisme de bascule restent strictement inchangés.
+- **Notes pour Claude Code :** ne pas revenir sur ce défaut sans nouvelle décision explicite de l'utilisateur.
+
+### P13 — Audit des couches restantes du mode immersive
+- **Statut :** terminé (audit seulement, aucun code ajouté)
+- **Résumé :** Audit de 6 catégories de couches candidates avant tout nouvel ajout : rivières (algorithme réel mais non branché sur le chemin DB réel — voir décision canon #6), avatar (donnée réelle et fiable, déjà utilisée), autres joueurs (système actif en strategic mais fuite de fog identifiée — voir décision canon #7), routes (reconfirmation de P11), effets visuels secondaires (classés : déjà rendu / disponible non rendu / pas disponible / dangereux / nécessite nouvelle logique), données disponibles mais non rendues (ex. `is_capital`, `exploitation_post` en strategic).
+- **Fichiers principaux :** aucun fichier de code modifié — audit seul (confirmé par `git diff --stat` vide), un sous-agent d'exploration utilisé en lecture seule pour confirmer le comportement serveur (`playerPresenceService.ts`).
+- **Rapport :** `attached_assets/RAPPORT_P13_audit_couches_restantes_immersive.md`.
+- **Décision importante :** recommandation de bloc suivant = P14 (icône distincte pour la capitale `is_capital`), catégorie A (faible risque). Autres décisions : voir décisions canon #6 et #7.
+- **Notes pour Claude Code :** ne pas porter la couche "autres joueurs" en immersive avant correction de la fuite de fog de `renderOtherPlayers()` (`GameEngine.ts`) ; ne pas rendre les rivières avant que `mapAdapter.ts` transporte une vraie donnée `hasRiver` depuis la DB.
+
+---
+
+## Notes complémentaires (hors séquence P1-P13)
+
+### Migration Ressources V2 (Fracten / métaux communs / cuir-fourrure)
+- **Statut :** terminé
+- **Résumé :** Migration additive des ressources vers un système V2 (`fracten`, `common_metals`, `leather_fur`), avec audit complet des anciennes ressources (`gold`, `iron`, `copper`, `fur`) avant suppression des colonnes legacy en base de données. Séquence observée dans l'historique Git : audit legacy → gel des écritures legacy → migration des services économiques/marché/transferts vers les nouveaux types → audit post-migration → suppression effective des colonnes legacy.
+- **Fichiers principaux :** services économiques serveur, routes marché/échange, `shared/schema.ts` (suppression des colonnes legacy) — détail non ré-audité ligne par ligne pour ce journal, voir historique Git pour les commits individuels (ex. `Remove old resource columns from the game's database tables`, `Complete post-migration audit of old economic resources`).
+- **Rapport :** documents `Pasted-NOVA-IMPERIUM-UI-RESSOURCES-V2-...txt` dans `attached_assets` (prompts/specs sources) ; pas de `RAPPORT_*.md` dédié identifié pour ce chantier antérieur à la convention de rapport actuelle.
+- **Décision importante :** migration additive puis retrait — les anciennes ressources V1 ont été explicitement conservées le temps de la transition avant suppression, jamais supprimées brutalement en un seul commit.
+- **Notes pour Claude Code :** voir aussi `.agents/memory/resources-v2.md` — rappel mémoire : fracten/common_metals/leather_fur ajoutés en passe additive, V1 gardé comme legacy pendant la transition (information historique, la migration est maintenant terminée).
+
+### Icône Fracten (agrandissement / mise à jour visuelle)
+- **Statut :** terminé
+- **Résumé :** Mise à jour de l'icône de la monnaie Fracten et amélioration de sa taille d'affichage dans l'interface de jeu, pour cohérence visuelle après la migration Ressources V2.
+- **Fichiers principaux :** composants d'icônes de ressources UI (`ResourceIcons` et composants consommateurs) — non ré-audités ligne par ligne pour ce journal.
+- **Rapport :** aucun rapport `attached_assets` dédié identifié séparément de la migration Ressources V2.
+- **Décision importante :** icône Fracten agrandie pour meilleure lisibilité — cohérent avec la préférence UI générale du projet (voir `replit.md`, section iconographie unifiée).
+- **Notes pour Claude Code :** à confirmer si une future demande de modification d'icône doit repartir de cette base ou d'un nouvel asset.
+
+### Création initiale de CLAUDE.md
+- **Statut :** terminé
+- **Résumé :** Création du fichier `CLAUDE.md` à la racine du projet, à la demande explicite de l'utilisateur, comme fichier de contexte pour tout assistant IA travaillant sur le dépôt.
+- **Fichiers principaux :** `CLAUDE.md` (création).
+- **Rapport :** aucun rapport `attached_assets` — ce bloc était documentaire pur.
+- **Décision importante :** ce fichier journal (mis à jour dans le présent bloc) devient désormais la source de vérité chronologique pour toute intervention IA future sur ce dépôt.
+- **Notes pour Claude Code :** ne pas recréer ce fichier depuis zéro dans un futur bloc — toujours le lire et le compléter, jamais l'écraser sans relire son contenu existant en entier au préalable.
+
+### Digression hors-projet : CLI Claude Code
+- **Statut :** terminé (annulé/nettoyé)
+- **Résumé :** Le paquet `@anthropic-ai/claude-code` a été ajouté par erreur comme dépendance du projet (`package.json`), puis proprement retiré (package.json, package-lock.json, node_modules nettoyés, vérifié par grep). Le jeu a été confirmé fonctionnel après redémarrage. L'installation globale (`npm install -g`) reste bloquée par une restriction plateforme sur l'outil bash de l'agent — l'utilisateur doit l'exécuter lui-même dans le Shell Replit s'il le souhaite.
+- **Fichiers principaux :** `package.json`, `package-lock.json` (ajout puis retrait complet).
+- **Rapport :** aucun — incident mineur documenté ici pour éviter une répétition future.
+- **Décision importante :** ne jamais ajouter d'outils CLI tiers comme dépendance de projet — toute installation d'outil de développement doit rester hors du `package.json` du jeu.
+- **Notes pour Claude Code :** si une demande similaire revient, installer uniquement en local/global hors dépendances projet, ou orienter l'utilisateur vers le Shell Replit directement.
+
+### Notes mémoire `.agents/memory/`
+- `resources-v2.md` — fracten/common_metals/leather_fur ajoutés en passe additive ; V1 (gold/iron/copper/fur) gardés comme legacy pendant la migration (migration maintenant terminée, voir section ci-dessus).
+- `gameengine-civilizations-alias.md` — `GameEngine.civilizations` est un alias du même tableau que `novaImperiums` ; ne jamais l'itérer en plus (risque de doublons de rendu). Pertinent pour toute future couche de rendu touchant les civilisations/colonies (ex. P14 capitale).
