@@ -166,6 +166,12 @@ export function GameCanvas() {
   // la carte réelle (mapData), ni le renderer actuel : purement un overlay
   // canvas optionnel, encadré par try/catch. En cas d'erreur, on reste
   // visuellement en mode strategic (le rendu actuel déjà dessiné persiste).
+  //
+  // Bloc P5 — Audit géométrie confirmé : effectiveHexSize/effectiveCameraX/Y
+  // ci-dessous reproduisent exactement la transformation caméra appliquée par
+  // GameEngine.render() (ctx.translate(centre) → scale(zoom) → translate(-camera)),
+  // vérifié par calcul algébrique. Aucun double-zoom, aucune divergence avec
+  // le rendu strategic sous-jacent.
   const renderPixelHDOverlay = useCallback(() => {
     if (mapRenderMode !== "immersive") return;
     const engine = gameEngineRef.current;

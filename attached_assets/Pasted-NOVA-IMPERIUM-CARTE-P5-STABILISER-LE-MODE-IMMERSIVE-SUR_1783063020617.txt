@@ -1,0 +1,314 @@
+NOVA IMPERIUM — CARTE — P5 / STABILISER LE MODE IMMERSIVE SUR LES TERRAINS RÉELS
+Branche : NI-10.09
+
+OBJECTIF
+Stabiliser le mode immersive Pixel HD pour qu’il affiche correctement les 15 terrains réels du jeu avec la bonne convention mapData[y][x], la bonne caméra, le bon zoom, la bonne grille/fog, et un rendu terrain fiable.
+
+Ce bloc ne doit pas ajouter encore :
+
+* unités
+* colonies
+* ownership
+* ressources de tuile
+* routes
+* rivières
+* bâtiments
+* avatar
+* autres joueurs
+
+Ces couches restent pour P6 à P9.
+
+CONTEXTE VALIDÉ
+P1 poussé :
+
+* audit intégration Pixel HD validé
+
+P2 poussé :
+
+* client/src/lib/game/PixelHDAssets.ts
+* sprites Pixel HD disponibles
+
+P3 poussé :
+
+* client/src/lib/game/PixelMapRenderer.ts
+* renderer isolé
+
+P4 poussé :
+
+* toggle expérimental Pixel HD
+
+P4-B poussé :
+
+* modes de carte :
+
+  * strategic
+  * immersive
+* localStorage :
+
+  * nova_map_render_mode
+* touche M
+* bouton discret
+* strategic par défaut
+* une seule carte logique
+* GameCanvas.tsx branché
+
+OBJECTIF P5
+Faire un bloc de stabilisation ciblé sur le rendu des terrains immersive.
+
+Le mode immersive doit :
+
+1. afficher les bons terrains aux bonnes coordonnées ;
+2. respecter mapData[y][x] ;
+3. respecter caméra / zoom / centrage ;
+4. ne pas décaler la grille ;
+5. ne pas écraser la vue stratégique ;
+6. rester fallback-safe ;
+7. conserver strategic comme mode par défaut.
+
+PÉRIMÈTRE AUTORISÉ
+
+Modifier seulement si nécessaire :
+
+* client/src/lib/game/PixelMapRenderer.ts
+* client/src/components/game/GameCanvas.tsx
+
+Modifier GameEngine.ts seulement si une lecture strictement nécessaire manque encore, mais éviter si possible.
+
+Ne pas modifier :
+
+* DB
+* backend
+* schema
+* MapGenerator.ts
+* mapAdapter.ts
+* TerrainCosts.ts
+* ResourceRevealSystem.ts
+* UnifiedTerritorySystem.ts
+* économie
+* pathfinding
+* ownership
+* exploration
+* unités
+* colonies
+
+ÉTAPE 1 — AUDIT RAPIDE DU BRANCHEMENT ACTUEL
+
+Inspecter :
+
+* GameCanvas.tsx
+* PixelMapRenderer.ts
+* GameEngine.ts uniquement pour comparer géométrie/caméra si nécessaire
+
+Vérifier précisément :
+
+* convention mapData[y][x]
+* largeur / hauteur de la carte
+* conversion x/y vers screenX/screenY
+* caméra
+* zoom
+* hexSize effectif
+* canvas width/height
+* selectedHex
+* callbacks fog/vision
+* mode strategic / immersive
+
+ÉTAPE 2 — CORRIGER LA CONVENTION MAPDATA
+
+Confirmer que PixelMapRenderer lit toujours :
+
+mapData[y]?.[x]
+
+et jamais :
+
+mapData[x]?.[y]
+
+Rechercher toutes les occurrences suspectes.
+
+Si une logique utilise encore colonne-major :
+
+* corriger vers ligne-major
+* documenter dans un commentaire court
+
+ÉTAPE 3 — STABILISER LA GÉOMÉTRIE
+
+Le rendu immersive doit utiliser la même géométrie que la carte actuelle.
+
+Formule cible :
+
+hexHeight = hexSize * Math.sqrt(3)
+screenX = x * hexSize * 1.5 - cameraX
+screenY = y * hexHeight + (x % 2) * hexHeight / 2 - cameraY
+
+Mais attention :
+Si GameCanvas transmet déjà un hexSizeEffectif ou une caméra transformée par zoom, ne pas appliquer le zoom deux fois.
+
+Objectif :
+
+* pas de double zoom
+* pas de double camera offset
+* pas de décalage horizontal
+* pas de décalage vertical
+* alignement visuel cohérent avec le renderer strategic
+
+ÉTAPE 4 — CLARIFIER LES RESPONSABILITÉS DE ZOOM
+
+Dans le code, clarifier qui applique le zoom :
+
+Option recommandée :
+
+* GameCanvas calcule les valeurs finales
+* PixelMapRenderer reçoit des valeurs déjà prêtes
+* PixelMapRenderer ne recalcule pas une deuxième fois le zoom
+
+Ou inversement si le code actuel est plus propre, mais il faut une seule responsabilité claire.
+
+Ajouter un commentaire court si nécessaire.
+
+ÉTAPE 5 — TERRAIN MAPPING
+
+Vérifier que les 15 terrains actifs sont bien mappés :
+
+* plains
+* fertile_land
+* sacred_plains
+* enchanted_meadow
+* forest
+* hills
+* wasteland
+* desert
+* ancient_ruins
+* swamp
+* caves
+* mountains
+* volcano
+* shallow_water
+* deep_water
+
+Règles :
+
+* terrain inconnu = fallback hex neutre
+* ne jamais crash
+* ne pas ajouter tundra au jeu
+* tundra peut rester disponible dans PixelHDAssets.ts seulement
+
+ÉTAPE 6 — WATER FRAME
+
+S’assurer que l’eau ne force pas un re-render incontrôlé.
+
+Pour ce bloc :
+
+* animateWater peut rester false par défaut si nécessaire
+* ou utiliser waterFrame simple si déjà stable
+* ne pas introduire de boucle d’animation lourde
+* ne pas ajouter requestAnimationFrame massif
+
+Priorité :
+
+* stabilité
+* pas de performance surprise
+
+ÉTAPE 7 — FOG / VISION
+
+Le mode immersive doit consommer seulement les callbacks existants :
+
+* isHexVisible
+* isHexInFogRing
+
+Règles :
+
+* ne pas recalculer la vision dans PixelMapRenderer
+* ne pas modifier ResourceRevealSystem
+* ne pas modifier usePlayer/useMap sauf nécessité absolue
+* si callback absent, afficher terrain sans fog avancé
+* si non visible, dessiner fog
+* si fog ring, dessiner terrain + voile sombre
+
+ÉTAPE 8 — SÉLECTION / GRILLE
+
+Stabiliser :
+
+* selectedHex
+* showGrid si utilisé
+* contours sélection
+* contours grille
+
+Ne pas ajouter hover si cela exige de modifier trop de logique.
+Si hover n’est pas disponible :
+
+* documenter comme limite restante
+
+ÉTAPE 9 — FALLBACK STRATEGIC
+
+Maintenir le fallback strict :
+
+En mode strategic :
+
+* renderer actuel seulement
+* aucune régression
+
+En mode immersive :
+
+* renderer actuel peut rester dessiné dessous
+* PixelMapRenderer dessine par-dessus
+* try/catch protège l’appel
+* si erreur, ne pas écran noir
+* log unique ou non-spam
+
+ÉTAPE 10 — TEST MANUEL DEMANDÉ
+
+Tester dans la preview réelle :
+
+1. Charger le jeu.
+2. Vérifier que le mode strategic est actif par défaut.
+3. Passer en mode immersive avec M.
+4. Vérifier que la carte ne devient pas noire.
+5. Vérifier que les terrains apparaissent.
+6. Vérifier que l’eau, forêt, montagnes, désert et plaines sont visibles si présents.
+7. Vérifier que la sélection de tuile reste cohérente.
+8. Revenir en strategic avec M.
+9. Vérifier que strategic revient normalement.
+10. Recharger la page et vérifier la persistance localStorage.
+11. Vérifier console : aucune erreur PixelMapRenderer.
+
+Si l’outil de preview automatisé ne permet pas le test clavier :
+
+* le dire clairement
+* faire au minimum une vérification par code + logs
+* demander validation visuelle utilisateur
+
+ÉTAPE 11 — TYPESCRIPT
+
+Lancer :
+
+npm run check
+
+Si des erreurs viennent de P5, les corriger.
+
+Les erreurs préexistantes hors scope doivent être listées séparément.
+
+ÉTAPE 12 — RAPPORT FINAL
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC P5
+2. FICHIERS MODIFIÉS
+3. CONVENTION MAPDATA
+4. GÉOMÉTRIE / CAMÉRA / ZOOM
+5. TERRAIN MAPPING
+6. FOG / VISION
+7. GRILLE / SÉLECTION
+8. FALLBACK STRATEGIC
+9. TESTS MANUELS
+10. RÉSULTAT npm run check
+11. LIMITES RESTANTES
+12. CONCLUSION
+13. STOP
+
+STOP
+Ne pas ajouter unités.
+Ne pas ajouter colonies.
+Ne pas ajouter ownership.
+Ne pas ajouter ressources de tuile.
+Ne pas modifier DB.
+Ne pas modifier génération de monde.
+Ne pas commencer P6.

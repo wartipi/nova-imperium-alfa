@@ -1,9 +1,17 @@
 // ─── PixelMapRenderer.ts ───────────────────────────────────────────────────
 // Bloc P3 — NI-10.09 — Renderer expérimental isolé pour la carte Pixel HD.
 //
-// Bloc P4 : ce fichier est désormais importé UNIQUEMENT par GameCanvas.tsx,
-// derrière le toggle expérimental localStorage "nova_pixel_hd_renderer"
-// (off par défaut). Ne pas importer depuis GameEngine.ts.
+// Bloc P4/P4-B : ce fichier est importé UNIQUEMENT par GameCanvas.tsx, utilisé
+// en mode carte "immersive" (localStorage "nova_map_render_mode"). Le mode
+// "strategic" (défaut) n'appelle jamais ce fichier. Ne pas importer depuis
+// GameEngine.ts.
+//
+// Bloc P5 — Audit de stabilisation effectué : convention mapData[y][x]
+// confirmée partout, géométrie hexToScreen() vérifiée mathématiquement
+// équivalente à la transformation caméra du GameEngine (aucun double-zoom),
+// mapping des 15 terrains réels confirmé contre MapGenerator.ts (aucun
+// terrain fictif type "tundra" généré en jeu — asset gardé en réserve dans
+// PixelHDAssets.ts uniquement).
 //
 // mapData suit la convention du reste du jeu : mapData[y][x] (ligne-major).
 //
@@ -32,6 +40,16 @@ export interface PixelMapTile {
   cityId?: string | number | null;
 }
 
+// ─── Étape P5 — Responsabilité du zoom (audité, clarifié) ──────────────────
+// Ce module ne recalcule JAMAIS le zoom lui-même. L'appelant (GameCanvas.tsx)
+// doit transmettre des valeurs déjà "finales" :
+//   hexSize  = hexSize brut du GameEngine × zoom
+//   cameraX  = cameraX brut × zoom - largeur canvas / 2
+//   cameraY  = cameraY brut × zoom - hauteur canvas / 2
+// Vérifié mathématiquement équivalent à la transformation caméra du
+// GameEngine (ctx.translate → scale(zoom) → translate(-camera)) — voir P5.
+// Le champ `zoom` ci-dessous est conservé pour compatibilité de signature
+// mais n'est PAS utilisé dans renderPixelMap (aucun risque de double-zoom).
 export interface PixelMapRenderOptions {
   ctx: CanvasRenderingContext2D;
   mapData: PixelMapTile[][];
@@ -40,6 +58,7 @@ export interface PixelMapRenderOptions {
   cameraX: number;
   cameraY: number;
   hexSize: number;
+  /** @deprecated non utilisé — le zoom doit déjà être appliqué à hexSize/cameraX/cameraY par l'appelant */
   zoom?: number;
   showGrid?: boolean;
   animateWater?: boolean;
