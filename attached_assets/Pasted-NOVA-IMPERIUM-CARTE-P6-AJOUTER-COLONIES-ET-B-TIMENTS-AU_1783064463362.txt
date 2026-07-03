@@ -1,0 +1,304 @@
+NOVA IMPERIUM — CARTE — P6 / AJOUTER COLONIES ET BÂTIMENTS AU MODE IMMERSIVE
+Branche : NI-10.09
+
+OBJECTIF
+Ajouter l’affichage des colonies et bâtiments au mode immersive Pixel HD, sans modifier la logique du jeu.
+
+Le mode immersive doit commencer à devenir jouable visuellement, mais sans encore ajouter :
+
+* unités
+* ownership / frontières politiques complètes
+* ressources de tuile
+* routes
+* rivières
+* avatar
+* autres joueurs
+
+Ces couches restent pour les blocs suivants.
+
+CONTEXTE VALIDÉ
+P1 poussé :
+
+* audit intégration Pixel HD validé
+
+P2 poussé :
+
+* PixelHDAssets.ts
+* sprites Pixel HD disponibles
+
+P3 poussé :
+
+* PixelMapRenderer.ts isolé
+
+P4 poussé :
+
+* toggle expérimental Pixel HD
+
+P4-B poussé :
+
+* modes de carte :
+
+  * strategic
+  * immersive
+* localStorage :
+
+  * nova_map_render_mode
+* touche M
+* bouton discret
+* strategic par défaut
+
+P5 poussé :
+
+* mode immersive stabilisé sur les terrains réels
+* convention mapData[y][x] validée
+* géométrie / caméra / zoom validés
+* 15 terrains réels confirmés
+* aucune logique de jeu modifiée
+
+OBJECTIF P6
+Afficher en mode immersive :
+
+1. Les colonies existantes.
+2. Les bâtiments présents sur les tuiles, si l’information est déjà accessible.
+3. Un rendu simple, lisible, médiéval, compatible Pixel HD.
+4. Aucune modification de DB ou logique.
+
+IMPORTANT
+Ce bloc doit seulement lire les données existantes.
+Ne pas créer de nouveau système de bâtiments.
+Ne pas changer les règles de construction.
+Ne pas modifier les colonies.
+Ne pas modifier les villes.
+Ne pas modifier les APIs.
+
+PÉRIMÈTRE AUTORISÉ
+
+Modifier seulement si nécessaire :
+
+* client/src/lib/game/PixelMapRenderer.ts
+* client/src/components/game/GameCanvas.tsx
+
+Éviter de modifier GameEngine.ts.
+Modifier GameEngine.ts seulement si une lecture strictement nécessaire existe déjà dans le moteur mais n’est pas exposée, et uniquement via getter lecture-seule.
+
+Ne pas modifier :
+
+* DB
+* backend
+* schema
+* MapGenerator.ts
+* mapAdapter.ts
+* TerrainCosts.ts
+* ResourceRevealSystem.ts
+* UnifiedTerritorySystem.ts
+* économie
+* pathfinding
+* exploration
+* ownership
+* unités
+* colonies côté logique
+* règles de construction
+
+ÉTAPE 1 — AUDIT DES DONNÉES DISPONIBLES
+
+Inspecter les structures accessibles depuis GameCanvas.tsx et PixelMapRenderer.ts.
+
+Identifier où sont disponibles :
+
+* colonies
+* villes
+* cityId sur tuile
+* bâtiments par ville
+* bâtiments par tuile
+* buildingType
+* buildingId
+* éventuelles données de construction déjà présentes dans mapData ou stores
+
+Important :
+
+* ne pas inventer de données
+* ne pas appeler une nouvelle API
+* ne pas modifier le backend
+* utiliser seulement les données déjà chargées côté client
+
+ÉTAPE 2 — DÉFINIR LES TYPES D’AFFICHAGE
+
+Étendre PixelMapTile seulement si les champs existent déjà réellement.
+
+Exemple autorisé si compatible avec les données existantes :
+
+export interface PixelMapTile {
+x?: number;
+y?: number;
+terrain: string;
+resource?: string | null;
+discovered?: boolean;
+explored?: boolean;
+ownerId?: string | number | null;
+cityId?: string | number | null;
+buildingType?: string | null;
+buildingId?: string | number | null;
+}
+
+Si les bâtiments ne sont pas dans mapData :
+
+* ne pas forcer ces champs
+* documenter que les bâtiments ne sont pas encore accessibles pour P6
+* afficher seulement les colonies/villes si cityId est disponible
+
+ÉTAPE 3 — RENDU DES COLONIES
+
+Dans PixelMapRenderer.ts, ajouter une couche après le rendu terrain/fog/grille :
+
+* drawColoniesLayer ou fonction interne équivalente
+* ne pas exporter inutilement
+
+Rendu recommandé :
+
+* petit symbole village/ville médiéval simple
+* base sombre
+* toit brun/ocre
+* contour clair
+* drapeau ou point central discret si nécessaire
+* taille adaptée au hexSize
+* lisible même en zoom moyen
+* pas d’emoji
+* pas de texte massif
+* pas d’image externe
+
+Règles :
+
+* dessiner seulement si la tuile est visible
+* ne pas dessiner sur fog total
+* compatible avec shallow/deep water, mais normalement aucune colonie sur eau
+* si cityId présent sur la tuile : dessiner colonie
+
+ÉTAPE 4 — RENDU DES BÂTIMENTS
+
+Si buildingType ou données bâtiment existent déjà sur la tuile :
+
+* dessiner un petit marqueur bâtiment secondaire
+* style pixel/simple
+* ne pas surcharger la case
+
+Exemples visuels simples :
+
+* maison : petit toit
+* ferme : petit carré + ligne
+* mine : entrée sombre
+* port : mini quai si terrain eau/côte
+* marché : petit auvent
+
+Si aucune donnée fiable de bâtiment par tuile n’est disponible :
+
+* ne pas inventer
+* ne pas afficher de faux bâtiments
+* rapporter clairement :
+  “Les données bâtiment ne sont pas encore disponibles dans mapData côté immersive.”
+
+ÉTAPE 5 — OPTIONS DE RENDER
+
+Étendre PixelMapRenderOptions seulement si nécessaire.
+
+Exemples :
+
+* showColonies?: boolean
+* showBuildings?: boolean
+
+Valeurs par défaut :
+
+* showColonies true
+* showBuildings true si données disponibles
+
+Dans GameCanvas.tsx :
+
+* transmettre les données nécessaires déjà disponibles
+* ne pas faire de fetch additionnel
+* ne pas créer de store nouveau
+
+ÉTAPE 6 — ORDRE DES COUCHES
+
+Ordre recommandé dans PixelMapRenderer :
+
+1. Fond canvas
+2. Terrain Pixel HD
+3. Fog total
+4. Fog ring overlay
+5. Grille
+6. Colonies
+7. Bâtiments
+8. Sélection
+
+Important :
+
+* la sélection doit rester visible par-dessus
+* fog total doit masquer colonies/bâtiments
+* fog ring peut assombrir colonies/bâtiments si logique existante le permet, mais ne pas complexifier
+
+ÉTAPE 7 — FALLBACK
+
+Maintenir fallback strict :
+
+* mode strategic inchangé
+* mode immersive protégé par try/catch existant dans GameCanvas.tsx
+* aucune erreur renderer ne doit créer un écran noir
+* terrain inconnu = fallback déjà existant
+* colonie/bâtiment inconnu = ne rien dessiner ou fallback discret
+
+ÉTAPE 8 — TEST MANUEL
+
+Tester :
+
+1. Chargement par défaut en strategic.
+2. Basculer en immersive avec M.
+3. Vérifier que les terrains restent alignés.
+4. Vérifier qu’une colonie visible apparaît en mode immersive.
+5. Vérifier qu’une tuile non visible ne montre pas de colonie.
+6. Vérifier que la sélection reste visible.
+7. Revenir en strategic.
+8. Vérifier que strategic reste inchangé.
+9. Vérifier console : aucune erreur PixelMapRenderer.
+10. Recharger page : mode choisi persiste.
+
+Si l’outil de preview ne permet pas le test visuel :
+
+* le dire clairement
+* faire vérification code + logs
+* demander validation utilisateur dans l’onglet preview
+
+ÉTAPE 9 — TYPESCRIPT
+
+Lancer :
+
+npm run check
+
+Corriger toute erreur liée à P6.
+
+Les erreurs préexistantes hors scope doivent être listées séparément.
+
+ÉTAPE 10 — RAPPORT FINAL
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC P6
+2. FICHIERS MODIFIÉS
+3. DONNÉES COLONIES / BÂTIMENTS DISPONIBLES
+4. RENDU DES COLONIES
+5. RENDU DES BÂTIMENTS
+6. ORDRE DES COUCHES
+7. FOG / VISIBILITÉ
+8. FALLBACK STRATEGIC
+9. TESTS MANUELS
+10. RÉSULTAT npm run check
+11. LIMITES RESTANTES
+12. CONCLUSION
+13. STOP
+
+STOP
+Ne pas ajouter unités.
+Ne pas ajouter ownership complet.
+Ne pas ajouter ressources de tuile.
+Ne pas modifier DB.
+Ne pas modifier backend.
+Ne pas modifier génération de monde.
+Ne pas commencer P7.

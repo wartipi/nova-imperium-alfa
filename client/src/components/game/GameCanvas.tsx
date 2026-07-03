@@ -189,6 +189,20 @@ export function GameCanvas() {
       const effectiveCameraX = cameraX * zoom - canvas.width / 2;
       const effectiveCameraY = cameraY * zoom - canvas.height / 2;
 
+      // Bloc P6 — Colonies : même source que le rendu strategic (GameEngine.renderCivilizations()),
+      // aucune nouvelle donnée ni appel API. Coordonnées locales identiques à mapData[y][x].
+      const colonies = useNovaImperium
+        .getState()
+        .novaImperiums.flatMap((ni) =>
+          ni.cities.map((city) => ({ x: city.x, y: city.y, name: city.displayName || city.name })),
+        );
+
+      // Bloc P6 — Bâtiments : seule donnée bâtiment déjà positionnée par tuile et déjà chargée
+      // côté client (UnifiedTerritorySystem, alimenté par loadFromServer() — aucun fetch ajouté).
+      const buildings = UnifiedTerritorySystem.getAllTerritories()
+        .filter((t) => t.exploitationBuildingType != null)
+        .map((t) => ({ x: t.x, y: t.y, buildingType: t.exploitationBuildingType as string }));
+
       renderPixelMap({
         ctx,
         mapData,
@@ -203,6 +217,8 @@ export function GameCanvas() {
         hovered: null,
         isHexVisible: isHexVisible ?? undefined,
         isHexInFogRing: isHexInFogRing ?? undefined,
+        colonies,
+        buildings,
       });
       pixelHDFailLoggedRef.current = false;
     } catch (err) {

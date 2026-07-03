@@ -13,6 +13,13 @@
 // terrain fictif type "tundra" généré en jeu — asset gardé en réserve dans
 // PixelHDAssets.ts uniquement).
 //
+// Bloc P6 — Ajout des couches colonies/bâtiments (voir PixelColonyMarker et
+// PixelBuildingMarker). Ces marqueurs ne viennent PAS de mapData (aucun champ
+// cityId/buildingType réel côté client) mais de sources déjà chargées :
+// useNovaImperium (cities) et UnifiedTerritorySystem (exploitationBuildingType).
+// Rendu purement visuel, aucune logique de jeu, colonie ou construction
+// modifiée ou dupliquée.
+//
 // mapData suit la convention du reste du jeu : mapData[y][x] (ligne-major).
 //
 // Usage :
@@ -38,6 +45,26 @@ export interface PixelMapTile {
   explored?: boolean;
   ownerId?: string | number | null;
   cityId?: string | number | null;
+}
+
+// ─── Bloc P6 — Marqueurs colonies / bâtiments ──────────────────────────────
+// Ces marqueurs ne sont PAS lus depuis mapData (HexTile n'a pas de cityId ni
+// de buildingType côté client — vérifié en audit P6). Ils proviennent de
+// sources déjà chargées ailleurs dans le jeu (mêmes données que le rendu
+// strategic) et sont transmis séparément par l'appelant :
+//   - colonies  : useNovaImperium.getState().novaImperiums[].cities (x, y locaux)
+//   - buildings : UnifiedTerritorySystem.getAllTerritories() → exploitationBuildingType
+// Coordonnées x/y en repère local (identique à mapData[y][x]).
+export interface PixelColonyMarker {
+  x: number;
+  y: number;
+  name?: string;
+}
+
+export interface PixelBuildingMarker {
+  x: number;
+  y: number;
+  buildingType: string;
 }
 
 // ─── Étape P5 — Responsabilité du zoom (audité, clarifié) ──────────────────
@@ -67,6 +94,13 @@ export interface PixelMapRenderOptions {
   hovered?: { x: number; y: number } | null;
   isHexVisible?: (x: number, y: number) => boolean;
   isHexInFogRing?: (x: number, y: number) => boolean;
+  // ─── Bloc P6 — Colonies / bâtiments ────────────────────────────────────
+  colonies?: PixelColonyMarker[];
+  buildings?: PixelBuildingMarker[];
+  /** Défaut : true */
+  showColonies?: boolean;
+  /** Défaut : true (n'a d'effet que si `buildings` est fourni) */
+  showBuildings?: boolean;
 }
 
 // ─── Constantes internes ───────────────────────────────────────────────────
@@ -175,6 +209,67 @@ function drawFallbackHex(ctx: CanvasRenderingContext2D, sx: number, sy: number, 
   ctx.stroke();
 }
 
+// ─── Bloc P6 — Étape 3 : rendu simple d'une colonie ────────────────────────
+// Symbole village médiéval minimal : base sombre + toit brun/ocre + contour
+// clair + point discret. Pas d'emoji, pas d'image externe, pas de texte
+// massif (aucun label de nom pour rester lisible même à zoom moyen).
+function drawColonyMarker(ctx: CanvasRenderingContext2D, sx: number, sy: number, hexSize: number): void {
+  const w = hexSize * 0.9;
+  const h = hexSize * 0.7;
+  const baseW = w * 0.55;
+  const baseH = h * 0.4;
+  const baseTop = sy - baseH * 0.1;
+
+  // Base sombre
+  ctx.fillStyle = "#2b2420";
+  ctx.fillRect(sx - baseW / 2, baseTop, baseW, baseH);
+  ctx.strokeStyle = "rgba(0,0,0,0.6)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(sx - baseW / 2, baseTop, baseW, baseH);
+
+  // Toit brun/ocre
+  ctx.beginPath();
+  ctx.moveTo(sx - w / 2, baseTop + 1);
+  ctx.lineTo(sx + w / 2, baseTop + 1);
+  ctx.lineTo(sx, sy - h * 0.55);
+  ctx.closePath();
+  ctx.fillStyle = "#8a5a2b";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255, 235, 200, 0.85)";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Point discret (drapeau symbolique)
+  ctx.beginPath();
+  ctx.arc(sx, sy - h * 0.6, Math.max(1, hexSize * 0.05), 0, Math.PI * 2);
+  ctx.fillStyle = "#e8b23a";
+  ctx.fill();
+}
+
+// ─── Bloc P6 — Étape 4 : rendu simple d'un bâtiment (marqueur secondaire) ──
+// Seul type de bâtiment réellement présent dans les données actuelles :
+// `exploitation_post` (territoryService.ts — ALLOWED_BUILDING_TYPES).
+// Rendu générique volontairement neutre pour ne pas inventer de sous-types
+// (ferme/mine/port/marché) qui n'existent pas encore dans les données.
+function drawBuildingMarker(ctx: CanvasRenderingContext2D, sx: number, sy: number, hexSize: number): void {
+  const s = hexSize * 0.4;
+  const top = sy + hexSize * 0.15;
+
+  ctx.fillStyle = "#3a2f22";
+  ctx.fillRect(sx - s / 2, top, s, s * 0.6);
+  ctx.strokeStyle = "rgba(255,255,255,0.5)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(sx - s / 2, top, s, s * 0.6);
+
+  ctx.beginPath();
+  ctx.moveTo(sx - s / 2 - 1, top);
+  ctx.lineTo(sx, top - s * 0.35);
+  ctx.lineTo(sx + s / 2 + 1, top);
+  ctx.strokeStyle = "#c98a3c";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+}
+
 // ─── Étape 5 — Fonction principale ─────────────────────────────────────────
 
 export function renderPixelMap(options: PixelMapRenderOptions): void {
@@ -193,6 +288,10 @@ export function renderPixelMap(options: PixelMapRenderOptions): void {
     hovered,
     isHexVisible,
     isHexInFogRing,
+    colonies,
+    buildings,
+    showColonies,
+    showBuildings,
   } = options;
 
   ctx.imageSmoothingEnabled = false;
@@ -255,6 +354,27 @@ export function renderPixelMap(options: PixelMapRenderOptions): void {
         ctx.lineWidth = 1;
         ctx.stroke();
       }
+    }
+  }
+
+  // ─── Bloc P6 — Étape 6 : couche colonies (après grille, avant sélection) ──
+  // Une colonie n'est jamais dessinée sur une case en fog total (isHexVisible
+  // false) — cohérent avec l'étape 3 du bloc P6 et le fog déjà appliqué plus
+  // haut sur le terrain.
+  if (showColonies !== false && colonies && colonies.length > 0) {
+    for (const colony of colonies) {
+      if (isHexVisible && !isHexVisible(colony.x, colony.y)) continue;
+      const { sx, sy } = hexToScreen(colony.x, colony.y, hexSize, cameraX, cameraY);
+      drawColonyMarker(ctx, sx, sy, hexSize);
+    }
+  }
+
+  // ─── Bloc P6 — Étape 6 : couche bâtiments (après colonies, avant sélection) ─
+  if (showBuildings !== false && buildings && buildings.length > 0) {
+    for (const building of buildings) {
+      if (isHexVisible && !isHexVisible(building.x, building.y)) continue;
+      const { sx, sy } = hexToScreen(building.x, building.y, hexSize, cameraX, cameraY);
+      drawBuildingMarker(ctx, sx, sy, hexSize);
     }
   }
 
