@@ -1,0 +1,390 @@
+NOVA IMPERIUM — CARTE — P13 / AUDIT DES COUCHES RESTANTES DU MODE IMMERSIVE
+Branche : NI-10.09
+
+OBJECTIF
+Auditer les couches restantes possibles du mode immersive Pixel HD avant d’ajouter de nouvelles fonctionnalités.
+
+Ce bloc est un audit seulement.
+
+Il ne doit pas ajouter de nouvelle couche visuelle.
+Il ne doit pas modifier la logique de jeu.
+Il ne doit pas créer de nouvelles données.
+
+CONTEXTE VALIDÉ
+P1 poussé :
+
+* audit intégration Pixel HD validé
+
+P2 poussé :
+
+* PixelHDAssets.ts
+* sprites Pixel HD disponibles
+
+P3 poussé :
+
+* PixelMapRenderer.ts isolé
+
+P4 poussé :
+
+* toggle expérimental Pixel HD
+
+P4-B poussé :
+
+* modes de carte strategic / immersive
+* localStorage : nova_map_render_mode
+* touche M
+* bouton discret
+
+P5 poussé :
+
+* terrains immersive stabilisés
+
+P6 poussé :
+
+* colonies et bâtiments immersive
+
+P7 poussé :
+
+* ressources de tuile immersive
+
+P8 poussé :
+
+* ownership / frontières immersive
+
+P9 poussé :
+
+* unités immersive
+
+P10 poussé :
+
+* audit visuel final
+* mode immersive jugé stable
+
+P11 poussé :
+
+* audit routes
+* aucune donnée réelle de route disponible actuellement
+* aucun code route ajouté
+
+P12 poussé :
+
+* immersive devient le mode de carte par défaut
+* strategic reste disponible comme mode alternatif
+
+DÉCISION CANON
+Le mode immersive est maintenant le mode de carte principal par défaut.
+
+Le mode strategic reste disponible comme vue alternative / vue classique.
+
+OBJECTIF P13
+Auditer les prochaines couches candidates :
+
+1. Rivières / cours d’eau
+2. Avatar / position joueur
+3. Autres joueurs / présences multijoueur
+4. Routes constructibles
+5. Effets visuels secondaires déjà disponibles
+6. Données déjà chargées mais non rendues en immersive
+
+Le but est de décider ce qui peut être ajouté ensuite sans inventer de données et sans casser la logique.
+
+IMPORTANT
+Ne pas coder de rendu.
+Ne pas ajouter de système.
+Ne pas créer de colonnes DB.
+Ne pas ajouter de fetch.
+Ne pas ajouter de nouvelle UI.
+Ne pas commencer P14.
+
+PÉRIMÈTRE AUTORISÉ
+
+Lire / auditer seulement :
+
+* client/src/components/game/GameCanvas.tsx
+* client/src/lib/game/PixelMapRenderer.ts
+* client/src/lib/game/GameEngine.ts
+* client/src/lib/game/MapGenerator.ts
+* client/src/lib/game/mapAdapter.ts
+* client/src/lib/game/types.ts
+* client/src/lib/game/TerrainCosts.ts
+* client/src/lib/systems/ResourceRevealSystem.ts
+* client/src/lib/systems/UnifiedTerritorySystem.ts
+* client/src/lib/stores/useNovaImperium.tsx
+* client/src/lib/stores/usePlayer.tsx
+* shared/schema.ts
+* server files seulement si nécessaire pour confirmer la source des données
+
+Modifier seulement :
+
+* créer le rapport final dans attached_assets
+* éventuellement aucun autre fichier
+
+Ne pas modifier :
+
+* DB
+* backend
+* schema
+* GameCanvas.tsx
+* PixelMapRenderer.ts
+* GameEngine.ts
+* MapGenerator.ts
+* mapAdapter.ts
+* types.ts
+* stores
+* systèmes
+* économie
+* pathfinding
+* exploration
+* ownership
+* unités
+* mouvement
+* combat
+* règles de colonie
+* règles de ressources
+
+ÉTAPE 1 — AUDIT RIVIÈRES / COURS D’EAU
+
+Chercher si une vraie donnée “river” existe.
+
+Inspecter :
+
+* mapData
+* HexTile / Tile types
+* MapGenerator.ts
+* mapAdapter.ts
+* GameEngine.ts
+* shared/schema.ts
+
+Chercher les champs / termes :
+
+* river
+* rivers
+* stream
+* waterway
+* creek
+* lake
+* shallow
+* deep
+* coast
+* water
+
+Distinguer clairement :
+
+* eau existante comme terrain : deep_water / shallow_water / ocean / coast
+* vraie rivière comme donnée distincte
+* simple bordure entre terre/eau
+* absence totale de rivière
+
+Conclusion attendue :
+
+* “rivières réelles disponibles”
+  ou
+* “seulement eau/terrain disponible, pas de vraie rivière”
+  ou
+* “aucune donnée exploitable”
+
+Ne pas inventer de rivière à partir du terrain.
+
+ÉTAPE 2 — AUDIT AVATAR / POSITION JOUEUR
+
+Chercher si une position avatar distincte existe.
+
+Inspecter :
+
+* stores joueur
+* GameCanvas.tsx
+* GameEngine.ts
+* types.ts
+* usePlayer.tsx
+* useNovaImperium.tsx
+
+Chercher :
+
+* avatar
+* playerPosition
+* currentPosition
+* x/y joueur
+* selectedUnit
+* controlledUnit
+* camera target
+* spawn position
+* player unit
+* civilization position
+
+Distinguer :
+
+* avatar réel du joueur
+* unité sélectionnée
+* colonie du joueur
+* caméra centrée sur une entité
+* simple donnée de profil joueur
+
+Conclusion attendue :
+
+* “avatar réel disponible”
+  ou
+* “pas d’avatar distinct, seulement unités / colonies”
+  ou
+* “donnée ambiguë à ne pas rendre”
+
+Ne pas créer d’avatar fictif.
+
+ÉTAPE 3 — AUDIT AUTRES JOUEURS / MULTIJOUEUR
+
+Chercher quelles données sur les autres joueurs sont chargées côté client.
+
+Inspecter :
+
+* stores
+* GameCanvas.tsx
+* GameEngine.ts
+* routes API déjà utilisées côté client
+* types
+* données de colonies / territoires / unités
+
+Identifier :
+
+* autres joueurs visibles
+* colonies d’autres joueurs
+* unités d’autres joueurs
+* ownership d’autres factions
+* présence active / online status
+* noms affichables
+* données cachées par fog
+* données admin-only
+
+Règles :
+
+* ne jamais proposer de rendre des infos qui brisent le fog
+* ne jamais afficher des données admin-only en mode joueur normal
+* ne jamais exposer la position d’un joueur caché
+
+Conclusion attendue :
+
+* ce qui est déjà affiché indirectement par ownership/colonies/unités
+* ce qui peut être affiché sans danger
+* ce qui doit attendre un système de visibilité multijoueur clair
+
+ÉTAPE 4 — AUDIT ROUTES CONSTRUCTIBLES
+
+Reprendre la conclusion P11 et cadrer le futur système de routes.
+
+Confirmer :
+
+* aucune colonne route dans shared/schema.ts
+* hasRoad existe mais non alimenté
+* road existe peut-être comme coût/bâtiment mais non utilisé comme système complet
+* strategic n’affiche aucune route réelle
+
+Définir si les routes doivent être :
+
+* infrastructure construite par joueur
+* infrastructure construite par faction/entité
+* bâtiment de tuile
+* amélioration de territoire
+* réseau logistique
+* effet sur déplacement
+* effet sur commerce
+
+Ne pas implémenter.
+
+Produire seulement une recommandation de futur bloc système routes.
+
+ÉTAPE 5 — AUDIT EFFETS VISUELS SECONDAIRES
+
+Chercher s’il existe déjà des données ou états pouvant être rendus sans logique nouvelle :
+
+* sélection active
+* hover
+* portée de vision
+* zone de mouvement
+* zone d’attaque
+* état bâtiment en construction
+* production active
+* territoire contesté
+* capitale / ville principale
+* statut colonie
+* niveau bâtiment
+* amélioration de tuile existante
+* fog ring
+* highlights admin/debug
+
+Classer chaque élément :
+
+* déjà rendu
+* disponible mais non rendu
+* pas disponible
+* dangereux à rendre
+* nécessite nouvelle logique
+
+Ne pas ajouter ces rendus dans P13.
+
+ÉTAPE 6 — PRIORISATION
+
+Produire une recommandation claire pour la suite.
+
+Classer les candidats :
+
+A. Peut être fait prochainement sans gros système
+B. Doit attendre un vrai système de données
+C. À éviter pour risque fog / gameplay
+D. Déjà couvert par P5–P12
+
+Exemple attendu :
+
+```text
+Prochain meilleur bloc recommandé :
+P14 — [nom du bloc]
+
+Raison :
+- données déjà disponibles
+- faible risque gameplay
+- faible risque fog
+- utile pour mode immersive par défaut
+```
+
+ÉTAPE 7 — TYPESCRIPT / TEST
+
+Comme P13 est un audit sans code :
+
+* ne pas lancer de grosses modifications
+* npm run check optionnel
+* si lancé, documenter le résultat
+* ne pas corriger d’erreurs hors scope
+
+ÉTAPE 8 — RAPPORT FINAL
+
+Créer le rapport :
+
+attached_assets/RAPPORT_P13_audit_couches_restantes_immersive.md
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC P13
+2. FICHIERS INSPECTÉS
+3. RIVIÈRES / COURS D’EAU
+4. AVATAR / POSITION JOUEUR
+5. AUTRES JOUEURS / MULTIJOUEUR
+6. ROUTES CONSTRUCTIBLES
+7. EFFETS VISUELS SECONDAIRES
+8. DONNÉES DISPONIBLES MAIS NON RENDUES
+9. RISQUES FOG / VISIBILITÉ
+10. PRIORISATION DES CANDIDATS
+11. PROCHAIN BLOC RECOMMANDÉ
+12. RÉSULTAT npm run check SI LANCÉ
+13. LIMITES RESTANTES
+14. CONCLUSION
+15. STOP
+
+STOP
+Ne pas ajouter rivières.
+Ne pas ajouter routes.
+Ne pas ajouter avatar.
+Ne pas ajouter autres joueurs.
+Ne pas modifier GameCanvas.tsx.
+Ne pas modifier PixelMapRenderer.ts.
+Ne pas modifier DB.
+Ne pas modifier backend.
+Ne pas modifier génération de monde.
+Ne pas modifier les règles de jeu.
+Ne pas commencer P14.
