@@ -894,12 +894,20 @@ export function renderPixelMap(options: PixelMapRenderOptions): void {
         if (shouldShowUnit && !shouldShowUnit(unit)) continue;
 
         const { sx, sy } = hexToScreen(unit.x, unit.y, hexSize, cameraX, cameraY);
-        // Offset déterministe par index (petit cercle autour du centre) si
+        // Bloc P10 — Étape 3 (lisibilité) : ancre décalée en quadrant bas-gauche
+        // (symétrique du marqueur ressource, ancré en haut-droite) plutôt qu'au
+        // centre exact de l'hexagone. Évite un chevauchement pixel-perfect avec
+        // le marqueur colonie (ancré au centre/haut) ou bâtiment (centre/bas) sur
+        // une même case (ex. garnison dans une ville) — purement visuel, aucune
+        // donnée ni règle de jeu modifiée.
+        const anchorX = sx - hexSize * 0.32;
+        const anchorY = sy + hexSize * 0.32;
+        // Offset déterministe par index (petit cercle autour de l'ancre) si
         // plusieurs unités partagent la même case — pas de Math.random().
         const offsetRadius = i === 0 ? 0 : hexSize * 0.22;
         const angle = (i * (Math.PI * 2)) / Math.max(1, tileUnits.length);
-        const ox = sx + Math.cos(angle) * offsetRadius;
-        const oy = sy + Math.sin(angle) * offsetRadius;
+        const ox = anchorX + Math.cos(angle) * offsetRadius;
+        const oy = anchorY + Math.sin(angle) * offsetRadius;
 
         const color = unit.color || resolveOwnerColor(unit.ownerId ?? unit.playerId ?? unit.factionId ?? unit.id, getOwnerColor);
         const isSelected = unit.selected === true || (selectedUnitId != null && selectedUnitId === unit.id);

@@ -1,0 +1,309 @@
+NOVA IMPERIUM — CARTE — P10 / AUDIT VISUEL FINAL DU MODE IMMERSIVE
+Branche : NI-10.09
+
+OBJECTIF
+Faire un audit visuel et technique complet du mode immersive Pixel HD avant d’ajouter d’autres couches comme routes, rivières, avatar ou présence multijoueur.
+
+Ce bloc ne doit pas ajouter de nouvelle fonctionnalité majeure.
+
+Il doit vérifier que le mode immersive actuel reste lisible, stable, cohérent et jouable avec toutes les couches déjà ajoutées :
+
+* terrains
+* fog / vision
+* grille
+* ressources de tuile
+* colonies
+* bâtiments
+* ownership / frontières
+* unités
+* sélection
+
+CONTEXTE VALIDÉ
+P1 poussé :
+
+* audit intégration Pixel HD validé
+
+P2 poussé :
+
+* PixelHDAssets.ts
+* sprites Pixel HD disponibles
+
+P3 poussé :
+
+* PixelMapRenderer.ts isolé
+
+P4 poussé :
+
+* toggle expérimental Pixel HD
+
+P4-B poussé :
+
+* modes de carte :
+
+  * strategic
+  * immersive
+* localStorage :
+
+  * nova_map_render_mode
+* touche M
+* bouton discret
+* strategic par défaut
+
+P5 poussé :
+
+* stabilisation terrains immersive
+
+P6 poussé :
+
+* colonies et bâtiments immersive
+
+P7 poussé :
+
+* ressources de tuile immersive
+
+P8 poussé :
+
+* ownership / frontières immersive
+
+P9 poussé :
+
+* unités immersive
+
+OBJECTIF P10
+Auditer le rendu immersive complet avant de poursuivre.
+
+Le but est d’éviter d’empiler routes/rivières/avatar/autres joueurs sur une base visuelle qui aurait :
+
+* trop de bruit visuel
+* des couches mal ordonnées
+* des couleurs illisibles
+* des problèmes de fog
+* des problèmes de zoom/caméra
+* des unités cachées
+* des marqueurs qui se chevauchent trop
+
+PÉRIMÈTRE AUTORISÉ
+
+Modifier seulement si nécessaire :
+
+* client/src/lib/game/PixelMapRenderer.ts
+* client/src/components/game/GameCanvas.tsx
+
+Modifications autorisées :
+
+* ajustements visuels mineurs
+* ordre de couches si problème constaté
+* alpha / opacité
+* taille des marqueurs
+* positionnement mineur
+* commentaires explicatifs
+* garde-fous anti-crash
+* correction de bug strictement lié au rendu immersive
+
+Ne pas modifier :
+
+* DB
+* backend
+* schema
+* MapGenerator.ts
+* mapAdapter.ts
+* TerrainCosts.ts
+* ResourceRevealSystem.ts
+* UnifiedTerritorySystem.ts
+* économie
+* pathfinding
+* exploration
+* ownership logic
+* unités logic
+* mouvement
+* combat
+* règles de colonie
+* règles de ressources
+
+Ne pas ajouter :
+
+* routes
+* rivières
+* avatar
+* autres joueurs
+* animation de déplacement
+* nouvelle UI majeure
+* nouveau système de rendu
+
+ÉTAPE 1 — AUDIT DU PIPELINE DE RENDU
+
+Inspecter PixelMapRenderer.ts.
+
+Vérifier l’ordre réel des couches :
+
+1. Fond canvas
+2. Terrain Pixel HD
+3. Ownership overlay léger
+4. Fog total
+5. Fog ring overlay
+6. Grille
+7. Frontières ownership
+8. Ressources de tuile
+9. Colonies
+10. Bâtiments
+11. Unités
+12. Sélection tuile
+
+Confirmer :
+
+* fog total masque bien toutes les couches sensibles
+* sélection reste au-dessus
+* unités restent visibles sans cacher toute la case
+* frontières ne dominent pas le terrain
+* ressources ne masquent pas colonies/bâtiments
+* colonies/bâtiments ne masquent pas les unités
+
+ÉTAPE 2 — AUDIT VISIBILITÉ / FOG
+
+Vérifier que le mode immersive ne révèle rien de caché :
+
+* pas de ressource sous fog total
+* pas de colonie sous fog total
+* pas de bâtiment sous fog total
+* pas d’unité sous fog total
+* pas d’ownership sous fog total
+* pas de frontière qui révèle un propriétaire caché
+
+Si une fuite visuelle est trouvée :
+
+* corriger dans PixelMapRenderer.ts
+* ne pas modifier la logique exploration
+
+ÉTAPE 3 — AUDIT LISIBILITÉ
+
+Vérifier visuellement ou par revue de code :
+
+* ressources assez petites mais lisibles
+* unités lisibles au zoom moyen
+* unités différenciables par type
+* colonies et bâtiments visibles mais pas trop gros
+* ownership overlay assez discret
+* frontières visibles sans être agressives
+* sélection de tuile toujours claire
+* mode strategic inchangé
+
+Si nécessaire, ajuster :
+
+* alpha
+* taille
+* contour
+* position des marqueurs
+* ordre local de dessin
+
+ÉTAPE 4 — AUDIT ZOOM / CAMÉRA
+
+Vérifier :
+
+* pas de double zoom
+* pas de décalage par rapport au mode strategic
+* caméra stable
+* changement de mode strategic ↔ immersive sans saut visible majeur
+* localStorage persiste le mode
+
+Ne pas modifier la logique caméra, sauf correction de rendu strictement nécessaire.
+
+ÉTAPE 5 — AUDIT PERFORMANCE
+
+Faire une revue simple :
+
+* pas de requestAnimationFrame massif ajouté
+* pas de recalcul lourd inutile par tuile
+* pas de log spam
+* sprite cache PixelHDAssets toujours utilisé
+* pas de création excessive d’objets évitable dans les couches répétitives
+
+Si un micro-ajustement simple est évident :
+
+* l’appliquer
+  Sinon :
+* documenter comme limite future
+
+ÉTAPE 6 — AUDIT TYPESCRIPT
+
+Lancer :
+
+npm run check
+
+Corriger toute erreur liée à P10.
+
+Les erreurs préexistantes hors scope doivent être listées séparément.
+
+ÉTAPE 7 — TEST MANUEL DEMANDÉ
+
+Tester dans la preview réelle authentifiée si possible :
+
+1. Charger le jeu en strategic.
+2. Confirmer que strategic reste le mode par défaut si localStorage absent.
+3. Passer en immersive avec M.
+4. Vérifier les terrains.
+5. Vérifier fog / vision.
+6. Vérifier ownership / frontières.
+7. Vérifier ressources.
+8. Vérifier colonies.
+9. Vérifier bâtiments.
+10. Vérifier unités.
+11. Sélectionner une tuile.
+12. Vérifier que la sélection reste visible.
+13. Revenir en strategic avec M.
+14. Recharger la page.
+15. Vérifier la persistance du mode choisi.
+16. Vérifier console : aucune erreur PixelMapRenderer.
+
+Si la capture automatisée ne peut pas valider à cause de l’authentification :
+
+* le dire clairement
+* faire vérification code + logs
+* demander validation visuelle utilisateur
+
+ÉTAPE 8 — RAPPORT DE DÉCISION
+
+Le rapport doit conclure clairement :
+
+Option A :
+
+* Le mode immersive est assez stable pour passer à P11/P12.
+
+Option B :
+
+* Le mode immersive nécessite un bloc de nettoyage visuel avant d’ajouter routes/rivières/avatar.
+
+Option C :
+
+* Une couche particulière doit être retravaillée avant de continuer.
+
+ÉTAPE 9 — RAPPORT FINAL
+
+FORMAT FINAL OBLIGATOIRE
+
+1. DIAGNOSTIC P10
+2. FICHIERS MODIFIÉS
+3. PIPELINE DE RENDU ACTUEL
+4. VISIBILITÉ / FOG
+5. LISIBILITÉ DES COUCHES
+6. ZOOM / CAMÉRA
+7. PERFORMANCE
+8. STRATEGIC INCHANGÉ
+9. TESTS MANUELS
+10. RÉSULTAT npm run check
+11. PROBLÈMES TROUVÉS
+12. CORRECTIONS APPLIQUÉES
+13. DÉCISION POUR LA SUITE
+14. LIMITES RESTANTES
+15. CONCLUSION
+16. STOP
+
+STOP
+Ne pas ajouter routes.
+Ne pas ajouter rivières.
+Ne pas ajouter avatar.
+Ne pas ajouter autres joueurs.
+Ne pas modifier DB.
+Ne pas modifier backend.
+Ne pas modifier génération de monde.
+Ne pas modifier les règles de jeu.
+Ne pas commencer P11.
