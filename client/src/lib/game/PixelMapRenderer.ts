@@ -31,6 +31,16 @@
 // (legacy V1, ex. fish/iron/fur encore présents dans certaines tuiles
 // persistées en base avant migration V2) — aucune nouvelle donnée inventée.
 //
+// Bloc P8 — Ajout de l'ownership visuel (voile intérieur + frontières entre
+// owners différents). Aucune donnée nouvelle : tout provient de
+// UnifiedTerritorySystem.getTerritory(x,y) déjà chargé côté GameCanvas.tsx
+// (mêmes champs ownerType/ownerPlayerId/ownerFactionId que GameEngine.ts
+// strategic). Ce module ne connaît PAS UnifiedTerritorySystem directement :
+// GameCanvas.tsx fournit `getTileOwner`/`getOwnerColor`, réutilisant
+// exactement les mêmes couleurs (bleu joueur / vert faction) et la même
+// convention de voisins hex (colonnes décalées) que `drawTerritoryBorders`
+// de GameEngine.ts. Sans callback fourni, rien n'est dessiné.
+//
 // mapData suit la convention du reste du jeu : mapData[y][x] (ligne-major).
 //
 // Usage :
@@ -57,7 +67,11 @@ export interface PixelMapTile {
   discovered?: boolean;
   explored?: boolean;
   ownerId?: string | number | null;
+  ownerType?: string | null;
+  factionId?: string | number | null;
   cityId?: string | number | null;
+  buildingType?: string | null;
+  buildingId?: string | number | null;
 }
 
 // ─── Bloc P6 — Marqueurs colonies / bâtiments ──────────────────────────────
@@ -125,6 +139,36 @@ export interface PixelMapRenderOptions {
    * anti-fuite, cf. règle P7 étape 2).
    */
   shouldShowTileResource?: (x: number, y: number, resource: string | null | undefined) => boolean;
+  // ─── Bloc P8 — Ownership / frontières ──────────────────────────────────
+  /** Défaut : true */
+  showOwnership?: boolean;
+  /** Défaut : true */
+  showBorders?: boolean;
+  /**
+   * Retourne un identifiant d'owner stable pour la tuile (x,y), ou
+   * null/undefined si non revendiquée. DOIT réutiliser une donnée déjà
+   * chargée côté GameCanvas.tsx (UnifiedTerritorySystem) — jamais de
+   * nouveau fetch ni de nouvelle logique d'ownership ici.
+   */
+  getTileOwner?: (x: number, y: number, tile: PixelMapTile) => string | number | null | undefined;
+  /**
+   * Retourne la couleur de base (overlay + bordure) pour un ownerId donné.
+   * Si absent, un mapping déterministe local (hash → hsl) est utilisé.
+   */
+  getOwnerColor?: (ownerId: string | number | null | undefined) => string | null;
+  /**
+   * Indique si deux tuiles voisines partagent le même owner (permet de
+   * réutiliser exactement la logique d'égalité ownerType/ownerPlayerId/
+   * ownerFactionId de GameEngine.ts plutôt que de comparer seulement
+   * getTileOwner, qui pourrait produire de faux-négatifs). Si absent,
+   * repli sur une comparaison stricte des ownerId retournés par getTileOwner.
+   */
+  isSameOwner?: (
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+  ) => boolean;
 }
 
 // ─── Constantes internes ───────────────────────────────────────────────────
@@ -191,6 +235,98 @@ function drawHexPath(ctx: CanvasRenderingContext2D, cx: number, cy: number, hexS
     else ctx.lineTo(hx, hy);
   }
   ctx.closePath();
+}
+
+// Dessine un seul côté (segment) de l'hexagone — identique à
+// GameEngine.drawHexSide (même convention d'angle 0=SE...5=NE).
+function drawHexSidePath(ctx: CanvasRenderingContext2D, cx: number, cy: number, hexSize: number, sideIndex: number): void {
+  const angle1 = (sideIndex * Math.PI) / 3;
+  const angle2 = ((sideIndex + 1) * Math.PI) / 3;
+  const x1 = cx + hexSize * Math.cos(angle1);
+  const y1 = cy + hexSize * Math.sin(angle1);
+  const x2 = cx + hexSize * Math.cos(angle2);
+  const y2 = cy + hexSize * Math.sin(angle2);
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+}
+
+// ─── Bloc P8 — Étape 4 : voisins hex, convention IDENTIQUE à
+// GameEngine.drawTerritoryBorders (colonnes décalées, 0=SE...5=NE) ─────────
+const HEX_NEIGHBOR_SIDES = (hexX: number) => [
+  { dx: 1, dy: hexX % 2 === 0 ? 0 : 1 }, // 0 = SE
+  { dx: 0, dy: 1 }, // 1 = S
+  { dx: -1, dy: hexX % 2 === 0 ? 0 : 1 }, // 2 = SW
+  { dx: -1, dy: hexX % 2 === 0 ? -1 : 0 }, // 3 = NW
+  { dx: 0, dy: -1 }, // 4 = N
+  { dx: 1, dy: hexX % 2 === 0 ? -1 : 0 }, // 5 = NE
+];
+
+// ─── Bloc P8 — Étape 8 : couleur déterministe de repli (si getOwnerColor
+// n'est pas fourni par l'appelant) — hash simple, pas de Math.random. ──────
+function hashOwnerIdToColor(ownerId: string | number): string {
+  const str = String(ownerId);
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = (h * 31 + str.charCodeAt(i)) >>> 0;
+  }
+  const hue = h % 360;
+  return `hsl(${hue}, 45%, 55%)`;
+}
+
+function resolveOwnerColor(
+  ownerId: string | number,
+  getOwnerColor: PixelMapRenderOptions["getOwnerColor"],
+): string {
+  if (getOwnerColor) {
+    const custom = getOwnerColor(ownerId);
+    if (custom) return custom;
+  }
+  return hashOwnerIdToColor(ownerId);
+}
+
+// ─── Bloc P8 — Étape 3 : voile intérieur discret (alpha faible) ───────────
+function drawOwnershipOverlay(
+  ctx: CanvasRenderingContext2D,
+  sx: number,
+  sy: number,
+  hexSize: number,
+  color: string,
+): void {
+  drawHexPath(ctx, sx, sy, hexSize);
+  ctx.save();
+  ctx.globalAlpha = 0.16;
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.restore();
+}
+
+// ─── Bloc P8 — Étape 3/4 : frontières (segments entre owners différents) ──
+function drawTileBorders(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  sx: number,
+  sy: number,
+  hexSize: number,
+  color: string,
+  isSameOwnerFn: (nx: number, ny: number) => boolean,
+): void {
+  const sides = HEX_NEIGHBOR_SIDES(x);
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([]);
+  for (let i = 0; i < 6; i++) {
+    const side = sides[i];
+    const nx = x + side.dx;
+    const ny = y + side.dy;
+    if (!isSameOwnerFn(nx, ny)) {
+      drawHexSidePath(ctx, sx, sy, hexSize, i);
+    }
+  }
+  ctx.restore();
 }
 
 // Convention identique à GameEngine/GameCanvas : mapData[y][x] (ligne-major).
@@ -437,6 +573,11 @@ export function renderPixelMap(options: PixelMapRenderOptions): void {
     showBuildings,
     showResources,
     shouldShowTileResource,
+    showOwnership,
+    showBorders,
+    getTileOwner,
+    getOwnerColor,
+    isSameOwner,
   } = options;
 
   ctx.imageSmoothingEnabled = false;
@@ -479,6 +620,17 @@ export function renderPixelMap(options: PixelMapRenderOptions): void {
         drawFallbackHex(ctx, sx, sy, hexSize);
       }
 
+      // ─── Bloc P8 — Étape 3 : voile ownership intérieur (tuile visible uniquement) ──
+      // Le fog total a déjà fait `continue` plus haut : cette ligne ne peut
+      // jamais s'exécuter sur une tuile masquée — aucun owner caché ne fuite.
+      if (showOwnership !== false && getTileOwner) {
+        const ownerId = getTileOwner(x, y, tile);
+        if (ownerId !== null && ownerId !== undefined) {
+          const color = resolveOwnerColor(ownerId, getOwnerColor);
+          drawOwnershipOverlay(ctx, sx, sy, hexSize, color);
+        }
+      }
+
       // Étape 8 — voile fog ring (case révélée mais hors vision directe)
       if (isHexInFogRing && isHexInFogRing(x, y)) {
         drawHexPath(ctx, sx, sy, hexSize + 0.5);
@@ -498,6 +650,41 @@ export function renderPixelMap(options: PixelMapRenderOptions): void {
         ctx.strokeStyle = "rgba(0,0,0,0.28)";
         ctx.lineWidth = 1;
         ctx.stroke();
+      }
+    }
+  }
+
+  // ─── Bloc P8 — Étape 3/4 : frontières ownership (après grille, avant ressources) ──
+  // Une frontière n'est tracée que si la tuile A (visible) a un owner et que
+  // le voisin B est soit absent, soit d'un owner différent. Le fog total du
+  // voisin n'est PAS interrogé pour son identité — seule la présence/absence
+  // d'un owner différent compte, jamais son détail (cf. étape 4 de la spec :
+  // "ne pas exposer l'identité du voisin caché", ce qui est garanti ici car
+  // isSameOwnerFn ne renvoie qu'un booléen, jamais l'ownerId du voisin).
+  if (showBorders !== false && getTileOwner) {
+    for (let y = y0; y <= y1; y++) {
+      const row = mapData[y];
+      if (!row) continue;
+      for (let x = x0; x <= x1; x++) {
+        const tile = row[x];
+        if (!tile) continue;
+        if (isHexVisible && !isHexVisible(x, y)) continue;
+        const ownerId = getTileOwner(x, y, tile);
+        if (ownerId === null || ownerId === undefined) continue;
+
+        const isSameOwnerFn = (nx: number, ny: number): boolean => {
+          if (isSameOwner) return isSameOwner(x, y, nx, ny);
+          const neighborRow = mapData[ny];
+          const neighborTile = neighborRow ? neighborRow[nx] : undefined;
+          if (!neighborTile) return false;
+          const neighborOwnerId = getTileOwner(nx, ny, neighborTile);
+          if (neighborOwnerId === null || neighborOwnerId === undefined) return false;
+          return neighborOwnerId === ownerId;
+        };
+
+        const color = resolveOwnerColor(ownerId, getOwnerColor);
+        const { sx, sy } = hexToScreen(x, y, hexSize, cameraX, cameraY);
+        drawTileBorders(ctx, x, y, sx, sy, hexSize, color, isSameOwnerFn);
       }
     }
   }

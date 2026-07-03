@@ -218,6 +218,44 @@ export function GameCanvas() {
         return isAdmin || (explorationLevel >= 1 && hexResourceDiscovered);
       };
 
+      // Bloc P8 — Ownership / frontières : réutilise EXACTEMENT UnifiedTerritorySystem.getTerritory(x,y)
+      // (même source que le rendu strategic, GameEngine.drawTerritoryBorders) — aucun nouveau fetch,
+      // aucune nouvelle règle d'ownership. ownerId = clé stable combinant ownerType + identifiant réel.
+      const getTileOwner = (x: number, y: number, _tile: unknown): string | null => {
+        const territory = UnifiedTerritorySystem.getTerritory(x, y);
+        if (!territory) return null;
+        if (territory.ownerType === "player" && territory.ownerPlayerId) {
+          return `player:${territory.ownerPlayerId}`;
+        }
+        if (territory.ownerType === "faction" && territory.ownerFactionId) {
+          return `faction:${territory.ownerFactionId}`;
+        }
+        return null;
+      };
+
+      // Mêmes couleurs que le mode strategic (GameEngine.ts ligne ~416-417) : bleu joueur / vert faction.
+      const getOwnerColor = (ownerId: string | number | null | undefined): string | null => {
+        if (typeof ownerId !== "string") return null;
+        if (ownerId.startsWith("player:")) return "rgba(20, 100, 220, 0.90)";
+        if (ownerId.startsWith("faction:")) return "rgba(20, 110, 20, 0.90)";
+        return null;
+      };
+
+      // Même logique d'égalité que GameEngine.drawTerritoryBorders : même ownerType ET même
+      // identifiant réel (jamais de comparaison basée sur une chaîne dérivée uniquement).
+      const isSameOwner = (ax: number, ay: number, bx: number, by: number): boolean => {
+        const ta = UnifiedTerritorySystem.getTerritory(ax, ay);
+        const tb = UnifiedTerritorySystem.getTerritory(bx, by);
+        if (!ta || !tb) return false;
+        return (
+          (ta.ownerType === "player" && tb.ownerType === "player" && ta.ownerPlayerId === tb.ownerPlayerId) ||
+          (ta.ownerType === "faction" &&
+            tb.ownerType === "faction" &&
+            ta.ownerFactionId === tb.ownerFactionId &&
+            ta.ownerFactionId !== null)
+        );
+      };
+
       renderPixelMap({
         ctx,
         mapData,
@@ -236,6 +274,11 @@ export function GameCanvas() {
         buildings,
         showResources: true,
         shouldShowTileResource,
+        showOwnership: true,
+        showBorders: true,
+        getTileOwner,
+        getOwnerColor,
+        isSameOwner,
       });
       pixelHDFailLoggedRef.current = false;
     } catch (err) {
