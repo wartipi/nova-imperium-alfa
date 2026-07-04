@@ -314,7 +314,10 @@ export function GameCanvas() {
           x: p.worldX - originWorldX,
           y: p.worldY - originWorldY,
         }))
-        .filter((p) => isAdmin || !isHexVisible || isHexVisible(p.x, p.y));
+        // Correction P16-B : règle conservatrice — si isHexVisible est absent ou
+        // incertain pour un joueur normal, on masque (jamais de fallback permissif
+        // pour les autres joueurs). isAdmin reste le seul bypass légitime.
+        .filter((p) => isAdmin || (isHexVisible ? isHexVisible(p.x, p.y) : false));
 
       renderPixelMap({
         ctx,
