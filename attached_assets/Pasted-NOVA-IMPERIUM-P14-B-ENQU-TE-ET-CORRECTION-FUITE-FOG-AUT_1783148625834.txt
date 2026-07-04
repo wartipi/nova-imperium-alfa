@@ -1,0 +1,177 @@
+NOVA IMPERIUM — P14-B — ENQUÊTE ET CORRECTION FUITE FOG AUTRES JOUEURS
+
+Branche de travail : NI-10.09
+Base de comparaison : NI-10.3
+Repo : wartipi/nova-imperium-alfa
+
+CONTEXTE
+
+Les blocs P1 à P14-A sont poussés.
+Le mode immersive Pixel HD est maintenant le mode de carte par défaut.
+Le mode strategic reste disponible comme vue alternative/classique.
+
+P14-A est validé côté GitHub :
+- NI-10.09 est maintenant à 51 commits devant NI-10.3
+- la capitale immersive reçoit une icône distincte
+- CLAUDE.md a été mis à jour
+
+PROBLÈME À ENQUÊTER
+
+P13 a identifié une fuite de brouillard de guerre potentielle dans la vue strategic :
+
+- `renderOtherPlayers()` semble afficher les autres joueurs sans vérifier la visibilité/fog
+- l’API `/api/players/positions` pourrait aussi transmettre trop de positions au client
+- cela peut afficher des joueurs dans des zones non explorées
+- cette fuite est préexistante et non liée au mode immersive
+
+OBJECTIF UNIQUE DU BLOC
+
+Enquêter et corriger la fuite fog liée aux autres joueurs.
+
+Ce bloc doit rester ciblé :
+1. comprendre exactement où la fuite se produit
+2. corriger le plus petit maillon nécessaire
+3. ne pas ajouter de nouvelle feature
+4. ne pas porter les autres joueurs en immersive dans ce bloc
+
+INTERDITS
+
+- Ne pas ajouter les autres joueurs au mode immersive
+- Ne pas modifier les routes
+- Ne pas modifier les capitales
+- Ne pas modifier les rivières
+- Ne pas toucher au système de combat, déplacement, économie ou colonies
+- Ne pas modifier le schéma DB
+- Ne pas faire de refactor massif
+- Ne pas inventer une nouvelle règle de visibilité
+- Ne pas exposer de données admin-only
+- Ne pas afficher un joueur si sa visibilité est incertaine
+- Ne pas corriger des erreurs TypeScript préexistantes hors scope
+
+PORTÉE D’AUDIT AUTORISÉE
+
+Inspecter en lecture :
+
+1. Côté client :
+   - `client/src/lib/game/GameEngine.ts`
+   - recherche de `renderOtherPlayers`
+   - appels à cette fonction
+   - source de données des autres joueurs
+   - accès aux fonctions de fog/vision existantes
+
+2. Côté client store/systèmes :
+   - `usePlayer`
+   - `VisionSystem`
+   - toute fonction existante de type :
+     - `isHexVisible`
+     - `isHexInCurrentVision`
+     - `isHexInFogRing`
+     - `isDiscovered`
+     - équivalent existant
+
+3. Côté API client :
+   - fichier appelant `/api/players/positions`, si existant
+
+4. Côté serveur :
+   - route `/api/players/positions`
+   - service lié aux positions joueurs, si existant
+   - vérifier si le serveur filtre déjà ou non selon le fog
+
+QUESTION PRINCIPALE
+
+La fuite doit-elle être corrigée côté client seulement, côté serveur seulement, ou les deux ?
+
+RÈGLE DE SÉCURITÉ
+
+Source de vérité minimale :
+
+- Si le client possède déjà une fonction fiable pour savoir si une tuile est visible, l’utiliser pour empêcher le rendu des autres joueurs hors visibilité.
+- Si le serveur transmet actuellement toutes les positions, signaler explicitement ce risque.
+- Si une correction serveur propre est possible sans refactor ni DB, la proposer ou l’appliquer seulement si elle utilise déjà une logique existante fiable.
+- Si aucune logique serveur de visibilité n’existe, ne pas inventer un système complet dans ce bloc.
+- En cas de doute : cacher l’autre joueur.
+
+CORRECTION MINIMALE ACCEPTABLE
+
+Correction client minimale attendue si elle est suffisante :
+
+Dans `renderOtherPlayers()` ou juste avant son appel :
+- vérifier la visibilité de la tuile du joueur à rendre
+- ne pas dessiner l’autre joueur si la tuile n’est pas visible
+- ne pas afficher son nom, sa position, son marqueur ou tout indice visuel hors fog
+
+Important :
+- cette correction ne protège pas contre une fuite réseau si l’API transmet encore toutes les positions
+- si l’API transmet trop de données, le rapport doit le dire clairement
+
+CORRECTION SERVEUR
+
+Ne modifier le serveur que si :
+- une fonction de visibilité/fog existe déjà côté serveur
+- elle peut être utilisée sans créer un nouveau système
+- le changement reste petit, déterministe et sans migration DB
+
+Sinon :
+- documenter que la fuite visuelle est corrigée côté client
+- documenter que la limitation réseau serveur reste un chantier futur distinct
+
+VÉRIFICATIONS OBLIGATOIRES
+
+Après modification :
+
+1. Exécuter les checks disponibles :
+   - `npm run check`
+   - ou la commande déjà utilisée dans le projet
+   - comparer avec la baseline connue : 233 erreurs TypeScript préexistantes
+
+2. Vérifier par lecture de code :
+   - aucun autre joueur n’est dessiné hors visibilité/fog
+   - aucune donnée admin-only n’est exposée
+   - le mode immersive n’est pas modifié
+   - les routes/capitales/rivières ne sont pas touchées
+
+3. Vérifier git diff :
+   - seuls les fichiers nécessaires sont modifiés
+   - aucun changement hors scope
+
+4. Mettre à jour `CLAUDE.md` avec une entrée P14-B :
+   - objectif
+   - diagnostic réel
+   - fichiers inspectés
+   - fichiers modifiés
+   - correction appliquée
+   - règle de visibilité utilisée
+   - tests effectués
+   - erreurs préexistantes
+   - erreurs introduites
+   - limites restantes
+   - prochain bloc recommandé
+
+RAPPORT ATTENDU
+
+Répondre avec :
+
+1. Diagnostic initial
+2. Source exacte de la fuite
+3. Fichiers inspectés
+4. Fichiers modifiés
+5. Correction appliquée
+6. Règle de visibilité utilisée
+7. État serveur :
+   - API filtre déjà ?
+   - API ne filtre pas ?
+   - non modifié car hors scope ?
+8. Résultat des checks
+9. Diff summary
+10. Commit hash exact poussé sur GitHub
+11. Confirmation que `CLAUDE.md` a été mis à jour
+
+IMPORTANT
+
+Ne pas déclarer terminé tant que :
+- le diff est vérifié
+- `CLAUDE.md` est mis à jour
+- le commit est poussé sur GitHub
+- le vrai commit hash est fourni
+
+Ne pas commencer un autre bloc après P14-B.

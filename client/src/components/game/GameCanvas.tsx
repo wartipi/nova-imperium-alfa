@@ -582,12 +582,17 @@ export function GameCanvas() {
       const { players } = usePlayerPresence.getState();
       if (!gameEngineRef.current) return;
       const { originWorldX, originWorldY } = useMap.getState();
-      const converted = players.map((p) => ({
-        userId: p.userId,
-        username: p.username,
-        hexX: p.worldX - originWorldX,
-        hexY: p.worldY - originWorldY,
-      }));
+      // P14-B — garde fog de guerre : ne jamais transmettre au rendu un autre joueur
+      // dont la tuile n'est pas actuellement visible (même règle que l'avatar/unités).
+      const { isHexVisible: isOtherPlayerHexVisible } = usePlayer.getState();
+      const converted = players
+        .map((p) => ({
+          userId: p.userId,
+          username: p.username,
+          hexX: p.worldX - originWorldX,
+          hexY: p.worldY - originWorldY,
+        }))
+        .filter((p) => isOtherPlayerHexVisible(p.hexX, p.hexY));
       gameEngineRef.current.updateOtherPlayers(converted);
       gameEngineRef.current.render();
       renderPixelHDOverlay();
