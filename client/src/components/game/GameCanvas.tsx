@@ -338,6 +338,16 @@ export function GameCanvas() {
     }
   }, [mapRenderMode, gameEngineRef, mapData, selectedHex, isHexVisible, isHexInFogRing, isAdmin]);
 
+  // Bloc P15 — Toujours garder la version la plus récente de renderPixelHDOverlay
+  // accessible depuis le postRenderCallback de GameEngine (enregistré une seule
+  // fois, voir useEffect [mapData] plus bas). Sans ce ref, le callback capturerait
+  // une closure figée (mapRenderMode/selectedHex/etc. au moment de l'enregistrement)
+  // et ne réagirait plus aux changements ultérieurs (toggle immersive, sélection...).
+  const renderPixelHDOverlayRef = useRef(renderPixelHDOverlay);
+  useEffect(() => {
+    renderPixelHDOverlayRef.current = renderPixelHDOverlay;
+  }, [renderPixelHDOverlay]);
+
   // ─── Menu contextuel de case (clic droit) ─────────────────────────────────
   const [tileContextMenu, setTileContextMenu] = useState<{
     screenX:      number;
@@ -396,6 +406,17 @@ export function GameCanvas() {
         getGameState, 
         getPlayerState
       );
+
+      // Bloc P15 — Réapplique l'overlay Pixel HD immédiatement après TOUT render()
+      // déclenché en interne par GameEngine (drag souris, molette/zoom, déplacement
+      // caméra clavier, moveAvatarToHex, moveCamera, setCameraPosition,
+      // centerCameraOnPosition, setPendingMovement), sans passer par GameCanvas.
+      // Corrige le flash immersive→strategic pendant les interactions souris/caméra.
+      // Ce callback ne dessine jamais un nouveau render() strategic — uniquement
+      // l'overlay Pixel HD (dessin canvas additionnel) — aucune boucle possible.
+      gameEngineRef.current.setPostRenderCallback(() => {
+        renderPixelHDOverlayRef.current();
+      });
       
       // Rendu initial SANS callbacks vision : les callbacks vides rendraient tout en noir
       // pour les joueurs non-admin (exploredHexes encore vide à ce stade).

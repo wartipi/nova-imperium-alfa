@@ -41,6 +41,19 @@ export class GameEngine {
   public hasInitialCentered: boolean = false;
   private isAdminMode: boolean = false;
   private otherPlayers: Array<{ userId: string; username: string; hexX: number; hexY: number }> = [];
+
+  // Bloc P15 — Callback optionnel appelé à la FIN de render(), après restore().
+  // Sert uniquement à réappliquer l'overlay Pixel HD (dessin canvas additionnel)
+  // quand GameEngine déclenche lui-même un render() en interne (drag souris,
+  // molette/zoom, déplacement caméra clavier, moveAvatarToHex, moveCamera,
+  // setCameraPosition, centerCameraOnPosition, setPendingMovement) sans passer
+  // par GameCanvas. Ne doit JAMAIS appeler this.render() — uniquement dessiner
+  // par-dessus le rendu déjà terminé. Voir CLAUDE.md entrée P15.
+  private postRenderCallback: (() => void) | null = null;
+
+  setPostRenderCallback(callback: (() => void) | null): void {
+    this.postRenderCallback = callback;
+  }
   
   // REFACTORISATION : Injection explicite des stores au lieu de window
   private getGameState: GameStateAccessor;
@@ -366,6 +379,14 @@ export class GameEngine {
     this.renderUIElements();
     
     this.ctx.restore();
+
+    // Bloc P15 — Réapplique l'overlay Pixel HD immédiatement après ce render,
+    // y compris quand render() est déclenché en interne (drag/zoom/clavier/
+    // déplacements programmatiques) sans passer par GameCanvas. Ce callback
+    // ne dessine jamais un nouveau render() strategic — voir setPostRenderCallback.
+    if (this.postRenderCallback) {
+      this.postRenderCallback();
+    }
   }
 
   private renderMap() {

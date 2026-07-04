@@ -1,0 +1,200 @@
+NOVA IMPERIUM — P15 — STABILISATION RENDU IMMERSIVE PENDANT INTERACTIONS SOURIS/CAMÉRA
+
+Branche de travail : NI-10.09
+Base de comparaison : NI-10.3
+Repo : wartipi/nova-imperium-alfa
+
+CONTEXTE
+
+Les blocs P1 à P14-C sont poussés.
+État GitHub validé :
+- NI-10.09 est à 53 commits devant NI-10.3
+- P14-A : capitale immersive validée
+- P14-B : fuite visuelle autres joueurs corrigée côté client
+- P14-C : fuite réseau /api/players/positions corrigée côté serveur
+- CLAUDE.md est à jour
+
+PROBLÈME OBSERVÉ PAR L’UTILISATEUR
+
+En mode immersive Pixel HD, quand l’utilisateur :
+- bouge le curseur
+- clique
+- déplace la carte
+- interagit avec la carte
+
+le rendu immersive / filtre / skin Pixel HD semble être interrompu temporairement.
+Le rendu revient ensuite en mode immersive après un court délai.
+
+Hypothèse probable :
+- GameEngine.render() redessine immédiatement la vue strategic classique pendant certains événements souris/caméra
+- renderPixelHDOverlay() n’est pas rappelé immédiatement après tous ces rendus
+- le mode immersive agit comme overlay après strategic, mais certains chemins de rendu ne réappliquent pas l’overlay
+
+OBJECTIF UNIQUE DU BLOC
+
+Stabiliser le mode immersive pour qu’il reste affiché pendant toutes les interactions souris/caméra.
+
+Le mode immersive ne doit plus “flasher” ou retomber brièvement sur le rendu strategic lors des interactions.
+
+INTERDITS
+
+- Ne pas modifier le schéma DB
+- Ne pas modifier le serveur
+- Ne pas modifier les règles de gameplay
+- Ne pas modifier les routes
+- Ne pas modifier les capitales
+- Ne pas modifier les rivières
+- Ne pas modifier les autres joueurs
+- Ne pas modifier le fog sauf si strictement nécessaire pour le rendu
+- Ne pas refactorer massivement GameEngine
+- Ne pas remplacer GameEngine
+- Ne pas recréer l’architecture Pixel HD
+- Ne pas ajouter de nouvelle feature visuelle
+- Ne pas corriger les erreurs TypeScript préexistantes hors scope
+
+PORTÉE D’AUDIT AUTORISÉE
+
+Inspecter en lecture :
+
+1. `client/src/components/game/GameCanvas.tsx`
+   - tous les appels à `gameEngineRef.current.render()`
+   - tous les appels à `renderEngine()`
+   - tous les appels à `renderPixelHDOverlay()`
+   - handlers souris :
+     - mouse down
+     - mouse move
+     - mouse up
+     - click
+     - context menu
+     - wheel / zoom si présent
+   - hooks liés à la caméra ou sélection
+
+2. `client/src/lib/game/GameEngine.ts`
+   - vérifier quels événements internes appellent `render()`
+   - vérifier si caméra/drag/zoom déclenchent un render direct sans callback vers GameCanvas
+   - vérifier si un callback post-render existe déjà ou peut être ajouté minimalement
+
+3. `client/src/lib/hooks/useGameEngineAccess.ts`
+   - vérifier ce que fait `renderEngine()`
+   - voir si c’est un chemin qui oublie l’overlay immersive
+
+QUESTION PRINCIPALE
+
+Quels chemins de rendu appellent GameEngine.render() sans rappeler renderPixelHDOverlay() immédiatement après ?
+
+CORRECTION ATTENDUE
+
+Appliquer la correction minimale et fiable.
+
+Options possibles, à choisir après audit :
+
+OPTION A — Correction côté GameCanvas
+- remplacer les appels directs à `gameEngineRef.current.render()` par un wrapper local du type :
+  - `renderCurrentMap()`
+  - qui appelle d’abord `gameEngineRef.current.render()`
+  - puis `renderPixelHDOverlay()`
+- utiliser ce wrapper dans tous les chemins de rendu contrôlés par GameCanvas
+
+OPTION B — Callback post-render dans GameEngine
+- si GameEngine appelle lui-même `render()` pendant drag/zoom/mouse move sans passer par GameCanvas
+- ajouter un callback optionnel minimal :
+  - `setPostRenderCallback(callback)`
+  - appelé à la fin de `GameEngine.render()`
+- GameCanvas configure ce callback pour appeler `renderPixelHDOverlay()` uniquement quand `mapRenderMode === "immersive"`
+- attention à éviter les boucles infinies :
+  - le callback ne doit pas rappeler `GameEngine.render()`
+  - il doit seulement dessiner l’overlay Pixel HD
+
+OPTION C — Autre correction minimale
+- seulement si A/B ne sont pas appropriées
+- expliquer pourquoi
+- garder le scope petit
+
+RÈGLE IMPORTANTE
+
+Le mode immersive est maintenant le mode par défaut.
+Toute interaction qui déclenche un rendu strategic doit immédiatement réappliquer le rendu immersive dans la même frame ou le même cycle.
+
+CONTRAINTE ANTI-BOUCLE
+
+Ne jamais créer une boucle :
+- GameEngine.render()
+- renderPixelHDOverlay()
+- GameEngine.render()
+- renderPixelHDOverlay()
+- etc.
+
+`renderPixelHDOverlay()` doit rester un dessin canvas additionnel, pas un déclencheur de nouveau render strategic.
+
+VÉRIFICATIONS OBLIGATOIRES
+
+Après modification :
+
+1. Exécuter les checks :
+   - `npm run check`
+   - baseline actuelle connue : 187 erreurs TypeScript préexistantes
+   - aucune nouvelle erreur introduite
+
+2. Vérifier visuellement en preview :
+   - mode immersive actif par défaut
+   - déplacement caméra sans flash strategic
+   - clic gauche sans interruption du skin immersive
+   - clic droit sans interruption du skin immersive
+   - drag carte sans retour temporaire strategic
+   - zoom si applicable sans retour temporaire strategic
+   - sélection de tuile toujours visible
+   - mini-map inchangée
+   - mode strategic encore disponible via toggle
+
+3. Vérifier par lecture de code :
+   - tous les chemins de rendu identifiés sont couverts
+   - aucun appel à renderPixelHDOverlay ne déclenche de boucle
+   - pas de modification serveur
+   - pas de modification gameplay
+
+4. Vérifier git diff :
+   - modifications limitées idéalement à `GameCanvas.tsx`
+   - `GameEngine.ts` seulement si nécessaire pour callback post-render
+   - `CLAUDE.md` mis à jour
+
+5. Mettre à jour `CLAUDE.md` avec une entrée P15 :
+   - problème observé
+   - diagnostic réel
+   - fichiers inspectés
+   - fichiers modifiés
+   - correction appliquée
+   - chemins de rendu couverts
+   - tests effectués
+   - erreurs préexistantes
+   - erreurs introduites
+   - limites restantes
+   - prochain bloc recommandé
+
+RAPPORT ATTENDU
+
+Répondre avec :
+
+1. Diagnostic initial
+2. Source exacte du flash / interruption immersive
+3. Fichiers inspectés
+4. Fichiers modifiés
+5. Correction appliquée
+6. Pourquoi la correction ne crée pas de boucle de rendu
+7. Chemins de rendu maintenant couverts
+8. Résultat des checks
+9. Résultat du test visuel
+10. Diff summary
+11. Commit hash exact poussé sur GitHub
+12. Confirmation que `CLAUDE.md` a été mis à jour
+
+IMPORTANT
+
+Ne pas déclarer terminé tant que :
+- le problème de flash immersive est corrigé ou clairement isolé
+- le diff est vérifié
+- les checks sont exécutés
+- CLAUDE.md est mis à jour
+- le commit est poussé sur GitHub
+- le vrai commit hash complet est fourni
+
+Ne pas commencer un autre bloc après P15.
