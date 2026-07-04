@@ -1,0 +1,239 @@
+NOVA IMPERIUM — P16-C — VALIDATION VISUELLE CONTRÔLÉE DES AUTRES JOUEURS EN IMMERSIVE
+
+Branche de travail : NI-10.09
+Base de comparaison : NI-10.3
+Repo : wartipi/nova-imperium-alfa
+
+CONTEXTE
+
+Les blocs P1 à P16-B sont poussés.
+État GitHub validé :
+- NI-10.09 est à 57 commits devant NI-10.3
+- P14-B : fuite visuelle client des autres joueurs corrigée
+- P14-C : fuite réseau serveur /api/players/positions corrigée avec player_discovered_tiles
+- P15 : stabilisation du rendu immersive pendant interactions souris/caméra
+- P16-A : audit post-fog autres joueurs validé
+- P16-B : rendu des autres joueurs ajouté au mode immersive Pixel HD
+- Correction P16-B : fallback permissif du filtre fog remplacé par règle conservatrice
+- CLAUDE.md est à jour
+
+CONTEXTE IMPORTANT
+
+P16-B est validé côté code, mais la validation visuelle réelle avec un deuxième joueur connecté n’a pas encore été faite.
+
+Le rapport P16-B indiquait :
+- un seul joueur actif pendant le test
+- GET /api/players/positions retournait []
+- pipeline compilé et branché, mais pas observé avec un autre joueur réel
+
+OBJECTIF UNIQUE DU BLOC
+
+Valider visuellement et fonctionnellement le rendu des autres joueurs en mode immersive Pixel HD.
+
+Ce bloc est un bloc de validation / diagnostic.
+Ne pas ajouter de nouvelle feature.
+
+QUESTIONS À RÉPONDRE
+
+1. Est-ce qu’un autre joueur visible apparaît bien en mode immersive ?
+2. Est-ce qu’un autre joueur hors fog reste bien invisible ?
+3. Est-ce que le mode strategic reste inchangé ?
+4. Est-ce que le marqueur immersive est lisible et pas trop intrusif ?
+5. Est-ce qu’il y a un doublon avec l’avatar local ?
+6. Est-ce que drag/zoom/clic ne font pas disparaître ou flasher le marqueur ?
+
+INTERDITS
+
+- Ne pas modifier le serveur
+- Ne pas modifier le schéma DB
+- Ne pas modifier les routes API
+- Ne pas modifier le système de fog
+- Ne pas modifier le polling
+- Ne pas modifier les règles de gameplay
+- Ne pas modifier le déplacement
+- Ne pas modifier le combat
+- Ne pas modifier l’économie
+- Ne pas modifier les routes constructibles
+- Ne pas modifier les capitales
+- Ne pas modifier les rivières
+- Ne pas modifier les unités ou colonies
+- Ne pas rendre les autres joueurs cliquables
+- Ne pas ajouter de menu contextuel
+- Ne pas ajouter de fake player permanent
+- Ne pas ajouter de debug visuel permanent
+- Ne pas refactorer GameCanvas, GameEngine ou PixelMapRenderer
+- Ne pas corriger les erreurs TypeScript préexistantes hors scope
+
+PORTÉE AUTORISÉE
+
+Inspection lecture seule :
+
+1. Client :
+   - `client/src/components/game/GameCanvas.tsx`
+   - `client/src/lib/game/PixelMapRenderer.ts`
+   - `client/src/lib/game/GameEngine.ts`
+   - `client/src/lib/stores/usePlayerPresence.ts`
+   - `client/src/lib/api/playersApi.ts`
+
+2. Serveur, lecture seulement :
+   - `server/routes/players.ts`
+   - `server/playerPresenceService.ts`
+
+3. Logs / preview :
+   - console navigateur
+   - logs serveur
+   - réponses `GET /api/players/positions`
+   - rendu immersive
+   - rendu strategic
+
+TESTS À EFFECTUER
+
+A. Test baseline
+
+1. Lancer l’application en mode joueur normal.
+2. Confirmer que le mode immersive est actif.
+3. Confirmer qu’aucune erreur console n’apparaît.
+4. Confirmer que `npm run check` reste à 187 erreurs TypeScript préexistantes.
+
+B. Test sans autre joueur
+
+1. Avec un seul joueur actif :
+   - vérifier que `GET /api/players/positions` retourne `[]`
+   - vérifier qu’aucun marqueur autre joueur n’apparaît
+   - vérifier qu’il n’y a pas de doublon de l’avatar local
+
+C. Test avec autre joueur réel ou session secondaire
+
+Si possible :
+1. Connecter un deuxième compte ou une deuxième session.
+2. Placer l’autre joueur sur une tuile visible/découverte par le joueur test.
+3. Vérifier :
+   - le marqueur apparaît en mode immersive
+   - le username est lisible
+   - le marqueur n’est pas trop gros
+   - les unités restent visibles
+   - les colonies restent visibles
+   - le mode strategic affiche toujours les autres joueurs comme avant
+   - le toggle strategic/immersive fonctionne
+
+D. Test fog
+
+Si possible :
+1. Placer l’autre joueur sur une tuile non découverte / non visible.
+2. Vérifier côté API joueur normal :
+   - la position ne doit pas être retournée par `/api/players/positions`
+   - ou, si retournée pour une raison de synchro particulière, elle doit être masquée côté client par `isHexVisible`
+3. Vérifier mode immersive :
+   - aucun marqueur hors fog ne doit apparaître
+4. Vérifier mode strategic :
+   - aucun marqueur hors fog ne doit apparaître
+
+E. Test admin
+
+Si un compte admin est disponible :
+1. Vérifier que le bypass admin reste cohérent.
+2. L’admin peut voir plus large si c’est déjà le comportement existant.
+3. Ne pas modifier ce comportement.
+
+F. Test interactions
+
+En mode immersive avec un autre joueur visible :
+1. drag carte
+2. zoom
+3. clic tuile
+4. sélection unité
+5. déplacement caméra clavier
+6. toggle strategic → immersive → strategic
+
+Vérifier :
+- pas de flash strategic
+- marqueur autre joueur toujours cohérent
+- pas de duplication
+- pas d’erreur console
+- pas de disparition anormale
+
+CORRECTION AUTORISÉE UNIQUEMENT SI BUG CONFIRMÉ
+
+Si un bug est trouvé, ne corriger que s’il est strictement lié à P16-B.
+
+Exemples de corrections autorisées :
+- taille/position du label trop illisible
+- ordre de rendu incorrect
+- marqueur dessiné derrière une couche où il devient invisible
+- filtre conservateur mal appliqué
+- dépendance React manquante qui empêche refresh après polling
+
+Exemples interdits :
+- refaire le système de présence
+- modifier le serveur
+- modifier la DB
+- modifier le fog serveur
+- ajouter une simulation permanente
+- ajouter un panneau debug
+- refactor massif
+
+Si aucune correction n’est nécessaire :
+- ne modifier aucun fichier de code
+- mettre seulement à jour CLAUDE.md avec le rapport P16-C
+
+VÉRIFICATIONS OBLIGATOIRES
+
+1. Exécuter :
+   - `npm run check`
+   - baseline attendue : 187 erreurs TypeScript préexistantes
+   - aucune nouvelle erreur
+
+2. Vérifier git diff :
+   - si validation seulement : idéalement uniquement `CLAUDE.md`
+   - si correction mineure : fichier corrigé + `CLAUDE.md`
+   - aucun fichier serveur sauf justification bloquante, normalement interdit
+
+3. Mettre à jour `CLAUDE.md` avec une entrée P16-C :
+   - objectif
+   - contexte
+   - tests effectués
+   - résultat mode immersive
+   - résultat mode strategic
+   - résultat fog
+   - résultat anti-doublon
+   - résultat interactions caméra/souris
+   - résultat `npm run check`
+   - corrections faites ou “aucune correction”
+   - limites restantes
+   - prochain bloc recommandé
+
+RAPPORT ATTENDU
+
+Répondre avec :
+
+1. Diagnostic initial
+2. Fichiers inspectés
+3. Fichiers modifiés, s’il y en a
+4. Résultat test sans autre joueur
+5. Résultat test avec autre joueur réel ou raison si impossible
+6. Résultat test fog
+7. Résultat test mode strategic
+8. Résultat test mode immersive
+9. Résultat test interactions drag/zoom/clic
+10. Résultat anti-doublon avatar local
+11. Résultat console/logs
+12. Résultat `npm run check`
+13. Diff summary
+14. Commit hash exact poussé sur GitHub
+15. Confirmation que CLAUDE.md a été mis à jour
+16. Verdict :
+    - P16-C validé
+    - ou correction nécessaire
+17. Prochain bloc recommandé
+
+IMPORTANT
+
+Ne pas déclarer terminé tant que :
+- les tests ont été faits ou les limites exactes sont documentées
+- `npm run check` est exécuté
+- le diff est vérifié
+- CLAUDE.md est mis à jour
+- le commit est poussé sur GitHub
+- le vrai commit hash complet est fourni
+
+Ne pas commencer le bloc suivant.
