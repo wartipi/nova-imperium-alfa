@@ -7,7 +7,8 @@ const router = Router();
 
 router.get("/positions", requireAuth, async (req: AuthRequest, res) => {
   try {
-    const players = await getActivePlayerPositions(req.user!.id);
+    const isAdmin = req.user!.role === "admin";
+    const players = await getActivePlayerPositions(req.user!.id, isAdmin);
     return res.json(players);
   } catch (err) {
     console.error("[GET /api/players/positions] Erreur:", err);

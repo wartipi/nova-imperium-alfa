@@ -1,0 +1,221 @@
+NOVA IMPERIUM — P14-C — FOG SERVEUR POUR /api/players/positions
+
+Branche de travail : NI-10.09
+Base de comparaison : NI-10.3
+Repo : wartipi/nova-imperium-alfa
+
+CONTEXTE
+
+Les blocs P1 à P14-B sont poussés.
+État GitHub validé :
+- NI-10.09 est à 52 commits devant NI-10.3
+- P14-A validé : icône capitale distincte en mode immersive
+- P14-B validé : fuite visuelle strategic corrigée côté client pour les autres joueurs
+- CLAUDE.md est à jour
+
+ÉTAT ACTUEL APRÈS P14-B
+
+P14-B a corrigé uniquement le rendu client :
+- GameCanvas.tsx filtre maintenant les autres joueurs avec `isHexVisible` avant `updateOtherPlayers()`
+- Donc les autres joueurs hors visibilité ne sont plus dessinés côté client
+
+Mais P14-B a confirmé une limite restante :
+- l’API `GET /api/players/positions` transmet encore les positions brutes de tous les joueurs actifs
+- un utilisateur peut encore voir ces positions via DevTools / trafic réseau
+- cette fuite réseau doit maintenant être traitée côté serveur
+
+OBJECTIF UNIQUE DU BLOC
+
+Enquêter puis corriger proprement la fuite réseau serveur de `/api/players/positions`.
+
+But final :
+- l’API ne doit renvoyer au joueur normal que les autres joueurs visibles selon une règle serveur fiable
+- aucune position hors visibilité ne doit sortir du serveur
+- aucune donnée admin-only ne doit être exposée
+
+IMPORTANT
+
+Ce bloc est plus sensible que P14-B.
+Il touche le serveur et la logique de visibilité.
+Commencer par un audit réel avant toute modification.
+
+INTERDITS
+
+- Ne pas modifier le schéma DB
+- Ne pas créer de migration
+- Ne pas refactorer massivement le système de vision
+- Ne pas modifier les règles de déplacement
+- Ne pas modifier le combat
+- Ne pas modifier l’économie
+- Ne pas modifier les routes
+- Ne pas modifier les capitales
+- Ne pas modifier les rivières
+- Ne pas ajouter les autres joueurs au mode immersive
+- Ne pas inventer une nouvelle table
+- Ne pas inventer une règle de visibilité qui contredit le client
+- Ne pas corriger des erreurs TypeScript préexistantes hors scope
+- Ne pas exposer les positions complètes à un joueur normal
+
+PORTÉE D’AUDIT AUTORISÉE
+
+Inspecter en lecture :
+
+1. Serveur :
+   - `server/routes/players.ts`
+   - `server/playerPresenceService.ts`
+   - tout service ou route qui gère :
+     - player positions
+     - discovered tiles
+     - fog
+     - vision
+     - avatar/player position
+     - city vision si déjà existante côté serveur
+
+2. Shared/schema :
+   - vérifier s’il existe déjà une table ou structure persistée pour :
+     - tuiles découvertes
+     - exploration joueur
+     - fog of war
+     - player discovered tiles
+   - lecture seulement, aucune modification schema
+
+3. Client, lecture seulement :
+   - `client/src/lib/stores/usePlayer.tsx`
+   - `VisionSystem`
+   - pour comprendre la règle client actuelle
+   - ne pas modifier le client sauf nécessité minimale et justifiée
+
+QUESTION PRINCIPALE
+
+Existe-t-il déjà côté serveur une source fiable permettant de savoir si un joueur demandeur peut voir une case ?
+
+Cas possibles :
+
+A. Oui, une source serveur fiable existe déjà
+- utiliser cette source
+- filtrer `/api/players/positions` côté serveur
+- ne renvoyer que les joueurs visibles
+
+B. Source partielle seulement
+- ex. tuiles découvertes persistées mais vision courante non disponible
+- appliquer le filtre serveur le plus conservateur possible
+- documenter clairement la limite
+
+C. Aucune source fiable exploitable
+- ne pas inventer un système complet
+- ne pas modifier le serveur à l’aveugle
+- produire un rapport d’audit précis
+- proposer le plus petit prochain bloc nécessaire
+
+RÈGLE DE SÉCURITÉ
+
+En cas de doute :
+- ne pas renvoyer la position de l’autre joueur
+- préférer cacher plutôt qu’exposer
+- aucun fallback permissif
+
+RÈGLE ADMIN
+
+Vérifier s’il existe déjà une notion fiable d’admin côté serveur pour la requête.
+
+Si oui :
+- un admin authentifié peut éventuellement recevoir toutes les positions, seulement si ce comportement existe déjà clairement et est cohérent avec le reste du projet
+
+Si non :
+- ne pas inventer un bypass admin serveur
+- filtrer comme joueur normal
+
+CORRECTION ATTENDUE SI SOURCE FIABLE DISPONIBLE
+
+Dans ou avant `getActivePlayerPositions()` / route `/api/players/positions` :
+
+1. Identifier le joueur demandeur depuis la session/auth existante.
+2. Identifier sa position serveur si nécessaire.
+3. Charger les données de visibilité existantes du joueur demandeur.
+4. Pour chaque autre joueur actif :
+   - convertir ou comparer avec les bonnes coordonnées monde/locales
+   - vérifier si la tuile de l’autre joueur est visible ou au minimum découverte selon la source serveur existante
+   - exclure tout joueur non visible
+5. Retourner uniquement les joueurs visibles.
+6. Ne jamais retourner une position hors visibilité à un joueur normal.
+
+POINTS DE VIGILANCE COORDONNÉES
+
+Attention aux conversions :
+- l’API retourne des positions en coordonnées monde
+- le client convertit ensuite avec `originWorldX/originWorldY`
+- le filtre serveur doit utiliser les coordonnées attendues par les données persistées
+- ne pas mélanger monde/local sans vérification
+
+POINTS DE VIGILANCE PERFORMANCE
+
+- Ne pas faire une requête DB par joueur si une requête groupée simple existe
+- Mais ne pas introduire de cache complexe
+- Préférer une solution simple et lisible
+
+VÉRIFICATIONS OBLIGATOIRES
+
+Après modification :
+
+1. Exécuter les checks disponibles :
+   - `npm run check`
+   - comparer avec la baseline actuelle documentée : 187 erreurs TypeScript préexistantes
+
+2. Vérifier par lecture de code :
+   - `/api/players/positions` ne renvoie plus les positions hors visibilité
+   - le client P14-B reste compatible
+   - aucun bypass admin inventé
+   - aucune modification DB/schema
+   - aucun changement hors scope
+
+3. Vérifier comportement attendu :
+   - joueur visible selon fog serveur → retourné par API
+   - joueur non visible → absent de la réponse API
+   - joueur courant lui-même → toujours exclu si c’était déjà le comportement existant
+   - utilisateur non authentifié → comportement existant conservé ou refus propre
+
+4. Vérifier git diff :
+   - uniquement les fichiers nécessaires
+   - idéalement serveur route/service + CLAUDE.md
+   - client inchangé sauf justification stricte
+
+5. Mettre à jour `CLAUDE.md` avec une entrée P14-C :
+   - objectif
+   - diagnostic réel
+   - source de visibilité trouvée ou absente
+   - fichiers inspectés
+   - fichiers modifiés
+   - règle serveur utilisée
+   - tests effectués
+   - erreurs préexistantes
+   - erreurs introduites
+   - limites restantes
+   - prochain bloc recommandé
+
+RAPPORT ATTENDU
+
+Répondre avec :
+
+1. Diagnostic initial
+2. Source serveur exacte de la fuite
+3. Source serveur exacte de visibilité trouvée, ou confirmation qu’elle n’existe pas
+4. Fichiers inspectés
+5. Fichiers modifiés
+6. Correction appliquée, ou raison précise si aucune correction sûre n’a été appliquée
+7. Règle de visibilité serveur utilisée
+8. Comportement API avant/après
+9. Résultat des checks
+10. Diff summary
+11. Commit hash exact poussé sur GitHub
+12. Confirmation que `CLAUDE.md` a été mis à jour
+
+IMPORTANT
+
+Ne pas déclarer P14-C terminé tant que :
+- le diff est vérifié
+- `CLAUDE.md` est mis à jour
+- le commit est poussé sur GitHub
+- le vrai commit hash complet est fourni
+- la réponse API ne contient plus de positions hors visibilité si une correction a été appliquée
+
+Ne pas commencer un autre bloc après P14-C.

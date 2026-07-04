@@ -1,6 +1,6 @@
 import { gt, ne, and, eq } from "drizzle-orm";
 import { db } from "./db";
-import { playerPositions, playerActions } from "../shared/schema";
+import { playerPositions, playerActions, playerDiscoveredTiles } from "../shared/schema";
 import type { PathStep } from "../shared/schema";
 import { resolveMoveStep } from "./playerActionService";
 
@@ -19,8 +19,19 @@ export interface ActivePlayerPosition {
   worldY: number;
 }
 
+// P14-C — Fog serveur.
+// Source de vérité utilisée : player_discovered_tiles (tuiles MONDE déjà découvertes
+// par le joueur demandeur), persistée en DB et synchronisée en continu par le client
+// (usePlayer.updateVision → syncDiscoveredTiles) dès qu'une tuile entre dans sa vision
+// courante. C'est une source partielle par rapport à la règle client complète
+// (VisionSystem.isHexVisible = vision courante OU tuile explorée) : elle ne couvre pas
+// la vision courante avant sa synchronisation serveur (délai de quelques centaines de ms).
+// Choix assumé et conservateur : en cas de doute (tuile pas encore synchronisée), le
+// joueur est masqué plutôt qu'exposé — jamais l'inverse. Aucune nouvelle table, aucune
+// reconstruction du niveau d'exploration/vision courante côté serveur dans ce bloc.
 export async function getActivePlayerPositions(
-  excludePlayerId: string
+  excludePlayerId: string,
+  requesterIsAdmin = false
 ): Promise<ActivePlayerPosition[]> {
   // Étape 0 : timestamp unique pour toute la résolution
   const now = new Date();
@@ -104,5 +115,20 @@ export async function getActivePlayerPositions(
     });
   }
 
-  return result;
+  // Étape 7 — Fog serveur (P14-C) : filtrage des positions par tuiles découvertes
+  // du joueur demandeur. Admin authentifié = bypass explicite, cohérent avec le
+  // pattern déjà utilisé ailleurs dans le projet (req.user.role === "admin").
+  if (requesterIsAdmin) return result;
+
+  const discoveredRows = await db
+    .select({
+      worldX: playerDiscoveredTiles.worldX,
+      worldY: playerDiscoveredTiles.worldY,
+    })
+    .from(playerDiscoveredTiles)
+    .where(eq(playerDiscoveredTiles.playerId, excludePlayerId));
+
+  const discoveredSet = new Set(discoveredRows.map((t) => `${t.worldX},${t.worldY}`));
+
+  return result.filter((p) => discoveredSet.has(`${p.worldX},${p.worldY}`));
 }
