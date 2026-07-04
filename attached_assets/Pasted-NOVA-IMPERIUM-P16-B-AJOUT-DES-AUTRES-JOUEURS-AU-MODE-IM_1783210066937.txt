@@ -1,0 +1,94 @@
+NOVA IMPERIUM — P16-B — AJOUT DES AUTRES JOUEURS AU MODE IMMERSIVE PIXEL HD
+
+Branche de travail : NI-10.09
+Base de comparaison : NI-10.3
+Repo : wartipi/nova-imperium-alfa
+
+CONTEXTE
+
+Les blocs P1 à P16-A sont poussés.
+État GitHub validé :
+- NI-10.09 est à 55 commits devant NI-10.3
+- P14-B : fuite visuelle client des autres joueurs corrigée
+- P14-C : fuite réseau serveur /api/players/positions corrigée avec player_discovered_tiles
+- P15 : stabilisation du rendu immersive pendant interactions souris/caméra
+- P16-A : audit post-fog autres joueurs validé
+- CLAUDE.md est à jour
+
+OBJECTIF UNIQUE DU BLOC
+
+Ajouter le rendu des autres joueurs visibles au mode immersive Pixel HD.
+
+Le mode strategic affiche déjà les autres joueurs via GameEngine.renderOtherPlayers().
+Le mode immersive doit maintenant afficher les mêmes autres joueurs visibles, sans fuite de fog, sans doublon avec l’avatar local, sans modification serveur.
+
+INTERDITS
+
+- Ne pas modifier le serveur
+- Ne pas modifier le schéma DB
+- Ne pas modifier les routes API
+- Ne pas modifier le système de fog
+- Ne pas modifier le polling serveur
+- Ne pas modifier P14-B/P14-C
+- Ne pas modifier les règles de gameplay
+- Ne pas modifier le déplacement
+- Ne pas modifier le combat
+- Ne pas modifier l’économie
+- Ne pas modifier les routes constructibles
+- Ne pas modifier les capitales
+- Ne pas modifier les rivières
+- Ne pas rendre les autres joueurs sélectionnables
+- Ne pas ajouter de menu contextuel sur les autres joueurs
+- Ne pas réutiliser `PixelMapUnit` pour les autres joueurs
+- Ne pas corriger les erreurs TypeScript préexistantes hors scope
+- Ne pas refactorer massivement `GameEngine`, `GameCanvas` ou `PixelMapRenderer`
+
+SOURCE VALIDÉE PAR P16-A
+
+La source côté client est :
+
+`usePlayerPresence.getState().players`
+
+Chaîne complète :
+
+`usePlayerPresence.getState().players`
+← `fetchPlayerPositions()`
+← `GET /api/players/positions`
+← `getActivePlayerPositions(excludePlayerId, isAdmin)`
+
+Garanties validées :
+- le joueur courant est exclu côté serveur
+- P14-C filtre côté serveur avec `player_discovered_tiles`
+- P14-B filtre côté client avec `isHexVisible`
+- les données peuvent être utilisées pour immersive sans fuite de fog si on réutilise la même conversion et le même filtre
+
+COORDONNÉES VALIDÉES
+
+L’API retourne des coordonnées MONDE :
+- `worldX`
+- `worldY`
+
+La conversion locale utilisée en strategic est :
+- `hexX = worldX - originWorldX`
+- `hexY = worldY - originWorldY`
+
+Le mode immersive attend des coordonnées locales comme :
+- `mapData[y][x]`
+- unités
+- colonies
+
+P16-B doit réutiliser cette même conversion.
+
+CORRECTION ATTENDUE
+
+1. Dans `PixelMapRenderer.ts`
+
+Ajouter un type dédié :
+
+```ts
+export interface PixelMapOtherPlayer {
+  userId: string;
+  username: string;
+  x: number;
+  y: number;
+}

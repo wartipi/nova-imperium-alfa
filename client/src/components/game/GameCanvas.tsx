@@ -26,7 +26,7 @@ import { useDoubleClick } from "../../lib/hooks/useDoubleClick";
 import { useAvatarMovement } from "../../lib/hooks/useAvatarMovement";
 import { TerrainHelpers } from "../../lib/constants/TerrainTypes";
 import { VisionSystem } from "../../lib/systems/VisionSystem";
-import { renderPixelMap, type PixelMapUnit } from "../../lib/game/PixelMapRenderer";
+import { renderPixelMap, type PixelMapUnit, type PixelMapOtherPlayer } from "../../lib/game/PixelMapRenderer";
 
 // ─── Bloc P4-B (NI-10.09) — Modes de carte : strategic / immersive ─────────
 // Une seule carte logique (mêmes tuiles, mêmes coordonnées, même état de jeu).
@@ -300,6 +300,22 @@ export function GameCanvas() {
         return isAdmin || !isHexVisible || isHexVisible(unit.x, unit.y);
       };
 
+      // Bloc P16-B — Autres joueurs : même source EXACTE que le polling présence
+      // Phase 5 (usePlayerPresence.getState().players), même conversion monde → local
+      // (originWorldX/originWorldY) et même filtre isHexVisible (P14-B) que le rendu
+      // strategic (GameEngine.updateOtherPlayers/renderOtherPlayers). Aucune nouvelle
+      // règle de fog, aucun nouveau fetch — audité en P16-A. Le joueur courant est
+      // déjà exclu côté serveur (P14-C, getActivePlayerPositions).
+      const { players: presencePlayers } = usePlayerPresence.getState();
+      const otherPlayers: PixelMapOtherPlayer[] = presencePlayers
+        .map((p) => ({
+          userId: p.userId,
+          username: p.username,
+          x: p.worldX - originWorldX,
+          y: p.worldY - originWorldY,
+        }))
+        .filter((p) => isAdmin || !isHexVisible || isHexVisible(p.x, p.y));
+
       renderPixelMap({
         ctx,
         mapData,
@@ -327,6 +343,8 @@ export function GameCanvas() {
         showUnits: true,
         selectedUnitId: selectedUnit?.id ?? null,
         shouldShowUnit,
+        otherPlayers,
+        showOtherPlayers: true,
       });
       pixelHDFailLoggedRef.current = false;
     } catch (err) {
@@ -336,7 +354,7 @@ export function GameCanvas() {
       }
       // Pas de re-throw : le rendu strategic (déjà dessiné par engine.render()) reste affiché.
     }
-  }, [mapRenderMode, gameEngineRef, mapData, selectedHex, isHexVisible, isHexInFogRing, isAdmin]);
+  }, [mapRenderMode, gameEngineRef, mapData, selectedHex, isHexVisible, isHexInFogRing, isAdmin, originWorldX, originWorldY]);
 
   // Bloc P15 — Toujours garder la version la plus récente de renderPixelHDOverlay
   // accessible depuis le postRenderCallback de GameEngine (enregistré une seule

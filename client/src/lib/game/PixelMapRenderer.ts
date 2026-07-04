@@ -113,6 +113,19 @@ export interface PixelBuildingMarker {
 // étant portée par le NovaImperium/civilization parent, pas par l'unité
 // elle-même) — GameCanvas.tsx complète ce qui est disponible sans jamais
 // inventer de valeur.
+// ─── Bloc P16-B — Autres joueurs (audité P16-A) ────────────────────────────
+// Type dédié, volontairement distinct de PixelMapUnit : sémantique différente
+// (pas de santé/mouvement/faction, juste un marqueur de présence + username).
+// Coordonnées LOCALES attendues (mêmes conventions que mapData[y][x] / units /
+// colonies) — la conversion monde → local est faite par l'appelant (GameCanvas.tsx),
+// jamais ici.
+export interface PixelMapOtherPlayer {
+  userId: string;
+  username: string;
+  x: number;
+  y: number;
+}
+
 export interface PixelMapUnit {
   id: string | number;
   type?: string | null;
@@ -218,6 +231,16 @@ export interface PixelMapRenderOptions {
    * absent, seul `isHexVisible` (déjà transmis à renderPixelMap) fait foi.
    */
   shouldShowUnit?: (unit: PixelMapUnit) => boolean;
+  // ─── Bloc P16-B — Autres joueurs ────────────────────────────────────────
+  /**
+   * Liste déjà filtrée par l'appelant (GameCanvas.tsx) : fog serveur (P14-C,
+   * player_discovered_tiles) PUIS fog client (P14-B, isHexVisible). Aucune
+   * nouvelle règle de fog n'est appliquée ici — seulement la garde `isHexVisible`
+   * déjà utilisée pour colonies/bâtiments/unités, en défense en profondeur.
+   */
+  otherPlayers?: PixelMapOtherPlayer[];
+  /** Défaut : true (n'a d'effet que si `otherPlayers` est fourni) */
+  showOtherPlayers?: boolean;
 }
 
 // ─── Constantes internes ───────────────────────────────────────────────────
@@ -722,6 +745,47 @@ function drawUnitMarker(
   }
 }
 
+// ─── Bloc P16-B — Marqueur "autre joueur" ───────────────────────────────────
+// Reprend EXACTEMENT le style visuel de GameEngine.renderOtherPlayers()
+// (cercle coloré + contour blanc + label username sur fond sombre), mais en
+// coordonnées écran locales déjà projetées par hexToScreen. Même formule de
+// hue déterministe basée sur userId (aucun Math.random()) pour garder une
+// couleur stable et identique entre strategic et immersive pour un même joueur.
+function drawOtherPlayerMarker(
+  ctx: CanvasRenderingContext2D,
+  sx: number,
+  sy: number,
+  hexSize: number,
+  userId: string,
+  username: string,
+): void {
+  const radius = Math.max(4, hexSize * 0.36);
+  // Note : `.split("")` plutôt que `[...userId]` pour éviter TS2802 (itération de
+  // string sans --downlevelIteration) — même résultat que la formule de hue de
+  // GameEngine.renderOtherPlayers(), sans introduire de nouvelle erreur TypeScript.
+  const hue = userId.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) % 360;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(sx, sy, radius, 0, Math.PI * 2);
+  ctx.fillStyle = `hsl(${hue}, 70%, 55%)`;
+  ctx.fill();
+  ctx.strokeStyle = "#FFFFFF";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  const label = username || userId;
+  ctx.font = "bold 10px monospace";
+  const textW = ctx.measureText(label).width;
+  const labelY = sy - radius - 4;
+  ctx.fillStyle = "rgba(0,0,0,0.65)";
+  ctx.fillRect(sx - textW / 2 - 3, labelY - 10, textW + 6, 13);
+  ctx.fillStyle = "#FFFFFF";
+  ctx.textAlign = "center";
+  ctx.fillText(label, sx, labelY);
+  ctx.restore();
+}
+
 // ─── Étape 5 — Fonction principale ─────────────────────────────────────────
 
 export function renderPixelMap(options: PixelMapRenderOptions): void {
@@ -755,6 +819,8 @@ export function renderPixelMap(options: PixelMapRenderOptions): void {
     showUnits,
     selectedUnitId,
     shouldShowUnit,
+    otherPlayers,
+    showOtherPlayers,
   } = options;
 
   ctx.imageSmoothingEnabled = false;
@@ -950,6 +1016,22 @@ export function renderPixelMap(options: PixelMapRenderOptions): void {
         const isSelected = unit.selected === true || (selectedUnitId != null && selectedUnitId === unit.id);
         drawUnitMarker(ctx, ox, oy, hexSize, unit.type, color, isSelected);
       }
+    }
+  }
+
+  // ─── Bloc P16-B — Étape : couche autres joueurs (après unités, avant sélection) ──
+  // Audit P16-A : `otherPlayers` est déjà filtré par l'appelant (GameCanvas.tsx) —
+  // fog serveur (P14-C, player_discovered_tiles) PUIS fog client (P14-B,
+  // isHexVisible) — avant même d'arriver ici. La garde `isHexVisible` ci-dessous
+  // est une défense en profondeur strictement identique à celle des colonies/
+  // bâtiments/unités : elle ne peut jamais exposer un joueur déjà masqué en amont,
+  // elle protège seulement contre un appelant qui oublierait de filtrer. Aucune
+  // sélection, aucun menu contextuel — marqueur + label uniquement (interdits du bloc).
+  if (showOtherPlayers !== false && otherPlayers && otherPlayers.length > 0) {
+    for (const player of otherPlayers) {
+      if (isHexVisible && !isHexVisible(player.x, player.y)) continue;
+      const { sx, sy } = hexToScreen(player.x, player.y, hexSize, cameraX, cameraY);
+      drawOtherPlayerMarker(ctx, sx, sy, hexSize, player.userId, player.username);
     }
   }
 
