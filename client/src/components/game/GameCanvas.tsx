@@ -333,6 +333,7 @@ export function GameCanvas() {
         hovered: null,
         isHexVisible: isHexVisible ?? undefined,
         isHexInFogRing: isHexInFogRing ?? undefined,
+        isHexInCurrentVision: isHexInCurrentVision ?? undefined,
         colonies,
         buildings,
         showResources: true,
@@ -357,7 +358,7 @@ export function GameCanvas() {
       }
       // Pas de re-throw : le rendu strategic (déjà dessiné par engine.render()) reste affiché.
     }
-  }, [mapRenderMode, gameEngineRef, mapData, selectedHex, isHexVisible, isHexInFogRing, isAdmin, originWorldX, originWorldY]);
+  }, [mapRenderMode, gameEngineRef, mapData, selectedHex, isHexVisible, isHexInFogRing, isHexInCurrentVision, isAdmin, originWorldX, originWorldY]);
 
   // Bloc P15 — Toujours garder la version la plus récente de renderPixelHDOverlay
   // accessible depuis le postRenderCallback de GameEngine (enregistré une seule

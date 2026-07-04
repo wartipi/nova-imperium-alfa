@@ -447,4 +447,42 @@ Si le prompt du bloc demande aussi un rapport dans `attached_assets` :
 - **Diff summary :** `CLAUDE.md` uniquement (ajout de cette section). Aucun fichier de code modifié dans ce bloc.
 - **Limites restantes :** le test C (autre joueur réel visible, hors fog, drag/zoom/clic avec marqueur affiché) n'a pas pu être exécuté faute d'une deuxième session/compte simultané disponible dans cet environnement. La conclusion positive repose sur une relecture de code complète et sur la cohérence stricte avec le mode strategic déjà validé en production, mais une validation visuelle réelle avec un second joueur reste recommandée dès qu'une session multi-compte sera disponible (test manuel utilisateur, hors bloc agent).
 - **Verdict :** P16-C **validé sous réserve** — aucun bug de code trouvé, mais validation visuelle réelle avec un deuxième joueur non effectuée (limite d'environnement documentée, pas un échec de l'implémentation).
+
+## P17-A — Correction fog mode immersive Pixel HD (diagnostic + correction)
+
+- **Objectif unique :** identifier pourquoi le fog du mode immersive ne respecte pas le comportement du mode strategic (carte découverte affichée comme totalement visible), puis corriger uniquement ce problème. Priorité utilisateur sur le bug avatar local invisible (non traité ici).
+- **Fichiers inspectés :** `client/src/lib/game/GameEngine.ts` (référence stricte, non modifié), `client/src/lib/stores/usePlayer.tsx` (référence, non modifié), `client/src/lib/systems/VisionSystem.ts` (référence, non modifié), `client/src/components/game/GameCanvas.tsx` (modifié), `client/src/lib/game/PixelMapRenderer.ts` (modifié).
+
+### Diagnostic
+
+1. **Trois états distincts existent côté données** (`usePlayer.tsx` / `VisionSystem.ts`) : `isHexInCurrentVision` (vision directe stricte, rayon 1–3 selon exploration), `isHexInFogRing` (anneau juste hors vision, non persisté), `isHexVisible` (union large = vision courante **OU** tuile déjà explorée/persistée en base — donc `true` pour TOUTE tuile jamais découverte, même très ancienne).
+2. **Mode strategic (`GameEngine.ts` `drawHex()`, ligne ~445)** utilise les 3 callbacks séparément et applique un rendu à 4 niveaux : (a) `isInCurrentVision` → couleurs pleines ; (b) `isInFogRing && !isInCurrentVision` → assombrissement léger 70 % (`applyLightFog`) + voile bleuté ; (c) `isVisible && !isInCurrentVision && !isInFogRing` (branche `else` L589, tuile "mémoire") → assombrissement fort 40 % (`applyFogOfWar`) + overlay gris `rgba(50,50,50,0.6)`, ressources en alpha réduit (0.3 au lieu de 0.6) ; (d) sinon → noir total `#1a1a1a`.
+3. **Mode immersive (`PixelMapRenderer.ts`, avant correction)** ne recevait que `isHexVisible` et `isHexInFogRing` — **aucun callback ne distinguait "vision courante" de "exploré/mémoire"**. Le bloc de rendu ne gérait que 2 états : `isHexVisible === false` → sprite de fog total (`continue`, terrain jamais dessiné) ; sinon → sprite terrain en pleine clarté, avec éventuellement un voile fog ring **par-dessus** si `isHexInFogRing` est vrai.
+4. **Confirmation du bug :** `isHexVisible` retourne `true` pour toute tuile explorée un jour, y compris très loin de la position actuelle (ex. logs observés : `exploredCount:520` vs `currentVisionCount:38`). Comme le renderer immersive traitait `isHexVisible === true` comme équivalent à "pleine clarté", **les ~482 tuiles restantes (explorées mais hors vision courante et hors fog ring) s'affichaient exactement comme la vision directe**, sans aucun assombrissement — d'où l'impression que "toute la carte découverte est visible", conforme au signalement utilisateur et à l'hypothèse du prompt.
+5. **Callback à ajouter :** `isHexInCurrentVision?: (x,y) => boolean`, mappé sur `usePlayer().isHexInCurrentVision` (déjà exposé, déjà utilisé par `GameEngine.setVisionCallbacks` en mode strategic — aucune nouvelle donnée, aucun nouveau calcul de vision).
+
+### Correction appliquée
+
+- **`GameCanvas.tsx`** : transmission de `isHexInCurrentVision` (déjà destructuré de `usePlayer()`) dans l'appel `renderPixelMap({...})`, et ajout de la dépendance dans le `useCallback` de `renderPixelHDOverlay`.
+- **`PixelMapRenderer.ts`** :
+  - Ajout de `isHexInCurrentVision?: (x,y) => boolean` à `PixelMapRenderOptions` (optionnel, compat descendante : si absent, comportement inchangé — toute tuile `isHexVisible` reste en pleine clarté, comme avant P17-A).
+  - Dans la boucle principale de rendu terrain : après le `continue` du fog total (`isHexVisible === false`, inchangé), calcul d'un 3ᵉ état `isMemoryTile` (`isHexInCurrentVision` fourni ET `!inCurrentVision` ET `!inFogRing`). Si vrai : sprite terrain dessiné avec `ctx.filter = "brightness(0.4) grayscale(0.35)"` (équivalent visuel du `applyFogOfWar` 40 % du mode strategic) puis voile sombre additionnel (`rgba(20,18,16,0.55)`), cohérent avec l'overlay `rgba(50,50,50,0.6)` de `GameEngine.ts`.
+  - Dans la couche ressources : même calcul de "tuile mémoire" appliqué localement ; si vrai, le marqueur de ressource est dessiné avec `ctx.globalAlpha = 0.5` au lieu de l'alpha plein, cohérent avec la réduction d'alpha (0.6→0.3) du mode strategic pour les ressources en zone mémoire.
+  - Le fog ring (`isHexInFogRing`, voile existant L878) n'a pas été modifié — il reste prioritaire sur l'état "mémoire" (une tuile en fog ring n'est jamais traitée comme "mémoire", conforme à l'ordre des branches de `GameEngine.ts` : `isInFogRing && !isInCurrentVision` est vérifié avant la branche mémoire).
+  - **Autres joueurs / unités / colonies : non modifiés.** Vérification par lecture de code : en mode strategic, `renderOtherPlayers()`/polling Phase 5 (`GameCanvas.tsx`) filtrent déjà uniquement par `isHexVisible` (pas par `isHexInCurrentVision`) — comportement identique entre strategic et immersive avant et après ce bloc. Aucune règle de fog globale nouvelle, aucune modification du filtrage P16-B.
+
+### Interdits respectés
+
+Aucune modification serveur/DB/routes/`player_discovered_tiles`/déplacement/combat/économie/capitales/rivières/avatar. Aucun refactor de `GameEngine.ts` (lecture seule). Aucune correction des erreurs TS préexistantes hors scope.
+
+### Vérifications
+
+- **`npm run check` :** 187 erreurs TypeScript, identique à la baseline (aucune nouvelle erreur, aucune dans les fichiers modifiés).
+- **`git diff --stat` :** `client/src/components/game/GameCanvas.tsx` (+2/-1), `client/src/lib/game/PixelMapRenderer.ts` (+48), `CLAUDE.md` (cette section).
+- **Logs serveur/navigateur (session dev, joueur admin) :** aucune erreur, aucun fallback "Immersive renderer failed" observé après application de la correction. Vision calculée cohérente avec les logs déjà observés (`currentVisionCount:38`, `exploredCount:520`, `fogRingCount:34`) — la correction s'applique donc bien à un écart réel et significatif (≈482 tuiles concernées) entre vision courante et mémoire.
+- **Limite documentée :** validation visuelle directe (capture d'écran de la carte immersive avec fog dégradé visible à l'œil) non réalisée dans ce bloc — l'environnement de screenshot automatisé atterrit sur la page marketing non authentifiée plutôt que sur le canvas de jeu (session admin déjà active uniquement dans un onglet de développement distinct, non accessible à l'outil de capture). La correction est validée par lecture de code stricte (parité logique avec `GameEngine.ts`, seule source de vérité désignée par le prompt) et par l'absence de régression TypeScript/runtime.
+- **Diff summary :** `GameCanvas.tsx`, `PixelMapRenderer.ts`, `CLAUDE.md`.
+- **Commit :** fourni par le prochain checkpoint automatique (jamais de push manuel sur GitHub).
+
+**Statut :** correction appliquée, en attente de validation utilisateur (idéalement visuelle en jeu) avant tout nouveau bloc (P17-B ou bug avatar local).
 - **Prochain bloc recommandé :** aucun nouveau bloc à démarrer sans validation utilisateur. Si un test manuel avec un second compte est possible, le confirmer avant de considérer P16 comme définitivement clos.

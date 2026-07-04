@@ -171,6 +171,14 @@ export interface PixelMapRenderOptions {
   hovered?: { x: number; y: number } | null;
   isHexVisible?: (x: number, y: number) => boolean;
   isHexInFogRing?: (x: number, y: number) => boolean;
+  /**
+   * Bloc P17-A — Distingue "vision courante" (couleurs pleines) de "exploré/
+   * découvert mais hors vision courante" (mémoire, à assombrir). Sans ce
+   * callback, comportement conservateur inchangé : toute tuile isHexVisible
+   * est rendue en pleine clarté (ancien comportement, pour compat descendante
+   * si un appelant ne le fournit pas encore).
+   */
+  isHexInCurrentVision?: (x: number, y: number) => boolean;
   // ─── Bloc P6 — Colonies / bâtiments ────────────────────────────────────
   colonies?: PixelColonyMarker[];
   buildings?: PixelBuildingMarker[];
@@ -804,6 +812,7 @@ export function renderPixelMap(options: PixelMapRenderOptions): void {
     hovered,
     isHexVisible,
     isHexInFogRing,
+    isHexInCurrentVision,
     colonies,
     buildings,
     showColonies,
@@ -851,8 +860,23 @@ export function renderPixelMap(options: PixelMapRenderOptions): void {
         continue;
       }
 
+      // Bloc P17-A — 3e état : case découverte/explorée (isHexVisible true)
+      // mais hors vision courante ET hors anneau de brouillard → "mémoire",
+      // même principe que GameEngine.ts drawHex() branche `else` (ligne ~589,
+      // applyFogOfWar 40%) : terrain assombri, pas de rendu "pleine clarté".
+      // Sans callback isHexInCurrentVision fourni, comportement inchangé
+      // (compat descendante) : toute tuile isHexVisible reste en pleine clarté.
+      const inCurrentVision = isHexInCurrentVision ? isHexInCurrentVision(x, y) : true;
+      const inFogRing = isHexInFogRing ? isHexInFogRing(x, y) : false;
+      const isMemoryTile = isHexInCurrentVision != null && !inCurrentVision && !inFogRing;
+
       const hdTerrain = toPixelHDTerrain(tile.terrain);
       const variant = getTileVariant(x, y);
+
+      if (isMemoryTile) {
+        ctx.save();
+        ctx.filter = "brightness(0.4) grayscale(0.35)";
+      }
 
       if (hdTerrain) {
         const frame: 0 | 1 = animateWater && WATER_TERRAINS_HD.has(hdTerrain) ? waterFrame ?? 0 : 0;
@@ -861,6 +885,15 @@ export function renderPixelMap(options: PixelMapRenderOptions): void {
       } else {
         // Étape 9 — fallback terrain inconnu
         drawFallbackHex(ctx, sx, sy, hexSize);
+      }
+
+      if (isMemoryTile) {
+        ctx.restore();
+        // Voile sombre supplémentaire, cohérent avec `rgba(50,50,50,0.6)` de
+        // GameEngine.ts (même branche "explored but not in current vision").
+        drawHexPath(ctx, sx, sy, hexSize + 0.5);
+        ctx.fillStyle = "rgba(20, 18, 16, 0.55)";
+        ctx.fill();
       }
 
       // ─── Bloc P8 — Étape 3 : voile ownership intérieur (tuile visible uniquement) ──
@@ -946,7 +979,22 @@ export function renderPixelMap(options: PixelMapRenderOptions): void {
         if (isHexVisible && !isHexVisible(x, y)) continue;
         if (!shouldShowTileResource(x, y, tile.resource)) continue;
         const { sx, sy } = hexToScreen(x, y, hexSize, cameraX, cameraY);
+        // Bloc P17-A — même principe que GameEngine.ts drawHex() : une
+        // ressource sur une tuile "mémoire" (explorée, hors vision courante,
+        // hors fog ring) est dessinée en alpha réduit plutôt qu'en pleine
+        // intensité, cohérent avec le terrain assombri ci-dessus.
+        const resourceInCurrentVision = isHexInCurrentVision ? isHexInCurrentVision(x, y) : true;
+        const resourceInFogRing = isHexInFogRing ? isHexInFogRing(x, y) : false;
+        const isResourceMemoryTile =
+          isHexInCurrentVision != null && !resourceInCurrentVision && !resourceInFogRing;
+        if (isResourceMemoryTile) {
+          ctx.save();
+          ctx.globalAlpha = 0.5;
+        }
         drawResourceMarker(ctx, sx, sy, hexSize, tile.resource);
+        if (isResourceMemoryTile) {
+          ctx.restore();
+        }
       }
     }
   }

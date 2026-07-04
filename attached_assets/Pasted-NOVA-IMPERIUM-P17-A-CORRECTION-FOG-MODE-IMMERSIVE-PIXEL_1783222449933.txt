@@ -1,0 +1,156 @@
+NOVA IMPERIUM — P17-A — CORRECTION FOG MODE IMMERSIVE PIXEL HD
+
+Branche de travail : NI-10.09
+Base de comparaison : NI-10.3
+Repo : wartipi/nova-imperium-alfa
+
+CONTEXTE
+
+Les blocs P1 à P16-C sont poussés.
+État GitHub validé :
+- NI-10.09 est à 58 commits devant NI-10.3
+- P15 : stabilisation du rendu immersive pendant interactions souris/caméra
+- P16-B : autres joueurs ajoutés au mode immersive Pixel HD
+- P16-C : validation code sous réserve
+
+PROBLÈME SIGNALÉ PAR L’UTILISATEUR
+
+En mode immersive Pixel HD :
+- le fog ne fonctionne pas correctement
+- la carte découverte semble totalement visible
+- le mode immersive révèle trop de carte
+
+Ce problème est prioritaire sur l’avatar local invisible.
+
+OBJECTIF UNIQUE DU BLOC
+
+Identifier pourquoi le fog du mode immersive ne respecte pas le comportement attendu, puis corriger uniquement ce problème.
+
+Le mode immersive doit respecter exactement les mêmes règles de visibilité que le mode strategic.
+
+INTERDITS
+
+- Ne pas modifier le serveur
+- Ne pas modifier le schéma DB
+- Ne pas modifier les routes API
+- Ne pas modifier player_discovered_tiles
+- Ne pas modifier le système de découverte serveur
+- Ne pas modifier les règles de fog globales sans preuve
+- Ne pas modifier les autres joueurs P16-B sauf si strictement nécessaire pour cohérence fog
+- Ne pas modifier le déplacement
+- Ne pas modifier le combat
+- Ne pas modifier l’économie
+- Ne pas modifier les routes constructibles
+- Ne pas modifier les capitales
+- Ne pas modifier les rivières
+- Ne pas corriger l’avatar dans ce bloc
+- Ne pas ajouter de nouvelle feature
+- Ne pas refactorer massivement GameEngine, GameCanvas ou PixelMapRenderer
+- Ne pas corriger les erreurs TypeScript préexistantes hors scope
+
+PORTÉE D’AUDIT AUTORISÉE
+
+Inspecter :
+
+1. Rendu fog strategic :
+   - `client/src/lib/game/GameEngine.ts`
+   - chercher :
+     - `isHexVisible`
+     - `isHexExplored`
+     - fog ring
+     - render fog
+     - différences entre visible, explored, discovered
+
+2. Système vision :
+   - `client/src/lib/stores/usePlayer.tsx`
+   - `client/src/lib/systems/VisionSystem.ts`
+   - chercher :
+     - `isHexVisible`
+     - `isHexExplored`
+     - `isHexDiscovered`
+     - `discoveredTiles`
+     - `visibleTiles`
+     - `fogRing`
+
+3. Câblage immersive :
+   - `client/src/components/game/GameCanvas.tsx`
+   - chercher :
+     - `renderPixelHDOverlay`
+     - paramètres transmis à `renderPixelMap`
+     - `isHexVisible`
+     - `isHexInFogRing`
+     - logique admin
+     - callbacks ressources / unités / colonies
+
+4. Rendu Pixel HD :
+   - `client/src/lib/game/PixelMapRenderer.ts`
+   - chercher :
+     - bloc fog
+     - `getPixelHDFogSprite`
+     - condition qui dessine le fog
+     - comportement quand une tuile est explorée mais pas actuellement visible
+     - comportement quand aucun callback n’est fourni
+
+DIAGNOSTIC À PRODUIRE AVANT CORRECTION
+
+Répondre clairement :
+
+1. Quelle est la différence actuelle entre :
+   - tuile visible maintenant
+   - tuile explorée/découverte
+   - tuile jamais découverte
+
+2. Le mode strategic affiche-t-il :
+   - seulement les tuiles visibles ?
+   - les tuiles explorées avec fog ?
+   - les tuiles jamais découvertes masquées ?
+
+3. Le mode immersive utilise-t-il actuellement `isHexVisible` seulement ?
+4. Est-ce que `isHexVisible` retourne true pour les tuiles explorées/découvertes ?
+5. Est-ce la raison pour laquelle toute la carte découverte est visible en immersive ?
+6. Quel callback exact doit être utilisé ou ajouté pour différencier :
+   - visible
+   - exploré mais non visible
+   - inconnu
+
+HYPOTHÈSE À VÉRIFIER
+
+Le bug probable :
+- `PixelMapRenderer.ts` utilise seulement `isHexVisible`
+- mais côté `usePlayer`, `isHexVisible` peut inclure les tuiles explorées/découvertes
+- donc l’immersive dessine les tuiles découvertes comme pleinement visibles
+- alors que le strategic applique peut-être une couche de fog séparée ou une opacité sur les tuiles explorées mais non actuellement visibles
+
+Ne pas supposer : vérifier dans le code.
+
+CORRECTION ATTENDUE SI CONFIRMÉE
+
+Si la cause est confirmée, corriger le mode immersive pour gérer trois états :
+
+1. Tuile actuellement visible
+   - rendu normal
+
+2. Tuile explorée/découverte mais non actuellement visible
+   - rendu atténué / fog overlay / sprite fog partiel
+   - ne doit pas afficher d’informations dynamiques cachées
+   - ne doit pas afficher les autres joueurs
+   - ne doit pas afficher détails actifs réservés à la vision courante
+
+3. Tuile jamais découverte
+   - fog complet / masquée
+   - aucune ressource
+   - aucune unité
+   - aucun joueur
+   - aucune donnée cachée
+
+IMPLÉMENTATION MINIMALE ATTENDUE
+
+1. Dans `GameCanvas.tsx`
+
+Dans `renderPixelHDOverlay()` :
+- identifier les fonctions de visibilité exactes depuis `usePlayer`
+- fournir à `renderPixelMap()` des callbacks séparés si nécessaire, par exemple :
+
+```ts
+isHexCurrentlyVisible?: (x, y) => boolean;
+isHexExplored?: (x, y) => boolean;
