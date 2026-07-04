@@ -1,0 +1,192 @@
+NOVA IMPERIUM — P16-A — AUDIT POST-FOG AUTRES JOUEURS AVANT AJOUT IMMERSIVE
+
+Branche de travail : NI-10.09
+Base de comparaison : NI-10.3
+Repo : wartipi/nova-imperium-alfa
+
+CONTEXTE
+
+Les blocs P1 à P15 sont poussés.
+État GitHub validé :
+- NI-10.09 est à 54 commits devant NI-10.3
+- P14-B : fuite visuelle client des autres joueurs corrigée
+- P14-C : fuite réseau serveur /api/players/positions corrigée avec player_discovered_tiles
+- P15 : stabilisation du rendu immersive pendant interactions souris/caméra
+- CLAUDE.md est à jour
+
+CONTEXTE HISTORIQUE
+
+En P13, la couche "autres joueurs" avait été bloquée pour le mode immersive parce que :
+- renderOtherPlayers() en strategic affichait les autres joueurs sans garde fog
+- /api/players/positions renvoyait trop de positions au client
+
+Depuis :
+- P14-B filtre côté client avant updateOtherPlayers()
+- P14-C filtre côté serveur avant de retourner /api/players/positions
+- P15 stabilise l’overlay immersive après les renders internes
+
+OBJECTIF UNIQUE DU BLOC
+
+Faire un audit post-fog pour confirmer si l’ajout des autres joueurs en mode immersive est maintenant sûr.
+
+Ce bloc est un audit seulement.
+Ne pas ajouter encore le rendu des autres joueurs en immersive.
+
+QUESTION PRINCIPALE
+
+Peut-on maintenant ajouter les autres joueurs au mode immersive Pixel HD sans fuite de fog ni duplication de données ?
+
+INTERDITS
+
+- Ne pas ajouter les autres joueurs au mode immersive dans ce bloc
+- Ne pas modifier le rendu visuel
+- Ne pas modifier le serveur
+- Ne pas modifier le schéma DB
+- Ne pas modifier les routes
+- Ne pas modifier les capitales
+- Ne pas modifier les rivières
+- Ne pas modifier les routes constructibles
+- Ne pas modifier le combat, déplacement, économie, colonies
+- Ne pas refactorer GameEngine
+- Ne pas modifier PixelMapRenderer sauf si l’audit révèle un type manquant à documenter seulement
+- Ne pas corriger les erreurs TypeScript préexistantes hors scope
+
+PORTÉE D’AUDIT AUTORISÉE
+
+Inspecter en lecture :
+
+1. Client présence / API :
+   - `client/src/lib/api/playersApi.ts`
+   - `client/src/lib/stores/usePlayerPresence.ts`
+
+2. Rendu strategic :
+   - `client/src/lib/game/GameEngine.ts`
+   - `updateOtherPlayers`
+   - `renderOtherPlayers`
+
+3. Câblage GameCanvas :
+   - `client/src/components/game/GameCanvas.tsx`
+   - polling présence multijoueur
+   - filtre P14-B
+   - source des données actuellement transmises au strategic
+   - fonction `renderPixelHDOverlay`
+   - paramètres transmis à `renderPixelMap`
+
+4. Rendu immersive :
+   - `client/src/lib/game/PixelMapRenderer.ts`
+   - vérifier si une structure similaire à `PixelMapUnit` pourrait être utilisée ou si un type dédié `PixelMapOtherPlayer` sera nécessaire plus tard
+   - ne rien modifier pour l’instant
+
+5. Serveur, lecture seulement :
+   - `server/routes/players.ts`
+   - `server/playerPresenceService.ts`
+   - confirmer que P14-C filtre bien les positions via `player_discovered_tiles`
+
+POINTS À CONFIRMER
+
+1. Source de données
+- Quelle est la source exacte des autres joueurs côté client ?
+- Est-ce `usePlayerPresence.getState().players` ?
+- Ces données sont-elles déjà filtrées par le serveur ?
+- Sont-elles aussi filtrées côté client avant transmission au strategic ?
+
+2. Fog / visibilité
+- Le serveur empêche-t-il maintenant la fuite réseau ?
+- Le client empêche-t-il encore la fuite visuelle ?
+- Le mode immersive peut-il réutiliser la même liste filtrée sans nouvelle règle ?
+
+3. Coordonnées
+- Les positions reçues de l’API sont-elles en coordonnées monde ?
+- Où sont-elles converties en coordonnées locales ?
+- Le mode immersive attend-il des coordonnées locales comme les unités/colonies ?
+- Quelle conversion devra être utilisée en P16-B ?
+
+4. Duplication / cohérence
+- Est-ce que les autres joueurs risquent d’être doublés avec l’avatar local ?
+- Le joueur courant est-il déjà exclu côté serveur ?
+- Est-ce que `GameEngine.updateOtherPlayers()` contient seulement les autres joueurs ?
+- Est-ce que `usePlayerPresence.players` contient déjà le joueur courant ou non ?
+
+5. Mode immersive
+- Où faudra-t-il brancher les autres joueurs dans `renderPixelHDOverlay()` ?
+- Faut-il ajouter un paramètre `otherPlayers` à `renderPixelMap()` ?
+- Faut-il créer un type dédié dans `PixelMapRenderer.ts` ?
+- Quel ordre de rendu serait correct ?
+  - après unités ?
+  - avant sélection ?
+  - avec label ou sans label ?
+  - marqueur simple seulement ?
+
+6. Sécurité
+- Peut-on garantir qu’aucun autre joueur hors fog ne sera rendu ?
+- Si la réponse est non, identifier le blocage exact
+- En cas de doute : recommander de ne pas ajouter P16-B
+
+RÈGLE DE SÉCURITÉ
+
+En cas de doute :
+- ne pas recommander P16-B
+- cacher l’information
+- ne jamais afficher un autre joueur hors visibilité certaine
+
+VÉRIFICATIONS OBLIGATOIRES
+
+Après audit :
+
+1. Exécuter les checks disponibles :
+   - `npm run check`
+   - baseline actuelle connue : 187 erreurs TypeScript préexistantes
+   - aucune modification de code attendue, donc aucun changement d’erreurs attendu
+
+2. Vérifier git diff :
+   - aucun fichier de code ne doit être modifié
+   - seul `CLAUDE.md` peut être modifié pour journaliser l’audit
+   - éventuellement un rapport markdown dans `attached_assets` si la convention locale le justifie
+
+3. Mettre à jour `CLAUDE.md` avec une entrée P16-A :
+   - objectif
+   - diagnostic
+   - fichiers inspectés
+   - source exacte des données autres joueurs
+   - état fog serveur
+   - état fog client
+   - conversion coordonnées à utiliser plus tard
+   - risque de duplication ou non
+   - recommandation pour P16-B
+   - tests effectués
+   - erreurs préexistantes
+   - erreurs introduites
+   - limites restantes
+
+RAPPORT ATTENDU
+
+Répondre avec :
+
+1. Diagnostic initial
+2. Fichiers inspectés
+3. Source exacte des données autres joueurs
+4. État du filtre serveur P14-C
+5. État du filtre client P14-B
+6. Coordonnées utilisées et conversion nécessaire
+7. Risques de duplication identifiés ou absents
+8. Point exact où P16-B devra se brancher
+9. Type / structure recommandé pour P16-B
+10. Ordre de rendu recommandé
+11. Verdict :
+    - OK pour P16-B
+    - ou bloqué, avec raison exacte
+12. Résultat des checks
+13. Diff summary
+14. Commit hash exact poussé sur GitHub
+15. Confirmation que CLAUDE.md a été mis à jour
+
+IMPORTANT
+
+Ne pas déclarer terminé tant que :
+- l’audit est complet
+- le diff est vérifié
+- CLAUDE.md est mis à jour
+- le commit est poussé sur GitHub
+- le vrai commit hash complet est fourni
+
+Ne pas commencer P16-B dans ce bloc.
