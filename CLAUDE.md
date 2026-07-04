@@ -485,4 +485,50 @@ Aucune modification serveur/DB/routes/`player_discovered_tiles`/déplacement/com
 - **Commit :** fourni par le prochain checkpoint automatique (jamais de push manuel sur GitHub).
 
 **Statut :** correction appliquée, en attente de validation utilisateur (idéalement visuelle en jeu) avant tout nouveau bloc (P17-B ou bug avatar local).
+
+## P17-B — Correction avatar local invisible en mode immersive Pixel HD (diagnostic + correction)
+
+- **Objectif unique :** identifier pourquoi l'avatar local n'apparaît pas en mode immersive Pixel HD, puis corriger uniquement ce point. Fog P17-A non modifié (sauf garde `isHexVisible` défensive, cohérente avec le reste du renderer).
+- **Fichiers inspectés :** `client/src/lib/game/GameEngine.ts` (référence stricte, non modifié), `client/src/lib/stores/usePlayer.tsx` (référence, non modifié), `client/src/lib/auth/AuthContext.tsx` (référence, non modifié). **Fichiers modifiés :** `client/src/lib/game/PixelMapRenderer.ts`, `client/src/components/game/GameCanvas.tsx`.
+
+### Diagnostic (réponses aux 10 questions du prompt)
+
+1. **Fonction de rendu strategic :** `GameEngine.renderAvatar()` (ligne 867), appelée dans `render()` (ligne 376) après `renderCivilizations()`/`renderOtherPlayers()`. Dessine un sprite 8-bit + ombre + halo blanc + anneau doré si en mouvement.
+2. **Source de la position :** `usePlayer().avatarPosition` (coords "3D" x/z, transmises à `GameEngine.updateAvatar()`) ET `usePlayer().avatarHexPosition` (mêmes coordonnées mais déjà exprimées en hex local — `{x,y}`).
+3. **Coordonnées monde ou locales ?** Locales. `avatarPosition.x/1.5` et `avatarPosition.z/(√3×0.5)` redonnent exactement `avatarHexPosition.{x,y}` (vérifié dans `renderAvatar()` ligne 871-872) — la même convention que `mapData[y][x]`, `units`, `colonies`, `otherPlayers` déjà utilisés par `PixelMapRenderer`.
+4. **Conversion monde → local :** déjà faite en amont, côté `usePlayer.tsx` (recalcul de `avatarHexPosition` au changement de segment via `originWorldX/originWorldY`, cf. section "Persistance de la Position Joueur" du présent document). `GameCanvas.tsx` n'a donc **aucune** conversion à faire pour l'avatar (contrairement à `otherPlayers`, qui reçoit des coordonnées monde brutes de `usePlayerPresence` et doit soustraire `originWorldX/Y`).
+5. **`renderPixelHDOverlay()` recevait-il déjà cette donnée ?** Non. Recherche exhaustive (`grep avatar` sur `PixelMapRenderer.ts`) : aucune occurrence avant ce bloc — ni type, ni champ d'option, ni fonction de dessin.
+6. **Le rendu immersive recouvre-t-il l'avatar strategic ?** Oui, confirmé par lecture de l'ordre d'exécution : `GameEngine.render()` dessine la carte strategic (dont l'avatar) sur le `<canvas>` réel, PUIS déclenche un `postRenderCallback` (bloc P15) qui appelle `renderPixelHDOverlay()` → `renderPixelMap()`, qui redessine un fond opaque + terrain + colonies + unités + autres joueurs **sur le même canvas, par-dessus tout**. L'avatar, dessiné juste avant, se retrouve donc entièrement recouvert par les sprites terrain immersifs.
+7. **Pourquoi l'avatar disparaît :** conjonction des points 5 et 6 — l'avatar est bien positionné et bien dessiné par le mode strategic, mais (a) le renderer immersive n'a aucune notion de lui donc ne le redessine pas, et (b) il est de toute façon recouvert par le repaint immersive qui suit. Ce n'est pas un bug de position/coordonnées.
+8. **Point minimal de correction :** ajouter au renderer immersive une couche de dessin dédiée à l'avatar local, alimentée par `avatarHexPosition` (déjà en coordonnées locales, aucune conversion nécessaire), dessinée après la couche `otherPlayers` et avant survol/sélection — même schéma que l'ajout `otherPlayers` de P16-B.
+9. **Éviter le doublon avec P16-B :** le serveur exclut déjà systématiquement le joueur local des positions retournées (`excludePlayerId`, `playerPresenceService.ts`, cf. P14-C/P16-C) — `otherPlayers` ne contient donc jamais le joueur courant. Aucune fusion de données nécessaire ; les deux chemins (avatar local vs autres joueurs) restent strictement séparés, comme en mode strategic.
+10. **Type dédié `PixelMapAvatar` vs réutilisation de `PixelMapOtherPlayer` :** type dédié retenu (conforme au prompt) — sémantique différente (le joueur local, pas un "autre joueur" en présence), et évite tout risque futur de mélange accidentel des deux tableaux si la structure de l'un évolue indépendamment de l'autre.
+
+### Correction appliquée
+
+- **`PixelMapRenderer.ts`** :
+  - Nouveau type exporté `PixelMapAvatar { x, y, username?, isMoving? }` (coordonnées locales, mêmes conventions que le reste du fichier).
+  - Nouveaux champs optionnels `avatar?: PixelMapAvatar | null` et `showAvatar?: boolean` sur `PixelMapRenderOptions` (défaut `true`, compat descendante totale : si `avatar` n'est pas fourni, aucun changement de comportement).
+  - Nouvelle fonction `drawAvatarMarker()` : cercle doré (`#e8b23a`, cohérent avec la couleur de sélection déjà utilisée dans ce fichier) + contour blanc + petite pointe triangulaire directionnelle (repère "c'est vous", sans dépendre d'une rotation réelle — hors scope minimal) + halo doré animé-like si `isMoving` + label username optionnel. Style volontairement distinct du marqueur `drawOtherPlayerMarker()` (cercle hue-déterministe) pour rester visuellement différentiable si un autre joueur se trouve au même endroit.
+  - Câblage dans `renderPixelMap()` : nouveau bloc juste après la boucle `otherPlayers`, avant le survol/la sélection. Garde `isHexVisible` défensive identique aux autres couches (colonies/unités/autres joueurs) — sans effet en usage normal puisque la position de l'avatar local est toujours dans sa propre vision courante.
+- **`GameCanvas.tsx`** :
+  - `currentUser` ajouté à la destructuration de `useAuth()` (déjà exposé par le contexte, aucune nouvelle donnée).
+  - Construction d'un objet `avatar: PixelMapAvatar` à partir de `avatarHexPosition.{x,y}` (déjà local), `currentUser` (username) et `isMoving` (déjà en scope) — aucune conversion, aucun nouveau fetch, aucun nouveau store.
+  - Transmission de `avatar`/`showAvatar: true` à `renderPixelMap(...)`.
+  - Ajout de `avatarHexPosition`, `currentUser`, `isMoving` aux dépendances du `useCallback` de `renderPixelHDOverlay` (nécessaire pour que l'overlay se redessine bien quand l'avatar bouge — `isMoving` et `avatarPosition` étaient déjà dépendances existantes pour d'autres besoins, `avatarHexPosition` et `currentUser` sont les deux seuls ajouts réels).
+
+### Interdits respectés
+
+Aucune modification serveur/DB/routes/`player_discovered_tiles`/présence multijoueur/déplacement/combat/économie/capitales/rivières. Aucune modification des règles de vision P17-A (seule une garde `isHexVisible` déjà existante dans le fichier est réutilisée à l'identique). Aucun changement sur `otherPlayers`/P16-B autre que l'ajout d'un bloc de rendu séparé pour l'avatar (aucun risque de doublon, cf. point 9 du diagnostic). Aucune nouvelle mécanique de jeu, aucune sélection avatar, aucun menu contextuel, aucun debug permanent, aucun refactor massif, aucune correction TS hors scope.
+
+### Vérifications
+
+- **`npm run check` :** 187 erreurs TypeScript, strictement identique à la baseline (aucune nouvelle erreur, aucune dans les fichiers modifiés).
+- **`git diff` :** `PixelMapRenderer.ts` (+type `PixelMapAvatar`, +2 champs d'options, +fonction `drawAvatarMarker`, +bloc de rendu ~10 lignes), `GameCanvas.tsx` (+`currentUser` destructuré, +construction objet `avatar`, +2 champs transmis à `renderPixelMap`, +3 dépendances `useCallback`), `CLAUDE.md` (cette section).
+- **Logs serveur/navigateur (session dev, joueur admin) :** aucune erreur, aucun warning, aucun déclenchement du fallback "Immersive renderer failed, falling back to strategic view" après application de la correction. Vision/position cohérentes (`avatarHex:{x:73,y:32}`, `currentVisionCount:38`).
+- **Limite documentée (identique à P17-A) :** validation visuelle directe non réalisée dans ce bloc (outil de capture d'écran redirigé vers la page marketing publique plutôt que la session de jeu authentifiée). Correction validée par diagnostic de code complet (cause unique et confirmée : absence totale de tout chemin de rendu avatar dans `PixelMapRenderer.ts` avant ce bloc) et par l'absence de régression TypeScript/runtime.
+- **Diff summary :** `PixelMapRenderer.ts`, `GameCanvas.tsx`, `CLAUDE.md`.
+- **Commit :** fourni par le prochain checkpoint automatique (jamais de push manuel sur GitHub).
+
+**Statut :** correction appliquée, en attente de validation utilisateur (idéalement visuelle en jeu) avant tout nouveau bloc.
 - **Prochain bloc recommandé :** aucun nouveau bloc à démarrer sans validation utilisateur. Si un test manuel avec un second compte est possible, le confirmer avant de considérer P16 comme définitivement clos.

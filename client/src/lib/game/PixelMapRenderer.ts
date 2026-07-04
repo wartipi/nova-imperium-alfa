@@ -126,6 +126,21 @@ export interface PixelMapOtherPlayer {
   y: number;
 }
 
+// ─── Bloc P17-B — Avatar local ──────────────────────────────────────────────
+// Type dédié (jamais réutiliser PixelMapOtherPlayer) : sémantiquement distinct
+// (le joueur local, pas un autre joueur en présence), et le serveur exclut
+// déjà systématiquement le joueur local de la liste `otherPlayers` (voir
+// P16-C, `excludePlayerId` côté playerPresenceService) — aucun risque de
+// doublon de données. Coordonnées LOCALES (mêmes conventions que mapData[y][x]
+// / units / colonies), déjà converties par l'appelant (GameCanvas.tsx),
+// jamais ici.
+export interface PixelMapAvatar {
+  x: number;
+  y: number;
+  username?: string | null;
+  isMoving?: boolean;
+}
+
 export interface PixelMapUnit {
   id: string | number;
   type?: string | null;
@@ -249,6 +264,15 @@ export interface PixelMapRenderOptions {
   otherPlayers?: PixelMapOtherPlayer[];
   /** Défaut : true (n'a d'effet que si `otherPlayers` est fourni) */
   showOtherPlayers?: boolean;
+  // ─── Bloc P17-B — Avatar local ──────────────────────────────────────────
+  /**
+   * Position (locale) et identité du joueur local. Sans ce champ, aucun
+   * avatar n'est dessiné par ce renderer (comportement conservateur inchangé
+   * par rapport à avant P17-B). Jamais mélangé avec `otherPlayers`.
+   */
+  avatar?: PixelMapAvatar | null;
+  /** Défaut : true (n'a d'effet que si `avatar` est fourni) */
+  showAvatar?: boolean;
 }
 
 // ─── Constantes internes ───────────────────────────────────────────────────
@@ -794,6 +818,76 @@ function drawOtherPlayerMarker(
   ctx.restore();
 }
 
+// ─── Bloc P17-B — Marqueur avatar local ─────────────────────────────────────
+// Diagnostic : le rendu strategic (GameEngine.renderAvatar()) dessine l'avatar
+// local avec un sprite 8-bit dédié + halo blanc, DANS le même passage de
+// render() que la carte. En mode immersive, renderPixelHDOverlay() redessine
+// une carte opaque (terrain + colonies + unités + autres joueurs) PAR-DESSUS
+// tout le canvas juste après ce premier passage (postRenderCallback) — les
+// sprites terrain de PixelMapRenderer recouvrent donc entièrement l'avatar
+// déjà dessiné par GameEngine, qui reste invisible à l'écran même s'il est
+// toujours "rendu" en dessous. `PixelMapRenderer` ne connaissait jusqu'ici
+// aucune donnée avatar (aucun champ, aucune fonction) : c'est la cause unique
+// du bug, pas un problème de position/coordonnées (déjà correctement suivies
+// par usePlayer/GameEngine).
+// Style volontairement distinct du marqueur "autre joueur" (cercle doré avec
+// pointe directionnelle façon boussole, pas un simple cercle hue-déterministe)
+// pour qu'un futur joueur visible au même endroit qu'un autre reste
+// distinguable visuellement — mais réutilise les mêmes primitives (arc, label)
+// pour rester cohérent avec le reste du renderer.
+function drawAvatarMarker(
+  ctx: CanvasRenderingContext2D,
+  sx: number,
+  sy: number,
+  hexSize: number,
+  username?: string | null,
+  isMoving?: boolean,
+): void {
+  const radius = Math.max(5, hexSize * 0.4);
+
+  ctx.save();
+
+  if (isMoving) {
+    ctx.strokeStyle = "#FFD700";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(sx, sy, radius + 6, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  ctx.beginPath();
+  ctx.arc(sx, sy, radius, 0, Math.PI * 2);
+  ctx.fillStyle = "#e8b23a";
+  ctx.fill();
+  ctx.strokeStyle = "#FFFFFF";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Pointe directionnelle simple (haut du cercle) — repère visuel "c'est vous",
+  // sans dépendre d'une rotation (l'orientation avatar n'est pas dans le scope
+  // minimal de ce bloc).
+  ctx.beginPath();
+  ctx.moveTo(sx, sy - radius - 6);
+  ctx.lineTo(sx - 4, sy - radius + 2);
+  ctx.lineTo(sx + 4, sy - radius + 2);
+  ctx.closePath();
+  ctx.fillStyle = "#FFFFFF";
+  ctx.fill();
+
+  if (username) {
+    ctx.font = "bold 10px monospace";
+    const textW = ctx.measureText(username).width;
+    const labelY = sy - radius - 12;
+    ctx.fillStyle = "rgba(0,0,0,0.65)";
+    ctx.fillRect(sx - textW / 2 - 3, labelY - 10, textW + 6, 13);
+    ctx.fillStyle = "#FFFFFF";
+    ctx.textAlign = "center";
+    ctx.fillText(username, sx, labelY);
+  }
+
+  ctx.restore();
+}
+
 // ─── Étape 5 — Fonction principale ─────────────────────────────────────────
 
 export function renderPixelMap(options: PixelMapRenderOptions): void {
@@ -830,6 +924,8 @@ export function renderPixelMap(options: PixelMapRenderOptions): void {
     shouldShowUnit,
     otherPlayers,
     showOtherPlayers,
+    avatar,
+    showAvatar,
   } = options;
 
   ctx.imageSmoothingEnabled = false;
@@ -1081,6 +1177,16 @@ export function renderPixelMap(options: PixelMapRenderOptions): void {
       const { sx, sy } = hexToScreen(player.x, player.y, hexSize, cameraX, cameraY);
       drawOtherPlayerMarker(ctx, sx, sy, hexSize, player.userId, player.username);
     }
+  }
+
+  // ─── Bloc P17-B — Avatar local (après les autres joueurs, avant survol/sélection) ──
+  // Garde `isHexVisible` en défense en profondeur uniquement (comme otherPlayers/
+  // colonies/unités) — la position de l'avatar local est par construction toujours
+  // dans sa propre vision courante, cette garde ne devrait donc jamais filtrer quoi
+  // que ce soit en usage normal.
+  if (showAvatar !== false && avatar && (!isHexVisible || isHexVisible(avatar.x, avatar.y))) {
+    const { sx, sy } = hexToScreen(avatar.x, avatar.y, hexSize, cameraX, cameraY);
+    drawAvatarMarker(ctx, sx, sy, hexSize, avatar.username, avatar.isMoving);
   }
 
   // Survol

@@ -26,7 +26,7 @@ import { useDoubleClick } from "../../lib/hooks/useDoubleClick";
 import { useAvatarMovement } from "../../lib/hooks/useAvatarMovement";
 import { TerrainHelpers } from "../../lib/constants/TerrainTypes";
 import { VisionSystem } from "../../lib/systems/VisionSystem";
-import { renderPixelMap, type PixelMapUnit, type PixelMapOtherPlayer } from "../../lib/game/PixelMapRenderer";
+import { renderPixelMap, type PixelMapUnit, type PixelMapOtherPlayer, type PixelMapAvatar } from "../../lib/game/PixelMapRenderer";
 
 // ─── Bloc P4-B (NI-10.09) — Modes de carte : strategic / immersive ─────────
 // Une seule carte logique (mêmes tuiles, mêmes coordonnées, même état de jeu).
@@ -74,7 +74,7 @@ export function GameCanvas() {
   const { gameEngineRef } = useGameEngine();
   const { mapData, selectedHex, setSelectedHex, originWorldX, originWorldY } = useMap();
   const { gamePhase } = useGameState();
-  const { isAdmin, adminModeEnabled, isAuthenticated } = useAuth();
+  const { isAdmin, adminModeEnabled, isAuthenticated, currentUser } = useAuth();
   const { novaImperiums, selectedUnit, moveUnit } = useNovaImperium();
   const { avatarPosition, avatarHexPosition, travelVisualHexPosition, setTravelVisualHexPosition, clearTravelVisualHexPosition, avatarRotation, isMoving, selectedCharacter, moveAvatarToHex, isHexVisible, isHexInCurrentVision, isHexInFogRing, pendingMovement, setPendingMovement } = usePlayer();
   const { activeAction } = usePlayerActions();
@@ -319,6 +319,20 @@ export function GameCanvas() {
         // pour les autres joueurs). isAdmin reste le seul bypass légitime.
         .filter((p) => isAdmin || (isHexVisible ? isHexVisible(p.x, p.y) : false));
 
+      // Bloc P17-B — Avatar local : même source de position EXACTE que le rendu
+      // strategic (GameEngine.renderAvatar()), déjà en coordonnées locales
+      // (avatarHexPosition, recalculé au changement de segment — voir
+      // usePlayer.tsx). Aucune nouvelle donnée, aucun nouveau fetch. Pas de
+      // garde isHexVisible spécifique ici : la position de l'avatar local est
+      // par construction toujours dans sa propre vision (renderPixelMap
+      // applique déjà une garde défensive identique en interne).
+      const avatar: PixelMapAvatar = {
+        x: avatarHexPosition.x,
+        y: avatarHexPosition.y,
+        username: currentUser,
+        isMoving,
+      };
+
       renderPixelMap({
         ctx,
         mapData,
@@ -349,6 +363,8 @@ export function GameCanvas() {
         shouldShowUnit,
         otherPlayers,
         showOtherPlayers: true,
+        avatar,
+        showAvatar: true,
       });
       pixelHDFailLoggedRef.current = false;
     } catch (err) {
@@ -358,7 +374,7 @@ export function GameCanvas() {
       }
       // Pas de re-throw : le rendu strategic (déjà dessiné par engine.render()) reste affiché.
     }
-  }, [mapRenderMode, gameEngineRef, mapData, selectedHex, isHexVisible, isHexInFogRing, isHexInCurrentVision, isAdmin, originWorldX, originWorldY]);
+  }, [mapRenderMode, gameEngineRef, mapData, selectedHex, isHexVisible, isHexInFogRing, isHexInCurrentVision, isAdmin, originWorldX, originWorldY, avatarHexPosition, currentUser, isMoving]);
 
   // Bloc P15 — Toujours garder la version la plus récente de renderPixelHDOverlay
   // accessible depuis le postRenderCallback de GameEngine (enregistré une seule

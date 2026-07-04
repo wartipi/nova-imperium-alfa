@@ -1,0 +1,117 @@
+NOVA IMPERIUM — P17-B — CORRECTION AVATAR LOCAL INVISIBLE EN MODE IMMERSIVE PIXEL HD
+
+Branche de travail : NI-10.09
+Base de comparaison : NI-10.3
+Repo : wartipi/nova-imperium-alfa
+
+CONTEXTE
+
+Les blocs P1 à P17-A sont poussés.
+État GitHub validé :
+- NI-10.09 est à 59 commits devant NI-10.3
+- P17-A : fog immersive corrigé côté code
+- P17-A a ajouté la distinction visible / mémoire / inconnu en mode immersive
+- Strategic non modifié
+- Serveur/API/DB non touchés
+
+PROBLÈME SIGNALÉ PAR L’UTILISATEUR
+
+En mode immersive Pixel HD :
+- l’avatar local du joueur n’est pas visible.
+
+Le mode strategic affiche probablement encore l’avatar via GameEngine.
+Le mode immersive redessine la carte Pixel HD par-dessus, mais ne semble pas rendre l’avatar local.
+
+OBJECTIF UNIQUE DU BLOC
+
+Identifier pourquoi l’avatar local n’apparaît pas en mode immersive Pixel HD, puis corriger uniquement ce problème.
+
+Ce bloc ne doit traiter que l’avatar local.
+Ne pas modifier le fog P17-A sauf si strictement nécessaire pour que l’avatar respecte la visibilité.
+
+INTERDITS
+
+- Ne pas modifier le serveur
+- Ne pas modifier le schéma DB
+- Ne pas modifier les routes API
+- Ne pas modifier player_discovered_tiles
+- Ne pas modifier le système de fog serveur
+- Ne pas modifier le système de présence multijoueur
+- Ne pas modifier les autres joueurs P16-B sauf pour éviter explicitement un doublon avatar
+- Ne pas modifier le déplacement
+- Ne pas modifier le combat
+- Ne pas modifier l’économie
+- Ne pas modifier les routes constructibles
+- Ne pas modifier les capitales
+- Ne pas modifier les rivières
+- Ne pas modifier les règles de vision P17-A
+- Ne pas ajouter de nouvelle mécanique gameplay
+- Ne pas rendre l’avatar sélectionnable d’une nouvelle manière
+- Ne pas ajouter de menu contextuel
+- Ne pas ajouter de debug permanent
+- Ne pas refactorer massivement GameEngine, GameCanvas ou PixelMapRenderer
+- Ne pas corriger les erreurs TypeScript préexistantes hors scope
+
+PORTÉE D’AUDIT AUTORISÉE
+
+Inspecter :
+
+1. Rendu avatar strategic :
+   - `client/src/lib/game/GameEngine.ts`
+   - chercher :
+     - `renderAvatar`
+     - `updateAvatar`
+     - `avatar`
+     - position avatar
+     - style visuel avatar
+     - ordre de rendu dans `render()`
+
+2. Câblage avatar côté GameCanvas :
+   - `client/src/components/game/GameCanvas.tsx`
+   - chercher :
+     - `fetchPlayerPosition`
+     - `updateAvatar`
+     - `renderPixelHDOverlay`
+     - source x/y du joueur local
+     - conversion world/local
+     - interaction avec `usePlayer`
+
+3. Stores / API client si nécessaire :
+   - `client/src/lib/stores/usePlayer.tsx`
+   - `client/src/lib/api/playerApi.ts`
+   - uniquement pour confirmer la source exacte de la position
+
+4. Rendu immersive :
+   - `client/src/lib/game/PixelMapRenderer.ts`
+   - vérifier si un type avatar existe déjà
+   - sinon ajouter un type dédié minimal
+
+DIAGNOSTIC À PRODUIRE AVANT CORRECTION
+
+Répondre clairement :
+
+1. Quelle fonction rend l’avatar en mode strategic ?
+2. Quelle source donne la position actuelle de l’avatar local ?
+3. Cette position est-elle en coordonnées monde ou locales ?
+4. Où la conversion monde → local est-elle déjà faite ?
+5. Est-ce que `renderPixelHDOverlay()` reçoit déjà cette donnée ?
+6. Est-ce que le rendu immersive recouvre l’avatar strategic ?
+7. Pourquoi l’avatar disparaît en immersive ?
+8. Quel est le point minimal pour ajouter l’avatar local au rendu immersive ?
+9. Comment éviter un doublon avec les autres joueurs P16-B ?
+10. Faut-il un type dédié `PixelMapAvatar` plutôt que réutiliser `PixelMapOtherPlayer` ?
+
+CORRECTION ATTENDUE SI CAUSE CONFIRMÉE
+
+Si l’avatar local est absent parce que `PixelMapRenderer` ne le rend pas :
+
+1. Dans `PixelMapRenderer.ts`
+
+Ajouter un type dédié :
+
+```ts
+export interface PixelMapAvatar {
+  x: number;
+  y: number;
+  username?: string | null;
+}
