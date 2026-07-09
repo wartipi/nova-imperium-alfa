@@ -118,10 +118,10 @@ export const UI_ONLY_TILE_MODIFIERS: readonly TileModifierId[] = [
 export const TILE_MODIFIER_YIELDS: Partial<
   Record<TileModifierId, Partial<Record<EconomicResourceType, number>>>
 > = {
-  deer:   { leather_fur: 1, food: 1 },
+  deer:   { food: 1, leather_fur: 1 },
   fur:    { leather_fur: 1 },
   wheat:  { food: 1 },
-  cattle: { food: 1 },
+  cattle: { food: 1, leather_fur: 1 },
   fish:   { food: 1 },
   herbs:  { herbs: 1 },
   iron:   { common_metals: 1 },
@@ -139,3 +139,173 @@ export const TILE_MODIFIER_YIELDS: Partial<
   sulfur: {},
   obsidian: {},
 };
+
+// ─── TileModifierDefinition ─────────────────────────────────────────────────────
+// Fiche descriptive complète d'un modifieur de case : identifiant, label FR,
+// catégorie, statut de génération réelle et rendement économique.
+// category = classification thématique du modifieur (affichage/regroupement futur) :
+//   - animal  : ressource faunique (deer, cattle, fur, fish, crabs, whales)
+//   - plant   : ressource végétale (wheat, herbs)
+//   - mineral : minerai/matériau brut (iron, copper, coal, stone, sulfur, obsidian, crystals)
+//   - site    : site spécial exploitable (ancient_artifacts, sacred_stones)
+//   - coastal : réservé aux modifieurs liés spécifiquement au littoral (aucun à ce jour)
+//   - unknown : non catégorisé (fallback, non utilisé actuellement)
+export interface TileModifierDefinition {
+  id: TileModifierId;
+  label: string;
+  category:
+    | "animal"
+    | "plant"
+    | "mineral"
+    | "site"
+    | "coastal"
+    | "unknown";
+  generated: boolean;
+  yields: Partial<Record<EconomicResourceType, number>>;
+}
+
+// ─── TILE_MODIFIERS ─────────────────────────────────────────────────────────────
+// Catalogue complet : une entrée par TileModifierId, fusionnant label FR,
+// catégorie, statut `generated` (aligné sur GENERATED_TILE_MODIFIERS /
+// UI_ONLY_TILE_MODIFIERS) et rendement (aligné sur TILE_MODIFIER_YIELDS).
+// Labels FR repris tels quels des tables d'affichage existantes
+// (ResourceIcons.ts / TileInfoPanel.tsx / UnifiedTerritoryPanel.tsx) pour rester
+// cohérent avec l'UI actuelle.
+export const TILE_MODIFIERS: Record<TileModifierId, TileModifierDefinition> = {
+  deer: {
+    id: "deer",
+    label: "Cerf",
+    category: "animal",
+    generated: true,
+    yields: TILE_MODIFIER_YIELDS.deer!,
+  },
+  fur: {
+    id: "fur",
+    label: "Fourrure",
+    category: "animal",
+    generated: true,
+    yields: TILE_MODIFIER_YIELDS.fur!,
+  },
+  wheat: {
+    id: "wheat",
+    label: "Blé",
+    category: "plant",
+    generated: true,
+    yields: TILE_MODIFIER_YIELDS.wheat!,
+  },
+  cattle: {
+    id: "cattle",
+    label: "Bétail",
+    category: "animal",
+    generated: true,
+    yields: TILE_MODIFIER_YIELDS.cattle!,
+  },
+  fish: {
+    id: "fish",
+    label: "Poisson",
+    category: "animal",
+    generated: true,
+    yields: TILE_MODIFIER_YIELDS.fish!,
+  },
+  iron: {
+    id: "iron",
+    label: "Fer",
+    category: "mineral",
+    generated: true,
+    yields: TILE_MODIFIER_YIELDS.iron!,
+  },
+  copper: {
+    id: "copper",
+    label: "Cuivre",
+    category: "mineral",
+    generated: true,
+    yields: TILE_MODIFIER_YIELDS.copper!,
+  },
+  coal: {
+    id: "coal",
+    label: "Charbon",
+    category: "mineral",
+    generated: true,
+    yields: TILE_MODIFIER_YIELDS.coal!,
+  },
+  stone: {
+    id: "stone",
+    label: "Pierre",
+    category: "mineral",
+    generated: true,
+    yields: TILE_MODIFIER_YIELDS.stone!,
+  },
+  oil: {
+    id: "oil",
+    label: "Pétrole",
+    category: "mineral",
+    generated: true,
+    yields: TILE_MODIFIER_YIELDS.oil!,
+  },
+  herbs: {
+    id: "herbs",
+    label: "Herbes",
+    category: "plant",
+    generated: true,
+    yields: TILE_MODIFIER_YIELDS.herbs!,
+  },
+  crystals: {
+    id: "crystals",
+    label: "Cristaux",
+    category: "mineral",
+    generated: true,
+    yields: TILE_MODIFIER_YIELDS.crystals!,
+  },
+  sacred_stones: {
+    id: "sacred_stones",
+    label: "Pierres sacrées",
+    category: "site",
+    generated: true,
+    yields: TILE_MODIFIER_YIELDS.sacred_stones!,
+  },
+  ancient_artifacts: {
+    id: "ancient_artifacts",
+    label: "Artefacts anciens",
+    category: "site",
+    generated: true,
+    yields: TILE_MODIFIER_YIELDS.ancient_artifacts!,
+  },
+  crabs: {
+    id: "crabs",
+    label: "Crabes",
+    category: "animal",
+    generated: false,
+    yields: TILE_MODIFIER_YIELDS.crabs!,
+  },
+  whales: {
+    id: "whales",
+    label: "Baleines",
+    category: "animal",
+    generated: false,
+    yields: TILE_MODIFIER_YIELDS.whales!,
+  },
+  sulfur: {
+    id: "sulfur",
+    label: "Soufre",
+    category: "mineral",
+    generated: false,
+    yields: TILE_MODIFIER_YIELDS.sulfur!,
+  },
+  obsidian: {
+    id: "obsidian",
+    label: "Obsidienne",
+    category: "mineral",
+    generated: false,
+    yields: TILE_MODIFIER_YIELDS.obsidian!,
+  },
+};
+
+// ─── getTileModifierYield ────────────────────────────────────────────────────────
+// Accesseur passif : retourne le rendement économique déclaré d'un modifieur,
+// ou {} si le modifieur n'a pas d'équivalent économique Tier 1 défini.
+// N'est appelé par aucun système runtime à ce jour (fichier non branché).
+export function getTileModifierYield(
+  modifierId: TileModifierId,
+): Partial<Record<EconomicResourceType, number>> {
+  return TILE_MODIFIERS[modifierId]?.yields ?? {};
+}

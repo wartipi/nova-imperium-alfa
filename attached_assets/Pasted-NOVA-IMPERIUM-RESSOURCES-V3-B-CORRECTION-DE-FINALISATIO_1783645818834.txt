@@ -1,0 +1,164 @@
+NOVA IMPERIUM — RESSOURCES V3-B — CORRECTION DE FINALISATION DU CATALOGUE TILE MODIFIERS
+
+Branche de travail : NI-10.09
+Base de comparaison : NI-10.3
+Repo : wartipi/nova-imperium-alfa
+
+CONTEXTE
+
+Le bloc Ressources V3-B a été partiellement poussé sur GitHub.
+
+Vérification externe :
+- NI-10.09 est maintenant à 62 commits devant NI-10.3
+- shared/tileModifiers.ts existe bien côté GitHub
+- un asset de prompt V3-B est visible
+- mais CLAUDE.md n’a pas été mis à jour avec l’entrée Ressources V3-B
+- le fichier shared/tileModifiers.ts est utile, mais incomplet par rapport au prompt demandé
+
+État actuel vérifié dans shared/tileModifiers.ts :
+- EconomicResourceType existe
+- TileModifierId existe
+- GENERATED_TILE_MODIFIERS existe
+- UI_ONLY_TILE_MODIFIERS existe
+- TILE_MODIFIER_YIELDS existe
+
+Mais il manque encore :
+- TileModifierDefinition
+- TILE_MODIFIERS: Record<TileModifierId, TileModifierDefinition>
+- label français par modifieur
+- category par modifieur
+- generated: true/false par modifieur
+- getTileModifierYield()
+
+Il faut corriger et finaliser V3-B sans brancher aucun runtime.
+
+OBJECTIF UNIQUE DU BLOC
+
+Finaliser le fichier passif shared/tileModifiers.ts pour qu’il devienne un vrai catalogue déclaratif complet des modifieurs de case, sans l’utiliser encore dans le runtime.
+
+Ce bloc reste passif :
+- aucune logique existante ne doit être branchée dessus
+- aucune production ne doit lire ce fichier
+- aucune génération de carte ne doit lire ce fichier
+- aucune UI ne doit encore dépendre de ce fichier
+
+IMPORTANT — ARCHITECTURE CANONIQUE
+
+Nova Imperium distingue maintenant deux couches :
+
+1. Ressources économiques
+Ce sont les ressources finales que le joueur peut stocker, récolter, vendre, acheter, transporter et utiliser dans les systèmes économiques.
+
+2. Modifieurs de case
+Ce sont des traits locaux présents sur les hexagones. Ils enrichissent la carte, mais ne sont pas automatiquement des ressources stockées.
+
+Règle canonique :
+Un TileModifier peut produire une ou plusieurs EconomicResourceType lorsqu’il est exploité par un bâtiment ou système compatible.
+
+Exemples conceptuels :
+- deer → food + leather_fur
+- cattle → food + leather_fur
+- iron → common_metals
+- copper → common_metals
+- oil → oil
+- herbs → herbs
+
+Ne pas transformer automatiquement tous les minerais, animaux, plantes ou sites en nouvelles ressources économiques.
+
+IMPORTANT — CLÉ CANONIQUE EXISTANTE
+
+Le code actuel utilise déjà la clé économique :
+
+- leather_fur
+
+Ne pas ajouter ni utiliser :
+
+- hide_fur
+
+La clé runtime à conserver est :
+- leather_fur
+
+Le label visible futur pourra être :
+- Cuir et fourrure
+
+RESSOURCES ÉCONOMIQUES TIER 1 AUTORISÉES
+
+Conserver exactement les EconomicResourceType déjà ajoutés dans shared/tileModifiers.ts, alignés sur server/buildingEffects.ts :
+
+- food
+- wood
+- stone
+- coal
+- oil
+- herbs
+- common_metals
+- leather_fur
+
+Ne pas ajouter :
+- hide_fur
+- rare_metals_alloys
+- precious_stones
+- textiles
+- spices
+- fracten
+- mana_crystals
+- ou toute autre nouvelle ressource économique
+
+Ces ressources pourront être traitées dans un futur bloc, mais pas ici.
+
+MODIFIEURS DE CASE ACTUELS
+
+Conserver les 18 TileModifierId déjà identifiés par audit.
+
+GENERATED_TILE_MODIFIERS — réellement générés par TERRAIN_RESOURCES :
+- deer
+- fur
+- wheat
+- cattle
+- fish
+- iron
+- copper
+- coal
+- stone
+- oil
+- herbs
+- crystals
+- sacred_stones
+- ancient_artifacts
+
+UI_ONLY_TILE_MODIFIERS — présents dans les tables UI mais non générés actuellement :
+- crabs
+- whales
+- sulfur
+- obsidian
+
+Ne pas ajouter de nouveaux modifieurs dans ce bloc.
+Ne pas inventer :
+- mithril_deposit
+- lead_deposit
+- gold_deposit
+- oil_spring
+- wild_herbs
+- raw_crystals
+- sacred_site
+
+Ils pourront venir plus tard après décision de design.
+
+CORRECTION À FAIRE DANS shared/tileModifiers.ts
+
+1. Ajouter l’interface :
+
+```ts
+export interface TileModifierDefinition {
+  id: TileModifierId;
+  label: string;
+  category:
+    | "animal"
+    | "plant"
+    | "mineral"
+    | "site"
+    | "coastal"
+    | "unknown";
+  generated: boolean;
+  yields: Partial<Record<EconomicResourceType, number>>;
+}
