@@ -1,0 +1,183 @@
+NOVA IMPERIUM — CLARIFICATION CANONIQUE : RESSOURCES ÉCONOMIQUES VS MODIFIEURS DE CASE
+
+RÔLE
+Tu dois agir comme auditeur technique et intégrateur prudent.
+Ne fais aucun refactor massif.
+Ne change pas l’architecture.
+Commence par auditer l’existant avant de modifier quoi que ce soit.
+
+CONTEXTE
+Nova Imperium utilise une carte hexagonale persistante, une génération déterministe et une logique serveur-authoritative.
+Le but est de préserver la simplicité économique tout en permettant une carte riche et variée.
+
+CLARIFICATION CANONIQUE IMPORTANTE
+Il faut distinguer deux couches différentes :
+
+1. Ressources économiques
+2. Modifieurs de case
+
+Ces deux notions ne doivent pas être confondues.
+
+RESSOURCES ÉCONOMIQUES
+Les ressources économiques sont les produits finaux que le joueur peut :
+- stocker
+- transporter
+- récolter
+- vendre
+- acheter
+- utiliser dans les bâtiments, marchés ou systèmes économiques
+
+Exemples :
+- Nourriture
+- Bois
+- Cuir et fourrure
+- Pierre
+- Métaux communs
+- Charbon
+- Herbes
+- Huile
+- Métaux et alliages rares
+- Textiles
+- Épices
+- Pierres précieuses
+
+MODIFIEURS DE CASE
+Les modifieurs de case sont des traits locaux présents sur un hex.
+Ils enrichissent la carte, mais ne deviennent pas nécessairement des ressources stockées directement.
+
+Exemples :
+- Cerfs
+- Bétail
+- Gisement de fer
+- Gisement de cuivre
+- Gisement de plomb
+- Gisement d’or
+- Gisement de mithril
+- Source d’huile
+- Herbes sauvages
+- Ruines anciennes
+- Site sacré
+- Cristaux bruts
+
+RÈGLE CANONIQUE
+Un modifieur de case se convertit en une ou plusieurs ressources économiques lorsqu’il est exploité.
+
+Exemples :
+- Cerfs → +1 Nourriture, +1 Cuir et fourrure
+- Bétail → +2 Nourriture, +2 Cuir et fourrure
+- Gisement de fer → Métaux communs
+- Gisement de cuivre → Métaux communs
+- Gisement de plomb → Métaux communs
+- Gisement d’or → Métaux et alliages rares
+- Gisement de mithril → Métaux et alliages rares
+- Source d’huile → Huile
+- Herbes sauvages → Herbes
+
+INTENTION DE DESIGN
+Le but est d’avoir :
+- beaucoup de variété sur la carte
+- plusieurs types de gisements, animaux, plantes ou sites spéciaux
+- mais un nombre limité de ressources économiques à gérer
+
+Exemple :
+Une montagne peut avoir un modifieur “gisement de cuivre” ou “gisement de fer”.
+Visuellement et narrativement, ce sont deux modifieurs différents.
+Mais économiquement, les deux produisent “Métaux communs”.
+
+Autre exemple :
+Une forêt peut avoir “cerfs” ou “bétail”.
+Cerfs produit moins.
+Bétail produit plus.
+Mais les deux se convertissent vers Nourriture + Cuir et fourrure.
+
+OBJECTIF TECHNIQUE
+Auditer le code pour voir comment les ressources et les traits de carte sont actuellement représentés.
+
+Il faut identifier si le projet mélange actuellement :
+- ressources économiques
+- modifieurs de case
+- terrain
+- rendement de récolte
+
+Ne pas modifier directement avant d’avoir fait ce diagnostic.
+
+STRUCTURE CONCEPTUELLE RECOMMANDÉE
+
+ResourceType = ressource finale économique.
+
+Exemples :
+- food
+- wood
+- hide_fur
+- stone
+- common_metals
+- coal
+- herbs
+- oil
+- rare_metals_alloys
+- textiles
+- spices
+- precious_stones
+
+TileModifier = trait local de case.
+
+Exemples :
+- deer
+- cattle
+- iron_deposit
+- copper_deposit
+- lead_deposit
+- gold_deposit
+- mithril_deposit
+- oil_spring
+- wild_herbs
+- ancient_ruins
+- sacred_site
+- raw_crystals
+
+Chaque TileModifier doit pouvoir définir un rendement vers ResourceType.
+
+Exemples conceptuels :
+deer:
+  food: 1
+  hide_fur: 1
+
+cattle:
+  food: 2
+  hide_fur: 2
+
+iron_deposit:
+  common_metals: 1
+
+copper_deposit:
+  common_metals: 1
+
+gold_deposit:
+  rare_metals_alloys: 1
+
+TRAVAIL DEMANDÉ POUR CETTE ÉTAPE
+1. Auditer où les ressources sont définies.
+2. Auditer où les terrains / traits / rendements de carte sont définis.
+3. Vérifier s’il existe déjà une notion proche de TileModifier.
+4. Identifier les fichiers concernés.
+5. Ne pas faire de refactor massif.
+6. Proposer le plus petit plan d’intégration propre pour séparer :
+   - terrain
+   - modifieur de case
+   - ressource économique
+   - rendement
+7. Ne rien casser dans les inventaires existants.
+8. Ne pas multiplier les ressources économiques sans validation.
+
+IMPORTANT
+Ne pas ajouter automatiquement tous les minerais, animaux ou plantes comme nouvelles ressources économiques.
+Ils doivent d’abord être considérés comme des modifieurs de case qui se convertissent en ressources existantes.
+
+CRITÈRE DE SUCCÈS
+À la fin de l’audit, fournir :
+- les fichiers où les ressources sont déclarées
+- les fichiers où la carte / les tuiles / les rendements sont gérés
+- si une séparation ResourceType / TileModifier existe déjà ou non
+- le plus petit correctif proposé
+- les risques de migration
+- aucune déclaration “terminé” sans diff réel vérifié
