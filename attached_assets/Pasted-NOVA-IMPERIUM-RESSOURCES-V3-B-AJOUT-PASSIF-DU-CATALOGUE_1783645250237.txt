@@ -1,0 +1,112 @@
+NOVA IMPERIUM — RESSOURCES V3-B — AJOUT PASSIF DU CATALOGUE TILE MODIFIERS
+
+Branche de travail : NI-10.09
+Base de comparaison : NI-10.3
+Repo : wartipi/nova-imperium-alfa
+
+CONTEXTE
+
+Audit Ressources V3-A terminé.
+Conclusion confirmée :
+- le jeu mélange actuellement ressources économiques, modifieurs de case, labels UI et legacy dans plusieurs endroits ;
+- les modifieurs de case existent déjà implicitement via `TERRAIN_RESOURCES` et `map_tiles.resource_type` / `metadata.resources`;
+- les ressources économiques Tier 1 existent déjà dans `server/buildingEffects.ts`;
+- aucune séparation explicite `ResourceType` / `TileModifier` n’existe encore.
+
+OBJECTIF UNIQUE DU BLOC
+
+Créer un fichier déclaratif passif `shared/tileModifiers.ts` qui formalise les modifieurs de case existants et leur conversion conceptuelle vers les ressources économiques Tier 1.
+
+Ce bloc ne doit modifier aucun système runtime.
+
+Il s’agit seulement d’ajouter une source de vérité documentaire et typée, non branchée, pour préparer l’intégration future.
+
+IMPORTANT CLÉ CANONIQUE
+
+Le code actuel utilise déjà la clé économique :
+
+- `leather_fur`
+
+Ne pas remplacer par `hide_fur` dans ce bloc.
+
+Label visible futur possible :
+- `leather_fur` → “Cuir et fourrure”
+
+Mais la clé runtime à conserver est :
+- `leather_fur`
+
+RESSOURCES ÉCONOMIQUES TIER 1 EXISTANTES À UTILISER
+
+Utiliser exactement les clés déjà présentes dans `server/buildingEffects.ts`, notamment :
+
+- food
+- wood
+- stone
+- coal
+- oil
+- herbs
+- common_metals
+- leather_fur
+
+Ne pas ajouter `rare_metals_alloys` dans ce bloc si cette ressource n’est pas encore un T1Material existant.
+Ne pas ajouter `hide_fur`.
+Ne pas ajouter de nouvelle ressource économique.
+
+MODIFIEURS DE CASE À DOCUMENTER
+
+Auditer d’abord les valeurs réellement présentes dans :
+- `server/seeds/mapSeed.ts`
+- `server/backfillTileMetadata.ts`
+- `server/updateResources.ts`
+- `server/buildingEffects.ts` / `BUILDING_RESOURCE_PREREQS`
+- `client/src/lib/shared/ResourceIcons.ts`
+
+Créer un union type `TileModifierId` avec les modifieurs déjà utilisés réellement par le code.
+
+Exemples probables à confirmer par audit :
+- deer
+- fur
+- wheat
+- cattle
+- fish
+- crabs
+- whales
+- iron
+- copper
+- coal
+- stone
+- oil
+- herbs
+- crystals
+- sacred_stones
+- ancient_artifacts
+- sulfur
+- obsidian
+
+Ne pas inventer `mithril_deposit`, `lead_deposit`, `gold_deposit`, `oil_spring`, etc. s’ils n’existent pas encore dans le code.
+Ils pourront venir dans un bloc futur.
+
+FICHIER À CRÉER
+
+Créer :
+
+`shared/tileModifiers.ts`
+
+Contenu attendu minimal :
+
+1. Importer ou répliquer prudemment le type économique existant si possible.
+
+Si `T1Material` n’est pas exportable proprement depuis `server/buildingEffects.ts`, ne pas importer depuis `server/` vers `shared/`.
+
+Dans ce cas, définir localement dans `shared/tileModifiers.ts` :
+
+```ts
+export type EconomicResourceType =
+  | "food"
+  | "wood"
+  | "stone"
+  | "coal"
+  | "oil"
+  | "herbs"
+  | "common_metals"
+  | "leather_fur";
