@@ -531,4 +531,79 @@ Aucune modification serveur/DB/routes/`player_discovered_tiles`/présence multij
 - **Commit :** fourni par le prochain checkpoint automatique (jamais de push manuel sur GitHub).
 
 **Statut :** correction appliquée, en attente de validation utilisateur (idéalement visuelle en jeu) avant tout nouveau bloc.
+
+## Ressources V3-B — Ajout passif du catalogue Tile Modifiers
+
+### 1. Objectif
+
+- Formaliser la séparation conceptuelle entre `ResourceType` (ressources économiques Tier 1 stockables/vendables) et `TileModifier` (traits locaux de case, non stockés automatiquement).
+- Créer un catalogue déclaratif **passif**, non branché à aucun système runtime.
+- Préparer une intégration future sans toucher au runtime actuel (génération de carte, production, marché, inventaire).
+
+### 2. Fichier créé/finalisé
+
+- `shared/tileModifiers.ts` (nouveau fichier, 100% additif).
+
+### 3. `EconomicResourceType` final (8 clés, répliquées de `server/buildingEffects.ts::T1Material`)
+
+`food`, `wood`, `stone`, `coal`, `oil`, `herbs`, `common_metals`, `leather_fur`.
+
+- `leather_fur` conservé tel quel — c'est la clé runtime existante.
+- `hide_fur` **non ajouté** (rejeté explicitement par le prompt).
+- Aucune nouvelle ressource économique ajoutée (`rare_metals_alloys`, `precious_stones`, `textiles`, `spices`, `fracten`, `mana_crystals` : exclus).
+
+### 4. `TileModifierId` final (18 valeurs, confirmées par audit direct du code)
+
+**`GENERATED_TILE_MODIFIERS`** (14 — réellement produits par `TERRAIN_RESOURCES`, identique dans les 3 copies `server/seeds/mapSeed.ts`, `backfillTileMetadata.ts`, `updateResources.ts`) :
+`deer`, `fur`, `wheat`, `cattle`, `fish`, `iron`, `copper`, `coal`, `stone`, `oil`, `herbs`, `crystals`, `sacred_stones`, `ancient_artifacts`.
+
+**`UI_ONLY_TILE_MODIFIERS`** (4 — présents dans les tables d'affichage `ResourceIcons.ts`/`GameEngine.ts`/`TileInfoPanel.tsx`/`UnifiedTerritoryPanel.tsx` mais jamais générés par `TERRAIN_RESOURCES` à ce jour) :
+`crabs`, `whales`, `sulfur`, `obsidian`.
+
+Aucun nouveau modifieur inventé (`mithril_deposit`, `lead_deposit`, `gold_deposit`, `oil_spring`, `wild_herbs`, `raw_crystals`, `sacred_site` : explicitement exclus, réservés à une décision de design future).
+
+### 5. Structures ajoutées
+
+- `TileModifierDefinition` (interface : `id`, `label` FR, `category` (`animal`/`plant`/`mineral`/`site`/`coastal`/`unknown`), `generated: boolean`, `yields`).
+- `TILE_MODIFIERS: Record<TileModifierId, TileModifierDefinition>` — catalogue complet des 18 modifieurs.
+- `getTileModifierYield(id)` — accesseur passif, retourne `{}` si aucun rendement défini.
+- `isTileModifierId` : **non ajouté** dans ce bloc (pas demandé par le prompt initial ; pourra être ajouté dans un bloc de branchement futur si un garde de type runtime devient nécessaire).
+
+### 6. Yields principaux (`TILE_MODIFIER_YIELDS`, reflète ce que fait déjà `BUILDING_PRODUCTION`/`BUILDING_RESOURCE_PREREQS`)
+
+`deer` → `food`+`leather_fur` · `fur` → `leather_fur` · `wheat` → `food` · `cattle` → `food`+`leather_fur` · `fish` → `food` · `herbs` → `herbs` · `iron` → `common_metals` · `copper` → `common_metals` · `coal` → `common_metals`+`coal` · `stone` → `stone` · `oil` → `oil`.
+
+### 7. Modifieurs sans yield actif (intentionnellement vides — pas d'invention)
+
+`crystals`, `sacred_stones`, `ancient_artifacts`, `crabs`, `whales`, `sulfur`, `obsidian`.
+
+### 8. Non-impact confirmé
+
+Aucun runtime branché · aucun import `server/` → `shared/` · aucune DB touchée · aucune migration créée · aucun inventaire modifié · aucun marché modifié · aucune production modifiée · aucun coût modifié · aucune génération de carte modifiée · aucune tuile existante modifiée · aucune clé existante renommée · aucune nouvelle ressource économique ajoutée.
+
+### 9. Vérifications
+
+- `npx tsc --noEmit` : 187 erreurs TypeScript, strictement identique à la baseline.
+- Aucune erreur liée à `shared/tileModifiers.ts`.
+
+### 10. Diff summary
+
+`shared/tileModifiers.ts` (nouveau fichier), `CLAUDE.md` (cette section).
+
+### 11. Risques restants
+
+- `TERRAIN_RESOURCES` existe encore dupliqué en 3 copies (`mapSeed.ts`, `backfillTileMetadata.ts`, `updateResources.ts`) — non unifié dans ce bloc.
+- `ResourceIcons.ts` mélange encore ressources économiques, modifieurs de case, monnaie (`fracten`) et legacy V1 dans une seule table plate.
+- `TILE_MODIFIERS` reste strictement passif — ne remplace aucune logique runtime existante.
+- Branchement futur (lecture réelle par un système) à traiter dans un bloc séparé, pas ici.
+
+### 12. Prochain bloc recommandé
+
+**Ressources V3-C — Audit de branchement progressif de `TILE_MODIFIERS`** (aucun démarrage sans validation explicite de l'utilisateur).
+
+### Commit
+
+Fourni par le prochain checkpoint automatique (jamais de push manuel sur GitHub — dépôt synchronisé automatiquement avec `origin/NI-10.09`).
+
+**Statut :** bloc V3-B terminé et documenté. En attente de validation utilisateur avant tout nouveau bloc.
 - **Prochain bloc recommandé :** aucun nouveau bloc à démarrer sans validation utilisateur. Si un test manuel avec un second compte est possible, le confirmer avant de considérer P16 comme définitivement clos.

@@ -1,0 +1,127 @@
+Oui. Ajoute maintenant l’entrée Ressources V3-B dans CLAUDE.md.
+
+C’est obligatoire avant de déclarer le bloc terminé.
+
+À documenter dans CLAUDE.md :
+
+RESSOURCES V3-B — Ajout passif du catalogue Tile Modifiers
+
+Inclure :
+
+1. Objectif
+- formaliser la séparation ResourceType / TileModifier
+- créer un catalogue passif non branché
+- préparer une intégration future sans modifier le runtime
+
+2. Fichier créé/finalisé
+- shared/tileModifiers.ts
+
+3. EconomicResourceType final
+- food
+- wood
+- stone
+- coal
+- oil
+- herbs
+- common_metals
+- leather_fur
+
+Confirmer :
+- leather_fur conservé comme clé runtime existante
+- hide_fur non ajouté
+
+4. TileModifierId final
+- 18 valeurs
+
+GENERATED_TILE_MODIFIERS :
+- deer
+- fur
+- wheat
+- cattle
+- fish
+- iron
+- copper
+- coal
+- stone
+- oil
+- herbs
+- crystals
+- sacred_stones
+- ancient_artifacts
+
+UI_ONLY_TILE_MODIFIERS :
+- crabs
+- whales
+- sulfur
+- obsidian
+
+Préciser :
+- les UI_ONLY sont présents dans l’UI mais non générés par TERRAIN_RESOURCES actuellement
+
+5. Structures ajoutées
+- TileModifierDefinition
+- TILE_MODIFIERS
+- getTileModifierYield()
+
+Mentionner si isTileModifierId a été ajouté ou non.
+
+6. Yields principaux
+- deer → food + leather_fur
+- fur → leather_fur
+- wheat → food
+- cattle → food + leather_fur
+- fish → food
+- herbs → herbs
+- iron → common_metals
+- copper → common_metals
+- coal → common_metals + coal
+- stone → stone
+- oil → oil
+
+7. Modifieurs sans yield actif
+- crystals
+- sacred_stones
+- ancient_artifacts
+- crabs
+- whales
+- sulfur
+- obsidian
+
+8. Non-impact confirmé
+- aucun runtime branché
+- aucun import server → shared
+- aucune DB touchée
+- aucune migration créée
+- aucun inventaire modifié
+- aucun marché modifié
+- aucune production modifiée
+- aucun coût modifié
+- aucune génération de carte modifiée
+- aucune tuile existante modifiée
+- aucune clé existante renommée
+- aucune nouvelle ressource économique ajoutée
+
+9. Vérifications
+- npm run check : 187 erreurs TypeScript
+- baseline inchangée
+- aucune erreur liée à shared/tileModifiers.ts
+
+10. Diff summary
+- shared/tileModifiers.ts
+- CLAUDE.md
+
+11. Risques restants
+- TERRAIN_RESOURCES existe encore en 3 copies
+- ResourceIcons.ts mélange encore ressources économiques, modifieurs, monnaie et legacy
+- TILE_MODIFIERS reste passif et ne remplace aucune logique runtime
+- branchement futur à faire dans un bloc V3-C séparé
+
+12. Prochain bloc recommandé
+- Ressources V3-C — Audit de branchement progressif de TILE_MODIFIERS
+
+Ensuite :
+- commit shared/tileModifiers.ts et CLAUDE.md
+- push vers origin/NI-10.09
+- fournir le commit hash complet exact
+
+Ne commence aucun autre bloc.
