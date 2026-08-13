@@ -947,3 +947,20 @@ Tous corrigés dans une passe additive sans modifier la logique métier.
 - **Commit :** fourni par le prochain checkpoint automatique.
 
 **Statut :** bloc V3-D4 terminé. Les 3 bâtiments sont constructibles, branchés au tick de production et visibles dans le panneau de construction. Aucun recrutement, aucune unité modifiée.
+
+## Correction V3-D4 — PlayerBankDTO serveur expose les 3 ressources prototype
+
+- **Problème :** `PlayerBankDTO` dans `server/economyService.ts` ne déclarait pas `common_textiles`, `labor_contracts`, `basic_equipment`. `rowToDTO()` ne les retournait pas. La route `/api/economy/player-bank/me` renvoyait donc une réponse incomplète même si les ressources étaient créditées en DB.
+
+### Corrections apportées (`server/economyService.ts`)
+
+1. **`PlayerBankDTO`** — ajout des 3 champs `number` obligatoires.
+2. **`rowToDTO()`** — lecture `(r as any).common_textiles ?? 0` / `labor_contracts` / `basic_equipment`.
+3. **`getOrInitPlayerBank()` insert initial** — initialisation à 0 des 3 nouvelles colonnes.
+
+### Résultat TypeScript
+`npx tsc --noEmit` : **187 erreurs** — baseline inchangée.
+
+- **Commit :** fourni par le prochain checkpoint automatique.
+
+**Statut :** correction appliquée. La route banque retourne maintenant les 3 ressources prototype correctement.

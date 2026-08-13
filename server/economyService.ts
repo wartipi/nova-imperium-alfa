@@ -237,6 +237,10 @@ export interface PlayerBankDTO {
   coal:               number;
   oil:                number;
   herbs:              number;
+  // V3-D4
+  common_textiles:    number;
+  labor_contracts:    number;
+  basic_equipment:    number;
   lastProductionTurn: number;
   updatedAt:          string;
 }
@@ -282,6 +286,10 @@ export async function getOrInitPlayerBank(playerId: string): Promise<PlayerBankD
       leather_fur:   r.leather_fur,
       food: r.food, wood: r.wood, stone: r.stone,
       coal: r.coal, oil: r.oil, herbs: r.herbs,
+      // V3-D4
+      common_textiles: (r as any).common_textiles ?? 0,
+      labor_contracts:  (r as any).labor_contracts  ?? 0,
+      basic_equipment:  (r as any).basic_equipment  ?? 0,
       lastProductionTurn: r.lastProductionTurn, updatedAt: r.updatedAt.toISOString(),
     };
   }
@@ -291,7 +299,8 @@ export async function getOrInitPlayerBank(playerId: string): Promise<PlayerBankD
     .values({ playerId, fracten: 0, food: 0, wood: 0, stone: 0,
               coal: 0, oil: 0, herbs: 0,
               common_metals: 0, leather_fur: 0,
-              lastProductionTurn: 0 })
+              common_textiles: 0, labor_contracts: 0, basic_equipment: 0, // V3-D4
+              lastProductionTurn: 0 } as any)
     .onConflictDoNothing()
     .returning();
   if (!ins) {
