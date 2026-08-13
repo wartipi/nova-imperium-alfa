@@ -265,6 +265,8 @@ export interface ProductionTickResult {
     food: number; wood: number; stone: number;
     common_metals: number; leather_fur: number;
     coal: number; oil: number; herbs: number;
+    // V3-D4
+    common_textiles: number; labor_contracts: number; basic_equipment: number;
     destination: 'bank' | 'pending';
   }>;
 }
@@ -341,6 +343,10 @@ export async function applyProductionTickPerCity(
       coalPerTurn:   cities.coalPerTurn,
       oilPerTurn:    cities.oilPerTurn,
       herbsPerTurn:  cities.herbsPerTurn,
+      // V3-D4 : ressources prototype unités
+      commonTextilesPerTurn: (cities as any).commonTextilesPerTurn,
+      laborContractsPerTurn:  (cities as any).laborContractsPerTurn,
+      basicEquipmentPerTurn:  (cities as any).basicEquipmentPerTurn,
     })
     .from(cities)
     .innerJoin(colonies, eq(cities.colonyId, colonies.id))
@@ -373,6 +379,10 @@ export async function applyProductionTickPerCity(
   let bankCoalDelta         = 0;
   let bankOilDelta          = 0;
   let bankHerbsDelta        = 0;
+  // V3-D4 : ressources prototype unités
+  let bankCommonTextilesDelta = 0;
+  let bankLaborContractsDelta  = 0;
+  let bankBasicEquipmentDelta  = 0;
   const now = new Date();
 
   for (const city of cityRows) {
@@ -388,9 +398,14 @@ export async function applyProductionTickPerCity(
     // Les colonnes V1 per-turn sont à zéro en DB depuis G3, fallback supprimé.
     const cm = Number((city as any).commonMetalsPerTurn ?? 0); // G4 V2 seul
     const lf = Number((city as any).leatherFurPerTurn   ?? 0); // G4 V2 seul
+    // V3-D4 : ressources prototype unités
+    const ct  = Number((city as any).commonTextilesPerTurn ?? 0);
+    const lc  = Number((city as any).laborContractsPerTurn  ?? 0);
+    const beq = Number((city as any).basicEquipmentPerTurn  ?? 0);
 
     if (g === 0 && f === 0 && w === 0 && s === 0 && cm === 0
-        && lf === 0 && co === 0 && oil === 0 && herbs === 0) continue;
+        && lf === 0 && co === 0 && oil === 0 && herbs === 0
+        && ct === 0 && lc === 0 && beq === 0) continue;
 
     const hasBank = cityHasBank.get(city.cityId) === true;
 
@@ -399,14 +414,19 @@ export async function applyProductionTickPerCity(
       bankFoodDelta         += f;
       bankWoodDelta         += w;
       bankStoneDelta        += s;
-      bankCommonMetalsDelta += cm; // F4 V2
-      bankLeatherFurDelta   += lf; // F4 V2
-      bankCoalDelta         += co;
-      bankOilDelta          += oil;
-      bankHerbsDelta        += herbs;
+      bankCommonMetalsDelta   += cm;  // F4 V2
+      bankLeatherFurDelta     += lf;  // F4 V2
+      bankCoalDelta           += co;
+      bankOilDelta            += oil;
+      bankHerbsDelta          += herbs;
+      bankCommonTextilesDelta += ct;  // V3-D4
+      bankLaborContractsDelta  += lc;  // V3-D4
+      bankBasicEquipmentDelta  += beq; // V3-D4
       results.push({ cityId: city.cityId, name: city.name, fracten: g, food: f, wood: w, stone: s,
         coal: co, oil, herbs,
-        common_metals: cm, leather_fur: lf, destination: 'bank' });
+        common_metals: cm, leather_fur: lf,
+        common_textiles: ct, labor_contracts: lc, basic_equipment: beq,
+        destination: 'bank' });
     } else {
       // Accumulation dans pending_harvest (UPSERT) — F4 V2 : common_metals + leather_fur.
       await db
@@ -416,6 +436,7 @@ export async function applyProductionTickPerCity(
           fracten: g, food: f, wood: w, stone: s,
           common_metals: cm, leather_fur: lf,
           coal: co, oil, herbs,
+          common_textiles: ct, labor_contracts: lc, basic_equipment: beq, // V3-D4
           updatedAt: now,
         } as any)
         .onConflictDoUpdate({
@@ -431,12 +452,18 @@ export async function applyProductionTickPerCity(
             coal:          sql`${cityPendingHarvest.coal}    + ${co}`,
             oil:           sql`${cityPendingHarvest.oil}     + ${oil}`,
             herbs:         sql`${cityPendingHarvest.herbs}   + ${herbs}`,
+            // V3-D4 : ressources prototype unités
+            common_textiles: sql`${(cityPendingHarvest as any).common_textiles} + ${ct}`,
+            labor_contracts:  sql`${(cityPendingHarvest as any).labor_contracts}  + ${lc}`,
+            basic_equipment:  sql`${(cityPendingHarvest as any).basic_equipment}  + ${beq}`,
             updatedAt: now,
           } as any,
         });
       results.push({ cityId: city.cityId, name: city.name, fracten: g, food: f, wood: w, stone: s,
         coal: co, oil, herbs,
-        common_metals: cm, leather_fur: lf, destination: 'pending' });
+        common_metals: cm, leather_fur: lf,
+        common_textiles: ct, labor_contracts: lc, basic_equipment: beq,
+        destination: 'pending' });
     }
   }
 
@@ -451,8 +478,12 @@ export async function applyProductionTickPerCity(
       stone: bankStoneDelta,
       common_metals: bankCommonMetalsDelta, leather_fur: bankLeatherFurDelta,
       coal: bankCoalDelta, oil: bankOilDelta, herbs: bankHerbsDelta,
+      // V3-D4 : ressources prototype unités
+      common_textiles: bankCommonTextilesDelta,
+      labor_contracts:  bankLaborContractsDelta,
+      basic_equipment:  bankBasicEquipmentDelta,
       lastProductionTurn: currentTurn, updatedAt: now,
-    })
+    } as any)
     .onConflictDoUpdate({
       target: playerBank.playerId,
       set: {
@@ -466,6 +497,10 @@ export async function applyProductionTickPerCity(
         coal:               sql`${playerBank.coal}   + ${bankCoalDelta}`,
         oil:                sql`${playerBank.oil}    + ${bankOilDelta}`,
         herbs:              sql`${playerBank.herbs}  + ${bankHerbsDelta}`,
+        // V3-D4 : ressources prototype unités
+        common_textiles:    sql`${(playerBank as any).common_textiles} + ${bankCommonTextilesDelta}`,
+        labor_contracts:    sql`${(playerBank as any).labor_contracts}  + ${bankLaborContractsDelta}`,
+        basic_equipment:    sql`${(playerBank as any).basic_equipment}  + ${bankBasicEquipmentDelta}`,
         lastProductionTurn: currentTurn,
         updatedAt:          now,
       } as any,
@@ -473,7 +508,8 @@ export async function applyProductionTickPerCity(
 
   const matLog = `+${bankFractenDelta}fr+${bankFoodDelta}f+${bankWoodDelta}w+${bankStoneDelta}s`
                + `+${bankCommonMetalsDelta}cm+${bankLeatherFurDelta}lf+${bankCoalDelta}co`
-               + `+${bankOilDelta}oil+${bankHerbsDelta}herbs`;
+               + `+${bankOilDelta}oil+${bankHerbsDelta}herbs`
+               + `+${bankCommonTextilesDelta}ct+${bankLaborContractsDelta}lc+${bankBasicEquipmentDelta}beq`;
   console.log(
     `[productionTick] player=${playerId} faction=${factionId ?? 'aucune'} tour=${currentTurn}` +
     ` villes=${cityRows.length} bank${matLog}` +

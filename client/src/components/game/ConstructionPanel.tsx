@@ -688,6 +688,41 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
       category: 'Commerce',
       requiredTerrain: ['any'],
       actionPointCost: 30
+    },
+
+    // === ARTISANAT / MILITAIRE — V3-D4 (pas de prérequis terrain) ===
+    {
+      id: 'atelier_tisserand',
+      name: 'Atelier de tisserand',
+      cost: { wood: 10, stone: 6, action_points: 15 },
+      constructionTime: 3,
+      description: 'Produit des textiles communs pour l\'équipement, les ateliers et certaines unités.',
+      icon: '🧶',
+      category: 'Production',
+      requiredTerrain: ['any'],
+      actionPointCost: 15
+    },
+    {
+      id: 'bureau_de_recrutement',
+      name: 'Bureau de recrutement',
+      cost: { wood: 10, fracten: 15, action_points: 15 },
+      constructionTime: 3,
+      description: 'Produit des contrats de travail représentant la main-d\'œuvre organisée disponible.',
+      icon: '📜',
+      category: 'Production',
+      requiredTerrain: ['any'],
+      actionPointCost: 15
+    },
+    {
+      id: 'forge_basique',
+      name: 'Forge basique',
+      cost: { common_metals: 8, wood: 6, action_points: 18 },
+      constructionTime: 4,
+      description: 'Produit de l\'équipement basique utilisé par les premières unités militaires.',
+      icon: '⚒️',
+      category: 'Production',
+      requiredTerrain: ['any'],
+      actionPointCost: 18
     }
   ];
 
@@ -721,6 +756,10 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
       mana:               '🔮',
       ancient_knowledge:  '📜',
       action_points:      '⚡',
+      // V3-D2/D4 — ressources prototype unités
+      common_textiles:    '🧶',
+      labor_contracts:    '📜',
+      basic_equipment:    '🛡️',
       // V1 legacy — constructions existantes
       gold:               '🥇',
       iron:               '⚒️',
@@ -771,6 +810,10 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
       'mine':            { stone: 1, common_metals: 1 },
       'advanced_mine':   { common_metals: 3, coal: 1 },
       'oil_camp':        { oil: 2 },
+      // V3-D4 : bâtiments artisanat/militaire
+      'atelier_tisserand':     { common_textiles: 1 },
+      'bureau_de_recrutement': { labor_contracts:  1 },
+      'forge_basique':         { basic_equipment:  1 },
 
       // ── Autres bâtiments ────────────────────────────────────────────────────
       'garden':          { food: 2 },

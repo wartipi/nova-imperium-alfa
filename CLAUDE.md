@@ -894,3 +894,56 @@ Tous corrigés dans une passe additive sans modifier la logique métier.
 - **Commit :** fourni par le prochain checkpoint automatique.
 
 **Statut :** bloc V3-D3 terminé. 6 bugs de payload silencieux corrigés dans `economyApi.ts`. Aucun nouveau système. Les 3 ressources sont entièrement vérifiées et opérationnelles côté UI.
+
+## Ressources V3-D4 — Bâtiments producteurs pour ressources prototype unités
+
+- **Objectif :** Ajouter une première source de production contrôlée pour `common_textiles`, `labor_contracts`, `basic_equipment` via 3 nouveaux bâtiments sans prérequis terrain.
+- **Périmètre :** additif pur — aucun recrutement branché, aucune unité modifiée, aucune migration `coal/oil/herbs`.
+
+### Fichiers modifiés
+
+| Fichier | Modifications |
+|---|---|
+| `server/buildingEffects.ts` | `T1Material` étendu ; `BUILDING_PRODUCTION` +3 bâtiments ; `T1_CITY_COLUMNS` +3 mappings ; `applyBuildingEffects` +3 branches |
+| `server/economyService.ts` | `ProductionTickResult.cities` étendu ; SELECT +3 colonnes `*_per_turn` ; +3 accumulateurs delta ; zero-check étendu ; pending_harvest UPSERT +3 ; bank UPSERT +3 ; results.push +3 ; log étendu |
+| `client/src/components/game/ConstructionPanel.tsx` | +3 bâtiments dans `buildings[]` ; `getBuildingProduction()` +3 entrées ; `getResourceIcon()` +3 icônes |
+
+### Bâtiments ajoutés
+
+| id | label | coût | prérequis | production/tour |
+|---|---|---|---|---|
+| `atelier_tisserand` | Atelier de tisserand | 10 bois + 6 pierre + 15 PA | aucun terrain | `common_textiles` +1 |
+| `bureau_de_recrutement` | Bureau de recrutement | 10 bois + 15 fracten + 15 PA | aucun terrain | `labor_contracts` +1 |
+| `forge_basique` | Forge basique | 8 métaux communs + 6 bois + 18 PA | aucun terrain | `basic_equipment` +1 |
+
+### Mappings `T1_CITY_COLUMNS` ajoutés
+- `common_textiles` → `common_textiles_per_turn`
+- `labor_contracts` → `labor_contracts_per_turn`
+- `basic_equipment` → `basic_equipment_per_turn`
+
+### Tick de production
+- Les 3 colonnes `*_per_turn` sont lues depuis `cities` à chaque tick.
+- Villes avec banque → crédité dans `player_bank` via UPSERT.
+- Villes sans banque → accumulé dans `city_pending_harvest` via UPSERT.
+- Le zéro-check inclut les 3 nouvelles ressources (ville entièrement inactive si tout à 0).
+
+### Confirmations
+- ✅ Recrutement non branché — `cityService.ts`, `RecruitmentPanel.tsx` intacts.
+- ✅ `shared/landUnitCatalog.ts` reste passif — aucune modification.
+- ✅ `server/unitCatalog.ts` non touché.
+- ✅ Aucune migration `coal → fuel` ni `herbs → common_ingredients`.
+
+### Résultat TypeScript
+`npx tsc --noEmit` : **187 erreurs** — baseline inchangée, zéro régression.
+
+### Risques restants
+- Les 3 bâtiments produisent +1 par tour — valeur initiale conservative, à ajuster par bâtiment si le gameplay le nécessite.
+- `forge_basique` a `common_metals` comme coût de construction — si une ville n'en a pas encore, le bâtiment est inaccessible sans transfert préalable.
+- `applyBuildingEffects` incrémente les `*_per_turn` au moment de la construction mais ne les décrémente pas si le bâtiment est détruit (logique existante — comportement cohérent avec les bâtiments V2).
+
+### Prochaine étape recommandée
+**V3-D5** — Réécrire le mécanisme de recrutement pour débiter des ressources multi-types (`labor_contracts`, `basic_equipment`, `food`) depuis `city_inventory` au lieu d'un entier `productionCost` unique. Nécessite un nouveau champ de coût multi-ressources dans `cityService.ts` et le branchement de `shared/landUnitCatalog.ts`.
+
+- **Commit :** fourni par le prochain checkpoint automatique.
+
+**Statut :** bloc V3-D4 terminé. Les 3 bâtiments sont constructibles, branchés au tick de production et visibles dans le panneau de construction. Aucun recrutement, aucune unité modifiée.

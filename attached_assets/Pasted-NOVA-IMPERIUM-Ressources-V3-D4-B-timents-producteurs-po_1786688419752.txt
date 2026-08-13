@@ -1,0 +1,247 @@
+NOVA IMPERIUM — Ressources V3-D4
+Bâtiments producteurs pour common_textiles, labor_contracts, basic_equipment
+
+RÔLE
+Tu es l’agent technique sur le repo Nova Imperium.
+Objectif : ajouter une première source de production contrôlée pour les 3 ressources prototype unités déjà ajoutées au runtime.
+
+RESSOURCES CONCERNÉES
+
+- common_textiles / Textiles communs
+- labor_contracts / Contrats de travail
+- basic_equipment / Équipement basique
+
+CONTEXTE
+
+Les blocs précédents sont validés :
+
+- V3-D2 : les 3 ressources existent maintenant dans le runtime :
+  - DB
+  - player_bank
+  - city_inventory
+  - city_pending_harvest
+  - player_transport
+  - player_market_box
+  - marché
+  - transferts
+  - UI
+
+- V3-D3 : vérification UI/payloads validée.
+  - economyApi.ts corrigé.
+  - Les DTOs et payloads transmettent bien les 3 ressources.
+  - TypeScript reste à 187 erreurs baseline.
+
+Les colonnes `*_per_turn` existent déjà sur `cities` :
+
+- common_textiles_per_turn
+- labor_contracts_per_turn
+- basic_equipment_per_turn
+
+IMPORTANT
+
+Ce bloc doit uniquement ajouter la production bâtiment de ces 3 ressources.
+
+Ne pas brancher le recrutement.
+Ne pas modifier shared/landUnitCatalog.ts.
+Ne pas modifier les coûts des unités.
+Ne pas modifier server/unitCatalog.ts.
+Ne pas ajouter d’entretien d’unités.
+Ne pas ajouter de mécanique de siège.
+Ne pas migrer coal/oil vers fuel.
+Ne pas migrer herbs vers common_ingredients.
+Ne pas modifier le marché sauf si une liste de ressources productibles doit être affichée.
+Ne pas refactoriser massivement.
+Ne pas créer de nouvelle mécanique complexe.
+
+OBJECTIF DESIGN
+
+Ajouter des bâtiments simples et cohérents comme première source de production :
+
+1. Textiles communs
+   - bâtiment recommandé : atelier_tisserand
+   - label : Atelier de tisserand
+   - production : common_textiles +1 par tour
+   - logique : production humaine/artisanale liée aux fibres, tissus, vêtements simples
+
+2. Contrats de travail
+   - bâtiment recommandé : bureau_de_recrutement
+   - label : Bureau de recrutement
+   - production : labor_contracts +1 par tour
+   - logique : ressource stratégique produite par organisation humaine, administration, travailleurs disponibles
+   - important : ne doit pas venir directement d’un terrain ou d’un tile modifier
+
+3. Équipement basique
+   - bâtiment recommandé : forge_basique
+   - label : Forge basique
+   - production : basic_equipment +1 par tour
+   - logique : atelier militaire simple, armes/outils/équipement de base
+
+À FAIRE
+
+1. Inspecter les systèmes de bâtiments existants
+
+Lire avant modification :
+
+- server/buildingEffects.ts
+- shared/schema.ts
+- client/src/components/game/ConstructionPanel.tsx
+- client/src/components/game/ConstructionPanelSimple.tsx
+- tout fichier contenant :
+  - BUILDING_PRODUCTION
+  - BUILDING_TERRAIN_PREREQS
+  - BUILDING_RESOURCE_PREREQS
+  - T1Material
+  - T1_CITY_COLUMNS
+  - listes de bâtiments constructibles
+  - labels ou icônes de bâtiments
+
+2. Étendre les types matériaux si nécessaire
+
+Si `T1Material` ou l’équivalent ne contient pas encore :
+
+- common_textiles
+- labor_contracts
+- basic_equipment
+
+les ajouter proprement.
+
+Attention :
+Ne pas toucher à fuel/common_ingredients dans ce bloc.
+Ne pas renommer coal/oil/herbs.
+
+3. Ajouter les colonnes per_turn au mapping production
+
+Dans le mapping qui relie les ressources aux colonnes de ville, ajouter :
+
+- common_textiles → common_textiles_per_turn
+- labor_contracts → labor_contracts_per_turn
+- basic_equipment → basic_equipment_per_turn
+
+Utiliser les noms exacts déjà présents dans `shared/schema.ts`.
+
+4. Ajouter les bâtiments producteurs
+
+Ajouter les bâtiments suivants dans le système existant de production bâtiment :
+
+A. atelier_tisserand
+- label : Atelier de tisserand
+- production : common_textiles +1 par tour
+- prérequis terrain : aucun terrain spécial obligatoire pour ce bloc
+- prérequis ressource : optionnel, ne pas forcer si le système actuel exige des ressources de carte
+- coût de construction : rester simple et cohérent avec les bâtiments T1 existants
+- suggestion : wood + stone ou wood + common_metals selon conventions existantes
+
+B. bureau_de_recrutement
+- label : Bureau de recrutement
+- production : labor_contracts +1 par tour
+- prérequis terrain : aucun
+- prérequis ressource : aucun
+- coût de construction : simple, plutôt wood + fracten ou wood + stone selon conventions existantes
+- important : produire des contrats par organisation humaine, pas par récolte de terrain
+
+C. forge_basique
+- label : Forge basique
+- production : basic_equipment +1 par tour
+- prérequis terrain : aucun terrain spécial obligatoire pour ce bloc
+- prérequis ressource : idéalement common_metals si le système de prérequis peut le gérer sans risque
+- coût de construction : common_metals + wood ou common_metals + stone selon conventions existantes
+
+Important :
+Si le système actuel distingue coût de construction, prérequis de terrain, prérequis de ressource et production par tour, respecter cette structure.
+Si certains prérequis risquent de bloquer totalement la construction, garder le bâtiment constructible simplement et documenter le choix.
+
+5. UI construction
+
+Si les bâtiments doivent être visibles dans le panneau de construction :
+
+- ajouter les labels ;
+- ajouter une courte description ;
+- afficher la ressource produite ;
+- éviter les icônes cassées ;
+- ne pas créer d’asset graphique ;
+- utiliser une icône simple/fallback si nécessaire.
+
+Descriptions recommandées :
+
+- Atelier de tisserand : “Produit des textiles communs pour l’équipement, les ateliers et certaines unités.”
+- Bureau de recrutement : “Produit des contrats de travail représentant la main-d’œuvre organisée disponible.”
+- Forge basique : “Produit de l’équipement basique utilisé par les premières unités militaires.”
+
+6. Production tick
+
+Vérifier que le tick de production existant prend automatiquement en compte les nouvelles entrées.
+
+S’il faut ajouter explicitement les nouvelles colonnes dans le tick, le faire de manière additive.
+
+Ne pas changer la logique générale du tick.
+Ne pas changer les ressources existantes.
+
+7. Vérifications à faire
+
+Confirmer que :
+
+- construire atelier_tisserand augmente common_textiles_per_turn ;
+- construire bureau_de_recrutement augmente labor_contracts_per_turn ;
+- construire forge_basique augmente basic_equipment_per_turn ;
+- le tick de production peut envoyer ces ressources vers player_bank ou city_pending_harvest selon la logique existante ;
+- ces ressources apparaissent ensuite dans l’UI déjà vérifiée en V3-D3.
+
+VALIDATION TECHNIQUE
+
+Exécuter :
+
+npx tsc --noEmit
+
+Baseline connue :
+
+- 187 erreurs TypeScript préexistantes.
+
+Ne pas prétendre corriger TypeScript globalement.
+Indiquer seulement si le nombre reste 187 ou si une régression apparaît.
+
+CLAUDE.md
+
+Ajouter une section :
+
+“Ressources V3-D4 — Bâtiments producteurs pour ressources prototype unités”
+
+Inclure :
+
+- objectif ;
+- fichiers modifiés ;
+- bâtiments ajoutés ;
+- production par bâtiment ;
+- coûts/prérequis choisis ;
+- mappings per_turn ajoutés ;
+- confirmation que le recrutement n’est pas branché ;
+- confirmation que shared/landUnitCatalog.ts reste passif ;
+- confirmation qu’aucune migration coal/oil/herbs n’a été faite ;
+- résultat TypeScript ;
+- risques restants ;
+- prochaine étape recommandée.
+
+SORTIE ATTENDUE
+
+Répondre avec :
+
+1. Résumé des fichiers modifiés.
+2. Liste des bâtiments ajoutés :
+   - id
+   - label
+   - coût
+   - prérequis
+   - production
+3. Confirmation des colonnes per_turn branchées.
+4. Confirmation que le tick de production utilise les 3 ressources.
+5. Confirmation que le recrutement n’est pas branché.
+6. Confirmation que les unités ne sont pas modifiées.
+7. Résultat TypeScript.
+8. Risques restants.
+9. Prochaine étape recommandée.
+
+STATUT ATTENDU
+
+Production bâtiment ajoutée.
+Aucun recrutement.
+Aucune unité branchée.
+Aucune migration conceptuelle coal/oil/herbs.

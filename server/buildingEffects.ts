@@ -20,9 +20,11 @@ import { eq, sql, and, gte, lte } from "drizzle-orm";
 // F4 V2 : common_metals remplace iron+copper, leather_fur remplace fur.
 // Les V1 (iron, copper, fur) sont conservés comme types legacy pour backward-compat.
 // G6-B1 : iron/copper/fur retirés — BUILDING_PRODUCTION ne produit que V2.
+// V3-D4 : common_textiles, labor_contracts, basic_equipment ajoutés.
 export type T1Material =
   | 'food' | 'wood' | 'stone' | 'coal' | 'oil' | 'herbs'
-  | 'common_metals' | 'leather_fur';
+  | 'common_metals' | 'leather_fur'
+  | 'common_textiles' | 'labor_contracts' | 'basic_equipment';
 
 export type BuildingProduction = Partial<Record<T1Material, number>>;
 
@@ -49,6 +51,11 @@ export const BUILDING_PRODUCTION: Record<string, BuildingProduction> = {
 
   // ── Désert / marais / wasteland (huile) ────────────────────────────────────
   oil_camp:         { oil: 2 },
+
+  // ── Urbain / sans prérequis terrain (V3-D4) ────────────────────────────────
+  atelier_tisserand:     { common_textiles: 1 },
+  bureau_de_recrutement: { labor_contracts:  1 },
+  forge_basique:         { basic_equipment:  1 },
 };
 
 // ─── BUILDING_TERRAIN_PREREQS ─────────────────────────────────────────────────
@@ -83,15 +90,20 @@ export const BUILDING_RESOURCE_PREREQS: Record<string, string[]> = {
 
 // Colonnes cities affectées pour l'incrément/décrément production.
 // G6-B1 : iron/copper/fur retirés — T1Material ne contient plus que V2.
+// V3-D4 : common_textiles, labor_contracts, basic_equipment ajoutés.
 export const T1_CITY_COLUMNS: Record<T1Material, string> = {
-  food:          'food_per_turn',
-  wood:          'wood_per_turn',
-  stone:         'stone_per_turn',
-  common_metals: 'common_metals_per_turn',
-  leather_fur:   'leather_fur_per_turn',
-  coal:          'coal_per_turn',
-  oil:           'oil_per_turn',
-  herbs:         'herbs_per_turn',
+  food:             'food_per_turn',
+  wood:             'wood_per_turn',
+  stone:            'stone_per_turn',
+  common_metals:    'common_metals_per_turn',
+  leather_fur:      'leather_fur_per_turn',
+  coal:             'coal_per_turn',
+  oil:              'oil_per_turn',
+  herbs:            'herbs_per_turn',
+  // V3-D4
+  common_textiles:  'common_textiles_per_turn',
+  labor_contracts:  'labor_contracts_per_turn',
+  basic_equipment:  'basic_equipment_per_turn',
 };
 
 // ─── getCityControlledTerrains ────────────────────────────────────────────────
@@ -203,6 +215,10 @@ export async function applyBuildingEffects(cityId: number, buildingId: string): 
   if (prod.herbs)         updates.herbsPerTurn         = sql`${cities.herbsPerTurn}         + ${prod.herbs}`;
   // G4 : branches V1 iron/copper/fur supprimées — BUILDING_PRODUCTION ne contient que V2 depuis F4.
   // ironPerTurn/copperPerTurn/furPerTurn ne reçoivent plus de production.
+  // V3-D4 : ressources prototype unités
+  if (prod.common_textiles) updates.commonTextilesPerTurn = sql`${(cities as any).commonTextilesPerTurn} + ${prod.common_textiles}`;
+  if (prod.labor_contracts)  updates.laborContractsPerTurn  = sql`${(cities as any).laborContractsPerTurn}  + ${prod.labor_contracts}`;
+  if (prod.basic_equipment)  updates.basicEquipmentPerTurn  = sql`${(cities as any).basicEquipmentPerTurn}  + ${prod.basic_equipment}`;
 
   if (Object.keys(updates).length === 0) return;
 
