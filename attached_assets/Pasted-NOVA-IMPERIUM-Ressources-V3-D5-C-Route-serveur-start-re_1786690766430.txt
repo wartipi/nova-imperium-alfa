@@ -1,0 +1,345 @@
+NOVA IMPERIUM — Ressources V3-D5-C
+Route serveur start-recruitment serveur-authoritative
+
+RÔLE
+Tu es l’agent technique sur le repo Nova Imperium.
+Objectif : créer une route serveur-authoritative de démarrage de recrutement qui débite city_inventory avec les helpers validés en V3-D5-B, puis lance la production d’unité dans city_production.
+
+IMPORTANT
+
+Ce bloc ajoute une route serveur.
+Ne pas modifier RecruitmentPanel.tsx.
+Ne pas remplacer encore l’UI de recrutement.
+Ne pas modifier shared/landUnitCatalog.ts.
+Ne pas modifier les coûts des unités.
+Ne pas modifier server/unitCatalog.ts.
+Ne pas créer de nouvelles unités prototype.
+Ne pas modifier tickCityProduction().
+Ne pas modifier createProducedUnit().
+Ne pas modifier productionCost:number.
+Ne pas migrer coal/oil/herbs.
+Ne pas modifier les bâtiments producteurs.
+Mettre à jour CLAUDE.md.
+
+CONTEXTE VALIDÉ
+
+V3-D5-A :
+- Audit validé.
+- Recrutement actuel non serveur-authoritative pour les ressources.
+- Source de paiement retenue : city_inventory.
+- productionCost:number reste utilisé comme durée/progression.
+
+V3-D5-B :
+- server/recruitmentService.ts ajouté.
+- Helpers passifs validés :
+  - normalizeRecruitmentCost()
+  - getCityInventoryForRecruitment()
+  - canAffordRecruitmentCost()
+  - debitCityInventoryForRecruitment()
+  - previewRecruitmentCostPayment()
+- debitCityInventoryForRecruitment() est maintenant concurrence-safe avec UPDATE conditionnel atomique.
+- GET /api/cities/:cityId/inventory expose les 3 ressources V3 :
+  - common_textiles
+  - labor_contracts
+  - basic_equipment
+
+OBJECTIF DE CE BLOC
+
+Créer une route serveur :
+
+POST /api/cities/:cityId/start-recruitment
+
+Cette route doit :
+
+1. vérifier l’accès à la ville ;
+2. valider le payload ;
+3. déterminer un coût multi-ressources serveur-side ;
+4. débiter city_inventory via debitCityInventoryForRecruitment() ;
+5. lancer la production existante via setProduction() ;
+6. conserver productionCost:number comme durée/progression ;
+7. retourner une réponse structurée.
+
+IMPORTANT DESIGN
+
+Pour ce bloc, ne pas brancher encore shared/landUnitCatalog.ts directement si cela crée un risque avec les IDs incompatibles.
+
+Rappel audit :
+- server/unitCatalog.ts utilise actuellement des IDs comme warrior/spearman/archer/...
+- shared/landUnitCatalog.ts utilise militia/garrison/patrollers/...
+- createProducedUnit() utilise UNIT_CATALOG serveur.
+- Si on lance une unité prototype non présente dans server/unitCatalog.ts, la complétion échouera.
+
+Donc pour V3-D5-C, la route doit rester compatible avec les unités runtime actuelles.
+
+APPROCHE RECOMMANDÉE
+
+Créer une petite table serveur temporaire de coûts de recrutement multi-ressources pour les unités runtime existantes, dans le même fichier que la route ou dans recruitmentService.ts si plus propre.
+
+Exemple indicatif seulement — vérifier les IDs actuels dans server/unitCatalog.ts :
+
+const RUNTIME_RECRUITMENT_COSTS = {
+  warrior: { food: 2, labor_contracts: 1, basic_equipment: 1 },
+  spearman: { food: 2, wood: 1, common_metals: 1, labor_contracts: 1, basic_equipment: 1 },
+  archer: { food: 2, wood: 1, common_textiles: 1, labor_contracts: 1 },
+}
+
+Ne pas inventer massivement.
+Limiter aux unités déjà supportées par server/unitCatalog.ts et RecruitmentPanel.tsx.
+
+Si les coûts existants client sont différents, documenter l’écart.
+Pour ce bloc, l’objectif est la route serveur fiable, pas l’équilibrage final.
+
+À INSPECTER AVANT MODIFICATION
+
+Lire :
+
+- server/routes/cities.ts
+- server/cityService.ts
+- server/recruitmentService.ts
+- server/unitCatalog.ts
+- shared/schema.ts
+- client/src/components/game/RecruitmentPanel.tsx
+- client/src/lib/api/citiesApi.ts
+- CLAUDE.md
+
+Chercher :
+
+- setProduction()
+- checkCityAccess()
+- city_production
+- productionCost
+- productionProgress
+- productionType
+- productionName
+- UNIT_CATALOG
+- trainUnit()
+- apiSetProduction()
+
+ROUTE À AJOUTER
+
+POST /api/cities/:cityId/start-recruitment
+
+Payload attendu :
+
+{
+  "unitType": "warrior"
+}
+
+Optionnel si nécessaire :
+
+{
+  "unitType": "warrior",
+  "adminModeEnabled": false
+}
+
+Ne pas accepter de coût envoyé par le client comme source de vérité.
+Le coût doit venir du serveur.
+
+VALIDATIONS REQUISES
+
+1. cityId
+- doit être un entier valide.
+
+2. Accès ville
+- utiliser checkCityAccess(req.user!.id, cityId).
+- retourner les erreurs existantes si accès refusé.
+
+3. unitType
+- requis.
+- string.
+- doit exister dans le catalogue runtime actuel qui sera utilisé à la complétion.
+- vérifier contre server/unitCatalog.ts / UNIT_CATALOG ou helper existant.
+- si inconnu : 400 avec erreur lisible.
+
+4. Production déjà active
+- vérifier s’il existe déjà une production en cours pour cette ville.
+- si oui : refuser avec 409 ou 400.
+- message clair : “Une production est déjà en cours dans cette ville.”
+- Ne pas écraser silencieusement une production existante.
+
+5. Coût multi-ressources
+- récupérer le coût serveur depuis la table temporaire RUNTIME_RECRUITMENT_COSTS ou helper.
+- utiliser uniquement les 7 ressources autorisées :
+  - food
+  - wood
+  - stone
+  - common_metals
+  - common_textiles
+  - labor_contracts
+  - basic_equipment
+
+6. Débit atomique
+- appeler debitCityInventoryForRecruitment(cityId, cost).
+- si erreur INSUFFICIENT_CITY_INVENTORY :
+  - retourner 400
+  - inclure missing[] dans la réponse.
+- si autre erreur : 500.
+
+7. Lancement production
+- après débit réussi, appeler setProduction() avec :
+  - type: "unit"
+  - name: unitType
+  - cost: recruitmentTime ou productionCost runtime actuel
+  - progress: 0
+
+Important :
+- productionCost:number reste durée/progression.
+- Ne pas renommer en productionDuration dans ce bloc.
+
+8. Atomicité débit + setProduction
+
+Point critique :
+Le débit et setProduction doivent être aussi sûrs que possible.
+
+Option minimale acceptable pour ce bloc :
+- Vérifier production active AVANT débit.
+- Débiter.
+- Appeler setProduction().
+- Si setProduction() échoue après débit, logguer clairement le risque.
+
+Option préférable :
+- Si possible, ajouter dans cityService ou route une transaction unique autour :
+  - check production active
+  - debit city_inventory
+  - set city_production
+Mais ne pas faire de refactor massif.
+
+Si la transaction est trop risquée avec l’architecture actuelle :
+- garder l’option minimale ;
+- documenter explicitement le risque restant dans CLAUDE.md ;
+- prévoir correction V3-D5-C2.
+
+9. Réponse attendue
+
+Succès :
+
+{
+  "ok": true,
+  "cityId": 1,
+  "unitType": "warrior",
+  "production": {
+    "type": "unit",
+    "name": "warrior",
+    "cost": 3,
+    "progress": 0
+  },
+  "debited": {
+    "food": 2,
+    "labor_contracts": 1,
+    "basic_equipment": 1
+  }
+}
+
+Erreur ressources insuffisantes :
+
+{
+  "error": "INSUFFICIENT_CITY_INVENTORY",
+  "missing": [
+    {
+      "resource": "food",
+      "required": 2,
+      "available": 0,
+      "shortage": 2
+    }
+  ]
+}
+
+Erreur production active :
+
+{
+  "error": "Une production est déjà en cours dans cette ville"
+}
+
+À NE PAS FAIRE
+
+- Ne pas appeler cette route depuis RecruitmentPanel.tsx.
+- Ne pas supprimer l’ancien PUT /api/cities/:cityId/production.
+- Ne pas modifier trainUnit().
+- Ne pas modifier apiSetProduction().
+- Ne pas modifier tickCityProduction().
+- Ne pas modifier createProducedUnit().
+- Ne pas créer de LandUnitId prototype dans server/unitCatalog.ts.
+- Ne pas importer massivement shared/landUnitCatalog.ts dans ce bloc.
+- Ne pas toucher aux unités navales.
+- Ne pas toucher aux unités spéciales.
+- Ne pas ajouter d’upkeep.
+- Ne pas ajouter de remboursement d’annulation dans ce bloc.
+
+VALIDATION TECHNIQUE
+
+Exécuter :
+
+npx tsc --noEmit
+
+Baseline connue :
+- 187 erreurs TypeScript préexistantes.
+
+Objectif :
+- rester à 187 erreurs ;
+- zéro régression.
+
+TESTS À FAIRE / SIMULER
+
+Documenter au minimum :
+
+1. unitType absent → 400.
+2. unitType inconnu → 400.
+3. ville inaccessible → erreur checkCityAccess.
+4. production déjà active → refus.
+5. ressources insuffisantes → 400 + missing[].
+6. ressources suffisantes → débit + city_production créée.
+7. double appel rapide → le deuxième doit échouer soit par production active, soit par ressources insuffisantes.
+
+CLAUDE.md
+
+Ajouter une section :
+
+“Ressources V3-D5-C — Route start-recruitment serveur-authoritative”
+
+Inclure :
+
+- objectif ;
+- fichiers inspectés ;
+- fichiers modifiés ;
+- route ajoutée ;
+- payload ;
+- unités runtime supportées ;
+- coûts serveur temporaires ;
+- débit city_inventory ;
+- gestion insuffisance ressources ;
+- gestion production déjà active ;
+- statut transaction/risque d’atomicité débit + setProduction ;
+- confirmation RecruitmentPanel non modifié ;
+- confirmation productionCost:number inchangé ;
+- confirmation shared/landUnitCatalog.ts passif ;
+- résultat TypeScript ;
+- prochaine étape recommandée.
+
+SORTIE ATTENDUE
+
+Répondre avec :
+
+1. Fichiers inspectés.
+2. Fichiers modifiés.
+3. Route ajoutée.
+4. Unités supportées par la route.
+5. Coûts serveur utilisés.
+6. Description du flux :
+   - access check
+   - active production check
+   - debit
+   - setProduction
+7. Gestion des erreurs.
+8. Confirmation que l’UI n’est pas encore branchée.
+9. Confirmation que les unités prototype ne sont pas créées.
+10. Résultat TypeScript.
+11. Risques restants.
+12. Prochaine étape recommandée.
+
+STATUT ATTENDU
+
+Route serveur prête.
+Débit multi-ressources actif uniquement via cette nouvelle route.
+Ancien recrutement UI inchangé.
+Aucune unité prototype branchée.
+productionCost:number conservé.

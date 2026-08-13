@@ -3,7 +3,9 @@ import { eq, sql } from "drizzle-orm";
 import { requireAuth } from "../middleware/auth";
 import type { AuthRequest } from "../middleware/auth";
 import { db } from "../db";
-import { cityPendingHarvest, cityInventory, cityBuildings, cities, colonies } from "../../shared/schema";
+import { cityPendingHarvest, cityInventory, cityBuildings, cities, colonies, cityProduction } from "../../shared/schema";
+import { UNIT_CATALOG } from "../unitCatalog";
+import { debitCityInventoryForRecruitment, RUNTIME_RECRUITMENT_COSTS } from "../recruitmentService";
 import {
   getMyCities,
   getCityByColony,
@@ -621,6 +623,128 @@ router.post("/:cityId/start-construction", requireAuth, async (req: AuthRequest,
   } catch (err) {
     console.error("[POST /api/cities/:cityId/start-construction] Erreur:", err);
     return res.status(500).json({ error: "Impossible de démarrer la construction" });
+  }
+});
+
+// ─── POST /api/cities/:cityId/start-recruitment ───────────────────────────────
+// Auth requise — démarre un recrutement serveur-authoritative.
+// Débite city_inventory via debitCityInventoryForRecruitment() (atomique,
+// concurrence-safe) puis lance la production dans city_production.
+//
+// Payload : { unitType: string }
+// Le coût vient exclusivement du serveur (RUNTIME_RECRUITMENT_COSTS).
+// productionCost:number reste la durée en tours — inchangé.
+//
+// Risque résiduel d'atomicité : le débit city_inventory et l'UPSERT city_production
+// ne sont pas dans une seule transaction DB. Si setProduction() échoue après un
+// débit réussi, les ressources sont perdues sans unité enfilée. Ce cas est loggué
+// clairement. Correction prévue en V3-D5-C2 via transaction Drizzle explicite.
+router.post("/:cityId/start-recruitment", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const cityId = parseInt(req.params.cityId, 10);
+    if (isNaN(cityId)) {
+      return res.status(400).json({ error: "cityId doit être un entier" });
+    }
+
+    // ── 1. Accès ville ────────────────────────────────────────────────────────
+    const access = await checkCityAccess(req.user!.id, cityId);
+    if ("error" in access) {
+      return res.status(access.status).json({ error: access.error });
+    }
+
+    // ── 2. Validation payload ─────────────────────────────────────────────────
+    const { unitType } = req.body;
+    if (!unitType || typeof unitType !== "string") {
+      return res.status(400).json({ error: "unitType est requis (string)" });
+    }
+
+    // ── 3. Vérification unitType dans le catalogue runtime ────────────────────
+    if (!UNIT_CATALOG[unitType]) {
+      return res.status(400).json({
+        error: `Type d'unité inconnu : "${unitType}". Unités supportées : ${Object.keys(UNIT_CATALOG).join(", ")}`,
+      });
+    }
+
+    const recruitmentEntry = RUNTIME_RECRUITMENT_COSTS[unitType];
+    if (!recruitmentEntry) {
+      return res.status(400).json({
+        error: `Aucun coût de recrutement défini pour : "${unitType}"`,
+      });
+    }
+
+    // ── 4. Vérification production déjà active ────────────────────────────────
+    const existingProduction = await db
+      .select({ id: cityProduction.id })
+      .from(cityProduction)
+      .where(eq(cityProduction.cityId, cityId))
+      .limit(1);
+
+    if (existingProduction.length > 0) {
+      return res.status(409).json({
+        error: "Une production est déjà en cours dans cette ville",
+      });
+    }
+
+    // ── 5 & 6. Débit atomique city_inventory ──────────────────────────────────
+    let debitResult;
+    try {
+      debitResult = await debitCityInventoryForRecruitment(cityId, recruitmentEntry.cost);
+    } catch (err: any) {
+      if (err?.code === "INSUFFICIENT_CITY_INVENTORY") {
+        return res.status(400).json({
+          error:   "INSUFFICIENT_CITY_INVENTORY",
+          missing: err.missing ?? [],
+        });
+      }
+      throw err; // erreur inattendue → 500
+    }
+
+    // ── 7. Lancement production ───────────────────────────────────────────────
+    // Risque résiduel : si setProduction échoue ici, le débit est déjà effectué.
+    try {
+      await setProduction(
+        cityId,
+        {
+          type:     "unit",
+          name:     unitType,
+          cost:     recruitmentEntry.duration,
+          progress: 0,
+        },
+        req.user!.id,
+      );
+    } catch (prodErr) {
+      // Débit effectué mais production non enfilée — logguer explicitement
+      console.error(
+        `[start-recruitment] CRITIQUE — débit effectué mais setProduction a échoué.` +
+        ` cityId=${cityId} unitType=${unitType} debited=${JSON.stringify(debitResult.debited)}`,
+        prodErr,
+      );
+      return res.status(500).json({
+        error: "Erreur lors du lancement de la production après débit — contacter un administrateur",
+      });
+    }
+
+    console.log(
+      `[start-recruitment] OK — cityId=${cityId} unitType=${unitType}` +
+      ` duration=${recruitmentEntry.duration} debited=${JSON.stringify(debitResult.debited)}` +
+      ` player=${req.user!.id}`,
+    );
+
+    return res.status(201).json({
+      ok:       true,
+      cityId,
+      unitType,
+      production: {
+        type:     "unit",
+        name:     unitType,
+        cost:     recruitmentEntry.duration,
+        progress: 0,
+      },
+      debited: debitResult.debited,
+    });
+  } catch (err) {
+    console.error("[POST /api/cities/:cityId/start-recruitment] Erreur:", err);
+    return res.status(500).json({ error: "Impossible de démarrer le recrutement" });
   }
 });
 

@@ -259,6 +259,45 @@ export async function debitCityInventoryForRecruitment(
   return { ok: true, debited: cost, inventoryBefore };
 }
 
+// ─── RUNTIME_RECRUITMENT_COSTS ────────────────────────────────────────────────
+// Coûts multi-ressources temporaires pour les unités runtime actuelles
+// (IDs de server/unitCatalog.ts). Ces coûts sont des valeurs de prototype
+// non équilibrées — elles seront remplacées en V3-D5-E quand les LandUnitId
+// du catalogue design seront branchés.
+//
+// Ressources autorisées : food, wood, stone, common_metals,
+//   common_textiles, labor_contracts, basic_equipment.
+// Exclues : fracten, coal, oil, herbs et ressources rares.
+export interface RuntimeRecruitmentEntry {
+  cost:     RecruitmentResourceCost;
+  /** Durée de production en tours (= productionCost dans city_production). */
+  duration: number;
+}
+
+export const RUNTIME_RECRUITMENT_COSTS: Record<string, RuntimeRecruitmentEntry> = {
+  // ── Infanterie ─────────────────────────────────────────────────────────────
+  warrior:   { duration: 2, cost: { food: 2, labor_contracts: 1, basic_equipment: 1 } },
+  spearman:  { duration: 2, cost: { food: 2, wood: 1, common_metals: 1, labor_contracts: 1, basic_equipment: 1 } },
+  swordsman: { duration: 3, cost: { food: 3, common_metals: 2, labor_contracts: 1, basic_equipment: 2 } },
+  // ── Distance ───────────────────────────────────────────────────────────────
+  archer:      { duration: 2, cost: { food: 2, wood: 1, common_textiles: 1, labor_contracts: 1 } },
+  crossbowman: { duration: 3, cost: { food: 2, wood: 1, common_metals: 1, common_textiles: 1, labor_contracts: 1, basic_equipment: 1 } },
+  // ── Siège ──────────────────────────────────────────────────────────────────
+  catapult:  { duration: 4, cost: { wood: 4, common_metals: 3, stone: 2, labor_contracts: 2, basic_equipment: 2 } },
+  trebuchet: { duration: 5, cost: { wood: 5, common_metals: 4, stone: 3, labor_contracts: 3, basic_equipment: 3 } },
+  // ── Cavalerie ──────────────────────────────────────────────────────────────
+  horseman: { duration: 3, cost: { food: 4, common_metals: 2, labor_contracts: 1, basic_equipment: 1 } },
+  knight:   { duration: 4, cost: { food: 5, common_metals: 4, labor_contracts: 2, basic_equipment: 3 } },
+  // ── Marine ─────────────────────────────────────────────────────────────────
+  galley:   { duration: 3, cost: { wood: 4, common_metals: 2, food: 2, labor_contracts: 2, basic_equipment: 1 } },
+  warship:  { duration: 4, cost: { wood: 6, common_metals: 4, food: 3, labor_contracts: 3, basic_equipment: 2 } },
+  // ── Spécial ────────────────────────────────────────────────────────────────
+  scout:    { duration: 1, cost: { food: 1, labor_contracts: 1 } },
+  settler:  { duration: 3, cost: { food: 5, wood: 3, stone: 2, common_metals: 2, labor_contracts: 2 } },
+  diplomat: { duration: 2, cost: { food: 2, common_textiles: 1, labor_contracts: 2 } },
+  spy:      { duration: 2, cost: { food: 2, common_textiles: 1, labor_contracts: 2, basic_equipment: 1 } },
+};
+
 // ─── previewRecruitmentCostPayment ────────────────────────────────────────────
 // Retourne une comparaison coût/stock sans aucun débit.
 // Utile pour que la future route preview-recruitment retourne l'affordabilité

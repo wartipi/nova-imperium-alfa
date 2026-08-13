@@ -1331,3 +1331,105 @@ La route retourne désormais `common_textiles`, `labor_contracts`, `basic_equipm
 **V3-D5-C** — Route `POST /api/cities/:cityId/start-recruitment` serveur-authoritative : body `{ unitId }`, appelle `debitCityInventoryForRecruitment`, UPSERT `city_production`.
 
 **Statut V3-D5-B :** Helpers prêts et exportés. Aucun recrutement branché. Aucune unité prototype créée. Aucune migration DB.
+
+---
+
+## Ressources V3-D5-C — Route start-recruitment serveur-authoritative
+
+### Objectif
+Ajouter `POST /api/cities/:cityId/start-recruitment` : vérifie l'accès, détermine le coût côté serveur, débite `city_inventory` via `debitCityInventoryForRecruitment()`, lance `setProduction()`. Le coût ne vient jamais du client.
+
+### Fichiers inspectés
+- `server/routes/cities.ts`, `server/cityService.ts`, `server/recruitmentService.ts`
+- `server/unitCatalog.ts`, `shared/schema.ts`
+- `client/src/components/game/RecruitmentPanel.tsx`, `client/src/lib/api/citiesApi.ts`
+
+### Fichiers modifiés
+| Fichier | Nature |
+|---|---|
+| `server/recruitmentService.ts` | Ajout `RUNTIME_RECRUITMENT_COSTS` + type `RuntimeRecruitmentEntry` |
+| `server/routes/cities.ts` | Ajout imports + route `POST /:cityId/start-recruitment` |
+
+---
+
+### Route ajoutée
+
+`POST /api/cities/:cityId/start-recruitment`
+
+**Payload :** `{ "unitType": "warrior" }`
+Le coût vient exclusivement du serveur — jamais du client.
+
+**Flux :**
+1. Parse `cityId` → 400 si invalide
+2. `checkCityAccess()` → 403/404 si accès refusé
+3. Validation `unitType` : requis, string, présent dans `UNIT_CATALOG` → 400 si inconnu
+4. Lookup `RUNTIME_RECRUITMENT_COSTS[unitType]` → 400 si absent
+5. Vérification production active (`city_production`) → 409 si existante
+6. `debitCityInventoryForRecruitment(cityId, cost)` → 400 + `missing[]` si insuffisant
+7. `setProduction(cityId, { type:'unit', name:unitType, cost:duration, progress:0 }, playerId)`
+8. Retourne `{ ok, cityId, unitType, production, debited }`
+
+**Réponses :**
+- `201` succès : `{ ok, cityId, unitType, production: { type, name, cost, progress }, debited }`
+- `400` ressources insuffisantes : `{ error:"INSUFFICIENT_CITY_INVENTORY", missing:[] }`
+- `409` production déjà active : `{ error:"Une production est déjà en cours dans cette ville" }`
+- `400` unitType inconnu : liste des types supportés incluse
+
+---
+
+### Unités supportées + coûts serveur temporaires (`RUNTIME_RECRUITMENT_COSTS`)
+
+| unitType | duration | food | wood | stone | common_metals | common_textiles | labor_contracts | basic_equipment |
+|---|---|---|---|---|---|---|---|---|
+| warrior | 2 | 2 | – | – | – | – | 1 | 1 |
+| spearman | 2 | 2 | 1 | – | 1 | – | 1 | 1 |
+| swordsman | 3 | 3 | – | – | 2 | – | 1 | 2 |
+| archer | 2 | 2 | 1 | – | – | 1 | 1 | – |
+| crossbowman | 3 | 2 | 1 | – | 1 | 1 | 1 | 1 |
+| catapult | 4 | – | 4 | 2 | 3 | – | 2 | 2 |
+| trebuchet | 5 | – | 5 | 3 | 4 | – | 3 | 3 |
+| horseman | 3 | 4 | – | – | 2 | – | 1 | 1 |
+| knight | 4 | 5 | – | – | 4 | – | 2 | 3 |
+| galley | 3 | 2 | 4 | – | 2 | – | 2 | 1 |
+| warship | 4 | 3 | 6 | – | 4 | – | 3 | 2 |
+| scout | 1 | 1 | – | – | – | – | 1 | – |
+| settler | 3 | 5 | 3 | 2 | 2 | – | 2 | – |
+| diplomat | 2 | 2 | – | – | – | 1 | 2 | – |
+| spy | 2 | 2 | – | – | – | 1 | 2 | 1 |
+
+Ces coûts sont des valeurs prototype non équilibrées — à remplacer par les `creationCost` de `LAND_UNIT_CATALOG` quand les IDs seront réconciliés (V3-D5-E).
+
+---
+
+### Atomicité débit + setProduction — risque résiduel documenté
+
+Le débit `city_inventory` et l'UPSERT `city_production` ne sont **pas** dans une transaction DB unique. Si `setProduction()` échoue après un débit réussi, les ressources sont perdues sans unité en file — ce cas est loggué explicitement avec `[CRITIQUE]`. Correction prévue en **V3-D5-C2** via transaction Drizzle explicite.
+
+---
+
+### Confirmations
+- **`RecruitmentPanel.tsx` non modifié** — l'ancien flux `trainUnit → PUT /production` reste intact.
+- **`productionCost:number` inchangé** — `cost` dans `city_production` reste la durée en tours.
+- **`shared/landUnitCatalog.ts` passif** — non importé, non modifié.
+- **`tickCityProduction()` non modifié** — complétion inchangée.
+- **`createProducedUnit()` non modifié** — lira UNIT_CATALOG au tick de complétion.
+- **Aucune unité prototype** branchée dans `server/unitCatalog.ts`.
+
+### Tests documentés
+| Cas | Comportement attendu |
+|---|---|
+| `unitType` absent | 400 |
+| `unitType` inconnu (ex. "militia") | 400 + liste des types supportés |
+| Ville inaccessible | 403/404 via checkCityAccess |
+| Production déjà active | 409 |
+| food=0, coût food>0 | 400 + `missing:[{ resource:"food", ... }]` |
+| Ressources suffisantes | 201 + débit DB + city_production créée |
+| Double appel rapide | 2e échoue par 409 (production active) ou débit atomique 0-lignes |
+
+### Résultat TypeScript
+`npx tsc --noEmit` : **187 erreurs** — baseline inchangée.
+
+### Prochaine étape recommandée
+**V3-D5-D** — Adapter `RecruitmentPanel.tsx` pour appeler `POST /start-recruitment` et afficher les coûts depuis le catalogue prototype.
+
+**Statut V3-D5-C :** Route serveur prête. Débit multi-ressources actif uniquement via la nouvelle route. Ancien recrutement UI inchangé. Aucune unité prototype branchée.
