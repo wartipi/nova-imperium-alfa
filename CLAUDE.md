@@ -964,3 +964,263 @@ Tous corrigés dans une passe additive sans modifier la logique métier.
 - **Commit :** fourni par le prochain checkpoint automatique.
 
 **Statut :** correction appliquée. La route banque retourne maintenant les 3 ressources prototype correctement.
+
+---
+
+## Ressources V3-D5 — Audit architecture recrutement multi-ressources
+
+### Objectif
+Cartographier précisément le système de recrutement existant afin de concevoir l'intégration d'un débit multi-ressources serveur-authoritative compatible avec `shared/landUnitCatalog.ts`. Aucune implémentation dans ce bloc.
+
+### Fichiers inspectés
+- `shared/landUnitCatalog.ts` — catalogue design prototype (15 unités, coûts V3)
+- `shared/economicResources.ts` — CanonicalResourceId, LEGACY_TO_CANONICAL
+- `server/unitCatalog.ts` — UNIT_CATALOG runtime (stats combat uniquement, 15 entrées)
+- `server/cityService.ts` — setProduction, createProducedUnit, tickCityProduction, clearProduction
+- `server/routes/cities.ts` — PUT /production, POST /start-construction, GET /inventory, POST /production-tick
+- `shared/schema.ts` — tables city_production, units (colonnes)
+- `client/src/components/game/RecruitmentPanel.tsx` — UI recrutement, coûts hardcodés
+- `client/src/lib/stores/useNovaImperium.tsx` — trainUnit (débit ressources client-side)
+- `client/src/lib/api/citiesApi.ts` — apiSetProduction, apiProductionTick, apiStartConstruction
+
+---
+
+### Schéma du recrutement actuel (flux complet)
+
+```
+[RecruitmentPanel] → handleRecruit(unitId, cityId)
+  ↓
+[useNovaImperium.trainUnit]
+  ├─ Déduit ressources dans le STATE ZUSTAND (côté client — pas de validation serveur)
+  └─ apiSetProduction(cityId, { type:'unit', name:unitType, cost:recruitmentTime, progress:0 })
+       ↓
+  [PUT /api/cities/:cityId/production] → checkCityAccess() → setProduction()
+       ↓
+  city_production UPSERT : { productionType:'unit', productionName:unitType,
+                              productionCost:recruitmentTime, productionProgress:0 }
+
+[handleEndTurn] → apiProductionTick()
+  ↓
+[POST /api/cities/production-tick] → tickCityProduction()
+  ├─ productionProgress += city.productionPerTurn (chaque tick)
+  └─ si progress >= cost :
+       └─ UNIT_CATALOG[productionName] → createProducedUnit()
+            ↓ INSERT INTO units (stats depuis UNIT_CATALOG serveur)
+            ↓ clearProduction(cityId)
+```
+
+**Résumé des points clés :**
+
+| Point | Valeur actuelle |
+|---|---|
+| Déclencheur client | `RecruitmentPanel.tsx` → `trainUnit()` |
+| API appelée | `PUT /api/cities/:cityId/production` via `apiSetProduction` |
+| Payload | `{ type:'unit', name:unitId, cost:recruitmentTime, progress:0 }` |
+| Validation serveur ressources | **Aucune** — le serveur accepte sans vérifier le stock |
+| Débit ressources | **Client-side uniquement** (Zustand state) — non persisté en DB |
+| `productionCost` en DB | = durée en tours (`recruitmentTime`), PAS le coût en ressources |
+| `productionProgress` | incrémenté par `city.productionPerTurn` à chaque tick |
+| Création unité | `createProducedUnit()` dans `cityService.ts` |
+| Table production | `city_production` (UNIQUE city_id — une seule file par ville) |
+| Table unités | `units` (colonnes: unitType, name, attack, defense, health, movement…) |
+| Source stats runtime | `server/unitCatalog.ts` → `UNIT_CATALOG` |
+
+---
+
+### Points de friction avec shared/landUnitCatalog.ts
+
+**1. IDs d'unités incompatibles**
+
+| UNIT_CATALOG (serveur runtime) | LAND_UNIT_CATALOG (prototype) |
+|---|---|
+| warrior, spearman, swordsman | militia, garrison, patrollers |
+| archer, crossbowman | scouts, light_infantry, bow_infantry |
+| catapult, trebuchet | crossbow_infantry, sappers, field_engineers |
+| horseman, knight | raid_troops, hunters, pikemen |
+| galley, warship, scout, settler… | (aucun équivalent) |
+
+Aucun ID ne se recoupe. La création d'unité via `createProducedUnit()` appellera `UNIT_CATALOG[unitType]` et échouera avec "Type inconnu" pour tout ID du catalogue prototype.
+
+**2. Coûts hardcodés côté client**
+`RecruitmentPanel.tsx` (l.17–42) définit des coûts locaux en `{ food, fracten, wood, common_metals… }` — jamais lus depuis `landUnitCatalog.ts`. Ces valeurs divergent des `creationCost` du catalogue prototype.
+
+**3. Ressources V3 absentes du GET /inventory**
+`routes/cities.ts` l.277–292 : `GET /:cityId/inventory` ne retourne PAS `common_textiles`, `labor_contracts`, `basic_equipment`. Les colonnes existent en DB (ajoutées en V3-D2) mais la route ne les expose pas — blocage pour la vérification de stock avant recrutement.
+
+**4. Débit client-side non persisté**
+`trainUnit()` soustrait les ressources du Zustand state uniquement. À chaque reload, le state se resynchronise depuis le serveur et les ressources "dépensées" réapparaissent. Aucune transaction réelle ne se produit.
+
+**5. Stats combat absentes du catalogue prototype**
+`landUnitCatalog.ts` ne contient pas `attack`, `defense`, `health` — uniquement mobilité stratégique (`maxMovementPerTurn`, `actionPointCostPerTile`). Pour créer des unités combat-ready, `server/unitCatalog.ts` doit être étendu ou les prototypes enrichis.
+
+---
+
+### A. server/unitCatalog.ts — rôle à conserver
+
+**Oui, source de vérité à court terme.** Contient `attack`, `defense`, `health`, `movement`, `strength`. `createProducedUnit()` en dépend directement — ne pas désintégrer sans plan de migration stats. Doit rester authoritative jusqu'à V3-D5-E au minimum.
+
+### B. shared/landUnitCatalog.ts — rôle futur
+
+Catalogue design passif pour : `creationCost`, `upkeepPerTurn`, `maxMovementPerTurn`, `siegeWearPoints`, `creationProfile`. Ne remplace pas les stats combat de `server/unitCatalog.ts` sans plan dédié.
+
+---
+
+### Source de paiement recommandée : city_inventory
+
+**Recommandation : `city_inventory` comme source principale.**
+
+- Pattern déjà existant et testé (`start-construction` débite `city_inventory` de manière atomique)
+- Logistique locale cohérente : une ville recrute avec son stock physique
+- La route `GET /:cityId/inventory` existe déjà (à étendre pour les 3 ressources V3)
+- `player_bank` convient pour `fracten` si nécessaire (hybride possible en V3-D5-C+)
+
+Le pattern de `start-construction` est le modèle à reproduire :
+```
+vérifier stock → insuffisant → 422 INSUFFICIENT_CITY_INVENTORY
+                → suffisant  → débiter city_inventory + UPSERT city_production
+```
+
+---
+
+### Modèle de coût multi-ressources recommandé
+
+```typescript
+// Compatible avec CanonicalResourceId depuis shared/economicResources.ts
+// (importable côté serveur sans problème)
+type RecruitmentResourceCost = Partial<Record<
+  | 'food' | 'wood' | 'stone'
+  | 'common_metals' | 'common_textiles'
+  | 'labor_contracts' | 'basic_equipment',
+  number
+>>;
+```
+
+**Ressources à exclure des coûts prototype :** `fuel`, `common_ingredients`, `coal`, `oil`, `herbs` — délibéré (non migrés).
+
+**Catalogue de coûts serveur (futur) :** table de correspondance `LandUnitId → RecruitmentResourceCost` côté serveur, initialisée depuis les `creationCost` de `landUnitCatalog.ts` (ou recopiée statiquement pour éviter la dépendance shared→server).
+
+---
+
+### Architecture de débit atomique proposée
+
+```typescript
+// Futur helper passif — server/recruitmentService.ts (V3-D5-B)
+async function debitCityInventoryForRecruitment(
+  cityId: number,
+  cost: RecruitmentResourceCost,
+): Promise<void | { error: 'INSUFFICIENT'; missing: Record<string, { required: number; available: number }> }> {
+  // 1. Lire city_inventory (SELECT FOR UPDATE dans transaction)
+  // 2. Vérifier chaque ressource du cost
+  //    → accumuler { resource: { required, available } } si manquant
+  // 3. Si manque → retourner erreur lisible (PAS d'UPDATE)
+  // 4. Si tout OK → UPDATE city_inventory SET r = r - cost[r] pour chaque r
+  //    → en une seule transaction atomique
+}
+```
+
+**Propriétés clés :**
+- Vérification exhaustive avant tout débit (pas de débit partiel)
+- Transaction atomique (rollback automatique si une ressource est insuffisante)
+- Erreur structurée : `{ resource, required, available }` par ressource manquante
+- Aucun débit si la ville n'a pas de ligne `city_inventory` (à créer à 0)
+
+---
+
+### Recommandation pour productionCost:number — Option A
+
+**Conserver `productionCost` comme durée/progression uniquement.**
+
+- `productionCost` = nombre de tours (ou points de production) nécessaires à la complétion
+- Les ressources sont débitées **au lancement** (`startRecruitment`), pas à la complétion
+- Avantage : aucun refactor de `tickCityProduction`, du schema DB `city_production`, ni de `apiProductionTick`
+- Le nom reste ambigu mais le commentaire dans le code le documente suffisamment
+- Option B (renommer en `productionDuration`) ou C (ajouter colonne `resource_cost`) reportées à V3-D6+
+
+---
+
+### Plan de blocs progressif recommandé
+
+**V3-D5-A — Audit architecture** ✅ (ce bloc)
+
+**V3-D5-B — Helpers serveur passifs**
+- `server/recruitmentService.ts` : `debitCityInventoryForRecruitment()`, `getPrototypeCost(unitId)`
+- Table statique `PROTOTYPE_UNIT_COSTS: Record<string, RecruitmentResourceCost>` (copiée de `landUnitCatalog.ts`)
+- Pas de route branchée, pas d'UI modifiée
+- Étendre `GET /:cityId/inventory` pour exposer `common_textiles`, `labor_contracts`, `basic_equipment`
+
+**V3-D5-C — Nouvelle route startRecruitment serveur-authoritative**
+- `POST /api/cities/:cityId/start-recruitment` : body `{ unitId }`, débite `city_inventory`, UPSERT `city_production`
+- Validation : `checkCityAccess` + `debitCityInventoryForRecruitment` + bloquer si ville occupée
+- **Ne pas encore brancher** le `RecruitmentPanel` à cette route
+
+**V3-D5-D — RecruitmentPanel affiche coûts depuis catalogue prototype**
+- Lire `LAND_UNIT_CATALOG` (ou PROTOTYPE_UNIT_COSTS) pour afficher les `creationCost` réels
+- Appeler `POST /api/cities/:cityId/start-recruitment` au lieu de `trainUnit`
+- Ne PAS encore supprimer les anciens IDs d'unités (warrior, etc.) — les conserver en parallèle
+
+**V3-D5-E — Unités prototype dans server/unitCatalog.ts**
+- Ajouter les 15 `LandUnitId` dans `UNIT_CATALOG` avec stats combat provisoires
+- `createProducedUnit()` peut alors créer des unités militia, garrison, etc.
+- `tickCityProduction` gère les deux familles d'IDs
+
+**V3-D5-F — Tests de recrutement**
+- Voir section Tests recommandés ci-dessous
+
+---
+
+### Risques identifiés
+
+| Risque | Sévérité | Notes |
+|---|---|---|
+| IDs incompatibles UNIT_CATALOG / LAND_UNIT_CATALOG | 🔴 Bloquant | La création d'unité prototype échouera à la complétion — à résoudre en V3-D5-E avant tout test |
+| Recrutement actuel sans validation serveur | 🔴 | Débit client-side rechargeable — à remplacer par V3-D5-C |
+| Double débit si production annulée et relancée | 🟠 | La route `start-recruitment` doit bloquer si `city_production` déjà occupée ; pas de remboursement automatique en V3-D5-C |
+| `city_inventory` absent de GET /inventory pour 3 ressources V3 | 🟠 | Bloque l'affichage stock en UI — à corriger en V3-D5-B |
+| Mismatch coûts client / coûts serveur | 🟠 | Le client hardcode ses propres coûts — risque d'incohérence si V3-D5-D est incomplet |
+| Permission ville non propriétaire | 🟡 | `checkCityAccess` couvre déjà ownerType=faction/player — à réutiliser |
+| Double clic recrutement | 🟡 | `city_production` est UNIQUE(city_id) → second INSERT refusé ; UI à désactiver pendant la requête |
+| Stats combat manquantes dans landUnitCatalog.ts | 🟡 | À résoudre en V3-D5-E — fournir valeurs provisoires dans UNIT_CATALOG |
+| Remboursement si annulation production | 🟡 | Non prévu en V3-D5-C — à concevoir en V3-D5-F |
+| Conflit productionCost:number / coût multi-ressources | 🟢 | Résolu par Option A : rôles distincts, pas de conflit |
+
+---
+
+### Tests recommandés (V3-D5-F)
+
+**Tests de recrutement réussi**
+1. Milice (food:2, labor_contracts:1) — city_inventory suffisant → unité créée après tick
+2. Infanterie régulière (food:4, labor_contracts:1, basic_equipment:1) — vérifier débit exact
+
+**Tests d'échec par ressource insuffisante**
+3. food insuffisant → 422 `INSUFFICIENT_CITY_INVENTORY` avec détail food
+4. labor_contracts = 0 → même erreur avec détail labor_contracts
+5. basic_equipment = 0 → même erreur avec détail basic_equipment
+6. Plusieurs ressources insuffisantes → erreur liste toutes les manquantes
+
+**Tests de contraintes**
+7. Ville sans city_inventory → traiter comme 0 partout (pas de crash)
+8. Joueur non propriétaire → 403 ACCÈS REFUSÉ (checkCityAccess)
+9. Double clic (ville déjà en production) → 409 VILLE_OCCUPÉE
+10. Annulation production (`DELETE /production`) → vérifier que les ressources ne sont PAS remboursées en V3-D5-C
+
+**Tests du tick**
+11. Tick avec unitId prototype (militia) → unité créée si UNIT_CATALOG contient l'entrée
+12. Tick avec unitId prototype absent de UNIT_CATALOG → warning log + clearProduction (pas de crash)
+
+**Tests intégration**
+13. Recrutement avec ressources suffisantes → tick → unité apparaît dans `/api/units/me`
+14. Reload page après recrutement → ressources débitées persistées (non rechargées)
+
+---
+
+### Résultat TypeScript
+`npx tsc --noEmit` : **187 erreurs** — baseline inchangée (aucun fichier modifié dans ce bloc).
+
+### Confirmation
+- Aucun fichier runtime modifié.
+- Aucun recrutement branché.
+- Aucun débit multi-ressources implémenté.
+- Aucune unité modifiée.
+- Aucune migration DB.
+
+**Statut V3-D5-A :** Audit complet. Architecture documentée. Prêt pour V3-D5-B.

@@ -1,0 +1,318 @@
+NOVA IMPERIUM — Ressources V3-D5
+Audit et architecture du recrutement multi-ressources serveur-authoritative
+
+RÔLE
+Tu es l’agent technique sur le repo Nova Imperium.
+Objectif : préparer le remplacement contrôlé de l’ancien système de recrutement basé sur productionCost:number par une architecture de recrutement multi-ressources compatible avec shared/landUnitCatalog.ts.
+
+IMPORTANT
+
+Ce bloc est un AUDIT + PLAN D’ARCHITECTURE.
+Ne pas implémenter le recrutement multi-ressources dans ce bloc.
+Ne pas modifier la DB.
+Ne pas modifier shared/landUnitCatalog.ts.
+Ne pas modifier les coûts d’unités.
+Ne pas modifier server/unitCatalog.ts sauf lecture/audit.
+Ne pas modifier RecruitmentPanel.tsx sauf lecture/audit.
+Ne pas modifier cityService.ts sauf lecture/audit.
+Ne pas modifier les bâtiments producteurs.
+Ne pas modifier les ressources.
+Ne pas migrer coal/oil/herbs.
+Mettre à jour CLAUDE.md avec le rapport.
+
+CONTEXTE VALIDÉ
+
+Les blocs suivants sont validés :
+
+V3-D2
+- common_textiles, labor_contracts, basic_equipment ajoutés au runtime :
+  - DB
+  - player_bank
+  - city_inventory
+  - city_pending_harvest
+  - player_transport
+  - player_market_box
+  - marché
+  - transferts
+  - UI
+
+V3-D3
+- UI/payloads vérifiés.
+- economyApi.ts corrigé.
+- Les DTOs et payloads transmettent les 3 ressources.
+
+V3-D4
+- Bâtiments producteurs ajoutés :
+  - atelier_tisserand → common_textiles +1/tour
+  - bureau_de_recrutement → labor_contracts +1/tour
+  - forge_basique → basic_equipment +1/tour
+- Tick de production branché.
+- Banque joueur corrigée pour renvoyer les 3 ressources.
+- Recrutement non branché.
+- shared/landUnitCatalog.ts reste passif.
+
+PROBLÈME ACTUEL
+
+Le système de recrutement existant semble encore basé sur :
+
+- productionCost: number
+- productionProgress
+- file de production ville
+- création d’unité à la fin de production
+
+Mais les unités prototype dans shared/landUnitCatalog.ts utilisent maintenant :
+
+- creationCost: Partial<Record<CanonicalResourceId, number>>
+- upkeepPerTurn
+- maxMovementPerTurn
+- actionPointCostPerTile
+- siegeWearPoints
+- creationProfile
+- creationCategory
+
+Le futur recrutement doit donc devenir serveur-authoritative et débiter plusieurs ressources réelles depuis un stock autorisé.
+
+OBJECTIF DE L’AUDIT
+
+Déterminer précisément comment intégrer le paiement multi-ressources sans casser le système actuel.
+
+À INSPECTER
+
+Lire au minimum :
+
+- shared/landUnitCatalog.ts
+- shared/economicResources.ts
+- server/unitCatalog.ts
+- server/cityService.ts
+- server/routes/cities.ts
+- shared/schema.ts
+- client/src/components/game/RecruitmentPanel.tsx
+- client/src/lib/api/citiesApi.ts
+- client/src/lib/api/economyApi.ts
+- client/src/components/game/CityManagementPanel.tsx
+- tout fichier lié à :
+  - city_production
+  - productionCost
+  - productionProgress
+  - unit recruitment
+  - create unit
+  - complete production
+  - start production
+  - production queue
+  - units table
+
+QUESTIONS À RÉPONDRE
+
+1. Système actuel de recrutement
+
+Décrire précisément :
+
+- Où l’utilisateur lance le recrutement côté client.
+- Quelle API est appelée.
+- Quel payload est envoyé.
+- Où le serveur valide la demande.
+- Où productionCost:number est défini.
+- Où productionProgress est mis à jour.
+- Où l’unité est finalement créée.
+- Quelle table stocke la production en cours.
+- Quelle table stocke les unités créées.
+- Quelle source détermine les stats runtime actuelles des unités.
+
+2. Séparation à conserver
+
+Distinguer clairement :
+
+A. server/unitCatalog.ts
+- source runtime actuelle des stats combat ?
+- utilisé pour attack/defense/health/movement/strength ?
+- doit-il rester source de vérité à court terme ?
+
+B. shared/landUnitCatalog.ts
+- catalogue design prototype passif
+- source future des coûts, profils, usure, mobilité stratégique
+- ne doit pas encore remplacer directement les stats combat sans plan
+
+3. Source du paiement
+
+Déterminer quel stock doit payer les coûts de recrutement.
+
+Options à comparer :
+
+A. city_inventory
+- logique : la ville recrute avec son stock local
+- avantage : logistique locale forte
+- risque : il faut déposer les ressources en ville
+
+B. player_bank
+- logique : recrutement payé par banque centrale du joueur
+- avantage : simple
+- risque : moins stratégique/logistique
+
+C. hybride
+- ville paie les ressources matérielles
+- banque paie fracten / contrats / ressources globales
+- risque : complexité
+
+Recommandation attendue :
+Pour le prototype, recommander une approche simple et robuste, probablement city_inventory comme source principale, sauf si l’architecture actuelle rend cela trop risqué.
+
+4. Modèle de coût multi-ressources
+
+Proposer une structure serveur pour représenter un coût :
+
+Exemple :
+
+type RecruitmentResourceCost = Partial<Record<CanonicalResourceId, number>>;
+
+Mais vérifier si le serveur peut importer CanonicalResourceId sans problème.
+
+Déterminer si les clés suivantes sont compatibles runtime :
+
+- food
+- wood
+- common_metals
+- common_textiles
+- labor_contracts
+- basic_equipment
+
+Attention :
+Ne pas utiliser fuel/common_ingredients dans le recrutement maintenant.
+Ne pas utiliser coal/oil/herbs dans les coûts d’unités prototype.
+
+5. Débit atomique
+
+Proposer une fonction serveur future du type :
+
+debitCityInventoryForRecruitment(cityId, cost)
+
+Elle doit :
+- vérifier que tous les montants sont disponibles ;
+- débiter toutes les ressources en une transaction ;
+- échouer sans rien débiter si une ressource manque ;
+- retourner une erreur lisible :
+  - ressource manquante
+  - requis
+  - disponible
+
+Ne pas coder maintenant.
+Seulement proposer l’architecture.
+
+6. Interaction avec productionCost:number
+
+Déterminer comment gérer l’ancien système :
+
+Option A — conserver productionCost comme durée/progression uniquement
+- les ressources sont débitées au lancement ;
+- productionCost reste le temps/coût de production abstrait ;
+- avantage : moins de refactor ;
+- risque : le nom productionCost devient ambigu.
+
+Option B — remplacer productionCost par productionDuration ou productionPointsRequired
+- plus propre ;
+- risque : migration plus lourde.
+
+Option C — ajouter un champ metadata/resourceCost dans city_production
+- permet garder compatibilité ;
+- risque : nécessite adaptation.
+
+Recommander l’option la plus sûre pour un premier branchement.
+
+7. Branchement progressif recommandé
+
+Proposer une séquence de blocs après cet audit.
+
+Exemple attendu :
+
+V3-D5-A — Audit architecture recrutement multi-ressources
+V3-D5-B — Ajouter helpers serveur passifs de coût/débit sans brancher UI
+V3-D5-C — Brancher startProduction côté serveur avec coût multi-ressources depuis city_inventory
+V3-D5-D — Adapter RecruitmentPanel pour afficher les coûts de shared/landUnitCatalog.ts
+V3-D5-E — Brancher création d’unité en conservant server/unitCatalog.ts pour stats combat
+V3-D5-F — Tests de recrutement : ressources suffisantes / insuffisantes / rollback
+
+Adapter selon ce que tu trouves réellement dans le code.
+
+8. Risques
+
+Identifier les risques :
+
+- double débit si production annulée/recommencée ;
+- remboursement si production annulée ;
+- mismatch entre coûts client et serveur ;
+- unités du catalogue prototype non reconnues par server/unitCatalog.ts ;
+- noms d’unités différents entre shared/landUnitCatalog.ts et server/unitCatalog.ts ;
+- absence de colonnes DB pour certains coûts ;
+- conflit entre productionCost:number et coût multi-ressources ;
+- potentiel bug de permissions city owner / governor ;
+- risque de recruter dans une ville non accessible.
+
+9. Tests recommandés
+
+Proposer des tests manuels ou techniques :
+
+- recrutement avec ressources suffisantes ;
+- recrutement avec food insuffisant ;
+- recrutement avec labor_contracts insuffisant ;
+- recrutement avec basic_equipment insuffisant ;
+- ville sans stock local ;
+- joueur non propriétaire/non gouverneur ;
+- double clic recrutement ;
+- annulation production ;
+- tick de production pendant recrutement ;
+- création finale unité.
+
+VALIDATION TECHNIQUE
+
+Exécuter :
+
+npx tsc --noEmit
+
+Baseline connue :
+
+- 187 erreurs TypeScript préexistantes.
+
+Comme ce bloc est audit seulement, aucune régression ne devrait apparaître.
+
+CLAUDE.md
+
+Ajouter une section :
+
+“Ressources V3-D5 — Audit architecture recrutement multi-ressources”
+
+Inclure :
+
+- objectif ;
+- fichiers inspectés ;
+- résumé du recrutement actuel ;
+- source de paiement recommandée ;
+- modèle de coût recommandé ;
+- option retenue pour productionCost:number ;
+- plan de branchement progressif ;
+- risques ;
+- tests recommandés ;
+- résultat TypeScript ;
+- confirmation : aucun runtime modifié, aucun recrutement branché.
+
+SORTIE ATTENDUE
+
+Répondre avec :
+
+1. Fichiers inspectés.
+2. Schéma clair du recrutement actuel.
+3. Points de friction avec shared/landUnitCatalog.ts.
+4. Source de paiement recommandée.
+5. Architecture proposée pour le débit multi-ressources.
+6. Recommandation pour productionCost:number.
+7. Plan de blocs suivant.
+8. Risques.
+9. Tests recommandés.
+10. Résultat TypeScript.
+11. Confirmation qu’aucune implémentation n’a été faite.
+
+STATUT ATTENDU
+
+Audit seulement.
+Aucun recrutement branché.
+Aucun débit multi-ressources implémenté.
+Aucune unité modifiée.
+Aucune migration DB.
