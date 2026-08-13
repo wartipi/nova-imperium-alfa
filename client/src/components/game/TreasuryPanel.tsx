@@ -42,15 +42,19 @@ interface CityHarvestState {
 }
 
 interface TransferState {
-  fracten:       string;
-  common_metals: string;
-  leather_fur:   string;
-  food:          string;
-  wood:          string;
-  stone:         string;
-  coal:          string;
-  oil:           string;
-  herbs:         string;
+  fracten:          string;
+  common_metals:    string;
+  leather_fur:      string;
+  food:             string;
+  wood:             string;
+  stone:            string;
+  coal:             string;
+  oil:              string;
+  herbs:            string;
+  // V3-D2
+  common_textiles:  string;
+  labor_contracts:  string;
+  basic_equipment:  string;
   cityId:  string;
   loading: boolean;
   message: string | null;
@@ -77,26 +81,32 @@ function parseAmount(s: string): number {
 }
 
 type Mats = {
-  fracten?:       number;
-  common_metals?: number;
-  leather_fur?:   number;
-  food?:          number;
-  wood?:          number;
-  stone?:         number;
-  coal?:          number;
-  oil?:           number;
-  herbs?:         number;
+  fracten?:          number;
+  common_metals?:    number;
+  leather_fur?:      number;
+  food?:             number;
+  wood?:             number;
+  stone?:            number;
+  coal?:             number;
+  oil?:              number;
+  herbs?:            number;
+  // V3-D2
+  common_textiles?:  number;
+  labor_contracts?:  number;
+  basic_equipment?:  number;
 };
 
 function isMatsEmpty(m: Mats): boolean {
   return (m.fracten ?? 0) === 0 && (m.common_metals ?? 0) === 0 && (m.leather_fur ?? 0) === 0
       && (m.food ?? 0) === 0 && (m.wood ?? 0) === 0 && (m.stone ?? 0) === 0
-      && (m.coal ?? 0) === 0 && (m.oil ?? 0) === 0 && (m.herbs ?? 0) === 0;
+      && (m.coal ?? 0) === 0 && (m.oil ?? 0) === 0 && (m.herbs ?? 0) === 0
+      && (m.common_textiles ?? 0) === 0 && (m.labor_contracts ?? 0) === 0 && (m.basic_equipment ?? 0) === 0;
 }
 
 const MAT_ICONS: Array<[keyof Mats, string]> = [
   ['fracten','💎'],['common_metals','⚒️'],['leather_fur','🧥'],
   ['food','🌾'],['wood','🪵'],['stone','🪨'],['coal','⚫'],['oil','🛢️'],['herbs','🌿'],
+  ['common_textiles','🧶'],['labor_contracts','📜'],['basic_equipment','🛡️'], // V3-D2
 ];
 
 function formatMats(m: Mats): string {
@@ -117,15 +127,19 @@ interface ResourceDef {
 }
 
 const RESOURCE_DEFS: ResourceDef[] = [
-  { key: 'fracten',       icon: 'Ⓕ', label: 'Fracten'               },
-  { key: 'common_metals', icon: '⚒️', label: 'Métaux communs'        },
-  { key: 'leather_fur',   icon: '🧥', label: 'Cuir & fourrure'       },
-  { key: 'food',          icon: '🌾', label: 'Nourriture'            },
-  { key: 'wood',          icon: '🪵', label: 'Bois'                  },
-  { key: 'stone',         icon: '🪨', label: 'Pierre'                },
-  { key: 'coal',          icon: '⚫', label: 'Charbon'               },
-  { key: 'oil',           icon: '🛢️', label: 'Pétrole'               },
-  { key: 'herbs',         icon: '🌿', label: 'Herbes'                },
+  { key: 'fracten',          icon: 'Ⓕ',  label: 'Fracten'               },
+  { key: 'common_metals',    icon: '⚒️',  label: 'Métaux communs'        },
+  { key: 'leather_fur',      icon: '🧥',  label: 'Cuir & fourrure'       },
+  { key: 'food',             icon: '🌾',  label: 'Nourriture'            },
+  { key: 'wood',             icon: '🪵',  label: 'Bois'                  },
+  { key: 'stone',            icon: '🪨',  label: 'Pierre'                },
+  { key: 'coal',             icon: '⚫',  label: 'Charbon'               },
+  { key: 'oil',              icon: '🛢️',  label: 'Pétrole'               },
+  { key: 'herbs',            icon: '🌿',  label: 'Herbes'                },
+  // V3-D2 : ressources prototype unités
+  { key: 'common_textiles',  icon: '🧶',  label: 'Textiles communs'      },
+  { key: 'labor_contracts',  icon: '📜',  label: 'Contrats de travail'   },
+  { key: 'basic_equipment',  icon: '🛡️',  label: 'Équipement basique'    },
 ];
 
 function visibleResources(
@@ -253,6 +267,7 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
   const EMPTY_TRANSFER: TransferState = {
     fracten: "", common_metals: "", leather_fur: "",
     food: "", wood: "", stone: "", coal: "", oil: "", herbs: "",
+    common_textiles: "", labor_contracts: "", basic_equipment: "", // V3-D2
     cityId: "", loading: false, message: null,
   };
 
@@ -354,15 +369,18 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
   const handleTransferToCity = async () => {
     const cityId = parseInt(toCity.cityId, 10);
     const mats = {
-      fracten:       parseAmount(toCity.fracten),
-      common_metals: parseAmount(toCity.common_metals),
-      leather_fur:   parseAmount(toCity.leather_fur),
-      food:          parseAmount(toCity.food),
-      wood:          parseAmount(toCity.wood),
-      stone:         parseAmount(toCity.stone),
-      coal:          parseAmount(toCity.coal),
-      oil:           parseAmount(toCity.oil),
-      herbs:         parseAmount(toCity.herbs),
+      fracten:          parseAmount(toCity.fracten),
+      common_metals:    parseAmount(toCity.common_metals),
+      leather_fur:      parseAmount(toCity.leather_fur),
+      food:             parseAmount(toCity.food),
+      wood:             parseAmount(toCity.wood),
+      stone:            parseAmount(toCity.stone),
+      coal:             parseAmount(toCity.coal),
+      oil:              parseAmount(toCity.oil),
+      herbs:            parseAmount(toCity.herbs),
+      common_textiles:  parseAmount(toCity.common_textiles), // V3-D2
+      labor_contracts:  parseAmount(toCity.labor_contracts), // V3-D2
+      basic_equipment:  parseAmount(toCity.basic_equipment), // V3-D2
     };
     if (isNaN(cityId) || cityId < 1) {
       setToCity(prev => ({ ...prev, message: "❌ Sélectionnez une ville" }));
@@ -382,7 +400,8 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
         : `⏳ Transfert en cours — ${min} min`;
       setToCity(prev => ({ ...prev, loading: false, message: msg,
         fracten: "", common_metals: "", leather_fur: "",
-        food: "", wood: "", stone: "", coal: "", oil: "", herbs: "" }));
+        food: "", wood: "", stone: "", coal: "", oil: "", herbs: "",
+        common_textiles: "", labor_contracts: "", basic_equipment: "" })); // V3-D2
       setTimeout(() => {
         getPlayerBank().then(b => setBank(b)).catch(() => {});
         window.dispatchEvent(new CustomEvent('nova:logistic-refresh'));
@@ -412,15 +431,18 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
 
   const handleTransferToPlayer = async () => {
     const mats = {
-      fracten:       parseAmount(toPlayer.fracten),
-      common_metals: parseAmount(toPlayer.common_metals),
-      leather_fur:   parseAmount(toPlayer.leather_fur),
-      food:          parseAmount(toPlayer.food),
-      wood:          parseAmount(toPlayer.wood),
-      stone:         parseAmount(toPlayer.stone),
-      coal:          parseAmount(toPlayer.coal),
-      oil:           parseAmount(toPlayer.oil),
-      herbs:         parseAmount(toPlayer.herbs),
+      fracten:          parseAmount(toPlayer.fracten),
+      common_metals:    parseAmount(toPlayer.common_metals),
+      leather_fur:      parseAmount(toPlayer.leather_fur),
+      food:             parseAmount(toPlayer.food),
+      wood:             parseAmount(toPlayer.wood),
+      stone:            parseAmount(toPlayer.stone),
+      coal:             parseAmount(toPlayer.coal),
+      oil:              parseAmount(toPlayer.oil),
+      herbs:            parseAmount(toPlayer.herbs),
+      common_textiles:  parseAmount(toPlayer.common_textiles), // V3-D2
+      labor_contracts:  parseAmount(toPlayer.labor_contracts), // V3-D2
+      basic_equipment:  parseAmount(toPlayer.basic_equipment), // V3-D2
     };
     if (isMatsEmpty(mats)) {
       setToPlayer(prev => ({ ...prev, message: "❌ Montant nul" }));
@@ -436,7 +458,8 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
         : `⏳ Transfert en cours — ${min} min`;
       setToPlayer(prev => ({ ...prev, loading: false, message: msg,
         fracten: "", common_metals: "", leather_fur: "",
-        food: "", wood: "", stone: "", coal: "", oil: "", herbs: "" }));
+        food: "", wood: "", stone: "", coal: "", oil: "", herbs: "",
+        common_textiles: "", labor_contracts: "", basic_equipment: "" })); // V3-D2
       // Rafraîchit uniquement la banque (déjà débitée immédiatement).
       // Le refresh inventaire transport est déclenché par ActiveActionWidget
       // à la vraie complétion (nova:logistic-refresh @ completion réelle).
@@ -469,15 +492,18 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
 
   const handleDepositToBank = async () => {
     const mats = {
-      fracten:       parseAmount(toBank.fracten),
-      common_metals: parseAmount(toBank.common_metals),
-      leather_fur:   parseAmount(toBank.leather_fur),
-      food:   parseAmount(toBank.food),
-      wood:   parseAmount(toBank.wood),
-      stone:  parseAmount(toBank.stone),
-      coal:   parseAmount(toBank.coal),
-      oil:    parseAmount(toBank.oil),
-      herbs:  parseAmount(toBank.herbs),
+      fracten:          parseAmount(toBank.fracten),
+      common_metals:    parseAmount(toBank.common_metals),
+      leather_fur:      parseAmount(toBank.leather_fur),
+      food:             parseAmount(toBank.food),
+      wood:             parseAmount(toBank.wood),
+      stone:            parseAmount(toBank.stone),
+      coal:             parseAmount(toBank.coal),
+      oil:              parseAmount(toBank.oil),
+      herbs:            parseAmount(toBank.herbs),
+      common_textiles:  parseAmount(toBank.common_textiles), // V3-D2
+      labor_contracts:  parseAmount(toBank.labor_contracts), // V3-D2
+      basic_equipment:  parseAmount(toBank.basic_equipment), // V3-D2
     };
     if (Object.values(mats).every(v => v === 0)) {
       setToBank(prev => ({ ...prev, message: "❌ Montant nul" }));
@@ -488,7 +514,8 @@ export function TreasuryPanel({ currentUser, role, adminModeEnabled }: Props) {
       await postDepositTransportToBank(mats);
       setToBank(prev => ({ ...prev, loading: false, message: "✅ Déposé en banque",
         fracten: "", common_metals: "", leather_fur: "",
-        food: "", wood: "", stone: "", coal: "", oil: "", herbs: "" }));
+        food: "", wood: "", stone: "", coal: "", oil: "", herbs: "",
+        common_textiles: "", labor_contracts: "", basic_equipment: "" })); // V3-D2
       setTimeout(() => {
         Promise.allSettled([getPlayerBank(), getPlayerTransport()]).then(([b, t]) => {
           if (b.status === "fulfilled") setBank(b.value);

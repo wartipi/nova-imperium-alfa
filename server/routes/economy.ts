@@ -200,6 +200,8 @@ router.post("/transfer-bank-to-city", requireAuth, async (req: AuthRequest, res)
       // V2 principal F2
       fracten = 0, common_metals = 0, leather_fur = 0,
       food = 0, wood = 0, stone = 0, coal = 0, oil = 0, herbs = 0,
+      // V3-D2 : ressources prototype unités
+      common_textiles = 0, labor_contracts = 0, basic_equipment = 0,
       // V1 legacy backward-compat
       gold = 0, iron = 0, copper = 0, fur = 0,
     } = req.body;
@@ -210,6 +212,7 @@ router.post("/transfer-bank-to-city", requireAuth, async (req: AuthRequest, res)
     const matList: Array<[string, number]> = [
       ["fracten",fracten],["common_metals",common_metals],["leather_fur",leather_fur],
       ["food",food],["wood",wood],["stone",stone],["coal",coal],["oil",oil],["herbs",herbs],
+      ["common_textiles",common_textiles],["labor_contracts",labor_contracts],["basic_equipment",basic_equipment], // V3-D2
       ["gold",gold],["iron",iron],["copper",copper],["fur",fur],
     ];
     for (const [k, v] of matList) {
@@ -237,6 +240,7 @@ router.post("/transfer-bank-to-city", requireAuth, async (req: AuthRequest, res)
       playerId, cityId, worldX, worldY,
       fracten, food, context,
       wood, stone, common_metals, coal, oil, herbs, leather_fur,
+      common_textiles, labor_contracts, basic_equipment, // V3-D2
       gold, iron, copper, fur,
     );
 
@@ -273,10 +277,11 @@ router.post("/transfer-bank-to-city", requireAuth, async (req: AuthRequest, res)
         effectiveWorldX:  action.startWorldX,
         effectiveWorldY:  action.startWorldY,
         effectiveTerrain: "",
-        // G4 V2 response fields — fracten/common_metals/leather_fur uniquement
+        // G4 V2 + V3-D2 response fields
         fracten, food, wood, stone,
         common_metals, coal, oil, herbs,
         leather_fur,
+        common_textiles, labor_contracts, basic_equipment, // V3-D2
       },
     });
   } catch (err: any) {
@@ -303,6 +308,8 @@ router.post("/transfer-bank-to-player", requireAuth, async (req: AuthRequest, re
       // V2 principal F2
       fracten = 0, common_metals = 0, leather_fur = 0,
       food = 0, wood = 0, stone = 0, coal = 0, oil = 0, herbs = 0,
+      // V3-D2 : ressources prototype unités
+      common_textiles = 0, labor_contracts = 0, basic_equipment = 0,
       // V1 legacy backward-compat
       gold = 0, iron = 0, copper = 0, fur = 0,
     } = req.body;
@@ -310,6 +317,7 @@ router.post("/transfer-bank-to-player", requireAuth, async (req: AuthRequest, re
     const matList: Array<[string, number]> = [
       ["fracten",fracten],["common_metals",common_metals],["leather_fur",leather_fur],
       ["food",food],["wood",wood],["stone",stone],["coal",coal],["oil",oil],["herbs",herbs],
+      ["common_textiles",common_textiles],["labor_contracts",labor_contracts],["basic_equipment",basic_equipment], // V3-D2
       ["gold",gold],["iron",iron],["copper",copper],["fur",fur],
     ];
     for (const [k, v] of matList) {
@@ -331,6 +339,7 @@ router.post("/transfer-bank-to-player", requireAuth, async (req: AuthRequest, re
       playerId,
       fracten, food, context,
       wood, stone, common_metals, coal, oil, herbs, leather_fur,
+      common_textiles, labor_contracts, basic_equipment, // V3-D2
       gold, iron, copper, fur,
     );
 
@@ -367,10 +376,11 @@ router.post("/transfer-bank-to-player", requireAuth, async (req: AuthRequest, re
         effectiveWorldX:  action.startWorldX,
         effectiveWorldY:  action.startWorldY,
         effectiveTerrain: "",
-        // G4 V2 response fields — fracten/common_metals/leather_fur uniquement
+        // G4 V2 + V3-D2 response fields
         fracten, food, wood, stone,
         common_metals, coal, oil, herbs,
         leather_fur,
+        common_textiles, labor_contracts, basic_equipment, // V3-D2
       },
     });
   } catch (err: any) {
@@ -422,14 +432,17 @@ router.post("/deposit-transport-to-city", requireAuth, async (req: AuthRequest, 
     const {
       // Bloc C V2 — ressources V2
       fracten = 0, common_metals = 0, leather_fur = 0,
+      // V3-D2 : ressources prototype unités
+      common_textiles = 0, labor_contracts = 0, basic_equipment = 0,
       // V1 legacy
       gold = 0, food = 0, wood = 0, stone = 0, iron = 0,
       copper = 0, coal = 0, oil = 0, herbs = 0, fur = 0,
     } = req.body;
 
-    // Validation des types (V2 + V1)
+    // Validation des types (V2 + V3-D2 + V1)
     const matList: Array<[string, number]> = [
       ["fracten",fracten],["common_metals",common_metals],["leather_fur",leather_fur],
+      ["common_textiles",common_textiles],["labor_contracts",labor_contracts],["basic_equipment",basic_equipment], // V3-D2
       ["gold",gold],["food",food],["wood",wood],["stone",stone],["iron",iron],
       ["copper",copper],["coal",coal],["oil",oil],["herbs",herbs],["fur",fur],
     ];
@@ -463,8 +476,11 @@ router.post("/deposit-transport-to-city", requireAuth, async (req: AuthRequest, 
     const currentTotal = inv
       ? ((inv as any).fracten ?? 0) + ((inv as any).common_metals ?? 0) + ((inv as any).leather_fur ?? 0)
         + inv.food + inv.wood + inv.stone + inv.coal + inv.oil + inv.herbs
+        + ((inv as any).common_textiles ?? 0) + ((inv as any).labor_contracts ?? 0) + ((inv as any).basic_equipment ?? 0) // V3-D2
       : 0;
-    const depositTotal = fracten + common_metals + leather_fur + gold + food + wood + stone + iron + copper + coal + oil + herbs + fur;
+    const depositTotal = fracten + common_metals + leather_fur
+      + common_textiles + labor_contracts + basic_equipment // V3-D2
+      + gold + food + wood + stone + iron + copper + coal + oil + herbs + fur;
     if (currentTotal + depositTotal > wh.capacity) {
       return res.status(422).json({
         error: `WAREHOUSE_CAPACITY_EXCEEDED: capacité entrepôt ${wh.capacity} dépassée — stock actuel ${currentTotal}, dépôt demandé ${depositTotal}`,
@@ -484,15 +500,19 @@ router.post("/deposit-transport-to-city", requireAuth, async (req: AuthRequest, 
 
     // Vérification des stocks (V2 uniquement)
     const insufficiant: string[] = [];
-    if (fracten       > ((transport as any).fracten       ?? 0)) insufficiant.push(`fracten (dispo: ${(transport as any).fracten ?? 0})`);
-    if (common_metals > ((transport as any).common_metals ?? 0)) insufficiant.push(`métaux communs (dispo: ${(transport as any).common_metals ?? 0})`);
-    if (leather_fur   > ((transport as any).leather_fur   ?? 0)) insufficiant.push(`cuir/fourrure (dispo: ${(transport as any).leather_fur ?? 0})`);
+    if (fracten          > ((transport as any).fracten          ?? 0)) insufficiant.push(`fracten (dispo: ${(transport as any).fracten ?? 0})`);
+    if (common_metals    > ((transport as any).common_metals    ?? 0)) insufficiant.push(`métaux communs (dispo: ${(transport as any).common_metals ?? 0})`);
+    if (leather_fur      > ((transport as any).leather_fur      ?? 0)) insufficiant.push(`cuir/fourrure (dispo: ${(transport as any).leather_fur ?? 0})`);
     if (food   > transport.food)   insufficiant.push(`nourriture (dispo: ${transport.food})`);
     if (wood   > transport.wood)   insufficiant.push(`bois (dispo: ${transport.wood})`);
     if (stone  > transport.stone)  insufficiant.push(`pierre (dispo: ${transport.stone})`);
     if (coal   > transport.coal)   insufficiant.push(`charbon (dispo: ${transport.coal})`);
     if (oil    > transport.oil)    insufficiant.push(`pétrole (dispo: ${transport.oil})`);
     if (herbs  > transport.herbs)  insufficiant.push(`herbes (dispo: ${transport.herbs})`);
+    // V3-D2
+    if (common_textiles  > ((transport as any).common_textiles  ?? 0)) insufficiant.push(`textiles communs (dispo: ${(transport as any).common_textiles ?? 0})`);
+    if (labor_contracts  > ((transport as any).labor_contracts  ?? 0)) insufficiant.push(`contrats de travail (dispo: ${(transport as any).labor_contracts ?? 0})`);
+    if (basic_equipment  > ((transport as any).basic_equipment  ?? 0)) insufficiant.push(`équipement basique (dispo: ${(transport as any).basic_equipment ?? 0})`);
 
     if (insufficiant.length > 0) {
       return res.status(422).json({
@@ -508,38 +528,47 @@ router.post("/deposit-transport-to-city", requireAuth, async (req: AuthRequest, 
       await tx
         .update(playerTransport)
         .set({
-          fracten:       sql`${(playerTransport as any).fracten}       - ${fracten}`,       // V2
-          common_metals: sql`${(playerTransport as any).common_metals} - ${common_metals}`, // V2
-          leather_fur:   sql`${(playerTransport as any).leather_fur}   - ${leather_fur}`,   // V2
-          food:      sql`${playerTransport.food}   - ${food}`,
-          wood:      sql`${playerTransport.wood}   - ${wood}`,
-          stone:     sql`${playerTransport.stone}  - ${stone}`,
-          coal:      sql`${playerTransport.coal}   - ${coal}`,
-          oil:       sql`${playerTransport.oil}    - ${oil}`,
-          herbs:     sql`${playerTransport.herbs}  - ${herbs}`,
+          fracten:          sql`${(playerTransport as any).fracten}          - ${fracten}`,
+          common_metals:    sql`${(playerTransport as any).common_metals}    - ${common_metals}`,
+          leather_fur:      sql`${(playerTransport as any).leather_fur}      - ${leather_fur}`,
+          food:             sql`${playerTransport.food}    - ${food}`,
+          wood:             sql`${playerTransport.wood}    - ${wood}`,
+          stone:            sql`${playerTransport.stone}   - ${stone}`,
+          coal:             sql`${playerTransport.coal}    - ${coal}`,
+          oil:              sql`${playerTransport.oil}     - ${oil}`,
+          herbs:            sql`${playerTransport.herbs}   - ${herbs}`,
+          // V3-D2
+          common_textiles:  sql`${(playerTransport as any).common_textiles}  - ${common_textiles}`,
+          labor_contracts:  sql`${(playerTransport as any).labor_contracts}  - ${labor_contracts}`,
+          basic_equipment:  sql`${(playerTransport as any).basic_equipment}  - ${basic_equipment}`,
           updatedAt: now,
-        })
+        } as any)
         .where(eq(playerTransport.playerId, playerId));
 
-      // 2. Créditer city_inventory (UPSERT) — V2 uniquement
+      // 2. Créditer city_inventory (UPSERT) — V2 + V3-D2
       await tx
         .insert(cityInventory)
         .values({ cityId,
           fracten, common_metals, leather_fur,
           food, wood, stone, coal, oil, herbs,
-          updatedAt: now })
+          common_textiles, labor_contracts, basic_equipment, // V3-D2
+          updatedAt: now } as any)
         .onConflictDoUpdate({
           target: cityInventory.cityId,
           set: {
-            fracten:       sql`${(cityInventory as any).fracten}       + ${fracten}`,       // V2
-            common_metals: sql`${(cityInventory as any).common_metals} + ${common_metals}`, // V2
-            leather_fur:   sql`${(cityInventory as any).leather_fur}   + ${leather_fur}`,   // V2
-            food:      sql`${cityInventory.food}   + ${food}`,
-            wood:      sql`${cityInventory.wood}   + ${wood}`,
-            stone:     sql`${cityInventory.stone}  + ${stone}`,
-            coal:      sql`${cityInventory.coal}   + ${coal}`,
-            oil:       sql`${cityInventory.oil}    + ${oil}`,
-            herbs:     sql`${cityInventory.herbs}  + ${herbs}`,
+            fracten:          sql`${(cityInventory as any).fracten}          + ${fracten}`,
+            common_metals:    sql`${(cityInventory as any).common_metals}    + ${common_metals}`,
+            leather_fur:      sql`${(cityInventory as any).leather_fur}      + ${leather_fur}`,
+            food:             sql`${cityInventory.food}    + ${food}`,
+            wood:             sql`${cityInventory.wood}    + ${wood}`,
+            stone:            sql`${cityInventory.stone}   + ${stone}`,
+            coal:             sql`${cityInventory.coal}    + ${coal}`,
+            oil:              sql`${cityInventory.oil}     + ${oil}`,
+            herbs:            sql`${cityInventory.herbs}   + ${herbs}`,
+            // V3-D2
+            common_textiles:  sql`${(cityInventory as any).common_textiles}  + ${common_textiles}`,
+            labor_contracts:  sql`${(cityInventory as any).labor_contracts}  + ${labor_contracts}`,
+            basic_equipment:  sql`${(cityInventory as any).basic_equipment}  + ${basic_equipment}`,
             updatedAt: now,
           },
         });
@@ -554,7 +583,8 @@ router.post("/deposit-transport-to-city", requireAuth, async (req: AuthRequest, 
       ok:        true,
       cityId,
       cityName,
-      deposited: { fracten, common_metals, leather_fur, food, wood, stone, coal, oil, herbs },
+      deposited: { fracten, common_metals, leather_fur, food, wood, stone, coal, oil, herbs,
+                   common_textiles, labor_contracts, basic_equipment }, // V3-D2
     });
 
   } catch (err: any) {
@@ -589,6 +619,8 @@ router.post("/deposit-transport-to-bank", requireAuth, async (req: AuthRequest, 
     const {
       // Bloc C V2
       fracten = 0, common_metals = 0, leather_fur = 0,
+      // V3-D2 : ressources prototype unités
+      common_textiles = 0, labor_contracts = 0, basic_equipment = 0,
       // V1 legacy
       gold = 0, food = 0, wood = 0, stone = 0, iron = 0,
       copper = 0, coal = 0, oil = 0, herbs = 0, fur = 0,
@@ -596,6 +628,7 @@ router.post("/deposit-transport-to-bank", requireAuth, async (req: AuthRequest, 
 
     const matList: Array<[string, number]> = [
       ["fracten",fracten],["common_metals",common_metals],["leather_fur",leather_fur],
+      ["common_textiles",common_textiles],["labor_contracts",labor_contracts],["basic_equipment",basic_equipment], // V3-D2
       ["gold",gold],["food",food],["wood",wood],["stone",stone],["iron",iron],
       ["copper",copper],["coal",coal],["oil",oil],["herbs",herbs],["fur",fur],
     ];
@@ -620,15 +653,19 @@ router.post("/deposit-transport-to-bank", requireAuth, async (req: AuthRequest, 
 
     // Vérification des stocks (V2 uniquement)
     const insuffisant: string[] = [];
-    if (fracten       > ((transport as any).fracten       ?? 0)) insuffisant.push(`fracten (dispo: ${(transport as any).fracten ?? 0})`);
-    if (common_metals > ((transport as any).common_metals ?? 0)) insuffisant.push(`métaux communs (dispo: ${(transport as any).common_metals ?? 0})`);
-    if (leather_fur   > ((transport as any).leather_fur   ?? 0)) insuffisant.push(`cuir/fourrure (dispo: ${(transport as any).leather_fur ?? 0})`);
+    if (fracten          > ((transport as any).fracten          ?? 0)) insuffisant.push(`fracten (dispo: ${(transport as any).fracten ?? 0})`);
+    if (common_metals    > ((transport as any).common_metals    ?? 0)) insuffisant.push(`métaux communs (dispo: ${(transport as any).common_metals ?? 0})`);
+    if (leather_fur      > ((transport as any).leather_fur      ?? 0)) insuffisant.push(`cuir/fourrure (dispo: ${(transport as any).leather_fur ?? 0})`);
     if (food   > transport.food)   insuffisant.push(`nourriture (dispo: ${transport.food})`);
     if (wood   > transport.wood)   insuffisant.push(`bois (dispo: ${transport.wood})`);
     if (stone  > transport.stone)  insuffisant.push(`pierre (dispo: ${transport.stone})`);
     if (coal   > transport.coal)   insuffisant.push(`charbon (dispo: ${transport.coal})`);
     if (oil    > transport.oil)    insuffisant.push(`pétrole (dispo: ${transport.oil})`);
     if (herbs  > transport.herbs)  insuffisant.push(`herbes (dispo: ${transport.herbs})`);
+    // V3-D2
+    if (common_textiles  > ((transport as any).common_textiles  ?? 0)) insuffisant.push(`textiles communs (dispo: ${(transport as any).common_textiles ?? 0})`);
+    if (labor_contracts  > ((transport as any).labor_contracts  ?? 0)) insuffisant.push(`contrats de travail (dispo: ${(transport as any).labor_contracts ?? 0})`);
+    if (basic_equipment  > ((transport as any).basic_equipment  ?? 0)) insuffisant.push(`équipement basique (dispo: ${(transport as any).basic_equipment ?? 0})`);
 
     if (insuffisant.length > 0) {
       return res.status(422).json({
@@ -643,38 +680,47 @@ router.post("/deposit-transport-to-bank", requireAuth, async (req: AuthRequest, 
       await tx
         .update(playerTransport)
         .set({
-          fracten:       sql`${(playerTransport as any).fracten}       - ${fracten}`,       // V2
-          common_metals: sql`${(playerTransport as any).common_metals} - ${common_metals}`, // V2
-          leather_fur:   sql`${(playerTransport as any).leather_fur}   - ${leather_fur}`,   // V2
-          food:      sql`${playerTransport.food}   - ${food}`,
-          wood:      sql`${playerTransport.wood}   - ${wood}`,
-          stone:     sql`${playerTransport.stone}  - ${stone}`,
-          coal:      sql`${playerTransport.coal}   - ${coal}`,
-          oil:       sql`${playerTransport.oil}    - ${oil}`,
-          herbs:     sql`${playerTransport.herbs}  - ${herbs}`,
+          fracten:          sql`${(playerTransport as any).fracten}          - ${fracten}`,
+          common_metals:    sql`${(playerTransport as any).common_metals}    - ${common_metals}`,
+          leather_fur:      sql`${(playerTransport as any).leather_fur}      - ${leather_fur}`,
+          food:             sql`${playerTransport.food}    - ${food}`,
+          wood:             sql`${playerTransport.wood}    - ${wood}`,
+          stone:            sql`${playerTransport.stone}   - ${stone}`,
+          coal:             sql`${playerTransport.coal}    - ${coal}`,
+          oil:              sql`${playerTransport.oil}     - ${oil}`,
+          herbs:            sql`${playerTransport.herbs}   - ${herbs}`,
+          // V3-D2
+          common_textiles:  sql`${(playerTransport as any).common_textiles}  - ${common_textiles}`,
+          labor_contracts:  sql`${(playerTransport as any).labor_contracts}  - ${labor_contracts}`,
+          basic_equipment:  sql`${(playerTransport as any).basic_equipment}  - ${basic_equipment}`,
           updatedAt: now,
-        })
+        } as any)
         .where(eq(playerTransport.playerId, playerId));
 
-      // 2. Créditer player_bank (UPSERT) — V2 uniquement (G4)
+      // 2. Créditer player_bank (UPSERT) — V2 + V3-D2 (G4)
       await tx
         .insert(playerBank)
         .values({ playerId,
           fracten, common_metals, leather_fur,
           food, wood, stone, coal, oil, herbs,
-          lastProductionTurn: 0, updatedAt: now })
+          common_textiles, labor_contracts, basic_equipment, // V3-D2
+          lastProductionTurn: 0, updatedAt: now } as any)
         .onConflictDoUpdate({
           target: playerBank.playerId,
           set: {
-            fracten:       sql`${(playerBank as any).fracten}       + ${fracten}`,       // V2
-            common_metals: sql`${(playerBank as any).common_metals} + ${common_metals}`, // V2
-            leather_fur:   sql`${(playerBank as any).leather_fur}   + ${leather_fur}`,   // V2
-            food:      sql`${playerBank.food}   + ${food}`,
-            wood:      sql`${playerBank.wood}   + ${wood}`,
-            stone:     sql`${playerBank.stone}  + ${stone}`,
-            coal:      sql`${playerBank.coal}   + ${coal}`,
-            oil:       sql`${playerBank.oil}    + ${oil}`,
-            herbs:     sql`${playerBank.herbs}  + ${herbs}`,
+            fracten:          sql`${(playerBank as any).fracten}          + ${fracten}`,
+            common_metals:    sql`${(playerBank as any).common_metals}    + ${common_metals}`,
+            leather_fur:      sql`${(playerBank as any).leather_fur}      + ${leather_fur}`,
+            food:             sql`${playerBank.food}    + ${food}`,
+            wood:             sql`${playerBank.wood}    + ${wood}`,
+            stone:            sql`${playerBank.stone}   + ${stone}`,
+            coal:             sql`${playerBank.coal}    + ${coal}`,
+            oil:              sql`${playerBank.oil}     + ${oil}`,
+            herbs:            sql`${playerBank.herbs}   + ${herbs}`,
+            // V3-D2
+            common_textiles:  sql`${(playerBank as any).common_textiles}  + ${common_textiles}`,
+            labor_contracts:  sql`${(playerBank as any).labor_contracts}  + ${labor_contracts}`,
+            basic_equipment:  sql`${(playerBank as any).basic_equipment}  + ${basic_equipment}`,
             updatedAt: now,
           },
         });
@@ -687,7 +733,8 @@ router.post("/deposit-transport-to-bank", requireAuth, async (req: AuthRequest, 
 
     return res.json({
       ok:          true,
-      deposited:   { fracten, common_metals, leather_fur, food, wood, stone, coal, oil, herbs },
+      deposited:   { fracten, common_metals, leather_fur, food, wood, stone, coal, oil, herbs,
+                     common_textiles, labor_contracts, basic_equipment }, // V3-D2
       destination: "player_bank",
     });
 

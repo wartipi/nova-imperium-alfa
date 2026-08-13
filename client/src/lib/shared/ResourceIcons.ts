@@ -33,6 +33,11 @@ export const RESOURCE_ICONS: Record<string, ResourceIconConfig> = {
   common_metals:    { symbol: '⚙️', color: '#A8A8A8', name: 'Métaux communs' },
   leather_fur:      { symbol: '🦊', color: '#8B4513', name: 'Cuir & fourrure' },
 
+  // ─── V3-D2 — Ressources prototype unités (stratégiques, produites par bâtiments) ──
+  common_textiles:  { symbol: '🧶', color: '#C8A2C8', name: 'Textiles communs' },
+  labor_contracts:  { symbol: '📜', color: '#8B7355', name: 'Contrats de travail' },
+  basic_equipment:  { symbol: '🛡️', color: '#808080', name: 'Équipement basique' },
+
   // ─── V2 — Ressources rares ────────────────────────────────────────────────
   rare_metals_alloys: { symbol: '🔩', color: '#DAA520', name: 'Métaux & alliages rares' },
   textiles:           { symbol: '🧵', color: '#DDA0DD', name: 'Textiles' },

@@ -55,15 +55,19 @@ export async function postEconomyTick(currentTurn: number): Promise<TickResponse
 // ─── Types matériaux Tier 1 (partagé) ────────────────────────────────────────
 
 export interface T1Materials {
-  fracten:       number;
-  common_metals: number;
-  leather_fur:   number;
-  food:   number;
-  wood:   number;
-  stone:  number;
-  coal:   number;
-  oil:    number;
-  herbs:  number;
+  fracten:          number;
+  common_metals:    number;
+  leather_fur:      number;
+  food:             number;
+  wood:             number;
+  stone:            number;
+  coal:             number;
+  oil:              number;
+  herbs:            number;
+  // V3-D2 : ressources prototype unités
+  common_textiles?: number;
+  labor_contracts?: number;
+  basic_equipment?: number;
 }
 
 // ─── Production tick par-ville ───────────────────────────────────────────────

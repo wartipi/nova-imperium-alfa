@@ -79,6 +79,9 @@ export type ResourceType =
   | 'herbs'          // Herbes            (était magique, maintenant commune)
 
   // B. STRATÉGIQUES — produites par bâtiments, jamais sur la carte
+  // V3-D2 : ressources prototype unités (pas encore liées à des bâtiments producteurs)
+  | 'common_textiles'        // Textiles communs
+  | 'labor_contracts'        // Contrats de travail
   | 'basic_equipment'        // Équipement basique
   | 'intermediate_equipment' // Équipement intermédiaire
   | 'advanced_equipment'     // Équipement avancé

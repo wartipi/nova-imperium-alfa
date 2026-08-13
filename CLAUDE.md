@@ -768,3 +768,64 @@ Le système de recrutement actuel (`server/cityService.ts`) utilise un **`produc
 - **Commit :** fourni par le prochain checkpoint automatique (jamais de push manuel sur GitHub).
 
 **Statut :** audit V3-D terminé et documenté. Aucun runtime modifié. En attente de validation utilisateur avant tout nouveau bloc.
+
+## Bloc V3-D2 — Ajout runtime de `common_textiles`, `labor_contracts`, `basic_equipment`
+
+- **Objectif :** Rendre ces 3 ressources entièrement fonctionnelles dans toutes les couches runtime (DB, inventaires, marché, UI, transferts) — **sans** brancher production ni recrutement.
+- **Périmètre :** additif pur — aucun code existant modifié dans sa logique métier.
+
+### Fichiers modifiés
+
+**Schéma DB (`shared/schema.ts`)** — 6 tables étendues :
+- `cities` : +3 colonnes `*_per_turn` (toutes à 0 par défaut)
+- `player_bank`, `city_pending_harvest`, `city_inventory`, `player_transport`, `player_market_box` : +3 colonnes chacune
+
+**Migration DB** — exécutée via SQL direct (`ALTER TABLE … ADD COLUMN IF NOT EXISTS`) sur les 18 colonnes (drizzle-kit push non utilisé — nécessitait TTY interactif). Toutes les 18 colonnes ajoutées avec succès.
+
+**`server/marketService.ts`** — extensions :
+- `ResourceType` local + `VALID_RESOURCES` : 3 nouveaux types
+- `resourceCol()`, `transportResourceCol()`, `marketBoxResourceCol()` : 3 entrées chacune
+- `ensurePlayerBank()`, `ensurePlayerTransport()`, `ensurePlayerMarketBox()` : 3 champs initialisés à 0
+- `hasContent` (×2), transport capacity calc (×2), credit/reset SET (×4 blocs) : 3 ressources ajoutées partout
+
+**`server/playerActionService.ts`** — extensions :
+- `computeTransportUnits()` : 3 nouveaux champs optionnels (1 unité transport chacun)
+- `completeHarvestTransfer()` : lecture, empty check, credit UPSERT, reset
+- `completeBankToCityTransfer()` / `completeBankToPlayerTransfer()` : 3 params + credit + log
+- `completeAction()` : path type cast étendu (×2), appels avec 3 nouveaux args
+- `createTransferBankToCityAction()` / `createTransferBankToPlayerAction()` : 3 params, validation, bank check, debit, path storage
+- `getOrInitPlayerTransport()` : 3 colonnes ajoutées à l'INSERT initial
+
+**`server/routes/economy.ts`** — 4 routes étendues :
+- `transfer-bank-to-city` / `transfer-bank-to-player` : body + matList + action call + response
+- `deposit-transport-to-city` / `deposit-transport-to-bank` : body + matList + stock checks + debit + credit + response
+
+**Client :**
+- `client/src/lib/game/types.ts` : `ResourceType` étendu (+2 nouveaux ; `basic_equipment` existait déjà)
+- `client/src/lib/api/marketApi.ts` : `ResourceType` + `RESOURCE_LABELS` + `ALL_RESOURCES`
+- `client/src/lib/api/economyApi.ts` : `T1Materials` étendu
+- `client/src/lib/shared/ResourceIcons.ts` : 3 entrées icône
+- `client/src/lib/systems/ResourceRevealSystem.ts` : 3 entrées `RESOURCE_INFO` (strategic, revealLevel 99)
+- `client/src/components/game/TreasuryPanel.tsx` : `TransferState`, `Mats`, `MAT_ICONS`, `RESOURCE_DEFS`, état init, 3 handlers mats
+- `client/src/components/game/HarvestPanel.tsx` : `MatKey`, `MAT_ICONS`
+- `client/src/components/game/PublicMarketplace.tsx` : `MB_RESOURCES`, 2 tables d'icônes SELL/BUY
+- `client/src/components/game/UnifiedTerritoryPanel.tsx` : `RESOURCE_LABELS` local
+
+### Ce qui n'a PAS été touché (délibéré)
+- `server/buildingEffects.ts` (`T1Material`/`T1_CITY_COLUMNS`) — aucun bâtiment ne produit ces ressources encore
+- `server/unitCatalog.ts`, `shared/landUnitCatalog.ts`, `RecruitmentPanel.tsx`, recrutement `cityService.ts`
+- `factionEconomy` table, `market_fee_box` table
+- `city_production_queue` (colonne entier `productionCost`, pas de ressources colonnes)
+
+### Résultat TypeScript
+`npx tsc --noEmit` : **187 erreurs** — baseline inchangée, zéro régression.
+
+### Prochaines étapes recommandées
+- **V3-D3** : vérifier les labels UI sur joueur connecté (TreasuryPanel, HarvestPanel affichent les 3 nouvelles lignes)
+- **V3-D4** : définir les bâtiments sources pour `common_textiles` (atelier tisserand), `labor_contracts` (taverne/guilde), `basic_equipment` (forge)
+- **V3-D5** : réécrire le mécanisme recrutement pour débiter multi-ressources
+- **V3-D6** : brancher `shared/landUnitCatalog.ts` au recrutement
+
+- **Commit :** fourni par le prochain checkpoint automatique (jamais de push manuel sur GitHub).
+
+**Statut :** bloc V3-D2 terminé et documenté. Les 3 ressources sont entièrement runtime-capable (DB + inventaires + marché + UI + transferts). Aucun bâtiment producteur ni branchement recrutement. En attente de validation utilisateur.

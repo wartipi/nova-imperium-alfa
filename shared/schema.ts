@@ -483,6 +483,10 @@ export const cities = pgTable("cities", {
   coalPerTurn:         integer("coal_per_turn").notNull().default(0),
   oilPerTurn:          integer("oil_per_turn").notNull().default(0),
   herbsPerTurn:        integer("herbs_per_turn").notNull().default(0),
+  // V3-D2 : ressources prototype unités (pas encore produites par bâtiment)
+  commonTextilesPerTurn:   integer("common_textiles_per_turn").notNull().default(0),
+  laborContractsPerTurn:   integer("labor_contracts_per_turn").notNull().default(0),
+  basicEquipmentPerTurn:   integer("basic_equipment_per_turn").notNull().default(0),
 });
 
 export type CityRecord = typeof cities.$inferSelect;
@@ -585,6 +589,10 @@ export const playerBank = pgTable("player_bank", {
   oil:                integer("oil").notNull().default(0),
   herbs:              integer("herbs").notNull().default(0),
   leather_fur:        integer("leather_fur").notNull().default(0),   // V2 cuir et fourrure
+  // V3-D2 : ressources prototype unités
+  common_textiles:    integer("common_textiles").notNull().default(0),
+  labor_contracts:    integer("labor_contracts").notNull().default(0),
+  basic_equipment:    integer("basic_equipment").notNull().default(0),
   lastProductionTurn: integer("last_production_turn").notNull().default(0),
   updatedAt:          timestamp("updated_at").notNull().defaultNow(),
 });
@@ -606,6 +614,10 @@ export const cityPendingHarvest = pgTable("city_pending_harvest", {
   oil:           integer("oil").notNull().default(0),
   herbs:         integer("herbs").notNull().default(0),
   leather_fur:   integer("leather_fur").notNull().default(0),   // V2
+  // V3-D2 : ressources prototype unités
+  common_textiles:  integer("common_textiles").notNull().default(0),
+  labor_contracts:  integer("labor_contracts").notNull().default(0),
+  basic_equipment:  integer("basic_equipment").notNull().default(0),
   updatedAt:     timestamp("updated_at").notNull().defaultNow(),
 });
 
@@ -626,6 +638,10 @@ export const cityInventory = pgTable("city_inventory", {
   oil:           integer("oil").notNull().default(0),
   herbs:         integer("herbs").notNull().default(0),
   leather_fur:   integer("leather_fur").notNull().default(0),   // V2
+  // V3-D2 : ressources prototype unités
+  common_textiles:  integer("common_textiles").notNull().default(0),
+  labor_contracts:  integer("labor_contracts").notNull().default(0),
+  basic_equipment:  integer("basic_equipment").notNull().default(0),
   updatedAt:     timestamp("updated_at").notNull().defaultNow(),
 });
 
@@ -647,6 +663,10 @@ export const playerTransport = pgTable("player_transport", {
   oil:           integer("oil").notNull().default(0),
   herbs:         integer("herbs").notNull().default(0),
   leather_fur:   integer("leather_fur").notNull().default(0),   // V2
+  // V3-D2 : ressources prototype unités
+  common_textiles:  integer("common_textiles").notNull().default(0),
+  labor_contracts:  integer("labor_contracts").notNull().default(0),
+  basic_equipment:  integer("basic_equipment").notNull().default(0),
   updatedAt:     timestamp("updated_at").notNull().defaultNow(),
 });
 
@@ -771,6 +791,10 @@ export const playerMarketBox = pgTable("player_market_box", {
   oil:           integer("oil").notNull().default(0),
   herbs:         integer("herbs").notNull().default(0),
   leather_fur:   integer("leather_fur").notNull().default(0),   // V2
+  // V3-D2 : ressources prototype unités
+  common_textiles:  integer("common_textiles").notNull().default(0),
+  labor_contracts:  integer("labor_contracts").notNull().default(0),
+  basic_equipment:  integer("basic_equipment").notNull().default(0),
   updatedAt:     timestamp("updated_at").notNull().defaultNow(),
 });
 export type PlayerMarketBoxRecord = typeof playerMarketBox.$inferSelect;

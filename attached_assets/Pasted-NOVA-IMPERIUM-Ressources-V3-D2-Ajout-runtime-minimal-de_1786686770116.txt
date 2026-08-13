@@ -1,0 +1,232 @@
+NOVA IMPERIUM — Ressources V3-D2
+Ajout runtime minimal des 3 ressources manquantes pour le prototype unités
+
+RÔLE
+Tu es l’agent technique sur le repo Nova Imperium.
+Objectif : ajouter au runtime les 3 ressources nécessaires au futur branchement des unités terrestres prototype, sans encore les produire ni les utiliser dans le recrutement.
+
+RESSOURCES À AJOUTER
+
+- common_textiles / Textiles communs
+- labor_contracts / Contrats de travail
+- basic_equipment / Équipement basique
+
+CONTEXTE
+
+Le bloc V3-D a confirmé que ces 3 ressources sont bloquantes pour le futur système d’unités :
+
+- common_textiles est requis par certaines unités : infanterie à arc, ingénieurs de campagne.
+- labor_contracts est requis par les 15 unités terrestres prototype.
+- basic_equipment est requis par 11 unités terrestres prototype.
+
+Les catalogues passifs existent déjà :
+
+- shared/economicResources.ts
+- shared/landUnitCatalog.ts
+- shared/tileModifiers.ts
+
+IMPORTANT
+
+Ce bloc doit être limité à l’ajout runtime minimal des 3 ressources.
+
+Ne pas brancher le recrutement.
+Ne pas modifier server/unitCatalog.ts.
+Ne pas modifier shared/landUnitCatalog.ts sauf correction strictement nécessaire.
+Ne pas modifier les coûts des unités.
+Ne pas ajouter de production par bâtiment dans ce bloc.
+Ne pas ajouter de mécanique d’entretien.
+Ne pas ajouter de mécanique de siège.
+Ne pas migrer coal/oil vers fuel.
+Ne pas migrer herbs vers common_ingredients.
+Ne pas toucher aux anciennes ressources runtime existantes.
+Ne pas supprimer de colonnes.
+Ne pas refactoriser massivement.
+
+OBJECTIF TECHNIQUE
+
+Ajouter les 3 ressources suivantes comme ressources runtime stockables/transférables/prêtes à être utilisées plus tard :
+
+- common_textiles
+- labor_contracts
+- basic_equipment
+
+Elles doivent exister dans les mêmes couches que les autres ressources économiques déjà supportées quand c’est applicable.
+
+À FAIRE
+
+1. Inspecter les ressources existantes
+
+Inspecter les fichiers suivants avant modification :
+
+- shared/schema.ts
+- server/economyService.ts
+- server/cityService.ts
+- server/marketService.ts
+- server/playerActionService.ts
+- server/routes/economy.ts
+- server/routes/market.ts
+- client/src/lib/shared/ResourceIcons.ts
+- client/src/components/game/TreasuryPanel.tsx
+- client/src/components/game/HarvestPanel.tsx
+- client/src/components/game/PublicMarketplace.tsx
+- client/src/components/game/UnifiedTerritoryPanel.tsx
+- client/src/lib/game/types.ts
+- client/src/lib/systems/ResourceRevealSystem.ts
+
+2. Ajouter les colonnes DB nécessaires
+
+Ajouter les colonnes pour :
+
+- common_textiles
+- labor_contracts
+- basic_equipment
+
+dans les tables d’inventaire/runtime équivalentes aux ressources existantes.
+
+Selon l’audit V3-D, les tables concernées sont probablement :
+
+- city_inventory
+- player_bank
+- city_pending_harvest
+- city_production_queue
+- player_market_box
+- player_transport
+
+Ajouter aussi sur cities :
+
+- common_textiles_per_turn
+- labor_contracts_per_turn
+- basic_equipment_per_turn
+
+Important :
+- Utiliser le même style Drizzle / integer / default que les ressources existantes.
+- Respecter les conventions du fichier schema actuel.
+- Ne pas ajouter de production active dans ce bloc.
+- Les colonnes per_turn peuvent rester à 0 par défaut.
+
+3. Mettre à jour les types / listes runtime
+
+Ajouter ces ressources aux types, unions, constantes ou listes de ressources runtime existantes si nécessaire pour que le code compile et puisse les transporter comme les autres ressources.
+
+Ne pas modifier les catalogues passifs sauf si TypeScript impose un alignement strict.
+
+4. UI minimale
+
+Ajouter les labels/icônes nécessaires pour que ces ressources soient reconnues dans l’UI.
+
+Fichiers probables :
+
+- client/src/lib/shared/ResourceIcons.ts
+- client/src/lib/game/types.ts
+- client/src/lib/systems/ResourceRevealSystem.ts
+
+Pour les icônes :
+- common_textiles : utiliser une icône textile/tissu si disponible, sinon fallback propre.
+- labor_contracts : utiliser une icône contrat/parchemin/travail si disponible, sinon fallback propre.
+- basic_equipment : si déjà présent comme orphelin côté client, l’aligner proprement sans changer son sens.
+
+Important :
+- Ne pas créer d’asset graphique.
+- Ne pas faire de refonte UI.
+- Ne pas rendre ces ressources automatiquement produites.
+- Ne pas les afficher comme ressources récoltables de terrain.
+
+5. Marché / transferts / inventaires
+
+Si les ressources existantes sont listées explicitement pour :
+
+- marché
+- transferts
+- inventaire joueur
+- inventaire ville
+- player transport
+- market box
+
+ajouter les 3 nouvelles ressources aux listes correspondantes.
+
+Important :
+Ce bloc doit seulement les rendre compatibles avec les flux existants.
+Il ne doit pas créer de nouvelles mécaniques.
+
+6. Ne pas ajouter de production bâtiment
+
+Ne pas modifier BUILDING_PRODUCTION pour produire ces ressources dans ce bloc.
+
+À documenter pour le futur :
+
+- common_textiles devra être produit plus tard par bâtiments textiles, ateliers, exploitation de fibres, etc.
+- labor_contracts devra être produit plus tard par colonies, guildes, bureau de travail, administration, population organisée.
+- basic_equipment devra être produit plus tard par forge, atelier militaire, armurerie, artisanat.
+
+7. Ne pas brancher les unités
+
+Ne pas brancher shared/landUnitCatalog.ts au recrutement.
+Ne pas remplacer productionCost.
+Ne pas ajouter de débit multi-ressources.
+Ne pas modifier RecruitmentPanel.tsx pour utiliser les coûts du catalogue.
+Ne pas modifier cityService.ts pour recruter avec les nouvelles ressources.
+
+Ce sera le bloc V3-D5 ou V3-D6 plus tard.
+
+VALIDATION TECHNIQUE
+
+Exécuter :
+
+npx tsc --noEmit
+
+Baseline connue :
+
+- 187 erreurs TypeScript préexistantes.
+
+Ne pas prétendre avoir corrigé TypeScript.
+Indiquer seulement si le nombre reste 187 ou s’il y a une régression.
+
+CLAUDE.md
+
+Ajouter une section :
+
+“Ressources V3-D2 — Ajout runtime minimal de common_textiles, labor_contracts, basic_equipment”
+
+Inclure :
+
+- objectif ;
+- fichiers modifiés ;
+- colonnes DB ajoutées ;
+- ressources ajoutées aux inventaires ;
+- ressources ajoutées à l’UI ;
+- confirmation qu’aucune production bâtiment n’a été ajoutée ;
+- confirmation que le recrutement n’a pas été branché ;
+- confirmation que shared/landUnitCatalog.ts reste passif ;
+- résultat TypeScript ;
+- risques restants ;
+- prochaine étape recommandée.
+
+SORTIE ATTENDUE
+
+Répondre avec :
+
+1. Résumé des fichiers modifiés.
+2. Liste exacte des colonnes ajoutées.
+3. Liste des couches où les ressources sont maintenant supportées :
+   - DB
+   - player_bank
+   - city_inventory
+   - city_pending_harvest
+   - city_production_queue
+   - player_market_box
+   - player_transport
+   - UI
+   - marché / transferts si applicable
+4. Confirmation qu’aucun bâtiment ne produit encore ces ressources.
+5. Confirmation que le recrutement n’utilise pas encore ces ressources.
+6. Résultat TypeScript.
+7. Risques restants.
+8. Prochaine étape recommandée.
+
+STATUT ATTENDU
+
+Implémentation minimale contrôlée.
+Les 3 ressources existent dans le runtime.
+Aucune logique d’unité branchée.
+Aucune production ajoutée.
+Aucune migration conceptuelle coal/oil/herbs.

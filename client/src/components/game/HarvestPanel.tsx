@@ -32,11 +32,14 @@ interface Props {
 
 // ─── Matériaux ────────────────────────────────────────────────────────────
 
-type MatKey = 'fracten'|'common_metals'|'leather_fur'|'food'|'wood'|'stone'|'coal'|'oil'|'herbs';
+type MatKey = 'fracten'|'common_metals'|'leather_fur'|'food'|'wood'|'stone'|'coal'|'oil'|'herbs'
+            |'common_textiles'|'labor_contracts'|'basic_equipment'; // V3-D2
 const MAT_ICONS: Array<[MatKey, string, string]> = [
   ['fracten','💎','Fracten'],['common_metals','⚒️','Métaux communs'],['leather_fur','🦺','Cuir & Fourrure'],
   ['food','🌿','Nourriture'],['wood','🪵','Bois'],
   ['stone','🪨','Pierre'],['coal','🖤','Charbon'],['oil','🛢️','Pétrole'],['herbs','🌱','Herbes'],
+  // V3-D2
+  ['common_textiles','🧶','Textiles communs'],['labor_contracts','📜','Contrats de travail'],['basic_equipment','🛡️','Équipement basique'],
 ];
 
 function isMatsEmpty(m: Record<MatKey, number>): boolean {

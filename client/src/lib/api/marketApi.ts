@@ -5,8 +5,9 @@
 
 export type ResourceType =
   | "food" | "wood" | "stone" | "coal" | "oil" | "herbs"
-  | "common_metals" | "leather_fur"       // V2 — ressources officielles
-  | "iron" | "copper" | "fur";            // V1 legacy — ordres anciens uniquement
+  | "common_metals" | "leather_fur"                              // V2 — ressources officielles
+  | "common_textiles" | "labor_contracts" | "basic_equipment"   // V3-D2 — prototype unités
+  | "iron" | "copper" | "fur";                                  // V1 legacy — ordres anciens uniquement
 
 export type OrderSide   = "buy" | "sell";
 export type OrderStatus = "open" | "filled" | "cancelled";
@@ -144,22 +145,27 @@ export async function collectMarketFeeBox(cityId: number): Promise<{ collected: 
 
 // ─── Labels V2 ────────────────────────────────────────────────────────────────
 export const RESOURCE_LABELS: Record<ResourceType, string> = {
-  food:          "Nourriture",
-  wood:          "Bois",
-  stone:         "Pierre",
-  coal:          "Charbon",
-  oil:           "Huile",
-  herbs:         "Herbes",
-  common_metals: "Métaux communs",   // V2
-  leather_fur:   "Cuir & fourrure",  // V2
-  iron:          "Fer (legacy)",     // V1 legacy
-  copper:        "Cuivre (legacy)",  // V1 legacy
-  fur:           "Fourrure (legacy)", // V1 legacy
+  food:             "Nourriture",
+  wood:             "Bois",
+  stone:            "Pierre",
+  coal:             "Charbon",
+  oil:              "Huile",
+  herbs:            "Herbes",
+  common_metals:    "Métaux communs",     // V2
+  leather_fur:      "Cuir & fourrure",    // V2
+  // V3-D2 : ressources prototype unités
+  common_textiles:  "Textiles communs",
+  labor_contracts:  "Contrats de travail",
+  basic_equipment:  "Équipement basique",
+  iron:             "Fer (legacy)",       // V1 legacy
+  copper:           "Cuivre (legacy)",    // V1 legacy
+  fur:              "Fourrure (legacy)",  // V1 legacy
 };
 
-// V2 : ressources autorisées pour les NOUVEAUX ordres.
+// V2 + V3-D2 : ressources autorisées pour les NOUVEAUX ordres.
 export const ALL_RESOURCES: ResourceType[] = [
   "food","wood","stone","coal","oil","herbs","common_metals","leather_fur",
+  "common_textiles","labor_contracts","basic_equipment", // V3-D2
 ];
 
 // V1 legacy : pour lecture des anciens ordres uniquement.

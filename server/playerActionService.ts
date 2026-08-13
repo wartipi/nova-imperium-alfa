@@ -35,16 +35,23 @@ export function computeTransportUnits(t: {
   iron?:          number | null; // V1 legacy — ignoré G6-B1
   copper?:        number | null; // V1 legacy — ignoré G6-B1
   fur?:           number | null; // V1 legacy — ignoré G6-B1
-  coal?:          number | null;
-  oil?:           number | null;
-  herbs?:         number | null;
-  fracten?:       number | null;
-  common_metals?: number | null;
-  leather_fur?:   number | null;
+  coal?:             number | null;
+  oil?:              number | null;
+  herbs?:            number | null;
+  fracten?:          number | null;
+  common_metals?:    number | null;
+  leather_fur?:      number | null;
+  // V3-D2 : ressources prototype unités — 1 unité de transport chacune
+  common_textiles?:  number | null;
+  labor_contracts?:  number | null;
+  basic_equipment?:  number | null;
 }): number {
-  const fracten       = t.fracten       ?? 0;
-  const common_metals = t.common_metals ?? 0;
-  const leather_fur   = t.leather_fur   ?? 0;
+  const fracten          = t.fracten          ?? 0;
+  const common_metals    = t.common_metals    ?? 0;
+  const leather_fur      = t.leather_fur      ?? 0;
+  const common_textiles  = t.common_textiles  ?? 0;
+  const labor_contracts  = t.labor_contracts  ?? 0;
+  const basic_equipment  = t.basic_equipment  ?? 0;
 
   return Math.ceil(fracten / FRACTEN_TRANSPORT_STACK_SIZE)
        + common_metals
@@ -54,7 +61,10 @@ export function computeTransportUnits(t: {
        + t.stone
        + (t.coal  ?? 0)
        + (t.oil   ?? 0)
-       + (t.herbs ?? 0);
+       + (t.herbs ?? 0)
+       + common_textiles   // V3-D2
+       + labor_contracts   // V3-D2
+       + basic_equipment;  // V3-D2
 }
 
 // ─── Types enrichis retournés par le service ──────────────────────────────────
@@ -436,6 +446,8 @@ async function completeAction(action: PlayerAction): Promise<PlayerAction> {
           fracten?: number; food?: number; wood?: number; stone?: number;
           common_metals?: number; coal?: number; oil?: number; herbs?: number;
           leather_fur?: number;
+          // V3-D2
+          common_textiles?: number; labor_contracts?: number; basic_equipment?: number;
         }>;
         const meta = pathData?.[0] ?? {};
         if (meta.cityId) {
@@ -444,6 +456,7 @@ async function completeAction(action: PlayerAction): Promise<PlayerAction> {
             meta.fracten ?? 0, meta.food ?? 0, meta.wood ?? 0, meta.stone ?? 0,
             meta.common_metals ?? 0, meta.coal ?? 0, meta.oil ?? 0, meta.herbs ?? 0,
             meta.leather_fur ?? 0,
+            meta.common_textiles ?? 0, meta.labor_contracts ?? 0, meta.basic_equipment ?? 0, // V3-D2
             tx,
           );
         }
@@ -454,6 +467,8 @@ async function completeAction(action: PlayerAction): Promise<PlayerAction> {
           fracten?: number; food?: number; wood?: number; stone?: number;
           common_metals?: number; coal?: number; oil?: number; herbs?: number;
           leather_fur?: number;
+          // V3-D2
+          common_textiles?: number; labor_contracts?: number; basic_equipment?: number;
         }>;
         const meta = pathData?.[0] ?? {};
         await completeBankToPlayerTransfer(
@@ -461,6 +476,7 @@ async function completeAction(action: PlayerAction): Promise<PlayerAction> {
           meta.fracten ?? 0, meta.food ?? 0, meta.wood ?? 0, meta.stone ?? 0,
           meta.common_metals ?? 0, meta.coal ?? 0, meta.oil ?? 0, meta.herbs ?? 0,
           meta.leather_fur ?? 0,
+          meta.common_textiles ?? 0, meta.labor_contracts ?? 0, meta.basic_equipment ?? 0, // V3-D2
           tx,
         );
         console.log(`[PlayerAction] Transfert banque→joueur complété id=${action.id} player=${action.playerId}`);
@@ -504,55 +520,67 @@ async function completeHarvestTransfer(cityId: number, tx: any = db): Promise<vo
   const row = rows[0];
 
   // Champs V2 — lus via cast any car Drizzle peut ne pas les exposer typiquement
-  const fracten       = (row as any).fracten       ?? 0;
-  const common_metals = (row as any).common_metals ?? 0;
-  const leather_fur   = (row as any).leather_fur   ?? 0;
+  const fracten          = (row as any).fracten          ?? 0;
+  const common_metals    = (row as any).common_metals    ?? 0;
+  const leather_fur      = (row as any).leather_fur      ?? 0;
+  // V3-D2 : ressources prototype unités
+  const common_textiles  = (row as any).common_textiles  ?? 0;
+  const labor_contracts  = (row as any).labor_contracts  ?? 0;
+  const basic_equipment  = (row as any).basic_equipment  ?? 0;
   // Champs communs V2 (food/wood/stone/coal/oil/herbs conservés)
   const { food, wood, stone, coal, oil, herbs } = row;
 
-  // Vérification vide : V2 uniquement — G6-B1 : gold/iron/copper/fur retirés
+  // Vérification vide : V2 + V3-D2 — G6-B1 : gold/iron/copper/fur retirés
   if (fracten === 0 && common_metals === 0 && leather_fur === 0
       && food === 0 && wood === 0 && stone === 0
-      && coal === 0 && oil === 0 && herbs === 0) return;
+      && coal === 0 && oil === 0 && herbs === 0
+      && common_textiles === 0 && labor_contracts === 0 && basic_equipment === 0) return;
 
   const now = new Date();
 
-  // Crédit city_inventory — V2 uniquement (INSERT initial + UPSERT)
+  // Crédit city_inventory — V2 + V3-D2 (INSERT initial + UPSERT)
   await tx
     .insert(cityInventory)
     .values({ cityId,
       fracten, common_metals, leather_fur,
       food, wood, stone, coal, oil, herbs,
+      common_textiles, labor_contracts, basic_equipment, // V3-D2
       updatedAt: now } as any)
     .onConflictDoUpdate({
       target: cityInventory.cityId,
       set: {
-        fracten:       sql`${(cityInventory as any).fracten}       + ${fracten}`,
-        common_metals: sql`${(cityInventory as any).common_metals} + ${common_metals}`,
-        leather_fur:   sql`${(cityInventory as any).leather_fur}   + ${leather_fur}`,
-        food:      sql`${cityInventory.food}   + ${food}`,
-        wood:      sql`${cityInventory.wood}   + ${wood}`,
-        stone:     sql`${cityInventory.stone}  + ${stone}`,
-        coal:      sql`${cityInventory.coal}   + ${coal}`,
-        oil:       sql`${cityInventory.oil}    + ${oil}`,
-        herbs:     sql`${cityInventory.herbs}  + ${herbs}`,
+        fracten:          sql`${(cityInventory as any).fracten}          + ${fracten}`,
+        common_metals:    sql`${(cityInventory as any).common_metals}    + ${common_metals}`,
+        leather_fur:      sql`${(cityInventory as any).leather_fur}      + ${leather_fur}`,
+        food:             sql`${cityInventory.food}    + ${food}`,
+        wood:             sql`${cityInventory.wood}    + ${wood}`,
+        stone:            sql`${cityInventory.stone}   + ${stone}`,
+        coal:             sql`${cityInventory.coal}    + ${coal}`,
+        oil:              sql`${cityInventory.oil}     + ${oil}`,
+        herbs:            sql`${cityInventory.herbs}   + ${herbs}`,
+        // V3-D2
+        common_textiles:  sql`${(cityInventory as any).common_textiles}  + ${common_textiles}`,
+        labor_contracts:  sql`${(cityInventory as any).labor_contracts}  + ${labor_contracts}`,
+        basic_equipment:  sql`${(cityInventory as any).basic_equipment}  + ${basic_equipment}`,
         updatedAt: now,
       },
     });
 
-  // Remise à zéro pending — V2 uniquement — G6-B1 : gold/iron/copper/fur retirés
+  // Remise à zéro pending — V2 + V3-D2 — G6-B1 : gold/iron/copper/fur retirés
   await tx
     .update(cityPendingHarvest)
     .set({
       fracten: 0, common_metals: 0, leather_fur: 0,
       food: 0, wood: 0, stone: 0,
       coal: 0, oil: 0, herbs: 0,
+      common_textiles: 0, labor_contracts: 0, basic_equipment: 0, // V3-D2
       updatedAt: now,
     } as any)
     .where(eq(cityPendingHarvest.cityId, cityId));
 
   console.log(
     `[Harvest] cityId=${cityId} transfert fr${fracten}+cm${common_metals}+lf${leather_fur}` +
+    `+ct${common_textiles}+lc${labor_contracts}+be${basic_equipment}` +
     `+${food}f+${wood}w+${stone}s+${coal}co+${oil}oil+${herbs}herbs → city_inventory`
   );
 }
@@ -568,10 +596,13 @@ async function completeBankToCityTransfer(
   commonMetals = 0,
   coal = 0, oil = 0, herbs = 0,
   leatherFur = 0,
+  // V3-D2
+  commonTextiles = 0, laborContracts = 0, basicEquipment = 0,
   tx: any = db,
 ): Promise<void> {
   if (fracten === 0 && food === 0 && wood === 0 && stone === 0 && commonMetals === 0
-      && coal === 0 && oil === 0 && herbs === 0 && leatherFur === 0) return;
+      && coal === 0 && oil === 0 && herbs === 0 && leatherFur === 0
+      && commonTextiles === 0 && laborContracts === 0 && basicEquipment === 0) return;
   const now = new Date();
 
   await tx
@@ -582,28 +613,34 @@ async function completeBankToCityTransfer(
       common_metals: commonMetals,
       coal, oil, herbs,
       leather_fur: leatherFur,
+      common_textiles: commonTextiles, labor_contracts: laborContracts, basic_equipment: basicEquipment, // V3-D2
       updatedAt: now,
     } as any)
     .onConflictDoUpdate({
       target: cityInventory.cityId,
       set: {
-        fracten:       sql`${(cityInventory as any).fracten}       + ${fracten}`,      // F2 V2
-        food:          sql`${cityInventory.food}                   + ${food}`,
-        wood:          sql`${cityInventory.wood}                   + ${wood}`,
-        stone:         sql`${cityInventory.stone}                  + ${stone}`,
-        common_metals: sql`${(cityInventory as any).common_metals} + ${commonMetals}`, // F2 V2
-        coal:          sql`${cityInventory.coal}                   + ${coal}`,
-        oil:           sql`${cityInventory.oil}                    + ${oil}`,
-        herbs:         sql`${cityInventory.herbs}                  + ${herbs}`,
-        leather_fur:   sql`${(cityInventory as any).leather_fur}   + ${leatherFur}`,   // F2 V2
+        fracten:          sql`${(cityInventory as any).fracten}          + ${fracten}`,
+        food:             sql`${cityInventory.food}                      + ${food}`,
+        wood:             sql`${cityInventory.wood}                      + ${wood}`,
+        stone:            sql`${cityInventory.stone}                     + ${stone}`,
+        common_metals:    sql`${(cityInventory as any).common_metals}    + ${commonMetals}`,
+        coal:             sql`${cityInventory.coal}                      + ${coal}`,
+        oil:              sql`${cityInventory.oil}                       + ${oil}`,
+        herbs:            sql`${cityInventory.herbs}                     + ${herbs}`,
+        leather_fur:      sql`${(cityInventory as any).leather_fur}      + ${leatherFur}`,
+        // V3-D2
+        common_textiles:  sql`${(cityInventory as any).common_textiles}  + ${commonTextiles}`,
+        labor_contracts:  sql`${(cityInventory as any).labor_contracts}  + ${laborContracts}`,
+        basic_equipment:  sql`${(cityInventory as any).basic_equipment}  + ${basicEquipment}`,
         updatedAt: now,
       },
     });
 
   console.log(
-    `[Transfer] banque→ville cityId=${cityId} F2 V2` +
+    `[Transfer] banque→ville cityId=${cityId} V2+V3-D2` +
     ` +${fracten}fr+${food}f+${wood}w+${stone}s+${commonMetals}cm` +
-    `+${coal}co+${oil}oil+${herbs}herbs+${leatherFur}lf → city_inventory`
+    `+${coal}co+${oil}oil+${herbs}herbs+${leatherFur}lf` +
+    `+${commonTextiles}ct+${laborContracts}lc+${basicEquipment}be → city_inventory`
   );
 }
 
@@ -618,10 +655,13 @@ async function completeBankToPlayerTransfer(
   commonMetals = 0,
   coal = 0, oil = 0, herbs = 0,
   leatherFur = 0,
+  // V3-D2
+  commonTextiles = 0, laborContracts = 0, basicEquipment = 0,
   tx: any = db,
 ): Promise<void> {
   if (fracten === 0 && food === 0 && wood === 0 && stone === 0 && commonMetals === 0
-      && coal === 0 && oil === 0 && herbs === 0 && leatherFur === 0) return;
+      && coal === 0 && oil === 0 && herbs === 0 && leatherFur === 0
+      && commonTextiles === 0 && laborContracts === 0 && basicEquipment === 0) return;
   const now = new Date();
 
   await tx
@@ -632,28 +672,34 @@ async function completeBankToPlayerTransfer(
       common_metals: commonMetals,
       coal, oil, herbs,
       leather_fur: leatherFur,
+      common_textiles: commonTextiles, labor_contracts: laborContracts, basic_equipment: basicEquipment, // V3-D2
       updatedAt: now,
     } as any)
     .onConflictDoUpdate({
       target: playerTransport.playerId,
       set: {
-        fracten:       sql`${(playerTransport as any).fracten}       + ${fracten}`,      // F2 V2
-        food:          sql`${playerTransport.food}                   + ${food}`,
-        wood:          sql`${playerTransport.wood}                   + ${wood}`,
-        stone:         sql`${playerTransport.stone}                  + ${stone}`,
-        common_metals: sql`${(playerTransport as any).common_metals} + ${commonMetals}`, // F2 V2
-        coal:          sql`${playerTransport.coal}                   + ${coal}`,
-        oil:           sql`${playerTransport.oil}                    + ${oil}`,
-        herbs:         sql`${playerTransport.herbs}                  + ${herbs}`,
-        leather_fur:   sql`${(playerTransport as any).leather_fur}   + ${leatherFur}`,   // F2 V2
+        fracten:          sql`${(playerTransport as any).fracten}          + ${fracten}`,
+        food:             sql`${playerTransport.food}                      + ${food}`,
+        wood:             sql`${playerTransport.wood}                      + ${wood}`,
+        stone:            sql`${playerTransport.stone}                     + ${stone}`,
+        common_metals:    sql`${(playerTransport as any).common_metals}    + ${commonMetals}`,
+        coal:             sql`${playerTransport.coal}                      + ${coal}`,
+        oil:              sql`${playerTransport.oil}                       + ${oil}`,
+        herbs:            sql`${playerTransport.herbs}                     + ${herbs}`,
+        leather_fur:      sql`${(playerTransport as any).leather_fur}      + ${leatherFur}`,
+        // V3-D2
+        common_textiles:  sql`${(playerTransport as any).common_textiles}  + ${commonTextiles}`,
+        labor_contracts:  sql`${(playerTransport as any).labor_contracts}  + ${laborContracts}`,
+        basic_equipment:  sql`${(playerTransport as any).basic_equipment}  + ${basicEquipment}`,
         updatedAt: now,
       },
     });
 
   console.log(
-    `[Transfer] banque→joueur playerId=${playerId} F2 V2` +
+    `[Transfer] banque→joueur playerId=${playerId} V2+V3-D2` +
     ` +${fracten}fr+${food}f+${wood}w+${stone}s+${commonMetals}cm` +
-    `+${coal}co+${oil}oil+${herbs}herbs+${leatherFur}lf → player_transport`
+    `+${coal}co+${oil}oil+${herbs}herbs+${leatherFur}lf` +
+    `+${commonTextiles}ct+${laborContracts}lc+${basicEquipment}be → player_transport`
   );
 }
 
@@ -796,6 +842,8 @@ export async function createTransferBankToCityAction(
   commonMetals = 0,
   coal        = 0, oil         = 0, herbs     = 0,
   leatherFur  = 0,
+  // V3-D2 : ressources prototype unités
+  commonTextiles = 0, laborContracts = 0, basicEquipment = 0,
   // V1 legacy — conservé dans la signature pour backward-compat DTO, rejeté si > 0 (G4)
   gold        = 0, iron        = 0, copper    = 0, fur = 0,
 ): Promise<PlayerAction> {
@@ -804,15 +852,17 @@ export async function createTransferBankToCityAction(
     throw new Error("LEGACY_RESOURCE_DISABLED: utilisez fracten, common_metals, leather_fur (V2)");
   }
 
-  // G4 : V2 uniquement — plus de fallback V1.
+  // G4 : V2 + V3-D2 uniquement — plus de fallback V1.
   const effectiveFracten      = fracten;
   const effectiveCommonMetals = commonMetals;
   const effectiveLeatherFur   = leatherFur;
 
   if (effectiveFracten < 0 || food < 0 || wood < 0 || stone < 0
       || effectiveCommonMetals < 0 || coal < 0 || oil < 0 || herbs < 0 || effectiveLeatherFur < 0
+      || commonTextiles < 0 || laborContracts < 0 || basicEquipment < 0
       || (effectiveFracten === 0 && food === 0 && wood === 0 && stone === 0
-          && effectiveCommonMetals === 0 && coal === 0 && oil === 0 && herbs === 0 && effectiveLeatherFur === 0)) {
+          && effectiveCommonMetals === 0 && coal === 0 && oil === 0 && herbs === 0 && effectiveLeatherFur === 0
+          && commonTextiles === 0 && laborContracts === 0 && basicEquipment === 0)) {
     throw new Error("INVALID_AMOUNT: les montants doivent être positifs et non nuls");
   }
 
@@ -831,9 +881,10 @@ export async function createTransferBankToCityAction(
   const bank = bankRows[0] ?? {
     fracten: 0, food: 0, wood: 0, stone: 0,
     common_metals: 0, coal: 0, oil: 0, herbs: 0, leather_fur: 0,
+    common_textiles: 0, labor_contracts: 0, basic_equipment: 0,
   };
 
-  // G4 : checks V2 uniquement — branches V1 fallback supprimées.
+  // G4 : checks V2 + V3-D2 — branches V1 fallback supprimées.
   if ((bank.fracten ?? 0) < fracten)
     throw new Error(`INSUFFICIENT_BANK_FRACTEN: banque=${bank.fracten} requis=${fracten}`);
   if (bank.food   < food)  throw new Error(`INSUFFICIENT_BANK_FOOD: banque=${bank.food} requis=${food}`);
@@ -846,35 +897,46 @@ export async function createTransferBankToCityAction(
   if ((bank.herbs ?? 0) < herbs) throw new Error(`INSUFFICIENT_BANK_HERBS: banque=${bank.herbs} requis=${herbs}`);
   if ((bank.leather_fur ?? 0) < leatherFur)
     throw new Error(`INSUFFICIENT_BANK_LEATHER_FUR: banque=${bank.leather_fur} requis=${leatherFur}`);
+  // V3-D2
+  if (((bank as any).common_textiles ?? 0) < commonTextiles)
+    throw new Error(`INSUFFICIENT_BANK_COMMON_TEXTILES: banque=${(bank as any).common_textiles} requis=${commonTextiles}`);
+  if (((bank as any).labor_contracts ?? 0) < laborContracts)
+    throw new Error(`INSUFFICIENT_BANK_LABOR_CONTRACTS: banque=${(bank as any).labor_contracts} requis=${laborContracts}`);
+  if (((bank as any).basic_equipment ?? 0) < basicEquipment)
+    throw new Error(`INSUFFICIENT_BANK_BASIC_EQUIPMENT: banque=${(bank as any).basic_equipment} requis=${basicEquipment}`);
 
   const now = new Date();
 
-  // Durée via effective amounts V2
+  // Durée via effective amounts V2 + V3-D2
   const totalUnits = computeTransportUnits({
     fracten: effectiveFracten, food, wood, stone,
     common_metals: effectiveCommonMetals, coal, oil, herbs,
     leather_fur: effectiveLeatherFur,
+    common_textiles: commonTextiles, labor_contracts: laborContracts, basic_equipment: basicEquipment,
   });
   const durationSeconds = totalUnits * 5;
   const expectedEndTime = new Date(now.getTime() + durationSeconds * 1000);
 
   // Débit banque + création action dans la même transaction.
-  // Débit V2 si param V2 fourni, V1 sinon — jamais les deux pour la même ressource logique.
   const [action] = await db.transaction(async (tx) => {
     await tx
       .update(playerBank)
       .set({
-        fracten:       sql`${(playerBank as any).fracten}       - ${fracten}`,       // G4 V2
-        food:          sql`${playerBank.food}                   - ${food}`,
-        wood:          sql`${playerBank.wood}                   - ${wood}`,
-        stone:         sql`${playerBank.stone}                  - ${stone}`,
-        common_metals: sql`${(playerBank as any).common_metals} - ${commonMetals}`, // G4 V2
-        coal:          sql`${playerBank.coal}                   - ${coal}`,
-        oil:           sql`${playerBank.oil}                    - ${oil}`,
-        herbs:         sql`${playerBank.herbs}                  - ${herbs}`,
-        leather_fur:   sql`${(playerBank as any).leather_fur}   - ${leatherFur}`,   // G4 V2
+        fracten:          sql`${(playerBank as any).fracten}          - ${fracten}`,
+        food:             sql`${playerBank.food}                      - ${food}`,
+        wood:             sql`${playerBank.wood}                      - ${wood}`,
+        stone:            sql`${playerBank.stone}                     - ${stone}`,
+        common_metals:    sql`${(playerBank as any).common_metals}    - ${commonMetals}`,
+        coal:             sql`${playerBank.coal}                      - ${coal}`,
+        oil:              sql`${playerBank.oil}                       - ${oil}`,
+        herbs:            sql`${playerBank.herbs}                     - ${herbs}`,
+        leather_fur:      sql`${(playerBank as any).leather_fur}      - ${leatherFur}`,
+        // V3-D2
+        common_textiles:  sql`${(playerBank as any).common_textiles}  - ${commonTextiles}`,
+        labor_contracts:  sql`${(playerBank as any).labor_contracts}  - ${laborContracts}`,
+        basic_equipment:  sql`${(playerBank as any).basic_equipment}  - ${basicEquipment}`,
         updatedAt: now,
-      })
+      } as any)
       .where(eq(playerBank.playerId, playerId));
 
     return tx
@@ -887,12 +949,13 @@ export async function createTransferBankToCityAction(
         startWorldY: cityWorldY,
         endWorldX:   cityWorldX,
         endWorldY:   cityWorldY,
-        // Path V2 F2 — stocke les effective amounts avec clés V2
+        // Path V2 + V3-D2 — stocke les effective amounts
         path: [{
           cityId,
           fracten: effectiveFracten, food, wood, stone,
           common_metals: effectiveCommonMetals, coal, oil, herbs,
           leather_fur: effectiveLeatherFur,
+          common_textiles: commonTextiles, labor_contracts: laborContracts, basic_equipment: basicEquipment,
         }] as any,
         totalCost: 0,
         startTime: now,
@@ -904,8 +967,9 @@ export async function createTransferBankToCityAction(
 
   console.log(
     `[PlayerAction] Transfert banque→ville créé id=${action.id} player=${playerId}` +
-    ` cityId=${cityId} F2 V2 ${effectiveFracten}fr+${food}f+${wood}w+${stone}s` +
+    ` cityId=${cityId} V2+V3-D2 ${effectiveFracten}fr+${food}f+${wood}w+${stone}s` +
     `+${effectiveCommonMetals}cm+${coal}co+${oil}oil+${herbs}herbs+${effectiveLeatherFur}lf` +
+    `+${commonTextiles}ct+${laborContracts}lc+${basicEquipment}be` +
     ` totalUnits=${totalUnits} durée=${durationSeconds}s`
   );
 
@@ -928,6 +992,8 @@ export async function createTransferBankToPlayerAction(
   commonMetals = 0,
   coal        = 0, oil          = 0, herbs      = 0,
   leatherFur  = 0,
+  // V3-D2 : ressources prototype unités
+  commonTextiles = 0, laborContracts = 0, basicEquipment = 0,
   // V1 legacy — conservé dans la signature pour backward-compat DTO, rejeté si > 0 (G4)
   gold        = 0, iron         = 0, copper     = 0, fur = 0,
 ): Promise<PlayerAction> {
@@ -936,15 +1002,17 @@ export async function createTransferBankToPlayerAction(
     throw new Error("LEGACY_RESOURCE_DISABLED: utilisez fracten, common_metals, leather_fur (V2)");
   }
 
-  // G4 : V2 uniquement — plus de fallback V1.
+  // G4 : V2 + V3-D2 uniquement — plus de fallback V1.
   const effectiveFracten      = fracten;
   const effectiveCommonMetals = commonMetals;
   const effectiveLeatherFur   = leatherFur;
 
   if (effectiveFracten < 0 || food < 0 || wood < 0 || stone < 0
       || effectiveCommonMetals < 0 || coal < 0 || oil < 0 || herbs < 0 || effectiveLeatherFur < 0
+      || commonTextiles < 0 || laborContracts < 0 || basicEquipment < 0
       || (effectiveFracten === 0 && food === 0 && wood === 0 && stone === 0
-          && effectiveCommonMetals === 0 && coal === 0 && oil === 0 && herbs === 0 && effectiveLeatherFur === 0)) {
+          && effectiveCommonMetals === 0 && coal === 0 && oil === 0 && herbs === 0 && effectiveLeatherFur === 0
+          && commonTextiles === 0 && laborContracts === 0 && basicEquipment === 0)) {
     throw new Error("INVALID_AMOUNT: les montants doivent être positifs et non nuls");
   }
 
@@ -953,19 +1021,24 @@ export async function createTransferBankToPlayerAction(
     throw new Error(`ACTION_ALREADY_ACTIVE: joueur ${playerId} a déjà une action en cours (id=${existing.id})`);
   }
 
-  // Vérifier capacité de transport via effective amounts V2
+  // Vérifier capacité de transport via effective amounts V2 + V3-D2
   const transportRows = await db
     .select()
     .from(playerTransport)
     .where(eq(playerTransport.playerId, playerId))
     .limit(1);
 
-  const current = transportRows[0] ?? { fracten: 0, food: 0, wood: 0, stone: 0, common_metals: 0, coal: 0, oil: 0, herbs: 0, leather_fur: 0 };
-  const currentTotal = computeTransportUnits(current);
+  const current = transportRows[0] ?? {
+    fracten: 0, food: 0, wood: 0, stone: 0,
+    common_metals: 0, coal: 0, oil: 0, herbs: 0, leather_fur: 0,
+    common_textiles: 0, labor_contracts: 0, basic_equipment: 0,
+  };
+  const currentTotal = computeTransportUnits(current as any);
   const addTotal     = computeTransportUnits({
     fracten: effectiveFracten, food, wood, stone,
     common_metals: effectiveCommonMetals, coal, oil, herbs,
     leather_fur: effectiveLeatherFur,
+    common_textiles: commonTextiles, labor_contracts: laborContracts, basic_equipment: basicEquipment,
   });
 
   if (currentTotal + addTotal > TRANSPORT_MAX_UNITS) {
@@ -984,9 +1057,10 @@ export async function createTransferBankToPlayerAction(
   const bank = bankRows[0] ?? {
     fracten: 0, food: 0, wood: 0, stone: 0,
     common_metals: 0, coal: 0, oil: 0, herbs: 0, leather_fur: 0,
+    common_textiles: 0, labor_contracts: 0, basic_equipment: 0,
   };
 
-  // G4 : checks V2 uniquement — branches V1 fallback supprimées.
+  // G4 : checks V2 + V3-D2 — branches V1 fallback supprimées.
   if ((bank.fracten ?? 0) < fracten)
     throw new Error(`INSUFFICIENT_BANK_FRACTEN: banque=${bank.fracten} requis=${fracten}`);
   if (bank.food   < food)  throw new Error(`INSUFFICIENT_BANK_FOOD: banque=${bank.food} requis=${food}`);
@@ -999,34 +1073,46 @@ export async function createTransferBankToPlayerAction(
   if ((bank.herbs ?? 0) < herbs) throw new Error(`INSUFFICIENT_BANK_HERBS: banque=${bank.herbs} requis=${herbs}`);
   if ((bank.leather_fur ?? 0) < leatherFur)
     throw new Error(`INSUFFICIENT_BANK_LEATHER_FUR: banque=${bank.leather_fur} requis=${leatherFur}`);
+  // V3-D2
+  if (((bank as any).common_textiles ?? 0) < commonTextiles)
+    throw new Error(`INSUFFICIENT_BANK_COMMON_TEXTILES: banque=${(bank as any).common_textiles} requis=${commonTextiles}`);
+  if (((bank as any).labor_contracts ?? 0) < laborContracts)
+    throw new Error(`INSUFFICIENT_BANK_LABOR_CONTRACTS: banque=${(bank as any).labor_contracts} requis=${laborContracts}`);
+  if (((bank as any).basic_equipment ?? 0) < basicEquipment)
+    throw new Error(`INSUFFICIENT_BANK_BASIC_EQUIPMENT: banque=${(bank as any).basic_equipment} requis=${basicEquipment}`);
 
   const now = new Date();
 
-  // Durée via effective amounts V2
+  // Durée via effective amounts V2 + V3-D2
   const totalUnits = computeTransportUnits({
     fracten: effectiveFracten, food, wood, stone,
     common_metals: effectiveCommonMetals, coal, oil, herbs,
     leather_fur: effectiveLeatherFur,
+    common_textiles: commonTextiles, labor_contracts: laborContracts, basic_equipment: basicEquipment,
   });
   const durationSeconds = totalUnits * 5;
   const expectedEndTime = new Date(now.getTime() + durationSeconds * 1000);
 
-  // G4 : Débit V2 uniquement — colonnes gold/iron/copper/fur non débitées.
+  // G4 : Débit V2 + V3-D2 — colonnes gold/iron/copper/fur non débitées.
   const [action] = await db.transaction(async (tx) => {
     await tx
       .update(playerBank)
       .set({
-        fracten:       sql`${(playerBank as any).fracten}       - ${fracten}`,       // G4 V2
-        food:          sql`${playerBank.food}                   - ${food}`,
-        wood:          sql`${playerBank.wood}                   - ${wood}`,
-        stone:         sql`${playerBank.stone}                  - ${stone}`,
-        common_metals: sql`${(playerBank as any).common_metals} - ${commonMetals}`, // G4 V2
-        coal:          sql`${playerBank.coal}                   - ${coal}`,
-        oil:           sql`${playerBank.oil}                    - ${oil}`,
-        herbs:         sql`${playerBank.herbs}                  - ${herbs}`,
-        leather_fur:   sql`${(playerBank as any).leather_fur}   - ${leatherFur}`,   // G4 V2
+        fracten:          sql`${(playerBank as any).fracten}          - ${fracten}`,
+        food:             sql`${playerBank.food}                      - ${food}`,
+        wood:             sql`${playerBank.wood}                      - ${wood}`,
+        stone:            sql`${playerBank.stone}                     - ${stone}`,
+        common_metals:    sql`${(playerBank as any).common_metals}    - ${commonMetals}`,
+        coal:             sql`${playerBank.coal}                      - ${coal}`,
+        oil:              sql`${playerBank.oil}                       - ${oil}`,
+        herbs:            sql`${playerBank.herbs}                     - ${herbs}`,
+        leather_fur:      sql`${(playerBank as any).leather_fur}      - ${leatherFur}`,
+        // V3-D2
+        common_textiles:  sql`${(playerBank as any).common_textiles}  - ${commonTextiles}`,
+        labor_contracts:  sql`${(playerBank as any).labor_contracts}  - ${laborContracts}`,
+        basic_equipment:  sql`${(playerBank as any).basic_equipment}  - ${basicEquipment}`,
         updatedAt: now,
-      })
+      } as any)
       .where(eq(playerBank.playerId, playerId));
 
     return tx
@@ -1039,11 +1125,12 @@ export async function createTransferBankToPlayerAction(
         startWorldY: 0,
         endWorldX:   0,
         endWorldY:   0,
-        // Path V2 F2 — stocke les effective amounts avec clés V2
+        // Path V2 + V3-D2 — stocke les effective amounts
         path: [{
           fracten: effectiveFracten, food, wood, stone,
           common_metals: effectiveCommonMetals, coal, oil, herbs,
           leather_fur: effectiveLeatherFur,
+          common_textiles: commonTextiles, labor_contracts: laborContracts, basic_equipment: basicEquipment,
         }] as any,
         totalCost: 0,
         startTime: now,
@@ -1055,8 +1142,9 @@ export async function createTransferBankToPlayerAction(
 
   console.log(
     `[PlayerAction] Transfert banque→joueur créé id=${action.id} player=${playerId}` +
-    ` F2 V2 ${effectiveFracten}fr+${food}f+${wood}w+${stone}s` +
+    ` V2+V3-D2 ${effectiveFracten}fr+${food}f+${wood}w+${stone}s` +
     `+${effectiveCommonMetals}cm+${coal}co+${oil}oil+${herbs}herbs+${effectiveLeatherFur}lf` +
+    `+${commonTextiles}ct+${laborContracts}lc+${basicEquipment}be` +
     ` totalUnits=${totalUnits} durée=${durationSeconds}s`
   );
 
@@ -1079,7 +1167,8 @@ export async function getOrInitPlayerTransport(playerId: string) {
     .values({ playerId, fracten: 0, food: 0, wood: 0, stone: 0,
               coal: 0, oil: 0, herbs: 0,
               common_metals: 0, leather_fur: 0,
-              updatedAt: now })
+              common_textiles: 0, labor_contracts: 0, basic_equipment: 0, // V3-D2
+              updatedAt: now } as any)
     .onConflictDoUpdate({
       target: playerTransport.playerId,
       set: { updatedAt: now },

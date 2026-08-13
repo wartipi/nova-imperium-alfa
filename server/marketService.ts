@@ -13,11 +13,13 @@ import { creditFactionGold } from "./economyService";
 export type ResourceType =
   | "food" | "wood" | "stone" | "coal" | "oil" | "herbs"
   | "common_metals" | "leather_fur"           // V2 — ressources officielles
+  | "common_textiles" | "labor_contracts" | "basic_equipment" // V3-D2 — prototype unités
   | "iron" | "copper" | "fur";                // V1 legacy — ordres anciens uniquement
 
 // V2 : seules ces ressources peuvent être utilisées dans un NOUVEL ordre.
 const VALID_RESOURCES: ReadonlySet<string> = new Set([
   "food","wood","stone","coal","oil","herbs","common_metals","leather_fur",
+  "common_textiles","labor_contracts","basic_equipment", // V3-D2
 ]);
 
 // V1 legacy : autorisées en lecture pour les anciens ordres ouverts.
@@ -191,14 +193,18 @@ export async function getTradeHistory(_cityId: number) {
 // G6-B1 : iron/copper/fur retirés — aucun ordre V1 open en DB.
 function resourceCol(res: ResourceType): any {
   const map: Partial<Record<ResourceType, any>> = {
-    food:          playerBank.food,
-    wood:          playerBank.wood,
-    stone:         playerBank.stone,
-    coal:          playerBank.coal,
-    oil:           playerBank.oil,
-    herbs:         playerBank.herbs,
-    common_metals: (playerBank as any).common_metals,
-    leather_fur:   (playerBank as any).leather_fur,
+    food:             playerBank.food,
+    wood:             playerBank.wood,
+    stone:            playerBank.stone,
+    coal:             playerBank.coal,
+    oil:              playerBank.oil,
+    herbs:            playerBank.herbs,
+    common_metals:    (playerBank as any).common_metals,
+    leather_fur:      (playerBank as any).leather_fur,
+    // V3-D2
+    common_textiles:  (playerBank as any).common_textiles,
+    labor_contracts:  (playerBank as any).labor_contracts,
+    basic_equipment:  (playerBank as any).basic_equipment,
   };
   return map[res];
 }
@@ -209,7 +215,8 @@ async function ensurePlayerBank(playerId: string, tx?: any) {
     .insert(playerBank)
     .values({ playerId, fracten: 0, food: 0, wood: 0, stone: 0,
               common_metals: 0, coal: 0, oil: 0, herbs: 0, leather_fur: 0,
-              lastProductionTurn: 0 })
+              common_textiles: 0, labor_contracts: 0, basic_equipment: 0, // V3-D2
+              lastProductionTurn: 0 } as any)
     .onConflictDoNothing();
 }
 
@@ -265,14 +272,18 @@ async function creditFractenPlayer(playerId: string, amount: number, tx?: any): 
 // G6-B1 : iron/copper/fur retirés — aucun ordre V1 open en DB.
 function transportResourceCol(res: ResourceType): any {
   const map: Partial<Record<ResourceType, any>> = {
-    food:          playerTransport.food,
-    wood:          playerTransport.wood,
-    stone:         playerTransport.stone,
-    coal:          playerTransport.coal,
-    oil:           playerTransport.oil,
-    herbs:         playerTransport.herbs,
-    common_metals: (playerTransport as any).common_metals,
-    leather_fur:   (playerTransport as any).leather_fur,
+    food:             playerTransport.food,
+    wood:             playerTransport.wood,
+    stone:            playerTransport.stone,
+    coal:             playerTransport.coal,
+    oil:              playerTransport.oil,
+    herbs:            playerTransport.herbs,
+    common_metals:    (playerTransport as any).common_metals,
+    leather_fur:      (playerTransport as any).leather_fur,
+    // V3-D2
+    common_textiles:  (playerTransport as any).common_textiles,
+    labor_contracts:  (playerTransport as any).labor_contracts,
+    basic_equipment:  (playerTransport as any).basic_equipment,
   };
   return map[res];
 }
@@ -282,7 +293,8 @@ async function ensurePlayerTransport(playerId: string, tx?: any) {
   await target
     .insert(playerTransport)
     .values({ playerId, fracten: 0, food: 0, wood: 0, stone: 0,
-              common_metals: 0, coal: 0, oil: 0, herbs: 0, leather_fur: 0 })
+              common_metals: 0, coal: 0, oil: 0, herbs: 0, leather_fur: 0,
+              common_textiles: 0, labor_contracts: 0, basic_equipment: 0 } as any) // V3-D2
     .onConflictDoNothing();
 }
 
@@ -339,7 +351,8 @@ async function ensurePlayerMarketBox(playerId: string, tx?: any) {
   await target
     .insert(playerMarketBox)
     .values({ playerId, fracten: 0, food: 0, wood: 0, stone: 0,
-              common_metals: 0, coal: 0, oil: 0, herbs: 0, leather_fur: 0 })
+              common_metals: 0, coal: 0, oil: 0, herbs: 0, leather_fur: 0,
+              common_textiles: 0, labor_contracts: 0, basic_equipment: 0 } as any) // V3-D2
     .onConflictDoNothing();
 }
 
@@ -356,14 +369,18 @@ async function creditMarketBoxFracten(playerId: string, amount: number, tx?: any
 // G6-B1 : iron/copper/fur retirés — aucun ordre V1 open en DB.
 function marketBoxResourceCol(res: ResourceType): any {
   const map: Partial<Record<ResourceType, any>> = {
-    food:          playerMarketBox.food,
-    wood:          playerMarketBox.wood,
-    stone:         playerMarketBox.stone,
-    coal:          playerMarketBox.coal,
-    oil:           playerMarketBox.oil,
-    herbs:         playerMarketBox.herbs,
-    common_metals: (playerMarketBox as any).common_metals,
-    leather_fur:   (playerMarketBox as any).leather_fur,
+    food:             playerMarketBox.food,
+    wood:             playerMarketBox.wood,
+    stone:            playerMarketBox.stone,
+    coal:             playerMarketBox.coal,
+    oil:              playerMarketBox.oil,
+    herbs:            playerMarketBox.herbs,
+    common_metals:    (playerMarketBox as any).common_metals,
+    leather_fur:      (playerMarketBox as any).leather_fur,
+    // V3-D2
+    common_textiles:  (playerMarketBox as any).common_textiles,
+    labor_contracts:  (playerMarketBox as any).labor_contracts,
+    basic_equipment:  (playerMarketBox as any).basic_equipment,
   };
   return map[res];
 }
@@ -696,11 +713,12 @@ export async function claimMarketBoxToTransport(playerId: string): Promise<{ ok:
 
   if (!box) throw Object.assign(new Error("Boîte introuvable"), { status: 500 });
 
-  // Vérifier qu'il y a quelque chose à récupérer — V2 uniquement (G6-B2 : iron/copper/fur retirés)
+  // Vérifier qu'il y a quelque chose à récupérer — V2 + V3-D2 (G6-B2 : iron/copper/fur retirés)
   const boxV2 = box as any;
   const hasContent = (boxV2.fracten ?? 0) > 0 || (boxV2.common_metals ?? 0) > 0 || (boxV2.leather_fur ?? 0) > 0
     || box.food > 0 || box.wood > 0 || box.stone > 0
-    || box.coal > 0 || box.oil > 0 || box.herbs > 0;
+    || box.coal > 0 || box.oil > 0 || box.herbs > 0
+    || (boxV2.common_textiles ?? 0) > 0 || (boxV2.labor_contracts ?? 0) > 0 || (boxV2.basic_equipment ?? 0) > 0; // V3-D2
   if (!hasContent) throw Object.assign(new Error("Boîte de règlement vide"), { status: 400 });
 
   // Lire transport actuel pour vérifier la capacité
@@ -713,26 +731,32 @@ export async function claimMarketBoxToTransport(playerId: string): Promise<{ ok:
   const cur = transport as any ?? {};
   // G6-B2 : gold/iron/copper/fur retirés des calculs computeTransportUnits
   const usedNow = computeTransportUnits({
-    fracten:       cur.fracten       ?? 0,
-    food:          cur.food          ?? 0,
-    wood:          cur.wood          ?? 0,
-    stone:         cur.stone         ?? 0,
-    common_metals: cur.common_metals ?? 0,
-    coal:          cur.coal          ?? 0,
-    oil:           cur.oil           ?? 0,
-    herbs:         cur.herbs         ?? 0,
-    leather_fur:   cur.leather_fur   ?? 0,
+    fracten:          cur.fracten          ?? 0,
+    food:             cur.food             ?? 0,
+    wood:             cur.wood             ?? 0,
+    stone:            cur.stone            ?? 0,
+    common_metals:    cur.common_metals    ?? 0,
+    coal:             cur.coal             ?? 0,
+    oil:              cur.oil              ?? 0,
+    herbs:            cur.herbs            ?? 0,
+    leather_fur:      cur.leather_fur      ?? 0,
+    common_textiles:  cur.common_textiles  ?? 0, // V3-D2
+    labor_contracts:  cur.labor_contracts  ?? 0, // V3-D2
+    basic_equipment:  cur.basic_equipment  ?? 0, // V3-D2
   } as any);
   const toAdd = computeTransportUnits({
-    fracten:       boxV2.fracten       ?? 0,
-    food:          box.food            ?? 0,
-    wood:          box.wood            ?? 0,
-    stone:         box.stone           ?? 0,
-    common_metals: boxV2.common_metals ?? 0,
-    coal:          box.coal            ?? 0,
-    oil:           box.oil             ?? 0,
-    herbs:         box.herbs           ?? 0,
-    leather_fur:   boxV2.leather_fur   ?? 0,
+    fracten:          boxV2.fracten          ?? 0,
+    food:             box.food               ?? 0,
+    wood:             box.wood               ?? 0,
+    stone:            box.stone              ?? 0,
+    common_metals:    boxV2.common_metals    ?? 0,
+    coal:             box.coal               ?? 0,
+    oil:              box.oil                ?? 0,
+    herbs:            box.herbs              ?? 0,
+    leather_fur:      boxV2.leather_fur      ?? 0,
+    common_textiles:  boxV2.common_textiles  ?? 0, // V3-D2
+    labor_contracts:  boxV2.labor_contracts  ?? 0, // V3-D2
+    basic_equipment:  boxV2.basic_equipment  ?? 0, // V3-D2
   } as any);
 
   if (usedNow + toAdd > TRANSPORT_MAX_UNITS) {
@@ -748,25 +772,31 @@ export async function claimMarketBoxToTransport(playerId: string): Promise<{ ok:
     await tx
       .update(playerTransport)
       .set({
-        fracten:       sql`${(playerTransport as any).fracten}       + ${boxV2.fracten ?? 0}`,
-        common_metals: sql`${(playerTransport as any).common_metals} + ${boxV2.common_metals ?? 0}`,
-        leather_fur:   sql`${(playerTransport as any).leather_fur}   + ${boxV2.leather_fur ?? 0}`,
-        food:      sql`${playerTransport.food}   + ${box.food}`,
-        wood:      sql`${playerTransport.wood}   + ${box.wood}`,
-        stone:     sql`${playerTransport.stone}  + ${box.stone}`,
-        coal:      sql`${playerTransport.coal}   + ${box.coal}`,
-        oil:       sql`${playerTransport.oil}    + ${box.oil}`,
-        herbs:     sql`${playerTransport.herbs}  + ${box.herbs}`,
+        fracten:          sql`${(playerTransport as any).fracten}          + ${boxV2.fracten ?? 0}`,
+        common_metals:    sql`${(playerTransport as any).common_metals}    + ${boxV2.common_metals ?? 0}`,
+        leather_fur:      sql`${(playerTransport as any).leather_fur}      + ${boxV2.leather_fur ?? 0}`,
+        food:             sql`${playerTransport.food}    + ${box.food}`,
+        wood:             sql`${playerTransport.wood}    + ${box.wood}`,
+        stone:            sql`${playerTransport.stone}   + ${box.stone}`,
+        coal:             sql`${playerTransport.coal}    + ${box.coal}`,
+        oil:              sql`${playerTransport.oil}     + ${box.oil}`,
+        herbs:            sql`${playerTransport.herbs}   + ${box.herbs}`,
+        // V3-D2
+        common_textiles:  sql`${(playerTransport as any).common_textiles}  + ${boxV2.common_textiles ?? 0}`,
+        labor_contracts:  sql`${(playerTransport as any).labor_contracts}  + ${boxV2.labor_contracts ?? 0}`,
+        basic_equipment:  sql`${(playerTransport as any).basic_equipment}  + ${boxV2.basic_equipment ?? 0}`,
         updatedAt: now,
       } as any)
       .where(eq(playerTransport.playerId, playerId));
 
-    // Vider la boîte — V2 + communs (G6-B1 : iron/copper/fur retirés)
+    // Vider la boîte — V2 + V3-D2 (G6-B1 : iron/copper/fur retirés)
     await tx
       .update(playerMarketBox)
       .set({ fracten: 0, common_metals: 0, leather_fur: 0,
              food: 0, wood: 0, stone: 0,
-             coal: 0, oil: 0, herbs: 0, updatedAt: now } as any)
+             coal: 0, oil: 0, herbs: 0,
+             common_textiles: 0, labor_contracts: 0, basic_equipment: 0, // V3-D2
+             updatedAt: now } as any)
       .where(eq(playerMarketBox.playerId, playerId));
   });
 
@@ -790,10 +820,11 @@ export async function claimMarketBoxToBank(playerId: string): Promise<{ ok: true
   if (!box) throw Object.assign(new Error("Boîte introuvable"), { status: 500 });
 
   const b2 = box as any;
-  // G6-B1 : iron/copper/fur retirés du check hasContent
+  // G6-B1 : iron/copper/fur retirés du check hasContent — V3-D2 : 3 nouvelles ressources ajoutées
   const hasContent = (b2.fracten ?? 0) > 0 || (b2.common_metals ?? 0) > 0 || (b2.leather_fur ?? 0) > 0
     || box.food > 0 || box.wood > 0 || box.stone > 0
-    || box.coal > 0 || box.oil > 0 || box.herbs > 0;
+    || box.coal > 0 || box.oil > 0 || box.herbs > 0
+    || (b2.common_textiles ?? 0) > 0 || (b2.labor_contracts ?? 0) > 0 || (b2.basic_equipment ?? 0) > 0; // V3-D2
   if (!hasContent) throw Object.assign(new Error("Boîte de règlement vide"), { status: 400 });
 
   const now = new Date();
@@ -802,25 +833,31 @@ export async function claimMarketBoxToBank(playerId: string): Promise<{ ok: true
     await tx
       .update(playerBank)
       .set({
-        fracten:       sql`${(playerBank as any).fracten}       + ${b2.fracten ?? 0}`,
-        common_metals: sql`${(playerBank as any).common_metals} + ${b2.common_metals ?? 0}`,
-        leather_fur:   sql`${(playerBank as any).leather_fur}   + ${b2.leather_fur ?? 0}`,
-        food:      sql`${playerBank.food}   + ${box.food}`,
-        wood:      sql`${playerBank.wood}   + ${box.wood}`,
-        stone:     sql`${playerBank.stone}  + ${box.stone}`,
-        coal:      sql`${playerBank.coal}   + ${box.coal}`,
-        oil:       sql`${playerBank.oil}    + ${box.oil}`,
-        herbs:     sql`${playerBank.herbs}  + ${box.herbs}`,
+        fracten:          sql`${(playerBank as any).fracten}          + ${b2.fracten ?? 0}`,
+        common_metals:    sql`${(playerBank as any).common_metals}    + ${b2.common_metals ?? 0}`,
+        leather_fur:      sql`${(playerBank as any).leather_fur}      + ${b2.leather_fur ?? 0}`,
+        food:             sql`${playerBank.food}    + ${box.food}`,
+        wood:             sql`${playerBank.wood}    + ${box.wood}`,
+        stone:            sql`${playerBank.stone}   + ${box.stone}`,
+        coal:             sql`${playerBank.coal}    + ${box.coal}`,
+        oil:              sql`${playerBank.oil}     + ${box.oil}`,
+        herbs:            sql`${playerBank.herbs}   + ${box.herbs}`,
+        // V3-D2
+        common_textiles:  sql`${(playerBank as any).common_textiles}  + ${b2.common_textiles ?? 0}`,
+        labor_contracts:  sql`${(playerBank as any).labor_contracts}  + ${b2.labor_contracts ?? 0}`,
+        basic_equipment:  sql`${(playerBank as any).basic_equipment}  + ${b2.basic_equipment ?? 0}`,
         updatedAt: now,
       } as any)
       .where(eq(playerBank.playerId, playerId));
 
-    // Vider la boîte — V2 + communs (G6-B1 : iron/copper/fur retirés)
+    // Vider la boîte — V2 + V3-D2 (G6-B1 : iron/copper/fur retirés)
     await tx
       .update(playerMarketBox)
       .set({ fracten: 0, common_metals: 0, leather_fur: 0,
              food: 0, wood: 0, stone: 0,
-             coal: 0, oil: 0, herbs: 0, updatedAt: now } as any)
+             coal: 0, oil: 0, herbs: 0,
+             common_textiles: 0, labor_contracts: 0, basic_equipment: 0, // V3-D2
+             updatedAt: now } as any)
       .where(eq(playerMarketBox.playerId, playerId));
   });
 

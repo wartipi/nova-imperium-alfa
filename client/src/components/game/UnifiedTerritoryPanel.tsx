@@ -31,6 +31,10 @@ const RESOURCE_LABELS: Record<string, string> = {
   herbs:              '🌿 Herbes',
   common_metals:      '⚙️ Métaux communs',
   leather_fur:        '🦊 Cuir & fourrure',
+  // V3-D2 : ressources prototype unités
+  common_textiles:    '🧶 Textiles communs',
+  labor_contracts:    '📜 Contrats de travail',
+  basic_equipment:    '🛡️ Équipement basique',
   rare_metals_alloys: '🔩 Métaux & alliages rares',
   textiles:           '🧵 Textiles',
   spices:             '🌶️ Épices',

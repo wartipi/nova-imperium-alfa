@@ -27,6 +27,9 @@ export class ResourceRevealSystem {
     herbs:          { type: 'herbs',          rarity: 'common',    symbol: '🌿', color: '#32CD32', revealLevel: 1, label: 'Herbes'               },
 
     // B. STRATÉGIQUES — produites par bâtiments, ne sont jamais révélées sur la carte
+    // V3-D2 : ressources prototype unités
+    common_textiles:        { type: 'common_textiles',        rarity: 'strategic', symbol: '🧶', color: '#C8A2C8', revealLevel: 99, label: 'Textiles communs'         },
+    labor_contracts:        { type: 'labor_contracts',        rarity: 'strategic', symbol: '📜', color: '#8B7355', revealLevel: 99, label: 'Contrats de travail'      },
     basic_equipment:        { type: 'basic_equipment',        rarity: 'strategic', symbol: '🛡️', color: '#808080', revealLevel: 99, label: 'Équipement basique'       },
     intermediate_equipment: { type: 'intermediate_equipment', rarity: 'strategic', symbol: '⚔️', color: '#708090', revealLevel: 99, label: 'Équipement intermédiaire'  },
     advanced_equipment:     { type: 'advanced_equipment',     rarity: 'strategic', symbol: '🗡️', color: '#607090', revealLevel: 99, label: 'Équipement avancé'         },

@@ -590,7 +590,9 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                   {/* ─── Boîte de règlement ───────────────────────────────── */}
                   {marketBox && (() => {
                     // V2 — ressources V2 + legacy (pour affichage boîte historique)
-                    const MB_RESOURCES = ['food','wood','stone','common_metals','leather_fur','coal','oil','herbs','iron','copper','fur'] as const;
+                    const MB_RESOURCES = ['food','wood','stone','common_metals','leather_fur','coal','oil','herbs',
+                      'common_textiles','labor_contracts','basic_equipment', // V3-D2
+                      'iron','copper','fur'] as const;
                     const hasContent = (marketBox.fracten ?? 0) > 0
                       || MB_RESOURCES.some(r => (marketBox[r] ?? 0) > 0);
                     return (
@@ -663,6 +665,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                     const ICONS: Record<string, string> = {
                       food:'🌿', wood:'🪵', stone:'🪨', coal:'🖤', oil:'🛢️', herbs:'🌱',
                       common_metals:'⚙️', leather_fur:'🦊',
+                      common_textiles:'🧶', labor_contracts:'📜', basic_equipment:'🛡️', // V3-D2
                     };
                     const available = ALL_RESOURCES.filter(r => transport && (transport as any)[r] > 0);
                     return (
@@ -727,6 +730,7 @@ export function PublicMarketplace({ playerId, onClose }: PublicMarketplaceProps)
                     const ICONS: Record<string, string> = {
                       food:'🌿', wood:'🪵', stone:'🪨', coal:'🖤', oil:'🛢️', herbs:'🌱',
                       common_metals:'⚙️', leather_fur:'🦊',
+                      common_textiles:'🧶', labor_contracts:'📜', basic_equipment:'🛡️', // V3-D2
                     };
                     // Dernier prix vendu par ressource — calculé explicitement sur executedAt
                     const latestPrice: Partial<Record<ResourceType, number>> = {};
