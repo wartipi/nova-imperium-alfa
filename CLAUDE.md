@@ -691,3 +691,39 @@ Fourni par le prochain checkpoint automatique (jamais de push manuel sur GitHub 
 - **Commit :** fourni par le prochain checkpoint automatique (jamais de push manuel sur GitHub — dépôt synchronisé automatiquement avec `origin/NI-10.09`).
 
 **Statut :** bloc Systèmes V1-A terminé et documenté. Catalogues passifs créés, aucun runtime modifié. En attente de validation utilisateur avant tout nouveau bloc.
+
+## Systèmes V1-A — Correction passive landUnitCatalog.ts
+
+- **Objectif :** Deux corrections passives dans `shared/landUnitCatalog.ts`, sans toucher au runtime ni à la DB.
+- **Aucun fichier runtime modifié. Aucune migration DB. Aucun push manuel.**
+
+### Corrections apportées
+
+**1. Ajout du champ `creationProfile: string` dans `LandUnitDefinition`**
+- `creationCategory` conservé tel quel — représente le lieu/mode de recrutement (`"city"`, `"camp"`, `"any"`).
+- Nouveau champ `creationProfile` distinct — représente le profil de création / catégorie de design de l'unité.
+- Profils assignés aux 15 unités :
+  - Milice → `"Commun"`
+  - Garnison → `"Commun défensif"`
+  - Patrouilleurs, Éclaireurs, Infanterie légère → `"Professionnel léger"`
+  - Infanterie régulière → `"Professionnel"`
+  - Infanterie noble → `"Lourd noble"`
+  - Troupe de choc → `"Assaut spécialisé"`
+  - Infanterie à arc → `"Projectile léger"`
+  - Infanterie à arbalète → `"Projectile lourd"`
+  - Sapeurs → `"Technique"`
+  - Ingénieurs de campagne → `"Technique avancé"`
+  - Troupe de raid → `"Raid"`
+  - Chasseurs → `"Soutien léger"`
+  - Piquiers → `"Contrôle"`
+
+**2. Correction du commentaire `siegeWearPoints`**
+- Avant : *"Points d'usure infligés lors d'un combat (siège ou bataille)."*
+- Après : *"Points d'usure utilisés pendant les sièges contre fortifications, camps, murs ou positions défensives."*
+
+### Résultat TypeScript
+`npx tsc --noEmit` : **187 erreurs** — baseline inchangée, aucune régression introduite.
+
+- **Commit :** fourni par le prochain checkpoint automatique (jamais de push manuel sur GitHub).
+
+**Statut :** correction V1-A appliquée et documentée. Fichier passif, aucun runtime modifié.

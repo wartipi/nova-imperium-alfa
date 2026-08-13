@@ -52,15 +52,24 @@ export interface LandUnitDefinition {
   maxMovementPerTurn: number;
   /** Points d'action consommés par case traversée. */
   actionPointCostPerTile: number;
-  /** Catégorie de création (qui peut recruter cette unité). */
+  /** Lieu ou mode de recrutement (ex. "city", "camp"). */
   creationCategory: "city" | "camp" | "any";
+  /**
+   * Profil de création — catégorie de design de l'unité.
+   * Exemples : "Commun", "Commun défensif", "Professionnel léger",
+   * "Professionnel", "Professionnel lourd", "Lourd noble",
+   * "Assaut spécialisé", "Projectile léger", "Projectile lourd",
+   * "Technique", "Technique avancé", "Raid", "Soutien léger", "Contrôle".
+   * Distinct de creationCategory (qui représente le lieu de recrutement).
+   */
+  creationProfile: string;
   /**
    * Coût de création en ressources canoniques V3.
    * Clés = CanonicalResourceId, valeurs = quantité.
    * Valeurs de design prototype — pas encore branchées au runtime.
    */
   creationCost: Partial<Record<CanonicalResourceId, number>>;
-  /** Points d'usure infligés lors d'un combat (siège ou bataille). */
+  /** Points d'usure utilisés pendant les sièges contre fortifications, camps, murs ou positions défensives. */
   siegeWearPoints: number;
   /**
    * Entretien par tour en ressources canoniques V3.
@@ -90,6 +99,7 @@ export const LAND_UNIT_CATALOG: Record<LandUnitId, LandUnitDefinition> = {
     maxMovementPerTurn: 5,
     actionPointCostPerTile: 1,
     creationCategory: "city",
+    creationProfile: "Commun",
     creationCost: {
       food:            2,
       labor_contracts: 1,
@@ -113,6 +123,7 @@ export const LAND_UNIT_CATALOG: Record<LandUnitId, LandUnitDefinition> = {
     maxMovementPerTurn: 3,
     actionPointCostPerTile: 2,
     creationCategory: "city",
+    creationProfile: "Commun défensif",
     creationCost: {
       food:            2,
       labor_contracts: 1,
@@ -138,6 +149,7 @@ export const LAND_UNIT_CATALOG: Record<LandUnitId, LandUnitDefinition> = {
     maxMovementPerTurn: 16,
     actionPointCostPerTile: 1,
     creationCategory: "city",
+    creationProfile: "Professionnel léger",
     creationCost: {
       food:            3,
       labor_contracts: 1,
@@ -163,6 +175,7 @@ export const LAND_UNIT_CATALOG: Record<LandUnitId, LandUnitDefinition> = {
     maxMovementPerTurn: 20,
     actionPointCostPerTile: 1,
     creationCategory: "city",
+    creationProfile: "Professionnel léger",
     creationCost: {
       food:            3,
       labor_contracts: 1,
@@ -188,6 +201,7 @@ export const LAND_UNIT_CATALOG: Record<LandUnitId, LandUnitDefinition> = {
     maxMovementPerTurn: 12,
     actionPointCostPerTile: 1,
     creationCategory: "city",
+    creationProfile: "Professionnel léger",
     creationCost: {
       food:            4,
       labor_contracts: 1,
@@ -214,6 +228,7 @@ export const LAND_UNIT_CATALOG: Record<LandUnitId, LandUnitDefinition> = {
     maxMovementPerTurn: 10,
     actionPointCostPerTile: 2,
     creationCategory: "city",
+    creationProfile: "Professionnel",
     creationCost: {
       food:            4,
       labor_contracts: 1,
@@ -240,6 +255,7 @@ export const LAND_UNIT_CATALOG: Record<LandUnitId, LandUnitDefinition> = {
     maxMovementPerTurn: 10,
     actionPointCostPerTile: 2,
     creationCategory: "city",
+    creationProfile: "Lourd noble",
     creationCost: {
       food:            5,
       labor_contracts: 1,
@@ -266,6 +282,7 @@ export const LAND_UNIT_CATALOG: Record<LandUnitId, LandUnitDefinition> = {
     maxMovementPerTurn: 10,
     actionPointCostPerTile: 2,
     creationCategory: "city",
+    creationProfile: "Assaut spécialisé",
     creationCost: {
       food:            5,
       labor_contracts: 1,
@@ -293,6 +310,7 @@ export const LAND_UNIT_CATALOG: Record<LandUnitId, LandUnitDefinition> = {
     maxMovementPerTurn: 10,
     actionPointCostPerTile: 1,
     creationCategory: "city",
+    creationProfile: "Projectile léger",
     creationCost: {
       food:            4,
       labor_contracts: 1,
@@ -319,6 +337,7 @@ export const LAND_UNIT_CATALOG: Record<LandUnitId, LandUnitDefinition> = {
     maxMovementPerTurn: 8,
     actionPointCostPerTile: 2,
     creationCategory: "city",
+    creationProfile: "Projectile lourd",
     creationCost: {
       food:            4,
       labor_contracts: 1,
@@ -347,6 +366,7 @@ export const LAND_UNIT_CATALOG: Record<LandUnitId, LandUnitDefinition> = {
     maxMovementPerTurn: 6,
     actionPointCostPerTile: 2,
     creationCategory: "city",
+    creationProfile: "Technique",
     creationCost: {
       food:            4,
       labor_contracts: 1,
@@ -375,6 +395,7 @@ export const LAND_UNIT_CATALOG: Record<LandUnitId, LandUnitDefinition> = {
     maxMovementPerTurn: 6,
     actionPointCostPerTile: 2,
     creationCategory: "city",
+    creationProfile: "Technique avancé",
     creationCost: {
       food:            4,
       labor_contracts: 1,
@@ -404,6 +425,7 @@ export const LAND_UNIT_CATALOG: Record<LandUnitId, LandUnitDefinition> = {
     maxMovementPerTurn: 14,
     actionPointCostPerTile: 1,
     creationCategory: "city",
+    creationProfile: "Raid",
     creationCost: {
       food:            4,
       labor_contracts: 1,
@@ -429,6 +451,7 @@ export const LAND_UNIT_CATALOG: Record<LandUnitId, LandUnitDefinition> = {
     maxMovementPerTurn: 12,
     actionPointCostPerTile: 1,
     creationCategory: "city",
+    creationProfile: "Soutien léger",
     creationCost: {
       food:            3,
       labor_contracts: 1,
@@ -455,6 +478,7 @@ export const LAND_UNIT_CATALOG: Record<LandUnitId, LandUnitDefinition> = {
     maxMovementPerTurn: 10,
     actionPointCostPerTile: 2,
     creationCategory: "city",
+    creationProfile: "Contrôle",
     creationCost: {
       food:            4,
       labor_contracts: 1,
