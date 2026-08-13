@@ -1,0 +1,357 @@
+# Prompt Replit — Ressources V3-C-Audit — Prise en compte de la liste canonique des ressources économiques
+
+NOVA IMPERIUM — RESSOURCES V3-C-AUDIT — LISTE CANONIQUE DES RESSOURCES ÉCONOMIQUES
+
+Branche de travail : NI-10.09
+Base de comparaison : NI-10.3
+Repo : wartipi/nova-imperium-alfa
+
+## RÔLE
+
+Tu dois agir comme auditeur technique et intégrateur prudent.
+
+Ne fais aucune modification runtime.
+Ne fais aucun refactor massif.
+Ne change pas l’architecture.
+Ne modifie pas la base de données.
+Ne crée aucune migration.
+Ne modifie pas les inventaires, marchés, productions, bâtiments ou coûts.
+
+Cette étape est un **audit de prise en compte canonique**, pas une implémentation.
+
+## CONTEXTE
+
+Le bloc Ressources V3-B a été validé.
+
+État actuel :
+
+* `shared/tileModifiers.ts` existe.
+* Il formalise déjà la distinction entre :
+
+  * `EconomicResourceType`
+  * `TileModifierId`
+* Le fichier est passif et non branché au runtime.
+* `CLAUDE.md` a été documenté.
+* Baseline TypeScript connue : 187 erreurs TypeScript préexistantes.
+* Cette baseline ne doit pas être aggravée.
+
+Nouvelle décision canonique de design :
+
+La liste officielle des ressources économiques de Nova Imperium a été mise à jour.
+
+Cette liste devient la base canonique actuelle du jeu, mais elle ne doit pas être intégrée brutalement dans le runtime sans audit.
+
+## LISTE CANONIQUE ACTUELLE DES RESSOURCES ÉCONOMIQUES
+
+### 1. Ressources communes
+
+Ressources de base, surtout issues de l’environnement ou d’une exploitation simple.
+
+* Nourriture
+* Bois
+* Cuir et fourrure
+* Pierre
+* Métaux communs
+* Combustible
+* Huile
+* Ingrédients communs
+* Textiles communs
+
+### 2. Commodités rares
+
+Biens précieux, coloniaux, exotiques ou mystiques.
+Ce sont des ressources économiques finales, pas des modifieurs de case.
+
+* Métaux et alliages rares
+* Textiles fins
+* Commodités de luxe
+* Pierres précieuses
+* Ingrédients rares
+* Fourrures nobles
+* Bois précieux
+* Reliques anciennes
+* Pierres et cristaux magiques
+
+### 3. Ressources stratégiques
+
+Ressources produites par les colons, les ateliers, les guildes, les infrastructures ou l’organisation humaine.
+Elles ne sont pas simplement récoltées dans l’environnement.
+
+* Contrats de travail
+* Équipement basique
+* Équipement intermédiaire
+* Équipement avancé
+* Équipement rare
+* Équipement légendaire
+
+### 4. Monnaie officielle
+
+* Fracten
+
+## RÈGLE CANONIQUE ASSOCIÉE
+
+Les éléments comme :
+
+* cerfs
+* bétail
+* gisement de fer
+* gisement de cuivre
+* marais salants
+* ruines anciennes
+* forêt précieuse
+* source d’huile
+* gisement cristallin
+* plantes rares
+* animaux à fourrure
+* site sacré
+
+ne sont pas des ressources économiques finales.
+
+Ce sont des **modifieurs de case**.
+
+Un modifieur de case produit une ou plusieurs ressources économiques lorsqu’il est exploité.
+
+Exemples :
+
+* Cerfs → Nourriture + Cuir et fourrure
+* Gisement de fer → Métaux communs
+* Gisement de charbon → Combustible
+* Marais salants → Ingrédients communs
+* Forêt précieuse → Bois précieux
+* Ruines anciennes → Reliques anciennes
+* Gisement cristallin → Pierres et cristaux magiques
+* Plantes rares → Ingrédients rares
+* Fibres végétales → Textiles communs
+
+## OBJECTIF DE CET AUDIT
+
+Auditer l’écart entre :
+
+1. la liste canonique actuelle des ressources économiques ;
+2. le code existant ;
+3. `shared/tileModifiers.ts` ;
+4. les anciens noms encore présents dans le projet ;
+5. les ressources runtime réellement utilisées par la production, les inventaires, le marché, les bâtiments, les coûts et l’UI.
+
+Il faut produire un rapport clair, sans modifier le code.
+
+## POINTS À AUDITER
+
+### 1. Ressources économiques existantes dans le code
+
+Identifier où les ressources économiques sont actuellement déclarées ou utilisées.
+
+Fichiers probables à inspecter :
+
+* `server/buildingEffects.ts`
+* `shared/schema.ts`
+* `client/src/lib/shared/ResourceIcons.ts`
+* `client/src/components/game/PublicMarketplace.tsx`
+* `client/src/components/game/TreasuryPanel.tsx`
+* `client/src/components/game/ConstructionPanel.tsx`
+* `client/src/components/game/HarvestPanel.tsx`
+* `client/src/components/game/TileInfoPanel.tsx`
+* `client/src/components/game/UnifiedTerritoryPanel.tsx`
+* `server/economyService.ts`
+* `server/marketService.ts`
+* `server/cityService.ts`
+* `server/playerActionService.ts`
+
+### 2. Écarts entre anciennes clés et nouvelle liste canonique
+
+Identifier les clés actuelles qui ne correspondent plus exactement au canon.
+
+Exemples à vérifier :
+
+* `coal` devrait probablement devenir conceptuellement `fuel` / Combustible
+* `herbs` devrait probablement devenir conceptuellement `common_ingredients` / Ingrédients communs
+* `leather_fur` reste valide conceptuellement comme Cuir et fourrure
+* `common_metals` reste valide
+* `oil` reste valide
+* `wood`, `stone`, `food` restent valides
+
+Important :
+Ne pas renommer les clés runtime dans cet audit.
+Seulement identifier les écarts et les risques.
+
+### 3. Ressources nouvelles non encore présentes
+
+Identifier quelles ressources canoniques n’existent probablement pas encore dans le code runtime.
+
+Exemples probables :
+
+* Textiles communs
+* Métaux et alliages rares
+* Textiles fins
+* Commodités de luxe
+* Pierres précieuses
+* Ingrédients rares
+* Fourrures nobles
+* Bois précieux
+* Reliques anciennes
+* Pierres et cristaux magiques
+* Contrats de travail
+* Équipement basique
+* Équipement intermédiaire
+* Équipement avancé
+* Équipement rare
+* Équipement légendaire
+
+Pour chaque élément :
+
+* dire s’il existe déjà dans le code ;
+* sous quelle clé ;
+* dans quel fichier ;
+* ou s’il est absent.
+
+### 4. Modifieurs de case concernés
+
+Auditer `shared/tileModifiers.ts` et dire quels modifieurs actuels devraient être réinterprétés plus tard selon la nouvelle liste.
+
+Exemples conceptuels :
+
+* `coal` comme modifieur de case pourrait produire Combustible
+* `herbs` comme modifieur de case pourrait produire Ingrédients communs
+* `crystals` pourrait produire Pierres et cristaux magiques
+* `sacred_stones` pourrait produire Pierres et cristaux magiques ou Reliques anciennes
+* `ancient_artifacts` pourrait produire Reliques anciennes
+* `fur` pourrait produire Cuir et fourrure ou Fourrures nobles selon rareté future
+* `fish`, `deer`, `cattle`, `wheat` restent liés à Nourriture / Cuir et fourrure
+
+Ne pas modifier `shared/tileModifiers.ts` dans cet audit.
+
+### 5. Risques de migration
+
+Identifier clairement les risques si on modifie trop vite les clés runtime.
+
+À vérifier :
+
+* colonnes DB existantes ;
+* inventaires existants ;
+* marchés existants ;
+* bâtiments qui produisent des ressources ;
+* prérequis de construction ;
+* transferts de ressources ;
+* affichage UI ;
+* anciens labels dans `ResourceIcons.ts`;
+* données persistantes existantes ;
+* `city_inventory`;
+* `player_bank`;
+* `city_pending_harvest`;
+* `city_production_queue`.
+
+### 6. Proposition de plan futur
+
+Proposer le plus petit plan d’intégration possible, en plusieurs blocs séparés.
+
+Ne pas implémenter ce plan maintenant.
+
+Le plan devrait probablement inclure :
+
+* V3-C1 : audit final des clés runtime économiques ;
+* V3-C2 : création d’un catalogue canonique passif des ressources économiques, sans runtime ;
+* V3-C3 : mapping legacy → canonique, sans migration DB ;
+* V3-C4 : ajustement progressif UI labels seulement ;
+* V3-C5 : branchement prudent des modifieurs vers les nouvelles ressources ;
+* V3-C6 : migration DB seulement si nécessaire et après validation explicite.
+
+## INTERDITS STRICTS
+
+Dans ce bloc :
+
+* Ne modifie aucun fichier.
+* Ne crée aucun fichier.
+* Ne modifie pas `shared/tileModifiers.ts`.
+* Ne modifie pas `server/buildingEffects.ts`.
+* Ne modifie pas `shared/schema.ts`.
+* Ne modifie pas `ResourceIcons.ts`.
+* Ne modifie pas la génération de carte.
+* Ne modifie pas les bâtiments.
+* Ne modifie pas la production.
+* Ne modifie pas les coûts.
+* Ne modifie pas les inventaires.
+* Ne modifie pas le marché.
+* Ne modifie pas les routes API.
+* Ne crée aucune migration DB.
+* Ne renomme aucune clé existante.
+* Ne branche aucun nouveau runtime.
+* Ne commence pas l’intégration des modifieurs.
+* Ne commence pas la liste des bateaux.
+* Ne corrige pas les 187 erreurs TypeScript préexistantes.
+
+## VÉRIFICATIONS ATTENDUES
+
+Comme c’est un audit sans modification :
+
+* pas de diff attendu ;
+* aucun commit requis ;
+* aucun push requis ;
+* si un fichier est modifié par erreur, le signaler immédiatement.
+
+Tu peux lancer des recherches texte et lire les fichiers, mais tu ne dois pas appliquer de changement.
+
+Recherches utiles :
+
+* `food`
+* `wood`
+* `stone`
+* `coal`
+* `fuel`
+* `oil`
+* `herbs`
+* `common_ingredients`
+* `leather_fur`
+* `fur`
+* `common_metals`
+* `rare`
+* `equipment`
+* `fracten`
+* `crystals`
+* `sacred_stones`
+* `ancient_artifacts`
+* `resource_type`
+* `metadata.resources`
+* `BUILDING_PRODUCTION`
+* `BUILDING_RESOURCE_PREREQS`
+* `TILE_MODIFIERS`
+* `TILE_MODIFIER_YIELDS`
+
+## RAPPORT FINAL ATTENDU
+
+Répondre avec un rapport structuré contenant :
+
+1. Fichiers inspectés.
+2. Où les ressources économiques sont actuellement déclarées.
+3. Où les ressources sont stockées en DB ou dans les inventaires.
+4. Où les ressources sont affichées dans l’UI.
+5. Où les ressources sont utilisées dans la production ou les bâtiments.
+6. Écart entre la liste canonique actuelle et le code existant.
+7. Ressources canoniques déjà présentes.
+8. Ressources canoniques absentes.
+9. Anciennes clés à conserver temporairement.
+10. Anciennes clés à remplacer conceptuellement plus tard.
+11. Impact potentiel de remplacer `coal` par Combustible.
+12. Impact potentiel de remplacer `herbs` par Ingrédients communs.
+13. Impact potentiel d’ajouter Textiles communs.
+14. Impact potentiel d’ajouter Commodités rares.
+15. Impact potentiel d’ajouter Ressources stratégiques.
+16. Relation avec `shared/tileModifiers.ts`.
+17. Risques de migration.
+18. Recommandation du plus petit prochain bloc.
+19. Confirmation qu’aucune modification n’a été faite.
+20. Confirmation qu’aucun commit/push n’a été fait.
+
+## CRITÈRE DE SUCCÈS
+
+L’audit est réussi si :
+
+* aucune modification n’est faite ;
+* le rapport distingue clairement :
+
+  * ressources économiques ;
+  * modifieurs de case ;
+  * anciennes clés runtime ;
+  * labels visibles ;
+  * risques DB ;
+* le plan proposé est découpé en petits blocs prudents ;
+* aucune intégration n’est lancée sans validation explicite.

@@ -607,3 +607,45 @@ Fourni par le prochain checkpoint automatique (jamais de push manuel sur GitHub 
 
 **Statut :** bloc V3-B terminé et documenté. En attente de validation utilisateur avant tout nouveau bloc.
 - **Prochain bloc recommandé :** aucun nouveau bloc à démarrer sans validation utilisateur. Si un test manuel avec un second compte est possible, le confirmer avant de considérer P16 comme définitivement clos.
+
+## Ressources V3-C-Audit — Audit canonique des ressources économiques (lecture seule)
+
+- **Objectif :** Auditer l'écart entre la liste canonique officielle des ressources économiques et le code existant, sans aucune modification.
+- **Fichiers inspectés :** `server/buildingEffects.ts`, `shared/schema.ts`, `shared/tileModifiers.ts`, `client/src/lib/shared/ResourceIcons.ts`, `server/economyService.ts`, `server/marketService.ts`, `server/playerActionService.ts`, `client/src/components/game/TreasuryPanel.tsx`, `HarvestPanel.tsx`, `PublicMarketplace.tsx`, `ConstructionPanel.tsx`, `UnifiedTerritoryPanel.tsx`.
+- **Aucun fichier modifié. Aucun commit. Aucun push.**
+
+### Résultats clés
+
+**Clés runtime V2 actives (8 T1 + fracten) — toutes dans 7 tables DB :**
+`food`, `wood`, `stone`, `coal`, `oil`, `herbs`, `common_metals`, `leather_fur`, `fracten`
+
+**Ressources canoniques déjà alignées :** `food`, `wood`, `stone`, `oil`, `common_metals`, `leather_fur`, `fracten`.
+
+**Écarts conceptuels (clés valides à court terme, périmètre trop étroit) :**
+- `coal` → devrait devenir "Combustible" (plus large que Charbon)
+- `herbs` → devrait devenir "Ingrédients communs" (plus large que Herbes)
+
+**Ressources canoniques absentes du runtime :** Textiles communs, Commodités de luxe, Ingrédients rares, Fourrures nobles, Reliques anciennes, Contrats de travail, Équipements (6 niveaux).
+
+**Ressources UI orphelines (ResourceIcons + UnifiedTerritoryPanel, pas de colonne DB) :** `rare_metals_alloys`, `textiles`, `precious_stones`, `enchanted_wood`, `arcane_stones`, `spirit_stones`, `moonstone`.
+
+**Cas hybride non documenté :** `crystals` et `arcane_stones` sont utilisés comme coûts de construction dans `ConstructionPanel.tsx` sans être stockés dans les tables d'inventaire standards — à clarifier avant toute migration.
+
+**`shared/tileModifiers.ts` :** reste cohérent. Mises à jour futures nécessaires si `coal` → `fuel` ou `herbs` → `common_ingredients`, ou si `crystals`/`sacred_stones`/`ancient_artifacts` reçoivent des yields canoniques.
+
+### Plan recommandé (non implémenté)
+- **V3-C1 :** Clarifier l'usage `crystals`/`arcane_stones` dans ConstructionPanel (comment débités ?)
+- **V3-C2 :** Créer `shared/economicResources.ts` — catalogue canonique passif des 3 catégories
+- **V3-C3 :** Mapping passif legacy → canonique (`coal` → `fuel`, `herbs` → `common_ingredients`)
+- **V3-C4 :** Labels UI seulement (renommer l'affiché sans toucher aux clés DB)
+- **V3-C5 :** Mettre à jour `TILE_MODIFIER_YIELDS` dans `tileModifiers.ts`
+- **V3-C6 :** Migration DB — uniquement si nécessaire, validation explicite obligatoire
+
+### Risques
+- Renommer `coal` ou `herbs` : 🔴 ÉLEVÉ (7 tables DB + données persistantes)
+- Ajouter une nouvelle colonne : 🟡 MODÉRÉ (ALTER TABLE x7 + UI)
+- Données persistantes en prod : 🔴 ÉLEVÉ — toute migration de clé sans migration DB détruit les inventaires existants
+
+- **Commit :** fourni par le prochain checkpoint automatique (jamais de push manuel sur GitHub).
+
+**Statut :** audit V3-C terminé et documenté. Aucune modification effectuée. En attente de validation utilisateur pour choisir le prochain bloc (V3-C1 recommandé).
