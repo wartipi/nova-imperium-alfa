@@ -727,3 +727,44 @@ Fourni par le prochain checkpoint automatique (jamais de push manuel sur GitHub 
 - **Commit :** fourni par le prochain checkpoint automatique (jamais de push manuel sur GitHub).
 
 **Statut :** correction V1-A appliquée et documentée. Fichier passif, aucun runtime modifié.
+
+## Ressources V3-D — Audit des ressources runtime nécessaires au prototype unités
+
+- **Objectif :** Déterminer lesquelles des ressources requises par `shared/landUnitCatalog.ts` existent déjà dans le runtime et lesquelles nécessitent une future intégration.
+- **Audit lecture seule. Aucun runtime modifié. Aucune migration DB. Aucun push.**
+
+### Fichiers inspectés
+`shared/schema.ts`, `server/buildingEffects.ts`, `server/economyService.ts`, `server/cityService.ts`, `server/marketService.ts`, `server/playerActionService.ts`, `server/routes/economy.ts`, `server/routes/market.ts`, `client/src/lib/shared/ResourceIcons.ts`, `client/src/components/game/RecruitmentPanel.tsx`, `client/src/lib/game/types.ts`, `client/src/lib/systems/ResourceRevealSystem.ts`
+
+### Ressources déjà supportées (immédiatement réutilisables)
+- `food` : ✅ DB (7 tables), inventaires, production, marché, UI, transferts, recrutement V1
+- `wood` : ✅ DB (7 tables), inventaires, production, marché, UI, transferts, coûts construction
+- `common_metals` : ✅ DB (7 tables), inventaires, production (mine/advanced_mine), marché, UI, coûts construction
+- `fracten` : ✅ monnaie complète — faction_economy, player_bank, marché, UI
+
+### Ressources manquantes (bloquantes pour branchement unités)
+- `common_textiles` : ❌ absente de toutes les couches (pas de colonne DB, pas d'inventaire, pas de marché, pas d'UI, pas de production)
+- `labor_contracts` : ❌ absente de toutes les couches runtime (pas de colonne DB, pas d'inventaire). Mentionnée dans `types.ts` mais sans infrastructure.
+- `basic_equipment` : ⚠️ déclarée dans `client/src/lib/game/types.ts` (ligne 82) et `ResourceRevealSystem.ts` (revealLevel:99 — jamais révélée), mais **aucune colonne DB**, aucun inventaire, aucune production. Présence UI-only orpheline.
+
+### Gap architectural critique
+Le système de recrutement actuel (`server/cityService.ts`) utilise un **`productionCost: number`** (coût en points de production — entier unique). `RecruitmentPanel.tsx` affiche des coûts multi-ressources côté client mais ceux-ci ne correspondent pas au mécanisme réel de débit serveur. Brancher `shared/landUnitCatalog.ts` nécessitera un nouveau mécanisme de débit multi-ressources, pas seulement l'ajout de colonnes.
+
+### Ressources V2 à conflit conceptuel (ne pas migrer maintenant)
+- `coal` + `oil` → seront conceptuellement `fuel` — **toutes les 7 tables DB + production (advanced_mine, oil_camp) + UI + marché**
+- `herbs` → sera conceptuellement `common_ingredients` — **toutes les 7 tables DB + production (herbalist_house) + UI + marché**
+
+### Plan recommandé
+- **V3-D1** *(ce bloc)* : audit — ressources nécessaires aux unités identifiées
+- **V3-D2** : ajouter `common_textiles`, `labor_contracts`, `basic_equipment` en DB (ALTER TABLE sur city_inventory, player_bank, city_pending_harvest, city_production_queue, player_market_box, player_transport) — validation explicite requise
+- **V3-D3** : exposer ces 3 ressources dans l'UI (ResourceIcons, TreasuryPanel, HarvestPanel, PublicMarketplace)
+- **V3-D4** : définir la source de production de `labor_contracts` et `basic_equipment` (bâtiments : atelier, guilde, forge) — nouveau BUILDING_PRODUCTION
+- **V3-D5** : réécrire le mécanisme de recrutement pour débiter des ressources multi-types au lieu de `productionCost: number` seul
+- **V3-D6** : brancher `shared/landUnitCatalog.ts` comme source de coûts dans le recrutement
+
+### Résultat TypeScript
+`npx tsc --noEmit` : **187 erreurs** — baseline inchangée, aucune régression.
+
+- **Commit :** fourni par le prochain checkpoint automatique (jamais de push manuel sur GitHub).
+
+**Statut :** audit V3-D terminé et documenté. Aucun runtime modifié. En attente de validation utilisateur avant tout nouveau bloc.

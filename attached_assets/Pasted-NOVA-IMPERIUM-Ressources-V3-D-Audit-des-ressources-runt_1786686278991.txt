@@ -1,0 +1,238 @@
+NOVA IMPERIUM — Ressources V3-D
+Audit des ressources runtime nécessaires au prototype unités
+
+RÔLE
+Tu es l’agent technique sur le repo Nova Imperium.
+Objectif : préparer l’implémentation progressive des unités terrestres prototype en auditant d’abord les ressources nécessaires à leur création et à leur entretien.
+
+IMPORTANT
+Ce bloc est un AUDIT TECHNIQUE.
+Ne pas implémenter de migration DB.
+Ne pas ajouter de colonnes.
+Ne pas modifier le runtime.
+Ne pas modifier les coûts des unités.
+Ne pas brancher le recrutement.
+Ne pas brancher l’entretien.
+Ne pas modifier le marché.
+Ne pas modifier les inventaires.
+Ne pas modifier server/unitCatalog.ts.
+Ne pas supprimer ou renommer les anciennes ressources runtime.
+Mettre à jour CLAUDE.md après l’audit.
+
+CONTEXTE ACTUEL
+
+Les catalogues passifs ont été validés :
+
+1. shared/economicResources.ts
+- Catalogue canonique V3 des ressources économiques.
+- Les ressources V3 incluent notamment :
+  - food
+  - wood
+  - stone
+  - common_metals
+  - leather_fur
+  - fuel
+  - common_ingredients
+  - common_textiles
+  - labor_contracts
+  - basic_equipment
+  - intermediate_equipment
+  - advanced_equipment
+  - rare_equipment
+  - legendary_equipment
+  - fracten
+
+2. shared/tileModifiers.ts
+- Catalogue passif des modificateurs de case.
+- Ne pas le brancher dans ce bloc.
+
+3. shared/landUnitCatalog.ts
+- Catalogue passif des 15 unités terrestres prototype.
+- Les unités utilisent des coûts de création et d’entretien en ressources canoniques V3.
+- Le fichier ne doit pas encore être branché au runtime.
+
+PROBLÈME À AUDITER
+
+Les coûts des unités terrestres utilisent des ressources qui ne sont pas encore nécessairement présentes dans toutes les couches runtime existantes.
+
+Ressources particulièrement importantes pour les unités prototype :
+
+- food
+- wood
+- common_metals
+- common_textiles
+- labor_contracts
+- basic_equipment
+
+Ressources connexes à surveiller pour la suite V3 :
+
+- fuel
+- common_ingredients
+
+Il faut déterminer précisément lesquelles existent déjà dans le runtime et lesquelles nécessitent une future intégration DB / inventaire / marché / production.
+
+OBJECTIFS DE L’AUDIT
+
+1. Inspecter les fichiers liés aux ressources runtime :
+   - shared/schema.ts
+   - server/buildingEffects.ts
+   - server/economyService.ts
+   - server/cityService.ts
+   - server/marketService.ts
+   - server/playerActionService.ts
+   - server/routes/economy.ts
+   - server/routes/market.ts
+   - client/src/lib/shared/ResourceIcons.ts
+   - client/src/components/game/RecruitmentPanel.tsx
+   - client/src/components/game/PublicMarketplace.tsx
+   - tout autre fichier pertinent trouvé pendant l’audit
+
+2. Identifier les ressources déjà supportées actuellement dans :
+   - player_bank
+   - city_inventory
+   - city_pending_harvest
+   - production par bâtiment
+   - marché
+   - transferts
+   - affichage UI
+   - coûts existants
+
+3. Comparer les ressources runtime existantes avec les ressources nécessaires aux unités prototype.
+
+Ressources nécessaires aux unités :
+
+- food
+- wood
+- common_metals
+- common_textiles
+- labor_contracts
+- basic_equipment
+
+Pour chacune, déterminer :
+
+- Existe-t-elle déjà en DB ?
+- Existe-t-elle dans les inventaires joueur ?
+- Existe-t-elle dans les inventaires ville ?
+- Existe-t-elle dans les flux pending harvest ?
+- Est-elle affichée dans l’UI ?
+- Peut-elle être transférée ?
+- Peut-elle être achetée/vendue au marché ?
+- Peut-elle être produite par un bâtiment ?
+- Est-elle utilisée dans un coût existant ?
+- Quel est le risque de l’ajouter au runtime ?
+
+4. Identifier les ressources V2 encore actives qui posent conflit conceptuel :
+   - coal → devrait devenir fuel plus tard
+   - oil → devrait devenir fuel plus tard
+   - herbs → devrait devenir common_ingredients plus tard
+
+Important :
+Ne pas les renommer maintenant.
+Seulement documenter les dépendances et risques.
+
+5. Proposer un plan d’implémentation progressive, sans le coder.
+
+Le plan devrait indiquer l’ordre recommandé pour rendre les coûts d’unités branchables.
+
+Exemple d’ordre attendu :
+
+- V3-D1 : audit actuel des ressources nécessaires aux unités
+- V3-D2 : ajouter les ressources minimales manquantes en DB/inventaires si nécessaire
+- V3-D3 : exposer ces ressources dans l’UI
+- V3-D4 : ajouter production passive ou bâtiment source pour labor_contracts et basic_equipment
+- V3-D5 : seulement ensuite brancher les coûts de recrutement depuis shared/landUnitCatalog.ts
+
+6. Vérifier spécifiquement ces ressources :
+
+FOOD
+- Déjà active normalement.
+- Confirmer dans quelles couches.
+
+WOOD
+- Déjà active normalement.
+- Confirmer dans quelles couches.
+
+COMMON_METALS
+- Déjà active normalement.
+- Confirmer dans quelles couches.
+
+COMMON_TEXTILES
+- Nouvelle ressource canonique.
+- Vérifier si absente partout.
+- Identifier ce qu’il faudrait ajouter plus tard.
+
+LABOR_CONTRACTS
+- Ressource stratégique nouvelle.
+- Ne doit pas être produite par terrain.
+- Devrait venir de colonies, bâtiments, guildes ou organisation humaine.
+- Identifier les zones à modifier plus tard.
+
+BASIC_EQUIPMENT
+- Ressource stratégique nouvelle.
+- Nécessaire à plusieurs unités.
+- Devrait venir d’ateliers, forges, bâtiments militaires ou production humaine.
+- Identifier les zones à modifier plus tard.
+
+FUEL
+- Ressource canonique qui remplace conceptuellement coal/oil.
+- Ne pas migrer maintenant.
+- Identifier les dépendances actuelles de coal/oil.
+
+COMMON_INGREDIENTS
+- Ressource canonique qui remplace conceptuellement herbs.
+- Ne pas migrer maintenant.
+- Identifier les dépendances actuelles de herbs.
+
+VALIDATION TECHNIQUE
+
+Exécuter :
+
+npx tsc --noEmit
+
+La baseline connue est de 187 erreurs TypeScript préexistantes.
+Ne pas prétendre avoir corrigé TypeScript.
+Indiquer seulement si l’audit ajoute ou non des erreurs.
+
+SORTIE ATTENDUE
+
+Répondre avec :
+
+1. Résumé des fichiers inspectés.
+2. Tableau des ressources nécessaires aux unités :
+   - ressource
+   - statut DB
+   - statut inventaire joueur
+   - statut inventaire ville
+   - statut marché
+   - statut UI
+   - statut production
+   - risque
+3. Liste des ressources manquantes bloquantes.
+4. Liste des ressources présentes et immédiatement réutilisables.
+5. Risques techniques.
+6. Plan recommandé pour l’étape suivante.
+7. Résultat TypeScript.
+8. Confirmation qu’aucun runtime, DB, marché, recrutement ou inventaire n’a été modifié.
+
+CLAUDE.md
+
+Ajouter une section :
+
+“Ressources V3-D — Audit des ressources runtime nécessaires au prototype unités”
+
+Inclure :
+- objectif ;
+- fichiers inspectés ;
+- ressources déjà supportées ;
+- ressources manquantes ;
+- risques ;
+- plan recommandé ;
+- résultat TypeScript ;
+- confirmation : audit seulement, aucun runtime modifié.
+
+STATUT ATTENDU
+
+Audit seulement.
+Aucun branchement.
+Aucune migration.
+Aucun changement de gameplay.
