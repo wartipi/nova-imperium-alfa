@@ -649,3 +649,45 @@ Fourni par le prochain checkpoint automatique (jamais de push manuel sur GitHub 
 - **Commit :** fourni par le prochain checkpoint automatique (jamais de push manuel sur GitHub).
 
 **Statut :** audit V3-C terminé et documenté. Aucune modification effectuée. En attente de validation utilisateur pour choisir le prochain bloc (V3-C1 recommandé).
+
+## Systèmes V1-A — Catalogues canoniques passifs : ressources, tile modifiers, unités terrestres
+
+- **Objectif :** Créer les catalogues de design canoniques V3 dans des fichiers partagés passifs, sans brancher de logique runtime ni modifier la DB.
+- **Aucun système runtime existant modifié. Aucune migration DB. Aucun push manuel.**
+
+### Fichiers créés
+
+**`shared/economicResources.ts`** — Catalogue canonique V3 des ressources économiques
+- `CanonicalResourceCategory` : `common` | `rare` | `strategic` | `currency`
+- `CanonicalResourceId` : 24 ressources (8 communes + 9 rares + 6 stratégiques + fracten)
+- `CanonicalResourceDefinition` : id, label FR, catégorie, legacyKeys[], notes
+- `CANONICAL_RESOURCES` : catalogue complet des 24 ressources avec notes sur les écarts V2
+- `LEGACY_TO_CANONICAL` : mapping déclaratif clés V2/legacy → canonique V3
+- Accesseurs passifs : `getCanonicalResource`, `resolveToCanonical`, `getResourcesByCategory`
+
+**`shared/landUnitCatalog.ts`** — Catalogue prototype des 15 unités terrestres
+- `LandUnitType` : `"light"` | `"medium"` | `"heavy"`
+- `LandUnitId` : 15 unités (militia, garrison, patrollers, scouts, light_infantry, regular_infantry, noble_infantry, shock_troops, bow_infantry, crossbow_infantry, sappers, field_engineers, raid_troops, hunters, pikemen)
+- `LandUnitDefinition` : id, label, type, function, size, maxMovementPerTurn, actionPointCostPerTile, creationCategory, creationCost (CanonicalResourceId), siegeWearPoints, upkeepPerTurn, unlockedAction, ability, limitationNotes, prototypeStatus
+- `LAND_UNIT_CATALOG` : catalogue complet des 15 unités avec tous les champs
+- Accesseurs passifs : `getLandUnit`, `getLandUnitsByType`, `getAllLandUnitIds`
+- `prototypeStatus: true` sur chaque entrée — marquage explicite non runtime
+
+### Règles canoniques V3 enregistrées
+
+- `oil` et `coal` ne sont plus des ressources économiques finales — ce sont des tile modifiers qui produisent `fuel` (Combustible)
+- `herbs` → tile modifier qui produit `common_ingredients` (Ingrédients communs)
+- Les clés runtime V2 (`coal`, `oil`, `herbs`) sont conservées intactes — mapping documenté dans `LEGACY_TO_CANONICAL`
+- Les coûts de création/entretien des unités utilisent les clés canoniques V3 (`labor_contracts`, `basic_equipment`, `common_textiles`, etc.) — non branchés au runtime
+
+### Résultat TypeScript
+`npx tsc --noEmit` : **187 erreurs** — baseline inchangée, aucune régression introduite.
+
+### Risques / prochaines étapes
+- `server/unitCatalog.ts` reste la source de vérité des stats combat (strength, health, attack, defense, movement) — ne pas confondre avec `shared/landUnitCatalog.ts` (stats design prototype)
+- Les clés `labor_contracts`, `basic_equipment`, `common_textiles` n'ont pas de colonne DB — à créer dans un bloc dédié avant branchement runtime
+- Prochain bloc recommandé : V3-C1 (clarifier usage `crystals`/`arcane_stones` dans ConstructionPanel) ou V1-B (branchement progressif des coûts d'unités)
+
+- **Commit :** fourni par le prochain checkpoint automatique (jamais de push manuel sur GitHub — dépôt synchronisé automatiquement avec `origin/NI-10.09`).
+
+**Statut :** bloc Systèmes V1-A terminé et documenté. Catalogues passifs créés, aucun runtime modifié. En attente de validation utilisateur avant tout nouveau bloc.

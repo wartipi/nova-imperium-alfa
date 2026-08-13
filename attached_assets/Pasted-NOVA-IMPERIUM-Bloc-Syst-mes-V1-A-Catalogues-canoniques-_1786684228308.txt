@@ -1,0 +1,319 @@
+NOVA IMPERIUM — Bloc Systèmes V1-A
+Catalogues canoniques passifs : ressources, tile modifiers, unités terrestres
+
+RÔLE
+Tu es l’agent technique sur le repo Nova Imperium.
+Objectif : intégrer les catalogues de design canoniques dans le code de manière passive, typée et non destructive.
+
+IMPORTANT
+Ce bloc ne doit PAS brancher toute la logique runtime.
+Ne pas modifier les mécaniques de recrutement, mouvement, siège, économie, entretien, marché, inventaire ou production sans demande explicite.
+Ne pas faire de migration DB.
+Ne pas refactoriser massivement.
+Ne pas supprimer l’ancien système existant.
+Ne pas casser les types existants.
+Mettre à jour CLAUDE.md après le travail.
+
+CONTEXTE
+Nous avons maintenant trois bases de design à stabiliser :
+
+1. Ressources économiques canoniques
+2. Modificateurs de case / tile modifiers
+3. Unités terrestres prototype
+
+Le but de ce bloc est de créer ou compléter des fichiers partagés servant de source de vérité design, sans encore remplacer les systèmes actifs.
+
+À FAIRE
+
+1. Auditer rapidement les fichiers existants liés aux ressources, unités et carte :
+   - shared/schema.ts
+   - shared/tileModifiers.ts
+   - shared/unitCatalog.ts ou équivalent s’il existe
+   - server/buildingEffects.ts
+   - server/mapSeed.ts
+   - tout fichier lié aux unités/recrutement/mouvement si pertinent
+
+2. Ajouter ou compléter un catalogue passif des ressources économiques canoniques.
+
+Liste canonique actuelle :
+
+RESSOURCES COMMUNES
+- food / Nourriture
+- wood / Bois
+- leather_fur / Cuir et fourrure
+- stone / Pierre
+- common_metals / Métaux communs
+- fuel / Combustible
+- common_ingredients / Ingrédients communs
+- common_textiles / Textiles communs
+
+COMMODITÉS RARES
+- rare_metals_alloys / Métaux et alliages rares
+- fine_textiles / Textiles fins
+- luxury_goods / Commodités de luxe
+- gemstones / Pierres précieuses
+- rare_ingredients / Ingrédients rares
+- noble_furs / Fourrures nobles
+- precious_wood / Bois précieux
+- ancient_relics / Reliques anciennes
+- magical_stones_crystals / Pierres et cristaux magiques
+
+RESSOURCES STRATÉGIQUES
+- labor_contracts / Contrats de travail
+- basic_equipment / Équipement basique
+- intermediate_equipment / Équipement intermédiaire
+- advanced_equipment / Équipement avancé
+- rare_equipment / Équipement rare
+- legendary_equipment / Équipement légendaire
+
+MONNAIE
+- fracten / Fracten
+
+Note importante :
+- Huile n’est plus une ressource économique finale.
+- Charbon n’est plus une ressource économique finale séparée.
+- Huile, charbon, tourbe, bitume, etc. doivent être interprétés comme modificateurs de case qui produisent Combustible.
+- Herbes devient conceptuellement Ingrédients communs.
+- Ne pas casser les anciennes clés runtime existantes si elles sont encore utilisées; documenter les écarts.
+
+3. Ajouter ou compléter un catalogue passif des unités terrestres prototype.
+
+Créer un fichier partagé si nécessaire, par exemple :
+- shared/landUnitCatalog.ts
+
+Ce fichier doit être passif pour ce bloc.
+Aucun système runtime ne doit dépendre de lui pour l’instant, sauf si un ancien catalogue équivalent existe déjà et peut être étendu sans risque.
+
+Structure recommandée :
+
+LandUnitId
+LandUnitType = "light" | "medium" | "heavy"
+LandUnitDefinition {
+  id
+  label
+  type
+  function
+  size
+  maxMovementPerTurn
+  actionPointCostPerTile
+  creationCategory
+  creationCost
+  siegeWearPoints
+  upkeepPerTurn
+  unlockedAction
+  ability
+  limitationNotes
+  prototypeStatus
+}
+
+Unités terrestres prototype :
+
+1. Milice
+- type : light
+- fonction : Infanterie de base
+- taille : jusqu’à 10 soldats
+- mouvement : 5 cases/tour
+- PA/case : 1
+- création : 2 nourriture + 1 contrat de travail
+- points d’usure : 1
+- entretien : 1 nourriture
+- capacité : aucune compétence spéciale, base de l’armée
+- notes : simple, peu coûteuse, sans bonus
+
+2. Garnison
+- type : light
+- fonction : Défense de position fixe
+- taille : jusqu’à 10 soldats
+- mouvement : 3 cases/tour
+- PA/case : 2
+- création : 2 nourriture + 1 contrat de travail + 1 bois
+- points d’usure : 2
+- entretien : 1 nourriture
+- capacité : tenir position, bonus défensif dans fort, village, avant-poste, camp ou tuile contrôlée
+- notes : sert surtout à défendre, mobilité faible
+
+3. Patrouilleurs
+- type : light
+- fonction : Unité rapide / sécurité
+- taille : jusqu’à 10 soldats
+- mouvement : 16 cases/tour
+- PA/case : 1
+- création : 3 nourriture + 1 contrat de travail + 1 équipement basique
+- points d’usure : 1
+- entretien : 1 nourriture
+- capacité : champ de vision +2 pour l’armée attachée; peut intercepter une petite force proche
+- notes : moins fort en bataille rangée
+
+4. Éclaireurs
+- type : light
+- fonction : Reconnaissance
+- taille : jusqu’à 10 soldats
+- mouvement : 20 cases/tour
+- PA/case : 1
+- création : 3 nourriture + 1 contrat de travail + 1 équipement basique
+- points d’usure : 1
+- entretien : 1 nourriture
+- capacité : révèle une zone adjacente au champ de vision de l’armée attachée; réduit le risque d’embuscade
+- notes : utile hors combat, fragile en bataille directe
+
+5. Infanterie légère
+- type : light
+- fonction : Mobilité / attaque rapide
+- taille : jusqu’à 10 soldats
+- mouvement : 12 cases/tour, +3 avec marche forcée
+- PA/case : 1
+- création : 4 nourriture + 1 contrat de travail + 1 équipement basique
+- points d’usure : 1
+- entretien : 2 nourriture
+- capacité : marche forcée, +3 cases pendant 3 tours; entretien doublé pendant ces 3 tours
+- notes : coût temporairement élevé pendant marche forcée
+
+6. Infanterie régulière
+- type : heavy
+- fonction : Ligne principale
+- taille : jusqu’à 10 soldats
+- mouvement : 10 cases/tour
+- PA/case : 2
+- création : 4 nourriture + 1 contrat de travail + 1 équipement basique
+- points d’usure : 4
+- entretien : 2 nourriture + 1 équipement basique
+- capacité : former la ligne, stabilise l’armée en combat normal, réduit désorganisation
+- notes : moins mobile que les unités rapides
+
+7. Infanterie noble
+- type : heavy
+- fonction : Défense / choc
+- taille : jusqu’à 10 soldats
+- mouvement : 10 cases/tour
+- PA/case : 2
+- création : 5 nourriture + 1 contrat de travail + 2 équipement basique
+- points d’usure : 5
+- entretien : 3 nourriture + 1 équipement basique
+- capacité : mur défensif, bloque un passage, protège les unités fragiles, résiste mieux aux attaques
+- notes : coûteuse, à utiliser pour tenir un objectif
+
+8. Troupe de choc
+- type : medium
+- fonction : Percée / attaque sacrifiable
+- taille : jusqu’à 10 soldats
+- mouvement : 10 cases/tour
+- PA/case : 2
+- création : 5 nourriture + 1 contrat de travail + 2 équipement basique
+- points d’usure : 2
+- entretien : 3 nourriture + 1 équipement basique
+- capacité : preemptive strike; lors d’une attaque, peut détruire une unité adverse choisie; la troupe de choc est détruite après la bataille dans le jeu virtuel
+- notes : très forte mais consommable, à équilibrer attentivement
+
+9. Infanterie à arc
+- type : light
+- fonction : Soutien à distance
+- taille : jusqu’à 10 soldats
+- mouvement : 10 cases/tour
+- PA/case : 1
+- création : 4 nourriture + 1 contrat de travail + 1 bois + 1 textiles communs
+- points d’usure : 1
+- entretien : 2 nourriture
+- capacité : débloque l’action Assiéger et l’utilisation d’infanterie à projectiles sur le champ de bataille
+- notes : besoin d’être protégée en combat direct
+
+10. Infanterie à arbalète
+- type : medium
+- fonction : Tir lourd
+- taille : jusqu’à 10 soldats
+- mouvement : 8 cases/tour
+- PA/case : 2
+- création : 4 nourriture + 1 contrat de travail + 1 bois + 1 métaux communs + 1 équipement basique
+- points d’usure : 3
+- entretien : 2 nourriture + 1 équipement basique
+- capacité : tir lourd; +2 usure en siège contre infanterie légère/moyenne; +1 contre infanterie lourde ennemie
+- notes : plus lente et plus coûteuse que l’arc
+
+11. Sapeurs
+- type : medium
+- fonction : Travaux militaires / sabotage
+- taille : jusqu’à 10 soldats
+- mouvement : 6 cases/tour
+- PA/case : 2
+- création : 4 nourriture + 1 contrat de travail + 1 bois + 1 métaux communs + 1 équipement basique
+- points d’usure : 1
+- entretien : 2 nourriture + 1 équipement basique
+- capacité : saboter; endommage bâtiment, infrastructure civile, route, porte, pont, campement ou fortification
+- notes : doit atteindre la cible, vulnérable sans escorte
+
+12. Ingénieurs de campagne
+- type : medium
+- fonction : Construction / siège
+- taille : jusqu’à 10 soldats
+- mouvement : 6 cases/tour
+- PA/case : 2
+- création : 4 nourriture + 1 contrat de travail + 1 bois + 1 métaux communs + 1 textiles communs + 1 équipement basique
+- points d’usure : 1
+- entretien : 2 nourriture + 1 équipement basique
+- capacité : construire ouvrage; camp fortifié, pont temporaire, route, palissade ou opération d’engin de siège
+- notes : unité de soutien, peu efficace seule
+
+13. Troupe de raid
+- type : light
+- fonction : Perturbation économique
+- taille : jusqu’à 10 soldats
+- mouvement : 14 cases/tour
+- PA/case : 1
+- création : 4 nourriture + 1 contrat de travail + 1 équipement basique
+- points d’usure : 1
+- entretien : 2 nourriture
+- capacité : raid; pille des cases ennemies pour voler la production; peut attaquer les convois commerciaux
+- notes : moins efficace contre position fortifiée
+
+14. Chasseurs
+- type : light
+- fonction : Support logistique
+- taille : jusqu’à 10 soldats
+- mouvement : 12 cases/tour, meilleur en terrain sauvage
+- PA/case : 1
+- création : 3 nourriture + 1 contrat de travail + 1 bois
+- points d’usure : 1
+- entretien : 1 nourriture
+- capacité : survie; réduit l’entretien en nourriture de l’armée attachée de 5 % par unité de chasseurs; permet l’infanterie à projectiles
+- notes : limiter à 4 unités de chasseurs par armée pour maximum -20 % nourriture
+
+15. Piquiers
+- type : medium
+- fonction : Anti-percée / contrôle
+- taille : jusqu’à 10 soldats
+- mouvement : 10 cases/tour
+- PA/case : 2
+- création : 4 nourriture + 1 contrat de travail + 1 bois + 1 métaux communs + 1 équipement basique
+- points d’usure : 2
+- entretien : 2 nourriture + 1 équipement basique
+- capacité : former un hérisson; chaque unité annule l’effet d’une troupe de choc ennemie
+- notes : contre direct des troupes de choc
+
+4. Ajouter des commentaires clairs :
+- Ce catalogue est une référence prototype.
+- Il ne remplace pas encore les systèmes runtime existants.
+- Les effets de capacité ne sont pas encore automatiquement exécutés.
+- Les coûts sont des valeurs de design à brancher plus tard.
+
+5. Mettre à jour CLAUDE.md avec :
+- nom du bloc : Systèmes V1-A — Catalogues canoniques passifs
+- fichiers créés/modifiés
+- résumé des ressources canoniques
+- résumé du catalogue d’unités terrestres
+- mention que le bloc est passif
+- résultat de npx tsc --noEmit
+- risques / prochaines étapes
+
+VALIDATION
+Après modification, exécuter :
+npx tsc --noEmit
+
+Important :
+La baseline TypeScript connue contient 187 erreurs préexistantes.
+Ne pas prétendre avoir corrigé toutes les erreurs TypeScript.
+Comparer seulement si le bloc ajoute de nouvelles erreurs évidentes.
+
+SORTIE ATTENDUE
+- Résumé des fichiers modifiés
+- Confirmation que les catalogues sont passifs
+- Résultat TypeScript
+- Commit/push sur la branche active
