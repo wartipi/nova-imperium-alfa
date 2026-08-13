@@ -1,0 +1,206 @@
+NOVA IMPERIUM — Ressources V3-D3
+Vérification UI réelle des 3 nouvelles ressources runtime
+
+RÔLE
+Tu es l’agent technique sur le repo Nova Imperium.
+Objectif : vérifier en conditions réelles que les 3 ressources ajoutées au runtime dans V3-D2 sont visibles, cohérentes et non cassées dans l’interface joueur.
+
+RESSOURCES À VÉRIFIER
+
+- common_textiles / Textiles communs
+- labor_contracts / Contrats de travail
+- basic_equipment / Équipement basique
+
+CONTEXTE
+
+Le bloc V3-D2 a ajouté ces 3 ressources dans les couches runtime suivantes :
+
+- DB
+- player_bank
+- city_inventory
+- city_pending_harvest
+- player_transport
+- player_market_box
+- marché
+- transferts
+- UI
+- ResourceIcons
+- ResourceRevealSystem avec revealLevel 99
+
+Important :
+Ces ressources ne sont pas encore produites par bâtiments.
+Elles ne sont pas encore utilisées par le recrutement.
+Elles ne doivent pas apparaître comme ressources naturelles de carte.
+Elles sont préparatoires pour le futur système d’unités.
+
+IMPORTANT
+
+Ce bloc doit être une vérification UI / bugfix mineur seulement.
+
+Ne pas ajouter de bâtiment producteur.
+Ne pas brancher le recrutement.
+Ne pas modifier shared/landUnitCatalog.ts.
+Ne pas modifier les coûts d’unités.
+Ne pas modifier server/unitCatalog.ts.
+Ne pas modifier les règles de marché.
+Ne pas modifier les règles de transfert sauf bug bloquant découvert.
+Ne pas migrer coal/oil vers fuel.
+Ne pas migrer herbs vers common_ingredients.
+Ne pas refactoriser massivement.
+Ne pas ajouter d’asset graphique.
+Ne pas créer de nouvelle mécanique.
+
+OBJECTIF TECHNIQUE
+
+Vérifier que les 3 nouvelles ressources :
+
+- s’affichent correctement dans les panneaux concernés ;
+- ont un label lisible ;
+- ont une icône correcte ;
+- ne cassent aucun tableau ou composant ;
+- ne sont pas affichées comme ressources de terrain ;
+- peuvent être affichées même avec quantité 0 si le panneau liste les ressources disponibles ;
+- sont cohérentes dans les transferts, le transport et le marché.
+
+À VÉRIFIER
+
+1. TreasuryPanel
+
+Vérifier que les 3 ressources apparaissent correctement dans :
+
+- banque du joueur ;
+- inventaire transporté ;
+- transferts banque → ville ;
+- transferts banque → joueur ;
+- dépôt transport → ville ;
+- dépôt transport → banque.
+
+Vérifier spécifiquement :
+
+- labels ;
+- icônes ;
+- quantités ;
+- champs de saisie ;
+- payload API généré ;
+- absence de crash avec quantité 0 ;
+- absence de NaN ;
+- absence de undefined.
+
+2. HarvestPanel
+
+Vérifier que les 3 ressources sont supportées dans les affichages de récolte / inventaire ville si présentes dans les données.
+
+Important :
+Elles ne doivent pas être produites automatiquement.
+Elles peuvent rester à 0.
+
+3. PublicMarketplace
+
+Vérifier que les 3 ressources sont visibles et utilisables dans l’UI marché si elles ont été ajoutées aux listes de ressources vendables/achetables.
+
+Vérifier :
+
+- choix de ressource ;
+- icône SELL/BUY ;
+- label ;
+- absence de crash ;
+- payload API ;
+- affichage dans les ordres ouverts si un ordre existe.
+
+Ne pas modifier les règles de marché sauf si un bug d’affichage bloque complètement l’utilisation.
+
+4. UnifiedTerritoryPanel
+
+Vérifier que les labels ne cassent pas l’affichage.
+
+Important :
+Les 3 ressources ne doivent pas apparaître comme ressources naturelles de tuile ou modificateurs de carte.
+
+5. ResourceIcons
+
+Vérifier que les entrées suivantes existent et sont utilisées sans fallback ❓ :
+
+- common_textiles : 🧶 Textiles communs
+- labor_contracts : 📜 Contrats de travail
+- basic_equipment : 🛡️ Équipement basique
+
+6. ResourceRevealSystem
+
+Vérifier que les 3 ressources sont bien configurées comme stratégiques / non-carte / revealLevel 99 ou équivalent.
+
+Important :
+Elles ne doivent pas être révélées par exploration de carte.
+Elles ne doivent pas apparaître comme ressource exploitable sur une tuile.
+
+7. Console / erreurs runtime
+
+Lancer l’application et vérifier :
+
+- console navigateur ;
+- logs serveur ;
+- erreurs React ;
+- erreurs API ;
+- erreurs de type undefined/NaN ;
+- erreurs de payload si possible.
+
+Si des erreurs UI mineures existent directement liées à V3-D2, les corriger.
+
+VALIDATION TECHNIQUE
+
+Exécuter :
+
+npx tsc --noEmit
+
+Baseline connue :
+
+- 187 erreurs TypeScript préexistantes.
+
+Ne pas prétendre corriger TypeScript globalement.
+Indiquer seulement si le nombre reste 187 ou si une régression apparaît.
+
+CLAUDE.md
+
+Ajouter une section :
+
+“Ressources V3-D3 — Vérification UI réelle des ressources prototype unités”
+
+Inclure :
+
+- objectif ;
+- composants inspectés ;
+- composants testés ;
+- erreurs trouvées ;
+- corrections éventuelles ;
+- confirmation que les 3 ressources ne sont pas produites par bâtiments ;
+- confirmation que le recrutement n’est toujours pas branché ;
+- confirmation que les ressources ne sont pas révélées comme ressources de carte ;
+- résultat TypeScript ;
+- prochaine étape recommandée.
+
+SORTIE ATTENDUE
+
+Répondre avec :
+
+1. Liste des fichiers/composants inspectés.
+2. Résultat par composant :
+   - TreasuryPanel
+   - HarvestPanel
+   - PublicMarketplace
+   - UnifiedTerritoryPanel
+   - ResourceIcons
+   - ResourceRevealSystem
+3. Bugs trouvés.
+4. Corrections faites, si nécessaire.
+5. Confirmation que les 3 ressources restent non produites.
+6. Confirmation que le recrutement n’est pas branché.
+7. Confirmation qu’elles ne sont pas des ressources de carte.
+8. Résultat TypeScript.
+9. Prochaine étape recommandée.
+
+STATUT ATTENDU
+
+Vérification UI contrôlée.
+Aucun nouveau système.
+Aucune production bâtiment.
+Aucun recrutement.
+Aucune migration conceptuelle.

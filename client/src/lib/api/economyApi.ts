@@ -104,6 +104,10 @@ export interface PlayerBankDTO {
   coal:               number;
   oil:                number;
   herbs:              number;
+  // V3-D2
+  common_textiles:    number;
+  labor_contracts:    number;
+  basic_equipment:    number;
   lastProductionTurn: number;
   updatedAt:          string;
 }
@@ -170,6 +174,10 @@ export interface PlayerTransportDTO {
   coal:      number;
   oil:       number;
   herbs:     number;
+  // V3-D2
+  common_textiles: number;
+  labor_contracts:  number;
+  basic_equipment:  number;
   updatedAt: string;
   maxUnits:  number;
   usedUnits: number;
@@ -214,6 +222,10 @@ export interface T1Mats {
   coal?:   number;
   oil?:    number;
   herbs?:  number;
+  // V3-D2
+  common_textiles?: number;
+  labor_contracts?:  number;
+  basic_equipment?:  number;
 }
 
 export interface DepositResult {
@@ -290,6 +302,10 @@ export interface TransferResult {
     oil:           number;
     herbs:         number;
     leather_fur:   number;
+    // V3-D2
+    common_textiles: number;
+    labor_contracts:  number;
+    basic_equipment:  number;
   };
 }
 
@@ -303,6 +319,10 @@ export interface TransferMaterials {
   coal?:          number;
   oil?:           number;
   herbs?:         number;
+  // V3-D2
+  common_textiles?: number;
+  labor_contracts?:  number;
+  basic_equipment?:  number;
 }
 
 export async function postTransferBankToCity(
@@ -315,15 +335,18 @@ export async function postTransferBankToCity(
     headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
     body: JSON.stringify({
       cityId,
-      fracten:       materials.fracten       ?? 0,
-      common_metals: materials.common_metals ?? 0,
-      leather_fur:   materials.leather_fur   ?? 0,
-      food:          materials.food          ?? 0,
-      wood:          materials.wood          ?? 0,
-      stone:         materials.stone         ?? 0,
-      coal:          materials.coal          ?? 0,
-      oil:           materials.oil           ?? 0,
-      herbs:         materials.herbs         ?? 0,
+      fracten:          materials.fracten          ?? 0,
+      common_metals:    materials.common_metals    ?? 0,
+      leather_fur:      materials.leather_fur      ?? 0,
+      food:             materials.food             ?? 0,
+      wood:             materials.wood             ?? 0,
+      stone:            materials.stone            ?? 0,
+      coal:             materials.coal             ?? 0,
+      oil:              materials.oil              ?? 0,
+      herbs:            materials.herbs            ?? 0,
+      common_textiles:  materials.common_textiles  ?? 0, // V3-D2
+      labor_contracts:  materials.labor_contracts  ?? 0, // V3-D2
+      basic_equipment:  materials.basic_equipment  ?? 0, // V3-D2
       adminModeEnabled: adminModeEnabled ?? false,
     }),
   });
@@ -342,15 +365,18 @@ export async function postTransferBankToPlayer(
     method: "POST",
     headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
     body: JSON.stringify({
-      fracten:       materials.fracten       ?? 0,
-      common_metals: materials.common_metals ?? 0,
-      leather_fur:   materials.leather_fur   ?? 0,
-      food:          materials.food          ?? 0,
-      wood:          materials.wood          ?? 0,
-      stone:         materials.stone         ?? 0,
-      coal:          materials.coal          ?? 0,
-      oil:           materials.oil           ?? 0,
-      herbs:         materials.herbs         ?? 0,
+      fracten:          materials.fracten          ?? 0,
+      common_metals:    materials.common_metals    ?? 0,
+      leather_fur:      materials.leather_fur      ?? 0,
+      food:             materials.food             ?? 0,
+      wood:             materials.wood             ?? 0,
+      stone:            materials.stone            ?? 0,
+      coal:             materials.coal             ?? 0,
+      oil:              materials.oil              ?? 0,
+      herbs:            materials.herbs            ?? 0,
+      common_textiles:  materials.common_textiles  ?? 0, // V3-D2
+      labor_contracts:  materials.labor_contracts  ?? 0, // V3-D2
+      basic_equipment:  materials.basic_equipment  ?? 0, // V3-D2
       adminModeEnabled: adminModeEnabled ?? false,
     }),
   });
@@ -374,6 +400,10 @@ export interface CityInventoryDTO {
   coal:   number;
   oil:    number;
   herbs:  number;
+  // V3-D2
+  common_textiles: number;
+  labor_contracts:  number;
+  basic_equipment:  number;
 }
 
 export async function getCityInventory(cityId: number): Promise<CityInventoryDTO> {

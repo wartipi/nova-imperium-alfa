@@ -829,3 +829,68 @@ Le système de recrutement actuel (`server/cityService.ts`) utilise un **`produc
 - **Commit :** fourni par le prochain checkpoint automatique (jamais de push manuel sur GitHub).
 
 **Statut :** bloc V3-D2 terminé et documenté. Les 3 ressources sont entièrement runtime-capable (DB + inventaires + marché + UI + transferts). Aucun bâtiment producteur ni branchement recrutement. En attente de validation utilisateur.
+
+## Ressources V3-D3 — Vérification UI réelle des ressources prototype unités
+
+- **Objectif :** Vérifier que `common_textiles`, `labor_contracts`, `basic_equipment` s'affichent correctement dans tous les panneaux concernés, et corriger les bugs d'affichage/payload mineurs issus de V3-D2.
+- **Périmètre :** inspection + bugfix UI seulement — aucun nouveau système, aucun bâtiment producteur, aucun recrutement.
+
+### Composants inspectés
+
+| Composant | Fichier |
+|---|---|
+| ResourceIcons | `client/src/lib/shared/ResourceIcons.ts` |
+| ResourceRevealSystem | `client/src/lib/systems/ResourceRevealSystem.ts` |
+| TreasuryPanel | `client/src/components/game/TreasuryPanel.tsx` |
+| HarvestPanel | `client/src/components/game/HarvestPanel.tsx` |
+| PublicMarketplace | `client/src/components/game/PublicMarketplace.tsx` |
+| UnifiedTerritoryPanel | `client/src/components/game/UnifiedTerritoryPanel.tsx` |
+| economyApi | `client/src/lib/api/economyApi.ts` |
+
+### Résultats par composant
+
+**ResourceIcons** ✅ — Entrées présentes et correctes :
+- `common_textiles` → 🧶 Textiles communs (color #C8A2C8)
+- `labor_contracts` → 📜 Contrats de travail (color #8B7355)
+- `basic_equipment` → 🛡️ Équipement basique (color #808080)
+Aucun fallback ❓ possible.
+
+**ResourceRevealSystem** ✅ — Les 3 ressources configurées `rarity: 'strategic'`, `revealLevel: 99`. Ne seront jamais révélées par exploration de carte. Ne peuvent pas apparaître comme ressource exploitable sur une tuile.
+
+**TreasuryPanel** ✅ après correction — `Mats`, `isMatsEmpty`, `MAT_ICONS`, `RESOURCE_DEFS`, `TransferState`, handlers mats et resets tous corrects. Filtre `bankVisible`/`transportVisible` basé sur `visibleResources(RESOURCE_DEFS, source)` — les 3 ressources apparaîtront dès que > 0 en banque ou transport. Payloads de transfert (handleTransferToCity, handleTransferToPlayer, handleDepositToBank) incluent les 3 nouvelles ressources.
+
+**HarvestPanel** ✅ — `MatKey` et `MAT_ICONS` incluent les 3 nouvelles ressources. Affichage conditionnel (quantité > 0 uniquement).
+
+**PublicMarketplace** ✅ — `MB_RESOURCES` liste les 3 ressources. Tables d'icônes SELL et BUY complètes (🧶 / 📜 / 🛡️). Aucun crash attendu.
+
+**UnifiedTerritoryPanel** ✅ — `RESOURCE_LABELS` local étendu. Les 3 ressources ne font pas partie des ressources de tuile/terrain — aucun risque d'apparition sur la carte.
+
+### Bugs trouvés et corrigés
+
+**`client/src/lib/api/economyApi.ts` — 6 points de défaillance silencieuse :**
+
+1. **`PlayerBankDTO`** — manquait `common_textiles`, `labor_contracts`, `basic_equipment` → les 3 colonnes auraient été ignorées par TypeScript (accès `as any` dans TreasuryPanel masquait le problème).
+2. **`PlayerTransportDTO`** — idem.
+3. **`CityInventoryDTO`** — idem.
+4. **`T1Mats`** — manquait les 3 champs → `postDepositTransportToCity` et `postDepositTransportToBank` n'auraient pas transmis les 3 ressources à l'API.
+5. **`TransferMaterials`** — manquait les 3 champs → `postTransferBankToCity` et `postTransferBankToPlayer` n'auraient pas transmis les 3 ressources dans le body JSON.
+6. **`TransferResult.action`** — manquait les 3 champs dans la réponse typée.
+
+Tous corrigés dans une passe additive sans modifier la logique métier.
+
+### Confirmations
+
+- ✅ Les 3 ressources ne sont **pas** produites par bâtiments (`buildingEffects.ts` non modifié).
+- ✅ Le recrutement n'est **pas** branché (`cityService.ts`, `landUnitCatalog.ts`, `RecruitmentPanel.tsx` non modifiés).
+- ✅ Les 3 ressources ne sont **pas** des ressources de carte (revealLevel 99, rarity 'strategic').
+- ✅ Aucune migration `coal→fuel` ni `herbs→common_ingredients` réalisée.
+
+### Résultat TypeScript
+`npx tsc --noEmit` : **187 erreurs** — baseline inchangée, zéro régression.
+
+### Prochaine étape recommandée
+**V3-D4** — Définir les bâtiments producteurs pour les 3 ressources (`buildingEffects.ts` : atelier tisserand → `common_textiles`, taverne/guilde → `labor_contracts`, forge basique → `basic_equipment`). Les colonnes `*_per_turn` existent déjà dans `cities`.
+
+- **Commit :** fourni par le prochain checkpoint automatique.
+
+**Statut :** bloc V3-D3 terminé. 6 bugs de payload silencieux corrigés dans `economyApi.ts`. Aucun nouveau système. Les 3 ressources sont entièrement vérifiées et opérationnelles côté UI.
