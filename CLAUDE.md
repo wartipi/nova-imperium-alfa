@@ -1287,14 +1287,18 @@ RECRUITMENT_COST_RESOURCES = ["food","wood","stone","common_metals",
 | `debitCityInventoryForRecruitment(cityId, rawCost)` | Atomique — lit → vérifie → UPDATE en une opération. Throw `INSUFFICIENT_CITY_INVENTORY` avec `.missing[]` si une ressource manque. Aucun UPDATE partiel |
 | `previewRecruitmentCostPayment(cityId, rawCost)` | Retourne `{ cost, inventory, affordability }` sans aucun débit — utile pour affichage UI futur |
 
-### Comportement du débit atomique
+### Comportement du débit atomique (corrigé — concurrence-safe)
 
 1. `normalizeRecruitmentCost` valide et nettoie le coût
-2. `getCityInventoryForRecruitment` lit le stock actuel (snapshot)
-3. `canAffordRecruitmentCost` vérifie TOUTES les ressources
-4. Si insuffisant → `throw Error` avec `code='INSUFFICIENT_CITY_INVENTORY'` et `missing[]`, **aucun UPDATE**
-5. Si tout OK → `UPDATE city_inventory SET r = before[r] - cost[r]` pour chaque ressource concernée + `updatedAt`
+2. Lecture snapshot pour erreur lisible (early check — cas commun)
+3. `canAffordRecruitmentCost` → throw immédiat si manque évident
+4. **UPDATE conditionnel atomique** :
+   - `SET r = r - cost[r]` (expressions SQL relatives)
+   - `WHERE city_id = cityId AND food >= cost.food AND wood >= cost.wood AND ...` (garde par colonne coûtée)
+5. Si `UPDATE` retourne **0 lignes** (concurrence / double clic) : relit l'inventaire frais → throw `INSUFFICIENT_CITY_INVENTORY` avec détails actualisés
 6. Retourne `{ ok: true, debited, inventoryBefore }`
+
+**Garantie** : deux requêtes concurrentes lisant le même stock ne peuvent pas toutes deux réussir l'UPDATE — la seconde trouve la garde SQL insatisfaite et retourne 0 lignes.
 
 ---
 

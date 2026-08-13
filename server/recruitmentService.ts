@@ -11,7 +11,7 @@
 //   ressources rares, ressources legacy (iron/copper/fur/gold).
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { eq } from "drizzle-orm";
+import { eq, and, gte, sql } from "drizzle-orm";
 import { db } from "./db";
 import { cityInventory } from "../shared/schema";
 
@@ -169,61 +169,92 @@ export interface DebitResult {
 }
 
 // ─── debitCityInventoryForRecruitment ─────────────────────────────────────────
-// Débite city_inventory de manière atomique.
-// Comportement :
-//   1. Lit l'inventaire actuel.
-//   2. Vérifie toutes les ressources requises.
-//   3. Si une ressource manque → throw Error métier (INSUFFICIENT_CITY_INVENTORY),
-//      aucun UPDATE effectué.
-//   4. Si tout est suffisant → UPDATE atomique de toutes les colonnes concernées.
-//   5. Retourne DebitResult avec l'état avant débit.
+// Débite city_inventory de manière atomique et concurrence-safe.
 //
-// Note : Drizzle ORM ne supporte pas encore les transactions imbriquées via
-// db.transaction() de façon fiable en toutes versions. On utilise une séquence
-// READ → CHECK → UPDATE atomique par requête unique (pattern identique à
-// start-construction existant). Utiliser un verrou applicatif ou SERIALIZABLE
-// si la contention devient un problème (V3-D6+).
+// Comportement :
+//   1. Normalise et valide le coût.
+//   2. Lit l'inventaire (snapshot) pour produire des erreurs lisibles.
+//   3. Vérifie canAffordRecruitmentCost → throw immédiat si manque évident.
+//   4. UPDATE conditionnel avec garde SQL sur chaque colonne coûtée :
+//        WHERE city_id = cityId
+//          AND food >= cost.food   (si cost.food > 0)
+//          AND wood >= cost.wood   (si cost.wood > 0)
+//          ...
+//      SET food = food - cost.food, ... (expressions SQL relatives)
+//   5. Si l'UPDATE affecte 0 lignes (concurrence, double clic) :
+//      → relit l'inventaire frais et throw INSUFFICIENT_CITY_INVENTORY avec détails.
+//   6. Retourne DebitResult.
+//
+// Garantie de sécurité : deux requêtes concurrentes lisant le même stock ne
+// peuvent pas toutes deux réussir l'UPDATE — la seconde trouvera un stock
+// insuffisant dans la garde SQL et retournera 0 lignes.
 export async function debitCityInventoryForRecruitment(
   cityId: number,
   rawCost: unknown,
 ): Promise<DebitResult> {
   const cost = normalizeRecruitmentCost(rawCost);
 
-  // Snapshot avant débit
-  const inventoryBefore = await getCityInventoryForRecruitment(cityId);
+  // Aucune ressource à débiter → rien à faire
+  const hasAnyCost = RECRUITMENT_COST_RESOURCES.some(r => (cost[r] ?? 0) > 0);
+  if (!hasAnyCost) {
+    const inventoryBefore = await getCityInventoryForRecruitment(cityId);
+    return { ok: true, debited: cost, inventoryBefore };
+  }
 
-  // Vérification exhaustive
-  const affordability = canAffordRecruitmentCost(inventoryBefore, cost);
-  if (!affordability.ok) {
-    const detail = affordability.missing
+  // Snapshot pour erreur lisible (early check — cas commun)
+  const inventoryBefore = await getCityInventoryForRecruitment(cityId);
+  const earlyCheck = canAffordRecruitmentCost(inventoryBefore, cost);
+  if (!earlyCheck.ok) {
+    const detail = earlyCheck.missing
       .map(m => `${m.resource}: requis=${m.required} disponible=${m.available}`)
       .join(", ");
     const err = new Error(`INSUFFICIENT_CITY_INVENTORY: ${detail}`) as any;
     err.code    = "INSUFFICIENT_CITY_INVENTORY";
-    err.missing = affordability.missing;
+    err.missing = earlyCheck.missing;
     throw err;
   }
 
-  // Aucune ressource à débiter → rien à faire
-  const hasAnyCost = RECRUITMENT_COST_RESOURCES.some(r => (cost[r] ?? 0) > 0);
-  if (!hasAnyCost) {
-    return { ok: true, debited: cost, inventoryBefore };
-  }
-
-  // UPDATE atomique — uniquement les colonnes dont le coût est > 0
+  // ── UPDATE conditionnel atomique ─────────────────────────────────────────────
+  // SET : expressions SQL relatives (r = r - cost[r])
   const updates: Record<string, any> = { updatedAt: new Date() };
-  if ((cost.food            ?? 0) > 0) updates.food            = inventoryBefore.food            - cost.food!;
-  if ((cost.wood            ?? 0) > 0) updates.wood            = inventoryBefore.wood            - cost.wood!;
-  if ((cost.stone           ?? 0) > 0) updates.stone           = inventoryBefore.stone           - cost.stone!;
-  if ((cost.common_metals   ?? 0) > 0) updates.common_metals   = inventoryBefore.common_metals   - cost.common_metals!;
-  if ((cost.common_textiles ?? 0) > 0) updates.common_textiles = inventoryBefore.common_textiles - cost.common_textiles!;
-  if ((cost.labor_contracts ?? 0) > 0) updates.labor_contracts = inventoryBefore.labor_contracts - cost.labor_contracts!;
-  if ((cost.basic_equipment ?? 0) > 0) updates.basic_equipment = inventoryBefore.basic_equipment - cost.basic_equipment!;
+  if ((cost.food            ?? 0) > 0) updates.food            = sql`${cityInventory.food}            - ${cost.food!}`;
+  if ((cost.wood            ?? 0) > 0) updates.wood            = sql`${cityInventory.wood}            - ${cost.wood!}`;
+  if ((cost.stone           ?? 0) > 0) updates.stone           = sql`${cityInventory.stone}           - ${cost.stone!}`;
+  if ((cost.common_metals   ?? 0) > 0) updates.common_metals   = sql`${cityInventory.common_metals}   - ${cost.common_metals!}`;
+  if ((cost.common_textiles ?? 0) > 0) updates.common_textiles = sql`${cityInventory.common_textiles} - ${cost.common_textiles!}`;
+  if ((cost.labor_contracts ?? 0) > 0) updates.labor_contracts = sql`${cityInventory.labor_contracts} - ${cost.labor_contracts!}`;
+  if ((cost.basic_equipment ?? 0) > 0) updates.basic_equipment = sql`${cityInventory.basic_equipment} - ${cost.basic_equipment!}`;
 
-  await db
+  // WHERE : garde sur chaque colonne coûtée → stock doit encore être suffisant
+  const whereConditions = [eq(cityInventory.cityId, cityId)];
+  if ((cost.food            ?? 0) > 0) whereConditions.push(gte(cityInventory.food,            cost.food!));
+  if ((cost.wood            ?? 0) > 0) whereConditions.push(gte(cityInventory.wood,            cost.wood!));
+  if ((cost.stone           ?? 0) > 0) whereConditions.push(gte(cityInventory.stone,           cost.stone!));
+  if ((cost.common_metals   ?? 0) > 0) whereConditions.push(gte(cityInventory.common_metals,   cost.common_metals!));
+  if ((cost.common_textiles ?? 0) > 0) whereConditions.push(gte((cityInventory as any).common_textiles, cost.common_textiles!));
+  if ((cost.labor_contracts ?? 0) > 0) whereConditions.push(gte((cityInventory as any).labor_contracts, cost.labor_contracts!));
+  if ((cost.basic_equipment ?? 0) > 0) whereConditions.push(gte((cityInventory as any).basic_equipment, cost.basic_equipment!));
+
+  const updated = await db
     .update(cityInventory)
     .set(updates)
-    .where(eq(cityInventory.cityId, cityId));
+    .where(and(...whereConditions))
+    .returning({ cityId: cityInventory.cityId });
+
+  // ── 0 lignes affectées → concurrence ou stock épuisé entre la lecture et l'UPDATE
+  if (updated.length === 0) {
+    const freshInventory = await getCityInventoryForRecruitment(cityId);
+    const freshCheck     = canAffordRecruitmentCost(freshInventory, cost);
+    const detail = freshCheck.missing.length > 0
+      ? freshCheck.missing
+          .map(m => `${m.resource}: requis=${m.required} disponible=${m.available}`)
+          .join(", ")
+      : "stock modifié par une opération concurrente";
+    const err = new Error(`INSUFFICIENT_CITY_INVENTORY: ${detail}`) as any;
+    err.code    = "INSUFFICIENT_CITY_INVENTORY";
+    err.missing = freshCheck.missing;
+    throw err;
+  }
 
   return { ok: true, debited: cost, inventoryBefore };
 }
