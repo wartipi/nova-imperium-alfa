@@ -1,0 +1,353 @@
+NOVA IMPERIUM — Ressources V3-D5-B
+Helpers serveur passifs pour recrutement multi-ressources
+
+RÔLE
+Tu es l’agent technique sur le repo Nova Imperium.
+Objectif : préparer le futur recrutement serveur-authoritative en ajoutant des helpers serveur de validation/débit multi-ressources depuis city_inventory.
+
+IMPORTANT
+
+Ce bloc est une implémentation PASSIVE / PRÉPARATOIRE.
+Ne pas brancher le recrutement.
+Ne pas modifier RecruitmentPanel.tsx.
+Ne pas créer de nouvelle route start-recruitment.
+Ne pas modifier le flux actuel PUT /api/cities/:cityId/production.
+Ne pas modifier shared/landUnitCatalog.ts.
+Ne pas modifier les coûts des unités.
+Ne pas modifier server/unitCatalog.ts.
+Ne pas créer d’unité prototype.
+Ne pas modifier productionCost:number.
+Ne pas modifier city_production.
+Ne pas ajouter de migration DB.
+Ne pas modifier les bâtiments producteurs.
+Ne pas migrer coal/oil/herbs.
+Mettre à jour CLAUDE.md.
+
+CONTEXTE VALIDÉ
+
+V3-D2 :
+- common_textiles, labor_contracts, basic_equipment existent dans le runtime :
+  - DB
+  - player_bank
+  - city_inventory
+  - city_pending_harvest
+  - player_transport
+  - player_market_box
+  - marché
+  - transferts
+  - UI
+
+V3-D3 :
+- UI/payloads corrigés.
+- economyApi.ts transmet les 3 ressources.
+
+V3-D4 :
+- bâtiments producteurs ajoutés :
+  - atelier_tisserand → common_textiles +1/tour
+  - bureau_de_recrutement → labor_contracts +1/tour
+  - forge_basique → basic_equipment +1/tour
+- tick de production branché.
+- banque joueur corrigée.
+
+V3-D5-A :
+- audit architecture validé.
+- source de paiement recommandée : city_inventory.
+- productionCost:number doit rester utilisé comme durée/progression.
+- ressources débitées au lancement du recrutement, plus tard.
+- aucune implémentation de recrutement encore.
+
+OBJECTIF DE CE BLOC
+
+Ajouter des helpers serveur réutilisables, sans les brancher encore :
+
+1. Type de coût multi-ressources compatible recrutement.
+2. Helper de lecture / normalisation de coût.
+3. Helper de validation de stock city_inventory.
+4. Helper de débit atomique transactionnel depuis city_inventory.
+5. Erreurs structurées et lisibles pour ressource insuffisante.
+6. Extension éventuelle de GET /api/cities/:cityId/inventory si les 3 ressources V3 n’y sont pas encore retournées.
+
+RESSOURCES AUTORISÉES POUR LE PROTOTYPE RECRUTEMENT
+
+Pour ce bloc, limiter strictement les ressources de recrutement à :
+
+- food
+- wood
+- stone
+- common_metals
+- common_textiles
+- labor_contracts
+- basic_equipment
+
+Ne pas inclure :
+- fuel
+- common_ingredients
+- coal
+- oil
+- herbs
+- ressources rares
+- fracten
+- ressources legacy iron/copper/fur/gold
+
+À INSPECTER AVANT MODIFICATION
+
+Lire au minimum :
+
+- server/cityService.ts
+- server/routes/cities.ts
+- server/economyService.ts
+- shared/schema.ts
+- shared/economicResources.ts
+- shared/landUnitCatalog.ts
+- client/src/lib/api/economyApi.ts
+- tout fichier qui contient :
+  - getCityInventory
+  - cityInventory
+  - startProduction
+  - setProduction
+  - productionCost
+  - city_production
+
+À FAIRE
+
+1. Créer ou ajouter les types serveur nécessaires
+
+Créer dans un endroit approprié côté serveur, probablement dans `server/cityService.ts` ou un petit helper dédié si le code le justifie.
+
+Type recommandé :
+
+type RecruitmentCostResource =
+  | "food"
+  | "wood"
+  | "stone"
+  | "common_metals"
+  | "common_textiles"
+  | "labor_contracts"
+  | "basic_equipment";
+
+type RecruitmentResourceCost = Partial<Record<RecruitmentCostResource, number>>;
+
+Important :
+- Garder ce type serveur-local si importer CanonicalResourceId depuis shared/economicResources.ts crée trop de friction.
+- Ne pas introduire de dépendance complexe.
+- Ne pas modifier shared/economicResources.ts sauf nécessité stricte.
+
+2. Ajouter une liste canonique serveur des ressources de recrutement
+
+Créer une constante :
+
+RECRUITMENT_COST_RESOURCES = [
+  "food",
+  "wood",
+  "stone",
+  "common_metals",
+  "common_textiles",
+  "labor_contracts",
+  "basic_equipment",
+] as const;
+
+Utiliser cette liste pour éviter les boucles hardcodées dispersées.
+
+3. Ajouter un helper normalizeRecruitmentCost
+
+Créer un helper qui :
+
+- accepte un objet partiel ;
+- ignore les clés non autorisées ou les rejette explicitement, selon ce qui est plus sûr dans l’architecture actuelle ;
+- convertit les valeurs null/undefined en absence ;
+- refuse les valeurs négatives ;
+- refuse les valeurs non entières ;
+- retire les entrées à 0 ;
+- retourne un objet propre.
+
+Nom recommandé :
+
+normalizeRecruitmentCost(cost: unknown): RecruitmentResourceCost
+
+ou
+
+validateRecruitmentCost(cost: unknown): RecruitmentResourceCost
+
+Choisir le nom le plus cohérent avec le code existant.
+
+4. Ajouter un helper de lecture de city_inventory
+
+Créer un helper qui lit les stocks nécessaires dans `city_inventory`.
+
+Nom recommandé :
+
+getCityInventoryForRecruitment(cityId: number)
+
+Doit retourner au minimum :
+
+- cityId
+- food
+- wood
+- stone
+- common_metals
+- common_textiles
+- labor_contracts
+- basic_equipment
+
+Fallback à 0 si champ absent/null.
+
+Important :
+- Ne pas créer d’inventaire automatiquement si l’architecture actuelle ne le fait pas déjà.
+- Si une ligne city_inventory absente doit être traitée comme stock 0, documenter ce choix.
+
+5. Ajouter un helper canAffordRecruitmentCost
+
+Créer un helper pur ou quasi-pur qui compare stock et coût.
+
+Nom recommandé :
+
+canAffordRecruitmentCost(inventory, cost)
+
+Doit retourner une structure exploitable plus tard, par exemple :
+
+{
+  ok: boolean;
+  missing: Array<{
+    resource: RecruitmentCostResource;
+    required: number;
+    available: number;
+    shortage: number;
+  }>;
+}
+
+Important :
+- Ne pas throw pour insuffisance normale.
+- Retourner les détails pour que la future route puisse afficher une erreur propre.
+
+6. Ajouter un helper de débit atomique
+
+Créer le helper serveur futur :
+
+debitCityInventoryForRecruitment(cityId: number, cost: RecruitmentResourceCost, tx?: any)
+
+Comportement requis :
+
+- utiliser une transaction si tx non fourni, ou utiliser tx si fourni ;
+- normaliser/valider le coût ;
+- lire l’inventaire actuel ;
+- vérifier tous les montants ;
+- si une ressource manque : ne rien débiter ;
+- retourner une erreur structurée ou throw une erreur métier claire ;
+- si tout est suffisant : débiter toutes les ressources en une seule opération logique ;
+- mettre updatedAt à now ;
+- retourner :
+  - ok: true
+  - debited cost
+  - inventoryBefore optionnel
+  - inventoryAfter optionnel si simple à obtenir
+
+Approche recommandée :
+- Pour ce bloc passif, privilégier lisibilité et sécurité.
+- Utiliser une transaction.
+- Éviter les updates partiels hors transaction.
+- Ne pas optimiser prématurément.
+
+7. Ajouter un helper previewRecruitmentCostPayment
+
+Optionnel mais utile :
+- retourne la comparaison coût/stock sans débit.
+- Peut simplement exposer canAffordRecruitmentCost + getCityInventoryForRecruitment.
+
+Ne pas créer de route publique sauf si strictement demandé plus tard.
+
+8. GET inventory ville
+
+Vérifier la route existante :
+
+GET /api/cities/:cityId/inventory
+
+Si elle ne retourne pas encore :
+
+- common_textiles
+- labor_contracts
+- basic_equipment
+
+la corriger dans ce bloc.
+
+Important :
+- Ceci est autorisé parce que V3-D5-A a identifié que GET /inventory pouvait être incomplet.
+- Ne pas modifier le comportement de dépôt/transfert.
+- Ne pas modifier l’UI.
+
+9. Ne pas brancher les helpers
+
+Après avoir créé les helpers, confirmer qu’ils ne sont appelés par aucun flux de recrutement actif.
+
+Ils peuvent être exportés pour le futur, mais pas utilisés par :
+
+- setProduction
+- tickCityProduction
+- createProducedUnit
+- RecruitmentPanel
+- apiSetProduction
+
+VALIDATION TECHNIQUE
+
+Exécuter :
+
+npx tsc --noEmit
+
+Baseline connue :
+
+- 187 erreurs TypeScript préexistantes.
+
+Objectif :
+- rester à 187 erreurs ;
+- zéro régression.
+
+CLAUDE.md
+
+Ajouter une section :
+
+“Ressources V3-D5-B — Helpers serveur passifs pour recrutement multi-ressources”
+
+Inclure :
+
+- objectif ;
+- fichiers inspectés ;
+- fichiers modifiés ;
+- types ajoutés ;
+- helpers ajoutés ;
+- ressources autorisées ;
+- comportement du débit atomique ;
+- correction éventuelle de GET /inventory ;
+- confirmation que le recrutement n’est pas branché ;
+- confirmation que productionCost:number n’est pas modifié ;
+- confirmation que shared/landUnitCatalog.ts reste passif ;
+- résultat TypeScript ;
+- risques restants ;
+- prochaine étape recommandée.
+
+SORTIE ATTENDUE
+
+Répondre avec :
+
+1. Fichiers inspectés.
+2. Fichiers modifiés.
+3. Types ajoutés.
+4. Helpers ajoutés avec description :
+   - normalize/validate cost
+   - get inventory
+   - can afford
+   - debit atomic
+   - preview si ajouté
+5. Ressources autorisées dans les coûts.
+6. Confirmation si GET /api/cities/:cityId/inventory a été corrigé ou non.
+7. Confirmation que rien n’est branché au recrutement actif.
+8. Résultat TypeScript.
+9. Risques restants.
+10. Prochaine étape recommandée.
+
+STATUT ATTENDU
+
+Helpers prêts.
+Aucun recrutement branché.
+Aucune unité prototype créée.
+Aucune modification du système productionCost:number.
+Aucune migration DB.
+Aucune migration coal/oil/herbs.

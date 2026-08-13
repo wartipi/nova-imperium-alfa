@@ -1,0 +1,254 @@
+// ─── server/recruitmentService.ts ────────────────────────────────────────────
+// V3-D5-B — Helpers serveur passifs pour recrutement multi-ressources.
+//
+// Ce fichier NE BRANCHE RIEN. Il expose des helpers réutilisables pour la
+// future route start-recruitment (V3-D5-C). Aucun flux de recrutement actif
+// n'appelle ces fonctions.
+//
+// Ressources autorisées pour les coûts de recrutement prototype :
+//   food, wood, stone, common_metals, common_textiles, labor_contracts, basic_equipment
+// Exclues délibérément : fracten, fuel, coal, oil, herbs, common_ingredients,
+//   ressources rares, ressources legacy (iron/copper/fur/gold).
+// ─────────────────────────────────────────────────────────────────────────────
+
+import { eq } from "drizzle-orm";
+import { db } from "./db";
+import { cityInventory } from "../shared/schema";
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+export type RecruitmentCostResource =
+  | "food"
+  | "wood"
+  | "stone"
+  | "common_metals"
+  | "common_textiles"
+  | "labor_contracts"
+  | "basic_equipment";
+
+export type RecruitmentResourceCost = Partial<Record<RecruitmentCostResource, number>>;
+
+// ─── Constante canonique ──────────────────────────────────────────────────────
+
+export const RECRUITMENT_COST_RESOURCES: readonly RecruitmentCostResource[] = [
+  "food",
+  "wood",
+  "stone",
+  "common_metals",
+  "common_textiles",
+  "labor_contracts",
+  "basic_equipment",
+] as const;
+
+// ─── normalizeRecruitmentCost ─────────────────────────────────────────────────
+// Valide et normalise un objet de coût de recrutement.
+// - Ignore les clés non autorisées (silencieux).
+// - Refuse les valeurs négatives ou non entières → throw Error.
+// - Retire les entrées à 0 ou undefined.
+// - Retourne un objet propre.
+export function normalizeRecruitmentCost(cost: unknown): RecruitmentResourceCost {
+  if (typeof cost !== "object" || cost === null || Array.isArray(cost)) {
+    throw new Error("[normalizeRecruitmentCost] cost doit être un objet");
+  }
+
+  const raw = cost as Record<string, unknown>;
+  const result: RecruitmentResourceCost = {};
+
+  for (const key of RECRUITMENT_COST_RESOURCES) {
+    const val = raw[key];
+    if (val === undefined || val === null) continue;
+    if (typeof val !== "number") {
+      throw new Error(
+        `[normalizeRecruitmentCost] ${key}: attendu number, reçu ${typeof val}`,
+      );
+    }
+    if (!Number.isInteger(val)) {
+      throw new Error(
+        `[normalizeRecruitmentCost] ${key}: valeur non entière (${val})`,
+      );
+    }
+    if (val < 0) {
+      throw new Error(
+        `[normalizeRecruitmentCost] ${key}: valeur négative (${val})`,
+      );
+    }
+    if (val === 0) continue; // ignorer les zéros
+    result[key] = val;
+  }
+
+  return result;
+}
+
+// ─── CityInventorySnapshot ────────────────────────────────────────────────────
+// Vue limitée de city_inventory aux ressources de recrutement.
+export interface CityInventorySnapshot {
+  cityId:           number;
+  food:             number;
+  wood:             number;
+  stone:            number;
+  common_metals:    number;
+  common_textiles:  number;
+  labor_contracts:  number;
+  basic_equipment:  number;
+}
+
+// ─── getCityInventoryForRecruitment ───────────────────────────────────────────
+// Lit les stocks de recrutement depuis city_inventory.
+// Si aucune ligne n'existe pour cette ville, retourne des stocks à 0.
+// Ne crée pas de ligne — le caller doit s'assurer que city_inventory existe.
+export async function getCityInventoryForRecruitment(
+  cityId: number,
+): Promise<CityInventorySnapshot> {
+  const rows = await db
+    .select()
+    .from(cityInventory)
+    .where(eq(cityInventory.cityId, cityId))
+    .limit(1);
+
+  const r = rows[0] ?? null;
+
+  return {
+    cityId,
+    food:            r?.food            ?? 0,
+    wood:            r?.wood            ?? 0,
+    stone:           r?.stone           ?? 0,
+    common_metals:   r?.common_metals   ?? 0,
+    common_textiles: (r as any)?.common_textiles  ?? 0,
+    labor_contracts: (r as any)?.labor_contracts  ?? 0,
+    basic_equipment: (r as any)?.basic_equipment  ?? 0,
+  };
+}
+
+// ─── AffordabilityResult ──────────────────────────────────────────────────────
+
+export interface ResourceShortage {
+  resource:  RecruitmentCostResource;
+  required:  number;
+  available: number;
+  shortage:  number;
+}
+
+export interface AffordabilityResult {
+  ok:      boolean;
+  missing: ResourceShortage[];
+}
+
+// ─── canAffordRecruitmentCost ─────────────────────────────────────────────────
+// Compare stock et coût de manière synchrone (ne throw jamais pour stock insuffisant).
+// Retourne { ok: true, missing: [] } si tout est disponible.
+// Retourne { ok: false, missing: [...] } avec le détail de chaque manque.
+export function canAffordRecruitmentCost(
+  inventory: CityInventorySnapshot,
+  cost: RecruitmentResourceCost,
+): AffordabilityResult {
+  const missing: ResourceShortage[] = [];
+
+  for (const resource of RECRUITMENT_COST_RESOURCES) {
+    const required  = cost[resource] ?? 0;
+    if (required === 0) continue;
+    const available = inventory[resource] ?? 0;
+    if (available < required) {
+      missing.push({
+        resource,
+        required,
+        available,
+        shortage: required - available,
+      });
+    }
+  }
+
+  return { ok: missing.length === 0, missing };
+}
+
+// ─── DebitResult ─────────────────────────────────────────────────────────────
+
+export interface DebitResult {
+  ok:              true;
+  debited:         RecruitmentResourceCost;
+  inventoryBefore: CityInventorySnapshot;
+}
+
+// ─── debitCityInventoryForRecruitment ─────────────────────────────────────────
+// Débite city_inventory de manière atomique.
+// Comportement :
+//   1. Lit l'inventaire actuel.
+//   2. Vérifie toutes les ressources requises.
+//   3. Si une ressource manque → throw Error métier (INSUFFICIENT_CITY_INVENTORY),
+//      aucun UPDATE effectué.
+//   4. Si tout est suffisant → UPDATE atomique de toutes les colonnes concernées.
+//   5. Retourne DebitResult avec l'état avant débit.
+//
+// Note : Drizzle ORM ne supporte pas encore les transactions imbriquées via
+// db.transaction() de façon fiable en toutes versions. On utilise une séquence
+// READ → CHECK → UPDATE atomique par requête unique (pattern identique à
+// start-construction existant). Utiliser un verrou applicatif ou SERIALIZABLE
+// si la contention devient un problème (V3-D6+).
+export async function debitCityInventoryForRecruitment(
+  cityId: number,
+  rawCost: unknown,
+): Promise<DebitResult> {
+  const cost = normalizeRecruitmentCost(rawCost);
+
+  // Snapshot avant débit
+  const inventoryBefore = await getCityInventoryForRecruitment(cityId);
+
+  // Vérification exhaustive
+  const affordability = canAffordRecruitmentCost(inventoryBefore, cost);
+  if (!affordability.ok) {
+    const detail = affordability.missing
+      .map(m => `${m.resource}: requis=${m.required} disponible=${m.available}`)
+      .join(", ");
+    const err = new Error(`INSUFFICIENT_CITY_INVENTORY: ${detail}`) as any;
+    err.code    = "INSUFFICIENT_CITY_INVENTORY";
+    err.missing = affordability.missing;
+    throw err;
+  }
+
+  // Aucune ressource à débiter → rien à faire
+  const hasAnyCost = RECRUITMENT_COST_RESOURCES.some(r => (cost[r] ?? 0) > 0);
+  if (!hasAnyCost) {
+    return { ok: true, debited: cost, inventoryBefore };
+  }
+
+  // UPDATE atomique — uniquement les colonnes dont le coût est > 0
+  const updates: Record<string, any> = { updatedAt: new Date() };
+  if ((cost.food            ?? 0) > 0) updates.food            = inventoryBefore.food            - cost.food!;
+  if ((cost.wood            ?? 0) > 0) updates.wood            = inventoryBefore.wood            - cost.wood!;
+  if ((cost.stone           ?? 0) > 0) updates.stone           = inventoryBefore.stone           - cost.stone!;
+  if ((cost.common_metals   ?? 0) > 0) updates.common_metals   = inventoryBefore.common_metals   - cost.common_metals!;
+  if ((cost.common_textiles ?? 0) > 0) updates.common_textiles = inventoryBefore.common_textiles - cost.common_textiles!;
+  if ((cost.labor_contracts ?? 0) > 0) updates.labor_contracts = inventoryBefore.labor_contracts - cost.labor_contracts!;
+  if ((cost.basic_equipment ?? 0) > 0) updates.basic_equipment = inventoryBefore.basic_equipment - cost.basic_equipment!;
+
+  await db
+    .update(cityInventory)
+    .set(updates)
+    .where(eq(cityInventory.cityId, cityId));
+
+  return { ok: true, debited: cost, inventoryBefore };
+}
+
+// ─── previewRecruitmentCostPayment ────────────────────────────────────────────
+// Retourne une comparaison coût/stock sans aucun débit.
+// Utile pour que la future route preview-recruitment retourne l'affordabilité
+// sans modifier l'état.
+export interface RecruitmentCostPreview {
+  cityId:          number;
+  cost:            RecruitmentResourceCost;
+  inventory:       CityInventorySnapshot;
+  affordability:   AffordabilityResult;
+}
+
+export async function previewRecruitmentCostPayment(
+  cityId: number,
+  rawCost: unknown,
+): Promise<RecruitmentCostPreview> {
+  const cost      = normalizeRecruitmentCost(rawCost);
+  const inventory = await getCityInventoryForRecruitment(cityId);
+  return {
+    cityId,
+    cost,
+    inventory,
+    affordability: canAffordRecruitmentCost(inventory, cost),
+  };
+}

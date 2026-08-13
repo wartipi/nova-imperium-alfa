@@ -285,6 +285,10 @@ router.get("/:cityId/inventory", requireAuth, async (req: AuthRequest, res) => {
       coal:   (inv as any).coal   ?? 0,
       oil:    (inv as any).oil    ?? 0,
       herbs:  (inv as any).herbs  ?? 0,
+      // V3-D5-B : ressources prototype recrutement
+      common_textiles: (inv as any).common_textiles ?? 0,
+      labor_contracts: (inv as any).labor_contracts ?? 0,
+      basic_equipment: (inv as any).basic_equipment ?? 0,
     });
   } catch (err) {
     console.error("[GET /api/cities/:cityId/inventory] Erreur:", err);

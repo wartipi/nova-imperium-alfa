@@ -1224,3 +1224,106 @@ async function debitCityInventoryForRecruitment(
 - Aucune migration DB.
 
 **Statut V3-D5-A :** Audit complet. Architecture documentée. Prêt pour V3-D5-B.
+
+---
+
+## Ressources V3-D5-B — Helpers serveur passifs pour recrutement multi-ressources
+
+### Objectif
+Ajouter des helpers serveur réutilisables de validation et débit multi-ressources depuis `city_inventory`, sans brancher aucun flux de recrutement actif.
+
+### Fichiers inspectés
+- `server/cityService.ts`, `server/routes/cities.ts`, `shared/schema.ts`
+- `shared/economicResources.ts`, `shared/landUnitCatalog.ts`
+
+### Fichiers modifiés
+| Fichier | Nature |
+|---|---|
+| `server/recruitmentService.ts` | **Créé** — helpers passifs (nouveau fichier) |
+| `server/routes/cities.ts` | **Modifié** — GET /inventory expose les 3 ressources V3 |
+
+---
+
+### Types ajoutés (`server/recruitmentService.ts`)
+
+```typescript
+type RecruitmentCostResource =
+  | "food" | "wood" | "stone" | "common_metals"
+  | "common_textiles" | "labor_contracts" | "basic_equipment";
+
+type RecruitmentResourceCost = Partial<Record<RecruitmentCostResource, number>>;
+
+interface CityInventorySnapshot {
+  cityId: number; food: number; wood: number; stone: number;
+  common_metals: number; common_textiles: number;
+  labor_contracts: number; basic_equipment: number;
+}
+
+interface ResourceShortage {
+  resource: RecruitmentCostResource; required: number;
+  available: number; shortage: number;
+}
+
+interface AffordabilityResult { ok: boolean; missing: ResourceShortage[]; }
+interface DebitResult { ok: true; debited: RecruitmentResourceCost; inventoryBefore: CityInventorySnapshot; }
+interface RecruitmentCostPreview { cityId; cost; inventory; affordability; }
+```
+
+### Constante canonique
+```typescript
+RECRUITMENT_COST_RESOURCES = ["food","wood","stone","common_metals",
+  "common_textiles","labor_contracts","basic_equipment"] as const
+```
+
+---
+
+### Helpers ajoutés
+
+| Helper | Description |
+|---|---|
+| `normalizeRecruitmentCost(cost)` | Valide un objet de coût : ignore clés non autorisées, refuse valeurs négatives/non-entières, retire les zéros, retourne objet propre |
+| `getCityInventoryForRecruitment(cityId)` | Lit city_inventory et retourne un snapshot limité aux 7 ressources de recrutement. Retourne 0 partout si aucune ligne n'existe (ne crée pas de ligne) |
+| `canAffordRecruitmentCost(inventory, cost)` | Pure — compare stock et coût, retourne `{ ok, missing: ResourceShortage[] }`, ne throw jamais pour stock insuffisant |
+| `debitCityInventoryForRecruitment(cityId, rawCost)` | Atomique — lit → vérifie → UPDATE en une opération. Throw `INSUFFICIENT_CITY_INVENTORY` avec `.missing[]` si une ressource manque. Aucun UPDATE partiel |
+| `previewRecruitmentCostPayment(cityId, rawCost)` | Retourne `{ cost, inventory, affordability }` sans aucun débit — utile pour affichage UI futur |
+
+### Comportement du débit atomique
+
+1. `normalizeRecruitmentCost` valide et nettoie le coût
+2. `getCityInventoryForRecruitment` lit le stock actuel (snapshot)
+3. `canAffordRecruitmentCost` vérifie TOUTES les ressources
+4. Si insuffisant → `throw Error` avec `code='INSUFFICIENT_CITY_INVENTORY'` et `missing[]`, **aucun UPDATE**
+5. Si tout OK → `UPDATE city_inventory SET r = before[r] - cost[r]` pour chaque ressource concernée + `updatedAt`
+6. Retourne `{ ok: true, debited, inventoryBefore }`
+
+---
+
+### Ressources autorisées dans les coûts de recrutement
+`food`, `wood`, `stone`, `common_metals`, `common_textiles`, `labor_contracts`, `basic_equipment`
+
+Exclues délibérément : `fracten`, `fuel`, `coal`, `oil`, `herbs`, `common_ingredients`, ressources rares, legacy (iron/copper/fur/gold).
+
+---
+
+### Correction GET /api/cities/:cityId/inventory
+La route retourne désormais `common_textiles`, `labor_contracts`, `basic_equipment` (colonnes existantes en DB depuis V3-D2, absentes de la réponse jusqu'à ce bloc).
+
+---
+
+### Confirmations
+- **Recrutement non branché** : `debitCityInventoryForRecruitment` n'est appelé par aucun flux actif (`setProduction`, `tickCityProduction`, `createProducedUnit`, `RecruitmentPanel`, `apiSetProduction`).
+- **`productionCost:number` non modifié** — reste la durée/progression en tours.
+- **`shared/landUnitCatalog.ts` reste passif** — non importé, non modifié.
+- **Aucune migration DB** — colonnes déjà présentes depuis V3-D2.
+
+### Résultat TypeScript
+`npx tsc --noEmit` : **187 erreurs** — baseline inchangée.
+
+### Risques restants
+- `debitCityInventoryForRecruitment` utilise READ+CHECK+UPDATE sans verrou SERIALIZABLE — contention possible si double clic très rapide (V3-D6+).
+- Si `city_inventory` n'a pas de ligne pour une ville, stock retourné à 0 mais aucune ligne n'est créée → debit tentera un UPDATE sur zéro lignes (à gérer en V3-D5-C via UPSERT préalable ou vérification count).
+
+### Prochaine étape recommandée
+**V3-D5-C** — Route `POST /api/cities/:cityId/start-recruitment` serveur-authoritative : body `{ unitId }`, appelle `debitCityInventoryForRecruitment`, UPSERT `city_production`.
+
+**Statut V3-D5-B :** Helpers prêts et exportés. Aucun recrutement branché. Aucune unité prototype créée. Aucune migration DB.
