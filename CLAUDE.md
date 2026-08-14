@@ -1674,3 +1674,100 @@ Affichage : bannière rouge inline sous la barre de progression, par ville.
 **V3-D5-F** — Tests serveur : `startRecruitmentTransaction`, `canAffordRecruitmentCost`, cas de concurrence, rollback atomique.
 
 **Statut V3-D5-E :** `RecruitmentPanel` branché sur `start-recruitment` serveur-authoritative. Débit uniquement côté serveur. Ancien système (`trainUnit`, `apiSetProduction`) conservé. Unités prototype non branchées. `productionCost:number` inchangé.
+
+---
+
+## Ressources V3-D5-F — Audit fonctionnel/UX recrutement serveur-authoritative
+
+### Objectif
+Auditer le flux recrutement après branchement UI (V3-D5-E) et corriger les incohérences UX simples : PA non-authoritative présentés comme bloquants, coûts affichés non réconciliés, message missing[] non exploité.
+
+### Fichiers inspectés
+- `client/src/components/game/RecruitmentPanel.tsx`
+- `client/src/lib/stores/useNovaImperium.tsx`
+- `client/src/lib/api/citiesApi.ts`
+- `server/routes/cities.ts`
+
+### Fichiers modifiés
+| Fichier | Nature |
+|---|---|
+| `client/src/components/game/RecruitmentPanel.tsx` | 3 corrections UX ciblées |
+
+### Résultat de l'audit RecruitmentPanel
+
+| Point audité | Résultat |
+|---|---|
+| `apiStartRecruitment` appelé | ✅ |
+| `trainUnit` non appelé | ✅ |
+| Aucun coût client envoyé au serveur | ✅ — seul `unitType` |
+| Aucun débit client-side | ✅ |
+| `hydrateCitiesFromServer` après succès | ✅ |
+| Erreurs affichées/logguées | ✅ — bannière rouge par ville |
+| Double-clic limité par `isRecruiting` | ✅ |
+| Bouton désactivé si `currentProduction` | ✅ |
+| Title mentionnait "PA insuffisants" comme verrou | ⚠️ → **corrigé** |
+| Message `missing[]` non exploité | ⚠️ → **corrigé** |
+| Coûts UI non réconciliés avec serveur | ⚠️ → **note UX ajoutée** |
+
+### Décision points d'action
+`canAffordUnit()` vérifie les PA (Action Points) côté client — non authoritative (le serveur ne valide pas les PA). **Décision :** les PA ne bloquent pas le bouton. Le `title` affichait faussement "Points d'action insuffisants" — corrigé en `"X PA requis (indicatif)"`. La validation réelle reste serveur (`city_inventory`).
+
+### Décision coûts affichés
+Les coûts dans `unit.cost` (tableau local) ne correspondent pas à `RUNTIME_RECRUITMENT_COSTS` serveur. **Décision :** ajout d'une note UX sous le titre : *"Coûts affichés indicatifs. Le serveur valide et débite l'inventaire réel de la ville."* Pas de refactor catalogue dans ce bloc.
+
+### Corrections UX appliquées
+
+**1. Message `missing[]` enrichi**
+```
+Avant : "Ressources insuffisantes dans l'inventaire de la ville."
+Après : "Ressources insuffisantes : food +2, labor_contracts +1."  (si missing[] disponible)
+         "Ressources insuffisantes dans l'inventaire de la ville."  (fallback si missing[] vide)
+```
+
+**2. Note indicative sous le titre**
+```
+"Coûts affichés indicatifs. Le serveur valide et débite l'inventaire réel de la ville."
+```
+
+**3. Title bouton corrigé**
+```
+Avant : "Points d'action insuffisants"  (laissait croire à un verrou PA)
+Après : "X PA requis (indicatif)"       (information sans prétention d'autorité)
+```
+
+### Gestion erreurs après correction
+| Cas | Message UI |
+|---|---|
+| `PRODUCTION_ALREADY_ACTIVE` | "Une production est déjà en cours dans cette ville." |
+| `INSUFFICIENT_CITY_INVENTORY` (missing disponible) | "Ressources insuffisantes : food +2, …" |
+| `INSUFFICIENT_CITY_INVENTORY` (missing vide) | "Ressources insuffisantes dans l'inventaire de la ville." |
+| Erreur inconnue | "Impossible de démarrer le recrutement." |
+
+### Confirmations
+- **Aucun débit client-side** — `trainUnit()` non appelé, aucun `set()` Zustand sur les resources.
+- **`shared/landUnitCatalog.ts` passif** — non importé.
+- **`server/unitCatalog.ts` inchangé.**
+- **`productionCost:number` inchangé.**
+- **`trainUnit()` et `apiSetProduction()` conservés.**
+- **Commentaire serveur** — déjà corrigé en V3-D5-E, cohérent (transaction atomique, plus de mention risque résiduel).
+
+### Tests documentés
+1. Clic recruter → `apiStartRecruitment` → 201 → `hydrateCitiesFromServer` → bouton "Occupé" ✓
+2. Ressources insuffisantes → 400 + `missing[]` → "Ressources insuffisantes : food +2, …" affiché ✓
+3. Production active → 409 → "Une production est déjà en cours" — bouton était déjà désactivé si hydrate récent ✓
+4. Double-clic → `isRecruiting` désactive pendant l'appel ✓
+5. PA → indicatifs uniquement, aucune validation serveur PA ajoutée ✓
+6. Coûts → indicatifs, note affichée, pas de réconciliation catalogue ✓
+
+### Résultat TypeScript
+`npx tsc --noEmit` : **187 erreurs** — baseline inchangée.
+
+### Risques restants
+- Deux catalogues coexistent (`unit.cost` local vs `RUNTIME_RECRUITMENT_COSTS` serveur) — coûts affichés inexacts jusqu'à réconciliation.
+- `canAffordUnit()` (PA) toujours calculé mais uniquement indicatif — peut être supprimé proprement en V3-D5-G.
+- `hydrateCitiesFromServer` après succès : si le réseau est lent, la production peut ne pas s'afficher immédiatement.
+
+### Prochaine étape recommandée
+**V3-D5-G** — Réconcilier les catalogues : exposer `RUNTIME_RECRUITMENT_COSTS` via un endpoint GET pour que l'UI affiche les coûts réels, ou remplacer `unit.cost` local par les coûts de `shared/landUnitCatalog.ts` après unification des IDs.
+
+**Statut V3-D5-F :** Audit complet. Trois corrections UX ciblées appliquées. Flux recrutement serveur-authoritative fonctionnel. Coûts et PA marqués indicatifs. Aucun refactor catalogue. `productionCost:number` conservé.

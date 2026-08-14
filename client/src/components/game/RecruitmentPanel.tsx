@@ -102,10 +102,15 @@ export function RecruitmentPanel() {
         }));
       } else if (body.error === 'INSUFFICIENT_CITY_INVENTORY') {
         const missing: { resource: string; shortage: number }[] = body.missing ?? [];
-        console.error('[handleRecruit] Ressources city_inventory manquantes:', missing);
+        // Construire un message lisible depuis missing[] si disponible
+        const detail = missing.length > 0
+          ? missing.map(m => `${m.resource} +${m.shortage}`).join(', ')
+          : null;
         setCityErrors(prev => ({
           ...prev,
-          [cityId]: 'Ressources insuffisantes dans l\'inventaire de la ville.',
+          [cityId]: detail
+            ? `Ressources insuffisantes : ${detail}.`
+            : 'Ressources insuffisantes dans l\'inventaire de la ville.',
         }));
       } else {
         console.error('[handleRecruit] Erreur inattendue:', err);
@@ -137,7 +142,11 @@ export function RecruitmentPanel() {
   return (
     <div className="space-y-4">
       <div className="text-center">
-        <h4 className="font-bold text-base mb-3">Recrutement d'Unités</h4>
+        <h4 className="font-bold text-base mb-1">Recrutement d'Unités</h4>
+        {/* V3-D5-F : coûts indicatifs — le serveur valide city_inventory */}
+        <p className="text-xs text-amber-600 italic mb-3">
+          Coûts affichés indicatifs. Le serveur valide et débite l'inventaire réel de la ville.
+        </p>
       </div>
 
       {currentNovaImperium.cities.map(city => (
@@ -207,7 +216,9 @@ export function RecruitmentPanel() {
                         title={
                           city.currentProduction !== null ? 'Ville occupée' :
                           isRecruiting[city.id] ? 'Recrutement en cours…' :
-                          !canAffordUnit(unit.id) ? 'Points d\'action insuffisants' :
+                          // V3-D5-F : PA indicatifs uniquement — la validation est serveur-authoritative.
+                          // canAffordUnit() (PA) n'est plus un verrou UI : on affiche l'info sans bloquer.
+                          !canAffordUnit(unit.id) ? `${getUnitRecruitmentCost(unit.id)} PA requis (indicatif)` :
                           'Recruter cette unité'
                         }
                       >

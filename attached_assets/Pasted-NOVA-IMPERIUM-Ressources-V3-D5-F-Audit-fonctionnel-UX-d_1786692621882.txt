@@ -1,0 +1,275 @@
+NOVA IMPERIUM — Ressources V3-D5-F
+Audit fonctionnel/UX du recrutement serveur-authoritative
+
+RÔLE
+Tu es l’agent technique sur le repo Nova Imperium.
+Objectif : auditer le nouveau flux de recrutement serveur-authoritative après branchement UI, sans ajouter de nouvelle fonctionnalité majeure.
+
+IMPORTANT
+
+Ce bloc est un AUDIT + petites corrections ciblées seulement si nécessaires.
+Ne pas modifier shared/landUnitCatalog.ts.
+Ne pas brancher les LandUnitId prototype.
+Ne pas modifier server/unitCatalog.ts.
+Ne pas modifier RUNTIME_RECRUITMENT_COSTS sauf bug bloquant évident.
+Ne pas créer de nouvelles unités prototype.
+Ne pas modifier tickCityProduction().
+Ne pas modifier createProducedUnit().
+Ne pas modifier productionCost:number.
+Ne pas modifier city_production.
+Ne pas migrer coal/oil/herbs.
+Ne pas modifier les bâtiments producteurs.
+Ne pas supprimer apiSetProduction().
+Ne pas supprimer trainUnit().
+Mettre à jour CLAUDE.md.
+
+CONTEXTE VALIDÉ
+
+V3-D5-C2 :
+- start-recruitment est atomique côté serveur.
+- startRecruitmentTransaction() encapsule :
+  - vérification production active ;
+  - validation city_inventory ;
+  - débit city_inventory ;
+  - écriture city_production.
+
+V3-D5-D :
+- apiStartRecruitment(cityId, unitType) existe côté client.
+
+V3-D5-E :
+- RecruitmentPanel.tsx appelle maintenant apiStartRecruitment(Number(cityId), unitId).
+- Aucun coût ni durée ne sont envoyés par le client.
+- Après succès : hydrateCitiesFromServer().
+- Débit client-side retiré du flux.
+- trainUnit() et apiSetProduction() conservés.
+- Commentaire serveur start-recruitment nettoyé.
+- Réserve fonctionnelle :
+  - canAffordUnit() existe encore pour les points d’action / affichage.
+  - Le bouton n’est plus désactivé par !canAffordUnit(unit.id).
+  - Le title mentionne encore “Points d’action insuffisants”.
+  - Les coûts affichés dans l’UI ne correspondent pas forcément à RUNTIME_RECRUITMENT_COSTS serveur.
+
+OBJECTIF DE CE BLOC
+
+Faire un audit fonctionnel précis du flux actuel et corriger uniquement les incohérences UX simples.
+
+Les deux questions centrales :
+
+1. Les points d’action doivent-ils encore bloquer le clic dans RecruitmentPanel ?
+2. L’affichage des coûts UI est-il trop trompeur par rapport aux coûts serveur ?
+
+Pour ce bloc, ne pas inventer un nouveau système de points d’action serveur.
+
+DÉCISION ATTENDUE POUR LES POINTS D’ACTION
+
+Comme start-recruitment serveur ne valide pas les points d’action, il ne faut pas prétendre que les points d’action sont une validation authoritative.
+
+Option recommandée pour V3-D5-F :
+- retirer le blocage UX par points d’action si non authoritative ;
+- ou garder seulement une indication visuelle “PA indicatifs” ;
+- corriger le title du bouton pour ne pas dire “Points d’action insuffisants” si le bouton n’est pas réellement bloqué.
+
+Ne pas ajouter de débit PA serveur dans ce bloc.
+Ne pas ajouter de nouvelle colonne.
+Ne pas ajouter de route PA.
+
+DÉCISION ATTENDUE POUR LES COÛTS AFFICHÉS
+
+Les coûts affichés dans RecruitmentPanel utilisent encore `unit.cost` local.
+Les coûts réels viennent de `RUNTIME_RECRUITMENT_COSTS` serveur.
+
+Option recommandée pour V3-D5-F :
+- ajouter une mention UX claire près de la liste :
+  “Coûts affichés indicatifs — validation finale par l’inventaire de ville serveur.”
+ou
+  “Coûts en cours de migration vers le catalogue serveur.”
+
+Ne pas importer RUNTIME_RECRUITMENT_COSTS côté client.
+Ne pas dupliquer un nouveau catalogue client.
+Ne pas brancher shared/landUnitCatalog.ts.
+Ne pas tenter de réconcilier tous les coûts dans ce bloc.
+
+À INSPECTER AVANT MODIFICATION
+
+Lire :
+
+- client/src/components/game/RecruitmentPanel.tsx
+- client/src/lib/api/citiesApi.ts
+- client/src/lib/stores/useNovaImperium.tsx
+- client/src/lib/game/ActionPointsCosts.ts
+- server/routes/cities.ts
+- server/recruitmentService.ts
+- server/unitCatalog.ts
+- CLAUDE.md
+
+Chercher :
+
+- canAffordUnit()
+- canAffordAction()
+- getUnitRecruitmentCost()
+- disabled={...}
+- title={...}
+- unit.cost
+- formatResourceCost()
+- hydrateCitiesFromServer()
+- apiStartRecruitment()
+- city.currentProduction
+- error handling
+
+À FAIRE
+
+1. Auditer RecruitmentPanel après V3-D5-E
+
+Vérifier :
+
+- apiStartRecruitment est bien appelé.
+- trainUnit n’est plus appelé par RecruitmentPanel.
+- aucun coût client n’est envoyé au serveur.
+- aucun débit client-side n’est encore présent.
+- hydrateCitiesFromServer est appelé après succès.
+- erreurs serveur sont affichées ou logguées correctement.
+- double clic limité par isRecruiting.
+- bouton désactivé si currentProduction existe.
+
+2. Corriger l’incohérence points d’action
+
+Dans RecruitmentPanel.tsx :
+
+- Si canAffordUnit() ne bloque plus le bouton :
+  - retirer le title “Points d’action insuffisants” ;
+  - ne pas laisser croire que les PA bloquent le recrutement.
+- Option acceptable :
+  - afficher les PA comme information seulement.
+- Option acceptable :
+  - laisser getUnitRecruitmentCost() affiché, mais préciser que la validation réelle est serveur/city_inventory.
+- Ne pas réintroduire un blocage PA côté client comme source de vérité sans validation serveur.
+
+3. Ajouter une mention UX sur les coûts
+
+Ajouter une petite note dans le panneau recrutement, par exemple sous le titre :
+
+“Note : les coûts affichés sont indicatifs pendant la migration. Le serveur valide et débite l’inventaire réel de la ville.”
+
+Contraintes :
+- texte court ;
+- pas de gros redesign ;
+- pas de nouveau composant complexe.
+
+4. Améliorer le message ressources insuffisantes si simple
+
+Si missing[] est disponible, afficher au moins une version simple :
+
+“Ressources insuffisantes : food +2, labor_contracts +1”
+
+ou équivalent.
+
+Si cela complexifie trop, garder le message générique mais documenter.
+
+5. Vérifier le commentaire serveur
+
+Confirmer que le commentaire au-dessus de start-recruitment est cohérent :
+- doit mentionner transaction atomique ;
+- ne doit plus mentionner le risque résiduel corrigé.
+
+Ne modifier que le commentaire si nécessaire.
+
+6. Ne pas faire de refactor catalogue
+
+Ne pas :
+- importer shared/landUnitCatalog.ts ;
+- remplacer le tableau units du RecruitmentPanel ;
+- synchroniser RUNTIME_RECRUITMENT_COSTS côté client ;
+- modifier les coûts serveur ;
+- modifier server/unitCatalog.ts.
+
+VALIDATION TECHNIQUE
+
+Exécuter :
+
+npx tsc --noEmit
+
+Baseline connue :
+- 187 erreurs TypeScript préexistantes.
+
+Objectif :
+- rester à 187 erreurs ;
+- zéro régression.
+
+TESTS À DOCUMENTER
+
+Documenter au minimum :
+
+1. Clic recruter avec ressources suffisantes :
+- appel serveur ;
+- production créée ;
+- hydrateCitiesFromServer appelé ;
+- bouton ville occupé après refresh.
+
+2. Ressources insuffisantes :
+- message UI lisible ;
+- missing[] conservé ou affiché.
+
+3. Production déjà active :
+- bouton désactivé si état UI à jour ;
+- si appel forcé, serveur répond 409.
+
+4. Double clic rapide :
+- isRecruiting désactive pendant l’appel ;
+- serveur reste authoritative.
+
+5. Points d’action :
+- préciser s’ils sont indicatifs ou bloquants côté UX ;
+- confirmer qu’aucune validation serveur PA n’a été ajoutée.
+
+6. Coûts affichés :
+- préciser qu’ils sont indicatifs jusqu’à réconciliation catalogue.
+
+CLAUDE.md
+
+Ajouter une section :
+
+“Ressources V3-D5-F — Audit fonctionnel/UX recrutement serveur-authoritative”
+
+Inclure :
+
+- objectif ;
+- fichiers inspectés ;
+- fichiers modifiés ;
+- résultat de l’audit RecruitmentPanel ;
+- décision points d’action ;
+- décision coûts affichés ;
+- correction UX appliquée ;
+- gestion erreurs ;
+- confirmation aucun débit client-side ;
+- confirmation shared/landUnitCatalog.ts passif ;
+- confirmation server/unitCatalog.ts inchangé ;
+- confirmation productionCost:number inchangé ;
+- résultat TypeScript ;
+- risques restants ;
+- prochaine étape recommandée.
+
+SORTIE ATTENDUE
+
+Répondre avec :
+
+1. Fichiers inspectés.
+2. Fichiers modifiés.
+3. Résultat audit flux RecruitmentPanel.
+4. Décision points d’action.
+5. Décision coûts affichés.
+6. Corrections UX appliquées.
+7. Gestion erreurs après correction.
+8. Confirmation aucun débit client-side.
+9. Confirmation aucun branchement shared/landUnitCatalog.ts.
+10. Résultat TypeScript.
+11. Risques restants.
+12. Prochaine étape recommandée.
+
+STATUT ATTENDU
+
+Flux recrutement serveur-authoritative audité.
+Incohérence PA corrigée ou clairement documentée.
+Coûts UI marqués comme indicatifs.
+Aucun refactor catalogue.
+Aucune unité prototype branchée.
+productionCost:number conservé.
