@@ -1876,3 +1876,96 @@ Si `apiGetRecruitmentCosts` échoue (réseau, auth, serveur) :
 **V3-D5-H** — Unifier les IDs `warrior/spearman/…` (RecruitmentPanel local) avec les 15 entrées de `RUNTIME_RECRUITMENT_COSTS` pour couvrir toutes les unités runtime, ou supprimer les unités sans entrée serveur du tableau local.
 
 **Statut V3-D5-G :** UI affiche les coûts du catalogue serveur réel. Fallback local si erreur API. Aucun débit client-side. Aucun branchement `shared/landUnitCatalog.ts`. `productionCost:number` conservé.
+
+---
+
+## Ressources V3-D5-H — Audit final recrutement runtime
+
+### Objectif
+Finaliser le flux recrutement serveur-authoritative avant migration prototype. Nettoyer commentaires obsolètes et harmoniser la présentation des points d'action comme indicatifs.
+
+### Fichiers inspectés
+- `client/src/components/game/RecruitmentPanel.tsx`
+- `client/src/lib/api/citiesApi.ts`
+- `server/routes/cities.ts`, `server/recruitmentService.ts`, `server/unitCatalog.ts`
+
+### Fichiers modifiés
+| Fichier | Nature |
+|---|---|
+| `client/src/lib/api/citiesApi.ts` | Commentaire section recrutement mis à jour |
+| `client/src/components/game/RecruitmentPanel.tsx` | Tooltip PA harmonisé |
+
+### Résultat audit flux complet
+
+| Point audité | Résultat |
+|---|---|
+| `apiGetRecruitmentCosts()` appelé au montage | ✅ |
+| Coûts serveur affichés si disponibles | ✅ |
+| Fallback local si erreur API | ✅ |
+| Note UX dynamique (serveur/fallback) | ✅ |
+| Payload recrutement = `{ unitType }` uniquement | ✅ |
+| Aucun coût/durée envoyé par le client | ✅ |
+| Aucun débit client-side | ✅ |
+| `hydrateCitiesFromServer()` après succès | ✅ |
+| Erreurs PRODUCTION_ALREADY_ACTIVE affichées | ✅ |
+| Erreurs INSUFFICIENT_CITY_INVENTORY + missing[] | ✅ |
+| Double-clic protégé par `isRecruiting` | ✅ |
+| Transaction atomique côté serveur | ✅ |
+| Route `/recruitment-costs` avant `/:cityId` | ✅ |
+| `requireAuth` sur toutes les routes | ✅ |
+| Commentaire section "Passive" | ⚠️ → **corrigé** |
+| Tooltip "Points d'Action" / "Coût: X PA" | ⚠️ → **corrigé** |
+
+### Nettoyages appliqués
+
+**citiesApi.ts ligne 129 :**
+```
+Avant : "// Passive — non appelé depuis l'UI dans ce bloc."
+Après : "// Fonctions API du recrutement serveur-authoritative utilisées par RecruitmentPanel depuis V3-D5-E/G."
+```
+
+**RecruitmentPanel.tsx tooltip :**
+```
+Avant : "Points d'Action:" / "Coût: X PA"
+Après : "Points d'Action (indicatifs) :" / "Requis indicatif : X PA"
+```
+
+### Harmonisation PA indicatifs
+- Tooltip reformulé : aucune ambiguïté sur le caractère non-authoritative des PA.
+- Button `title` (V3-D5-F) : déjà `"X PA requis (indicatif)"` — confirmé cohérent.
+- Aucune validation serveur PA ajoutée.
+
+### Confirmation endpoint coûts serveur
+`GET /api/cities/recruitment-costs` — déclaré avant `/:cityId`, `requireAuth`, filtre `UNIT_CATALOG ∩ RUNTIME_RECRUITMENT_COSTS`, aucune donnée exclue exposée. Aucun bug trouvé.
+
+### Confirmations finales
+- **Payload recrutement** : seul `{ unitType }` envoyé. ✅
+- **Serveur authoritative** : `startRecruitmentTransaction()` inchangé. ✅
+- **Aucun débit client-side** : `trainUnit()` non appelé depuis `RecruitmentPanel`. ✅
+- **`shared/landUnitCatalog.ts` passif** — non importé. ✅
+- **`server/unitCatalog.ts` inchangé.** ✅
+- **`RUNTIME_RECRUITMENT_COSTS` inchangé.** ✅
+- **`productionCost:number`** — durée en tours, inchangé. ✅
+- **`tickCityProduction()` / `createProducedUnit()`** — non modifiés. ✅
+- **`trainUnit()` / `apiSetProduction()`** — conservés. ✅
+
+### Tests documentés
+1. Montage RecruitmentPanel → `apiGetRecruitmentCosts()` → coûts serveur affichés (warrior: food 2, labor_contracts 1, basic_equipment 1) ✓
+2. Clic recruter → `{ unitType }` uniquement → serveur débite `city_inventory` + crée `city_production` → `hydrateCitiesFromServer()` → bouton "Occupé" ✓
+3. Ressources insuffisantes → 400 + `missing[]` → "Ressources insuffisantes : food +2, …" ✓
+4. Production active → 409 → "Une production est déjà en cours" ✓
+5. PA → indicatifs dans tooltip + title + aucune validation serveur ✓
+6. Coûts → catalogue serveur si chargé, fallback local sinon, note UX cohérente ✓
+
+### Résultat TypeScript
+`npx tsc --noEmit` : **187 erreurs** — baseline inchangée.
+
+### Risques restants
+- IDs du tableau `units` local (`warrior/spearman/…`) doivent correspondre aux clés `RUNTIME_RECRUITMENT_COSTS` — couverture partielle (15 unités runtime vs 15 locales, mais IDs à vérifier).
+- `unit.cost` local (fallback) contient `fracten` absent de `RUNTIME_RECRUITMENT_COSTS` — différence visible si fallback actif.
+- `canAffordUnit()` (PA indicatifs) toujours calculé — peut être retiré proprement lors de la migration prototype.
+
+### Prochaine étape recommandée
+**V3-D5-I / V3-D6** — Migration vers les unités prototype (`militia`, `garrison`, `patrollers`, `rangers`, …) : unifier les IDs du tableau local avec `RUNTIME_RECRUITMENT_COSTS` et `shared/landUnitCatalog.ts`, et ajouter les 15 entrées dans `server/unitCatalog.ts` avec des stats provisoires.
+
+**Statut V3-D5-H :** Flux recrutement runtime finalisé. Commentaires nettoyés. PA correctement marqués indicatifs. Coûts UI alignés sur le catalogue serveur. Aucun branchement prototype. `productionCost:number` conservé.

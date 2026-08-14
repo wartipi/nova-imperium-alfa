@@ -126,7 +126,7 @@ export async function apiClearProduction(cityId: string): Promise<void> {
 }
 
 // ─── V3-D5-D : recrutement serveur-authoritative ─────────────────────────────
-// Passive — non appelé depuis l'UI dans ce bloc.
+// Fonctions API du recrutement serveur-authoritative utilisées par RecruitmentPanel depuis V3-D5-E/G.
 
 type RecruitmentCostResource =
   | "food"

@@ -316,9 +316,9 @@ export function RecruitmentPanel() {
               </div>
             </div>
             <div className="border-t border-gray-600 pt-2">
-              <div className="text-xs text-gray-300 mb-1">Points d'Action:</div>
+              <div className="text-xs text-gray-300 mb-1">Points d'Action (indicatifs) :</div>
               <div className="text-sm text-blue-400">
-                Coût: {getUnitRecruitmentCost(hoveredUnit)} PA
+                Requis indicatif : {getUnitRecruitmentCost(hoveredUnit)} PA
               </div>
             </div>
           </div>

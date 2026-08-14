@@ -1,0 +1,317 @@
+NOVA IMPERIUM — Ressources V3-D5-H
+Audit final recrutement runtime + nettoyage commentaires mineurs
+
+RÔLE
+Tu es l’agent technique sur le repo Nova Imperium.
+Objectif : finaliser le flux de recrutement runtime serveur-authoritative avant de préparer la migration vers les unités prototype.
+
+IMPORTANT
+
+Ce bloc est un audit final + nettoyage mineur.
+Ne pas brancher shared/landUnitCatalog.ts.
+Ne pas créer les unités prototype militia/garrison/patrollers/etc.
+Ne pas modifier server/unitCatalog.ts.
+Ne pas modifier RUNTIME_RECRUITMENT_COSTS sauf bug bloquant évident.
+Ne pas modifier startRecruitmentTransaction().
+Ne pas modifier tickCityProduction().
+Ne pas modifier createProducedUnit().
+Ne pas modifier productionCost:number.
+Ne pas migrer coal/oil/herbs.
+Ne pas modifier les bâtiments producteurs.
+Ne pas supprimer apiSetProduction().
+Ne pas supprimer trainUnit().
+Ne pas ajouter de validation PA serveur.
+Ne pas réintroduire de débit client-side.
+Mettre à jour CLAUDE.md.
+
+CONTEXTE VALIDÉ
+
+V3-D5-C2 :
+- start-recruitment est atomique côté serveur.
+- startRecruitmentTransaction() encapsule :
+  - vérification production active ;
+  - validation city_inventory ;
+  - débit city_inventory ;
+  - écriture city_production.
+
+V3-D5-D :
+- apiStartRecruitment(cityId, unitType) existe côté client.
+
+V3-D5-E :
+- RecruitmentPanel.tsx appelle apiStartRecruitment(Number(cityId), unitId).
+- Aucun coût ni durée n’est envoyé par le client.
+- hydrateCitiesFromServer() est appelé après succès.
+- Aucun débit client-side.
+
+V3-D5-F :
+- PA affichés comme indicatifs, non bloquants.
+- missing[] affiché lisiblement.
+- Coûts UI marqués selon leur source.
+
+V3-D5-G :
+- GET /api/cities/recruitment-costs ajouté.
+- Route déclarée avant les routes dynamiques /:cityId.
+- Endpoint retourne RUNTIME_RECRUITMENT_COSTS filtré par UNIT_CATALOG.
+- apiGetRecruitmentCosts() ajouté.
+- RecruitmentPanel charge les coûts serveur au montage.
+- UI affiche coûts/durées serveur si disponibles.
+- fallback local conservé.
+- Réserves mineures restantes :
+  1. commentaire obsolète dans citiesApi.ts : “Passive — non appelé depuis l’UI” ;
+  2. tooltip PA affiche encore “Coût”, alors que les PA sont indicatifs/non authoritative.
+
+OBJECTIF DE CE BLOC
+
+1. Auditer le flux complet runtime.
+2. Nettoyer les commentaires obsolètes.
+3. Harmoniser les mentions de points d’action comme indicatives.
+4. Confirmer que le recrutement runtime est stable avant toute migration prototype.
+
+À INSPECTER AVANT MODIFICATION
+
+Lire :
+
+- client/src/components/game/RecruitmentPanel.tsx
+- client/src/lib/api/citiesApi.ts
+- client/src/lib/stores/useNovaImperium.tsx
+- client/src/lib/game/ActionPointsCosts.ts
+- server/routes/cities.ts
+- server/recruitmentService.ts
+- server/unitCatalog.ts
+- CLAUDE.md
+
+Chercher :
+
+- apiStartRecruitment
+- apiGetRecruitmentCosts
+- “Passive”
+- “non appelé depuis l’UI”
+- “Points d’Action”
+- “Coût”
+- “indicatif”
+- trainUnit
+- apiSetProduction
+- unit.cost
+- serverRecruitmentCosts
+- RUNTIME_RECRUITMENT_COSTS
+- startRecruitmentTransaction
+- productionCost
+
+À FAIRE
+
+1. Audit complet du flux runtime
+
+Vérifier et documenter :
+
+- RecruitmentPanel charge les coûts serveur via apiGetRecruitmentCosts().
+- RecruitmentPanel affiche les coûts serveur si disponibles.
+- fallback local reste disponible si l’endpoint échoue.
+- Au clic recruter :
+  - seul unitType est envoyé ;
+  - aucun coût client n’est envoyé ;
+  - aucune durée client n’est envoyée ;
+  - aucun débit client-side n’est effectué.
+- Serveur :
+  - valide unitType ;
+  - valide coût serveur ;
+  - vérifie production active ;
+  - débite city_inventory ;
+  - écrit city_production ;
+  - tout est dans une transaction.
+- Après succès :
+  - hydrateCitiesFromServer() est appelé.
+- Erreurs :
+  - PRODUCTION_ALREADY_ACTIVE affiché ;
+  - INSUFFICIENT_CITY_INVENTORY affiché avec missing[] si disponible ;
+  - erreur inconnue affichée génériquement.
+
+2. Nettoyer commentaire obsolète dans citiesApi.ts
+
+Dans client/src/lib/api/citiesApi.ts :
+
+Remplacer le commentaire :
+
+“Passive — non appelé depuis l’UI dans ce bloc.”
+
+par un commentaire actuel, par exemple :
+
+“Fonctions API du recrutement serveur-authoritative utilisées par RecruitmentPanel depuis V3-D5-E/G.”
+
+ou équivalent.
+
+Ne pas modifier la logique API.
+
+3. Harmoniser tooltip PA dans RecruitmentPanel.tsx
+
+Dans le tooltip, remplacer :
+
+“Points d'Action”
+“Coût: X PA”
+
+par une formulation claire :
+
+“Points d'Action indicatifs”
+“Requis indicatif : X PA”
+
+ou équivalent.
+
+Objectif :
+- ne pas laisser croire que les PA sont authoritative côté serveur ;
+- conserver l’information visuelle ;
+- ne pas ajouter de validation PA serveur.
+
+4. Vérifier la note UX des coûts
+
+Confirmer que la note affiche correctement :
+
+- si serverRecruitmentCosts existe :
+  “Coûts affichés : catalogue serveur.”
+- sinon :
+  “Coûts affichés : fallback local, validation finale serveur.”
+
+Ne modifier que si le texte est incohérent.
+
+5. Vérifier route serveur recruitment-costs
+
+Confirmer :
+
+- GET /api/cities/recruitment-costs est avant /:cityId ;
+- requireAuth est présent ;
+- réponse filtrée UNIT_CATALOG ∩ RUNTIME_RECRUITMENT_COSTS ;
+- aucune donnée inutile exposée ;
+- start-recruitment inchangé.
+
+Ne modifier que si un bug évident est trouvé.
+
+6. Vérifier absence de régressions
+
+Confirmer explicitement :
+
+- trainUnit() est conservé.
+- apiSetProduction() est conservé.
+- shared/landUnitCatalog.ts n’est pas importé.
+- server/unitCatalog.ts n’est pas modifié.
+- RUNTIME_RECRUITMENT_COSTS n’est pas modifié.
+- productionCost:number reste durée/progression.
+- tickCityProduction() inchangé.
+- createProducedUnit() inchangé.
+- aucun débit client-side réintroduit.
+
+À NE PAS FAIRE
+
+- Ne pas brancher shared/landUnitCatalog.ts.
+- Ne pas brancher LandUnitId prototype.
+- Ne pas modifier server/unitCatalog.ts.
+- Ne pas modifier RUNTIME_RECRUITMENT_COSTS sauf bug bloquant évident.
+- Ne pas modifier startRecruitmentTransaction().
+- Ne pas modifier POST /start-recruitment sauf commentaire si nécessaire.
+- Ne pas modifier tickCityProduction().
+- Ne pas modifier createProducedUnit().
+- Ne pas modifier productionCost:number.
+- Ne pas ajouter de validation PA serveur.
+- Ne pas réintroduire débit client-side.
+- Ne pas supprimer trainUnit().
+- Ne pas supprimer apiSetProduction().
+- Ne pas modifier bâtiments ou économie hors recrutement.
+
+VALIDATION TECHNIQUE
+
+Exécuter :
+
+npx tsc --noEmit
+
+Baseline connue :
+- 187 erreurs TypeScript préexistantes.
+
+Objectif :
+- rester à 187 erreurs ;
+- zéro régression.
+
+TESTS À DOCUMENTER
+
+Documenter au minimum :
+
+1. Chargement coûts :
+- GET /api/cities/recruitment-costs appelé ;
+- coûts serveur affichés ;
+- fallback local si erreur API.
+
+2. Recrutement succès :
+- clic recruter ;
+- payload seulement { unitType } ;
+- serveur débite city_inventory ;
+- city_production créée ;
+- hydrateCitiesFromServer appelé.
+
+3. Ressources insuffisantes :
+- serveur retourne INSUFFICIENT_CITY_INVENTORY ;
+- missing[] affiché ou formaté.
+
+4. Production active :
+- bouton désactivé si currentProduction à jour ;
+- serveur retourne 409 si appel forcé.
+
+5. Points d’action :
+- affichés comme indicatifs ;
+- non bloquants ;
+- aucune validation serveur PA ajoutée.
+
+6. Contraintes :
+- shared/landUnitCatalog.ts non branché ;
+- server/unitCatalog.ts inchangé ;
+- RUNTIME_RECRUITMENT_COSTS inchangé ;
+- productionCost:number inchangé.
+
+CLAUDE.md
+
+Ajouter une section :
+
+“Ressources V3-D5-H — Audit final recrutement runtime”
+
+Inclure :
+
+- objectif ;
+- fichiers inspectés ;
+- fichiers modifiés ;
+- résultat audit flux complet ;
+- nettoyages commentaires ;
+- harmonisation PA indicatifs ;
+- confirmation endpoint coûts serveur ;
+- confirmation RecruitmentPanel utilise coûts serveur ;
+- confirmation payload recrutement seulement unitType ;
+- confirmation serveur authoritative ;
+- confirmation absence de débit client-side ;
+- confirmation shared/landUnitCatalog.ts passif ;
+- confirmation server/unitCatalog.ts inchangé ;
+- confirmation productionCost:number inchangé ;
+- résultat TypeScript ;
+- risques restants ;
+- prochaine étape recommandée.
+
+SORTIE ATTENDUE
+
+Répondre avec :
+
+1. Fichiers inspectés.
+2. Fichiers modifiés.
+3. Résultat audit flux runtime.
+4. Nettoyages appliqués.
+5. Harmonisation PA.
+6. Confirmation endpoint coûts serveur.
+7. Confirmation RecruitmentPanel affiche coûts serveur.
+8. Confirmation payload recrutement seulement unitType.
+9. Confirmation aucun débit client-side.
+10. Confirmation aucun branchement shared/landUnitCatalog.ts.
+11. Résultat TypeScript.
+12. Risques restants.
+13. Prochaine étape recommandée.
+
+STATUT ATTENDU
+
+Flux recrutement runtime finalisé.
+Commentaires obsolètes nettoyés.
+PA correctement marqués comme indicatifs.
+Coûts UI alignés serveur.
+Serveur reste source de vérité.
+Aucun branchement prototype.
+Aucun changement productionCost:number.
