@@ -2530,3 +2530,80 @@ Aucun bug bloquant. Suppressions propres sans régression.
 **V3-D7** — Calibration des coûts/durées de recrutement prototype et des stats combat en cohérence avec le rythme de production des villes et le système de combat futur.
 
 **Statut V3-D6-F :** Suppression legacy serveur complète. `UNIT_CATALOG` et `RUNTIME_RECRUITMENT_COSTS` contiennent uniquement les 15 unités prototype. POST legacy refusé. POST prototype accepté. Fallback UI conservé. TypeScript 187 — stable. **Migration V3-D6 complète.**
+
+---
+
+## Ressources V3-D6-G — Audit post-suppression legacy
+
+### Objectif
+Vérifier qu'il ne reste aucune dépendance active aux anciens IDs legacy de recrutement. Classifier toutes les occurrences. Corriger les cas INTERDIT. Documenter les cas ACCEPTABLE.
+
+### Fichiers inspectés
+- `server/unitCatalog.ts`, `server/recruitmentService.ts`, `server/routes/cities.ts`, `server/cityService.ts`
+- `client/src/components/game/RecruitmentPanel.tsx`, `client/src/components/game/RecruitmentPanelZustand.tsx`
+- `client/src/components/game/CityManagementPanel.tsx`, `client/src/components/game/ActionPointsPanel.tsx`
+- `client/src/lib/game/ActionPointsCosts.ts`, `client/src/lib/game/types.ts`, `client/src/lib/game/AI.ts`
+- `client/src/lib/game/PixelMapRenderer.ts`, `client/src/lib/stores/useNovaImperium.tsx`
+- `client/src/lib/stores/useUnits.tsx`, `client/src/lib/stores/useBuildings.tsx`
+- `client/src/hooks/business/useBusinessLogic.tsx`, `shared/gameSchema.ts`, `shared/landUnitCatalog.ts`
+
+### Fichiers modifiés
+| Fichier | Nature |
+|---|---|
+| `client/src/components/game/RecruitmentPanelZustand.tsx` | `availableUnits[]` migré vers les 15 IDs prototype (warrior/spearman/… retirés) |
+
+---
+
+### Tableau complet des occurrences legacy
+
+| Occurrence | Fichier | Classification | Action |
+|---|---|---|---|
+| `availableUnits[]` — warrior, spearman, archer, swordsman, catapult, settler, scout | `RecruitmentPanelZustand.tsx` | **INTERDIT corrigé** — actif dans `CityManagementPanel` | Remplacé par les 15 IDs prototype |
+| `getUnitIcon()` fallback warrior/spearman/… | `RecruitmentPanel.tsx` | **ACCEPTABLE fallback UI** — unités déjà en DB restent affichables | Conservé |
+| `WORKER_LIKE_TYPES` / `MILITARY_TYPES` (warrior, spearman, …) | `PixelMapRenderer.ts` | **ACCEPTABLE fallback UI** — rendu carte des unités historiques | Conservé |
+| `ACTION_COSTS` tables (warrior, spearman, settler, …) | `ActionPointsCosts.ts` | **ACCEPTABLE** — PA indicatifs ; IDs prototype couverts par `prototypeApCosts` dans RecruitmentPanel | Conservé |
+| `UnitType = 'warrior' \| 'spearman' \| …` | `types.ts` | **ACCEPTABLE** — type TypeScript pour unités en DB ; unités legacy peuvent encore exister | Conservé |
+| `trainUnit()` → `unitCosts` (warrior:40, …) | `useNovaImperium.tsx` | **ACCEPTABLE** — `trainUnit` est dead code de recrutement (appelé depuis aucun flux actif) | Conservé (note: dead code) |
+| `unitProduction: ["warrior","scout"]` | `useBuildings.tsx` | **ACCEPTABLE** — dead code Zustand mock, hors flux serveur | Conservé |
+| `id:"warrior"` / `id:"scout"` | `useUnits.tsx` | **ACCEPTABLE** — données mock Zustand, hors flux serveur | Conservé |
+| `name:'warrior'` | `AI.ts` | **ACCEPTABLE** — logique AI simulée, hors recrutement | Conservé |
+| `warrior/settler/catapult` PA display | `ActionPointsPanel.tsx` | **ACCEPTABLE** — affichage informatif uniquement, pas de recrutement | Conservé |
+| `z.enum(['warrior','archer',…])` | `shared/gameSchema.ts` | **ACCEPTABLE** — validation Zod pour unités en DB (peuvent exister historiquement) | Conservé |
+| `warrior:40, spearman:60, …` dans `useBusinessLogic` | `useBusinessLogic.tsx` | **ACCEPTABLE** — logique business indépendante, hors flux recrutement | Conservé |
+| **`rangers`** | Partout | **ABSENT** ✅ — aucune occurrence trouvée |  |
+
+### Correction appliquée — RecruitmentPanelZustand.tsx
+`availableUnits[]` contenait warrior, spearman, archer, swordsman, catapult, settler, scout (IDs legacy) et était rendu activement dans `CityManagementPanel` (onglet "Recrutement Zustand"). Migré vers les 15 IDs prototype avec les mêmes catégories que `PROTOTYPE_UNITS` dans `RecruitmentPanel.tsx`. `handleRecruit` conservé inchangé (alert informatif — ne déclenche pas de vrai recrutement serveur).
+
+### Confirmations
+- **`scout` legacy absent des flux actifs.** ✅ — le seul `scout` restant dans les flux de recrutement est `scouts` (pluriel, prototype). Le `scout` singulier subsiste uniquement dans des tables legacy/mock (ActionPointsCosts, useUnits, PixelMapRenderer) sans déclencher de recrutement.
+- **`scouts` prototype actif.** ✅ — présent dans UNIT_CATALOG, RUNTIME_RECRUITMENT_COSTS, PROTOTYPE_UNITS, RecruitmentPanel, RecruitmentPanelZustand.
+- **`rangers` absent.** ✅ — aucune occurrence dans le codebase.
+- **`getUnitIcon()` fallback legacy conservé.** ✅ — unités legacy déjà en DB (`units` table) restent affichables sans crash.
+- **`productionCost:number` inchangé.** ✅
+- **Aucun changement DB/schema.** ✅
+
+### Résultats des tests
+
+**GET /api/cities/recruitment-costs**
+- TOTAL : **15 entrées** — exactement les 15 IDs prototype. ✅
+- Triés : bow_infantry, crossbow_infantry, field_engineers, garrison, hunters, light_infantry, militia, noble_infantry, patrollers, pikemen, raid_troops, regular_infantry, sappers, scouts, shock_troops. ✅
+
+**POST { unitType:"warrior" }**
+- **400** — `"Type d'unité inconnu : \"warrior\". Unités supportées : militia, garrison, …"` ✅
+
+**POST { unitType:"militia" }**
+- **200 ok** — debited {food:2, labor_contracts:1}, production {name:"militia", cost:1}. ✅
+
+### Résultat TypeScript
+`npx tsc --noEmit` : **187 erreurs** — baseline inchangée. ✅
+
+### Risques restants
+- `trainUnit()` dans `useNovaImperium.tsx` contient une table de coûts legacy hardcodée — dead code de recrutement, mais la fonction elle-même pourrait être appelée par d'autres chemins. À auditer ou retirer en V3-D7.
+- `UnitType` dans `types.ts` n'inclut pas encore les 15 IDs prototype — les unités créées via `createProducedUnit("militia")` peuvent avoir un type non couvert par le union TypeScript client. À compléter en V3-D7.
+- `ActionPointsPanel.tsx` affiche des PA pour des unités legacy — mineur, informatif uniquement.
+
+### Prochaine étape recommandée
+**V3-D7** — Calibration des coûts/durées/stats + extension de `UnitType` côté client pour inclure les 15 IDs prototype + nettoyage de `trainUnit()` legacy.
+
+**Statut V3-D6-G :** Audit post-suppression complet. Un seul cas INTERDIT trouvé et corrigé (`RecruitmentPanelZustand.tsx`). Toutes les autres occurrences legacy classées ACCEPTABLE (fallback historique ou dead code). rangers absent. scouts prototype actif. TypeScript 187 — stable. **V3-D6 entièrement complète.**

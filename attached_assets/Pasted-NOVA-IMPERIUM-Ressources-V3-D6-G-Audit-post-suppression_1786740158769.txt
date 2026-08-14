@@ -1,0 +1,303 @@
+NOVA IMPERIUM — Ressources V3-D6-G
+Audit post-suppression legacy + nettoyage final
+
+RÔLE
+Tu es l’agent technique sur le repo Nova Imperium.
+Objectif : vérifier qu’il ne reste aucune dépendance active aux anciens IDs legacy de recrutement, après la suppression serveur V3-D6-F.
+
+IMPORTANT
+
+Ce bloc est un audit + nettoyage mineur.
+Ne pas faire de refactor.
+Ne pas modifier la DB/schema.
+Ne pas modifier shared/landUnitCatalog.ts.
+Ne pas modifier les coûts/durées prototype.
+Ne pas modifier les stats prototype.
+Ne pas modifier productionCost:number.
+Ne pas brancher abilities, upkeep ou siegeWearPoints.
+Ne pas supprimer le fallback d’affichage historique dans getUnitIcon() si ce fallback protège les anciennes unités déjà présentes en DB.
+Ne pas ajouter rangers.
+
+CONTEXTE VALIDÉ
+
+V3-D6-B :
+- Les 15 unités prototype existent dans server/unitCatalog.ts.
+
+V3-D6-C :
+- Les 15 coûts prototype existent dans RUNTIME_RECRUITMENT_COSTS.
+
+V3-D6-D :
+- RecruitmentPanel affiche les 15 unités prototype.
+- Les anciennes unités ne sont plus affichées dans l’UI de recrutement.
+- getUnitIcon() conserve un fallback legacy pour ne pas casser les anciennes unités déjà présentes en DB.
+
+V3-D6-E :
+- Test end-to-end militia validé.
+- militia peut être recrutée, débitée, produite, créée et affichée.
+
+V3-D6-F :
+- Les 15 unités legacy ont été supprimées de server/unitCatalog.ts.
+- Les 15 coûts legacy ont été supprimés de RUNTIME_RECRUITMENT_COSTS.
+- GET /recruitment-costs retourne exactement 15 entrées prototype.
+- POST warrior est refusé en 400.
+- POST militia fonctionne.
+- TypeScript baseline : 187 erreurs.
+
+IDS LEGACY À AUDITER
+
+Les anciens IDs legacy ne doivent plus exister comme dépendance active :
+
+- warrior
+- spearman
+- swordsman
+- archer
+- crossbowman
+- catapult
+- trebuchet
+- horseman
+- knight
+- galley
+- warship
+- scout
+- settler
+- diplomat
+- spy
+
+Attention :
+- `scout` legacy singulier est interdit comme unité active.
+- `scouts` prototype pluriel est valide.
+- Ne pas confondre les deux.
+
+IDS PROTOTYPE VALIDES
+
+Les seuls IDs actifs de recrutement doivent être :
+
+- militia
+- garrison
+- patrollers
+- scouts
+- light_infantry
+- regular_infantry
+- noble_infantry
+- shock_troops
+- bow_infantry
+- crossbow_infantry
+- sappers
+- field_engineers
+- raid_troops
+- hunters
+- pikemen
+
+À INSPECTER
+
+Lire et rechercher dans tout le repo :
+
+- warrior
+- spearman
+- swordsman
+- archer
+- crossbowman
+- catapult
+- trebuchet
+- horseman
+- knight
+- galley
+- warship
+- scout
+- settler
+- diplomat
+- spy
+- rangers
+- hunters
+- PROTOTYPE_UNITS
+- RUNTIME_RECRUITMENT_COSTS
+- UNIT_CATALOG
+- getUnitIcon
+- getUnitRecruitmentCost
+- ActionPointsCosts
+- RecruitmentPanel
+- start-recruitment
+- recruitment-costs
+
+Fichiers à inspecter au minimum :
+
+- server/unitCatalog.ts
+- server/recruitmentService.ts
+- server/routes/cities.ts
+- server/cityService.ts
+- client/src/components/game/RecruitmentPanel.tsx
+- client/src/lib/game/ActionPointsCosts.ts
+- client/src/lib/game/types.ts
+- client/src/lib/stores/useNovaImperium.tsx
+- shared/landUnitCatalog.ts
+- CLAUDE.md
+
+OBJECTIF DE L’AUDIT
+
+Classer chaque occurrence legacy trouvée en une des catégories suivantes :
+
+1. INTERDIT / à corriger :
+- legacy encore dans UNIT_CATALOG ;
+- legacy encore dans RUNTIME_RECRUITMENT_COSTS ;
+- legacy encore dans PROTOTYPE_UNITS ;
+- legacy encore affichée dans la liste de recrutement ;
+- legacy encore envoyée par handleRecruit ;
+- legacy utilisée dans GET /recruitment-costs ;
+- legacy utilisée comme fallback de coût actif ;
+- legacy utilisée comme catégorie active de recrutement.
+
+2. ACCEPTABLE / à conserver :
+- fallback d’icône pour afficher d’anciennes unités déjà présentes en DB ;
+- historique dans CLAUDE.md ;
+- rapport attaché ou fichier pasted antérieur ;
+- commentaire explicitement marqué comme historique ;
+- test documentant que POST warrior est refusé.
+
+3. À NETTOYER SI MINEUR :
+- commentaires obsolètes disant que les legacy sont encore temporaires ;
+- labels UI morts ;
+- catégories UI mortes non utilisées ;
+- documentation ambiguë qui pourrait faire croire que les legacy sont encore actives.
+
+NETTOYAGE AUTORISÉ
+
+Autorisé :
+- supprimer commentaires obsolètes sur legacy temporaire si encore présents ;
+- clarifier commentaires de fallback historique ;
+- clarifier CLAUDE.md ;
+- retirer imports morts ;
+- retirer constantes mortes non utilisées ;
+- corriger `rangers` vers `hunters` si trouvé ;
+- corriger `scout` vers `scouts` seulement si c’est clairement une référence au prototype actif.
+
+Interdit :
+- supprimer getUnitIcon fallback legacy si utilisé pour affichage historique ;
+- supprimer des données DB ;
+- modifier schema ;
+- modifier coût/durée prototype ;
+- modifier stats prototype ;
+- modifier logique atomique ;
+- modifier routes de recrutement ;
+- modifier tick production ;
+- ajouter nouvelles mécaniques ;
+- brancher abilities/upkeep/siegeWearPoints.
+
+TESTS À EFFECTUER
+
+1. Recherche legacy
+
+Produire un tableau ou résumé :
+
+- occurrence ;
+- fichier ;
+- classification :
+  - interdit corrigé ;
+  - acceptable historique ;
+  - acceptable fallback UI ;
+  - obsolète nettoyé ;
+- action prise.
+
+2. GET /recruitment-costs
+
+Après redémarrage serveur si fichier serveur modifié :
+
+Résultat attendu :
+- exactement 15 entrées ;
+- uniquement les IDs prototype ;
+- aucun ID legacy.
+
+3. POST legacy refusé
+
+Tester au moins :
+
+POST /api/cities/:cityId/start-recruitment
+body:
+{ "unitType": "warrior" }
+
+Résultat attendu :
+- 400 ;
+- aucun débit ;
+- aucune city_production créée.
+
+4. POST prototype accepté
+
+Tester au moins :
+
+POST /api/cities/:cityId/start-recruitment
+body:
+{ "unitType": "militia" }
+
+Résultat attendu :
+- 200 ou 201 selon comportement actuel ;
+- ok: true ;
+- débit food + labor_contracts ;
+- city_production = militia.
+
+5. TypeScript
+
+Exécuter :
+
+npx tsc --noEmit
+
+Baseline connue :
+- 187 erreurs TypeScript préexistantes.
+
+Objectif :
+- rester à 187 erreurs.
+
+CLAUDE.md
+
+Ajouter une section :
+
+“Ressources V3-D6-G — Audit post-suppression legacy”
+
+Inclure :
+
+- objectif ;
+- fichiers inspectés ;
+- résumé occurrences legacy ;
+- occurrences interdites trouvées et corrigées ;
+- occurrences acceptables conservées ;
+- justification du fallback getUnitIcon legacy si conservé ;
+- confirmation `scout` legacy absent des flux actifs ;
+- confirmation `scouts` prototype actif ;
+- confirmation `rangers` absent ;
+- résultat GET /recruitment-costs ;
+- résultat POST legacy refusé ;
+- résultat POST militia accepté ;
+- confirmation productionCost:number inchangé ;
+- confirmation aucun schema/DB change ;
+- résultat TypeScript ;
+- risques restants ;
+- prochaine étape recommandée.
+
+SORTIE ATTENDUE
+
+Répondre avec :
+
+1. Fichiers inspectés.
+2. Fichiers modifiés.
+3. Occurrences legacy trouvées.
+4. Classification des occurrences legacy.
+5. Corrections effectuées.
+6. Occurrences acceptables conservées.
+7. Confirmation fallback historique conservé si applicable.
+8. Confirmation rangers absent.
+9. Confirmation scout legacy absent des flux actifs.
+10. Confirmation scouts prototype actif.
+11. Résultat GET /recruitment-costs.
+12. Résultat POST warrior refusé.
+13. Résultat POST militia accepté.
+14. Résultat TypeScript.
+15. Risques restants.
+16. Prochaine étape recommandée.
+
+STATUT ATTENDU
+
+Aucune dépendance active aux anciens IDs legacy.
+Recrutement actif limité aux 15 unités prototype.
+Fallback UI historique conservé seulement si nécessaire.
+GET /recruitment-costs retourne 15 prototypes.
+POST legacy refusé.
+POST prototype accepté.
+TypeScript reste à 187 erreurs.

@@ -31,200 +31,203 @@ interface UnitType {
   };
 }
 
-// SYSTÈME NOVA IMPERIUM - Unités avec stats VIDES à définir ensemble
+// SYSTÈME NOVA IMPERIUM — Unités prototype canoniques V3-D6 (stats vides à calibrer en V3-D7)
+// IDs alignés sur PROTOTYPE_UNITS dans RecruitmentPanel.tsx et UNIT_CATALOG dans server/unitCatalog.ts.
+// Ce composant est une vue collaborative (handleRecruit = informatif uniquement — le vrai recrutement
+// passe par RecruitmentPanel.tsx serveur-authoritative).
 const availableUnits: UnitType[] = [
-  
-  // === UNITÉS DE BASE ===
+
+  // === INFANTERIE LÉGÈRE ===
   {
-    id: 'settler',
-    name: 'Colon',
-    icon: '👥',
-    description: 'Fonde de nouvelles colonies et développe les territoires',
-    category: 'Civil',
+    id: 'militia',
+    name: 'Milice',
+    icon: '🛡️',
+    description: 'Unité commune de défense locale.',
+    category: 'Infanterie légère',
     requiredBuilding: [],
-    // À DÉFINIR ENSEMBLE :
     cost: {},
     recruitmentTime: 0,
     actionPointCost: 0,
     combatStats: {}
   },
   {
-    id: 'scout',
-    name: 'Éclaireur',
-    icon: '🕵️',
-    description: 'Unité rapide pour exploration et reconnaissance',
-    category: 'Exploration',
+    id: 'garrison',
+    name: 'Garnison',
+    icon: '🏰',
+    description: 'Unité défensive lente, adaptée à la protection d\'une ville.',
+    category: 'Infanterie légère',
     requiredBuilding: [],
-    // À DÉFINIR ENSEMBLE :
     cost: {},
     recruitmentTime: 0,
     actionPointCost: 0,
     combatStats: {}
   },
   {
-    id: 'worker',
-    name: 'Ouvrier',
-    icon: '👷',
-    description: 'Construit des améliorations et récolte des ressources',
-    category: 'Civil',
+    id: 'patrollers',
+    name: 'Patrouilleurs',
+    icon: '👁️',
+    description: 'Unité rapide de surveillance et contrôle de zone.',
+    category: 'Infanterie légère',
     requiredBuilding: [],
-    // À DÉFINIR ENSEMBLE :
+    cost: {},
+    recruitmentTime: 0,
+    actionPointCost: 0,
+    combatStats: {}
+  },
+  {
+    id: 'scouts',
+    name: 'Éclaireurs',
+    icon: '🔭',
+    description: 'Unité très mobile pour l\'exploration.',
+    category: 'Infanterie légère',
+    requiredBuilding: [],
+    cost: {},
+    recruitmentTime: 0,
+    actionPointCost: 0,
+    combatStats: {}
+  },
+  {
+    id: 'light_infantry',
+    name: 'Infanterie légère',
+    icon: '🏃',
+    description: 'Unité mobile de ligne légère.',
+    category: 'Infanterie légère',
+    requiredBuilding: [],
     cost: {},
     recruitmentTime: 0,
     actionPointCost: 0,
     combatStats: {}
   },
 
-  // === UNITÉS MILITAIRES DE BASE ===
+  // === INFANTERIE LOURDE ===
   {
-    id: 'warrior',
-    name: 'Guerrier',
+    id: 'regular_infantry',
+    name: 'Infanterie régulière',
     icon: '⚔️',
-    description: 'Unité de combat de base, polyvalente',
-    category: 'Militaire',
-    requiredBuilding: ['barracks'],
-    // À DÉFINIR ENSEMBLE :
+    description: 'Unité robuste de ligne.',
+    category: 'Infanterie lourde',
+    requiredBuilding: [],
     cost: {},
     recruitmentTime: 0,
     actionPointCost: 0,
     combatStats: {}
   },
   {
-    id: 'spearman',
-    name: 'Lancier',
-    icon: '🗡️',
-    description: 'Infanterie défensive, efficace contre cavalerie',
-    category: 'Militaire',
-    requiredBuilding: ['barracks'],
-    // À DÉFINIR ENSEMBLE :
+    id: 'noble_infantry',
+    name: 'Infanterie noble',
+    icon: '👑',
+    description: 'Unité lourde et coûteuse.',
+    category: 'Infanterie lourde',
+    requiredBuilding: [],
     cost: {},
     recruitmentTime: 0,
     actionPointCost: 0,
     combatStats: {}
   },
   {
-    id: 'archer',
-    name: 'Archer',
+    id: 'shock_troops',
+    name: 'Troupe de choc',
+    icon: '💥',
+    description: 'Unité offensive spécialisée.',
+    category: 'Infanterie lourde',
+    requiredBuilding: [],
+    cost: {},
+    recruitmentTime: 0,
+    actionPointCost: 0,
+    combatStats: {}
+  },
+
+  // === DISTANCE ===
+  {
+    id: 'bow_infantry',
+    name: 'Infanterie à arc',
     icon: '🏹',
-    description: 'Unité à distance, efficace contre infanterie',
-    category: 'Militaire',
-    requiredBuilding: ['barracks'],
-    // À DÉFINIR ENSEMBLE :
-    cost: {},
-    recruitmentTime: 0,
-    actionPointCost: 0,
-    combatStats: {}
-  },
-
-  // === UNITÉS AVANCÉES ===
-  {
-    id: 'swordsman',
-    name: 'Épéiste',
-    icon: '🗡️',
-    description: 'Guerrier expérimenté avec armure et épée',
-    category: 'Militaire',
-    requiredBuilding: ['barracks', 'forge'],
-    // À DÉFINIR ENSEMBLE :
+    description: 'Unité de projectile léger.',
+    category: 'Distance',
+    requiredBuilding: [],
     cost: {},
     recruitmentTime: 0,
     actionPointCost: 0,
     combatStats: {}
   },
   {
-    id: 'catapult',
-    name: 'Catapulte',
+    id: 'crossbow_infantry',
+    name: 'Infanterie à arbalète',
     icon: '🎯',
-    description: 'Machine de siège pour attaquer les fortifications',
-    category: 'Siège',
-    requiredBuilding: ['barracks', 'forge'],
-    // À DÉFINIR ENSEMBLE :
+    description: 'Unité de projectile lourd.',
+    category: 'Distance',
+    requiredBuilding: [],
     cost: {},
     recruitmentTime: 0,
     actionPointCost: 0,
     combatStats: {}
   },
 
-  // === UNITÉS MAGIQUES ===
+  // === TECHNIQUE ===
   {
-    id: 'mage',
-    name: 'Mage',
-    icon: '🧙',
-    description: 'Unité magique puissante, coûteuse à maintenir',
-    category: 'Magique',
-    requiredBuilding: ['library', 'mana_well'],
-    // À DÉFINIR ENSEMBLE :
+    id: 'sappers',
+    name: 'Sapeurs',
+    icon: '⛏️',
+    description: 'Unité technique pour opérations de siège et sabotage.',
+    category: 'Technique',
+    requiredBuilding: [],
     cost: {},
     recruitmentTime: 0,
     actionPointCost: 0,
     combatStats: {}
   },
   {
-    id: 'druid',
-    name: 'Druide',
-    icon: '🍃',
-    description: 'Maître de la nature et des sorts de soutien',
-    category: 'Magique',
-    requiredBuilding: ['druidic_temple'],
-    // À DÉFINIR ENSEMBLE :
-    cost: {},
-    recruitmentTime: 0,
-    actionPointCost: 0,
-    combatStats: {}
-  },
-  {
-    id: 'alchemist',
-    name: 'Alchimiste',
-    icon: '🧪',
-    description: 'Expert en potions et transmutations',
-    category: 'Magique',
-    requiredBuilding: ['alchemist_lab'],
-    // À DÉFINIR ENSEMBLE :
+    id: 'field_engineers',
+    name: 'Ingénieurs de campagne',
+    icon: '🔧',
+    description: 'Unité technique avancée de terrain.',
+    category: 'Technique',
+    requiredBuilding: [],
     cost: {},
     recruitmentTime: 0,
     actionPointCost: 0,
     combatStats: {}
   },
 
-  // === UNITÉS SPÉCIALISÉES ===
+  // === RAID / SOUTIEN ===
   {
-    id: 'priest',
-    name: 'Prêtre',
-    icon: '⛪',
-    description: 'Unité de soutien spirituel et soins',
-    category: 'Spirituel',
-    requiredBuilding: ['sacred_altar'],
-    // À DÉFINIR ENSEMBLE :
+    id: 'raid_troops',
+    name: 'Troupe de raid',
+    icon: '🔥',
+    description: 'Unité mobile pour pression économique.',
+    category: 'Raid / Soutien',
+    requiredBuilding: [],
     cost: {},
     recruitmentTime: 0,
     actionPointCost: 0,
     combatStats: {}
   },
   {
-    id: 'scholar',
-    name: 'Érudit',
-    icon: '📚',
-    description: 'Spécialiste de la recherche et des connaissances',
-    category: 'Civil',
-    requiredBuilding: ['library'],
-    // À DÉFINIR ENSEMBLE :
+    id: 'hunters',
+    name: 'Chasseurs',
+    icon: '🌿',
+    description: 'Unité légère de soutien et survie.',
+    category: 'Raid / Soutien',
+    requiredBuilding: [],
     cost: {},
     recruitmentTime: 0,
     actionPointCost: 0,
     combatStats: {}
   },
+
+  // === CONTRÔLE ===
   {
-    id: 'merchant',
-    name: 'Marchand',
-    icon: '💰',
-    description: 'Expert en commerce et négociation',
-    category: 'Civil',
-    requiredBuilding: ['market'],
-    // À DÉFINIR ENSEMBLE :
+    id: 'pikemen',
+    name: 'Piquiers',
+    icon: '🪛',
+    description: 'Unité de contrôle défensif.',
+    category: 'Contrôle',
+    requiredBuilding: [],
     cost: {},
     recruitmentTime: 0,
     actionPointCost: 0,
     combatStats: {}
-  }
+  },
 ];
 
 export function RecruitmentPanelZustand() {
