@@ -1,0 +1,313 @@
+NOVA IMPERIUM — Ressources V3-D6-E
+Test end-to-end recrutement prototype
+
+RÔLE
+Tu es l’agent technique sur le repo Nova Imperium.
+Objectif : vérifier que le recrutement prototype fonctionne réellement de bout en bout, depuis RecruitmentPanel jusqu’à la création d’unité après production tick.
+
+IMPORTANT
+
+Ce bloc est un bloc de TEST / AUDIT runtime.
+Ne pas supprimer les unités legacy dans ce bloc.
+Ne pas modifier server/unitCatalog.ts sauf bug bloquant évident.
+Ne pas modifier RUNTIME_RECRUITMENT_COSTS sauf bug bloquant évident.
+Ne pas modifier shared/landUnitCatalog.ts.
+Ne pas modifier productionCost:number.
+Ne pas modifier DB/schema.
+Ne pas réintroduire de débit client-side.
+Ne pas modifier le système économique.
+Ne pas brancher abilities, upkeep ou siegeWearPoints.
+Ne pas ajouter rangers.
+
+DÉCISION CANONIQUE
+
+Les anciennes unités legacy ne doivent pas rester dans l’état final.
+Elles sont encore présentes côté serveur seulement pour sécurité temporaire.
+
+Anciennes unités à supprimer plus tard :
+- warrior
+- spearman
+- swordsman
+- archer
+- crossbowman
+- catapult
+- trebuchet
+- horseman
+- knight
+- galley
+- warship
+- scout
+- settler
+- diplomat
+- spy
+
+Nouvelles unités canoniques :
+- militia
+- garrison
+- patrollers
+- scouts
+- light_infantry
+- regular_infantry
+- noble_infantry
+- shock_troops
+- bow_infantry
+- crossbow_infantry
+- sappers
+- field_engineers
+- raid_troops
+- hunters
+- pikemen
+
+CONTEXTE VALIDÉ
+
+V3-D6-B :
+- Les 15 unités prototype existent dans server/unitCatalog.ts.
+- createProducedUnit() peut résoudre ces IDs.
+
+V3-D6-C :
+- Les 15 unités prototype existent dans RUNTIME_RECRUITMENT_COSTS.
+- GET /api/cities/recruitment-costs expose les unités prototype.
+- POST /api/cities/:cityId/start-recruitment accepte techniquement les IDs prototype.
+
+V3-D6-D :
+- RecruitmentPanel affiche les 15 unités prototype.
+- RecruitmentPanel n’affiche plus les unités legacy.
+- handleRecruit envoie seulement { unitType }.
+- Aucun débit client-side.
+- Coûts/durées serveur affichés si disponibles.
+- Fallback local prototype disponible.
+- TypeScript baseline : 187 erreurs.
+
+OBJECTIF DE CE BLOC
+
+Tester et documenter le flux réel suivant :
+
+RecruitmentPanel
+→ clic recruter militia ou garrison
+→ apiStartRecruitment(cityId, "militia")
+→ POST /api/cities/:cityId/start-recruitment
+→ startRecruitmentTransaction()
+→ débit city_inventory
+→ écriture city_production
+→ hydrateCitiesFromServer()
+→ production tick
+→ tickCityProduction()
+→ createProducedUnit()
+→ insertion dans units
+→ affichage dans l’armée actuelle
+
+À INSPECTER
+
+Lire :
+
+- client/src/components/game/RecruitmentPanel.tsx
+- client/src/lib/api/citiesApi.ts
+- server/recruitmentService.ts
+- server/routes/cities.ts
+- server/cityService.ts
+- server/unitCatalog.ts
+- server/economyService.ts si production tick passe par ce fichier
+- shared/schema.ts
+- CLAUDE.md
+
+Chercher :
+
+- apiStartRecruitment
+- handleRecruit
+- hydrateCitiesFromServer
+- startRecruitmentTransaction
+- cityProduction
+- productionName
+- productionCost
+- productionProgress
+- tickCityProduction
+- createProducedUnit
+- UNIT_CATALOG
+- militia
+- garrison
+- currentProduction
+- units
+
+TESTS À EFFECTUER
+
+1. Test endpoint coûts
+
+Vérifier que :
+
+GET /api/cities/recruitment-costs
+
+retourne bien au minimum :
+
+- militia
+- garrison
+- scouts
+- hunters
+- pikemen
+
+Confirmer que les coûts/durées correspondent à RUNTIME_RECRUITMENT_COSTS.
+
+2. Test start-recruitment prototype
+
+Avec une ville accessible au joueur et un inventaire suffisant, tester :
+
+POST /api/cities/:cityId/start-recruitment
+body:
+{ "unitType": "militia" }
+
+Résultat attendu :
+- 201
+- ok: true
+- unitType: "militia"
+- debited contient food + labor_contracts
+- production.name ou productionName = "militia"
+- production.cost ou productionCost = durée en tours
+- city_inventory décrémenté
+- city_production créée
+
+3. Test erreur ressources insuffisantes
+
+Avec inventaire insuffisant, tester militia ou garrison.
+
+Résultat attendu :
+- 400
+- error: "INSUFFICIENT_CITY_INVENTORY"
+- missing[] lisible
+- aucun city_production créé
+- aucun débit partiel
+
+4. Test production active
+
+Tenter de lancer un second recrutement pendant qu’une production est déjà active.
+
+Résultat attendu :
+- 409
+- error: "PRODUCTION_ALREADY_ACTIVE"
+- aucun second débit
+
+5. Test production tick
+
+Faire avancer la production jusqu’à complétion.
+
+Résultat attendu :
+- productionProgress avance
+- à complétion, createProducedUnit() reçoit "militia"
+- UNIT_CATALOG["militia"] est trouvé
+- une unité est insérée dans units
+- city_production est vidée ou marquée terminée selon le comportement actuel
+- aucune erreur silencieuse
+
+6. Test affichage UI après création
+
+Vérifier que l’unité créée apparaît dans l’armée actuelle.
+
+Résultat attendu :
+- type/id affiché sans crash
+- icône fallback ou prototype correcte
+- anciennes unités déjà existantes en DB restent affichables si présentes
+
+7. Test non-régression legacy temporaire
+
+Ne pas tester l’ancien flux comme état final.
+Seulement vérifier qu’aucune erreur serveur n’est introduite par leur présence temporaire.
+
+À NE PAS FAIRE
+
+- Ne pas supprimer les unités legacy.
+- Ne pas retirer les coûts legacy.
+- Ne pas modifier RecruitmentPanel sauf bug bloquant.
+- Ne pas modifier server/unitCatalog.ts sauf bug bloquant.
+- Ne pas modifier RUNTIME_RECRUITMENT_COSTS sauf bug bloquant.
+- Ne pas modifier createProducedUnit sauf bug bloquant.
+- Ne pas modifier tickCityProduction sauf bug bloquant.
+- Ne pas changer productionCost:number.
+- Ne pas modifier schema DB.
+- Ne pas ajouter de migration.
+- Ne pas ajouter de nouvelles unités.
+- Ne pas brancher abilities.
+- Ne pas brancher upkeep.
+- Ne pas brancher siegeWearPoints.
+- Ne pas ajouter rangers.
+- Ne pas masquer un échec.
+
+SI BUG BLOQUANT TROUVÉ
+
+Si un bug bloque le test end-to-end :
+
+1. Documenter précisément le bug.
+2. Proposer la correction minimale.
+3. Appliquer uniquement si la correction est localisée et nécessaire au test.
+4. Ne pas faire de refactor.
+5. Mettre à jour CLAUDE.md.
+6. Relancer TypeScript.
+
+VALIDATION TECHNIQUE
+
+Exécuter :
+
+npx tsc --noEmit
+
+Baseline connue :
+- 187 erreurs TypeScript préexistantes.
+
+Objectif :
+- rester à 187 erreurs ;
+- zéro régression.
+
+CLAUDE.md
+
+Ajouter une section :
+
+“Ressources V3-D6-E — Test end-to-end recrutement prototype”
+
+Inclure :
+
+- objectif ;
+- fichiers inspectés ;
+- fichiers modifiés ;
+- confirmation test/audit runtime ;
+- unité testée ;
+- résultat GET /recruitment-costs ;
+- résultat POST /start-recruitment ;
+- résultat débit city_inventory ;
+- résultat city_production ;
+- résultat production tick ;
+- résultat createProducedUnit ;
+- résultat insertion units ;
+- résultat affichage UI ;
+- erreurs testées : ressources insuffisantes, production active ;
+- bugs trouvés et corrections éventuelles ;
+- confirmation aucune suppression legacy ;
+- confirmation productionCost:number conservé ;
+- résultat TypeScript ;
+- risques restants ;
+- prochaine étape recommandée.
+
+SORTIE ATTENDUE
+
+Répondre avec :
+
+1. Fichiers inspectés.
+2. Fichiers modifiés.
+3. Tests exécutés.
+4. Résultat GET /recruitment-costs.
+5. Résultat POST /start-recruitment prototype.
+6. Résultat débit city_inventory.
+7. Résultat city_production.
+8. Résultat production tick.
+9. Résultat createProducedUnit.
+10. Résultat insertion units.
+11. Résultat affichage UI.
+12. Résultat tests d’erreurs.
+13. Bugs trouvés et corrections si applicable.
+14. Confirmation aucune suppression legacy.
+15. Résultat TypeScript.
+16. Risques restants.
+17. Prochaine étape recommandée.
+
+STATUT ATTENDU
+
+Le recrutement prototype est validé de bout en bout.
+militia ou garrison peut être recrutée, produite, créée et affichée.
+Aucun débit client-side.
+productionCost:number conservé.
+Legacy serveur encore présente temporairement.

@@ -2372,3 +2372,99 @@ Vite hot-reload propre, aucune erreur console.
 **V3-D6-E** — Supprimer les anciennes unités legacy de `RUNTIME_RECRUITMENT_COSTS` et `server/unitCatalog.ts`, après confirmation que l'UI fonctionne correctement avec les 15 prototype.
 
 **Statut V3-D6-D :** RecruitmentPanel affiche les 15 unités prototype. Legacy retiré de l'UI. Backend inchangé. PA indicatifs. Armée actuelle non cassante. TypeScript 187 — stable.
+
+---
+
+## Ressources V3-D6-E — Test end-to-end recrutement prototype
+
+### Objectif
+Vérifier que le recrutement prototype fonctionne de bout en bout : RecruitmentPanel → POST /start-recruitment → débit city_inventory → city_production → tickCityProduction → createProducedUnit → insertion units → affichage armée.
+
+### Fichiers inspectés
+- `client/src/components/game/RecruitmentPanel.tsx`, `client/src/lib/api/citiesApi.ts`
+- `server/recruitmentService.ts`, `server/routes/cities.ts`, `server/cityService.ts`
+- `server/unitCatalog.ts`, `server/middleware/auth.ts`, `CLAUDE.md`
+
+### Fichiers modifiés
+Aucun — bloc audit/test pur. Injection DB temporaire (city_inventory city 10) pour alimenter le test ; aucun changement de code.
+
+### Note de run important
+Le serveur doit être **redémarré** après toute modification de `server/recruitmentService.ts` ou `server/unitCatalog.ts` pour que les nouvelles entrées soient disponibles en mémoire. Avant redémarrage, GET /recruitment-costs ne montrait que les 15 legacy. Après redémarrage, toutes les 30 entrées apparaissent.
+
+### Unité testée
+`militia` (food:2, labor_contracts:1, duration:1) sur city 10 (maitre).
+
+---
+
+### Résultats des tests
+
+**Test 1 — GET /api/cities/recruitment-costs**
+- Retourne **30 entrées** : 15 prototype + 15 legacy. ✅
+- Prototype présents : militia, garrison, patrollers, scouts, light_infantry, regular_infantry, noble_infantry, shock_troops, bow_infantry, crossbow_infantry, sappers, field_engineers, raid_troops, hunters, pikemen. ✅
+- Coûts/durées conformes à RUNTIME_RECRUITMENT_COSTS V3-D6-C. ✅
+
+**Test 2 — POST /start-recruitment ressources insuffisantes**
+- City 9 (admin) — food:13, labor_contracts:0.
+- `POST { unitType:"militia" }` → **400** `INSUFFICIENT_CITY_INVENTORY`
+- `missing: [{ resource:"labor_contracts", required:1, available:0, shortage:1 }]`
+- Aucun city_production créé. Aucun débit partiel. ✅
+
+**Test 3 — POST /start-recruitment succès**
+- City 10 (maitre) — food:50, labor_contracts:20 (injecté test).
+- `POST { unitType:"militia" }` → **200 ok**
+- `debited: { food:2, labor_contracts:1 }` ✅
+- `production: { type:"unit", name:"militia", cost:1, progress:0 }` ✅
+- Inventaire après : food:48, labor_contracts:19 — débit atomique exact. ✅
+- DB city_production : `production_name=militia, production_cost=1, production_progress=0`. ✅
+
+**Test 4 — PRODUCTION_ALREADY_ACTIVE**
+- Second POST `{ unitType:"garrison" }` sur city 10 pendant production active.
+- **409** `PRODUCTION_ALREADY_ACTIVE` ✅
+- Aucun second débit. ✅
+
+**Test 5 — Production tick**
+- `POST /api/cities/production-tick`
+- `completedUnits: [{ cityId:10, cityName:"allo", unitId:5, unitType:"militia", unitName:"Milice" }]` ✅
+- `createProducedUnit()` a résolu `UNIT_CATALOG["militia"]` sans throw. ✅
+- Unité insérée dans `units` (id=5, name="Milice"). ✅
+- `city_production` vidée après completion (0 lignes restantes). ✅
+
+**Test 6 — Affichage UI après création**
+- `GET /api/cities/me` (maitre) : city 10 → `currentProduction: null`. ✅
+- `getUnitIcon("militia")` → `'🛡️'` (table prototype). ✅
+- Aucune erreur de rendu. ✅
+
+**Test 7 — Non-régression legacy temporaire**
+- Legacy toujours présents dans RUNTIME_RECRUITMENT_COSTS et UNIT_CATALOG. ✅
+- Aucune erreur serveur liée à leur présence. ✅
+
+---
+
+### Bugs trouvés et corrections
+| # | Bug | Correction |
+|---|---|---|
+| 1 | Après modification de `recruitmentService.ts` / `unitCatalog.ts`, le serveur conserve l'ancien code en mémoire jusqu'au redémarrage | Redémarrage workflow — comportement normal avec `tsx`. Pas de changement de code. |
+
+Aucun bug bloquant dans le code lui-même.
+
+### Confirmations
+- **Aucune suppression legacy** dans ce bloc. ✅
+- **`productionCost:number` conservé** (city_production.production_cost=1). ✅
+- **Aucun débit client-side.** ✅
+- **`shared/landUnitCatalog.ts` inchangé.** ✅
+- **`RUNTIME_RECRUITMENT_COSTS` inchangé.** ✅
+- **`server/unitCatalog.ts` inchangé.** ✅
+
+### Résultat TypeScript
+`npx tsc --noEmit` : **187 erreurs** — baseline inchangée. ✅
+
+### Risques restants
+- Legacy (warrior, etc.) encore recrutables via API directe — seront retirés en V3-D6-F.
+- Les inventaires city_inventory sont souvent vides en jeu réel — le gameplay doit alimenter les stocks avant que le recrutement prototype soit utilisable.
+- `productionPerTurn` à 1 par défaut — un tick suffit pour militia (cost=1). Les unités plus coûteuses (noble_infantry cost=4) nécessiteront plusieurs ticks.
+- Aucun test unitaire automatisé — validation manuelle uniquement pour l'instant.
+
+### Prochaine étape recommandée
+**V3-D6-F** — Supprimer les entrées legacy de `RUNTIME_RECRUITMENT_COSTS` et `server/unitCatalog.ts` après validation complète. Confirmer que l'UI ne casse pas sur les unités legacy déjà en DB.
+
+**Statut V3-D6-E :** Flux end-to-end validé. militia recrutée, produite, créée (id=5 "Milice"), affichée. Aucun débit client-side. productionCost:number conservé. Legacy serveur encore présent temporairement. TypeScript 187 — stable.
