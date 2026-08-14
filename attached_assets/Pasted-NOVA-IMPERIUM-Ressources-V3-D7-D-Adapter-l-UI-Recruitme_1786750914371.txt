@@ -1,0 +1,428 @@
+NOVA IMPERIUM — Ressources V3-D7-D
+Adapter l’UI RecruitmentPanel selon niveau de caserne
+
+RÔLE
+Tu es l’agent technique sur le repo Nova Imperium.
+Objectif : adapter l’interface de recrutement pour afficher clairement les unités disponibles/verrouillées selon le niveau de caserne de la ville.
+
+IMPORTANT
+
+Ce bloc modifie seulement l’UI du recrutement.
+La validation serveur est déjà active depuis V3-D7-C et doit rester la source d’autorité.
+Ce bloc ne modifie PAS le gate serveur.
+Ce bloc ne modifie PAS les coûts/durées/stats des unités.
+Ce bloc ne modifie PAS la construction de bâtiments.
+Ce bloc ne crée PAS de migration DB.
+
+CONTEXTE VALIDÉ
+
+V3-D6 complet :
+- Le recrutement actif utilise uniquement les 15 unités prototype.
+- UNIT_CATALOG contient seulement les 15 unités prototype.
+- RUNTIME_RECRUITMENT_COSTS contient seulement les 15 coûts prototype.
+- RecruitmentPanel affiche les 15 unités prototype.
+- RecruitmentPanelZustand a été corrigé.
+- End-to-end militia validé.
+- Les unités legacy sont supprimées côté serveur actif.
+- TypeScript baseline : 187 erreurs.
+
+V3-D7-A :
+- Table city_buildings possède déjà level integer default 1.
+- Migration DB non nécessaire pour les 4 niveaux.
+
+V3-D7-B :
+- Caserne barracks constructible.
+- Caserne améliorable niveau 1 → 4.
+- CityDTO expose buildingLevels: Record<string, number>.
+- ConstructionPanel affiche barracks constructible/améliorable.
+- RecruitmentPanel inchangé à ce stade.
+
+V3-D7-C :
+- Gate serveur recrutement actif.
+- Sans barracks : POST /start-recruitment refuse 403 BARRACKS_REQUIRED.
+- Niveau insuffisant : POST /start-recruitment refuse 403 BARRACKS_LEVEL_TOO_LOW.
+- Niveau suffisant : startRecruitmentTransaction continue normalement.
+- Aucun débit sur refus.
+- Aucune city_production sur refus.
+- RecruitmentPanel inchangé.
+- TypeScript baseline : 187 erreurs.
+
+DÉCISION CANONIQUE
+
+Le serveur est l’autorité.
+L’UI doit seulement :
+- refléter les règles serveur ;
+- empêcher les clics inutiles ;
+- expliquer clairement pourquoi une unité est verrouillée ;
+- rester cohérente même si les données client sont incomplètes.
+
+MAPPING CANONIQUE — NIVEAU DE CASERNE REQUIS
+
+Caserne niveau 1 :
+- militia
+- garrison
+- scouts
+- hunters
+
+Caserne niveau 2 :
+- patrollers
+- light_infantry
+- bow_infantry
+- pikemen
+
+Caserne niveau 3 :
+- regular_infantry
+- crossbow_infantry
+- sappers
+- raid_troops
+
+Caserne niveau 4 :
+- noble_infantry
+- shock_troops
+- field_engineers
+
+Important :
+- N2 inclut aussi N1.
+- N3 inclut aussi N1/N2.
+- N4 inclut aussi N1/N2/N3.
+- L’ID canonique est hunters.
+- Ne jamais utiliser rangers.
+- scout legacy singulier est interdit comme unité active.
+- scouts prototype pluriel est valide.
+
+UNITÉS ACTIVES AUTORISÉES
+
+Les seules unités actives de recrutement sont :
+
+- militia
+- garrison
+- patrollers
+- scouts
+- light_infantry
+- regular_infantry
+- noble_infantry
+- shock_troops
+- bow_infantry
+- crossbow_infantry
+- sappers
+- field_engineers
+- raid_troops
+- hunters
+- pikemen
+
+À INSPECTER AVANT MODIFICATION
+
+Lire :
+
+- client/src/components/game/RecruitmentPanel.tsx
+- client/src/components/game/RecruitmentPanelZustand.tsx
+- client/src/components/game/CityManagementPanel.tsx
+- client/src/lib/game/types.ts
+- client/src/lib/api/citiesApi.ts
+- client/src/lib/stores/useNovaImperium.tsx
+- server/routes/cities.ts
+- CLAUDE.md
+
+Chercher :
+
+- RecruitmentPanel
+- RecruitmentPanelZustand
+- availableUnits
+- PROTOTYPE_UNITS
+- buildingLevels
+- barracks
+- startRecruitment
+- apiStartRecruitment
+- serverRecruitmentCosts
+- canAfford
+- disabled
+- error
+- BARRACKS_REQUIRED
+- BARRACKS_LEVEL_TOO_LOW
+
+OBJECTIF TECHNIQUE
+
+Adapter les panneaux de recrutement pour que les unités soient affichées selon le niveau de caserne :
+
+Sans caserne :
+- afficher une bannière claire :
+  “Construisez une caserne pour recruter des unités.”
+- les unités restent visibles ou regroupées, mais les boutons de recrutement sont désactivés.
+- indiquer le niveau requis.
+
+Caserne niveau 1 :
+- unités N1 recrutables si ressources suffisantes et production disponible.
+- unités N2/N3/N4 visibles mais verrouillées.
+
+Caserne niveau 2 :
+- unités N1/N2 recrutables.
+- unités N3/N4 verrouillées.
+
+Caserne niveau 3 :
+- unités N1/N2/N3 recrutables.
+- unités N4 verrouillées.
+
+Caserne niveau 4 :
+- toutes les 15 unités visibles/recrutables selon ressources et production existantes.
+
+À FAIRE — client
+
+1. Ajouter un mapping UI des niveaux requis
+
+Dans RecruitmentPanel.tsx, ajouter une constante locale ou réutilisable :
+
+BARRACKS_REQUIRED_LEVEL_BY_UNIT = {
+  militia: 1,
+  garrison: 1,
+  scouts: 1,
+  hunters: 1,
+
+  patrollers: 2,
+  light_infantry: 2,
+  bow_infantry: 2,
+  pikemen: 2,
+
+  regular_infantry: 3,
+  crossbow_infantry: 3,
+  sappers: 3,
+  raid_troops: 3,
+
+  noble_infantry: 4,
+  shock_troops: 4,
+  field_engineers: 4,
+}
+
+Contraintes :
+- exactement les 15 unités prototype ;
+- pas de legacy ;
+- pas de rangers ;
+- pas de scout singulier.
+
+2. Lire le niveau de caserne depuis la ville sélectionnée
+
+Utiliser :
+
+city.buildingLevels?.barracks ?? 0
+
+ou l’équivalent selon le type réel.
+
+Clamper défensivement :
+- niveau minimal 0 ;
+- niveau maximal 4.
+
+3. Adapter l’état disabled des boutons
+
+Un bouton de recrutement doit être désactivé si :
+
+- pas de caserne ou niveau insuffisant ;
+- ressources insuffisantes ;
+- production déjà active ;
+- coût serveur absent ou non chargé, selon logique existante ;
+- autre blocage existant.
+
+Important :
+- ne pas supprimer les validations existantes ;
+- ajouter le verrou caserne comme condition supplémentaire ;
+- garder le serveur comme garde finale.
+
+4. Ajouter indication visuelle du verrou
+
+Pour chaque unité :
+- afficher “Caserne Nv.X requise” si barracksLevel < requiredLevel.
+- si barracksLevel >= requiredLevel, afficher l’état normal.
+
+Exemples :
+- sans caserne, militia : “Caserne Nv.1 requise”
+- barracks N1, pikemen : “Caserne Nv.2 requise”
+- barracks N2, noble_infantry : “Caserne Nv.4 requise”
+
+5. Ajouter bannière globale
+
+En haut du panneau :
+
+Si barracksLevel = 0 :
+- “Construisez une caserne pour recruter des unités.”
+
+Si barracksLevel > 0 :
+- “Caserne niveau X — unités débloquées jusqu’au niveau X.”
+
+Ne pas prétendre que des unités sont disponibles si production active ou ressources insuffisantes.
+
+6. Gérer les erreurs serveur
+
+Si le serveur retourne :
+- BARRACKS_REQUIRED
+- BARRACKS_LEVEL_TOO_LOW
+
+Afficher un message utilisateur clair.
+
+But :
+- Si les données client sont périmées, le serveur peut refuser.
+- L’UI doit alors afficher l’erreur et idéalement relancer hydrateCitiesFromServer() si ce pattern existe déjà.
+
+7. RecruitmentPanelZustand
+
+Ce panneau est actif via CityManagementPanel selon V3-D6-G.
+
+Donc :
+- vérifier s’il affiche encore un flux de recrutement parallèle.
+- appliquer le même verrouillage caserne minimal si nécessaire.
+- éviter qu’il permette un clic qui déclenche ensuite inutilement 403 serveur.
+- ne pas réintroduire legacy.
+
+Si RecruitmentPanelZustand est clairement obsolète mais encore rendu :
+- ne pas le supprimer dans ce bloc.
+- le rendre cohérent avec le niveau de caserne.
+- documenter qu’il doit être consolidé plus tard.
+
+8. Types
+
+Si City type côté client ne contient pas encore buildingLevels :
+- l’ajouter de manière rétrocompatible.
+- ne pas casser les DTO existants.
+- buildingLevels?: Record<string, number> acceptable si nécessaire.
+
+À NE PAS FAIRE
+
+- Ne pas modifier server/routes/cities.ts sauf correction strictement nécessaire.
+- Ne pas modifier startRecruitmentTransaction.
+- Ne pas modifier RUNTIME_RECRUITMENT_COSTS.
+- Ne pas modifier server/unitCatalog.ts.
+- Ne pas modifier shared/landUnitCatalog.ts.
+- Ne pas modifier coûts/durées/stats des unités.
+- Ne pas modifier ConstructionPanel sauf correction strictement nécessaire.
+- Ne pas créer de migration DB.
+- Ne pas ajouter de nouvelle dépendance.
+- Ne pas ajouter de nouveau store.
+- Ne pas ajouter rangers.
+- Ne pas réintroduire les unités legacy.
+- Ne pas faire de refactor massif.
+- Ne pas toucher attached_assets / package.json / tests morts dans ce bloc.
+
+VALIDATION TECHNIQUE
+
+Exécuter :
+
+npx tsc --noEmit
+
+Baseline connue :
+- 187 erreurs TypeScript préexistantes.
+
+Objectif :
+- rester à 187 erreurs ;
+- zéro régression.
+
+TESTS À DOCUMENTER
+
+1. Sans barracks
+
+Ville sans barracks.
+
+Attendu UI :
+- bannière “Construisez une caserne pour recruter des unités.”
+- toutes les unités verrouillées ou boutons désactivés.
+- chaque unité indique le niveau requis.
+- aucun clic utile ne déclenche un recrutement local.
+
+2. Barracks N1
+
+Attendu UI :
+- bannière “Caserne niveau 1”.
+- militia, garrison, scouts, hunters non verrouillées si ressources suffisantes.
+- N2/N3/N4 verrouillées avec niveau requis.
+
+3. Barracks N2
+
+Attendu UI :
+- N1/N2 non verrouillées selon ressources.
+- N3/N4 verrouillées.
+
+4. Barracks N3
+
+Attendu UI :
+- N1/N2/N3 non verrouillées selon ressources.
+- N4 verrouillées.
+
+5. Barracks N4
+
+Attendu UI :
+- toutes les 15 unités non verrouillées selon ressources/production/costs.
+
+6. Erreur serveur simulée ou réelle
+
+Si serveur retourne BARRACKS_REQUIRED :
+- message lisible affiché.
+
+Si serveur retourne BARRACKS_LEVEL_TOO_LOW :
+- message lisible affiché avec niveau requis/actuel si disponible.
+
+7. Non-régression serveur
+
+GET /recruitment-costs :
+- exactement 15 prototypes.
+
+POST militia avec barracks N1 et ressources suffisantes :
+- succès encore côté serveur.
+
+8. TypeScript
+
+npx tsc --noEmit
+- attendu : 187 erreurs.
+
+CLAUDE.md
+
+Ajouter une section :
+
+“Ressources V3-D7-D — UI recrutement selon niveau de caserne”
+
+Inclure :
+
+- objectif ;
+- fichiers inspectés ;
+- fichiers modifiés ;
+- mapping UI unités → niveau caserne ;
+- lecture city.buildingLevels.barracks ;
+- comportement sans caserne ;
+- comportement caserne N1/N2/N3/N4 ;
+- traitement erreurs BARRACKS_REQUIRED / BARRACKS_LEVEL_TOO_LOW ;
+- confirmation serveur inchangé ;
+- confirmation coûts/unitCatalog inchangés ;
+- confirmation aucune migration DB ;
+- résultats tests UI ;
+- résultat TypeScript ;
+- risques restants ;
+- prochaine étape recommandée.
+
+SORTIE ATTENDUE
+
+Répondre avec :
+
+1. Fichiers inspectés.
+2. Fichiers modifiés.
+3. Mapping UI unités → niveau caserne.
+4. Lecture du niveau de caserne utilisée.
+5. Comportement sans barracks.
+6. Comportement barracks N1.
+7. Comportement barracks N2.
+8. Comportement barracks N3.
+9. Comportement barracks N4.
+10. Traitement erreurs serveur BARRACKS_REQUIRED / BARRACKS_LEVEL_TOO_LOW.
+11. Confirmation RecruitmentPanelZustand cohérent ou justification si non modifié.
+12. Confirmation serveur inchangé.
+13. Confirmation RUNTIME_RECRUITMENT_COSTS inchangé.
+14. Confirmation aucune migration DB.
+15. Résultat GET /recruitment-costs.
+16. Résultat POST militia avec barracks N1.
+17. Résultat TypeScript.
+18. Risques restants.
+19. Prochaine étape recommandée.
+
+STATUT ATTENDU
+
+UI RecruitmentPanel adaptée.
+UI RecruitmentPanelZustand cohérente si active.
+Sans caserne : unités verrouillées côté client.
+Caserne N1/N2/N3/N4 : unités affichées selon niveau requis.
+Serveur reste autorité finale.
+Aucune modification serveur fonctionnelle.
+TypeScript reste à 187 erreurs.

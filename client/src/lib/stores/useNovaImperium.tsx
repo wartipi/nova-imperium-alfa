@@ -392,6 +392,7 @@ export const useNovaImperium = create<NovaImperiumState>()(
           culturePerTurn:   0,
           // Phase 7 : bâtiments et production hydratés depuis le serveur
           buildings:         dto.buildings as BuildingType[],
+          buildingLevels:    dto.buildingLevels ?? {},
           currentProduction: dto.currentProduction
             ? { type: dto.currentProduction.type as 'building' | 'unit', name: dto.currentProduction.name, cost: dto.currentProduction.cost }
             : null,

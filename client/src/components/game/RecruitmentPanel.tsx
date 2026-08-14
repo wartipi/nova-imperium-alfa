@@ -29,6 +29,27 @@ const getIndicativeActionPointCost = (unitId: string): number => {
   return prototypeApCosts[unitId] ?? getUnitRecruitmentCost(unitId);
 };
 
+// ── Mapping caserne → niveau requis (V3-D7-D) ────────────────────────────────
+// Miroir client du BARRACKS_REQUIRED_LEVEL_BY_UNIT serveur (server/routes/cities.ts).
+// Sert uniquement à l'affichage/désactivation côté client — le serveur reste l'autorité finale.
+const BARRACKS_REQUIRED_LEVEL_BY_UNIT: Record<string, number> = {
+  militia:             1,
+  garrison:            1,
+  scouts:              1,
+  hunters:             1,
+  patrollers:          2,
+  light_infantry:      2,
+  bow_infantry:        2,
+  pikemen:             2,
+  regular_infantry:    3,
+  crossbow_infantry:   3,
+  sappers:             3,
+  raid_troops:         3,
+  noble_infantry:      4,
+  shock_troops:        4,
+  field_engineers:     4,
+};
+
 // ── Icônes par unitType (15 prototype + fallback legacy) ──────────────────────
 // Couvre les IDs prototype et les anciennes unités qui peuvent encore exister en DB.
 const getUnitIcon = (unitType: string): string => {
@@ -191,6 +212,21 @@ export function RecruitmentPanel() {
             ? `Ressources insuffisantes : ${detail}.`
             : 'Ressources insuffisantes dans l\'inventaire de la ville.',
         }));
+      } else if (body.error === 'BARRACKS_REQUIRED') {
+        // Données client périmées — le serveur confirme l'absence de caserne.
+        await hydrateCitiesFromServer();
+        setCityErrors(prev => ({
+          ...prev,
+          [cityId]: 'Caserne requise pour recruter des unités terrestres.',
+        }));
+      } else if (body.error === 'BARRACKS_LEVEL_TOO_LOW') {
+        const req = body.requiredLevel ?? '?';
+        const cur = body.currentLevel ?? 0;
+        await hydrateCitiesFromServer();
+        setCityErrors(prev => ({
+          ...prev,
+          [cityId]: `Caserne niveau ${req} requise pour cette unité (niveau actuel : ${cur}).`,
+        }));
       } else {
         console.error('[handleRecruit] Erreur inattendue:', err);
         setCityErrors(prev => ({
@@ -258,6 +294,23 @@ export function RecruitmentPanel() {
             </div>
           )}
 
+          {/* Bannière caserne — V3-D7-D */}
+          {(() => {
+            const barracksLvl = Math.min(4, Math.max(0, (city as any).buildingLevels?.barracks ?? 0));
+            if (barracksLvl === 0) {
+              return (
+                <div className="text-xs text-orange-700 bg-orange-50 border border-orange-300 rounded px-2 py-1 mb-2">
+                  ⚔️ Construisez une caserne pour recruter des unités terrestres.
+                </div>
+              );
+            }
+            return (
+              <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mb-2">
+                ⚔️ Caserne niveau {barracksLvl} — unités débloquées jusqu'au niveau {barracksLvl}.
+              </div>
+            );
+          })()}
+
           <div className="space-y-3">
             {PROTOTYPE_CATEGORIES.map(category => {
               const categoryUnits = PROTOTYPE_UNITS.filter(u => u.category === category);
@@ -283,6 +336,8 @@ export function RecruitmentPanel() {
                             const displayCost = serverEntry ? serverEntry.cost : unit.cost;
                             const displayDuration = serverEntry ? serverEntry.duration : unit.recruitmentTime;
                             const apCost = getIndicativeActionPointCost(unit.id);
+                            const barracksLvl = Math.min(4, Math.max(0, (city as any).buildingLevels?.barracks ?? 0));
+                            const reqLvl = BARRACKS_REQUIRED_LEVEL_BY_UNIT[unit.id] ?? 1;
                             return (
                               <>
                                 <div className="text-xs font-medium">{unit.name}</div>
@@ -292,30 +347,44 @@ export function RecruitmentPanel() {
                                 <div className="text-xs text-purple-600">
                                   🕐 {displayDuration} tour{displayDuration > 1 ? 's' : ''} | ⚔️ {unit.strength}
                                 </div>
+                                {barracksLvl < reqLvl && (
+                                  <div className="text-xs text-red-600 font-medium mt-0.5">
+                                    🔒 Caserne Nv.{reqLvl} requise
+                                  </div>
+                                )}
                               </>
                             );
                           })()}
                         </div>
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => handleRecruit(unit.id, city.id)}
-                        disabled={
-                          city.currentProduction !== null ||
-                          !!isRecruiting[city.id]
-                        }
-                        className="text-xs bg-amber-600 hover:bg-amber-700 disabled:opacity-50 whitespace-nowrap"
-                        title={
-                          city.currentProduction !== null ? 'Ville occupée' :
-                          isRecruiting[city.id] ? 'Recrutement en cours…' :
-                          // PA indicatifs uniquement — validation serveur-authoritative.
-                          !canAffordUnit(unit.id) ? `${getIndicativeActionPointCost(unit.id)} PA requis (indicatif)` :
-                          'Recruter cette unité'
-                        }
-                      >
-                        {isRecruiting[city.id] ? '…' :
-                         city.currentProduction !== null ? 'Occupé' : 'Recruter'}
-                      </Button>
+                      {(() => {
+                        const barracksLvl = Math.min(4, Math.max(0, (city as any).buildingLevels?.barracks ?? 0));
+                        const reqLvl = BARRACKS_REQUIRED_LEVEL_BY_UNIT[unit.id] ?? 1;
+                        const isLocked = barracksLvl < reqLvl;
+                        return (
+                          <Button
+                            size="sm"
+                            onClick={() => handleRecruit(unit.id, city.id)}
+                            disabled={
+                              isLocked ||
+                              city.currentProduction !== null ||
+                              !!isRecruiting[city.id]
+                            }
+                            className="text-xs bg-amber-600 hover:bg-amber-700 disabled:opacity-50 whitespace-nowrap"
+                            title={
+                              isLocked ? `Caserne niveau ${reqLvl} requise (actuel : ${barracksLvl})` :
+                              city.currentProduction !== null ? 'Ville occupée' :
+                              isRecruiting[city.id] ? 'Recrutement en cours…' :
+                              !canAffordUnit(unit.id) ? `${getIndicativeActionPointCost(unit.id)} PA requis (indicatif)` :
+                              'Recruter cette unité'
+                            }
+                          >
+                            {isRecruiting[city.id] ? '…' :
+                             isLocked ? '🔒' :
+                             city.currentProduction !== null ? 'Occupé' : 'Recruter'}
+                          </Button>
+                        );
+                      })()}
                     </div>
                   ))}
                 </div>

@@ -31,6 +31,16 @@ interface UnitType {
   };
 }
 
+// ── Mapping caserne → niveau requis (V3-D7-D) ────────────────────────────────
+// Miroir du BARRACKS_REQUIRED_LEVEL_BY_UNIT serveur — affichage informatif uniquement.
+// Ce composant est collaboratif (handleRecruit = alert). Gate réel = server/routes/cities.ts.
+const BARRACKS_REQUIRED_LEVEL_BY_UNIT: Record<string, number> = {
+  militia: 1, garrison: 1, scouts: 1, hunters: 1,
+  patrollers: 2, light_infantry: 2, bow_infantry: 2, pikemen: 2,
+  regular_infantry: 3, crossbow_infantry: 3, sappers: 3, raid_troops: 3,
+  noble_infantry: 4, shock_troops: 4, field_engineers: 4,
+};
+
 // SYSTÈME NOVA IMPERIUM — Unités prototype canoniques V3-D6 (stats vides à calibrer en V3-D7)
 // IDs alignés sur PROTOTYPE_UNITS dans RecruitmentPanel.tsx et UNIT_CATALOG dans server/unitCatalog.ts.
 // Ce composant est une vue collaborative (handleRecruit = informatif uniquement — le vrai recrutement
@@ -368,6 +378,9 @@ export function RecruitmentPanelZustand() {
                         <div>⏱️ Durée: {unit.recruitmentTime || 'À définir'}</div>
                         <div>💰 Coût: {getCostText(unit.cost)}</div>
                         <div>⚔️ Combat: {getCombatStatsText(unit.combatStats)}</div>
+                        <div className="text-amber-800 font-medium">
+                          🔒 Caserne Nv.{BARRACKS_REQUIRED_LEVEL_BY_UNIT[unit.id] ?? 1} requise
+                        </div>
                       </div>
                       
                       {/* Bouton d'information */}

@@ -26,6 +26,7 @@ export interface CityDTO {
   founderName:      string;
   createdAt:        string;
   buildings:         string[];
+  buildingLevels?:   Record<string, number>; // V3-D7-B : niveau par bâtiment (ex. barracks: 1–4)
   currentProduction: CityProductionDTO | null;
   // Phase 8 : économie calculée serveur (base + bonus bâtiments)
   foodPerTurn:       number;

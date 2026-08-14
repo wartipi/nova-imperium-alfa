@@ -3139,3 +3139,108 @@ Note tests 7+8 : la ville 11 n'avait pas d'inventaire pré-rempli (`UPDATE 0`) �
 - CityDTO inclut déjà `buildingLevels` depuis V3-D7-B.
 
 **Statut V3-D7-C :** Gate serveur actif. Sans caserne → 403 BARRACKS_REQUIRED. Niveau insuffisant → 403 BARRACKS_LEVEL_TOO_LOW. Niveau suffisant → flow existant (débit + city_production). Aucun débit sur refus confirmé. Aucune city_production sur refus confirmée. RecruitmentPanel inchangé. TypeScript 187 — stable.
+
+---
+
+## Ressources V3-D7-D — UI recrutement selon niveau de caserne
+
+### Objectif
+Adapter l'interface de recrutement (`RecruitmentPanel`) pour refléter côté client les règles de caserne déjà actives côté serveur depuis V3-D7-C. Le serveur reste l'autorité finale.
+
+### Fichiers inspectés
+- `client/src/components/game/RecruitmentPanel.tsx`
+- `client/src/components/game/RecruitmentPanelZustand.tsx`
+- `client/src/components/game/CityManagementPanel.tsx`
+- `client/src/lib/game/types.ts`
+- `client/src/lib/api/citiesApi.ts`
+- `client/src/lib/stores/useNovaImperium.tsx`
+- `server/routes/cities.ts`
+- `CLAUDE.md`
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---|---|
+| `client/src/lib/api/citiesApi.ts` | `CityDTO` — `buildingLevels?: Record<string, number>` ajouté |
+| `client/src/lib/game/types.ts` | `City` — `buildingLevels?: Record<string, number>` ajouté |
+| `client/src/lib/stores/useNovaImperium.tsx` | `hydrateCitiesFromServer` — `buildingLevels: dto.buildingLevels ?? {}` mappé dans la ville |
+| `client/src/components/game/RecruitmentPanel.tsx` | Constante `BARRACKS_REQUIRED_LEVEL_BY_UNIT` ; bannière caserne par ville ; lock bouton + label 🔒 ; "Caserne Nv.X requise" par unité ; gestion erreurs BARRACKS_REQUIRED / BARRACKS_LEVEL_TOO_LOW |
+| `client/src/components/game/RecruitmentPanelZustand.tsx` | Constante `BARRACKS_REQUIRED_LEVEL_BY_UNIT` ; affichage "🔒 Caserne Nv.X requise" par unité (informatif) |
+
+### Mapping UI unités → niveau caserne
+
+Miroir exact du mapping serveur (server/routes/cities.ts) — affichage seulement, serveur reste autorité.
+
+| Niveau | Unités |
+|---|---|
+| 1 | militia, garrison, scouts, hunters |
+| 2 | patrollers, light_infantry, bow_infantry, pikemen |
+| 3 | regular_infantry, crossbow_infantry, sappers, raid_troops |
+| 4 | noble_infantry, shock_troops, field_engineers |
+
+### Lecture du niveau de caserne
+
+```typescript
+const barracksLvl = Math.min(4, Math.max(0, (city as any).buildingLevels?.barracks ?? 0));
+```
+
+`buildingLevels` provient du DTO serveur, hydraté via `hydrateCitiesFromServer()` → `fetchMyCities()` → `GET /api/cities/me`.
+
+### Comportement par niveau
+
+**Sans caserne (barracksLvl = 0)**
+- Bannière orange : "⚔️ Construisez une caserne pour recruter des unités terrestres."
+- Toutes les unités : bouton 🔒 désactivé + tooltip "Caserne niveau X requise (actuel : 0)"
+- Indicateur rouge sous chaque unité : "🔒 Caserne Nv.X requise"
+
+**Caserne N1 (barracksLvl = 1)**
+- Bannière : "⚔️ Caserne niveau 1 — unités débloquées jusqu'au niveau 1."
+- militia/garrison/scouts/hunters : bouton "Recruter" actif (selon ressources/production)
+- N2/N3/N4 : bouton 🔒 désactivé + indicateur "🔒 Caserne Nv.X requise"
+
+**Caserne N2** : N1+N2 recrutables, N3+N4 verrouillées.
+**Caserne N3** : N1+N2+N3 recrutables, N4 verrouillée.
+**Caserne N4** : Toutes les 15 unités recrutables (selon ressources/production existantes).
+
+### Traitement erreurs serveur BARRACKS_REQUIRED / BARRACKS_LEVEL_TOO_LOW
+
+Si le serveur retourne l'une de ces erreurs (données client périmées) :
+- `BARRACKS_REQUIRED` → message : "Caserne requise pour recruter des unités terrestres." + `hydrateCitiesFromServer()` pour resynchroniser
+- `BARRACKS_LEVEL_TOO_LOW` → message : "Caserne niveau {req} requise pour cette unité (niveau actuel : {cur})." + `hydrateCitiesFromServer()`
+
+### RecruitmentPanelZustand — état et cohérence
+- Ce composant est informatif uniquement (handleRecruit = alert, aucun appel API)
+- La constante `BARRACKS_REQUIRED_LEVEL_BY_UNIT` y a été ajoutée
+- Chaque unité affiche "🔒 Caserne Nv.X requise" dans ses stats
+- Aucun clic ne peut déclencher un 403 serveur (pas d'appel API)
+- Consolidation (suppression ou merge avec RecruitmentPanel) à planifier en V3-D8 ou V3-D7-E
+
+### Confirmation inchangé
+- `server/routes/cities.ts` inchangé ✅
+- `startRecruitmentTransaction` inchangé ✅
+- `RUNTIME_RECRUITMENT_COSTS` inchangé ✅
+- `server/unitCatalog.ts` inchangé ✅
+- `shared/landUnitCatalog.ts` inchangé ✅
+- `ConstructionPanel.tsx` inchangé ✅
+- Aucune migration DB ✅
+
+### Résultats des tests
+
+| Test | Résultat |
+|---|---|
+| GET /recruitment-costs | TOTAL: 15, 15 IDs prototype ✅ |
+| POST militia barracks N1 | 201 `{"ok":true,"debited":{"food":2,"labor_contracts":1}}` ✅ |
+| POST militia sans barracks | 403 `BARRACKS_REQUIRED` ✅ |
+| DTO buildingLevels | `allo → buildingLevels: {'guilde_des_marchands':1,'bank':1,'entrepot':1}` — champ exposé ✅ |
+| DTO barracks level réel | `rawr → buildingLevels: {...,'barracks':4}` — niveau 4 lu correctement ✅ |
+| TypeScript | 187 erreurs — baseline inchangée ✅ |
+
+### Risques restants
+- `(city as any).buildingLevels` — cast nécessaire car le type `City` dans `types.ts` a `buildingLevels?` optionnel. À renforcer en typant explicitement l'accès si le type est élargi.
+- `RecruitmentPanelZustand` reste un doublon informatif — à consolider avec `RecruitmentPanel` en V3-D8.
+- L'UI ne s'auto-rafraîchit pas à la construction d'une caserne si le panneau de recrutement est déjà ouvert — l'utilisateur doit fermer/rouvrir ou déclencher un recrutement pour voir le changement. Un rafraîchissement automatique post-construction peut être ajouté en V3-D7-E.
+
+### Prochaine étape recommandée
+**V3-D7-E** — Calibration des coûts de recrutement par niveau de caserne (stats à définir), et/ou rafraîchissement automatique du panneau de recrutement après construction/upgrade de la caserne.
+
+**Statut V3-D7-D :** UI RecruitmentPanel adaptée. Bannière caserne par ville. Boutons verrouillés 🔒 si niveau insuffisant. Indicateur "Caserne Nv.X requise" par unité. Erreurs serveur BARRACKS_REQUIRED / BARRACKS_LEVEL_TOO_LOW gérées avec hydratation. RecruitmentPanelZustand cohérent (informatif). DTO buildingLevels hydraté dans le store. Aucune modification serveur. TypeScript 187 — stable.

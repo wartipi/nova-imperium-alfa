@@ -169,6 +169,7 @@ export interface City {
   culturePerTurn: number;
   colonyId?: string;    // colonies.id côté DB (distinct de id depuis Phase 7)
   buildings: BuildingType[];
+  buildingLevels?: Record<string, number>; // V3-D7-B : niveau par bâtiment (ex. barracks: 1–4)
   currentProduction: {
     type: 'building' | 'unit';
     name: string;
