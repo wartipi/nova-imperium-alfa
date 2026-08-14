@@ -1966,7 +1966,7 @@ Après : "Points d'Action (indicatifs) :" / "Requis indicatif : X PA"
 - `canAffordUnit()` (PA indicatifs) toujours calculé — peut être retiré proprement lors de la migration prototype.
 
 ### Prochaine étape recommandée
-**V3-D5-I / V3-D6** — Migration vers les unités prototype (`militia`, `garrison`, `patrollers`, `rangers`, …) : unifier les IDs du tableau local avec `RUNTIME_RECRUITMENT_COSTS` et `shared/landUnitCatalog.ts`, et ajouter les 15 entrées dans `server/unitCatalog.ts` avec des stats provisoires.
+**V3-D5-I / V3-D6** — Migration vers les unités prototype (`militia`, `garrison`, `patrollers`, `hunters`, …) : unifier les IDs du tableau local avec `RUNTIME_RECRUITMENT_COSTS` et `shared/landUnitCatalog.ts`, et ajouter les 15 entrées dans `server/unitCatalog.ts` avec des stats provisoires.
 
 **Statut V3-D5-H :** Flux recrutement runtime finalisé. Commentaires nettoyés. PA correctement marqués indicatifs. Coûts UI alignés sur le catalogue serveur. Aucun branchement prototype. `productionCost:number` conservé.
 
@@ -2140,3 +2140,85 @@ INSERT units(ownerPlayerId, cityId, unitType, name, worldX, worldY, attack, defe
 **V3-D6-B** — Ajouter les 15 LandUnitIds dans `server/unitCatalog.ts` avec stats provisoires dérivées de `shared/landUnitCatalog.ts`.
 
 **Statut V3-D6-A :** Audit complet. Aucun code modifié. Chemin de migration identifié. Risques documentés. Plan en 5 blocs proposé.
+
+---
+
+## Ressources V3-D6-B — UNIT_CATALOG prototype passif
+
+### Objectif
+Ajouter passivement les 15 LandUnitIds prototype dans `server/unitCatalog.ts` pour que `createProducedUnit()` puisse les résoudre lorsqu'ils seront activés en V3-D6-C. Sans les rendre recrutables.
+
+### Fichiers inspectés
+- `server/unitCatalog.ts`, `shared/landUnitCatalog.ts`, `server/cityService.ts`
+- `server/recruitmentService.ts`, `server/routes/cities.ts`, `CLAUDE.md`
+
+### Fichiers modifiés
+| Fichier | Nature |
+|---|---|
+| `server/unitCatalog.ts` | 15 entrées prototype ajoutées |
+| `CLAUDE.md` | Correction "rangers" → "hunters" (mention V3-D5-H) |
+
+### Confirmation ajout passif
+Les 15 IDs sont dans `UNIT_CATALOG` mais **absents de `RUNTIME_RECRUITMENT_COSTS`**.
+
+Conséquences :
+- `GET /recruitment-costs` **ne les expose pas** (filtre `UNIT_CATALOG ∩ RUNTIME_RECRUITMENT_COSTS` → intersection vide pour ces IDs).
+- `POST /start-recruitment` **les refuse** avec `"Aucun coût de recrutement défini"` (vérification `RUNTIME_RECRUITMENT_COSTS[unitType]`).
+- `createProducedUnit("militia")` **ne throw plus** si jamais un tick rencontre cet ID.
+
+### Liste des 15 IDs ajoutés
+
+| ID | Nom | Rôle | movement | strength | health | attack | defense |
+|---|---|---|---|---|---|---|---|
+| militia | Milice | Infanterie base | 5 | 2 | 8 | 1 | 1 |
+| garrison | Garnison | Défense fixe | 3 | 3 | 10 | 1 | 3 |
+| patrollers | Patrouilleurs | Rapide/sécurité | 16 | 2 | 7 | 2 | 1 |
+| scouts | Éclaireurs | Reconnaissance | 20 | 1 | 6 | 1 | 1 |
+| light_infantry | Infanterie légère | Mobilité | 12 | 4 | 10 | 3 | 1 |
+| regular_infantry | Infanterie régulière | Ligne principale | 10 | 5 | 12 | 3 | 2 |
+| noble_infantry | Infanterie noble | Défense/choc | 10 | 6 | 14 | 3 | 3 |
+| shock_troops | Troupe de choc | Percée | 10 | 6 | 10 | 5 | 1 |
+| bow_infantry | Infanterie à arc | Soutien distance | 10 | 3 | 8 | 4 | 1 |
+| crossbow_infantry | Infanterie à arbalète | Tir lourd | 8 | 4 | 10 | 5 | 1 |
+| sappers | Sapeurs | Travaux/sabotage | 6 | 2 | 8 | 1 | 1 |
+| field_engineers | Ingénieurs de campagne | Construction/siège | 6 | 2 | 8 | 1 | 1 |
+| raid_troops | Troupe de raid | Perturbation | 14 | 4 | 9 | 4 | 1 |
+| hunters | Chasseurs | Support logistique | 12 | 3 | 8 | 2 | 1 |
+| pikemen | Piquiers | Anti-percée/contrôle | 10 | 4 | 11 | 2 | 4 |
+
+### Source des labels/mouvements
+`label` et `maxMovementPerTurn` de `shared/landUnitCatalog.ts`. Stats combat (`health/attack/defense/strength`) provisoires — à calibrer en V3-D7 quand le système de combat sera défini.
+
+### Principe des stats provisoires
+- Cohérentes avec l'échelle existante (warrior strength 2–4, knight strength 9).
+- Rôle respecté : garnison défensive (defense 3), scouts minimaux (strength 1), shock_troops offensifs (attack 5).
+- `siegeWearPoints`, `upkeepPerTurn`, `ability`, `unlockedAction` — NON branchés.
+
+### Confirmations
+- **`RUNTIME_RECRUITMENT_COSTS` inchangé.** ✅
+- **`RecruitmentPanel.tsx` inchangé.** ✅
+- **`shared/landUnitCatalog.ts` inchangé.** ✅
+- **`createProducedUnit()` inchangé.** ✅
+- **`productionCost:number` inchangé.** ✅
+- **Anciennes 15 unités runtime conservées.** ✅
+- **Correction "rangers" → "hunters"** dans CLAUDE.md V3-D5-H. ✅
+
+### Tests documentés
+1. `UNIT_CATALOG["militia"]` → `{ name: "Milice", strength: 2, health: 8, attack: 1, defense: 1, movement: 5 }` — ne throw plus ✓
+2. `UNIT_CATALOG` contient 30 entrées (15 anciennes + 15 prototype) ✓
+3. `GET /recruitment-costs` → exclut les 15 prototype (absents de RUNTIME_RECRUITMENT_COSTS) ✓
+4. `POST /start-recruitment { unitType: "militia" }` → 400 "Aucun coût de recrutement défini" ✓
+5. Anciennes unités (warrior, …) toujours présentes et recrutables ✓
+
+### Résultat TypeScript
+`npx tsc --noEmit` : **187 erreurs** — baseline inchangée.
+
+### Risques restants
+- Stats provisoires non calibrées — à affiner en V3-D7 après définition du système de combat.
+- `scouts` (prototype) partage le nom "Éclaireurs" avec `scout` (ancien) — conflit de nom display uniquement, IDs distincts.
+- `patrollers` movement 16 et `scouts` movement 20 — valeurs très élevées, à vérifier lors de l'intégration mouvement.
+
+### Prochaine étape recommandée
+**V3-D6-C** — Ajouter les 15 entrées dans `RUNTIME_RECRUITMENT_COSTS` avec les coûts de `creationCost` de `shared/landUnitCatalog.ts` et des durées provisoires par profil. Rendra les unités recrutables sans toucher à l'UI.
+
+**Statut V3-D6-B :** 15 LandUnitIds prototype dans `UNIT_CATALOG`. Passifs — non recrutables, non exposés par GET /recruitment-costs. `createProducedUnit()` les résoudra sans throw. Runtime stable.

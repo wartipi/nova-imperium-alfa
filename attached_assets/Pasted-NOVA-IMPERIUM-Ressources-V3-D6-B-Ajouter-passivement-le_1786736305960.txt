@@ -1,0 +1,277 @@
+NOVA IMPERIUM — Ressources V3-D6-B
+Ajouter passivement les 15 LandUnitId prototype dans server/unitCatalog.ts
+
+RÔLE
+Tu es l’agent technique sur le repo Nova Imperium.
+Objectif : ajouter les 15 IDs d’unités terrestres prototype dans server/unitCatalog.ts pour que createProducedUnit() puisse les créer plus tard, sans encore les exposer dans l’UI ni dans le recrutement actif.
+
+IMPORTANT
+
+Ce bloc est un ajout serveur PASSIF.
+Ne pas modifier RecruitmentPanel.tsx.
+Ne pas modifier RUNTIME_RECRUITMENT_COSTS.
+Ne pas modifier shared/landUnitCatalog.ts.
+Ne pas modifier startRecruitmentTransaction().
+Ne pas modifier GET /api/cities/recruitment-costs.
+Ne pas modifier POST /api/cities/:cityId/start-recruitment.
+Ne pas modifier tickCityProduction().
+Ne pas modifier createProducedUnit().
+Ne pas modifier productionCost:number.
+Ne pas migrer coal/oil/herbs.
+Ne pas modifier les bâtiments producteurs.
+Ne pas supprimer les anciennes unités runtime.
+Ne pas supprimer apiSetProduction().
+Ne pas supprimer trainUnit().
+Mettre à jour CLAUDE.md.
+
+CONTEXTE VALIDÉ
+
+V3-D5 complet :
+- Recrutement runtime serveur-authoritative validé.
+- RecruitmentPanel affiche les coûts serveur.
+- Le client envoie seulement { unitType }.
+- startRecruitmentTransaction() est atomique.
+- Aucun débit client-side.
+- productionCost:number reste une durée/progression.
+
+V3-D6-A :
+- Audit migration prototype validé.
+- createProducedUnit() dépend de UNIT_CATALOG[unitType].
+- Si un unitType est absent de server/unitCatalog.ts, la production peut se compléter sans créer d’unité.
+- Ajouter les 15 LandUnitId prototype dans server/unitCatalog.ts est donc le prérequis dur.
+- Ne pas utiliser “rangers” : l’ID canonique est hunters.
+
+IDS PROTOTYPE CANONIQUES À AJOUTER
+
+Ajouter exactement ces 15 IDs dans server/unitCatalog.ts :
+
+- militia
+- garrison
+- patrollers
+- scouts
+- light_infantry
+- regular_infantry
+- noble_infantry
+- shock_troops
+- bow_infantry
+- crossbow_infantry
+- sappers
+- field_engineers
+- raid_troops
+- hunters
+- pikemen
+
+Ne pas ajouter :
+- rangers
+- cavalry
+- horseman prototype
+- naval prototype
+- unité spéciale non listée
+- ancienne unité renommée sans validation
+
+OBJECTIF DE CE BLOC
+
+Ajouter ces IDs dans UNIT_CATALOG avec des statistiques provisoires mais cohérentes, pour garantir que createProducedUnit() ne casse pas lorsque ces IDs seront activés dans V3-D6-C/D.
+
+Ce bloc ne doit pas rendre ces unités recrutables.
+Elles seront seulement présentes dans UNIT_CATALOG.
+
+À INSPECTER AVANT MODIFICATION
+
+Lire :
+
+- server/unitCatalog.ts
+- shared/landUnitCatalog.ts
+- server/cityService.ts
+- server/recruitmentService.ts
+- server/routes/cities.ts
+- client/src/lib/game/types.ts
+- CLAUDE.md
+
+Chercher :
+
+- UNIT_CATALOG
+- UnitCatalogEntry ou type équivalent
+- attack
+- defense
+- strength
+- health
+- maxHealth
+- movement
+- maxMovement
+- abilities
+- createProducedUnit
+- productionName
+- shared/landUnitCatalog.ts labels et maxMovementPerTurn
+
+À FAIRE
+
+1. Ajouter les 15 entrées dans server/unitCatalog.ts
+
+Chaque entrée doit respecter exactement la structure existante de UNIT_CATALOG.
+
+Utiliser les labels et mouvements de shared/landUnitCatalog.ts :
+
+- militia → Milice → movement 5
+- garrison → Garnison → movement 3
+- patrollers → Patrouilleurs → movement 16
+- scouts → Éclaireurs → movement 20
+- light_infantry → Infanterie légère → movement 12
+- regular_infantry → Infanterie régulière → movement 10
+- noble_infantry → Infanterie noble → movement 10
+- shock_troops → Troupe de choc → movement 10
+- bow_infantry → Infanterie à arc → movement 10
+- crossbow_infantry → Infanterie à arbalète → movement 8
+- sappers → Sapeurs → movement 6
+- field_engineers → Ingénieurs de campagne → movement 6
+- raid_troops → Troupe de raid → movement 14
+- hunters → Chasseurs → movement 12
+- pikemen → Piquiers → movement 10
+
+2. Stats provisoires
+
+Comme shared/landUnitCatalog.ts ne fournit pas encore health/attack/defense/strength, créer des stats provisoires simples et documentées.
+
+Contraintes :
+- ne pas sur-optimiser ;
+- ne pas inventer de système de combat ;
+- rester cohérent avec les anciennes unités existantes ;
+- ne pas brancher siegeWearPoints ;
+- ne pas brancher upkeep ;
+- ne pas brancher abilities complexes non supportées.
+
+Approche recommandée :
+- Milice faible.
+- Garnison défensive.
+- Patrouilleurs/Éclaireurs rapides, combat faible.
+- Infanterie légère moyenne.
+- Infanterie régulière robuste.
+- Infanterie noble robuste.
+- Troupe de choc offensive.
+- Arc / Arbalète offensives mais défenses modérées.
+- Sapeurs / Ingénieurs faibles en combat.
+- Raid rapide offensif léger.
+- Chasseurs soutien léger.
+- Piquiers défensifs/contrôle.
+
+Si le catalogue actuel utilise abilities: string[], garder abilities simples ou [].
+Ne pas créer de logique nouvelle liée aux abilities.
+
+3. Ne pas rendre ces unités recrutables
+
+Ne pas ajouter ces IDs dans RUNTIME_RECRUITMENT_COSTS dans ce bloc.
+
+Conséquence attendue :
+- UNIT_CATALOG contient les 15 IDs.
+- GET /api/cities/recruitment-costs ne les expose pas encore, parce qu’il filtre UNIT_CATALOG ∩ RUNTIME_RECRUITMENT_COSTS.
+- POST /start-recruitment refuse encore ces IDs avec “Aucun coût de recrutement défini” tant que V3-D6-C n’est pas fait.
+
+Documenter ce comportement dans CLAUDE.md.
+
+4. Ne pas modifier createProducedUnit()
+
+createProducedUnit() doit rester inchangé.
+Le seul objectif est que son lookup futur UNIT_CATALOG[unitType] trouve ces IDs.
+
+5. Corriger la mention “rangers” si présente dans CLAUDE.md
+
+Si CLAUDE.md contient une mention de “rangers” comme ID prototype, corriger vers “hunters”.
+Ne pas faire de grand nettoyage.
+Seulement corriger cette dérive d’ID.
+
+À NE PAS FAIRE
+
+- Ne pas modifier shared/landUnitCatalog.ts.
+- Ne pas modifier RecruitmentPanel.tsx.
+- Ne pas ajouter les IDs prototype dans RUNTIME_RECRUITMENT_COSTS.
+- Ne pas modifier GET /api/cities/recruitment-costs.
+- Ne pas modifier POST /start-recruitment.
+- Ne pas modifier startRecruitmentTransaction().
+- Ne pas modifier createProducedUnit().
+- Ne pas modifier tickCityProduction().
+- Ne pas modifier productionCost:number.
+- Ne pas modifier DB/schema.
+- Ne pas ajouter upkeep.
+- Ne pas brancher siegeWearPoints.
+- Ne pas brancher abilities complexes.
+- Ne pas ajouter rangers.
+- Ne pas supprimer les anciennes unités runtime.
+- Ne pas modifier les coûts.
+- Ne pas modifier bâtiments/économie.
+
+VALIDATION TECHNIQUE
+
+Exécuter :
+
+npx tsc --noEmit
+
+Baseline connue :
+- 187 erreurs TypeScript préexistantes.
+
+Objectif :
+- rester à 187 erreurs ;
+- zéro régression.
+
+TESTS À DOCUMENTER
+
+Documenter au minimum :
+
+1. UNIT_CATALOG contient les 15 nouveaux IDs.
+2. Chaque entrée respecte la structure existante.
+3. createProducedUnit() pourra résoudre UNIT_CATALOG["militia"] sans throw une fois city_production alimentée.
+4. GET /api/cities/recruitment-costs n’expose pas encore ces unités si RUNTIME_RECRUITMENT_COSTS n’est pas étendu.
+5. POST /start-recruitment ne les accepte pas encore sans coût serveur.
+6. Anciennes unités runtime toujours présentes.
+7. TypeScript reste à 187 erreurs.
+
+CLAUDE.md
+
+Ajouter une section :
+
+“Ressources V3-D6-B — UNIT_CATALOG prototype passif”
+
+Inclure :
+
+- objectif ;
+- fichiers inspectés ;
+- fichiers modifiés ;
+- confirmation ajout passif ;
+- liste exacte des 15 IDs ajoutés ;
+- source des labels/mouvements ;
+- principe des stats provisoires ;
+- confirmation RUNTIME_RECRUITMENT_COSTS inchangé ;
+- confirmation RecruitmentPanel inchangé ;
+- confirmation shared/landUnitCatalog.ts inchangé ;
+- confirmation createProducedUnit inchangé ;
+- confirmation productionCost:number inchangé ;
+- correction éventuelle rangers → hunters ;
+- résultat TypeScript ;
+- risques restants ;
+- prochaine étape recommandée.
+
+SORTIE ATTENDUE
+
+Répondre avec :
+
+1. Fichiers inspectés.
+2. Fichiers modifiés.
+3. Liste des 15 IDs ajoutés.
+4. Structure d’entrée UNIT_CATALOG respectée.
+5. Résumé des stats provisoires.
+6. Confirmation ajout passif seulement.
+7. Confirmation RUNTIME_RECRUITMENT_COSTS inchangé.
+8. Confirmation RecruitmentPanel inchangé.
+9. Confirmation shared/landUnitCatalog.ts inchangé.
+10. Confirmation createProducedUnit inchangé.
+11. Correction rangers → hunters si applicable.
+12. Résultat TypeScript.
+13. Risques restants.
+14. Prochaine étape recommandée.
+
+STATUT ATTENDU
+
+Les 15 unités prototype existent passivement dans server/unitCatalog.ts.
+Elles ne sont pas encore recrutables.
+Elles ne sont pas encore affichées dans l’UI.
+Le runtime existant reste stable.
+productionCost:number conservé.
