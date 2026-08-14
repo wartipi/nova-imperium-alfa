@@ -275,6 +275,12 @@ export interface RuntimeRecruitmentEntry {
 }
 
 export const RUNTIME_RECRUITMENT_COSTS: Record<string, RuntimeRecruitmentEntry> = {
+
+  // ── Legacy temporaire — à supprimer après migration UI V3-D6-D/E/F ─────────
+  // Ces IDs (warrior, spearman, …) ne sont PAS les unités canoniques finales.
+  // Ils existent seulement pour éviter de casser RecruitmentPanel avant la
+  // migration V3-D6-D. Décision canonique : seront supprimés après validation
+  // end-to-end des unités prototype.
   // ── Infanterie ─────────────────────────────────────────────────────────────
   warrior:   { duration: 2, cost: { food: 2, labor_contracts: 1, basic_equipment: 1 } },
   spearman:  { duration: 2, cost: { food: 2, wood: 1, common_metals: 1, labor_contracts: 1, basic_equipment: 1 } },
@@ -296,6 +302,37 @@ export const RUNTIME_RECRUITMENT_COSTS: Record<string, RuntimeRecruitmentEntry> 
   settler:  { duration: 3, cost: { food: 5, wood: 3, stone: 2, common_metals: 2, labor_contracts: 2 } },
   diplomat: { duration: 2, cost: { food: 2, common_textiles: 1, labor_contracts: 2 } },
   spy:      { duration: 2, cost: { food: 2, common_textiles: 1, labor_contracts: 2, basic_equipment: 1 } },
+
+  // ── Prototype LandUnitId — source coûts : shared/landUnitCatalog.ts creationCost ───────
+  // Coûts transcris depuis creationCost (clés filtrées sur RecruitmentCostResource).
+  // Durées provisoires par profil — à calibrer en V3-D7.
+  // Ressources utilisées : food, wood, labor_contracts, basic_equipment,
+  //   common_metals, common_textiles. Aucune ressource non autorisée.
+  // Seront recrutables par POST /start-recruitment dès maintenant.
+  // GET /recruitment-costs les expose automatiquement (UNIT_CATALOG ∩ RUNTIME_RECRUITMENT_COSTS).
+  // RecruitmentPanel ne les affiche pas encore — V3-D6-D.
+
+  // ── Infanterie légère ──────────────────────────────────────────────────────
+  militia:          { duration: 1, cost: { food: 2, labor_contracts: 1 } },
+  garrison:         { duration: 1, cost: { food: 2, labor_contracts: 1, wood: 1 } },
+  patrollers:       { duration: 2, cost: { food: 3, labor_contracts: 1, basic_equipment: 1 } },
+  scouts:           { duration: 2, cost: { food: 3, labor_contracts: 1, basic_equipment: 1 } },
+  light_infantry:   { duration: 2, cost: { food: 4, labor_contracts: 1, basic_equipment: 1 } },
+  // ── Infanterie lourde ──────────────────────────────────────────────────────
+  regular_infantry: { duration: 3, cost: { food: 4, labor_contracts: 1, basic_equipment: 1 } },
+  noble_infantry:   { duration: 4, cost: { food: 5, labor_contracts: 1, basic_equipment: 2 } },
+  shock_troops:     { duration: 4, cost: { food: 5, labor_contracts: 1, basic_equipment: 2 } },
+  // ── Distance ───────────────────────────────────────────────────────────────
+  bow_infantry:      { duration: 2, cost: { food: 4, labor_contracts: 1, wood: 1, common_textiles: 1 } },
+  crossbow_infantry: { duration: 3, cost: { food: 4, labor_contracts: 1, wood: 1, common_metals: 1, basic_equipment: 1 } },
+  // ── Technique ──────────────────────────────────────────────────────────────
+  sappers:          { duration: 3, cost: { food: 4, labor_contracts: 1, wood: 1, common_metals: 1, basic_equipment: 1 } },
+  field_engineers:  { duration: 4, cost: { food: 4, labor_contracts: 1, wood: 1, common_metals: 1, common_textiles: 1, basic_equipment: 1 } },
+  // ── Raid / Soutien ─────────────────────────────────────────────────────────
+  raid_troops:      { duration: 3, cost: { food: 4, labor_contracts: 1, basic_equipment: 1 } },
+  hunters:          { duration: 2, cost: { food: 3, labor_contracts: 1, wood: 1 } },
+  // ── Contrôle ───────────────────────────────────────────────────────────────
+  pikemen:          { duration: 3, cost: { food: 4, labor_contracts: 1, wood: 1, common_metals: 1, basic_equipment: 1 } },
 };
 
 // ─── startRecruitmentTransaction ─────────────────────────────────────────────

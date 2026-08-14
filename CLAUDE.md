@@ -2222,3 +2222,78 @@ Conséquences :
 **V3-D6-C** — Ajouter les 15 entrées dans `RUNTIME_RECRUITMENT_COSTS` avec les coûts de `creationCost` de `shared/landUnitCatalog.ts` et des durées provisoires par profil. Rendra les unités recrutables sans toucher à l'UI.
 
 **Statut V3-D6-B :** 15 LandUnitIds prototype dans `UNIT_CATALOG`. Passifs — non recrutables, non exposés par GET /recruitment-costs. `createProducedUnit()` les résoudra sans throw. Runtime stable.
+
+---
+
+## Ressources V3-D6-C — Coûts serveur prototype passifs
+
+### Objectif
+Ajouter les coûts et durées de recrutement des 15 LandUnitId prototype dans `RUNTIME_RECRUITMENT_COSTS`, pour que le backend puisse valider et débiter ces unités. Sans modifier l'UI.
+
+### Fichiers inspectés
+- `shared/landUnitCatalog.ts`, `server/recruitmentService.ts`, `server/unitCatalog.ts`
+- `server/routes/cities.ts`, `client/src/components/game/RecruitmentPanel.tsx`, `CLAUDE.md`
+
+### Fichiers modifiés
+| Fichier | Nature |
+|---|---|
+| `server/recruitmentService.ts` | 15 entrées prototype ajoutées dans `RUNTIME_RECRUITMENT_COSTS` ; legacy marqué temporaire |
+
+### Liste des 15 IDs prototype ajoutés dans RUNTIME_RECRUITMENT_COSTS
+
+| ID | duration | cost (ressources) |
+|---|---|---|
+| militia | 1 | food:2, labor_contracts:1 |
+| garrison | 1 | food:2, labor_contracts:1, wood:1 |
+| patrollers | 2 | food:3, labor_contracts:1, basic_equipment:1 |
+| scouts | 2 | food:3, labor_contracts:1, basic_equipment:1 |
+| light_infantry | 2 | food:4, labor_contracts:1, basic_equipment:1 |
+| regular_infantry | 3 | food:4, labor_contracts:1, basic_equipment:1 |
+| noble_infantry | 4 | food:5, labor_contracts:1, basic_equipment:2 |
+| shock_troops | 4 | food:5, labor_contracts:1, basic_equipment:2 |
+| bow_infantry | 2 | food:4, labor_contracts:1, wood:1, common_textiles:1 |
+| crossbow_infantry | 3 | food:4, labor_contracts:1, wood:1, common_metals:1, basic_equipment:1 |
+| sappers | 3 | food:4, labor_contracts:1, wood:1, common_metals:1, basic_equipment:1 |
+| field_engineers | 4 | food:4, labor_contracts:1, wood:1, common_metals:1, common_textiles:1, basic_equipment:1 |
+| raid_troops | 3 | food:4, labor_contracts:1, basic_equipment:1 |
+| hunters | 2 | food:3, labor_contracts:1, wood:1 |
+| pikemen | 3 | food:4, labor_contracts:1, wood:1, common_metals:1, basic_equipment:1 |
+
+### Source des coûts
+`creationCost` de `shared/landUnitCatalog.ts`, clés filtrées sur `RecruitmentCostResource` (food, wood, stone, common_metals, common_textiles, labor_contracts, basic_equipment).
+
+### Durées provisoires
+Par profil de l'unité : Commun = 1, Professionnel léger = 2, Professionnel = 3, Lourd/Spécialisé = 4. À calibrer en V3-D7.
+
+### Ressources autorisées uniquement
+Seules les clés de `RecruitmentCostResource` sont présentes dans chaque coût. Aucune ressource non autorisée (fracten, coal, oil, herbs, rare_metals…). ✅
+
+### Décision canonique — anciennes unités legacy
+Les 15 anciennes unités (warrior, spearman, swordsman, archer, crossbowman, catapult, trebuchet, horseman, knight, galley, warship, scout, settler, diplomat, spy) **seront supprimées** après migration UI et tests end-to-end (V3-D6-D/E/F). Un commentaire explicite les marque `"Legacy temporaire"` dans `RUNTIME_RECRUITMENT_COSTS`. Aucun nouveau système ne doit être construit sur elles.
+
+### Effet sur GET /recruitment-costs
+Désormais expose les 15 unités prototype, car elles sont présentes dans `UNIT_CATALOG` (V3-D6-B) **et** dans `RUNTIME_RECRUITMENT_COSTS` (V3-D6-C). Le filtre intersection est automatiquement satisfait.
+
+### Effet sur POST /start-recruitment
+Accepte techniquement les 15 IDs prototype si appelés directement (curl, tests). `startRecruitmentTransaction()` les trouvera dans `RUNTIME_RECRUITMENT_COSTS` et les débitera normalement.
+
+### Confirmations
+- **`RecruitmentPanel.tsx` inchangé.** ✅ (n'affiche pas encore les prototype — V3-D6-D)
+- **`shared/landUnitCatalog.ts` inchangé.** ✅
+- **`server/unitCatalog.ts` inchangé.** ✅
+- **`startRecruitmentTransaction()` inchangé.** ✅
+- **`productionCost:number` inchangé.** ✅
+- **Anciennes unités legacy conservées temporairement.** ✅
+
+### Résultat TypeScript
+`npx tsc --noEmit` : **187 erreurs** — baseline inchangée. ✅
+
+### Risques restants
+- `RecruitmentPanel` ne filtre pas encore les prototypes — les affichera dès V3-D6-D (prévu).
+- Durées et coûts provisoires non équilibrés — à revoir en V3-D7.
+- Legacy units toujours recrutables jusqu'à V3-D6-D ; ne pas en ajouter de nouvelles.
+
+### Prochaine étape recommandée
+**V3-D6-D** — Mettre à jour `RecruitmentPanel.tsx` pour afficher les 15 unités prototype issues de `GET /recruitment-costs`, et masquer ou retirer les IDs legacy de l'UI.
+
+**Statut V3-D6-C :** 15 coûts serveur prototype ajoutés dans `RUNTIME_RECRUITMENT_COSTS`. Unités recrutables par le backend. UI inchangée. Legacy marqué temporaire. TypeScript 187 — stable.

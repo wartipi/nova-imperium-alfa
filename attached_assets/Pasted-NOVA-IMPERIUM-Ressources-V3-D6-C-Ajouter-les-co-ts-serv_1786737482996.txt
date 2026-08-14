@@ -1,0 +1,327 @@
+NOVA IMPERIUM — Ressources V3-D6-C
+Ajouter les coûts serveur prototype dans RUNTIME_RECRUITMENT_COSTS
+
+RÔLE
+Tu es l’agent technique sur le repo Nova Imperium.
+Objectif : ajouter les coûts/durées serveur des 15 unités terrestres prototype dans RUNTIME_RECRUITMENT_COSTS, sans encore modifier l’UI.
+
+IMPORTANT — DÉCISION CANONIQUE
+
+Les anciennes unités runtime ne doivent PAS être conservées à terme.
+
+Anciennes unités à remplacer :
+- warrior
+- spearman
+- swordsman
+- archer
+- crossbowman
+- catapult
+- trebuchet
+- horseman
+- knight
+- galley
+- warship
+- scout
+- settler
+- diplomat
+- spy
+
+Nouvelles unités prototype canoniques :
+- militia
+- garrison
+- patrollers
+- scouts
+- light_infantry
+- regular_infantry
+- noble_infantry
+- shock_troops
+- bow_infantry
+- crossbow_infantry
+- sappers
+- field_engineers
+- raid_troops
+- hunters
+- pikemen
+
+Les anciennes unités peuvent rester temporairement pour éviter de casser l’UI actuelle, mais :
+- ne pas bâtir de nouveau système autour d’elles ;
+- ne pas les considérer comme état final ;
+- ne pas ajouter de nouveau contenu sur elles ;
+- documenter qu’elles seront supprimées après migration UI et test end-to-end.
+
+CONTEXTE VALIDÉ
+
+V3-D5 complet :
+- Recrutement runtime serveur-authoritative validé.
+- Le client envoie seulement { unitType }.
+- startRecruitmentTransaction() est atomique.
+- GET /api/cities/recruitment-costs expose UNIT_CATALOG ∩ RUNTIME_RECRUITMENT_COSTS.
+- RecruitmentPanel affiche les coûts serveur si disponibles.
+- Aucun débit client-side.
+- productionCost:number reste durée/progression.
+
+V3-D6-A :
+- Audit migration prototype validé.
+- createProducedUnit() dépend de UNIT_CATALOG[unitType].
+- Les ressources nécessaires aux coûts prototype existent déjà dans city_inventory.
+
+V3-D6-B :
+- Les 15 LandUnitId prototype ont été ajoutés passivement dans server/unitCatalog.ts.
+- Les anciennes unités runtime existent encore temporairement.
+- Les unités prototype ne sont pas encore recrutables, car absentes de RUNTIME_RECRUITMENT_COSTS.
+- Correction ID : utiliser hunters, jamais rangers.
+
+OBJECTIF DE CE BLOC
+
+Ajouter les 15 entrées prototype dans RUNTIME_RECRUITMENT_COSTS pour que le serveur puisse les valider et les débiter.
+
+Ce bloc ne doit pas encore :
+- modifier RecruitmentPanel.tsx ;
+- supprimer les anciennes unités runtime ;
+- afficher les unités prototype dans l’UI ;
+- modifier createProducedUnit() ;
+- modifier server/unitCatalog.ts sauf bug bloquant évident.
+
+Après ce bloc :
+- GET /api/cities/recruitment-costs exposera automatiquement les unités prototype, car elles seront présentes dans UNIT_CATALOG et RUNTIME_RECRUITMENT_COSTS.
+- POST /api/cities/:cityId/start-recruitment acceptera techniquement ces unitType si appelés directement.
+- RecruitmentPanel ne les affichera pas encore tant que V3-D6-D n’est pas fait.
+
+À INSPECTER AVANT MODIFICATION
+
+Lire :
+
+- shared/landUnitCatalog.ts
+- server/recruitmentService.ts
+- server/unitCatalog.ts
+- server/routes/cities.ts
+- client/src/components/game/RecruitmentPanel.tsx
+- CLAUDE.md
+
+Chercher :
+
+- RUNTIME_RECRUITMENT_COSTS
+- RuntimeRecruitmentEntry
+- RecruitmentCostResource
+- RECRUITMENT_COST_RESOURCES
+- normalizeRecruitmentCost
+- GET /recruitment-costs
+- UNIT_CATALOG
+- creationCost
+- maxMovementPerTurn
+- militia
+- hunters
+- rangers
+
+RESSOURCES AUTORISÉES POUR LES COÛTS
+
+Utiliser uniquement les ressources déjà supportées par RecruitmentCostResource :
+
+- food
+- wood
+- stone
+- common_metals
+- common_textiles
+- labor_contracts
+- basic_equipment
+
+Ne pas ajouter :
+- fracten
+- coal
+- oil
+- herbs
+- rare_metals_alloys
+- crystals
+- ressource rare/magique
+- nouvelle colonne
+- nouvelle clé économique
+
+COÛTS À AJOUTER
+
+Source : shared/landUnitCatalog.ts → creationCost.
+
+Ajouter dans RUNTIME_RECRUITMENT_COSTS exactement les 15 IDs suivants avec leurs coûts depuis creationCost :
+
+1. militia
+2. garrison
+3. patrollers
+4. scouts
+5. light_infantry
+6. regular_infantry
+7. noble_infantry
+8. shock_troops
+9. bow_infantry
+10. crossbow_infantry
+11. sappers
+12. field_engineers
+13. raid_troops
+14. hunters
+15. pikemen
+
+Ne pas utiliser “rangers”.
+
+DURÉES À AJOUTER
+
+shared/landUnitCatalog.ts ne contient pas forcément de duration/recruitmentTime.
+
+Définir des durées provisoires simples, documentées, cohérentes avec le poids de l’unité :
+
+Recommandation :
+
+- militia : 1
+- garrison : 1
+- patrollers : 2
+- scouts : 2
+- light_infantry : 2
+- regular_infantry : 3
+- noble_infantry : 4
+- shock_troops : 4
+- bow_infantry : 2
+- crossbow_infantry : 3
+- sappers : 3
+- field_engineers : 4
+- raid_troops : 3
+- hunters : 2
+- pikemen : 3
+
+Ces durées sont provisoires.
+Ne pas modifier productionCost:number : il reste la durée en tours.
+
+À FAIRE — server/recruitmentService.ts
+
+1. Étendre RUNTIME_RECRUITMENT_COSTS avec les 15 IDs prototype.
+
+2. Conserver temporairement les anciennes entrées runtime.
+
+Important :
+- Les anciennes entrées restent seulement pour éviter de casser RecruitmentPanel avant V3-D6-D.
+- Ajouter un commentaire clair au-dessus ou près des anciennes entrées :
+  “Legacy temporaire — à supprimer après migration UI V3-D6-D/E/F.”
+- Ajouter un commentaire clair au-dessus des nouvelles entrées :
+  “Prototype LandUnitId — source coûts : shared/landUnitCatalog.ts creationCost.”
+
+3. Ne pas modifier le type RecruitmentCostResource sauf si strictement nécessaire.
+Normalement aucune nouvelle ressource n’est nécessaire.
+
+4. Ne pas modifier startRecruitmentTransaction().
+
+5. Ne pas modifier normalizeRecruitmentCost().
+
+6. Ne pas modifier debitCityInventoryForRecruitment().
+
+7. Vérifier que chaque coût ne contient que des clés autorisées.
+
+À FAIRE — server/routes/cities.ts
+
+Ne pas modifier la route sauf si commentaire strictement nécessaire.
+
+Confirmer :
+- GET /recruitment-costs exposera désormais les nouvelles unités prototype automatiquement.
+- Le filtre UNIT_CATALOG ∩ RUNTIME_RECRUITMENT_COSTS reste correct.
+
+À FAIRE — CLAUDE.md
+
+Ajouter une section :
+
+“Ressources V3-D6-C — Coûts serveur prototype passifs”
+
+Inclure :
+
+- objectif ;
+- fichiers inspectés ;
+- fichiers modifiés ;
+- liste des 15 IDs prototype ajoutés dans RUNTIME_RECRUITMENT_COSTS ;
+- source des coûts : shared/landUnitCatalog.ts creationCost ;
+- durées provisoires choisies ;
+- confirmation ressources autorisées seulement ;
+- confirmation anciennes unités conservées temporairement seulement ;
+- décision canonique : les anciennes unités seront supprimées après migration UI/test ;
+- confirmation RecruitmentPanel inchangé ;
+- confirmation server/unitCatalog.ts inchangé sauf si non modifié ;
+- confirmation shared/landUnitCatalog.ts inchangé ;
+- confirmation startRecruitmentTransaction inchangé ;
+- confirmation productionCost:number inchangé ;
+- effet attendu sur GET /recruitment-costs ;
+- effet attendu sur POST /start-recruitment ;
+- résultat TypeScript ;
+- risques restants ;
+- prochaine étape recommandée.
+
+À NE PAS FAIRE
+
+- Ne pas modifier RecruitmentPanel.tsx.
+- Ne pas modifier shared/landUnitCatalog.ts.
+- Ne pas modifier server/unitCatalog.ts sauf bug bloquant évident.
+- Ne pas supprimer les anciennes unités dans ce bloc.
+- Ne pas modifier createProducedUnit().
+- Ne pas modifier tickCityProduction().
+- Ne pas modifier startRecruitmentTransaction().
+- Ne pas modifier productionCost:number.
+- Ne pas ajouter de ressource économique.
+- Ne pas ajouter fracten.
+- Ne pas ajouter coal/oil/herbs.
+- Ne pas brancher siegeWearPoints.
+- Ne pas brancher upkeep.
+- Ne pas modifier ActionPointsCosts.ts.
+- Ne pas modifier bâtiments/économie.
+- Ne pas ajouter rangers.
+- Ne pas créer de migration DB.
+
+VALIDATION TECHNIQUE
+
+Exécuter :
+
+npx tsc --noEmit
+
+Baseline connue :
+- 187 erreurs TypeScript préexistantes.
+
+Objectif :
+- rester à 187 erreurs ;
+- zéro régression.
+
+TESTS À DOCUMENTER
+
+Documenter au minimum :
+
+1. RUNTIME_RECRUITMENT_COSTS contient les 15 nouveaux IDs prototype.
+2. Chaque coût utilise uniquement les ressources autorisées.
+3. Les coûts viennent de creationCost dans shared/landUnitCatalog.ts.
+4. Les durées provisoires sont documentées.
+5. GET /api/cities/recruitment-costs expose maintenant les IDs prototype parce qu’ils existent dans UNIT_CATALOG et RUNTIME_RECRUITMENT_COSTS.
+6. POST /start-recruitment peut maintenant accepter un ID prototype si appelé directement.
+7. RecruitmentPanel n’affiche pas encore ces unités.
+8. Anciennes unités runtime encore présentes temporairement.
+9. Aucun débit client-side.
+10. TypeScript reste à 187 erreurs.
+
+SORTIE ATTENDUE
+
+Répondre avec :
+
+1. Fichiers inspectés.
+2. Fichiers modifiés.
+3. Liste des 15 coûts prototype ajoutés.
+4. Source des coûts.
+5. Durées provisoires.
+6. Confirmation ressources autorisées seulement.
+7. Confirmation anciennes unités conservées temporairement seulement.
+8. Effet sur GET /recruitment-costs.
+9. Effet sur POST /start-recruitment.
+10. Confirmation RecruitmentPanel inchangé.
+11. Confirmation shared/landUnitCatalog.ts inchangé.
+12. Confirmation startRecruitmentTransaction inchangé.
+13. Confirmation productionCost:number inchangé.
+14. Résultat TypeScript.
+15. Risques restants.
+16. Prochaine étape recommandée.
+
+STATUT ATTENDU
+
+Les 15 unités prototype ont des coûts serveur.
+Elles deviennent techniquement acceptées par le backend.
+Elles ne sont pas encore affichées dans l’UI.
+Les anciennes unités sont marquées comme temporaires.
+Aucune suppression legacy dans ce bloc.
+Aucune modification DB.
+productionCost:number conservé.
