@@ -13,7 +13,7 @@
 
 import { eq, and, gte, sql } from "drizzle-orm";
 import { db } from "./db";
-import { cityInventory } from "../shared/schema";
+import { cityInventory, cityProduction } from "../shared/schema";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -297,6 +297,168 @@ export const RUNTIME_RECRUITMENT_COSTS: Record<string, RuntimeRecruitmentEntry> 
   diplomat: { duration: 2, cost: { food: 2, common_textiles: 1, labor_contracts: 2 } },
   spy:      { duration: 2, cost: { food: 2, common_textiles: 1, labor_contracts: 2, basic_equipment: 1 } },
 };
+
+// ─── startRecruitmentTransaction ─────────────────────────────────────────────
+// Exécute le démarrage du recrutement dans une seule transaction DB.
+// Garantit que débit city_inventory et création city_production sont soit
+// tous deux appliqués, soit tous deux annulés (rollback automatique).
+//
+// Séquence à l'intérieur de la transaction :
+//   1. Vérifier qu'aucune production n'est active → throw PRODUCTION_ALREADY_ACTIVE
+//   2. Lire le snapshot city_inventory → early check lisible
+//   3. UPDATE conditionnel atomique (garde SQL ≥ coût par colonne) → RETURNING
+//   4. Si 0 lignes retournées → throw INSUFFICIENT_CITY_INVENTORY (concurrence)
+//   5. INSERT / UPSERT city_production
+//   → rollback automatique si n'importe quelle étape throw
+
+export interface StartRecruitmentParams {
+  cityId:   number;
+  unitType: string;
+  entry:    RuntimeRecruitmentEntry;
+  playerId: string;
+}
+
+export interface StartRecruitmentResult {
+  ok:         true;
+  debited:    RecruitmentResourceCost;
+  production: { type: string; name: string; cost: number; progress: number };
+}
+
+export async function startRecruitmentTransaction(
+  params: StartRecruitmentParams,
+): Promise<StartRecruitmentResult> {
+  const { cityId, unitType, entry, playerId } = params;
+  const cost = normalizeRecruitmentCost(entry.cost);
+
+  return await db.transaction(async (tx) => {
+    // ── 1. Vérification production active ──────────────────────────────────────
+    const existing = await tx
+      .select({ id: cityProduction.id })
+      .from(cityProduction)
+      .where(eq(cityProduction.cityId, cityId))
+      .limit(1);
+
+    if (existing.length > 0) {
+      const err = new Error("PRODUCTION_ALREADY_ACTIVE") as any;
+      err.code = "PRODUCTION_ALREADY_ACTIVE";
+      throw err;
+    }
+
+    // ── 2. Snapshot inventaire (early check — erreur lisible) ──────────────────
+    const hasAnyCost = RECRUITMENT_COST_RESOURCES.some(r => (cost[r] ?? 0) > 0);
+
+    const invRows = await tx
+      .select()
+      .from(cityInventory)
+      .where(eq(cityInventory.cityId, cityId))
+      .limit(1);
+
+    const r = invRows[0] ?? null;
+    const snapshot: CityInventorySnapshot = {
+      cityId,
+      food:            r?.food            ?? 0,
+      wood:            r?.wood            ?? 0,
+      stone:           r?.stone           ?? 0,
+      common_metals:   r?.common_metals   ?? 0,
+      common_textiles: (r as any)?.common_textiles ?? 0,
+      labor_contracts: (r as any)?.labor_contracts ?? 0,
+      basic_equipment: (r as any)?.basic_equipment ?? 0,
+    };
+
+    if (hasAnyCost) {
+      const earlyCheck = canAffordRecruitmentCost(snapshot, cost);
+      if (!earlyCheck.ok) {
+        const err = new Error("INSUFFICIENT_CITY_INVENTORY") as any;
+        err.code    = "INSUFFICIENT_CITY_INVENTORY";
+        err.missing = earlyCheck.missing;
+        throw err;
+      }
+
+      // ── 3. UPDATE conditionnel atomique (dans la transaction) ────────────────
+      const updates: Record<string, any> = { updatedAt: new Date() };
+      if ((cost.food            ?? 0) > 0) updates.food            = sql`${cityInventory.food}            - ${cost.food!}`;
+      if ((cost.wood            ?? 0) > 0) updates.wood            = sql`${cityInventory.wood}            - ${cost.wood!}`;
+      if ((cost.stone           ?? 0) > 0) updates.stone           = sql`${cityInventory.stone}           - ${cost.stone!}`;
+      if ((cost.common_metals   ?? 0) > 0) updates.common_metals   = sql`${cityInventory.common_metals}   - ${cost.common_metals!}`;
+      if ((cost.common_textiles ?? 0) > 0) updates.common_textiles = sql`${cityInventory.common_textiles} - ${cost.common_textiles!}`;
+      if ((cost.labor_contracts ?? 0) > 0) updates.labor_contracts = sql`${cityInventory.labor_contracts} - ${cost.labor_contracts!}`;
+      if ((cost.basic_equipment ?? 0) > 0) updates.basic_equipment = sql`${cityInventory.basic_equipment} - ${cost.basic_equipment!}`;
+
+      const whereConditions = [eq(cityInventory.cityId, cityId)];
+      if ((cost.food            ?? 0) > 0) whereConditions.push(gte(cityInventory.food,            cost.food!));
+      if ((cost.wood            ?? 0) > 0) whereConditions.push(gte(cityInventory.wood,            cost.wood!));
+      if ((cost.stone           ?? 0) > 0) whereConditions.push(gte(cityInventory.stone,           cost.stone!));
+      if ((cost.common_metals   ?? 0) > 0) whereConditions.push(gte(cityInventory.common_metals,   cost.common_metals!));
+      if ((cost.common_textiles ?? 0) > 0) whereConditions.push(gte((cityInventory as any).common_textiles, cost.common_textiles!));
+      if ((cost.labor_contracts ?? 0) > 0) whereConditions.push(gte((cityInventory as any).labor_contracts, cost.labor_contracts!));
+      if ((cost.basic_equipment ?? 0) > 0) whereConditions.push(gte((cityInventory as any).basic_equipment, cost.basic_equipment!));
+
+      const updated = await tx
+        .update(cityInventory)
+        .set(updates)
+        .where(and(...whereConditions))
+        .returning({ cityId: cityInventory.cityId });
+
+      // ── 4. 0 lignes → concurrence (rollback automatique via throw) ────────────
+      if (updated.length === 0) {
+        const freshRows = await tx
+          .select()
+          .from(cityInventory)
+          .where(eq(cityInventory.cityId, cityId))
+          .limit(1);
+        const fr = freshRows[0] ?? null;
+        const fresh: CityInventorySnapshot = {
+          cityId,
+          food:            fr?.food            ?? 0,
+          wood:            fr?.wood            ?? 0,
+          stone:           fr?.stone           ?? 0,
+          common_metals:   fr?.common_metals   ?? 0,
+          common_textiles: (fr as any)?.common_textiles ?? 0,
+          labor_contracts: (fr as any)?.labor_contracts ?? 0,
+          basic_equipment: (fr as any)?.basic_equipment ?? 0,
+        };
+        const freshCheck = canAffordRecruitmentCost(fresh, cost);
+        const err = new Error("INSUFFICIENT_CITY_INVENTORY") as any;
+        err.code    = "INSUFFICIENT_CITY_INVENTORY";
+        err.missing = freshCheck.missing;
+        throw err;
+      }
+    }
+
+    // ── 5. UPSERT city_production (dans la même transaction) ──────────────────
+    await tx
+      .insert(cityProduction)
+      .values({
+        cityId,
+        productionType:     "unit",
+        productionName:     unitType,
+        productionCost:     entry.duration,
+        productionProgress: 0,
+        queuedByPlayerId:   playerId,
+      })
+      .onConflictDoUpdate({
+        target: cityProduction.cityId,
+        set: {
+          productionType:     "unit",
+          productionName:     unitType,
+          productionCost:     entry.duration,
+          productionProgress: 0,
+          queuedByPlayerId:   playerId,
+        },
+      });
+
+    return {
+      ok:      true as const,
+      debited: cost,
+      production: {
+        type:     "unit",
+        name:     unitType,
+        cost:     entry.duration,
+        progress: 0,
+      },
+    };
+  });
+}
 
 // ─── previewRecruitmentCostPayment ────────────────────────────────────────────
 // Retourne une comparaison coût/stock sans aucun débit.

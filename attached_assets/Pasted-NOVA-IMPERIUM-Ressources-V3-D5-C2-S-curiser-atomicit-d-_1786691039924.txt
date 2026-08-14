@@ -1,0 +1,324 @@
+NOVA IMPERIUM — Ressources V3-D5-C2
+Sécuriser atomicité débit city_inventory + setProduction
+
+RÔLE
+Tu es l’agent technique sur le repo Nova Imperium.
+Objectif : corriger le risque critique identifié en V3-D5-C : éviter toute perte de ressources si le débit city_inventory réussit mais que setProduction() échoue ensuite.
+
+IMPORTANT
+
+Ce bloc est une correction ciblée de sûreté.
+Ne pas modifier RecruitmentPanel.tsx.
+Ne pas brancher l’UI.
+Ne pas modifier shared/landUnitCatalog.ts.
+Ne pas modifier server/unitCatalog.ts.
+Ne pas modifier les coûts des unités.
+Ne pas créer de nouvelles unités prototype.
+Ne pas modifier tickCityProduction().
+Ne pas modifier createProducedUnit().
+Ne pas modifier productionCost:number.
+Ne pas migrer coal/oil/herbs.
+Ne pas modifier les bâtiments producteurs.
+Mettre à jour CLAUDE.md.
+
+CONTEXTE VALIDÉ
+
+V3-D5-B :
+- server/recruitmentService.ts contient :
+  - normalizeRecruitmentCost()
+  - getCityInventoryForRecruitment()
+  - canAffordRecruitmentCost()
+  - debitCityInventoryForRecruitment()
+  - previewRecruitmentCostPayment()
+- debitCityInventoryForRecruitment() est concurrence-safe par UPDATE conditionnel.
+
+V3-D5-C :
+- POST /api/cities/:cityId/start-recruitment existe.
+- La route :
+  1. vérifie accès ville ;
+  2. valide unitType ;
+  3. vérifie UNIT_CATALOG ;
+  4. vérifie RUNTIME_RECRUITMENT_COSTS ;
+  5. vérifie production active ;
+  6. débite city_inventory ;
+  7. appelle setProduction().
+- Problème restant :
+  - débit et setProduction ne sont pas dans une transaction unique.
+  - si setProduction échoue après débit, les ressources sont perdues.
+
+OBJECTIF DE CE BLOC
+
+Rendre le démarrage du recrutement atomique côté serveur.
+
+Résultat attendu :
+- soit le débit + city_production sont tous deux appliqués ;
+- soit aucun des deux n’est appliqué.
+
+À INSPECTER AVANT MODIFICATION
+
+Lire :
+
+- server/recruitmentService.ts
+- server/routes/cities.ts
+- server/cityService.ts
+- shared/schema.ts
+- server/db.ts
+- tout usage existant de :
+  - db.transaction
+  - cityProduction
+  - setProduction
+  - debitCityInventoryForRecruitment
+  - start-construction
+  - start-recruitment
+
+PROBLÈME À RÉSOUDRE
+
+Actuellement :
+
+debitCityInventoryForRecruitment(cityId, cost)
+await setProduction(cityId, ...)
+
+Si setProduction() throw après le débit, il n’y a pas de rollback.
+
+APPROCHE RECOMMANDÉE
+
+Créer une fonction serveur dédiée dans `server/recruitmentService.ts` :
+
+startRecruitmentTransaction(params)
+
+ou nom équivalent.
+
+Cette fonction doit faire, dans une seule transaction DB :
+
+1. vérifier qu’aucune production n’est active pour la ville ;
+2. débiter city_inventory avec garde SQL conditionnelle ;
+3. insérer/upsert city_production ou appeler une variante transactionnelle de setProduction ;
+4. retourner :
+   - ok
+   - debited
+   - production
+
+IMPORTANT TECHNIQUE
+
+Le helper actuel `debitCityInventoryForRecruitment()` utilise `db` directement.
+
+Pour permettre une transaction, ajouter une variante qui accepte un client transactionnel, par exemple :
+
+debitCityInventoryForRecruitmentTx(tx, cityId, rawCost)
+
+ou adapter le helper existant pour accepter un paramètre optionnel :
+
+debitCityInventoryForRecruitment(cityId, rawCost, tx?)
+
+Choisir l’approche la moins risquée.
+
+Le code doit éviter de dupliquer toute la logique si possible, mais la priorité est la sûreté et la lisibilité.
+
+TRANSACTION
+
+Utiliser la transaction Drizzle disponible via `db.transaction` si supportée.
+
+Structure attendue :
+
+await db.transaction(async (tx) => {
+  // check production active using tx
+  // debit using tx
+  // set production using tx or direct insert/update using tx
+})
+
+Si `setProduction()` ne peut pas accepter `tx`, créer une petite fonction interne transactionnelle qui écrit directement dans `city_production` avec la même structure que `setProduction()`.
+
+Important :
+- ne pas refactoriser tout cityService.ts ;
+- ne pas modifier les routes existantes sauf start-recruitment ;
+- ne pas casser PUT /production.
+
+CHECK PRODUCTION ACTIVE
+
+La vérification “production déjà active” doit être dans la transaction.
+
+Si une production existe :
+- throw une erreur métier ou retourner 409 depuis la route.
+- Ne rien débiter.
+
+DÉBIT
+
+Le débit doit rester concurrence-safe :
+- UPDATE conditionnel ;
+- WHERE city_id = cityId ;
+- AND ressource >= coût ;
+- décréments SQL relatifs ;
+- RETURNING.
+
+Si le débit échoue :
+- relire l’inventaire dans la transaction ou immédiatement après ;
+- retourner/throw `INSUFFICIENT_CITY_INVENTORY` avec `missing[]`.
+
+SET PRODUCTION
+
+L’écriture dans `city_production` doit être dans la même transaction que le débit.
+
+Utiliser les mêmes valeurs qu’en V3-D5-C :
+
+{
+  productionType: "unit",
+  productionName: unitType,
+  productionCost: recruitmentEntry.duration,
+  productionProgress: 0
+}
+
+ou les noms exacts du schema Drizzle.
+
+Ne pas modifier productionCost:number.
+Il reste la durée/progression.
+
+ROUTE START-RECRUITMENT
+
+Mettre à jour :
+
+POST /api/cities/:cityId/start-recruitment
+
+Elle doit maintenant appeler la fonction transactionnelle au lieu de faire :
+
+debitCityInventoryForRecruitment()
+puis setProduction()
+
+La route conserve :
+
+- checkCityAccess()
+- validation cityId
+- validation unitType
+- vérification UNIT_CATALOG
+- vérification RUNTIME_RECRUITMENT_COSTS
+- réponses structurées
+
+Mais le check production active + débit + city_production doivent être atomiques.
+
+GESTION ERREURS
+
+1. unitType absent :
+- 400
+
+2. unitType inconnu :
+- 400
+
+3. aucun coût défini :
+- 400
+
+4. production active :
+- 409
+- réponse :
+{
+  "error": "PRODUCTION_ALREADY_ACTIVE",
+  "message": "Une production est déjà en cours dans cette ville"
+}
+
+5. ressources insuffisantes :
+- 400
+- réponse :
+{
+  "error": "INSUFFICIENT_CITY_INVENTORY",
+  "missing": [...]
+}
+
+6. erreur inattendue :
+- 500
+
+À NE PAS FAIRE
+
+- Ne pas brancher RecruitmentPanel.tsx.
+- Ne pas modifier apiSetProduction().
+- Ne pas modifier trainUnit().
+- Ne pas supprimer PUT /api/cities/:cityId/production.
+- Ne pas modifier tickCityProduction().
+- Ne pas modifier createProducedUnit().
+- Ne pas créer de LandUnitId prototype dans server/unitCatalog.ts.
+- Ne pas importer shared/landUnitCatalog.ts.
+- Ne pas ajouter d’upkeep.
+- Ne pas ajouter de remboursement d’annulation.
+- Ne pas changer productionCost:number.
+
+VALIDATION TECHNIQUE
+
+Exécuter :
+
+npx tsc --noEmit
+
+Baseline connue :
+- 187 erreurs TypeScript préexistantes.
+
+Objectif :
+- rester à 187 erreurs ;
+- zéro régression.
+
+TESTS À DOCUMENTER
+
+Documenter les tests/simulations :
+
+1. Production déjà active :
+- aucun débit.
+- réponse 409.
+
+2. Ressources insuffisantes :
+- aucun débit.
+- réponse 400 + missing[].
+
+3. Ressources suffisantes :
+- débit appliqué.
+- city_production créée.
+- réponse 201.
+
+4. Échec forcé ou simulé de création production :
+- rollback attendu.
+- aucun débit persistant.
+
+5. Double appel rapide :
+- un seul appel peut réussir.
+- l’autre échoue par production active ou stock insuffisant.
+- aucun débit double non associé à une production.
+
+CLAUDE.md
+
+Ajouter une section :
+
+“Ressources V3-D5-C2 — Atomicité start-recruitment”
+
+Inclure :
+
+- objectif ;
+- fichiers inspectés ;
+- fichiers modifiés ;
+- stratégie transactionnelle choisie ;
+- helpers ajoutés/modifiés ;
+- confirmation débit + city_production atomiques ;
+- gestion production active ;
+- gestion insuffisance ressources ;
+- confirmation RecruitmentPanel non modifié ;
+- confirmation productionCost:number inchangé ;
+- confirmation shared/landUnitCatalog.ts passif ;
+- résultat TypeScript ;
+- risques restants ;
+- prochaine étape recommandée.
+
+SORTIE ATTENDUE
+
+Répondre avec :
+
+1. Fichiers inspectés.
+2. Fichiers modifiés.
+3. Fonction transactionnelle ajoutée ou modifiée.
+4. Description du flux atomique.
+5. Gestion des erreurs.
+6. Confirmation que l’UI n’est pas branchée.
+7. Confirmation que productionCost:number reste durée/progression.
+8. Résultat TypeScript.
+9. Risques restants.
+10. Prochaine étape recommandée.
+
+STATUT ATTENDU
+
+start-recruitment atomique.
+Aucune perte possible entre débit et city_production.
+Ancienne UI inchangée.
+Aucune unité prototype branchée.
+productionCost:number conservé.

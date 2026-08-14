@@ -1433,3 +1433,78 @@ Le débit `city_inventory` et l'UPSERT `city_production` ne sont **pas** dans un
 **V3-D5-D** — Adapter `RecruitmentPanel.tsx` pour appeler `POST /start-recruitment` et afficher les coûts depuis le catalogue prototype.
 
 **Statut V3-D5-C :** Route serveur prête. Débit multi-ressources actif uniquement via la nouvelle route. Ancien recrutement UI inchangé. Aucune unité prototype branchée.
+
+---
+
+## Ressources V3-D5-C2 — Atomicité start-recruitment
+
+### Objectif
+Éliminer le risque de perte de ressources identifié en V3-D5-C : débit `city_inventory` et création `city_production` sont désormais dans une seule transaction DB — soit les deux sont appliqués, soit aucun.
+
+### Fichiers inspectés
+- `server/recruitmentService.ts`, `server/routes/cities.ts`
+- `server/cityService.ts`, `shared/schema.ts`, `server/db.ts`
+
+### Fichiers modifiés
+| Fichier | Nature |
+|---|---|
+| `server/recruitmentService.ts` | Ajout import `cityProduction` + `startRecruitmentTransaction()` |
+| `server/routes/cities.ts` | Import mis à jour + route simplifiée |
+
+---
+
+### Stratégie transactionnelle
+
+`db.transaction(async (tx) => { ... })` via `drizzle-orm/neon-serverless` + Pool. Tout throw à l'intérieur déclenche un rollback automatique.
+
+### Fonction transactionnelle : `startRecruitmentTransaction(params)`
+
+**Signature :** `{ cityId, unitType, entry: RuntimeRecruitmentEntry, playerId } → StartRecruitmentResult`
+
+**Séquence à l'intérieur de la transaction :**
+1. `tx.select` sur `city_production` → throw `PRODUCTION_ALREADY_ACTIVE` si ligne existante
+2. `tx.select` sur `city_inventory` → snapshot + `canAffordRecruitmentCost` → throw `INSUFFICIENT_CITY_INVENTORY` si manque
+3. `tx.update(cityInventory)` UPDATE conditionnel (garde SQL `≥ coût`, décréments relatifs, RETURNING)
+4. Si `RETURNING` = 0 lignes → re-read frais + throw `INSUFFICIENT_CITY_INVENTORY` (cas concurrence)
+5. `tx.insert(cityProduction)` UPSERT `{ type:'unit', name:unitType, cost:duration, progress:0 }`
+6. Retourne `{ ok, debited, production }`
+
+**Rollback automatique si :** production déjà active / ressources insuffisantes / concurrence / erreur UPSERT.
+
+### Route mise à jour
+
+`POST /api/cities/:cityId/start-recruitment` appelle uniquement `startRecruitmentTransaction()` pour les étapes 4-7. La vérification production active est maintenant **dans** la transaction.
+
+**Gestion des erreurs :**
+| Code | HTTP | Réponse |
+|---|---|---|
+| `PRODUCTION_ALREADY_ACTIVE` | 409 | `{ error, message }` |
+| `INSUFFICIENT_CITY_INVENTORY` | 400 | `{ error, missing[] }` |
+| Erreur inattendue | 500 | message générique |
+
+### Tests documentés
+| Cas | Comportement attendu |
+|---|---|
+| Production active | Transaction throw → 409, aucun débit |
+| Ressources insuffisantes | Transaction throw → 400 + missing[], aucun débit |
+| Ressources suffisantes | Débit + city_production créés atomiquement → 201 |
+| Échec simulé UPSERT city_production | Rollback → débit annulé, aucune perte |
+| Double appel rapide | 2e échoue par PRODUCTION_ALREADY_ACTIVE (dans la transaction) ou garde SQL 0-lignes |
+
+### Confirmations
+- **`RecruitmentPanel.tsx` non modifié.**
+- **`productionCost:number` inchangé** — `cost` dans `city_production` reste la durée en tours.
+- **`shared/landUnitCatalog.ts` passif** — non importé, non modifié.
+- **`tickCityProduction()` / `createProducedUnit()` non modifiés.**
+
+### Résultat TypeScript
+`npx tsc --noEmit` : **187 erreurs** — baseline inchangée.
+
+### Risques restants
+- `debitCityInventoryForRecruitment()` autonome (non transactionnel) reste exporté — à ne pas utiliser depuis start-recruitment (remplacé par `startRecruitmentTransaction`). Peut rester pour usage isolé futur.
+- Pas de remboursement en cas d'annulation de production — délibéré jusqu'à V3-D5-F.
+
+### Prochaine étape recommandée
+**V3-D5-D** — Adapter `RecruitmentPanel.tsx` pour appeler `POST /start-recruitment` et afficher les coûts depuis le catalogue.
+
+**Statut V3-D5-C2 :** start-recruitment atomique. Aucune perte possible entre débit et city_production. UI inchangée. Aucune unité prototype branchée.

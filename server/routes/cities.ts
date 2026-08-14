@@ -5,7 +5,7 @@ import type { AuthRequest } from "../middleware/auth";
 import { db } from "../db";
 import { cityPendingHarvest, cityInventory, cityBuildings, cities, colonies, cityProduction } from "../../shared/schema";
 import { UNIT_CATALOG } from "../unitCatalog";
-import { debitCityInventoryForRecruitment, RUNTIME_RECRUITMENT_COSTS } from "../recruitmentService";
+import { RUNTIME_RECRUITMENT_COSTS, startRecruitmentTransaction } from "../recruitmentService";
 import {
   getMyCities,
   getCityByColony,
@@ -672,24 +672,22 @@ router.post("/:cityId/start-recruitment", requireAuth, async (req: AuthRequest, 
       });
     }
 
-    // ── 4. Vérification production déjà active ────────────────────────────────
-    const existingProduction = await db
-      .select({ id: cityProduction.id })
-      .from(cityProduction)
-      .where(eq(cityProduction.cityId, cityId))
-      .limit(1);
-
-    if (existingProduction.length > 0) {
-      return res.status(409).json({
-        error: "Une production est déjà en cours dans cette ville",
-      });
-    }
-
-    // ── 5 & 6. Débit atomique city_inventory ──────────────────────────────────
-    let debitResult;
+    // ── 4-7. Transaction atomique : check production + débit + city_production ─
+    let txResult;
     try {
-      debitResult = await debitCityInventoryForRecruitment(cityId, recruitmentEntry.cost);
+      txResult = await startRecruitmentTransaction({
+        cityId,
+        unitType,
+        entry:    recruitmentEntry,
+        playerId: req.user!.id,
+      });
     } catch (err: any) {
+      if (err?.code === "PRODUCTION_ALREADY_ACTIVE") {
+        return res.status(409).json({
+          error:   "PRODUCTION_ALREADY_ACTIVE",
+          message: "Une production est déjà en cours dans cette ville",
+        });
+      }
       if (err?.code === "INSUFFICIENT_CITY_INVENTORY") {
         return res.status(400).json({
           error:   "INSUFFICIENT_CITY_INVENTORY",
@@ -699,34 +697,9 @@ router.post("/:cityId/start-recruitment", requireAuth, async (req: AuthRequest, 
       throw err; // erreur inattendue → 500
     }
 
-    // ── 7. Lancement production ───────────────────────────────────────────────
-    // Risque résiduel : si setProduction échoue ici, le débit est déjà effectué.
-    try {
-      await setProduction(
-        cityId,
-        {
-          type:     "unit",
-          name:     unitType,
-          cost:     recruitmentEntry.duration,
-          progress: 0,
-        },
-        req.user!.id,
-      );
-    } catch (prodErr) {
-      // Débit effectué mais production non enfilée — logguer explicitement
-      console.error(
-        `[start-recruitment] CRITIQUE — débit effectué mais setProduction a échoué.` +
-        ` cityId=${cityId} unitType=${unitType} debited=${JSON.stringify(debitResult.debited)}`,
-        prodErr,
-      );
-      return res.status(500).json({
-        error: "Erreur lors du lancement de la production après débit — contacter un administrateur",
-      });
-    }
-
     console.log(
-      `[start-recruitment] OK — cityId=${cityId} unitType=${unitType}` +
-      ` duration=${recruitmentEntry.duration} debited=${JSON.stringify(debitResult.debited)}` +
+      `[start-recruitment] OK (atomique) — cityId=${cityId} unitType=${unitType}` +
+      ` duration=${recruitmentEntry.duration} debited=${JSON.stringify(txResult.debited)}` +
       ` player=${req.user!.id}`,
     );
 
@@ -734,13 +707,8 @@ router.post("/:cityId/start-recruitment", requireAuth, async (req: AuthRequest, 
       ok:       true,
       cityId,
       unitType,
-      production: {
-        type:     "unit",
-        name:     unitType,
-        cost:     recruitmentEntry.duration,
-        progress: 0,
-      },
-      debited: debitResult.debited,
+      production: txResult.production,
+      debited:    txResult.debited,
     });
   } catch (err) {
     console.error("[POST /api/cities/:cityId/start-recruitment] Erreur:", err);
