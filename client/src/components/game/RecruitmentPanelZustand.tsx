@@ -314,9 +314,12 @@ export function RecruitmentPanelZustand() {
   return (
     <div className="space-y-4">
       <div className="text-center">
-        <h4 className="font-bold text-base mb-3 text-amber-900">Recrutement Nova Imperium (Zustand)</h4>
+        <h4 className="font-bold text-base mb-3 text-amber-900">Catalogue des unités (référence)</h4>
+        <div className="text-xs text-blue-700 bg-blue-50 border border-blue-300 rounded p-2 mb-1">
+          📋 Panneau informatif — pour former des unités, utilisez l'onglet <strong>Recrutement</strong> de votre ville.
+        </div>
         <div className="text-xs text-orange-700 bg-orange-100 border border-orange-300 rounded p-2">
-          📝 Version collaborative - Stats à définir ensemble
+          📝 Statistiques de combat à calibrer
         </div>
       </div>
 

@@ -346,17 +346,22 @@ export function RecruitmentPanel({ cityId }: RecruitmentPanelProps = {}) {
                             const serverEntry = serverRecruitmentCosts?.[unit.id];
                             const displayCost = serverEntry ? serverEntry.cost : unit.cost;
                             const displayDuration = serverEntry ? serverEntry.duration : unit.recruitmentTime;
-                            const apCost = getIndicativeActionPointCost(unit.id);
                             const barracksLvl = Math.min(4, Math.max(0, (city as any).buildingLevels?.barracks ?? 0));
                             const reqLvl = BARRACKS_REQUIRED_LEVEL_BY_UNIT[unit.id] ?? 1;
                             return (
                               <>
                                 <div className="text-xs font-medium">{unit.name}</div>
+                                {/* Coût de recrutement — source serveur si disponible */}
                                 <div className="text-xs text-amber-700">
-                                  {formatResourceCost(displayCost as Record<string, number | undefined>)} | {apCost} ⚡
+                                  {serverEntry
+                                    ? `Coût : ${formatResourceCost(displayCost as Record<string, number | undefined>)}`
+                                    : 'Coût : chargement…'}
                                 </div>
+                                {/* Durée de production — source serveur si disponible */}
                                 <div className="text-xs text-purple-600">
-                                  🕐 {displayDuration} tour{displayDuration > 1 ? 's' : ''} | ⚔️ {unit.strength}
+                                  {serverEntry
+                                    ? `Durée : ${displayDuration} tour${displayDuration > 1 ? 's' : ''}`
+                                    : 'Durée : chargement…'}
                                 </div>
                                 {barracksLvl < reqLvl && (
                                   <div className="text-xs text-red-600 font-medium mt-0.5">
@@ -371,28 +376,27 @@ export function RecruitmentPanel({ cityId }: RecruitmentPanelProps = {}) {
                       {(() => {
                         const barracksLvl = Math.min(4, Math.max(0, (city as any).buildingLevels?.barracks ?? 0));
                         const reqLvl = BARRACKS_REQUIRED_LEVEL_BY_UNIT[unit.id] ?? 1;
-                        const isLocked = barracksLvl < reqLvl;
+                        const isLocked    = barracksLvl < reqLvl;
+                        const isProducing = city.currentProduction !== null;
+                        const isBusy      = !!isRecruiting[city.id];
+                        // Label bouton — ordre de priorité : chargement > verrouillé > production > disponible
+                        const btnLabel = isBusy      ? 'Recrutement…'        :
+                                         isLocked    ? `Caserne Nv.${reqLvl}` :
+                                         isProducing ? 'Production en cours'  :
+                                                       '⚔️ Recruter';
+                        const btnTitle = isBusy      ? 'Recrutement en cours…' :
+                                         isLocked    ? `Caserne niveau ${reqLvl} requise (actuel : ${barracksLvl})` :
+                                         isProducing ? 'Une production est déjà en cours dans cette ville' :
+                                                       'Recruter cette unité';
                         return (
                           <Button
                             size="sm"
                             onClick={() => handleRecruit(unit.id, city.id)}
-                            disabled={
-                              isLocked ||
-                              city.currentProduction !== null ||
-                              !!isRecruiting[city.id]
-                            }
+                            disabled={isLocked || isProducing || isBusy}
                             className="text-xs bg-amber-600 hover:bg-amber-700 disabled:opacity-50 whitespace-nowrap"
-                            title={
-                              isLocked ? `Caserne niveau ${reqLvl} requise (actuel : ${barracksLvl})` :
-                              city.currentProduction !== null ? 'Ville occupée' :
-                              isRecruiting[city.id] ? 'Recrutement en cours…' :
-                              !canAffordUnit(unit.id) ? `${getIndicativeActionPointCost(unit.id)} PA requis (indicatif)` :
-                              'Recruter cette unité'
-                            }
+                            title={btnTitle}
                           >
-                            {isRecruiting[city.id] ? '…' :
-                             isLocked ? '🔒' :
-                             city.currentProduction !== null ? 'Occupé' : 'Recruter'}
+                            {btnLabel}
                           </Button>
                         );
                       })()}

@@ -1,0 +1,292 @@
+NOVA IMPERIUM — Ressources V3-D7-E1
+Correction UI RecruitmentPanel : bouton Recruter + durée + coût visible
+
+RÔLE
+Tu es l’agent technique sur le repo Nova Imperium.
+Objectif : corriger le panneau de recrutement afin qu’un joueur voie clairement comment recruter une unité, combien elle coûte, et combien de tours elle prend à produire.
+
+PROBLÈME OBSERVÉ PAR LE JOUEUR
+
+Dans le panneau des unités/recrutement :
+- aucun bouton clair pour recruter n’est visible ;
+- le temps de création / durée de production de l’unité n’est pas affiché ;
+- les coûts ne sont pas assez clairement visibles ou exploitables.
+
+Ce bloc doit corriger uniquement cette lisibilité/action UI.
+
+CONTEXTE VALIDÉ
+
+V3-D6 :
+- Le recrutement actif utilise uniquement les 15 unités prototype.
+- RUNTIME_RECRUITMENT_COSTS contient les 15 coûts prototype.
+- GET /recruitment-costs retourne les coûts + durées serveur.
+- POST /start-recruitment fonctionne côté serveur.
+
+V3-D7-B :
+- barracks constructible/améliorable N1 → N4.
+- CityDTO expose buildingLevels.
+
+V3-D7-C :
+- serveur bloque le recrutement sans caserne ou niveau insuffisant.
+
+V3-D7-D :
+- UI lit buildingLevels.
+- UI verrouille les unités selon niveau de caserne.
+- Mais le bouton de recrutement et la durée ne sont pas correctement visibles.
+
+IMPORTANT
+
+Le serveur reste source d’autorité.
+Ce bloc ne modifie pas les coûts/durées/stats.
+Ce bloc ne modifie pas RUNTIME_RECRUITMENT_COSTS.
+Ce bloc ne modifie pas server/unitCatalog.ts.
+Ce bloc ne modifie pas shared/landUnitCatalog.ts.
+Ce bloc ne crée pas de migration DB.
+Ce bloc n’active pas upkeep/entretien.
+
+À INSPECTER
+
+Lire :
+
+- client/src/components/game/RecruitmentPanel.tsx
+- client/src/components/game/RecruitmentPanelZustand.tsx
+- client/src/components/game/CityManagementPanel.tsx
+- client/src/lib/api/citiesApi.ts
+- client/src/lib/game/types.ts
+- client/src/lib/stores/useNovaImperium.tsx
+- server/routes/cities.ts
+- server/recruitmentService.ts
+- CLAUDE.md
+
+Chercher :
+
+- serverRecruitmentCosts
+- apiGetRecruitmentCosts
+- duration
+- productionCost
+- cost
+- Recruter
+- Former
+- button
+- disabled
+- isLocked
+- handleRecruit
+- apiStartRecruitment
+- BARRACKS_REQUIRED
+- BARRACKS_LEVEL_TOO_LOW
+
+OBJECTIF 1 — Bouton de recrutement visible
+
+Dans RecruitmentPanel.tsx :
+
+Chaque carte/ligne d’unité doit afficher un bouton d’action clair :
+
+- si unité disponible :
+  bouton texte : “Recruter”
+- si unité verrouillée par caserne :
+  bouton désactivé : “Caserne Nv.X requise”
+- si ressources insuffisantes :
+  bouton désactivé : “Ressources insuffisantes”
+- si production déjà active :
+  bouton désactivé : “Production en cours”
+- si action en cours :
+  bouton désactivé : “Recrutement…”
+
+Le bouton doit être visible sans devoir deviner où cliquer.
+
+Le bouton doit appeler le flux existant :
+- handleRecruit(unit.id)
+- apiStartRecruitment(...)
+- hydrateCitiesFromServer() après succès
+
+Ne pas créer un nouveau flux parallèle.
+
+OBJECTIF 2 — Afficher la durée de création
+
+Pour chaque unité, afficher clairement la durée serveur :
+
+Format recommandé :
+- “Durée : X tour”
+- “Durée : X tours”
+
+La durée doit venir de GET /recruitment-costs si disponible :
+
+serverRecruitmentCosts[unit.id]?.duration
+
+Si le coût serveur n’est pas encore chargé :
+- afficher “Durée : chargement…”
+ou utiliser le fallback existant seulement si déjà présent et fiable.
+
+Ne pas inventer de durée différente.
+
+OBJECTIF 3 — Afficher le coût de recrutement
+
+Pour chaque unité, afficher clairement les ressources de recrutement :
+
+Exemple :
+- “Coût : 2 Nourriture, 1 Contrat de travail”
+
+Utiliser les données serveur :
+- serverRecruitmentCosts[unit.id]?.cost
+
+Si coût non chargé :
+- afficher “Coût : chargement…”
+ou fallback existant déjà utilisé.
+
+Ne pas afficher upkeep/entretien comme coût actif.
+
+OBJECTIF 4 — Conserver le verrou caserne
+
+Le bouton “Recruter” doit rester désactivé si :
+
+- barracksLevel < requiredLevel
+
+Et afficher :
+- “Caserne Nv.X requise”
+
+L’indicateur visuel actuel “🔒 Caserne Nv.X requise” peut rester, mais le bouton doit aussi expliquer le blocage.
+
+OBJECTIF 5 — RecruitmentPanelZustand
+
+Ce panneau est encore actif ou potentiellement visible via CityManagementPanel.
+
+Vérifier s’il sert vraiment de panneau de recrutement visible.
+
+Si oui :
+- ajouter aussi un bouton visible ou au minimum un message clair indiquant que le recrutement actif se fait dans RecruitmentPanel.
+- ne pas laisser un panneau d’unités sans action compréhensible.
+
+Si ce panneau est seulement informatif :
+- ajouter une mention claire :
+  “Panneau informatif — utilisez le panneau Recrutement pour former des unités.”
+- documenter.
+
+Ne pas supprimer ce panneau dans ce bloc.
+
+OBJECTIF 6 — Erreurs serveur lisibles
+
+Si le serveur refuse :
+- BARRACKS_REQUIRED
+- BARRACKS_LEVEL_TOO_LOW
+- INSUFFICIENT_CITY_INVENTORY
+- PRODUCTION_ALREADY_ACTIVE
+
+Afficher un message lisible au joueur.
+
+Ne pas laisser seulement un console.log.
+
+TESTS À FAIRE
+
+1. Ville sans caserne
+
+Attendu :
+- bouton visible mais désactivé.
+- texte : “Caserne Nv.1 requise” pour militia/garrison/scouts/hunters.
+- durée visible ou chargement visible.
+- coût visible ou chargement visible.
+
+2. Ville avec caserne N1
+
+Attendu :
+- militia/garrison/scouts/hunters ont bouton “Recruter” si ressources suffisantes.
+- unités N2+ ont bouton désactivé “Caserne Nv.X requise”.
+- durée visible pour toutes les unités.
+- coût visible pour toutes les unités.
+
+3. Ville avec caserne N4
+
+Attendu :
+- les 15 unités affichent un bouton “Recruter” si ressources suffisantes et aucune production active.
+- durée visible pour les 15.
+- coût visible pour les 15.
+
+4. Clic bouton Recruter sur militia
+
+Attendu :
+- POST /start-recruitment appelé.
+- succès si ressources + caserne OK.
+- hydrateCitiesFromServer après succès.
+- production active visible si UI le permet.
+
+5. GET /recruitment-costs
+
+Attendu :
+- 15 prototypes.
+- chaque entrée contient cost + duration.
+
+6. TypeScript
+
+npx tsc --noEmit
+
+Attendu :
+- 187 erreurs baseline.
+
+À NE PAS FAIRE
+
+- Ne pas modifier les coûts.
+- Ne pas modifier les durées.
+- Ne pas modifier les stats.
+- Ne pas modifier RUNTIME_RECRUITMENT_COSTS.
+- Ne pas modifier startRecruitmentTransaction.
+- Ne pas modifier server/unitCatalog.ts.
+- Ne pas modifier shared/landUnitCatalog.ts.
+- Ne pas activer upkeep.
+- Ne pas afficher upkeep comme coût actif.
+- Ne pas créer de migration DB.
+- Ne pas ajouter de dépendance.
+- Ne pas ajouter de nouveau store.
+- Ne pas refactorer massivement CityManagementPanel.
+- Ne pas retirer attached_assets dans ce bloc.
+- Ne pas réintroduire legacy.
+- Ne pas ajouter rangers.
+
+CLAUDE.md
+
+Ajouter une section courte :
+
+“Ressources V3-D7-E1 — Correction UI bouton recrutement + durée”
+
+Inclure :
+- problème observé ;
+- fichiers inspectés ;
+- fichiers modifiés ;
+- composant réellement corrigé ;
+- source des coûts ;
+- source des durées ;
+- comportement bouton disponible/verrouillé ;
+- confirmation upkeep non affiché/non activé ;
+- résultat GET /recruitment-costs ;
+- test clic Recruter militia ;
+- résultat TypeScript ;
+- risques restants ;
+- prochaine étape recommandée.
+
+SORTIE ATTENDUE
+
+Répondre avec :
+
+1. Fichiers inspectés.
+2. Fichiers modifiés.
+3. Composant où le bouton Recruter a été ajouté/corrigé.
+4. Source utilisée pour afficher les coûts.
+5. Source utilisée pour afficher les durées.
+6. Comportement bouton sans caserne.
+7. Comportement bouton caserne N1.
+8. Comportement bouton caserne N4.
+9. Test clic Recruter militia.
+10. Résultat GET /recruitment-costs.
+11. Confirmation upkeep non activé/non affiché.
+12. Confirmation coûts/durées/stats inchangés.
+13. Résultat TypeScript.
+14. Risques restants.
+15. Prochaine étape recommandée.
+
+STATUT ATTENDU
+
+Le joueur voit clairement :
+- le bouton Recruter ;
+- le coût de chaque unité ;
+- la durée de création ;
+- pourquoi une unité est verrouillée.
+Aucun upkeep activé.
+TypeScript reste à 187 erreurs.

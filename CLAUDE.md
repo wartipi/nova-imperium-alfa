@@ -3350,3 +3350,60 @@ Test end-to-end complet N0/N1/N2/N3/N4 après V3-D7-B/C/D. Correction du problè
 **V3-D8** — Consolidation UI : suppression de `RecruitmentPanelZustand` (mort code), affichage des libellés de bâtiments dans "Vue d'ensemble", et/ou calibration des stats combat des 15 unités prototype.
 
 **Statut V3-D7-E :** Flux recrutement compréhensible. `CityManagementPanel` → onglet Recrutement → `RecruitmentPanel` (serveur-authoritative, gate caserne actif). Coûts visibles. N0/N1/N2/N3/N4 validés end-to-end. Aucun upkeep activé. Aucune modification d'équilibrage. TypeScript 187 — stable.
+
+---
+
+## Ressources V3-D7-E1 — Correction UI bouton recrutement + durée
+
+### Problème observé
+- Bouton de recrutement affiché comme emoji `🔒` uniquement (illisible)
+- Aucun label explicite pour "Production en cours" ou "Caserne requise"
+- Durée affichée comme `🕐 X tours | ⚔️ Y` (format ambigu, mélangé avec la force)
+- Coût affiché sans libellé "Coût :"
+
+### Fichiers inspectés
+`RecruitmentPanel.tsx`, `RecruitmentPanelZustand.tsx`, `CityManagementPanel.tsx`, `citiesApi.ts`, `types.ts`, `useNovaImperium.tsx`, `server/routes/cities.ts`, `server/recruitmentService.ts`, `CLAUDE.md`
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---|---|
+| `client/src/components/game/RecruitmentPanel.tsx` | Labels bouton clairs ; "Coût :" / "Durée :" libellés explicites avec fallback "chargement…" ; suppression PA indicatif de la ligne coût |
+| `client/src/components/game/RecruitmentPanelZustand.tsx` | Notice "Panneau informatif — utilisez l'onglet Recrutement" ajoutée en tête |
+
+### Comportement bouton après correction
+
+| État | Label bouton | Tooltip |
+|---|---|---|
+| Recrutement en cours | `Recrutement…` | Recrutement en cours… |
+| Verrouillé caserne | `Caserne Nv.X` | Caserne niveau X requise (actuel : Y) |
+| Production active | `Production en cours` | Une production est déjà en cours… |
+| Disponible | `⚔️ Recruter` | Recruter cette unité |
+
+### Affichage coût + durée
+
+**Coût :** `Coût : 2 🍞, 1 📜` (depuis `serverRecruitmentCosts[unit.id].cost`) ou `Coût : chargement…`
+**Durée :** `Durée : 1 tour` / `Durée : 3 tours` (depuis `serverRecruitmentCosts[unit.id].duration`) ou `Durée : chargement…`
+Source : `GET /api/cities/recruitment-costs` → `serverRecruitmentCosts` chargé au montage.
+
+### Confirmation upkeep non affiché / non activé
+- Aucun champ `upkeepPerTurn` affiché dans `RecruitmentPanel` ✅
+- Aucun débit d'entretien dans le serveur ✅
+
+### Résultats tests
+
+| Test | Résultat |
+|---|---|
+| GET /recruitment-costs | 15 prototypes, chaque entrée a `cost` + `duration` ✅ |
+| POST militia barracks N1 | `201 OK, debited:{food:2,labor_contracts:1}` ✅ |
+| TypeScript | 187 erreurs — baseline inchangée ✅ |
+
+### Risques restants
+- PA indicatif retiré de la ligne coût — conservé dans le `title` du tooltip pour les joueurs qui veulent l'info
+- `RecruitmentPanelZustand` non rendu dans `CityManagementPanel` depuis V3-D7-E — la notice informative est defensive au cas où il serait réactivé ailleurs
+- Quand `serverRecruitmentCosts` n'est pas encore chargé (tout premier rendu), "chargement…" s'affiche brièvement
+
+### Prochaine étape recommandée
+**V3-D8** — Suppression de `RecruitmentPanelZustand` (dead code), libellés lisibles des bâtiments dans "Vue d'ensemble" (ex. "barracks" → "Caserne Nv.4"), et/ou calibration des stats combat des 15 unités.
+
+**Statut V3-D7-E1 :** Bouton `⚔️ Recruter` visible et lisible. Labels états clairs (Caserne Nv.X / Production en cours / Recrutement…). Coût et Durée explicitement libellés depuis serveur. Upkeep non affiché. Coûts/durées/stats serveur inchangés. TypeScript 187 — stable.
