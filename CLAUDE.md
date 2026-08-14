@@ -1508,3 +1508,78 @@ Le débit `city_inventory` et l'UPSERT `city_production` ne sont **pas** dans un
 **V3-D5-D** — Adapter `RecruitmentPanel.tsx` pour appeler `POST /start-recruitment` et afficher les coûts depuis le catalogue.
 
 **Statut V3-D5-C2 :** start-recruitment atomique. Aucune perte possible entre débit et city_production. UI inchangée. Aucune unité prototype branchée.
+
+---
+
+## Ressources V3-D5-D — API client passive start-recruitment
+
+### Objectif
+Ajouter une fonction client API typée et réutilisable pour `POST /api/cities/:cityId/start-recruitment`, sans brancher l'UI. Prépare V3-D5-E (branchement `RecruitmentPanel.tsx`).
+
+### Fichiers inspectés
+- `client/src/lib/api/citiesApi.ts`
+- `client/src/lib/api/economyApi.ts` (conventions fetch / getAuthHeaders)
+- `server/routes/cities.ts` (commentaire obsolète)
+- `server/recruitmentService.ts`, `CLAUDE.md`
+
+### Fichiers modifiés
+| Fichier | Nature |
+|---|---|
+| `client/src/lib/api/citiesApi.ts` | Types + `apiStartRecruitment()` ajoutés |
+| `server/routes/cities.ts` | Commentaire obsolète corrigé (atomicité) |
+
+### Types client ajoutés
+```ts
+type RecruitmentCostResource = "food"|"wood"|"stone"|"common_metals"|"common_textiles"|"labor_contracts"|"basic_equipment";
+type RecruitmentResourceCost = Partial<Record<RecruitmentCostResource, number>>;
+interface RecruitmentMissingResource { resource; required; available; shortage; }
+interface StartRecruitmentSuccess { ok: true; cityId; unitType; production: { type:"unit"; name; cost; progress; }; debited; }
+```
+
+### Fonction API ajoutée
+`apiStartRecruitment(cityId: number, unitType: string): Promise<StartRecruitmentSuccess>`
+
+- **Endpoint :** `POST /api/cities/${cityId}/start-recruitment`
+- **Body :** `{ unitType }`
+- **Auth :** `getAuthHeaders()` (Bearer token via localStorage)
+- **Content-Type :** `application/json`
+
+### Gestion des erreurs
+Pattern identique à `apiStartConstruction` : `Object.assign(new Error(body.error ?? …), { body })`.
+
+| Code HTTP | Cas | Données attachées |
+|---|---|---|
+| 400 | unitType absent/inconnu | `body.error` |
+| 400 | `INSUFFICIENT_CITY_INVENTORY` | `body.error`, `body.missing[]` |
+| 409 | `PRODUCTION_ALREADY_ACTIVE` | `body.error`, `body.message` |
+| 500 | erreur inattendue | `body` vide ou message générique |
+
+### Commentaire serveur nettoyé
+Ligne 638 de `server/routes/cities.ts` : "Risque résiduel d'atomicité…" → "Recrutement atomique (V3-D5-C2)…" — mention du risque corrigé par C2.
+
+### Confirmations
+- **`RecruitmentPanel.tsx` non modifié.**
+- **`trainUnit()` non modifié.**
+- **`apiSetProduction()` conservé.**
+- **Aucune transition UI vers start-recruitment dans ce bloc.**
+- **`productionCost:number` inchangé.**
+- **`shared/landUnitCatalog.ts` passif.**
+
+### Tests documentés
+1. `apiStartRecruitment(5, "warrior")` → `POST /api/cities/5/start-recruitment` body `{ unitType: "warrior" }` ✓
+2. Réponse 201 → `StartRecruitmentSuccess` avec `production` + `debited` ✓
+3. Réponse 400 `INSUFFICIENT_CITY_INVENTORY` → erreur avec `body.missing[]` conservé ✓
+4. Réponse 409 `PRODUCTION_ALREADY_ACTIVE` → erreur avec `body.error` + `body.message` ✓
+5. Fonction non appelée depuis l'UI dans ce bloc ✓
+
+### Résultat TypeScript
+`npx tsc --noEmit` : **187 erreurs** — baseline inchangée.
+
+### Risques restants
+- `apiStartRecruitment` est passive — pas de feedback visuel jusqu'à V3-D5-E.
+- `RecruitmentPanel.tsx` utilise toujours Zustand (`trainUnit`) — double source de vérité temporaire.
+
+### Prochaine étape recommandée
+**V3-D5-E** — Brancher `RecruitmentPanel.tsx` sur `apiStartRecruitment()`, afficher les coûts depuis `RUNTIME_RECRUITMENT_COSTS`, supprimer la déduction Zustand client-side.
+
+**Statut V3-D5-D :** API client prête. UI non branchée. `apiSetProduction()` conservé. Recrutement atomique serveur intact. Aucune unité prototype branchée.

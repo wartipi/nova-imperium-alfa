@@ -1,0 +1,247 @@
+NOVA IMPERIUM — Ressources V3-D5-D
+API client passive pour start-recruitment serveur-authoritative
+
+RÔLE
+Tu es l’agent technique sur le repo Nova Imperium.
+Objectif : préparer le branchement UI du recrutement serveur-authoritative en ajoutant une fonction API client dédiée à la route validée :
+
+POST /api/cities/:cityId/start-recruitment
+
+IMPORTANT
+
+Ce bloc est une préparation client PASSIVE.
+Ne pas modifier RecruitmentPanel.tsx.
+Ne pas brancher l’UI.
+Ne pas modifier trainUnit().
+Ne pas modifier le store Zustand.
+Ne pas supprimer l’ancien apiSetProduction().
+Ne pas modifier PUT /api/cities/:cityId/production.
+Ne pas modifier tickCityProduction().
+Ne pas modifier createProducedUnit().
+Ne pas modifier shared/landUnitCatalog.ts.
+Ne pas modifier server/unitCatalog.ts.
+Ne pas modifier les coûts des unités.
+Ne pas créer d’unités prototype.
+Ne pas modifier productionCost:number.
+Ne pas migrer coal/oil/herbs.
+Mettre à jour CLAUDE.md.
+
+CONTEXTE VALIDÉ
+
+V3-D5-C :
+- Route serveur ajoutée :
+  POST /api/cities/:cityId/start-recruitment
+- La route valide :
+  - cityId
+  - accès ville
+  - unitType
+  - UNIT_CATALOG
+  - RUNTIME_RECRUITMENT_COSTS
+- La route retourne :
+  - 201 succès avec production + debited
+  - 400 unitType invalide / ressources insuffisantes
+  - 409 production déjà active
+
+V3-D5-C2 :
+- startRecruitmentTransaction() ajouté.
+- Débit city_inventory + écriture city_production sont maintenant dans une transaction DB unique.
+- Plus de perte possible entre débit et création de production.
+- UI non branchée.
+- RecruitmentPanel.tsx non modifié.
+- productionCost:number conservé comme durée/progression.
+
+OBJECTIF DE CE BLOC
+
+Ajouter une fonction client API dédiée, typée et réutilisable, sans l’appeler encore depuis l’UI.
+
+Fonction attendue, nom recommandé :
+
+apiStartRecruitment(cityId: number, unitType: string)
+
+ou nom cohérent avec le fichier existant.
+
+À INSPECTER AVANT MODIFICATION
+
+Lire :
+
+- client/src/lib/api/citiesApi.ts
+- client/src/lib/api/economyApi.ts
+- client/src/components/game/RecruitmentPanel.tsx
+- server/routes/cities.ts
+- server/recruitmentService.ts
+- CLAUDE.md
+
+Chercher :
+
+- apiSetProduction()
+- apiStartConstruction()
+- apiProductionTick()
+- types de réponses API existants
+- gestion des erreurs API côté client
+- conventions fetch()
+- credentials / auth headers / JSON body
+- pattern throw Error ou retour structuré
+
+À FAIRE
+
+1. Ajouter les types client pour la route
+
+Dans `client/src/lib/api/citiesApi.ts` ou fichier cohérent existant, ajouter :
+
+type RecruitmentCostResource =
+  | "food"
+  | "wood"
+  | "stone"
+  | "common_metals"
+  | "common_textiles"
+  | "labor_contracts"
+  | "basic_equipment";
+
+type RecruitmentResourceCost = Partial<Record<RecruitmentCostResource, number>>;
+
+interface RecruitmentMissingResource {
+  resource: RecruitmentCostResource;
+  required: number;
+  available: number;
+  shortage: number;
+}
+
+interface StartRecruitmentSuccess {
+  ok: true;
+  cityId: number;
+  unitType: string;
+  production: {
+    type: "unit";
+    name: string;
+    cost: number;
+    progress: number;
+  };
+  debited: RecruitmentResourceCost;
+}
+
+Adapter les noms si les conventions existantes du fichier sont différentes.
+
+2. Ajouter une fonction API passive
+
+Créer :
+
+apiStartRecruitment(cityId: number, unitType: string): Promise<StartRecruitmentSuccess>
+
+Elle doit appeler :
+
+POST /api/cities/${cityId}/start-recruitment
+
+Body :
+
+{
+  unitType
+}
+
+Comportement :
+- envoyer Content-Type: application/json ;
+- utiliser les mêmes options d’auth/credentials que les autres appels du fichier ;
+- si réponse OK : retourner le JSON typé ;
+- si erreur :
+  - lire le JSON si possible ;
+  - préserver `error`, `message`, `missing`;
+  - throw une erreur lisible ;
+  - idéalement attacher les données brutes à l’erreur si le pattern existant le permet.
+
+3. Gérer les erreurs connues
+
+Préparer le client à recevoir :
+
+A. 400 unitType absent/inconnu
+B. 400 INSUFFICIENT_CITY_INVENTORY + missing[]
+C. 409 PRODUCTION_ALREADY_ACTIVE
+D. 500 erreur inattendue
+
+Ne pas afficher ces erreurs dans l’UI maintenant.
+Seulement les conserver correctement dans l’erreur retournée/throw.
+
+4. Ne pas brancher l’UI
+
+Confirmer explicitement :
+- RecruitmentPanel.tsx non modifié ;
+- trainUnit() non modifié ;
+- apiSetProduction() conservé ;
+- aucune transition UI vers start-recruitment dans ce bloc.
+
+5. Nettoyage commentaire obsolète serveur
+
+Autorisé dans ce bloc :
+- nettoyer le commentaire obsolète dans `server/routes/cities.ts` au-dessus de `start-recruitment`, qui mentionne encore le risque résiduel d’atomicité corrigé par V3-D5-C2.
+
+Ne pas modifier la logique serveur.
+Seulement le commentaire si nécessaire.
+
+VALIDATION TECHNIQUE
+
+Exécuter :
+
+npx tsc --noEmit
+
+Baseline connue :
+- 187 erreurs TypeScript préexistantes.
+
+Objectif :
+- rester à 187 erreurs ;
+- zéro régression.
+
+TESTS À DOCUMENTER
+
+Documenter les tests prévus ou simulés :
+
+1. apiStartRecruitment(cityId, "warrior") envoie le bon endpoint et body.
+2. Réponse 201 retourne production + debited.
+3. Réponse 400 INSUFFICIENT_CITY_INVENTORY conserve missing[].
+4. Réponse 409 PRODUCTION_ALREADY_ACTIVE conserve error/message.
+5. Fonction non appelée par l’UI dans ce bloc.
+
+CLAUDE.md
+
+Ajouter une section :
+
+“Ressources V3-D5-D — API client passive start-recruitment”
+
+Inclure :
+
+- objectif ;
+- fichiers inspectés ;
+- fichiers modifiés ;
+- types client ajoutés ;
+- fonction API ajoutée ;
+- endpoint appelé ;
+- gestion erreurs ;
+- confirmation UI non branchée ;
+- confirmation RecruitmentPanel non modifié ;
+- confirmation ancien apiSetProduction conservé ;
+- commentaire serveur nettoyé ou non ;
+- résultat TypeScript ;
+- risques restants ;
+- prochaine étape recommandée.
+
+SORTIE ATTENDUE
+
+Répondre avec :
+
+1. Fichiers inspectés.
+2. Fichiers modifiés.
+3. Types client ajoutés.
+4. Fonction API ajoutée.
+5. Format du payload envoyé.
+6. Format de réponse succès attendu.
+7. Gestion des erreurs.
+8. Confirmation UI non branchée.
+9. Résultat TypeScript.
+10. Risques restants.
+11. Prochaine étape recommandée.
+
+STATUT ATTENDU
+
+API client prête.
+Aucune UI branchée.
+Ancien recrutement inchangé.
+start-recruitment serveur atomique conservé.
+Aucune unité prototype branchée.
+productionCost:number conservé.

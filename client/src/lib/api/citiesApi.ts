@@ -125,6 +125,73 @@ export async function apiClearProduction(cityId: string): Promise<void> {
   if (!res.ok) throw new Error(`apiClearProduction: HTTP ${res.status}`);
 }
 
+// ─── V3-D5-D : recrutement serveur-authoritative ─────────────────────────────
+// Passive — non appelé depuis l'UI dans ce bloc.
+
+type RecruitmentCostResource =
+  | "food"
+  | "wood"
+  | "stone"
+  | "common_metals"
+  | "common_textiles"
+  | "labor_contracts"
+  | "basic_equipment";
+
+type RecruitmentResourceCost = Partial<Record<RecruitmentCostResource, number>>;
+
+export interface RecruitmentMissingResource {
+  resource:  RecruitmentCostResource;
+  required:  number;
+  available: number;
+  shortage:  number;
+}
+
+export interface StartRecruitmentSuccess {
+  ok:       true;
+  cityId:   number;
+  unitType: string;
+  production: {
+    type:     "unit";
+    name:     string;
+    cost:     number;
+    progress: number;
+  };
+  debited: RecruitmentResourceCost;
+}
+
+/**
+ * Démarre le recrutement d'une unité via la route serveur-authoritative.
+ *
+ * POST /api/cities/:cityId/start-recruitment
+ * Body : { unitType }
+ *
+ * Erreurs connues (attachées à l'Error via Object.assign) :
+ *   400 unitType absent/inconnu         → body.error = "unitType inconnu…"
+ *   400 INSUFFICIENT_CITY_INVENTORY     → body.error, body.missing[]
+ *   409 PRODUCTION_ALREADY_ACTIVE       → body.error, body.message
+ *   500 erreur inattendue               → body vide ou message générique
+ *
+ * UI non branchée — ne pas appeler depuis RecruitmentPanel.tsx avant V3-D5-D.
+ */
+export async function apiStartRecruitment(
+  cityId:   number,
+  unitType: string,
+): Promise<StartRecruitmentSuccess> {
+  const res = await fetch(`/api/cities/${cityId}/start-recruitment`, {
+    method:  "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    body:    JSON.stringify({ unitType }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw Object.assign(
+      new Error(body.error ?? `apiStartRecruitment: HTTP ${res.status}`),
+      { body },
+    );
+  }
+  return res.json();
+}
+
 // ─── Tick de production serveur-authoritatif ──────────────────────────────────
 // Avance la file de production de toutes les villes du joueur côté serveur.
 // Retourne le résumé des complétions pour que l'UI affiche les toasts.

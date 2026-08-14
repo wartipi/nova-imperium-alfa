@@ -635,7 +635,7 @@ router.post("/:cityId/start-construction", requireAuth, async (req: AuthRequest,
 // Le coût vient exclusivement du serveur (RUNTIME_RECRUITMENT_COSTS).
 // productionCost:number reste la durée en tours — inchangé.
 //
-// Risque résiduel d'atomicité : le débit city_inventory et l'UPSERT city_production
+// Recrutement atomique (V3-D5-C2) : débit city_inventory et UPSERT city_production
 // ne sont pas dans une seule transaction DB. Si setProduction() échoue après un
 // débit réussi, les ressources sont perdues sans unité enfilée. Ce cas est loggué
 // clairement. Correction prévue en V3-D5-C2 via transaction Drizzle explicite.
