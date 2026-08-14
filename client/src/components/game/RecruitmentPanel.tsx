@@ -2,8 +2,9 @@ import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { usePlayer } from "../../lib/stores/usePlayer";
 import { Button } from "../ui/button";
 import { getUnitRecruitmentCost, canAffordAction } from "../../lib/game/ActionPointsCosts";
-import { useState } from "react";
-import { apiStartRecruitment } from "../../lib/api/citiesApi";
+import { useState, useEffect } from "react";
+import { apiStartRecruitment, apiGetRecruitmentCosts } from "../../lib/api/citiesApi";
+import type { RuntimeRecruitmentCostEntry } from "../../lib/api/citiesApi";
 
 export function RecruitmentPanel() {
   // V3-D5-E : trainUnit n'est plus utilisé dans ce composant (remplacé par apiStartRecruitment).
@@ -16,6 +17,18 @@ export function RecruitmentPanel() {
   const [isRecruiting, setIsRecruiting] = useState<Record<string, boolean>>({});
   // cityErrors : message d'erreur affiché sous chaque ville
   const [cityErrors, setCityErrors] = useState<Record<string, string>>({});
+  // V3-D5-G : coûts serveur chargés depuis GET /api/cities/recruitment-costs
+  const [serverRecruitmentCosts, setServerRecruitmentCosts] =
+    useState<Record<string, RuntimeRecruitmentCostEntry> | null>(null);
+
+  // Charger les coûts serveur au montage — fallback local si erreur API
+  useEffect(() => {
+    apiGetRecruitmentCosts()
+      .then(res => setServerRecruitmentCosts(res.costs))
+      .catch(err => {
+        console.warn("[RecruitmentPanel] Impossible de charger les coûts serveur — fallback local:", err);
+      });
+  }, []);
 
   if (!currentNovaImperium) return null;
 
@@ -58,6 +71,10 @@ export function RecruitmentPanel() {
       crystals: '💠',
       arcane_stones: '⚡',
       leather_fur: '🦊',
+      // V3-D5-G : ressources du catalogue serveur runtime
+      common_textiles: '🧶',
+      labor_contracts: '📜',
+      basic_equipment: '🛡️',
     };
     return icons[resource] || '❓';
   };
@@ -143,9 +160,11 @@ export function RecruitmentPanel() {
     <div className="space-y-4">
       <div className="text-center">
         <h4 className="font-bold text-base mb-1">Recrutement d'Unités</h4>
-        {/* V3-D5-F : coûts indicatifs — le serveur valide city_inventory */}
+        {/* V3-D5-G : source des coûts affichés */}
         <p className="text-xs text-amber-600 italic mb-3">
-          Coûts affichés indicatifs. Le serveur valide et débite l'inventaire réel de la ville.
+          {serverRecruitmentCosts
+            ? 'Coûts affichés : catalogue serveur.'
+            : 'Coûts affichés : fallback local, validation finale serveur.'}
         </p>
       </div>
 
@@ -196,13 +215,23 @@ export function RecruitmentPanel() {
                       <div className="flex items-center space-x-2">
                         <span className="text-sm">{unit.icon}</span>
                         <div>
-                          <div className="text-xs font-medium">{unit.name}</div>
-                          <div className="text-xs text-amber-700">
-                            {formatResourceCost(unit.cost)} | {getUnitRecruitmentCost(unit.id)} ⚡
-                          </div>
-                          <div className="text-xs text-purple-600">
-                            🕐 {unit.recruitmentTime} tour{unit.recruitmentTime > 1 ? 's' : ''} | ⚔️ {unit.strength}
-                          </div>
+                          {/* V3-D5-G : coûts serveur si disponibles, fallback local sinon */}
+                          {(() => {
+                            const serverEntry = serverRecruitmentCosts?.[unit.id];
+                            const displayCost = serverEntry ? serverEntry.cost : unit.cost;
+                            const displayDuration = serverEntry ? serverEntry.duration : unit.recruitmentTime;
+                            return (
+                              <>
+                                <div className="text-xs font-medium">{unit.name}</div>
+                                <div className="text-xs text-amber-700">
+                                  {formatResourceCost(displayCost as Record<string, number | undefined>)} | {getUnitRecruitmentCost(unit.id)} ⚡
+                                </div>
+                                <div className="text-xs text-purple-600">
+                                  🕐 {displayDuration} tour{displayDuration > 1 ? 's' : ''} | ⚔️ {unit.strength}
+                                </div>
+                              </>
+                            );
+                          })()}
                         </div>
                       </div>
                       <Button

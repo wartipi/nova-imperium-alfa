@@ -159,6 +159,35 @@ export interface StartRecruitmentSuccess {
   debited: RecruitmentResourceCost;
 }
 
+export interface RuntimeRecruitmentCostEntry {
+  duration: number;
+  cost: RecruitmentResourceCost;
+}
+
+export interface RecruitmentCostsResponse {
+  ok: true;
+  costs: Record<string, RuntimeRecruitmentCostEntry>;
+}
+
+/**
+ * Charge les coûts de recrutement depuis le catalogue serveur (RUNTIME_RECRUITMENT_COSTS).
+ * GET /api/cities/recruitment-costs
+ * Retourne uniquement les unités supportées par UNIT_CATALOG côté serveur.
+ */
+export async function apiGetRecruitmentCosts(): Promise<RecruitmentCostsResponse> {
+  const res = await fetch("/api/cities/recruitment-costs", {
+    headers: { ...getAuthHeaders() },
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw Object.assign(
+      new Error(body.error ?? `apiGetRecruitmentCosts: HTTP ${res.status}`),
+      { body },
+    );
+  }
+  return res.json();
+}
+
 /**
  * Démarre le recrutement d'une unité via la route serveur-authoritative.
  *

@@ -86,6 +86,31 @@ router.get("/colony/:colonyId", requireAuth, async (req: AuthRequest, res) => {
   }
 });
 
+// ─── GET /api/cities/recruitment-costs ────────────────────────────────────────
+// Route statique — DOIT rester avant toutes les routes dynamiques /:cityId.
+// Retourne RUNTIME_RECRUITMENT_COSTS filtré : seulement les unitType présents
+// simultanément dans UNIT_CATALOG et RUNTIME_RECRUITMENT_COSTS.
+// Lecture seule — ne modifie aucune donnée.
+router.get("/recruitment-costs", requireAuth, (req: AuthRequest, res) => {
+  try {
+    const costs: Record<string, { duration: number; cost: Record<string, number> }> = {};
+    for (const [unitType, entry] of Object.entries(RUNTIME_RECRUITMENT_COSTS)) {
+      if (UNIT_CATALOG[unitType]) {
+        costs[unitType] = {
+          duration: entry.duration,
+          cost: Object.fromEntries(
+            Object.entries(entry.cost).filter(([, v]) => (v ?? 0) > 0),
+          ),
+        };
+      }
+    }
+    return res.json({ ok: true, costs });
+  } catch (err) {
+    console.error("[GET /api/cities/recruitment-costs] Erreur:", err);
+    return res.status(500).json({ error: "Erreur lors du chargement des coûts de recrutement" });
+  }
+});
+
 // ─── GET /api/cities/:cityId/exploitation-context ─────────────────────────────
 // Expose le contexte réel d'exploitation pour une ville :
 //   - terrains contrôlés (via map_tiles dans le territoire)

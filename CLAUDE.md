@@ -1771,3 +1771,108 @@ Après : "X PA requis (indicatif)"       (information sans prétention d'autorit
 **V3-D5-G** — Réconcilier les catalogues : exposer `RUNTIME_RECRUITMENT_COSTS` via un endpoint GET pour que l'UI affiche les coûts réels, ou remplacer `unit.cost` local par les coûts de `shared/landUnitCatalog.ts` après unification des IDs.
 
 **Statut V3-D5-F :** Audit complet. Trois corrections UX ciblées appliquées. Flux recrutement serveur-authoritative fonctionnel. Coûts et PA marqués indicatifs. Aucun refactor catalogue. `productionCost:number` conservé.
+
+---
+
+## Ressources V3-D5-G — Coûts recrutement UI depuis catalogue serveur
+
+### Objectif
+Réconcilier les coûts affichés dans `RecruitmentPanel.tsx` avec `RUNTIME_RECRUITMENT_COSTS` serveur via un endpoint GET dédié, sans dupliquer le catalogue côté client ni brancher `shared/landUnitCatalog.ts`.
+
+### Fichiers inspectés
+- `server/routes/cities.ts`, `server/recruitmentService.ts`, `server/unitCatalog.ts`
+- `client/src/lib/api/citiesApi.ts`, `client/src/components/game/RecruitmentPanel.tsx`
+
+### Fichiers modifiés
+| Fichier | Nature |
+|---|---|
+| `server/routes/cities.ts` | Route GET `/recruitment-costs` ajoutée avant `/:cityId` |
+| `client/src/lib/api/citiesApi.ts` | Types + `apiGetRecruitmentCosts()` ajoutés |
+| `client/src/components/game/RecruitmentPanel.tsx` | useEffect, state, icônes, affichage coûts |
+
+### Endpoint serveur ajouté
+
+`GET /api/cities/recruitment-costs` — route statique déclarée **avant** toutes les routes `/:cityId`.
+
+**Comportement :** itère `RUNTIME_RECRUITMENT_COSTS`, filtre par intersection avec `UNIT_CATALOG`, retourne uniquement les unités supportées runtime. Lecture seule.
+
+**Réponse :**
+```json
+{
+  "ok": true,
+  "costs": {
+    "warrior": { "duration": 2, "cost": { "food": 2, "labor_contracts": 1, "basic_equipment": 1 } }
+  }
+}
+```
+
+### Fonction API client ajoutée
+
+`apiGetRecruitmentCosts(): Promise<RecruitmentCostsResponse>` dans `citiesApi.ts`.
+- Pattern identique aux autres fonctions (getAuthHeaders, throw Object.assign)
+- Types exportés : `RuntimeRecruitmentCostEntry`, `RecruitmentCostsResponse`
+
+### Changements RecruitmentPanel
+
+**State ajouté :**
+```ts
+const [serverRecruitmentCosts, setServerRecruitmentCosts] =
+  useState<Record<string, RuntimeRecruitmentCostEntry> | null>(null);
+```
+
+**useEffect au montage :**
+- `apiGetRecruitmentCosts()` → `setServerRecruitmentCosts(res.costs)` au succès
+- `console.warn` + fallback local en cas d'erreur (réseau, auth, etc.)
+
+**Affichage des coûts :**
+```
+serverRecruitmentCosts?.[unit.id] disponible → displayCost + displayDuration depuis le serveur
+sinon → unit.cost + unit.recruitmentTime (fallback local)
+```
+
+**Note UX dynamique :**
+- Coûts chargés : *"Coûts affichés : catalogue serveur."*
+- Fallback : *"Coûts affichés : fallback local, validation finale serveur."*
+
+**Icônes ajoutées :**
+- `common_textiles` → 🧶
+- `labor_contracts` → 📜
+- `basic_equipment` → 🛡️
+
+### Comportement fallback
+Si `apiGetRecruitmentCosts` échoue (réseau, auth, serveur) :
+- `serverRecruitmentCosts` reste `null`
+- UI affiche `unit.cost` local (les anciens coûts du tableau hardcodé)
+- Note UX indique "fallback local"
+- Aucune exception UI — recrutement reste fonctionnel
+
+### Confirmations
+- **Aucun coût envoyé par le client au recrutement** — seul `unitType` dans `POST /start-recruitment`.
+- **Serveur reste authoritative** — débit uniquement dans `startRecruitmentTransaction`.
+- **`shared/landUnitCatalog.ts` passif** — non importé.
+- **`server/unitCatalog.ts` inchangé.**
+- **`productionCost:number` inchangé** — durée en tours.
+- **`trainUnit()` et `apiSetProduction()` conservés.**
+
+### Tests documentés
+1. `GET /api/cities/recruitment-costs` → `{ ok: true, costs: { warrior: {...}, … } }` ✓
+2. Route déclarée avant `/:cityId` → Express ne confond pas "recruitment-costs" avec un cityId ✓
+3. Filtre intersection UNIT_CATALOG ∩ RUNTIME_RECRUITMENT_COSTS → seules unités supportées ✓
+4. RecruitmentPanel au montage → useEffect → coûts serveur chargés → note "catalogue serveur" ✓
+5. Affichage : `food 2 🍞, labor_contracts 1 📜, basic_equipment 1 🛡️` pour `warrior` ✓
+6. Erreur réseau → fallback `unit.cost` local → note "fallback local" ✓
+7. Clic recruter → seul `unitType` envoyé → serveur authoritative ✓
+8. `missing[]` et `PRODUCTION_ALREADY_ACTIVE` inchangés ✓
+
+### Résultat TypeScript
+`npx tsc --noEmit` : **187 erreurs** — baseline inchangée.
+
+### Risques restants
+- Les IDs du tableau `units` local (`warrior/spearman/…`) doivent correspondre aux clés de `RUNTIME_RECRUITMENT_COSTS` pour que `serverRecruitmentCosts?.[unit.id]` trouve l'entrée — si les IDs divergent un jour, le fallback s'applique silencieusement.
+- `unit.cost` local (fallback) contient `fracten` qui n'est pas dans `RUNTIME_RECRUITMENT_COSTS` — coûts affichés en fallback différents des coûts serveur réels.
+- `useEffect` ne se relance pas si le token change en cours de session — acceptable pour l'usage actuel.
+
+### Prochaine étape recommandée
+**V3-D5-H** — Unifier les IDs `warrior/spearman/…` (RecruitmentPanel local) avec les 15 entrées de `RUNTIME_RECRUITMENT_COSTS` pour couvrir toutes les unités runtime, ou supprimer les unités sans entrée serveur du tableau local.
+
+**Statut V3-D5-G :** UI affiche les coûts du catalogue serveur réel. Fallback local si erreur API. Aucun débit client-side. Aucun branchement `shared/landUnitCatalog.ts`. `productionCost:number` conservé.
