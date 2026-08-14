@@ -1583,3 +1583,94 @@ Ligne 638 de `server/routes/cities.ts` : "Risque résiduel d'atomicité…" → 
 **V3-D5-E** — Brancher `RecruitmentPanel.tsx` sur `apiStartRecruitment()`, afficher les coûts depuis `RUNTIME_RECRUITMENT_COSTS`, supprimer la déduction Zustand client-side.
 
 **Statut V3-D5-D :** API client prête. UI non branchée. `apiSetProduction()` conservé. Recrutement atomique serveur intact. Aucune unité prototype branchée.
+
+---
+
+## Ressources V3-D5-E — RecruitmentPanel branché sur start-recruitment
+
+### Objectif
+Remplacer le recrutement client-side (`trainUnit` + débit Zustand) par `apiStartRecruitment()` dans `RecruitmentPanel.tsx`. Le débit city_inventory et la création city_production sont désormais 100 % serveur-authoritative.
+
+### Fichiers inspectés
+- `client/src/components/game/RecruitmentPanel.tsx`
+- `client/src/lib/stores/useNovaImperium.tsx`
+- `client/src/lib/api/citiesApi.ts`
+- `server/routes/cities.ts`
+
+### Fichiers modifiés
+| Fichier | Nature |
+|---|---|
+| `client/src/components/game/RecruitmentPanel.tsx` | Import ajouté, handleRecruit async, erreurs UI, boutons |
+| `server/routes/cities.ts` | Commentaire de bloc corrigé |
+
+### Changement de flux UI
+
+**Ancien flux (client-side) :**
+1. `canAffordUnit()` vérifie resources Zustand + PA
+2. `spendActionPoints()` débite les PA côté client
+3. `trainUnit()` débite les resources Zustand + appelle `apiSetProduction()`
+
+**Nouveau flux (serveur-authoritative) :**
+1. Clic → `handleRecruit(unitId, city.id)` (async)
+2. Appel `apiStartRecruitment(Number(cityId), unitId)`
+3. Succès → `hydrateCitiesFromServer()` pour rafraîchir la production affichée
+4. Erreur → message inline par ville via `cityErrors[city.id]`
+
+### Fonction API appelée
+`apiStartRecruitment(Number(city.id), unitId)` → `POST /api/cities/:cityId/start-recruitment`
+
+### Payload envoyé
+`{ unitType: string }` — seul le type d'unité. Aucun coût ni durée envoyés depuis le client.
+
+### Confirmation absence de débit client-side
+- Aucun `trainUnit()` appelé dans le flux recrutement.
+- Aucun `spendActionPoints()` dans le nouveau `handleRecruit`.
+- Aucun débit manuel des `resources` Zustand pour le recrutement.
+
+### Gestion erreurs UI
+| Cas | Message affiché |
+|---|---|
+| `PRODUCTION_ALREADY_ACTIVE` | "Une production est déjà en cours dans cette ville." |
+| `INSUFFICIENT_CITY_INVENTORY` | "Ressources insuffisantes dans l'inventaire de la ville." + `missing[]` loggué |
+| Erreur inconnue | "Impossible de démarrer le recrutement." + `console.error` |
+
+Affichage : bannière rouge inline sous la barre de progression, par ville.
+
+### State React ajouté
+- `isRecruiting: Record<string, boolean>` — désactive tous les boutons de la ville pendant l'appel
+- `cityErrors: Record<string, string>` — message d'erreur par ville
+
+### Stratégie de rafraîchissement après succès
+`hydrateCitiesFromServer()` est appelé après chaque succès → recharge `city.currentProduction` depuis le serveur → les boutons deviennent "Occupé" et la barre de progression s'affiche.
+
+### Confirmations
+- **`shared/landUnitCatalog.ts` passif** — non importé, non modifié.
+- **Unités prototype non branchées** — IDs restent `warrior/spearman/…` comme définis localement.
+- **`productionCost:number` inchangé** — durée en tours, non modifié.
+- **`trainUnit()` conservé** dans le store — non supprimé, non appelé depuis ce composant.
+- **`apiSetProduction()` conservé** — dans le store et le fichier.
+- **`RUNTIME_RECRUITMENT_COSTS` non modifié.**
+
+### Commentaire serveur corrigé
+`server/routes/cities.ts` ligne 629 — bloc de commentaire entièrement réécrit : plus aucune mention du risque résiduel ou de `debitCityInventoryForRecruitment`. Texte final : "Recrutement atomique : startRecruitmentTransaction() encapsule vérification de production active, débit city_inventory et écriture city_production dans une transaction DB unique."
+
+### Tests documentés
+1. Clic "Recruter" → `POST /api/cities/:cityId/start-recruitment` body `{ unitType }` → succès 201 → `hydrateCitiesFromServer()` → bouton "Occupé", barre de progression affichée ✓
+2. Ressources city_inventory insuffisantes → 400 `INSUFFICIENT_CITY_INVENTORY` → message rouge + `missing[]` dans console ✓
+3. Production déjà active → 409 `PRODUCTION_ALREADY_ACTIVE` → message rouge ✓
+4. Double-clic rapide → `isRecruiting[city.id]` désactive le bouton pendant l'appel → au plus un succès ✓
+5. `trainUnit()` non appelé dans ce flux ✓
+6. `apiSetProduction()` toujours exporté dans `citiesApi.ts` ✓
+
+### Résultat TypeScript
+`npx tsc --noEmit` : **187 erreurs** — baseline inchangée.
+
+### Risques restants
+- `canAffordUnit()` vérifie les resources Zustand globales (pas `city_inventory` serveur) — indicateur PA approximatif, peut ne pas refléter l'état réel. À corriger en V3-D5-F.
+- Les coûts affichés dans l'UI (`unit.cost` local) diffèrent de `RUNTIME_RECRUITMENT_COSTS` serveur — deux catalogues coexistent. À réconcilier en V3-D5-F ou V3-D5-E2.
+- Pas de debounce explicite sur le bouton — `isRecruiting` protège contre le double-clic mais pas contre les clics après `finally`.
+
+### Prochaine étape recommandée
+**V3-D5-F** — Tests serveur : `startRecruitmentTransaction`, `canAffordRecruitmentCost`, cas de concurrence, rollback atomique.
+
+**Statut V3-D5-E :** `RecruitmentPanel` branché sur `start-recruitment` serveur-authoritative. Débit uniquement côté serveur. Ancien système (`trainUnit`, `apiSetProduction`) conservé. Unités prototype non branchées. `productionCost:number` inchangé.

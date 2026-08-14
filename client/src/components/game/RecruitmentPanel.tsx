@@ -2,14 +2,20 @@ import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { usePlayer } from "../../lib/stores/usePlayer";
 import { Button } from "../ui/button";
 import { getUnitRecruitmentCost, canAffordAction } from "../../lib/game/ActionPointsCosts";
-import { Resources } from "../../lib/game/types";
 import { useState } from "react";
+import { apiStartRecruitment } from "../../lib/api/citiesApi";
 
 export function RecruitmentPanel() {
-  const { currentNovaImperium, trainUnit } = useNovaImperium();
-  const { actionPoints, spendActionPoints } = usePlayer();
+  // V3-D5-E : trainUnit n'est plus utilisé dans ce composant (remplacé par apiStartRecruitment).
+  // trainUnit reste présent dans le store pour d'éventuels autres appelants.
+  const { currentNovaImperium, hydrateCitiesFromServer } = useNovaImperium();
+  const { actionPoints } = usePlayer();
   const [hoveredUnit, setHoveredUnit] = useState<string | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  // isRecruiting : clé = city.id (string) — désactive les boutons pendant l'appel serveur
+  const [isRecruiting, setIsRecruiting] = useState<Record<string, boolean>>({});
+  // cityErrors : message d'erreur affiché sous chaque ville
+  const [cityErrors, setCityErrors] = useState<Record<string, string>>({});
 
   if (!currentNovaImperium) return null;
 
@@ -63,36 +69,53 @@ export function RecruitmentPanel() {
       .join(', ');
   };
 
+  // canAffordUnit : contrôle d'affichage uniquement (AP + ressources Zustand globales).
+  // NE contrôle plus la validation des ressources city_inventory — c'est le serveur
+  // qui est authoritative via POST /api/cities/:cityId/start-recruitment.
+  // Risque : les ressources Zustand (globales) diffèrent de city_inventory (serveur) —
+  // l'indicateur peut être incorrect. À réconcilier en V3-D5-F.
   const canAffordUnit = (unitId: string): boolean => {
-    const unit = units.find(u => u.id === unitId);
-    if (!unit || !currentNovaImperium) return false;
-    
     const actionCost = getUnitRecruitmentCost(unitId);
-    const resources = currentNovaImperium.resources;
-    
-    // Check Action Points
-    if (!canAffordAction(actionPoints, actionCost)) return false;
-    
-    // Check all required resources
-    return Object.entries(unit.cost).every(([resource, amount]) => {
-      return resources[resource as keyof Resources] >= amount;
-    });
+    return canAffordAction(actionPoints, actionCost);
   };
 
-  const handleRecruit = (unitId: string, cityId: string) => {
-    const unit = units.find(u => u.id === unitId);
-    if (!unit || !currentNovaImperium) return;
-    
-    const actionCost = getUnitRecruitmentCost(unitId);
-    
-    if (canAffordUnit(unitId)) {
-      const success = spendActionPoints(actionCost);
-      if (success) {
-        trainUnit(cityId, unitId, unit.cost as unknown as Record<string, number>, unit.recruitmentTime);
-        console.log(`Recrutement de ${unitId} lancé pour ${unit.recruitmentTime} tours, ${actionCost} PA et ressources déduites`);
+  // V3-D5-E : handleRecruit est maintenant serveur-authoritative.
+  // Seul unitType est envoyé au serveur — pas de coût ni de durée depuis le client.
+  // Le débit city_inventory se fait atomiquement côté serveur (V3-D5-C2).
+  const handleRecruit = async (unitId: string, cityId: string) => {
+    if (!currentNovaImperium) return;
+
+    setIsRecruiting(prev => ({ ...prev, [cityId]: true }));
+    setCityErrors(prev => ({ ...prev, [cityId]: '' }));
+
+    try {
+      await apiStartRecruitment(Number(cityId), unitId);
+      // Succès : rafraîchir l'état des villes depuis le serveur pour afficher
+      // la production en cours et l'inventaire mis à jour.
+      await hydrateCitiesFromServer();
+    } catch (err: any) {
+      const body = err?.body ?? {};
+      if (body.error === 'PRODUCTION_ALREADY_ACTIVE') {
+        setCityErrors(prev => ({
+          ...prev,
+          [cityId]: 'Une production est déjà en cours dans cette ville.',
+        }));
+      } else if (body.error === 'INSUFFICIENT_CITY_INVENTORY') {
+        const missing: { resource: string; shortage: number }[] = body.missing ?? [];
+        console.error('[handleRecruit] Ressources city_inventory manquantes:', missing);
+        setCityErrors(prev => ({
+          ...prev,
+          [cityId]: 'Ressources insuffisantes dans l\'inventaire de la ville.',
+        }));
+      } else {
+        console.error('[handleRecruit] Erreur inattendue:', err);
+        setCityErrors(prev => ({
+          ...prev,
+          [cityId]: 'Impossible de démarrer le recrutement.',
+        }));
       }
-    } else {
-      console.log(`Ressources insuffisantes pour recruter ${unitId}`);
+    } finally {
+      setIsRecruiting(prev => ({ ...prev, [cityId]: false }));
     }
   };
 
@@ -138,6 +161,13 @@ export function RecruitmentPanel() {
             <div className="text-xs text-amber-700 mb-3">Aucun recrutement en cours</div>
           )}
 
+          {/* Erreur de recrutement — affichée sous la barre de progression */}
+          {cityErrors[city.id] && (
+            <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1 mb-2">
+              {cityErrors[city.id]}
+            </div>
+          )}
+
           <div className="space-y-3">
             {['Infanterie', 'Distance', 'Siège', 'Cavalerie', 'Marine', 'Spécial'].map(category => {
               const categoryUnits = units.filter(u => u.category === category);
@@ -170,17 +200,19 @@ export function RecruitmentPanel() {
                         size="sm"
                         onClick={() => handleRecruit(unit.id, city.id)}
                         disabled={
-                          city.currentProduction !== null || 
-                          !canAffordUnit(unit.id)
+                          city.currentProduction !== null ||
+                          !!isRecruiting[city.id]
                         }
                         className="text-xs bg-amber-600 hover:bg-amber-700 disabled:opacity-50 whitespace-nowrap"
                         title={
                           city.currentProduction !== null ? 'Ville occupée' :
-                          !canAffordUnit(unit.id) ? 'Ressources insuffisantes' : 'Recruter cette unité'
+                          isRecruiting[city.id] ? 'Recrutement en cours…' :
+                          !canAffordUnit(unit.id) ? 'Points d\'action insuffisants' :
+                          'Recruter cette unité'
                         }
                       >
-                        {city.currentProduction !== null ? 'Occupé' : 
-                         !canAffordUnit(unit.id) ? 'Manque ressources' : 'Recruter'}
+                        {isRecruiting[city.id] ? '…' :
+                         city.currentProduction !== null ? 'Occupé' : 'Recruter'}
                       </Button>
                     </div>
                   ))}

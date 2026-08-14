@@ -1,0 +1,304 @@
+NOVA IMPERIUM — Ressources V3-D5-E
+Brancher RecruitmentPanel sur start-recruitment serveur-authoritative
+
+RÔLE
+Tu es l’agent technique sur le repo Nova Imperium.
+Objectif : remplacer le démarrage de recrutement client-side actuel par l’appel serveur-authoritative validé :
+
+apiStartRecruitment(cityId, unitType)
+→ POST /api/cities/:cityId/start-recruitment
+
+IMPORTANT
+
+Ce bloc branche l’UI de recrutement runtime existante.
+Ne pas modifier shared/landUnitCatalog.ts.
+Ne pas brancher les LandUnitId prototype.
+Ne pas modifier server/unitCatalog.ts.
+Ne pas modifier RUNTIME_RECRUITMENT_COSTS sauf correction strictement nécessaire.
+Ne pas créer de nouvelles unités prototype.
+Ne pas modifier tickCityProduction().
+Ne pas modifier createProducedUnit().
+Ne pas modifier productionCost:number.
+Ne pas modifier city_production.
+Ne pas migrer coal/oil/herbs.
+Ne pas modifier les bâtiments producteurs.
+Ne pas supprimer apiSetProduction().
+Ne pas supprimer trainUnit() globalement si d’autres composants l’utilisent.
+Mettre à jour CLAUDE.md.
+
+CONTEXTE VALIDÉ
+
+V3-D5-C2 :
+- POST /api/cities/:cityId/start-recruitment est atomique.
+- startRecruitmentTransaction() fait dans une transaction DB :
+  1. vérification production active ;
+  2. vérification city_inventory ;
+  3. débit conditionnel city_inventory ;
+  4. insertion/upsert city_production.
+- Aucun risque de perte entre débit et city_production.
+
+V3-D5-D :
+- client/src/lib/api/citiesApi.ts expose :
+  apiStartRecruitment(cityId: number, unitType: string)
+- La fonction conserve les erreurs serveur dans error.body :
+  - PRODUCTION_ALREADY_ACTIVE
+  - INSUFFICIENT_CITY_INVENTORY + missing[]
+  - autres erreurs lisibles.
+- L’UI n’est pas encore branchée.
+
+OBJECTIF DE CE BLOC
+
+Modifier uniquement le flux de démarrage du recrutement dans RecruitmentPanel.tsx pour utiliser :
+
+apiStartRecruitment(cityId, unitType)
+
+au lieu du débit client-side + apiSetProduction.
+
+Le recrutement doit devenir serveur-authoritative pour :
+- validation des ressources ;
+- débit city_inventory ;
+- refus si production active ;
+- création city_production.
+
+À INSPECTER AVANT MODIFICATION
+
+Lire :
+
+- client/src/components/game/RecruitmentPanel.tsx
+- client/src/lib/api/citiesApi.ts
+- client/src/lib/stores/useNovaImperium.tsx
+- server/routes/cities.ts
+- server/recruitmentService.ts
+- server/unitCatalog.ts
+- CLAUDE.md
+
+Chercher :
+
+- trainUnit()
+- apiSetProduction()
+- currentProduction
+- selectedCity
+- city.id
+- city.inventory ou inventory local
+- recruitmentTime
+- cost
+- affichage erreurs/toasts
+- refresh villes / fetchMyCities / reload cities
+- production courante affichée
+
+À FAIRE
+
+1. Importer apiStartRecruitment
+
+Dans RecruitmentPanel.tsx, importer :
+
+apiStartRecruitment
+
+depuis le fichier approprié :
+
+client/src/lib/api/citiesApi.ts
+
+2. Remplacer uniquement l’action de démarrage
+
+Identifier le handler qui lance actuellement le recrutement.
+
+Ancien comportement probable :
+- vérifie coût côté client ;
+- débite le state local Zustand ;
+- appelle trainUnit(cityId, unitId, cost, recruitmentTime) ;
+- trainUnit appelle apiSetProduction() ou équivalent.
+
+Nouveau comportement attendu :
+- au clic recruter :
+  - vérifier qu’une ville est sélectionnée ;
+  - vérifier que unitType existe ;
+  - appeler apiStartRecruitment(cityId, unitType) ;
+  - en succès :
+    - afficher/mettre à jour la production courante côté UI si le pattern existe ;
+    - rafraîchir les villes ou l’état nécessaire ;
+    - ne pas débiter manuellement les ressources côté client.
+  - en erreur :
+    - afficher une erreur lisible ;
+    - préserver missing[] si ressources insuffisantes.
+
+Important :
+- ne plus faire de débit client-side pour ce flux.
+- ne plus utiliser le coût envoyé par le client comme source de vérité.
+- ne pas envoyer cost/recruitmentTime au serveur.
+- envoyer seulement unitType.
+
+3. Garder l’affichage existant autant que possible
+
+L’affichage actuel peut rester basé sur les coûts runtime existants côté client si présent.
+
+Mais pour ce bloc :
+- ne pas migrer l’affichage vers shared/landUnitCatalog.ts ;
+- ne pas importer shared/landUnitCatalog.ts ;
+- ne pas essayer de synchroniser parfaitement les coûts visuels avec RUNTIME_RECRUITMENT_COSTS si cela demande un gros refactor.
+
+Si les coûts affichés diffèrent des coûts serveur :
+- documenter le risque dans CLAUDE.md.
+- ne pas masquer le problème.
+
+4. Gestion des erreurs UI
+
+Gérer au minimum :
+
+A. PRODUCTION_ALREADY_ACTIVE
+Afficher message :
+“Une production est déjà en cours dans cette ville.”
+
+B. INSUFFICIENT_CITY_INVENTORY
+Afficher message :
+“Ressources insuffisantes dans l’inventaire de la ville.”
+Si simple :
+- inclure les ressources manquantes depuis missing[].
+Sinon :
+- au minimum logguer missing[] et afficher message générique.
+
+C. Erreur inconnue
+Afficher message générique :
+“Impossible de démarrer le recrutement.”
+
+Respecter le pattern UI existant :
+- toast si déjà utilisé ;
+- state error si déjà utilisé ;
+- console.error si nécessaire.
+
+5. Rafraîchissement après succès
+
+Après succès de apiStartRecruitment :
+- rafraîchir la liste des villes / currentProduction si une fonction existe.
+- Sinon, mettre à jour localement currentProduction de manière minimale.
+
+Objectif :
+- que l’UI montre qu’une production est en cours après le clic ;
+- que le bouton ne permette pas de relancer immédiatement si currentProduction est visible.
+
+Ne pas faire de refactor massif du store.
+
+6. Ne pas supprimer l’ancien flux global
+
+Si trainUnit() est dans le store :
+- ne pas le supprimer dans ce bloc ;
+- ne pas casser d’autres appels.
+- seulement faire en sorte que RecruitmentPanel n’utilise plus trainUnit() pour démarrer ce recrutement.
+
+7. Nettoyer commentaire serveur obsolète
+
+Dans server/routes/cities.ts, corriger le commentaire au-dessus de start-recruitment.
+
+Remplacer l’ancien commentaire contradictoire par :
+
+“Recrutement atomique : startRecruitmentTransaction() encapsule vérification de production active, débit city_inventory et écriture city_production dans une transaction DB unique.”
+
+Ne pas modifier la logique serveur.
+
+À NE PAS FAIRE
+
+- Ne pas modifier shared/landUnitCatalog.ts.
+- Ne pas brancher militia/garrison/patrollers/etc.
+- Ne pas modifier server/unitCatalog.ts.
+- Ne pas modifier RUNTIME_RECRUITMENT_COSTS sauf bug évident.
+- Ne pas modifier productionCost:number.
+- Ne pas modifier tickCityProduction().
+- Ne pas modifier createProducedUnit().
+- Ne pas supprimer PUT /api/cities/:cityId/production.
+- Ne pas supprimer apiSetProduction().
+- Ne pas supprimer trainUnit() globalement.
+- Ne pas ajouter upkeep.
+- Ne pas ajouter remboursement d’annulation.
+- Ne pas modifier bâtiments.
+- Ne pas migrer coal/oil/herbs.
+
+VALIDATION TECHNIQUE
+
+Exécuter :
+
+npx tsc --noEmit
+
+Baseline connue :
+- 187 erreurs TypeScript préexistantes.
+
+Objectif :
+- rester à 187 erreurs ;
+- zéro régression.
+
+TESTS À DOCUMENTER
+
+Documenter au minimum :
+
+1. Clic recruter avec ressources suffisantes :
+- appelle apiStartRecruitment ;
+- serveur débite city_inventory ;
+- city_production créée ;
+- UI montre production en cours.
+
+2. Ressources insuffisantes :
+- aucun débit ;
+- message d’erreur UI ;
+- missing[] conservé/loggué.
+
+3. Production déjà active :
+- aucun débit ;
+- message d’erreur UI.
+
+4. Double clic rapide :
+- au plus un succès ;
+- second refusé par production active ou garde serveur.
+
+5. Vérifier que RecruitmentPanel n’appelle plus trainUnit() pour ce flux.
+
+6. Vérifier que apiSetProduction() existe encore pour les anciens usages.
+
+CLAUDE.md
+
+Ajouter une section :
+
+“Ressources V3-D5-E — RecruitmentPanel branché sur start-recruitment”
+
+Inclure :
+
+- objectif ;
+- fichiers inspectés ;
+- fichiers modifiés ;
+- changement de flux UI ;
+- fonction API appelée ;
+- payload envoyé ;
+- confirmation absence de débit client-side ;
+- gestion erreurs UI ;
+- stratégie de rafraîchissement UI après succès ;
+- confirmation shared/landUnitCatalog.ts passif ;
+- confirmation unités prototype non branchées ;
+- confirmation productionCost:number inchangé ;
+- commentaire serveur nettoyé ;
+- résultat TypeScript ;
+- risques restants ;
+- prochaine étape recommandée.
+
+SORTIE ATTENDUE
+
+Répondre avec :
+
+1. Fichiers inspectés.
+2. Fichiers modifiés.
+3. Ancien flux remplacé.
+4. Nouveau flux.
+5. Payload envoyé à apiStartRecruitment.
+6. Gestion erreurs.
+7. Rafraîchissement après succès.
+8. Confirmation qu’il n’y a plus de débit client-side dans RecruitmentPanel.
+9. Confirmation que trainUnit/apiSetProduction restent présents ailleurs si non supprimés.
+10. Confirmation que shared/landUnitCatalog.ts n’est pas branché.
+11. Résultat TypeScript.
+12. Risques restants.
+13. Prochaine étape recommandée.
+
+STATUT ATTENDU
+
+RecruitmentPanel utilise start-recruitment serveur-authoritative.
+Débit ressources fait uniquement côté serveur.
+city_inventory débité atomiquement avec city_production.
+Ancien système global non supprimé.
+Unités prototype non branchées.
+productionCost:number conservé.
