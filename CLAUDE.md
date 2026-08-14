@@ -1969,3 +1969,174 @@ Après : "Points d'Action (indicatifs) :" / "Requis indicatif : X PA"
 **V3-D5-I / V3-D6** — Migration vers les unités prototype (`militia`, `garrison`, `patrollers`, `rangers`, …) : unifier les IDs du tableau local avec `RUNTIME_RECRUITMENT_COSTS` et `shared/landUnitCatalog.ts`, et ajouter les 15 entrées dans `server/unitCatalog.ts` avec des stats provisoires.
 
 **Statut V3-D5-H :** Flux recrutement runtime finalisé. Commentaires nettoyés. PA correctement marqués indicatifs. Coûts UI alignés sur le catalogue serveur. Aucun branchement prototype. `productionCost:number` conservé.
+
+---
+
+## Ressources V3-D6-A — Audit migration unités terrestres prototype
+
+### Objectif
+Auditer la faisabilité et l'ordre de migration du recrutement runtime (warrior/spearman/…) vers les 15 unités terrestres prototype (militia/garrison/…) de `shared/landUnitCatalog.ts`. Aucune modification de code.
+
+### Fichiers inspectés
+- `shared/landUnitCatalog.ts` — catalogue design prototype (15 LandUnitId)
+- `server/unitCatalog.ts` — catalogue runtime serveur (15 IDs actuels + UnitStats)
+- `server/recruitmentService.ts` — RUNTIME_RECRUITMENT_COSTS + startRecruitmentTransaction
+- `server/cityService.ts` — createProducedUnit + tickCityProduction
+- `client/src/components/game/RecruitmentPanel.tsx` — tableau local units + serverRecruitmentCosts
+- `client/src/lib/api/citiesApi.ts` — apiGetRecruitmentCosts, apiStartRecruitment
+- `client/src/lib/game/ActionPointsCosts.ts` — getUnitRecruitmentCost
+- `CLAUDE.md`
+
+### Fichiers modifiés
+Aucun — bloc audit-only.
+
+---
+
+### 1. État server/unitCatalog.ts
+
+**Structure UnitStats :** `{ name, strength, health, attack, defense, movement }`
+- `strength` : NON persisté en DB — injecté dans le DTO API uniquement.
+- Tous les autres champs sont persistés dans la table `units` à la création.
+
+**15 IDs actuels :** warrior, spearman, swordsman, archer, crossbowman, catapult, trebuchet, horseman, knight, galley, warship, scout, settler, diplomat, spy.
+
+**Risque si ID absent :**
+- `createProducedUnit(unitType)` → `throw new Error(...)` → `tickCityProduction` intercepte avec `console.warn` et **ne crée pas l'unité** — production silencieusement ignorée à la complétion.
+- **Conclusion : ajouter les 15 LandUnitIds dans UNIT_CATALOG est un prérequis dur avant tout recrutement prototype.**
+
+---
+
+### 2. Fonctionnement createProducedUnit()
+
+```
+UNIT_CATALOG[unitType] → { name, attack, defense, health, movement }
+INSERT units(ownerPlayerId, cityId, unitType, name, worldX, worldY, attack, defense, health, maxHealth, movement, movementRemaining, experience=0)
+```
+
+- `strength` vient du catalog mais n'est pas dans la table `units` — injecté en DTO GET /units.
+- `worldX/Y` = coords de la ville au moment de la complétion (non persistées séparément).
+- `maxHealth = health` du catalogue.
+
+**Champs requis pour ajouter un prototype :** `name` (=label), `health`, `attack`, `defense`, `movement` (=maxMovementPerTurn), + `strength` (provisoire — non persisté).
+
+**Ce que `landUnitCatalog.ts` fournit :** `label` (→name), `maxMovementPerTurn` (→movement).
+
+**Ce que `landUnitCatalog.ts` ne fournit pas** (à inventer en V3-D6-B) : `strength`, `health`, `attack`, `defense` → valeurs provisoires à définir manuellement.
+
+---
+
+### 3. État RUNTIME_RECRUITMENT_COSTS
+
+**15 entrées** correspondant exactement aux 15 IDs de UNIT_CATALOG actuel.
+
+**Format :** `{ duration: number (tours), cost: Partial<Record<RecruitmentCostResource, number>> }`
+
+**Ressources autorisées :** food, wood, stone, common_metals, common_textiles, labor_contracts, basic_equipment. (fracten, coal, oil, herbs exclus délibérément.)
+
+**Lien GET /recruitment-costs :** filtre `UNIT_CATALOG ∩ RUNTIME_RECRUITMENT_COSTS` — actuellement 15/15. Après migration : 30/30 (si les 15 nouveaux IDs sont dans les deux).
+
+**Lien POST /start-recruitment :** valide `UNIT_CATALOG[unitType]` puis `RUNTIME_RECRUITMENT_COSTS[unitType]` — les deux doivent exister pour qu'un recrutement aboutisse.
+
+**Divergence avec `shared/landUnitCatalog.ts` :** RUNTIME_RECRUITMENT_COSTS ne connaît pas les 15 LandUnitIds. Les `creationCost` de landUnitCatalog utilisent les mêmes ressources canoniques V3 que les colonnes city_inventory → aucun problème de mapping.
+
+---
+
+### 4. État shared/landUnitCatalog.ts
+
+**15 LandUnitIds :** militia, garrison, patrollers, scouts, light_infantry, regular_infantry, noble_infantry, shock_troops, bow_infantry, crossbow_infantry, sappers, field_engineers, raid_troops, hunters, pikemen.
+
+**Champs utiles pour le runtime (en V3-D6-B/C) :**
+| Champ landUnitCatalog | Correspondance UNIT_CATALOG / RUNTIME |
+|---|---|
+| `label` | `name` dans UNIT_CATALOG |
+| `maxMovementPerTurn` | `movement` dans UNIT_CATALOG |
+| `creationCost` | `cost` dans RUNTIME_RECRUITMENT_COSTS |
+| (durée absente) | `duration` à définir manuellement |
+
+**Champs à NE PAS brancher encore :**
+- `siegeWearPoints` — système de siège non implémenté.
+- `upkeepPerTurn` — entretien non implémenté.
+- `ability` / `unlockedAction` — capacités spéciales non implémentées.
+- `actionPointCostPerTile` — PA non authoritative côté serveur.
+
+**`creationCategory: "city"`** sur les 15 unités → toutes recrutables depuis une ville → compatible avec la route actuelle.
+
+**`prototypeStatus: true`** sur toutes les entrées — champ de design, non lu par le runtime.
+
+**Ressources dans `creationCost` :** food, labor_contracts, wood, basic_equipment, common_metals, common_textiles — toutes présentes en `city_inventory` depuis V3-D2. ✅ Aucun ajout de colonne nécessaire.
+
+**Unités sans `common_textiles` ni `basic_equipment` :** militia (food+labor_contracts), garrison (food+labor_contracts+wood), hunters (food+labor_contracts+wood). Les plus simples.
+
+---
+
+### 5. État RecruitmentPanel.tsx
+
+**Tableau local `units` :** 15 entrées hardcodées (warrior/spearman/…), catégories : Infanterie, Distance, Siège, Cavalerie, Marine, Spécial.
+
+**Dépendance `serverRecruitmentCosts` :** affiche les coûts/durées serveur si disponibles, sinon fallback `unit.cost` local.
+
+**Ce qu'il faudra changer en V3-D6-E :**
+- Remplacer les 15 entrées locales par les 15 LandUnitIds.
+- Adapter les catégories (Infanterie légère/lourde, Distance, Technique, Raid, Support).
+- Mettre à jour `getUnitRecruitmentCost` ou ignorer les PA (déjà indicatifs).
+
+**Ce qu'il ne faut pas encore changer :** rien dans ce bloc — UI fonctionnelle avec coûts serveur.
+
+---
+
+### 6. Compatibilité ressources
+
+| Ressource prototype | Présente city_inventory | Présente RUNTIME resource set |
+|---|---|---|
+| food | ✅ | ✅ |
+| labor_contracts | ✅ (V3-D2) | ✅ |
+| wood | ✅ | ✅ |
+| basic_equipment | ✅ (V3-D2) | ✅ |
+| common_metals | ✅ | ✅ |
+| common_textiles | ✅ (V3-D2) | ✅ |
+
+**Ressource présente dans RUNTIME actuel mais absente des prototypes :** stone (catapult/trebuchet uniquement — unités à déprécier). Aucun impact.
+
+**Conclusion compatibilité :** migration des coûts prototype → RUNTIME_RECRUITMENT_COSTS ne nécessite aucun ajout de colonne DB ni de nouvelle ressource. Chemin libre.
+
+---
+
+### 7. Risques identifiés
+
+| Risque | Criticité | Mitigation |
+|---|---|---|
+| LandUnitId absent de UNIT_CATALOG → `createProducedUnit` throw → unité jamais créée | 🔴 Bloquant | Ajouter en V3-D6-B avant tout recrutement prototype |
+| Stats combat provisoires (health/attack/defense) à inventer pour les 15 prototypes | 🟡 Moyen | Valeurs provisoires équilibrées en V3-D6-B — à affiner en V3-D7 |
+| ActionPointsCosts.ts ne connaît pas les 15 LandUnitIds → fallback 5 PA | 🟢 Faible | PA indicatifs non-authoritative depuis V3-D5-F — acceptable |
+| `siege/naval units` (catapult/galley…) disparaissent du catalogue runtime | 🟡 Moyen | Déprécier en dernier (V3-D6-G) après validation prototype |
+| UI `units` local doit être remplacé en V3-D6-E — changement visible | 🟡 Moyen | Migration propre dans un bloc dédié |
+| `upkeepPerTurn` non branché — prototypes ne coûtent rien par tour | 🟢 Faible | Délibéré — upkeep hors scope V3-D6 |
+
+---
+
+### 8. Plan de migration recommandé
+
+**V3-D6-B** — Ajouter les 15 LandUnitIds dans `server/unitCatalog.ts` avec `label`→name, `maxMovementPerTurn`→movement, et stats provisoires (health/attack/defense/strength). Passif — aucune UI, aucun RUNTIME_RECRUITMENT_COSTS.
+
+**V3-D6-C** — Ajouter les 15 entrées dans `RUNTIME_RECRUITMENT_COSTS` avec `creationCost` de landUnitCatalog + `duration` provisoire par profil. Route GET /recruitment-costs expose automatiquement les 30 IDs (15 anciens + 15 nouveaux). Passif UI.
+
+**V3-D6-D** — Adapter `RecruitmentPanel.tsx` : remplacer le tableau local par les 15 prototypes, nouvelles catégories (Infanterie légère/lourde/Distance/Technique/Raid/Support). Affichage coûts serveur déjà en place (serverRecruitmentCosts).
+
+**V3-D6-E** — Test intégration : recruter militia → vérifier city_inventory débité → city_production créée → tick → createProducedUnit → unité dans la table units.
+
+**V3-D6-F** — Déprécier les 15 anciens IDs runtime (warrior/spearman/…) dans UNIT_CATALOG et RUNTIME_RECRUITMENT_COSTS une fois la migration prototype validée. Masquer ou retirer de RecruitmentPanel.
+
+---
+
+### Résultat TypeScript
+`npx tsc --noEmit` : **187 erreurs** — baseline inchangée. Aucun code modifié.
+
+### Risques restants (post-audit)
+- Stats combat provisoires pour les 15 prototypes à calibrer.
+- `upkeepPerTurn` non branché — délibéré jusqu'à V3-D7.
+- `ability`/`unlockedAction` non branchés — délibéré.
+
+### Prochaine étape recommandée
+**V3-D6-B** — Ajouter les 15 LandUnitIds dans `server/unitCatalog.ts` avec stats provisoires dérivées de `shared/landUnitCatalog.ts`.
+
+**Statut V3-D6-A :** Audit complet. Aucun code modifié. Chemin de migration identifié. Risques documentés. Plan en 5 blocs proposé.

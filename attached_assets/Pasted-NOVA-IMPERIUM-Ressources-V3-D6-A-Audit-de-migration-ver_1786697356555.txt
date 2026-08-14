@@ -1,0 +1,288 @@
+NOVA IMPERIUM — Ressources V3-D6-A
+Audit de migration vers les unités terrestres prototype
+
+RÔLE
+Tu es l’agent technique sur le repo Nova Imperium.
+Objectif : auditer la migration du recrutement runtime actuel vers les unités terrestres prototype définies dans shared/landUnitCatalog.ts, sans encore brancher ces unités.
+
+IMPORTANT
+
+Ce bloc est un AUDIT uniquement.
+Ne pas modifier server/unitCatalog.ts.
+Ne pas modifier shared/landUnitCatalog.ts.
+Ne pas brancher les LandUnitId prototype.
+Ne pas modifier RecruitmentPanel.tsx sauf si commentaire strictement nécessaire.
+Ne pas modifier RUNTIME_RECRUITMENT_COSTS.
+Ne pas modifier startRecruitmentTransaction().
+Ne pas modifier GET /api/cities/recruitment-costs.
+Ne pas modifier POST /api/cities/:cityId/start-recruitment.
+Ne pas modifier tickCityProduction().
+Ne pas modifier createProducedUnit().
+Ne pas modifier productionCost:number.
+Ne pas migrer coal/oil/herbs.
+Ne pas modifier les bâtiments producteurs.
+Ne pas supprimer apiSetProduction().
+Ne pas supprimer trainUnit().
+Mettre à jour CLAUDE.md avec l’audit.
+
+CONTEXTE VALIDÉ
+
+V3-D5 complet :
+- Recrutement runtime serveur-authoritative validé.
+- RecruitmentPanel charge les coûts serveur via :
+  GET /api/cities/recruitment-costs
+- RecruitmentPanel affiche les coûts/durées serveur si disponibles.
+- Au clic recruter, le client envoie seulement :
+  { unitType }
+- startRecruitmentTransaction() valide et exécute atomiquement :
+  - production active ;
+  - city_inventory ;
+  - débit city_inventory ;
+  - écriture city_production.
+- Aucun débit client-side.
+- PA indicatifs seulement.
+- productionCost:number conservé comme durée/progression.
+- shared/landUnitCatalog.ts est encore passif.
+
+CATALOGUE PROTOTYPE EXISTANT
+
+shared/landUnitCatalog.ts contient les 15 unités terrestres prototype :
+
+- militia
+- garrison
+- patrollers
+- scouts
+- light_infantry
+- regular_infantry
+- noble_infantry
+- shock_troops
+- bow_infantry
+- crossbow_infantry
+- sappers
+- field_engineers
+- raid_troops
+- hunters
+- pikemen
+
+Ces IDs ne sont pas encore compatibles runtime avec server/unitCatalog.ts.
+Le recrutement runtime actuel utilise encore des IDs comme :
+- warrior
+- spearman
+- swordsman
+- archer
+- crossbowman
+- catapult
+- trebuchet
+- horseman
+- knight
+- galley
+- warship
+- scout
+- settler
+- diplomat
+- spy
+
+OBJECTIF DE CE BLOC
+
+Produire un audit clair pour préparer V3-D6-B.
+
+Il faut déterminer :
+
+1. Où les IDs d’unités runtime sont actuellement utilisés.
+2. Quels systèmes dépendraient de l’ajout des 15 IDs prototype dans server/unitCatalog.ts.
+3. Quel format exact doit avoir chaque entrée serveur pour ne pas casser createProducedUnit().
+4. Comment relier les coûts prototype de shared/landUnitCatalog.ts à RUNTIME_RECRUITMENT_COSTS sans double source incontrôlée.
+5. Quel ordre de migration est le plus sûr.
+
+À INSPECTER
+
+Lire au minimum :
+
+- shared/landUnitCatalog.ts
+- server/unitCatalog.ts
+- server/recruitmentService.ts
+- server/cityService.ts
+- server/routes/cities.ts
+- client/src/components/game/RecruitmentPanel.tsx
+- client/src/lib/api/citiesApi.ts
+- client/src/lib/stores/useNovaImperium.tsx
+- client/src/lib/game/types.ts
+- client/src/lib/game/ActionPointsCosts.ts
+- CLAUDE.md
+
+Chercher :
+
+- UNIT_CATALOG
+- createProducedUnit
+- productionName
+- productionType
+- productionCost
+- startRecruitmentTransaction
+- RUNTIME_RECRUITMENT_COSTS
+- apiGetRecruitmentCosts
+- apiStartRecruitment
+- units = [
+- currentNovaImperium.units
+- unit.type
+- getUnitRecruitmentCost
+- trainUnit
+- Unit DTO
+- movement / maxMovement
+- attack / defense / health / abilities
+
+POINTS D’AUDIT OBLIGATOIRES
+
+1. server/unitCatalog.ts
+
+Documenter :
+- structure actuelle des entrées ;
+- champs obligatoires pour createProducedUnit() ;
+- champs optionnels ;
+- IDs actuellement supportés ;
+- risques si un LandUnitId absent est envoyé à city_production.
+
+2. createProducedUnit()
+
+Documenter :
+- comment productionName est utilisé ;
+- comment UNIT_CATALOG[unitType] est résolu ;
+- quels champs sont copiés dans la table units ;
+- comportement si UNIT_CATALOG[unitType] est absent ;
+- impact sur completion de production.
+
+3. RUNTIME_RECRUITMENT_COSTS
+
+Documenter :
+- unités couvertes actuellement ;
+- format coût/durée ;
+- ressources autorisées ;
+- lien actuel avec GET /recruitment-costs ;
+- lien actuel avec POST /start-recruitment ;
+- divergence avec shared/landUnitCatalog.ts.
+
+4. shared/landUnitCatalog.ts
+
+Documenter :
+- IDs prototype ;
+- champs utiles pour runtime ;
+- champs qui ne doivent pas encore être branchés ;
+- coûts en ressources canoniques ;
+- différences entre créationCategory, creationProfile et type ;
+- attention : siegeWearPoints ne doit pas être branché au combat normal.
+
+5. RecruitmentPanel.tsx
+
+Documenter :
+- liste locale actuelle d’unités ;
+- catégories actuelles affichées ;
+- dépendance à serverRecruitmentCosts ;
+- ce qu’il faudra changer plus tard pour afficher les 15 unités prototype ;
+- ce qu’il ne faut pas encore changer.
+
+6. Compatibilité des ressources
+
+Comparer les coûts prototype à l’état runtime V3-D5 :
+- ressources déjà présentes en city_inventory ;
+- ressources absentes ou non branchées ;
+- ressources canoniques qui ne correspondent pas encore aux clés runtime.
+Indiquer les problèmes éventuels.
+
+Attention :
+- Ne pas migrer coal/oil/herbs.
+- Ne pas faire de conversion économique dans ce bloc.
+- Ne pas inventer de mapping final s’il n’est pas dans les fichiers.
+
+7. Plan de migration recommandé
+
+Proposer un plan par sous-blocs très prudents.
+
+Exemple attendu :
+
+V3-D6-B — Ajouter les 15 IDs prototype dans server/unitCatalog.ts, passivement.
+V3-D6-C — Ajouter RUNTIME_RECRUITMENT_COSTS pour ces 15 IDs, sans UI.
+V3-D6-D — Étendre GET /recruitment-costs pour exposer les IDs prototype.
+V3-D6-E — Adapter RecruitmentPanel pour afficher les unités prototype.
+V3-D6-F — Tester production tick + createProducedUnit avec une unité prototype.
+V3-D6-G — Déprécier ou masquer les anciennes unités runtime si validé.
+
+Ajuster ce plan selon les fichiers réels.
+
+À NE PAS FAIRE
+
+- Ne pas modifier server/unitCatalog.ts.
+- Ne pas modifier shared/landUnitCatalog.ts.
+- Ne pas modifier RecruitmentPanel.tsx.
+- Ne pas modifier RUNTIME_RECRUITMENT_COSTS.
+- Ne pas modifier routes runtime.
+- Ne pas brancher prototype.
+- Ne pas ajouter d’unités.
+- Ne pas modifier DB.
+- Ne pas modifier productionCost:number.
+- Ne pas modifier tickCityProduction().
+- Ne pas modifier createProducedUnit().
+- Ne pas modifier ActionPointsCosts.ts.
+- Ne pas modifier économie/bâtiments.
+- Ne pas créer de migration.
+- Ne pas faire de refactor.
+
+VALIDATION TECHNIQUE
+
+Comme ce bloc est audit-only, exécuter quand même :
+
+npx tsc --noEmit
+
+Baseline connue :
+- 187 erreurs TypeScript préexistantes.
+
+Objectif :
+- rester à 187 erreurs ;
+- zéro régression.
+
+CLAUDE.md
+
+Ajouter une section :
+
+“Ressources V3-D6-A — Audit migration unités terrestres prototype”
+
+Inclure :
+
+- objectif ;
+- fichiers inspectés ;
+- fichiers modifiés ;
+- confirmation audit-only ;
+- état server/unitCatalog.ts ;
+- état createProducedUnit ;
+- état RUNTIME_RECRUITMENT_COSTS ;
+- état shared/landUnitCatalog.ts ;
+- état RecruitmentPanel ;
+- compatibilité ressources ;
+- risques identifiés ;
+- plan de migration recommandé ;
+- résultat TypeScript ;
+- prochaine étape recommandée.
+
+SORTIE ATTENDUE
+
+Répondre avec :
+
+1. Fichiers inspectés.
+2. Fichiers modifiés.
+3. Confirmation audit-only.
+4. Structure actuelle server/unitCatalog.ts.
+5. Fonctionnement createProducedUnit().
+6. État RUNTIME_RECRUITMENT_COSTS.
+7. État shared/landUnitCatalog.ts.
+8. État RecruitmentPanel.
+9. Compatibilité ressources.
+10. Risques de migration.
+11. Plan de migration recommandé.
+12. Résultat TypeScript.
+13. Prochaine étape recommandée.
+
+STATUT ATTENDU
+
+Audit V3-D6-A complet.
+Aucun branchement prototype.
+Aucune modification runtime hors CLAUDE.md.
+Aucune unité créée.
+productionCost:number conservé.
