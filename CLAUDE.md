@@ -3035,3 +3035,107 @@ CityDTO {
 - Tests : sans caserne / N1 / N2 / N3 / N4
 
 **Statut V3-D7-B :** Caserne constructible et améliorable N1–N4. `addBuilding()` migré vers ON CONFLICT DO UPDATE. `CityDTO` expose `buildingLevels`. UI construction affiche badge niveau + boutons Améliorer/Niveau max. Aucune migration DB. Aucun gate recrutement. Recrutement prototype non-régressif. TypeScript 187 — stable.
+
+---
+
+## Ressources V3-D7-C — Gate serveur recrutement par niveau de caserne
+
+### Objectif
+Rendre le recrutement terrestre conditionnel au niveau de caserne de la ville, côté serveur uniquement. Aucun débit `city_inventory`, aucune `city_production` créée si la caserne est absente ou insuffisante.
+
+### Fichiers inspectés
+- `server/routes/cities.ts` (route `POST /start-recruitment`, imports drizzle)
+- `server/recruitmentService.ts` (`startRecruitmentTransaction`, `RUNTIME_RECRUITMENT_COSTS`)
+- `server/cityService.ts` (`checkCityAccess`, `addBuilding`, `cityBuildings`)
+- `shared/schema.ts` (`city_buildings`)
+- `client/src/lib/api/citiesApi.ts` (non modifié)
+- `CLAUDE.md`
+
+### Fichiers modifiés
+| Fichier | Nature |
+|---|---|
+| `server/routes/cities.ts` | Import `and` depuis drizzle-orm ; constante `BARRACKS_REQUIRED_LEVEL_BY_UNIT` ; helper `getBarracksLevelForCity()` ; validation caserne entre step 3 et step 4 (transaction) |
+
+### Mapping unités → niveau caserne requis
+
+| Niveau | Unités |
+|---|---|
+| 1 | militia, garrison, scouts, hunters |
+| 2 | patrollers, light_infantry, bow_infantry, pikemen |
+| 3 | regular_infantry, crossbow_infantry, sappers, raid_troops |
+| 4 | noble_infantry, shock_troops, field_engineers |
+
+Cumul : N2 inclut N1, N3 inclut N1+N2, N4 inclut N1+N2+N3.
+
+### Helper ajouté
+
+```typescript
+async function getBarracksLevelForCity(cityId: number): Promise<number>
+```
+- Interroge `city_buildings WHERE city_id=? AND building='barracks'` LIMIT 1.
+- Retourne 0 si absent, `level` (clampé 0–4) sinon.
+- Ne modifie jamais la DB.
+
+### Point d'insertion — ordre de validation final
+
+1. checkCityAccess (accès ville)
+2. Validation payload `unitType`
+3. Vérification `UNIT_CATALOG[unitType]` (unit connue → 400 si inconnue)
+4. Vérification `RUNTIME_RECRUITMENT_COSTS[unitType]`
+5. **[NEW] Gate caserne** : `getBarracksLevelForCity()` → 403 BARRACKS_REQUIRED ou BARRACKS_LEVEL_TOO_LOW
+6. `startRecruitmentTransaction()` (vérification production active, débit, city_production)
+
+### Codes retour gate caserne
+
+**BARRACKS_REQUIRED (403)** — aucune caserne :
+```json
+{ "error": "BARRACKS_REQUIRED", "message": "Caserne requise pour recruter des unités terrestres." }
+```
+
+**BARRACKS_LEVEL_TOO_LOW (403)** — niveau insuffisant :
+```json
+{ "error": "BARRACKS_LEVEL_TOO_LOW", "requiredLevel": 4, "currentLevel": 1, "unitType": "noble_infantry" }
+```
+
+### Résultats des tests
+
+| Test | Attendu | Résultat |
+|---|---|---|
+| GET /recruitment-costs | 15 unités prototype | TOTAL: 15, 15 IDs prototype ✅ |
+| POST warrior (legacy) | 400 Type d'unité inconnu | 400 "Type d'unité inconnu : warrior" ✅ |
+| POST militia sans barracks | 403 BARRACKS_REQUIRED | 403 `{"error":"BARRACKS_REQUIRED","message":"..."}` ✅ |
+| Inventaire après refus | inchangé | food=48, labor_contracts=19 — identique ✅ |
+| city_production après refus | 0 | count=0 ✅ |
+| POST noble_infantry barracks N1 | 403 BARRACKS_LEVEL_TOO_LOW | 403 `{"requiredLevel":4,"currentLevel":1,"unitType":"noble_infantry"}` ✅ |
+| Inventaire après LEVEL_TOO_LOW | inchangé | food=48, labor_contracts=19 — identique ✅ |
+| city_production après LEVEL_TOO_LOW | 0 | count=0 ✅ |
+| POST militia barracks N1 | 201 succès | `{"ok":true,"debited":{"food":2,"labor_contracts":1}}` ✅ |
+| POST pikemen barracks N1 | 403 BARRACKS_LEVEL_TOO_LOW | 403 `{"requiredLevel":2,"currentLevel":1}` ✅ |
+| POST pikemen barracks N2 | Gate passe (INSUFFICIENT_INVENTORY car ville vide) | `INSUFFICIENT_CITY_INVENTORY` — gate OK ✅ |
+| POST noble_infantry barracks N4 | Gate passe (INSUFFICIENT_INVENTORY car ville vide) | `INSUFFICIENT_CITY_INVENTORY` — gate OK ✅ |
+| TypeScript | 187 erreurs | 187 ✅ |
+
+Note tests 7+8 : la ville 11 n'avait pas d'inventaire pré-rempli (`UPDATE 0`) — le gate caserne a bien passé (N2≥N2 / N4≥N4), la transaction `startRecruitmentTransaction` a pris le relais et retourné `INSUFFICIENT_CITY_INVENTORY`. Preuve que le gate ne bloque plus.
+
+### Confirmation inchangé
+- `RUNTIME_RECRUITMENT_COSTS` inchangé ✅
+- `startRecruitmentTransaction` inchangé ✅
+- `RecruitmentPanel.tsx` inchangé ✅
+- `RecruitmentPanelZustand.tsx` inchangé ✅
+- `ConstructionPanel.tsx` inchangé ✅
+- `server/unitCatalog.ts` inchangé ✅
+- `shared/landUnitCatalog.ts` inchangé ✅
+- Aucune migration DB ✅
+
+### Risques restants
+- L'UI `RecruitmentPanel` ne connaît pas encore le niveau de caserne — elle affiche toutes les unités même si le recrutement sera refusé côté serveur. L'affichage côté client sera adapté en V3-D7-D.
+- `BARRACKS_REQUIRED_LEVEL_BY_UNIT` est défini dans `server/routes/cities.ts` — si d'autres routes doivent aussi vérifier le gate, l'extraire dans un module partagé (ex. `server/barracksGate.ts`).
+- `getBarracksLevelForCity` est une fonction locale dans `routes/cities.ts` — non exposée pour les autres services. À externaliser si nécessaire.
+
+### Prochaine étape recommandée
+**V3-D7-D** — Adapter l'UI `RecruitmentPanel` / `RecruitmentPanelZustand` :
+- Utiliser `city.buildingLevels['barracks']` (déjà exposé dans le DTO) pour griser les unités inaccessibles.
+- Afficher le niveau de caserne requis à côté de chaque unité verrouillée.
+- CityDTO inclut déjà `buildingLevels` depuis V3-D7-B.
+
+**Statut V3-D7-C :** Gate serveur actif. Sans caserne → 403 BARRACKS_REQUIRED. Niveau insuffisant → 403 BARRACKS_LEVEL_TOO_LOW. Niveau suffisant → flow existant (débit + city_production). Aucun débit sur refus confirmé. Aucune city_production sur refus confirmée. RecruitmentPanel inchangé. TypeScript 187 — stable.

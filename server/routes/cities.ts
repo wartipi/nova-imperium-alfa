@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 import { requireAuth } from "../middleware/auth";
 import type { AuthRequest } from "../middleware/auth";
 import { db } from "../db";
@@ -654,6 +654,46 @@ router.post("/:cityId/start-construction", requireAuth, async (req: AuthRequest,
   }
 });
 
+// ─── Gate caserne — V3-D7-C ───────────────────────────────────────────────────
+// Mapping canonique : niveau de caserne minimum requis par unité.
+// Cumul : N2 inclut N1, N3 inclut N1+N2, N4 inclut N1+N2+N3.
+// Seuls les 15 IDs prototype actifs sont présents.
+const BARRACKS_REQUIRED_LEVEL_BY_UNIT: Record<string, number> = {
+  // Niveau 1
+  militia:             1,
+  garrison:            1,
+  scouts:              1,
+  hunters:             1,
+  // Niveau 2
+  patrollers:          2,
+  light_infantry:      2,
+  bow_infantry:        2,
+  pikemen:             2,
+  // Niveau 3
+  regular_infantry:    3,
+  crossbow_infantry:   3,
+  sappers:             3,
+  raid_troops:         3,
+  // Niveau 4
+  noble_infantry:      4,
+  shock_troops:        4,
+  field_engineers:     4,
+};
+
+// Retourne le niveau de caserne d'une ville (0 si absente).
+// Ne modifie jamais la DB.
+async function getBarracksLevelForCity(cityId: number): Promise<number> {
+  const rows = await db
+    .select({ level: cityBuildings.level })
+    .from(cityBuildings)
+    .where(and(eq(cityBuildings.cityId, cityId), eq(cityBuildings.building, 'barracks')))
+    .limit(1);
+  if (rows.length === 0) return 0;
+  const lvl = rows[0].level;
+  // Clamp défensif min 0 / max 4.
+  return Math.min(4, Math.max(0, lvl));
+}
+
 // ─── POST /api/cities/:cityId/start-recruitment ───────────────────────────────
 // Auth requise — démarre un recrutement serveur-authoritative.
 // Recrutement atomique : startRecruitmentTransaction() encapsule vérification de
@@ -696,7 +736,28 @@ router.post("/:cityId/start-recruitment", requireAuth, async (req: AuthRequest, 
       });
     }
 
-    // ── 4-7. Transaction atomique : check production + débit + city_production ─
+    // ── 4. Gate caserne — V3-D7-C ─────────────────────────────────────────────
+    // Validation avant toute transaction : aucun débit et aucune city_production
+    // ne doivent être créés si la caserne est absente ou insuffisante.
+    const requiredLevel  = BARRACKS_REQUIRED_LEVEL_BY_UNIT[unitType] ?? 1;
+    const barracksLevel  = await getBarracksLevelForCity(cityId);
+
+    if (barracksLevel <= 0) {
+      return res.status(403).json({
+        error:   'BARRACKS_REQUIRED',
+        message: 'Caserne requise pour recruter des unités terrestres.',
+      });
+    }
+    if (barracksLevel < requiredLevel) {
+      return res.status(403).json({
+        error:        'BARRACKS_LEVEL_TOO_LOW',
+        requiredLevel,
+        currentLevel: barracksLevel,
+        unitType,
+      });
+    }
+
+    // ── 5-8. Transaction atomique : check production + débit + city_production ─
     let txResult;
     try {
       txResult = await startRecruitmentTransaction({

@@ -1,0 +1,481 @@
+NOVA IMPERIUM — Ressources V3-D7-C
+Gate serveur recrutement selon niveau de caserne
+
+RÔLE
+Tu es l’agent technique sur le repo Nova Imperium.
+Objectif : rendre le recrutement serveur-authoritative dépendant du niveau de caserne de la ville.
+
+IMPORTANT
+
+Ce bloc modifie seulement la validation serveur du recrutement.
+Ce bloc ne modifie PAS l’UI RecruitmentPanel.
+Ce bloc ne modifie PAS les coûts/durées/stats des unités.
+Ce bloc ne modifie PAS les bâtiments/ConstructionPanel sauf correction strictement nécessaire.
+Ce bloc ne crée PAS de migration DB.
+Ce bloc doit garantir qu’aucun débit city_inventory et aucune city_production ne sont créés si la caserne est absente ou insuffisante.
+
+CONTEXTE VALIDÉ
+
+V3-D6 complet :
+- Le recrutement actif utilise uniquement les 15 unités prototype.
+- UNIT_CATALOG contient seulement les 15 unités prototype.
+- RUNTIME_RECRUITMENT_COSTS contient seulement les 15 coûts prototype.
+- RecruitmentPanel affiche les 15 unités prototype.
+- RecruitmentPanelZustand a été corrigé.
+- End-to-end militia validé.
+- Les unités legacy sont supprimées côté serveur actif.
+- TypeScript baseline : 187 erreurs.
+
+V3-D7-A :
+- Audit bâtiments validé.
+- Table city_buildings :
+  - id
+  - city_id
+  - building text
+  - level integer default 1
+  - built_at
+- UNIQUE(city_id, building)
+- Migration DB non nécessaire pour stocker les 4 niveaux.
+
+V3-D7-B :
+- Caserne barracks constructible.
+- Caserne améliorable niveau 1 → 4.
+- Niveau max 4.
+- Upgrade N4 refuse 409 MAX_LEVEL_REACHED.
+- CityDTO expose buildingLevels: Record<string, number>.
+- RecruitmentPanel inchangé.
+- startRecruitmentTransaction inchangé.
+- GET /recruitment-costs retourne 15 unités prototype.
+- POST militia fonctionne encore avant gate caserne.
+- TypeScript baseline : 187 erreurs.
+
+DÉCISION CANONIQUE
+
+Le recrutement terrestre nécessite une caserne.
+
+Sans caserne :
+- POST /start-recruitment doit refuser.
+- Aucun débit city_inventory.
+- Aucune city_production créée.
+
+Avec caserne :
+- le niveau de caserne détermine les unités recrutables.
+
+MAPPING CANONIQUE — NIVEAU DE CASERNE REQUIS
+
+Caserne niveau 1 :
+- militia
+- garrison
+- scouts
+- hunters
+
+Caserne niveau 2 :
+- patrollers
+- light_infantry
+- bow_infantry
+- pikemen
+
+Caserne niveau 3 :
+- regular_infantry
+- crossbow_infantry
+- sappers
+- raid_troops
+
+Caserne niveau 4 :
+- noble_infantry
+- shock_troops
+- field_engineers
+
+Important :
+- N2 inclut aussi toutes les unités N1.
+- N3 inclut aussi toutes les unités N1/N2.
+- N4 inclut aussi toutes les unités N1/N2/N3.
+- L’ID canonique est hunters.
+- Ne jamais utiliser rangers.
+- scout legacy singulier est interdit comme unité active.
+- scouts prototype pluriel est valide.
+
+UNITÉS ACTIVES AUTORISÉES
+
+Les seules unités actives de recrutement sont :
+
+- militia
+- garrison
+- patrollers
+- scouts
+- light_infantry
+- regular_infantry
+- noble_infantry
+- shock_troops
+- bow_infantry
+- crossbow_infantry
+- sappers
+- field_engineers
+- raid_troops
+- hunters
+- pikemen
+
+À INSPECTER AVANT MODIFICATION
+
+Lire :
+
+- server/routes/cities.ts
+- server/recruitmentService.ts
+- server/cityService.ts
+- shared/schema.ts
+- client/src/lib/api/citiesApi.ts
+- CLAUDE.md
+
+Chercher :
+
+- start-recruitment
+- startRecruitmentTransaction
+- RUNTIME_RECRUITMENT_COSTS
+- UNIT_CATALOG
+- cityBuildings
+- city_buildings
+- barracks
+- buildingLevels
+- MAX_LEVEL_REACHED
+- INSUFFICIENT_CITY_INVENTORY
+- PRODUCTION_ALREADY_ACTIVE
+
+OBJECTIF TECHNIQUE
+
+Ajouter une validation serveur avant l’appel à startRecruitmentTransaction.
+
+Point d’insertion recommandé :
+- route POST /api/cities/:cityId/start-recruitment ou équivalent ;
+- après validation que unitType est connu/supporté ;
+- avant startRecruitmentTransaction ;
+- avant tout débit ;
+- avant toute création city_production.
+
+COMPORTEMENT ATTENDU
+
+1. Ville sans barracks
+
+POST /start-recruitment avec une unité valide, par exemple militia :
+
+Réponse attendue :
+- HTTP 403
+- code : BARRACKS_REQUIRED
+- message clair : “Caserne requise pour recruter des unités terrestres.”
+- aucune modification city_inventory
+- aucune ligne city_production créée
+
+2. Ville avec barracks niveau insuffisant
+
+Exemple :
+- barracks level 1
+- tentative noble_infantry
+
+Réponse attendue :
+- HTTP 403
+- code : BARRACKS_LEVEL_TOO_LOW
+- requiredLevel : 4
+- currentLevel : 1
+- unitType : noble_infantry
+- aucune modification city_inventory
+- aucune ligne city_production créée
+
+3. Ville avec barracks niveau suffisant
+
+Exemple :
+- barracks level 1
+- tentative militia
+
+Réponse attendue :
+- comportement existant conservé :
+  - vérification production déjà active ;
+  - vérification city_inventory ;
+  - débit atomique ;
+  - création city_production ;
+  - réponse 200/201 selon comportement actuel.
+
+4. Unité inconnue ou legacy
+
+Exemple :
+- warrior
+
+Réponse attendue :
+- continuer à refuser comme actuellement :
+  - 400 Type d’unité inconnu ou code existant équivalent.
+- Ne pas retourner BARRACKS_REQUIRED pour un unitType inconnu.
+- L’ordre doit être :
+  1. valider unitType ;
+  2. valider caserne ;
+  3. vérifier inventaire/production.
+
+À FAIRE — serveur
+
+1. Créer un mapping serveur clair
+
+Créer une constante serveur, idéalement près de la route ou dans un helper dédié :
+
+BARRACKS_REQUIRED_LEVEL_BY_UNIT = {
+  militia: 1,
+  garrison: 1,
+  scouts: 1,
+  hunters: 1,
+
+  patrollers: 2,
+  light_infantry: 2,
+  bow_infantry: 2,
+  pikemen: 2,
+
+  regular_infantry: 3,
+  crossbow_infantry: 3,
+  sappers: 3,
+  raid_troops: 3,
+
+  noble_infantry: 4,
+  shock_troops: 4,
+  field_engineers: 4,
+}
+
+Contraintes :
+- utiliser les 15 IDs actifs seulement ;
+- pas de legacy ;
+- pas de rangers ;
+- pas de scout singulier.
+
+2. Lire le niveau de barracks de la ville
+
+Utiliser la table city_buildings.
+
+Comportement :
+- si aucune ligne city_id + building='barracks' :
+  - currentLevel = 0.
+- sinon :
+  - currentLevel = level.
+- clamp défensif possible :
+  - min 0 ;
+  - max 4.
+
+Ne pas dépendre seulement du DTO client.
+La validation doit lire côté serveur/DB.
+
+3. Ajouter une fonction/helper optionnel
+
+Exemple de helper acceptable :
+
+getCityBuildingLevel(cityId: number, building: string): Promise<number>
+
+ou
+
+getBarracksLevelForCity(cityId: number): Promise<number>
+
+La fonction doit :
+- interroger city_buildings ;
+- retourner 0 si absent ;
+- retourner level sinon ;
+- ne pas modifier la DB.
+
+4. Brancher la validation dans POST /start-recruitment
+
+Avant startRecruitmentTransaction :
+
+- requiredLevel = BARRACKS_REQUIRED_LEVEL_BY_UNIT[unitType]
+- barracksLevel = await getBarracksLevelForCity(cityId)
+
+Si barracksLevel <= 0 :
+- return 403 BARRACKS_REQUIRED
+
+Si barracksLevel < requiredLevel :
+- return 403 BARRACKS_LEVEL_TOO_LOW
+
+Sinon :
+- continuer le flow existant.
+
+5. Garantir l’absence de débit si refus
+
+Important :
+- La validation caserne doit se faire avant startRecruitmentTransaction.
+- Aucun débit city_inventory ne doit être possible sur refus caserne.
+- Aucune city_production ne doit être créée sur refus caserne.
+
+6. Ne pas changer la logique de coûts
+
+Ne pas modifier :
+- RUNTIME_RECRUITMENT_COSTS
+- normalizeRecruitmentCost
+- debitCityInventoryForRecruitment
+- startRecruitmentTransaction
+- UNIT_CATALOG
+- shared/landUnitCatalog.ts
+
+Sauf si une micro-correction de type est absolument nécessaire, à documenter.
+
+À FAIRE — CLAUDE.md
+
+Ajouter une section :
+
+“Ressources V3-D7-C — Gate serveur recrutement par niveau de caserne”
+
+Inclure :
+
+- objectif ;
+- fichiers inspectés ;
+- fichiers modifiés ;
+- mapping unités → niveau caserne ;
+- point d’insertion serveur ;
+- ordre de validation ;
+- comportement sans caserne ;
+- comportement niveau insuffisant ;
+- comportement niveau suffisant ;
+- confirmation aucun débit sur refus ;
+- confirmation aucune city_production sur refus ;
+- confirmation RUNTIME_RECRUITMENT_COSTS inchangé ;
+- confirmation startRecruitmentTransaction inchangé si applicable ;
+- confirmation RecruitmentPanel inchangé ;
+- confirmation aucune migration DB ;
+- tests exécutés ;
+- résultat TypeScript ;
+- risques restants ;
+- prochaine étape recommandée.
+
+À NE PAS FAIRE
+
+- Ne pas modifier RecruitmentPanel.
+- Ne pas modifier RecruitmentPanelZustand.
+- Ne pas modifier ConstructionPanel sauf correction strictement nécessaire.
+- Ne pas modifier RUNTIME_RECRUITMENT_COSTS.
+- Ne pas modifier server/unitCatalog.ts.
+- Ne pas modifier shared/landUnitCatalog.ts.
+- Ne pas modifier coûts/durées/stats des unités.
+- Ne pas modifier productionCost:number.
+- Ne pas créer de migration DB.
+- Ne pas ajouter de nouvelle dépendance.
+- Ne pas ajouter de nouveau store.
+- Ne pas ajouter rangers.
+- Ne pas réintroduire les unités legacy.
+- Ne pas faire de refactor massif.
+- Ne pas toucher aux tests morts / dépendances / attached_assets dans ce bloc.
+
+VALIDATION TECHNIQUE
+
+Exécuter :
+
+npx tsc --noEmit
+
+Baseline connue :
+- 187 erreurs TypeScript préexistantes.
+
+Objectif :
+- rester à 187 erreurs ;
+- zéro régression.
+
+TESTS À DOCUMENTER
+
+1. GET /recruitment-costs
+
+Attendu :
+- exactement 15 unités prototype.
+- aucun legacy.
+- aucune modification des coûts.
+
+2. POST legacy warrior
+
+Ville avec ou sans barracks :
+
+Attendu :
+- 400 Type d’unité inconnu ou réponse équivalente existante.
+- ne doit pas retourner BARRACKS_REQUIRED.
+- aucun débit.
+- aucune city_production.
+
+3. POST militia sans barracks
+
+Préparer une ville sans ligne barracks.
+
+Attendu :
+- 403 BARRACKS_REQUIRED.
+- aucun débit city_inventory.
+- aucune city_production.
+
+4. POST noble_infantry avec barracks N1
+
+Préparer une ville avec barracks level 1.
+
+Attendu :
+- 403 BARRACKS_LEVEL_TOO_LOW.
+- requiredLevel: 4.
+- currentLevel: 1.
+- aucun débit city_inventory.
+- aucune city_production.
+
+5. POST militia avec barracks N1
+
+Préparer une ville avec barracks level 1 et ressources suffisantes.
+
+Attendu :
+- 200/201 succès selon comportement actuel.
+- débit city_inventory correct.
+- city_production créée.
+
+6. POST pikemen avec barracks N1
+
+Attendu :
+- 403 BARRACKS_LEVEL_TOO_LOW.
+- requiredLevel: 2.
+- currentLevel: 1.
+- aucun débit.
+- aucune city_production.
+
+7. POST pikemen avec barracks N2
+
+Attendu :
+- succès si ressources suffisantes et pas de production active.
+- débit correct.
+- city_production créée.
+
+8. POST noble_infantry avec barracks N4
+
+Attendu :
+- succès si ressources suffisantes et pas de production active.
+- débit correct.
+- city_production créée.
+
+9. TypeScript
+
+npx tsc --noEmit
+- attendu : 187 erreurs.
+
+SORTIE ATTENDUE
+
+Répondre avec :
+
+1. Fichiers inspectés.
+2. Fichiers modifiés.
+3. Mapping unités → niveau caserne.
+4. Helper ajouté ou méthode de lecture du niveau.
+5. Point exact d’insertion dans le serveur.
+6. Ordre de validation final.
+7. Résultat GET /recruitment-costs.
+8. Résultat POST warrior.
+9. Résultat POST militia sans barracks.
+10. Résultat POST noble_infantry avec barracks N1.
+11. Résultat POST militia avec barracks N1.
+12. Résultat POST pikemen avec barracks N1.
+13. Résultat POST pikemen avec barracks N2.
+14. Résultat POST noble_infantry avec barracks N4.
+15. Confirmation aucun débit sur refus.
+16. Confirmation aucune city_production sur refus.
+17. Confirmation RecruitmentPanel inchangé.
+18. Confirmation RUNTIME_RECRUITMENT_COSTS inchangé.
+19. Confirmation aucune migration DB.
+20. Résultat TypeScript.
+21. Risques restants.
+22. Prochaine étape recommandée.
+
+STATUT ATTENDU
+
+Gate serveur actif.
+Sans caserne : recrutement refusé.
+Niveau insuffisant : recrutement refusé.
+Niveau suffisant : recrutement accepté selon ressources/production existantes.
+Aucun débit sur refus.
+Aucune city_production sur refus.
+UI non encore adaptée.
+TypeScript reste à 187 erreurs.
