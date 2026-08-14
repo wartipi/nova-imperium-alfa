@@ -220,10 +220,13 @@ router.post("/:cityId/buildings", requireAuth, async (req: AuthRequest, res) => 
       return res.status(access.status).json({ error: access.error });
     }
 
-    await addBuilding(cityId, building);
+    const newLevel = await addBuilding(cityId, building);
     await applyBuildingEffects(cityId, building);
-    return res.status(201).json({ ok: true });
-  } catch (err) {
+    return res.status(201).json({ ok: true, level: newLevel });
+  } catch (err: any) {
+    if (err?.code === 'MAX_LEVEL_REACHED') {
+      return res.status(409).json({ error: 'MAX_LEVEL_REACHED', currentLevel: err.currentLevel });
+    }
     console.error("[POST /api/cities/:cityId/buildings] Erreur:", err);
     return res.status(500).json({ error: "Impossible d'enregistrer le bâtiment" });
   }

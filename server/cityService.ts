@@ -1,4 +1,4 @@
-import { eq, inArray, or } from "drizzle-orm";
+import { eq, inArray, or, and } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { db } from "./db";
 import { cities, colonies, factionMembers, cityBuildings, cityProduction, units } from "../shared/schema";
@@ -26,6 +26,7 @@ export interface CityDTO {
   founderName:      string;
   createdAt:        string;
   buildings:         string[];           // Phase 7 : bâtiments terminés
+  buildingLevels:    Record<string, number>; // V3-D7-B : niveau par bâtiment (barracks: 1–4, autres: 1)
   currentProduction: CityProductionDTO | null; // Phase 7 : production courante
   // Phase 8 : valeurs économiques calculées serveur (base + bonus bâtiments)
   foodPerTurn:       number;
@@ -92,10 +93,11 @@ async function recalculateCityEconomy(cityId: number): Promise<void> {
 }
 
 function mapCity(
-  city:       typeof cities.$inferSelect,
-  colony:     typeof colonies.$inferSelect,
-  buildings:  string[],
-  production: typeof cityProduction.$inferSelect | null,
+  city:           typeof cities.$inferSelect,
+  colony:         typeof colonies.$inferSelect,
+  buildings:      string[],
+  production:     typeof cityProduction.$inferSelect | null,
+  buildingLevels: Record<string, number> = {},
 ): CityDTO {
   return {
     id:                city.id,
@@ -110,6 +112,7 @@ function mapCity(
     founderName:       colony.founderName,
     createdAt:         city.createdAt.toISOString(),
     buildings,
+    buildingLevels,
     currentProduction: production
       ? {
           type:     production.productionType,
@@ -195,7 +198,7 @@ export async function getMyCities(playerId: string): Promise<CityDTO[]> {
 
   // Bâtiments construits pour toutes les villes de la faction
   const buildingRows = await db
-    .select({ cityId: cityBuildings.cityId, building: cityBuildings.building })
+    .select({ cityId: cityBuildings.cityId, building: cityBuildings.building, level: cityBuildings.level })
     .from(cityBuildings)
     .where(inArray(cityBuildings.cityId, cityIds));
 
@@ -207,11 +210,12 @@ export async function getMyCities(playerId: string): Promise<CityDTO[]> {
 
   return rows.map((r) => {
     const cityId = r.city.id;
-    const buildings = buildingRows
-      .filter((b) => b.cityId === cityId)
-      .map((b) => b.building);
+    const cityBuildingRows = buildingRows.filter((b) => b.cityId === cityId);
+    const buildings = cityBuildingRows.map((b) => b.building);
+    const buildingLevels: Record<string, number> = {};
+    for (const b of cityBuildingRows) buildingLevels[b.building] = b.level;
     const production = productionRows.find((p) => p.cityId === cityId) ?? null;
-    return mapCity(r.city, r.colony, buildings, production);
+    return mapCity(r.city, r.colony, buildings, production, buildingLevels);
   });
 }
 
@@ -237,7 +241,7 @@ export async function getCityByColony(
   }
 
   const buildingRows = await db
-    .select({ building: cityBuildings.building })
+    .select({ building: cityBuildings.building, level: cityBuildings.level })
     .from(cityBuildings)
     .where(eq(cityBuildings.cityId, city.id));
 
@@ -246,19 +250,44 @@ export async function getCityByColony(
     .from(cityProduction)
     .where(eq(cityProduction.cityId, city.id));
 
-  return mapCity(city, colony, buildingRows.map((b) => b.building), productionRows[0] ?? null);
+  const blvls: Record<string, number> = {};
+  for (const b of buildingRows) blvls[b.building] = b.level;
+  return mapCity(city, colony, buildingRows.map((b) => b.building), productionRows[0] ?? null, blvls);
 }
 
 // ─── addBuilding ──────────────────────────────────────────────────────────────
-// Insère un bâtiment dans city_buildings (idempotent via ON CONFLICT DO NOTHING).
-// Phase 8 : déclenche un recalcul économique après l'insertion.
-export async function addBuilding(cityId: number, building: string): Promise<void> {
-  await db
+// Insère un bâtiment dans city_buildings ou incrémente son niveau (max 4).
+// V3-D7-B : ON CONFLICT DO UPDATE SET level = LEAST(level + 1, 4).
+// Retourne le niveau après l'opération.
+// Lance MAX_LEVEL_REACHED si le bâtiment était déjà au niveau 4.
+export async function addBuilding(cityId: number, building: string): Promise<number> {
+  // Vérifier le niveau actuel pour détecter MAX_LEVEL_REACHED avant l'upsert.
+  const existing = await db
+    .select({ level: cityBuildings.level })
+    .from(cityBuildings)
+    .where(and(eq(cityBuildings.cityId, cityId), eq(cityBuildings.building, building)))
+    .limit(1);
+
+  if (existing.length > 0 && existing[0].level >= 4) {
+    throw Object.assign(
+      new Error(`Niveau maximum (4) déjà atteint pour ${building}`),
+      { code: 'MAX_LEVEL_REACHED', currentLevel: 4 },
+    );
+  }
+
+  const rows = await db
     .insert(cityBuildings)
-    .values({ cityId, building })
-    .onConflictDoNothing();
-  // Recalcul systématique — idempotent même si le bâtiment existait déjà.
+    .values({ cityId, building, level: 1 })
+    .onConflictDoUpdate({
+      target: [cityBuildings.cityId, cityBuildings.building],
+      set:    { level: sql`LEAST(${cityBuildings.level} + 1, 4)` },
+    })
+    .returning({ level: cityBuildings.level });
+
+  const newLevel = rows[0]?.level ?? 1;
+  // Recalcul systématique — idempotent.
   await recalculateCityEconomy(cityId);
+  return newLevel;
 }
 
 // ─── ensureUnitsTable ─────────────────────────────────────────────────────────
@@ -420,7 +449,12 @@ export async function tickCityProduction(playerId: string): Promise<CityProducti
     if (newProgress >= prod.productionCost) {
       if (prod.productionType === 'building') {
         // addBuilding : idempotent + recalcul économique inclus (foodPerTurn/productionPerTurn/goldPerTurn)
-        await addBuilding(city.id, prod.productionName);
+        try {
+          await addBuilding(city.id, prod.productionName);
+        } catch (e: any) {
+          if (e?.code !== 'MAX_LEVEL_REACHED') throw e;
+          console.warn(`[tickCityProduction] MAX_LEVEL_REACHED — ${prod.productionName} cityId=${city.id}, ignoré`);
+        }
         // applyBuildingEffects : effets T1 d'exploitation (wood, stone, iron, copper, coal, oil, herbs, fur)
         await applyBuildingEffects(city.id, prod.productionName);
         await clearProduction(city.id);

@@ -723,8 +723,25 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
       category: 'Production',
       requiredTerrain: ['any'],
       actionPointCost: 18
+    },
+
+    // === MILITAIRE — V3-D7-B (bâtiment 4 niveaux, aucun prérequis terrain) ===
+    {
+      id: 'barracks',
+      name: 'Caserne',
+      cost: { wood: 30, stone: 20, action_points: 25 },
+      constructionTime: 5,
+      description: 'Permettra le recrutement et l\'amélioration des unités terrestres selon son niveau. N1 : recrutement de base. N2 : unités professionnelles. N3 : unités lourdes et techniques. N4 : unités spécialisées avancées. (Gate recrutement actif en V3-D7-C.)',
+      icon: '⚔️',
+      category: 'Militaire',
+      requiredTerrain: ['any'],
+      actionPointCost: 25
     }
   ];
+
+  // Bâtiments avec évolution multi-niveaux N1–N4 via city_buildings.level (V3-D7-B).
+  // Ces bâtiments affichent "Améliorer →N2/N3/N4" au lieu de "Construit".
+  const UPGRADEABLE_BUILDINGS = new Set(['barracks']);
 
   const getResourceIcon = (resource: string): string => {
     const icons: Record<string, string> = {
@@ -1234,7 +1251,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
           )}
 
           <div className="space-y-3">
-            {['Basique', 'Production', 'Commerce', 'Défense', 'Spirituel', 'Magie', 'Éducation', 'Navigation', 'Stockage', 'Prestige'].map(category => {
+            {['Basique', 'Production', 'Militaire', 'Commerce', 'Défense', 'Spirituel', 'Magie', 'Éducation', 'Navigation', 'Stockage', 'Prestige'].map(category => {
               const categoryBuildings = availableBuildings.filter(b => b.category === category);
               return categoryBuildings.length > 0 ? (
                 <div key={category} className="space-y-1">
@@ -1278,7 +1295,14 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
                       <div className="flex items-center space-x-2">
                         <span className="text-sm">{building.icon}</span>
                         <div>
-                          <div className="text-xs font-medium">{building.name}</div>
+                          <div className="text-xs font-medium">
+                            {building.name}
+                            {UPGRADEABLE_BUILDINGS.has(building.id) && (city.buildings as string[]).includes(building.id) && (
+                              <span className="ml-1 text-amber-600 font-bold">
+                                Nv.{((city as any).buildingLevels ?? {})[building.id] ?? 1}
+                              </span>
+                            )}
+                          </div>
                           <div className="text-xs text-amber-700">
                             {formatResourceCost(building.cost)}
                           </div>
@@ -1295,19 +1319,27 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
                           }
                         </div>
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => handleBuild(building.id, city.id)}
-                        disabled={
-                          city.currentProduction !== null || 
-                          (city.buildings as string[]).includes(building.id) || 
-                          !canAffordBuilding(building.id)
-                        }
-                        className="text-xs bg-amber-600 hover:bg-amber-700 disabled:opacity-50"
-                      >
-                        {(city.buildings as string[]).includes(building.id) ? 'Construit' : 
-                         !canAffordBuilding(building.id) ? 'PA insuffisants' : 'Construire'}
-                      </Button>
+                      {(() => {
+                        const isUpg = UPGRADEABLE_BUILDINGS.has(building.id);
+                        const bldgLvl = ((city as any).buildingLevels ?? {})[building.id] ?? 0;
+                        const isAtMax = isUpg && bldgLvl >= 4;
+                        const isBuilt = (city.buildings as string[]).includes(building.id);
+                        const btnDisabled = city.currentProduction !== null ||
+                          (isBuilt && !isUpg) || isAtMax || !canAffordBuilding(building.id);
+                        const btnLabel = isAtMax ? 'Niveau max' :
+                          (isUpg && bldgLvl > 0) ? `Améliorer →N${bldgLvl + 1}` :
+                          !canAffordBuilding(building.id) ? 'PA insuffisants' : 'Construire';
+                        return (
+                          <Button
+                            size="sm"
+                            onClick={() => handleBuild(building.id, city.id)}
+                            disabled={btnDisabled}
+                            className="text-xs bg-amber-600 hover:bg-amber-700 disabled:opacity-50"
+                          >
+                            {btnLabel}
+                          </Button>
+                        );
+                      })()}
                     </div>
                     );
                   })}
@@ -1353,7 +1385,7 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
             <div key={city.id} className="bg-amber-50 border border-amber-700 rounded p-3">
               <div className="font-medium text-sm mb-2">{city.name}</div>
               <div className="space-y-3">
-                {['Basique', 'Production', 'Commerce', 'Défense', 'Spirituel', 'Magie', 'Éducation', 'Navigation', 'Stockage', 'Prestige'].map(category => {
+                {['Basique', 'Production', 'Militaire', 'Commerce', 'Défense', 'Spirituel', 'Magie', 'Éducation', 'Navigation', 'Stockage', 'Prestige'].map(category => {
                   const categoryBuildings = buildings.filter(b => b.category === category);
                   return (
                     <div key={category} className="space-y-1">
@@ -1371,7 +1403,14 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
                           <div className="flex items-center space-x-2">
                             <span className="text-sm">{building.icon}</span>
                             <div>
-                              <div className="text-xs font-medium">{building.name}</div>
+                              <div className="text-xs font-medium">
+                                {building.name}
+                                {UPGRADEABLE_BUILDINGS.has(building.id) && (city.buildings as string[]).includes(building.id) && (
+                                  <span className="ml-1 text-amber-600 font-bold">
+                                    Nv.{((city as any).buildingLevels ?? {})[building.id] ?? 1}
+                                  </span>
+                                )}
+                              </div>
                               <div className="text-xs text-amber-700">
                                 {formatResourceCost(building.cost)}
                               </div>
@@ -1383,14 +1422,26 @@ export function ConstructionPanel({ cityId: scopedCityId }: ConstructionPanelPro
                               </div>
                             </div>
                           </div>
-                          <Button
-                            size="sm"
-                            onClick={() => handleBuild(building.id, city.id)}
-                            disabled={(city.buildings as string[]).includes(building.id)}
-                            className="text-xs bg-amber-600 hover:bg-amber-700 disabled:opacity-50"
-                          >
-                            {(city.buildings as string[]).includes(building.id) ? 'Construit' : 'Construire'}
-                          </Button>
+                          {(() => {
+                            const isUpg = UPGRADEABLE_BUILDINGS.has(building.id);
+                            const bldgLvl = ((city as any).buildingLevels ?? {})[building.id] ?? 0;
+                            const isAtMax = isUpg && bldgLvl >= 4;
+                            const isBuilt = (city.buildings as string[]).includes(building.id);
+                            const btnDisabled = (isBuilt && !isUpg) || isAtMax;
+                            const btnLabel = isAtMax ? 'Niveau max' :
+                              (isUpg && bldgLvl > 0) ? `Améliorer →N${bldgLvl + 1}` :
+                              (isBuilt && !isUpg) ? 'Construit' : 'Construire';
+                            return (
+                              <Button
+                                size="sm"
+                                onClick={() => handleBuild(building.id, city.id)}
+                                disabled={btnDisabled}
+                                className="text-xs bg-amber-600 hover:bg-amber-700 disabled:opacity-50"
+                              >
+                                {btnLabel}
+                              </Button>
+                            );
+                          })()}
                         </div>
                       ))}
                     </div>

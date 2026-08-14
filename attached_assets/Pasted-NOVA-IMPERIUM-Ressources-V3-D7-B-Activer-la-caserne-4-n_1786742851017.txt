@@ -1,0 +1,368 @@
+NOVA IMPERIUM — Ressources V3-D7-B
+Activer la caserne 4 niveaux dans le système de construction
+
+RÔLE
+Tu es l’agent technique sur le repo Nova Imperium.
+Objectif : rendre la caserne constructible/améliorable jusqu’au niveau 4, en utilisant le champ level déjà existant dans city_buildings.
+
+IMPORTANT
+
+Ce bloc ajoute la caserne au système de construction et prépare les upgrades N1–N4.
+Ce bloc ne branche PAS encore la validation serveur du recrutement selon caserne.
+Ce bloc ne modifie PAS startRecruitmentTransaction.
+Ce bloc ne modifie PAS RecruitmentPanel pour bloquer/débloquer les unités.
+Ce bloc ne modifie PAS les coûts/durées/stats des unités.
+
+DÉCISION CANONIQUE — BÂTIMENTS
+
+Tous les bâtiments de Nova Imperium doivent avoir 4 niveaux d’évolution.
+
+Aucun bâtiment ne doit être traité comme bâtiment final à niveau unique.
+
+La caserne doit donc exister sous forme :
+
+- barracks niveau 1
+- barracks niveau 2
+- barracks niveau 3
+- barracks niveau 4
+
+CONTEXTE VALIDÉ
+
+V3-D6 complet :
+- Le recrutement actif utilise uniquement les 15 unités prototype.
+- UNIT_CATALOG contient seulement les 15 unités prototype.
+- RUNTIME_RECRUITMENT_COSTS contient seulement les 15 coûts prototype.
+- RecruitmentPanel affiche les 15 unités prototype.
+- RecruitmentPanelZustand a été corrigé.
+- End-to-end militia validé.
+- Les unités legacy sont supprimées côté serveur actif.
+- TypeScript baseline : 187 erreurs.
+
+V3-D7-A :
+- Audit bâtiments validé.
+- Table city_buildings :
+  - id
+  - city_id
+  - building text
+  - level integer default 1
+  - built_at
+- UNIQUE(city_id, building)
+- Migration DB non nécessaire pour stocker les 4 niveaux.
+- addBuilding() utilise actuellement ON CONFLICT DO NOTHING.
+- Aucun upgrade possible actuellement.
+- barracks existe déjà dans certains dictionnaires/effets.
+- barracks n’est pas constructible via ConstructionPanel.
+- RecruitmentPanel n’a pas encore de gate caserne.
+
+OBJECTIF DE CE BLOC
+
+1. Modifier la logique de construction pour permettre l’évolution d’un bâtiment existant de niveau 1 à 4.
+2. Rendre barracks constructible dans l’UI de construction.
+3. Exposer correctement le level des bâtiments dans les DTO nécessaires.
+4. Documenter le comportement.
+5. Ne pas encore brancher la caserne au recrutement.
+
+À INSPECTER AVANT MODIFICATION
+
+Lire :
+
+- shared/schema.ts
+- server/cityService.ts
+- server/buildingEffects.ts
+- server/economyService.ts
+- server/routes/cities.ts
+- server/playerActionService.ts
+- client/src/components/game/ConstructionPanel.tsx
+- client/src/components/game/ConstructionPanelSimple.tsx
+- client/src/components/game/CityManagementPanel.tsx
+- client/src/components/game/UnifiedTerritoryPanel.tsx
+- client/src/components/game/TileInfoPanel.tsx
+- client/src/lib/api/citiesApi.ts
+- client/src/lib/game/types.ts
+- CLAUDE.md
+
+Chercher :
+
+- city_buildings
+- cityBuildings
+- addBuilding
+- getCityBuildings
+- buildings
+- building
+- level
+- upgrade
+- barracks
+- Caserne
+- BUILDING_YIELDS
+- BUILDING_PRODUCTION
+- ConstructionPanel
+- ConstructionPanelSimple
+- buildingCosts
+- availableBuildings
+- constructedBuildings
+- CityDTO
+
+À FAIRE — serveur
+
+1. Modifier addBuilding() ou la fonction équivalente
+
+Comportement actuel :
+- ON CONFLICT DO NOTHING.
+
+Comportement attendu :
+- Si le bâtiment n’existe pas encore dans la ville :
+  - insérer building avec level = 1.
+- Si le bâtiment existe déjà et level < 4 :
+  - augmenter level de 1.
+- Si le bâtiment existe déjà et level >= 4 :
+  - refuser ou retourner un statut clair “MAX_LEVEL_REACHED”.
+- Ne jamais dépasser level 4.
+
+Approche recommandée :
+- Utiliser ON CONFLICT(city_id, building) DO UPDATE.
+- Mettre level = LEAST(city_buildings.level + 1, 4).
+- Si le système permet de détecter le niveau avant/après, retourner clairement le nouveau niveau.
+- Éviter les doubles upgrades accidentels si la fonction est appelée deux fois.
+
+Important :
+- Ne pas créer de migration DB.
+- Ne pas changer le schema si level existe déjà.
+- Ne pas supprimer la contrainte UNIQUE(city_id, building).
+
+2. Exposer le level dans les lectures ville/bâtiments
+
+Vérifier les DTO existants.
+
+Si actuellement les bâtiments sont exposés comme string[] :
+- conserver la compatibilité si nécessaire ;
+- ajouter une structure complémentaire qui expose building + level ;
+- ne pas casser les UI existantes.
+
+Exemples acceptables selon le code existant :
+
+Option A :
+buildings: string[]
+buildingLevels: Record<string, number>
+
+Option B :
+buildings: Array<{ building: string; level: number }>
+
+Choisir l’option la moins intrusive selon le code actuel.
+
+Important :
+- Ne pas casser les panels existants.
+- Documenter le format final retenu.
+
+3. Ajouter barracks au catalogue/effets si nécessaire
+
+Si barracks existe déjà dans BUILDING_YIELDS :
+- ne pas le dupliquer.
+- vérifier son label et son effet.
+
+Si barracks n’existe pas dans un catalogue nécessaire à la construction :
+- l’ajouter comme bâtiment constructible.
+
+Effet temporaire acceptable pour ce bloc :
+- production: 1 si c’est déjà l’effet existant ;
+- ou aucun nouvel effet de production si le système impose seulement la constructibilité.
+
+Important :
+- Le rôle réel de la caserne sera le déblocage du recrutement en V3-D7-C/D.
+- Ne pas inventer d’effet économique lourd maintenant.
+
+À FAIRE — UI ConstructionPanel
+
+1. Ajouter barracks à la liste des bâtiments constructibles si absent.
+
+Label :
+- Caserne
+
+Description :
+- “Permettra le recrutement et l’amélioration des unités terrestres selon son niveau.”
+
+Afficher ou documenter les 4 niveaux :
+
+Niveau 1 :
+- base de recrutement local.
+
+Niveau 2 :
+- amélioration des unités professionnelles.
+
+Niveau 3 :
+- amélioration des unités lourdes et techniques.
+
+Niveau 4 :
+- unités spécialisées avancées.
+
+Important :
+- Le texte peut dire “sera utilisé par le recrutement” si le gate n’est pas encore branché.
+- Ne pas prétendre que le gate est actif avant V3-D7-C/D.
+
+2. Affichage niveau
+
+Si la ville possède déjà barracks :
+- afficher son niveau actuel si les données sont disponibles.
+- le bouton doit permettre “Améliorer” au lieu de “Construire”, si raisonnable dans ce bloc.
+- si niveau 4 : afficher “Niveau max” ou désactiver le bouton.
+
+Si l’UI existante ne peut pas facilement afficher le niveau :
+- faire une version minimale non cassante ;
+- documenter la limite ;
+- prévoir amélioration UI en V3-D7-D.
+
+3. Coûts
+
+Ne pas inventer un gros système de coûts par niveau si absent.
+
+Approche recommandée :
+- utiliser le coût de construction existant pour barracks niveau 1 ;
+- pour les upgrades N2–N4, utiliser la logique actuelle si le coût est fixe ;
+- documenter que les coûts par niveau seront calibrés plus tard.
+
+Si le système actuel exige un coût statique :
+- ajouter un coût simple et cohérent avec les bâtiments T1 existants.
+- ne pas ajouter de nouvelles ressources.
+- utiliser seulement les ressources déjà supportées par le système de construction.
+
+À FAIRE — ConstructionPanelSimple
+
+Si ce panel est actif ou susceptible d’être rendu :
+- vérifier s’il doit aussi afficher barracks.
+- éviter d’avoir un panel qui permet encore une version incohérente.
+- modification minimale seulement.
+
+À FAIRE — CLAUDE.md
+
+Ajouter une section :
+
+“Ressources V3-D7-B — Caserne 4 niveaux constructible”
+
+Inclure :
+
+- objectif ;
+- fichiers inspectés ;
+- fichiers modifiés ;
+- confirmation aucune migration DB ;
+- confirmation city_buildings.level utilisé ;
+- comportement addBuilding avant/après ;
+- comportement niveau max 4 ;
+- format DTO retenu pour exposer les niveaux ;
+- ajout barracks à l’UI de construction ;
+- affichage niveau actuel si fait ;
+- coûts retenus ou limite documentée ;
+- confirmation aucun gate recrutement encore actif ;
+- confirmation RecruitmentPanel inchangé ;
+- confirmation startRecruitmentTransaction inchangé ;
+- confirmation RUNTIME_RECRUITMENT_COSTS inchangé ;
+- confirmation server/unitCatalog.ts inchangé ;
+- résultat TypeScript ;
+- risques restants ;
+- prochaine étape recommandée.
+
+À NE PAS FAIRE
+
+- Ne pas brancher la caserne au recrutement dans ce bloc.
+- Ne pas modifier POST /start-recruitment pour refuser sans caserne.
+- Ne pas modifier RecruitmentPanel.
+- Ne pas modifier RecruitmentPanelZustand.
+- Ne pas modifier RUNTIME_RECRUITMENT_COSTS.
+- Ne pas modifier server/unitCatalog.ts.
+- Ne pas modifier shared/landUnitCatalog.ts.
+- Ne pas modifier coûts/durées/stats des unités.
+- Ne pas modifier productionCost:number.
+- Ne pas créer de migration DB.
+- Ne pas changer le schema si level existe déjà.
+- Ne pas ajouter rangers.
+- Ne pas réintroduire les unités legacy.
+- Ne pas faire de refactor massif.
+- Ne pas supprimer de bâtiments existants.
+
+VALIDATION TECHNIQUE
+
+Exécuter :
+
+npx tsc --noEmit
+
+Baseline connue :
+- 187 erreurs TypeScript préexistantes.
+
+Objectif :
+- rester à 187 erreurs ;
+- zéro régression.
+
+TESTS À DOCUMENTER
+
+1. Construction initiale barracks
+
+Sur une ville sans barracks :
+- appeler le flux existant de construction barracks.
+- résultat attendu :
+  - une ligne city_buildings barracks existe ;
+  - level = 1.
+
+2. Upgrade barracks
+
+Sur une ville avec barracks level 1 :
+- relancer construction/amélioration barracks.
+- résultat attendu :
+  - même ligne city_buildings ;
+  - level = 2 ;
+  - pas de doublon.
+
+Tester jusqu’à level 4 si possible :
+- level 1 → 2 ;
+- level 2 → 3 ;
+- level 3 → 4 ;
+- level 4 → reste 4 ou refus clair MAX_LEVEL_REACHED.
+
+3. DTO / UI
+
+Vérifier :
+- la ville expose le niveau de barracks ;
+- ConstructionPanel peut afficher ou au moins ne pas casser avec barracks ;
+- barracks apparaît constructible/améliorable.
+
+4. Non-régression recrutement
+
+Vérifier :
+- GET /recruitment-costs retourne toujours 15 unités prototype.
+- POST militia fonctionne encore même si le gate caserne n’est pas encore actif.
+- Documenter clairement que ce sera changé en V3-D7-C.
+
+5. TypeScript
+
+npx tsc --noEmit
+- attendu : 187 erreurs.
+
+SORTIE ATTENDUE
+
+Répondre avec :
+
+1. Fichiers inspectés.
+2. Fichiers modifiés.
+3. Comportement addBuilding avant/après.
+4. Format de stockage confirmé.
+5. Format DTO retenu.
+6. Ajout barracks UI.
+7. Test construction barracks N1.
+8. Test upgrade barracks N2/N3/N4 si fait.
+9. Test niveau max.
+10. Confirmation aucune migration DB.
+11. Confirmation aucun gate recrutement.
+12. Confirmation RecruitmentPanel inchangé.
+13. Confirmation startRecruitmentTransaction inchangé.
+14. Résultat GET /recruitment-costs.
+15. Résultat POST militia.
+16. Résultat TypeScript.
+17. Risques restants.
+18. Prochaine étape recommandée.
+
+STATUT ATTENDU
+
+Caserne constructible.
+Caserne améliorable jusqu’au niveau 4.
+city_buildings.level utilisé.
+Aucune migration DB.
+Aucun gate recrutement encore actif.
+Recrutement prototype reste fonctionnel comme avant.
+TypeScript reste à 187 erreurs.

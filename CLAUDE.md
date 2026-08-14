@@ -2903,3 +2903,135 @@ buildings: Array<{ id: string; level: number }>;
 `npx tsc --noEmit` : **187 erreurs** — baseline inchangée. ✅
 
 **Statut V3-D7-A :** Audit complet. Aucune implémentation caserne. Aucune migration DB. Plan clair V3-D7-B à V3-D7-E documenté. `level` existe en DB. `ON CONFLICT DO NOTHING` bloque les upgrades → à corriger en V3-D7-B. `addBuilding()` + `CityDTO` + `ConstructionPanel` + `RecruitmentPanel` sont les 4 points de modification principaux identifiés.
+
+---
+
+## Ressources V3-D7-B — Caserne 4 niveaux constructible
+
+### Objectif
+Rendre la caserne constructible et améliorable N1–N4 via le champ `level` existant dans `city_buildings`. Ne pas encore brancher le gate de recrutement (V3-D7-C).
+
+### Fichiers inspectés
+- `server/cityService.ts`, `server/routes/cities.ts`, `server/buildingEffects.ts`
+- `client/src/components/game/ConstructionPanel.tsx`, `client/src/components/game/ConstructionPanelSimple.tsx`
+- `client/src/lib/api/citiesApi.ts`, `client/src/lib/game/types.ts`
+- `shared/schema.ts`, `CLAUDE.md`
+
+### Fichiers modifiés
+| Fichier | Nature |
+|---|---|
+| `server/cityService.ts` | `addBuilding()` → upgrade N1–N4 + MAX_LEVEL_REACHED. `CityDTO` → `buildingLevels`. `mapCity()`, `getMyCities()`, `getCityByColony()` → select + expose level. `tickCityProduction` → catch MAX_LEVEL_REACHED. |
+| `server/routes/cities.ts` | `POST /buildings` → retourne `{ ok, level }`, gère 409 MAX_LEVEL_REACHED |
+| `client/src/components/game/ConstructionPanel.tsx` | Ajout barracks ('Militaire'), `UPGRADEABLE_BUILDINGS`, badge Nv.X, boutons "Améliorer →Nx" / "Niveau max" (player + admin) |
+| `client/src/components/game/ConstructionPanelSimple.tsx` | Ajout barracks (entrée minimale, cohérence) |
+
+### Confirmation aucune migration DB
+`city_buildings.level INTEGER DEFAULT 1` existait déjà. Aucune migration créée. ✅
+
+### Comportement addBuilding() avant / après
+
+**Avant (V3-D6) :**
+```typescript
+// ON CONFLICT DO NOTHING — upgrade impossible
+await db.insert(cityBuildings).values({ cityId, building }).onConflictDoNothing();
+// retourne : void
+```
+
+**Après (V3-D7-B) :**
+```typescript
+// 1. Lit niveau actuel (SELECT)
+// 2. Si level >= 4 → throw MAX_LEVEL_REACHED
+// 3. INSERT level=1 ON CONFLICT DO UPDATE SET level = LEAST(level + 1, 4)
+// 4. RETURNING level
+// retourne : Promise<number> (nouveau niveau)
+```
+
+### Comportement niveau max 4
+- `addBuilding()` détecte `level >= 4` → lance `Error({ code: 'MAX_LEVEL_REACHED', currentLevel: 4 })`
+- `POST /buildings` catch → 409 `{ error: 'MAX_LEVEL_REACHED', currentLevel: 4 }`
+- `tickCityProduction` catch → log warning + continue (non-bloquant)
+- UI → bouton "Niveau max" grisé dès `buildingLevels['barracks'] >= 4`
+
+### Format DTO retenu
+**Option A** — rétrocompatible :
+```typescript
+CityDTO {
+  buildings:      string[];               // Phase 7 — conservé, liste des IDs
+  buildingLevels: Record<string, number>; // V3-D7-B — niveau par bâtiment
+}
+```
+`mapCity()`, `getMyCities()`, `getCityByColony()` sélectionnent maintenant `level` en plus de `building` depuis `city_buildings`.
+
+### Ajout barracks à l'UI de construction
+- **ID canonique :** `barracks`
+- **Catégorie :** `Militaire` (nouvelle — ajoutée aux deux listes player + admin)
+- **Terrain requis :** `['any']` — aucun prérequis terrain (passe le filtre `requiredTerrain.includes('any')`)
+- **Matériaux (V1) :** `{ wood: 30, stone: 20, action_points: 25 }` — passe le filtre `isV1Building`
+- **constructionTime :** 5 tours
+- **description :** "Permettra le recrutement et l'amélioration des unités terrestres selon son niveau. N1 : recrutement de base. N2 : unités professionnelles. N3 : unités lourdes et techniques. N4 : unités spécialisées avancées. (Gate recrutement actif en V3-D7-C.)"
+
+### Affichage niveau actuel
+- Badge `Nv.X` affiché à côté du nom si le bâtiment est possédé et upgradeable (via `UPGRADEABLE_BUILDINGS` Set)
+- Bouton player : "Construire" → "Améliorer →N2" → "Améliorer →N3" → "Améliorer →N4" → "Niveau max" (grisé)
+- Bouton admin : identique sans vérification de PA
+
+### Coûts retenus
+- Coût unique pour tous les niveaux : `{ wood: 30, stone: 20 }` (action_points: 25 pour vérification PA locale)
+- Pas de coût différencié par niveau — calibration prévue en V3-D7-D ou V3-D8
+
+### Confirmation aucun gate recrutement
+- `POST /start-recruitment` inchangé ✅
+- `RecruitmentPanel.tsx` inchangé ✅
+- `RecruitmentPanelZustand.tsx` inchangé ✅
+- `startRecruitmentTransaction` inchangé ✅
+- `RUNTIME_RECRUITMENT_COSTS` inchangé ✅
+- `server/unitCatalog.ts` inchangé ✅
+- `shared/landUnitCatalog.ts` inchangé ✅
+
+---
+
+### Résultats des tests
+
+**Test 1 — Construction barracks N1 (admin instantané)**
+- POST /buildings `{ building: 'barracks' }` → `{"ok":true,"level":1}` ✅
+- DB : `barracks | 1` ✅
+
+**Test 2 — Upgrade N1 → N2**
+- POST /buildings `{ building: 'barracks' }` → `{"ok":true,"level":2}` ✅
+- DB : `barracks | 2` ✅
+
+**Test 3 — Upgrade N2 → N3** → `{"ok":true,"level":3}` ✅
+
+**Test 4 — Upgrade N3 → N4** → `{"ok":true,"level":4}` ✅
+- DB : `barracks | 4` ✅
+
+**Test 5 — Tentative upgrade N4 (MAX_LEVEL_REACHED)**
+- → 409 `{"error":"MAX_LEVEL_REACHED","currentLevel":4}` ✅
+
+**Test 6 — GET /recruitment-costs (non-régression)**
+- TOTAL : 15, IDs prototype uniquement ✅
+
+**Test 7 — DTO buildingLevels**
+- `CityDTO.buildingLevels` exposé dans la réponse serveur ✅
+
+**Test 8 — POST militia (non-régression recrutement)**
+- → 201 `{"ok":true}` debited food + labor_contracts ✅
+
+### Résultat TypeScript
+`npx tsc --noEmit` : **187 erreurs** — baseline inchangée. ✅
+
+### Risques restants
+- `barracks` dans `BUILDING_PRODUCTION` manquant → n'apporte aucun T1 par tour. Attendu — son rôle sera le gate de recrutement (V3-D7-C). ✅
+- Coûts non différenciés par niveau → à calibrer en V3-D7-D ou V3-D8.
+- `UnitType` client-side n'inclut pas encore les 15 IDs prototype → à compléter en V3-D7-D.
+- `tickCityProduction` : si production barracks complète sur une ville avec barracks N4 → MAX_LEVEL_REACHED ignoré silencieusement → production consommée sans upgrade. Acceptable (safeguard), l'UI empêche ce cas.
+- `ConstructionPanelSimple.tsx` : dead code (non importé nulle part) — entrée barracks ajoutée pour cohérence.
+
+### Prochaine étape recommandée
+**V3-D7-C** — Brancher la validation caserne dans `POST /start-recruitment` :
+- Constante `BARRACKS_UNIT_UNLOCK: Record<string, number>` dans `server/routes/cities.ts` ou nouveau `server/barracksGate.ts`
+- Vérification après step 3 (UNIT_CATALOG check) : query `city_buildings WHERE building='barracks'`
+- 403 `BARRACKS_REQUIRED` si absent, 403 `BARRACKS_LEVEL_TOO_LOW { required, current }` si niveau insuffisant
+- Tests : sans caserne / N1 / N2 / N3 / N4
+
+**Statut V3-D7-B :** Caserne constructible et améliorable N1–N4. `addBuilding()` migré vers ON CONFLICT DO UPDATE. `CityDTO` expose `buildingLevels`. UI construction affiche badge niveau + boutons Améliorer/Niveau max. Aucune migration DB. Aucun gate recrutement. Recrutement prototype non-régressif. TypeScript 187 — stable.

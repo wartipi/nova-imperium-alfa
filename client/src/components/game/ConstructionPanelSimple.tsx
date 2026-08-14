@@ -80,6 +80,18 @@ export function ConstructionPanel() {
       requiredTerrain: ['mountains'],
       actionPointCost: 20
     },
+    // === MILITAIRE — V3-D7-B ===
+    {
+      id: 'barracks',
+      name: 'Caserne',
+      cost: { wood: 30, stone: 20, action_points: 25 },
+      constructionTime: 5,
+      description: 'Permettra le recrutement des unités terrestres selon son niveau (N1–N4).',
+      icon: '⚔️',
+      category: 'Militaire',
+      requiredTerrain: ['any'],
+      actionPointCost: 25
+    },
   ];
 
   // Fonctions utilitaires
