@@ -1,0 +1,352 @@
+NOVA IMPERIUM — Ressources V3-D7-E
+Test end-to-end complet caserne N0/N1/N2/N3/N4 + affichage coûts recrutement
+
+RÔLE
+Tu es l’agent technique sur le repo Nova Imperium.
+Objectif : vérifier le flux complet après V3-D7-B/C/D, puis corriger uniquement les problèmes UI mineurs empêchant le joueur de comprendre où cliquer et combien coûte une unité.
+
+IMPORTANT
+
+Ce bloc est principalement un test end-to-end + micro-corrections UI si nécessaire.
+Ne pas activer l’entretien des unités.
+Ne pas brancher upkeepPerTurn.
+Ne pas modifier les coûts/durées/stats.
+Ne pas modifier le gate serveur sauf bug confirmé.
+Ne pas créer de migration DB.
+Ne pas ajouter de dépendance.
+Ne pas ajouter de nouveau store.
+
+CONTEXTE VALIDÉ
+
+V3-D6 :
+- Recrutement actif limité aux 15 unités prototype.
+- UNIT_CATALOG contient les 15 unités prototype.
+- RUNTIME_RECRUITMENT_COSTS contient les 15 coûts prototype.
+- Legacy serveur supprimé.
+- RecruitmentPanel et RecruitmentPanelZustand migrés.
+- TypeScript baseline : 187 erreurs.
+
+V3-D7-A :
+- city_buildings possède déjà level integer default 1.
+- Migration DB non nécessaire pour les niveaux.
+
+V3-D7-B :
+- barracks constructible.
+- barracks améliorable N1 → N4.
+- CityDTO expose buildingLevels.
+- ConstructionPanel affiche barracks.
+- TypeScript : 187.
+
+V3-D7-C :
+- Gate serveur actif.
+- Sans barracks : 403 BARRACKS_REQUIRED.
+- Niveau insuffisant : 403 BARRACKS_LEVEL_TOO_LOW.
+- Niveau suffisant : startRecruitmentTransaction continue.
+- Aucun débit sur refus.
+- Aucune city_production sur refus.
+- TypeScript : 187.
+
+V3-D7-D :
+- buildingLevels propagé côté client.
+- RecruitmentPanel adapté au niveau de caserne.
+- RecruitmentPanelZustand cohérent avec verrou caserne.
+- Erreurs BARRACKS_REQUIRED / BARRACKS_LEVEL_TOO_LOW affichées lisiblement.
+- TypeScript : 187.
+
+DÉCISION IMPORTANTE
+
+Ne pas activer l’entretien maintenant.
+
+Les champs/designs upkeepPerTurn peuvent rester présents dans shared/landUnitCatalog.ts, mais ce bloc ne doit pas :
+- débiter l’entretien ;
+- afficher un coût d’entretien comme actif ;
+- créer un tick d’entretien ;
+- modifier les stocks à cause de l’entretien ;
+- bloquer le recrutement selon l’entretien.
+
+Ce bloc peut seulement afficher les coûts de recrutement déjà actifs.
+
+UNITÉS ACTIVES
+
+Les seules unités actives de recrutement sont :
+
+- militia
+- garrison
+- patrollers
+- scouts
+- light_infantry
+- regular_infantry
+- noble_infantry
+- shock_troops
+- bow_infantry
+- crossbow_infantry
+- sappers
+- field_engineers
+- raid_troops
+- hunters
+- pikemen
+
+MAPPING CASERNE
+
+Niveau 1 :
+- militia
+- garrison
+- scouts
+- hunters
+
+Niveau 2 :
+- patrollers
+- light_infantry
+- bow_infantry
+- pikemen
+
+Niveau 3 :
+- regular_infantry
+- crossbow_infantry
+- sappers
+- raid_troops
+
+Niveau 4 :
+- noble_infantry
+- shock_troops
+- field_engineers
+
+À INSPECTER
+
+Lire :
+
+- client/src/components/game/RecruitmentPanel.tsx
+- client/src/components/game/RecruitmentPanelZustand.tsx
+- client/src/components/game/CityManagementPanel.tsx
+- client/src/components/game/ConstructionPanel.tsx
+- client/src/lib/api/citiesApi.ts
+- client/src/lib/game/types.ts
+- client/src/lib/stores/useNovaImperium.tsx
+- server/routes/cities.ts
+- server/recruitmentService.ts
+- server/cityService.ts
+- CLAUDE.md
+
+Chercher :
+
+- RecruitmentPanel
+- RecruitmentPanelZustand
+- CityManagementPanel
+- buildingLevels
+- barracks
+- BARRACKS_REQUIRED
+- BARRACKS_LEVEL_TOO_LOW
+- serverRecruitmentCosts
+- apiGetRecruitmentCosts
+- apiStartRecruitment
+- Recruter
+- Former
+- cost
+- duration
+- productionCost
+- upkeep
+- upkeepPerTurn
+
+OBJECTIF 1 — Vérifier l’accès UI au recrutement
+
+Vérifier concrètement comment un joueur ouvre le recrutement.
+
+Documenter :
+- depuis quel panneau ;
+- quel bouton/onglet ;
+- quel composant est rendu ;
+- si RecruitmentPanel et RecruitmentPanelZustand sont tous deux visibles ou non ;
+- si le bouton “Recruter” est assez clair ;
+- si le coût de recrutement est visible.
+
+Si l’accès est ambigu :
+- micro-correction autorisée pour rendre l’accès clair.
+- Exemples acceptables :
+  - renommer un onglet/bouton “Unités” en “Recrutement” ;
+  - ajouter un sous-titre “Cliquez sur Recruter pour former cette unité” ;
+  - rendre le bouton “Recruter” plus explicite ;
+  - ajouter une mention “Production de ville : une seule production active à la fois”.
+
+Ne pas refactorer CityManagementPanel.
+
+OBJECTIF 2 — Vérifier l’affichage des coûts de recrutement
+
+Le joueur doit voir clairement les ressources demandées pour chaque unité.
+
+Les coûts à afficher doivent venir du serveur via GET /recruitment-costs, ou du fallback déjà existant si le serveur n’a pas encore répondu.
+
+Ne pas inventer de nouveaux coûts.
+
+Ne pas afficher upkeep comme actif.
+
+Si un texte d’entretien existe déjà :
+- soit le retirer du panneau de recrutement actif ;
+- soit le marquer explicitement comme “Entretien non activé” seulement si nécessaire.
+- Préférence : ne pas afficher l’entretien pour l’instant.
+
+OBJECTIF 3 — Tests end-to-end caserne N0/N1/N2/N3/N4
+
+Tester le comportement complet serveur + UI/DTO.
+
+Cas N0 — sans barracks :
+- buildingLevels.barracks absent ou 0.
+- UI : bannière “Construisez une caserne…”
+- toutes les unités verrouillées.
+- POST militia : 403 BARRACKS_REQUIRED.
+- aucun débit.
+- aucune city_production.
+
+Cas N1 :
+- barracks level 1.
+- UI : militia, garrison, scouts, hunters déverrouillées.
+- UI : N2/N3/N4 verrouillées.
+- POST militia avec ressources suffisantes : succès.
+- POST pikemen : 403 BARRACKS_LEVEL_TOO_LOW.
+
+Cas N2 :
+- barracks level 2.
+- UI : N1 + N2 déverrouillées.
+- UI : N3/N4 verrouillées.
+- POST pikemen avec ressources suffisantes : succès.
+- POST regular_infantry : 403 BARRACKS_LEVEL_TOO_LOW.
+
+Cas N3 :
+- barracks level 3.
+- UI : N1 + N2 + N3 déverrouillées.
+- UI : N4 verrouillées.
+- POST regular_infantry ou sappers avec ressources suffisantes : succès.
+- POST noble_infantry : 403 BARRACKS_LEVEL_TOO_LOW.
+
+Cas N4 :
+- barracks level 4.
+- UI : toutes les unités déverrouillées selon ressources.
+- POST noble_infantry avec ressources suffisantes : succès.
+
+Important :
+- Si ressources insuffisantes empêchent le test de succès, injecter seulement les ressources nécessaires en DB de test/dev et documenter.
+- Ne pas modifier les coûts.
+- Ne pas confondre “gate passé puis inventaire insuffisant” avec échec du gate.
+
+OBJECTIF 4 — Non-régression
+
+Vérifier :
+
+GET /recruitment-costs :
+- exactement 15 unités prototype.
+- aucun legacy.
+- coûts inchangés.
+
+POST warrior :
+- 400 Type d’unité inconnu ou réponse équivalente.
+- ne doit pas retourner BARRACKS_REQUIRED.
+- aucun débit.
+- aucune city_production.
+
+TypeScript :
+- npx tsc --noEmit
+- attendu : 187 erreurs.
+
+MICRO-CORRECTIONS AUTORISÉES
+
+Autorisé seulement si le test révèle un problème clair :
+
+- texte de bouton recrutement trop ambigu ;
+- coûts non visibles alors qu’ils existent ;
+- erreur BARRACKS_REQUIRED/BARRACKS_LEVEL_TOO_LOW mal affichée ;
+- bannière absente ou trompeuse ;
+- RecruitmentPanelZustand informatif incohérent ;
+- buildingLevels non hydraté dans un chemin UI précis ;
+- bouton non désactivé alors que verrou caserne visible.
+
+NON AUTORISÉ
+
+- Ne pas activer upkeep.
+- Ne pas modifier upkeepPerTurn.
+- Ne pas débiter l’entretien.
+- Ne pas modifier les coûts de recrutement.
+- Ne pas modifier les durées.
+- Ne pas modifier les stats.
+- Ne pas modifier server/unitCatalog.ts.
+- Ne pas modifier shared/landUnitCatalog.ts.
+- Ne pas modifier RUNTIME_RECRUITMENT_COSTS.
+- Ne pas modifier le schéma DB.
+- Ne pas créer de migration.
+- Ne pas ajouter de dépendance.
+- Ne pas ajouter de store.
+- Ne pas retirer attached_assets dans ce bloc.
+- Ne pas nettoyer package.json dans ce bloc.
+- Ne pas supprimer de fichiers morts dans ce bloc.
+- Ne pas ajouter rangers.
+- Ne pas réintroduire legacy.
+
+CLAUDE.md
+
+Ajouter une section courte :
+
+“Ressources V3-D7-E — E2E caserne + lisibilité recrutement”
+
+Inclure :
+
+- objectif ;
+- fichiers inspectés ;
+- fichiers modifiés ;
+- chemin UI réel pour ouvrir le recrutement ;
+- composant réellement rendu ;
+- affichage coût recrutement ;
+- confirmation upkeep non activé ;
+- résultat N0 ;
+- résultat N1 ;
+- résultat N2 ;
+- résultat N3 ;
+- résultat N4 ;
+- résultat GET /recruitment-costs ;
+- résultat POST warrior ;
+- résultat TypeScript ;
+- micro-corrections faites, si applicable ;
+- risques restants ;
+- prochaine étape recommandée.
+
+VALIDATION TECHNIQUE
+
+Exécuter :
+
+npx tsc --noEmit
+
+Baseline :
+- 187 erreurs TypeScript préexistantes.
+
+Objectif :
+- rester à 187 erreurs.
+
+SORTIE ATTENDUE
+
+Répondre avec :
+
+1. Fichiers inspectés.
+2. Fichiers modifiés.
+3. Chemin exact UI pour ouvrir le recrutement.
+4. Composant réellement rendu.
+5. État affichage des coûts.
+6. Confirmation upkeep non activé.
+7. Test N0 sans barracks.
+8. Test N1 barracks.
+9. Test N2 barracks.
+10. Test N3 barracks.
+11. Test N4 barracks.
+12. Résultat GET /recruitment-costs.
+13. Résultat POST warrior.
+14. Micro-corrections UI faites, si applicable.
+15. Confirmation coûts/durées/stats inchangés.
+16. Confirmation serveur inchangé ou liste exacte des micro-corrections serveur si bug confirmé.
+17. Résultat TypeScript.
+18. Risques restants.
+19. Prochaine étape recommandée.
+
+STATUT ATTENDU
+
+Flux recrutement compréhensible pour le joueur.
+Coûts de recrutement visibles.
+Caserne N0/N1/N2/N3/N4 testée.
+Aucun upkeep activé.
+Aucune modification d’équilibrage.
+TypeScript reste à 187 erreurs.

@@ -3,7 +3,7 @@ import { useNovaImperium } from '../../lib/stores/useNovaImperium';
 import { useAuth } from '../../lib/auth/AuthContext';
 import { UnifiedTerritorySystem } from '../../lib/systems/UnifiedTerritorySystem';
 import { ConstructionPanel } from './ConstructionPanel';
-import { RecruitmentPanelZustand } from './RecruitmentPanelZustand';
+import { RecruitmentPanel } from './RecruitmentPanel';
 import { CityRenameModal } from './CityRenameModal';
 import { useCustomAlert } from '../ui/CustomAlert';
 
@@ -194,16 +194,7 @@ export function CityManagementPanel({ cityId, onClose }: CityManagementPanelProp
           {/* Recrutement */}
           {activeTab === 'recruitment' && (
             <div className="space-y-4">
-              <div className="bg-green-100 border border-green-400 rounded p-3">
-                <h3 className="font-bold mb-2">⚔️ Nouveau Système de Recrutement (Zustand)</h3>
-                <p className="text-sm text-green-700 mb-1">
-                  Système Nova Imperium avec 15 unités organisées par catégorie
-                </p>
-                <div className="text-xs text-green-600">
-                  ✅ Migration progressive activée - Stats collaboratives en cours
-                </div>
-              </div>
-              <RecruitmentPanelZustand />
+              <RecruitmentPanel cityId={cityId} />
             </div>
           )}
         </div>

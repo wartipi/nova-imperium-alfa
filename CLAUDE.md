@@ -3244,3 +3244,109 @@ Si le serveur retourne l'une de ces erreurs (données client périmées) :
 **V3-D7-E** — Calibration des coûts de recrutement par niveau de caserne (stats à définir), et/ou rafraîchissement automatique du panneau de recrutement après construction/upgrade de la caserne.
 
 **Statut V3-D7-D :** UI RecruitmentPanel adaptée. Bannière caserne par ville. Boutons verrouillés 🔒 si niveau insuffisant. Indicateur "Caserne Nv.X requise" par unité. Erreurs serveur BARRACKS_REQUIRED / BARRACKS_LEVEL_TOO_LOW gérées avec hydratation. RecruitmentPanelZustand cohérent (informatif). DTO buildingLevels hydraté dans le store. Aucune modification serveur. TypeScript 187 — stable.
+
+---
+
+## Ressources V3-D7-E — E2E caserne + lisibilité recrutement
+
+### Objectif
+Test end-to-end complet N0/N1/N2/N3/N4 après V3-D7-B/C/D. Correction du problème critique : `CityManagementPanel` rendait `RecruitmentPanelZustand` (alert seulement) au lieu de `RecruitmentPanel` (gate serveur-authoritative). Aucun upkeep activé.
+
+### Fichiers inspectés
+- `client/src/components/game/CityManagementPanel.tsx`
+- `client/src/components/game/RecruitmentPanel.tsx`
+- `client/src/components/game/RecruitmentPanelZustand.tsx`
+- `client/src/components/game/ConstructionPanel.tsx`
+- `client/src/lib/api/citiesApi.ts`
+- `client/src/lib/game/types.ts`
+- `client/src/lib/stores/useNovaImperium.tsx`
+- `server/routes/cities.ts`
+- `server/recruitmentService.ts`
+- `server/cityService.ts`
+- `CLAUDE.md`
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---|---|
+| `client/src/components/game/CityManagementPanel.tsx` | Import `RecruitmentPanel` (remplace `RecruitmentPanelZustand`) ; `<RecruitmentPanel cityId={cityId} />` ; bannière "Nouveau Système" retirée |
+| `client/src/components/game/RecruitmentPanel.tsx` | Props optionnel `cityId?: string` ajouté ; filtre `citiesToShow` (une ville si cityId fourni, toutes sinon) |
+
+### Chemin UI réel pour ouvrir le recrutement
+
+1. Joueur clique sur sa ville sur la carte
+2. `CityManagementPanel` s'ouvre (modal)
+3. Onglet **"⚔️ Recrutement (Nova)"**
+4. Avant V3-D7-E : `RecruitmentPanelZustand` — uniquement `alert()`, aucun appel serveur, aucun gate
+5. **Après V3-D7-E :** `RecruitmentPanel` — serveur-authoritative, gate caserne actif, coûts serveur affichés
+
+### Composant réellement rendu (après correction)
+`RecruitmentPanel({ cityId })` — filtré sur la ville ouverte, avec :
+- Coûts depuis `GET /recruitment-costs` (fallback local si indisponible)
+- Bannière caserne
+- Boutons 🔒 si niveau insuffisant
+- Indicateur "🔒 Caserne Nv.X requise" par unité
+
+### Affichage des coûts
+- Source : `apiGetRecruitmentCosts()` → `serverRecruitmentCosts` → affiché en ressources réelles
+- Aucun upkeep affiché (champ absent du panneau)
+- Confirmation : `GET /recruitment-costs` retourne 15 unités avec coûts exacts ✅
+
+### Confirmation upkeep non activé
+- Aucun débit upkeep dans `tickCityProduction` ✅
+- Aucun affichage entretien dans `RecruitmentPanel` ✅
+- Champ `upkeepPerTurn` présent dans `shared/landUnitCatalog.ts` mais jamais lu par le serveur actif ✅
+
+### Résultats E2E
+
+**N0 — sans barracks**
+- POST militia → `403 BARRACKS_REQUIRED` ✅
+- food après (50) = food avant (50) — aucun débit ✅
+- city_production count = 0 ✅
+
+**N1 — barracks level 1**
+- POST militia → `201 OK, debited: {food:2, labor_contracts:1}` ✅
+- POST pikemen → `403 BARRACKS_LEVEL_TOO_LOW {requiredLevel:2, currentLevel:1}` ✅
+
+**N2 — barracks level 2**
+- POST pikemen → `201 OK, debited: {food:4, wood:1, common_metals:1, labor_contracts:1, basic_equipment:1}` ✅
+- POST regular_infantry → `403 BARRACKS_LEVEL_TOO_LOW {requiredLevel:3, currentLevel:2}` ✅
+
+**N3 — barracks level 3**
+- POST sappers → `201 OK, debited: {food:4, wood:1, common_metals:1, labor_contracts:1, basic_equipment:1}` ✅
+- POST noble_infantry → `403 BARRACKS_LEVEL_TOO_LOW {requiredLevel:4, currentLevel:3}` ✅
+
+**N4 — barracks level 4**
+- POST noble_infantry → `201 OK, debited: {food:5, labor_contracts:1, basic_equipment:2}` ✅
+
+### Non-régression
+
+| Test | Résultat |
+|---|---|
+| GET /recruitment-costs | TOTAL: 15, 15 IDs prototype, coûts inchangés ✅ |
+| POST warrior | 400 "Type d'unité inconnu : warrior" — pas BARRACKS_REQUIRED ✅ |
+| TypeScript | 187 erreurs — baseline inchangée ✅ |
+
+### Micro-corrections faites
+
+1. **`CityManagementPanel.tsx`** : swap `RecruitmentPanelZustand` → `RecruitmentPanel` avec `cityId` prop. Bannière informative "Nouveau Système (Zustand)" retirée (inutile, `RecruitmentPanel` s'auto-décrit).
+2. **`RecruitmentPanel.tsx`** : ajout prop optionnel `cityId?: string` et filtre `citiesToShow` pour n'afficher que la ville sélectionnée dans le contexte de `CityManagementPanel`.
+
+### Confirmation inchangé
+- `server/routes/cities.ts` inchangé ✅
+- `RUNTIME_RECRUITMENT_COSTS` inchangé ✅
+- `server/unitCatalog.ts` inchangé ✅
+- `shared/landUnitCatalog.ts` inchangé ✅
+- Coûts/durées/stats inchangés ✅
+- Aucune migration DB ✅
+- Aucun upkeep activé ✅
+
+### Risques restants
+- `RecruitmentPanelZustand` n'est plus rendu dans `CityManagementPanel` mais reste un fichier actif importé depuis aucun autre endroit. À supprimer ou consolider avec `RecruitmentPanel` en V3-D8.
+- Le panneau "Vue d'ensemble" de `CityManagementPanel` liste les `buildings` comme IDs bruts (ex. "barracks") sans libellé ni niveau. Cosmétique — à améliorer en V3-D8.
+- `hydrateCitiesFromServer` est appelé après chaque recrutement réussi, ce qui rafraîchit `buildingLevels` et donc les verrous UI. Si un joueur construit une caserne dans un autre onglet, le panneau de recrutement ne se rafraîchit pas automatiquement — il faut fermer/rouvrir le panel ou déclencher un recrutement.
+
+### Prochaine étape recommandée
+**V3-D8** — Consolidation UI : suppression de `RecruitmentPanelZustand` (mort code), affichage des libellés de bâtiments dans "Vue d'ensemble", et/ou calibration des stats combat des 15 unités prototype.
+
+**Statut V3-D7-E :** Flux recrutement compréhensible. `CityManagementPanel` → onglet Recrutement → `RecruitmentPanel` (serveur-authoritative, gate caserne actif). Coûts visibles. N0/N1/N2/N3/N4 validés end-to-end. Aucun upkeep activé. Aucune modification d'équilibrage. TypeScript 187 — stable.

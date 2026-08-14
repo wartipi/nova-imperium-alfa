@@ -127,7 +127,13 @@ const PROTOTYPE_CATEGORIES = [
   'Contrôle',
 ] as const;
 
-export function RecruitmentPanel() {
+interface RecruitmentPanelProps {
+  // Si cityId est fourni, affiche uniquement la ville correspondante.
+  // Si absent, affiche toutes les villes du joueur.
+  cityId?: string;
+}
+
+export function RecruitmentPanel({ cityId }: RecruitmentPanelProps = {}) {
   // V3-D5-E : trainUnit n'est plus utilisé dans ce composant (remplacé par apiStartRecruitment).
   // trainUnit reste présent dans le store pour d'éventuels autres appelants.
   const { currentNovaImperium, hydrateCitiesFromServer } = useNovaImperium();
@@ -152,6 +158,11 @@ export function RecruitmentPanel() {
   }, []);
 
   if (!currentNovaImperium) return null;
+
+  // Filtre par cityId si fourni (usage depuis CityManagementPanel).
+  const citiesToShow = cityId
+    ? currentNovaImperium.cities.filter(c => c.id === cityId)
+    : currentNovaImperium.cities;
 
   const getResourceIcon = (resource: string): string => {
     const icons: Record<string, string> = {
@@ -266,7 +277,7 @@ export function RecruitmentPanel() {
         </p>
       </div>
 
-      {currentNovaImperium.cities.map(city => (
+      {citiesToShow.map(city => (
         <div key={city.id} className="bg-amber-50 border border-amber-700 rounded p-3">
           <div className="font-medium text-sm mb-2">{city.name}</div>
           {city.currentProduction && city.currentProduction.type === 'unit' ? (
