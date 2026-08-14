@@ -1,0 +1,435 @@
+NOVA IMPERIUM — Ressources V3-D6-D
+Migrer RecruitmentPanel.tsx vers les 15 unités prototype
+
+RÔLE
+Tu es l’agent technique sur le repo Nova Imperium.
+Objectif : remplacer les unités legacy affichées dans RecruitmentPanel.tsx par les 15 unités terrestres prototype canoniques, sans encore supprimer les anciennes entrées serveur.
+
+IMPORTANT — DÉCISION CANONIQUE
+
+Les anciennes unités runtime ne doivent PAS être conservées à terme.
+
+Anciennes unités legacy à retirer de l’UI :
+- warrior
+- spearman
+- swordsman
+- archer
+- crossbowman
+- catapult
+- trebuchet
+- horseman
+- knight
+- galley
+- warship
+- scout
+- settler
+- diplomat
+- spy
+
+Nouvelles unités prototype canoniques à afficher :
+- militia
+- garrison
+- patrollers
+- scouts
+- light_infantry
+- regular_infantry
+- noble_infantry
+- shock_troops
+- bow_infantry
+- crossbow_infantry
+- sappers
+- field_engineers
+- raid_troops
+- hunters
+- pikemen
+
+Ne jamais utiliser “rangers”.
+L’ID canonique est hunters.
+
+CONTEXTE VALIDÉ
+
+V3-D5 complet :
+- Recrutement serveur-authoritative validé.
+- Le client envoie seulement { unitType }.
+- startRecruitmentTransaction() est atomique.
+- GET /api/cities/recruitment-costs expose UNIT_CATALOG ∩ RUNTIME_RECRUITMENT_COSTS.
+- RecruitmentPanel affiche les coûts/durées serveur si disponibles.
+- Aucun débit client-side.
+- PA indicatifs seulement.
+- productionCost:number reste durée/progression.
+
+V3-D6-B :
+- Les 15 LandUnitId prototype existent dans server/unitCatalog.ts.
+- createProducedUnit() peut résoudre ces IDs.
+
+V3-D6-C :
+- Les 15 LandUnitId prototype existent dans RUNTIME_RECRUITMENT_COSTS.
+- GET /recruitment-costs expose maintenant les 15 unités prototype.
+- POST /start-recruitment accepte techniquement ces IDs si appelés directement.
+- Les anciennes unités legacy restent seulement temporairement côté serveur.
+- RecruitmentPanel n’affiche pas encore les prototypes.
+
+OBJECTIF DE CE BLOC
+
+Modifier RecruitmentPanel.tsx pour afficher et recruter les 15 unités prototype au lieu des unités legacy.
+
+Après ce bloc :
+- L’UI ne doit plus afficher warrior/spearman/etc.
+- L’UI doit afficher les 15 IDs prototype.
+- Le clic recruter doit envoyer uniquement le prototype unitType.
+- Les coûts/durées affichés doivent venir du catalogue serveur quand disponible.
+- Le fallback local doit exister seulement comme secours.
+- Les anciennes unités restent côté serveur pour l’instant, mais ne sont plus utilisées par l’UI.
+
+À INSPECTER AVANT MODIFICATION
+
+Lire :
+
+- client/src/components/game/RecruitmentPanel.tsx
+- client/src/lib/api/citiesApi.ts
+- client/src/lib/game/ActionPointsCosts.ts
+- client/src/lib/game/types.ts
+- server/recruitmentService.ts
+- server/unitCatalog.ts
+- shared/landUnitCatalog.ts
+- CLAUDE.md
+
+Chercher :
+
+- units = [
+- warrior
+- spearman
+- scout
+- serverRecruitmentCosts
+- formatResourceCost
+- getResourceIcon
+- getUnitRecruitmentCost
+- canAffordUnit
+- handleRecruit
+- apiStartRecruitment
+- currentNovaImperium.units
+- unit.type
+- tooltip
+- category
+
+À FAIRE — RecruitmentPanel.tsx
+
+1. Remplacer le tableau local units
+
+Retirer de la liste UI les anciennes unités :
+
+- warrior
+- spearman
+- swordsman
+- archer
+- crossbowman
+- catapult
+- trebuchet
+- horseman
+- knight
+- galley
+- warship
+- scout
+- settler
+- diplomat
+- spy
+
+Ajouter exactement les 15 unités prototype :
+
+- militia
+- garrison
+- patrollers
+- scouts
+- light_infantry
+- regular_infantry
+- noble_infantry
+- shock_troops
+- bow_infantry
+- crossbow_infantry
+- sappers
+- field_engineers
+- raid_troops
+- hunters
+- pikemen
+
+2. Utiliser les labels canoniques
+
+Labels attendus :
+
+- militia → Milice
+- garrison → Garnison
+- patrollers → Patrouilleurs
+- scouts → Éclaireurs
+- light_infantry → Infanterie légère
+- regular_infantry → Infanterie régulière
+- noble_infantry → Infanterie noble
+- shock_troops → Troupe de choc
+- bow_infantry → Infanterie à arc
+- crossbow_infantry → Infanterie à arbalète
+- sappers → Sapeurs
+- field_engineers → Ingénieurs de campagne
+- raid_troops → Troupe de raid
+- hunters → Chasseurs
+- pikemen → Piquiers
+
+3. Catégories UI recommandées
+
+Remplacer les anciennes catégories :
+
+- Infanterie
+- Distance
+- Siège
+- Cavalerie
+- Marine
+- Spécial
+
+par des catégories adaptées au prototype :
+
+- Infanterie légère
+- Infanterie lourde
+- Distance
+- Technique
+- Raid / Soutien
+- Contrôle
+
+Mapping recommandé :
+
+Infanterie légère :
+- militia
+- garrison
+- patrollers
+- scouts
+- light_infantry
+
+Infanterie lourde :
+- regular_infantry
+- noble_infantry
+- shock_troops
+
+Distance :
+- bow_infantry
+- crossbow_infantry
+
+Technique :
+- sappers
+- field_engineers
+
+Raid / Soutien :
+- raid_troops
+- hunters
+
+Contrôle :
+- pikemen
+
+4. Coûts et durées
+
+Conserver le comportement V3-D6-C :
+
+- Si serverRecruitmentCosts?.[unit.id] existe :
+  - afficher serverRecruitmentCosts[unit.id].cost.
+  - afficher serverRecruitmentCosts[unit.id].duration.
+
+- Sinon :
+  - fallback local avec unit.cost et unit.recruitmentTime.
+
+Important :
+- Les fallback locaux doivent correspondre aux coûts/durées ajoutés en V3-D6-C.
+- Ne pas réintroduire fracten.
+- Ne pas ajouter de ressources non autorisées.
+
+5. Points d’action indicatifs
+
+Actuellement getUnitRecruitmentCost() est basé sur les anciennes IDs.
+
+Ne pas modifier ActionPointsCosts.ts dans ce bloc, sauf si strictement nécessaire.
+
+Approche recommandée :
+- Conserver l’affichage PA comme indicatif.
+- Si getUnitRecruitmentCost(unit.id) retourne un fallback/default acceptable pour IDs inconnus, documenter.
+- Si les IDs prototype affichent un PA incohérent ou undefined, remplacer localement par une fonction safe dans RecruitmentPanel :
+
+const getIndicativeActionPointCost = (unitId: string): number => {
+  const prototypeApCosts: Record<string, number> = {
+    militia: 1,
+    garrison: 2,
+    patrollers: 1,
+    scouts: 1,
+    light_infantry: 1,
+    regular_infantry: 2,
+    noble_infantry: 2,
+    shock_troops: 2,
+    bow_infantry: 1,
+    crossbow_infantry: 2,
+    sappers: 2,
+    field_engineers: 2,
+    raid_troops: 1,
+    hunters: 1,
+    pikemen: 2,
+  };
+  return prototypeApCosts[unitId] ?? getUnitRecruitmentCost(unitId);
+};
+
+Important :
+- PA restent indicatifs.
+- Ne pas ajouter de validation PA serveur.
+- Ne pas bloquer le bouton selon les PA.
+
+6. handleRecruit
+
+Ne pas modifier la logique serveur-authoritative.
+
+Confirmer :
+- handleRecruit(unit.id, city.id) envoie uniquement unitType.
+- Aucun coût/durée envoyé.
+- hydrateCitiesFromServer() après succès.
+- missing[] fonctionne toujours.
+- production active fonctionne toujours.
+
+7. Affichage armée actuelle
+
+Dans la section “Armée Actuelle”, il existe peut-être un mapping d’icônes basé sur unit.type legacy.
+
+Mettre à jour ce mapping pour reconnaître au minimum les nouveaux IDs prototype.
+
+Approche simple :
+- Ajouter une fonction getUnitIcon(unitType: string).
+- Couvrir les 15 IDs prototype.
+- Conserver fallback générique pour anciennes unités déjà existantes en DB.
+- Ne pas supprimer l’affichage des anciennes unités déjà produites historiquement.
+
+Important :
+- Même si l’UI de recrutement ne montre plus les anciennes unités, des anciennes unités peuvent encore exister en DB.
+- Leur affichage doit rester non cassant.
+
+8. Descriptions et icônes
+
+Ajouter des descriptions courtes, non mécaniques, sans inventer de nouvelles règles.
+
+Exemples acceptables :
+- Milice : “Unité commune de défense locale.”
+- Garnison : “Unité défensive lente, adaptée à la protection d’une ville.”
+- Patrouilleurs : “Unité rapide de surveillance et contrôle de zone.”
+- Éclaireurs : “Unité très mobile pour l’exploration.”
+- Infanterie légère : “Unité mobile de ligne légère.”
+- Infanterie régulière : “Unité robuste de ligne.”
+- Infanterie noble : “Unité lourde et coûteuse.”
+- Troupe de choc : “Unité offensive spécialisée.”
+- Infanterie à arc : “Unité de projectile léger.”
+- Infanterie à arbalète : “Unité de projectile lourd.”
+- Sapeurs : “Unité technique pour opérations de siège et sabotage.”
+- Ingénieurs de campagne : “Unité technique avancée de terrain.”
+- Troupe de raid : “Unité mobile pour pression économique.”
+- Chasseurs : “Unité légère de soutien et survie.”
+- Piquiers : “Unité de contrôle défensif.”
+
+Ne pas brancher les capacités spéciales.
+Ne pas brancher siegeWearPoints.
+Ne pas brancher upkeep.
+Ne pas brancher combat normal.
+
+À NE PAS FAIRE
+
+- Ne pas modifier server/recruitmentService.ts.
+- Ne pas modifier RUNTIME_RECRUITMENT_COSTS.
+- Ne pas modifier server/unitCatalog.ts.
+- Ne pas modifier shared/landUnitCatalog.ts.
+- Ne pas modifier startRecruitmentTransaction().
+- Ne pas modifier GET /recruitment-costs.
+- Ne pas modifier POST /start-recruitment.
+- Ne pas supprimer les anciennes unités côté serveur dans ce bloc.
+- Ne pas modifier DB/schema.
+- Ne pas modifier productionCost:number.
+- Ne pas ajouter de validation PA serveur.
+- Ne pas réintroduire débit client-side.
+- Ne pas ajouter rangers.
+- Ne pas ajouter unités navales/cavalerie/diplomate/espion/colon dans cette UI prototype.
+- Ne pas brancher abilities complexes.
+- Ne pas brancher upkeep.
+- Ne pas brancher siegeWearPoints.
+
+VALIDATION TECHNIQUE
+
+Exécuter :
+
+npx tsc --noEmit
+
+Baseline connue :
+- 187 erreurs TypeScript préexistantes.
+
+Objectif :
+- rester à 187 erreurs ;
+- zéro régression.
+
+TESTS À DOCUMENTER
+
+Documenter au minimum :
+
+1. RecruitmentPanel n’affiche plus les IDs legacy.
+2. RecruitmentPanel affiche exactement les 15 IDs prototype.
+3. Chaque bouton recruter envoie seulement { unitType } avec ID prototype.
+4. Coûts/durées affichés depuis serverRecruitmentCosts si disponibles.
+5. Fallback local existe et n’utilise aucune ressource interdite.
+6. PA affichés comme indicatifs seulement.
+7. Aucun blocage PA serveur ajouté.
+8. Armée actuelle affiche correctement les nouveaux IDs prototype.
+9. Anciennes unités déjà existantes restent affichables via fallback.
+10. Aucun débit client-side.
+11. TypeScript reste à 187 erreurs.
+
+CLAUDE.md
+
+Ajouter une section :
+
+“Ressources V3-D6-D — RecruitmentPanel prototype”
+
+Inclure :
+
+- objectif ;
+- fichiers inspectés ;
+- fichiers modifiés ;
+- liste des IDs legacy retirés de l’UI ;
+- liste des 15 IDs prototype affichés ;
+- catégories UI utilisées ;
+- comportement coûts/durées serveur ;
+- comportement fallback local ;
+- comportement PA indicatifs ;
+- confirmation handleRecruit envoie seulement unitType ;
+- confirmation aucun débit client-side ;
+- confirmation anciennes unités conservées temporairement côté serveur seulement ;
+- confirmation anciennes unités déjà en DB restent affichables ;
+- confirmation RUNTIME_RECRUITMENT_COSTS inchangé ;
+- confirmation server/unitCatalog.ts inchangé ;
+- confirmation shared/landUnitCatalog.ts inchangé ;
+- confirmation productionCost:number inchangé ;
+- résultat TypeScript ;
+- risques restants ;
+- prochaine étape recommandée.
+
+SORTIE ATTENDUE
+
+Répondre avec :
+
+1. Fichiers inspectés.
+2. Fichiers modifiés.
+3. IDs legacy retirés de l’UI.
+4. IDs prototype affichés.
+5. Catégories UI.
+6. Gestion coûts/durées.
+7. Gestion fallback.
+8. Gestion PA indicatifs.
+9. Confirmation payload seulement unitType.
+10. Confirmation aucun débit client-side.
+11. Confirmation anciennes unités côté serveur non supprimées.
+12. Confirmation affichage armée actuelle non cassant.
+13. Résultat TypeScript.
+14. Risques restants.
+15. Prochaine étape recommandée.
+
+STATUT ATTENDU
+
+RecruitmentPanel affiche les 15 unités prototype.
+RecruitmentPanel ne montre plus les anciennes unités legacy.
+Backend reste inchangé.
+Les anciennes unités serveur restent temporairement pour sécurité.
+Aucun débit client-side.
+productionCost:number conservé.

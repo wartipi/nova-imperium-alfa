@@ -2297,3 +2297,78 @@ Accepte techniquement les 15 IDs prototype si appelés directement (curl, tests)
 **V3-D6-D** — Mettre à jour `RecruitmentPanel.tsx` pour afficher les 15 unités prototype issues de `GET /recruitment-costs`, et masquer ou retirer les IDs legacy de l'UI.
 
 **Statut V3-D6-C :** 15 coûts serveur prototype ajoutés dans `RUNTIME_RECRUITMENT_COSTS`. Unités recrutables par le backend. UI inchangée. Legacy marqué temporaire. TypeScript 187 — stable.
+
+---
+
+## Ressources V3-D6-D — RecruitmentPanel prototype
+
+### Objectif
+Remplacer les unités legacy dans `RecruitmentPanel.tsx` par les 15 unités terrestres prototype canoniques. UI migre vers prototype — backend inchangé.
+
+### Fichiers inspectés
+- `client/src/components/game/RecruitmentPanel.tsx`, `client/src/lib/api/citiesApi.ts`
+- `client/src/lib/game/ActionPointsCosts.ts`, `server/recruitmentService.ts`
+- `server/unitCatalog.ts`, `shared/landUnitCatalog.ts`, `CLAUDE.md`
+
+### Fichiers modifiés
+| Fichier | Nature |
+|---|---|
+| `client/src/components/game/RecruitmentPanel.tsx` | Tableau `units[]` legacy → `PROTOTYPE_UNITS` ; catégories ; PA ; icônes |
+
+### IDs legacy retirés de l'UI
+warrior, spearman, swordsman, archer, crossbowman, catapult, trebuchet, horseman, knight, galley, warship, scout, settler, diplomat, spy.
+
+### 15 IDs prototype affichés
+militia · garrison · patrollers · scouts · light_infantry · regular_infantry · noble_infantry · shock_troops · bow_infantry · crossbow_infantry · sappers · field_engineers · raid_troops · hunters · pikemen.
+
+### Catégories UI
+| Catégorie | IDs |
+|---|---|
+| Infanterie légère | militia, garrison, patrollers, scouts, light_infantry |
+| Infanterie lourde | regular_infantry, noble_infantry, shock_troops |
+| Distance | bow_infantry, crossbow_infantry |
+| Technique | sappers, field_engineers |
+| Raid / Soutien | raid_troops, hunters |
+| Contrôle | pikemen |
+
+### Coûts et durées
+- Si `serverRecruitmentCosts?.[unit.id]` disponible → coûts et durée du serveur (source canonique).
+- Sinon → fallback local `PROTOTYPE_UNITS[].cost / recruitmentTime` (valeurs identiques à V3-D6-C).
+- Fallback n'utilise que : food, wood, common_metals, common_textiles, labor_contracts, basic_equipment. Aucune ressource fracten/rare/legacy.
+
+### PA indicatifs
+`getIndicativeActionPointCost(unitId)` : table locale couvrant les 15 IDs prototype ; fallback vers `getUnitRecruitmentCost(unitId)` pour les IDs non listés. PA restent indicatifs — aucune validation serveur, aucun blocage UI.
+
+### handleRecruit
+- Envoie uniquement `{ unitType }` → `apiStartRecruitment(cityId, unitId)`. ✅
+- Aucun coût ni durée envoyé depuis le client. ✅
+- `hydrateCitiesFromServer()` après succès. ✅
+- `missing[]` et `PRODUCTION_ALREADY_ACTIVE` gérés. ✅
+
+### Aucun débit client-side ✅
+
+### Armée Actuelle
+`getUnitIcon(unitType)` couvre les 15 IDs prototype + les 15 IDs legacy. Unités déjà en DB restent affichables sans crash — fallback `'👤'` pour tout type inconnu.
+
+### Confirmations
+- **`RUNTIME_RECRUITMENT_COSTS` inchangé.** ✅
+- **`server/unitCatalog.ts` inchangé.** ✅
+- **`shared/landUnitCatalog.ts` inchangé.** ✅
+- **`startRecruitmentTransaction()` inchangé.** ✅
+- **`productionCost:number` inchangé.** ✅
+- **Anciennes unités conservées côté serveur (legacy temporaire).** ✅
+- **Anciennes unités déjà en DB restent affichables.** ✅
+
+### Résultat TypeScript
+`npx tsc --noEmit` : **187 erreurs** — baseline inchangée. ✅
+Vite hot-reload propre, aucune erreur console.
+
+### Risques restants
+- Anciennes unités legacy encore recrutables via API directe (curl) — seront retirées en V3-D6-E/F.
+- Durées, coûts et stats provisoires — à équilibrer en V3-D7.
+- `getUnitRecruitmentCost()` (ActionPointsCosts.ts) ne connaît pas les IDs prototype — la table locale `prototypeApCosts` compense.
+
+### Prochaine étape recommandée
+**V3-D6-E** — Supprimer les anciennes unités legacy de `RUNTIME_RECRUITMENT_COSTS` et `server/unitCatalog.ts`, après confirmation que l'UI fonctionne correctement avec les 15 prototype.
+
+**Statut V3-D6-D :** RecruitmentPanel affiche les 15 unités prototype. Legacy retiré de l'UI. Backend inchangé. PA indicatifs. Armée actuelle non cassante. TypeScript 187 — stable.

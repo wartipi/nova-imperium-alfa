@@ -6,6 +6,106 @@ import { useState, useEffect } from "react";
 import { apiStartRecruitment, apiGetRecruitmentCosts } from "../../lib/api/citiesApi";
 import type { RuntimeRecruitmentCostEntry } from "../../lib/api/citiesApi";
 
+// ── Coûts PA indicatifs pour les 15 IDs prototype (V3-D6-D) ──────────────────
+// PA restent indicatifs — pas de validation serveur, pas de blocage UI.
+const getIndicativeActionPointCost = (unitId: string): number => {
+  const prototypeApCosts: Record<string, number> = {
+    militia:          1,
+    garrison:         2,
+    patrollers:       1,
+    scouts:           1,
+    light_infantry:   1,
+    regular_infantry: 2,
+    noble_infantry:   2,
+    shock_troops:     2,
+    bow_infantry:     1,
+    crossbow_infantry:2,
+    sappers:          2,
+    field_engineers:  2,
+    raid_troops:      1,
+    hunters:          1,
+    pikemen:          2,
+  };
+  return prototypeApCosts[unitId] ?? getUnitRecruitmentCost(unitId);
+};
+
+// ── Icônes par unitType (15 prototype + fallback legacy) ──────────────────────
+// Couvre les IDs prototype et les anciennes unités qui peuvent encore exister en DB.
+const getUnitIcon = (unitType: string): string => {
+  const iconMap: Record<string, string> = {
+    // ── Prototype ─────────────────────────────────────────────────────────────
+    militia:          '🛡️',
+    garrison:         '🏰',
+    patrollers:       '👁️',
+    scouts:           '🔭',
+    light_infantry:   '🏃',
+    regular_infantry: '⚔️',
+    noble_infantry:   '👑',
+    shock_troops:     '💥',
+    bow_infantry:     '🏹',
+    crossbow_infantry:'🎯',
+    sappers:          '⛏️',
+    field_engineers:  '🔧',
+    raid_troops:      '🔥',
+    hunters:          '🌿',
+    pikemen:          '🪛',
+    // ── Legacy (unités déjà en DB, non recrutables depuis l'UI) ────────────────
+    warrior:   '⚔️',
+    spearman:  '🗡️',
+    swordsman: '🗡️',
+    archer:    '🏹',
+    crossbowman:'🎯',
+    catapult:  '🏹',
+    trebuchet: '🏰',
+    horseman:  '🐎',
+    knight:    '🛡️',
+    galley:    '🚤',
+    warship:   '⛵',
+    scout:     '🔍',
+    settler:   '🏕️',
+    diplomat:  '🤝',
+    spy:       '🕵️',
+  };
+  return iconMap[unitType] ?? '👤';
+};
+
+// ── Catalogue UI des 15 unités prototype ─────────────────────────────────────
+// Fallback local : coûts/durées depuis RUNTIME_RECRUITMENT_COSTS V3-D6-C.
+// Ressources autorisées : food, wood, stone, common_metals, common_textiles,
+//   labor_contracts, basic_equipment. Aucune ressource fracten/rare/legacy.
+const PROTOTYPE_UNITS = [
+  // ── Infanterie légère ────────────────────────────────────────────────────
+  { id: 'militia',          name: 'Milice',                 category: 'Infanterie légère', description: 'Unité commune de défense locale.',                          cost: { food: 2, labor_contracts: 1 },                                                            recruitmentTime: 1, strength: 2 },
+  { id: 'garrison',         name: 'Garnison',               category: 'Infanterie légère', description: 'Unité défensive lente, adaptée à la protection d\'une ville.', cost: { food: 2, labor_contracts: 1, wood: 1 },                                                recruitmentTime: 1, strength: 3 },
+  { id: 'patrollers',       name: 'Patrouilleurs',          category: 'Infanterie légère', description: 'Unité rapide de surveillance et contrôle de zone.',           cost: { food: 3, labor_contracts: 1, basic_equipment: 1 },                                       recruitmentTime: 2, strength: 2 },
+  { id: 'scouts',           name: 'Éclaireurs',             category: 'Infanterie légère', description: 'Unité très mobile pour l\'exploration.',                      cost: { food: 3, labor_contracts: 1, basic_equipment: 1 },                                       recruitmentTime: 2, strength: 1 },
+  { id: 'light_infantry',   name: 'Infanterie légère',      category: 'Infanterie légère', description: 'Unité mobile de ligne légère.',                              cost: { food: 4, labor_contracts: 1, basic_equipment: 1 },                                       recruitmentTime: 2, strength: 4 },
+  // ── Infanterie lourde ────────────────────────────────────────────────────
+  { id: 'regular_infantry', name: 'Infanterie régulière',   category: 'Infanterie lourde', description: 'Unité robuste de ligne.',                                    cost: { food: 4, labor_contracts: 1, basic_equipment: 1 },                                       recruitmentTime: 3, strength: 5 },
+  { id: 'noble_infantry',   name: 'Infanterie noble',       category: 'Infanterie lourde', description: 'Unité lourde et coûteuse.',                                  cost: { food: 5, labor_contracts: 1, basic_equipment: 2 },                                       recruitmentTime: 4, strength: 6 },
+  { id: 'shock_troops',     name: 'Troupe de choc',         category: 'Infanterie lourde', description: 'Unité offensive spécialisée.',                               cost: { food: 5, labor_contracts: 1, basic_equipment: 2 },                                       recruitmentTime: 4, strength: 6 },
+  // ── Distance ─────────────────────────────────────────────────────────────
+  { id: 'bow_infantry',      name: 'Infanterie à arc',      category: 'Distance',          description: 'Unité de projectile léger.',                                 cost: { food: 4, labor_contracts: 1, wood: 1, common_textiles: 1 },                              recruitmentTime: 2, strength: 3 },
+  { id: 'crossbow_infantry', name: 'Infanterie à arbalète', category: 'Distance',          description: 'Unité de projectile lourd.',                                 cost: { food: 4, labor_contracts: 1, wood: 1, common_metals: 1, basic_equipment: 1 },           recruitmentTime: 3, strength: 4 },
+  // ── Technique ────────────────────────────────────────────────────────────
+  { id: 'sappers',          name: 'Sapeurs',                category: 'Technique',         description: 'Unité technique pour opérations de siège et sabotage.',       cost: { food: 4, labor_contracts: 1, wood: 1, common_metals: 1, basic_equipment: 1 },           recruitmentTime: 3, strength: 2 },
+  { id: 'field_engineers',  name: 'Ingénieurs de campagne', category: 'Technique',         description: 'Unité technique avancée de terrain.',                        cost: { food: 4, labor_contracts: 1, wood: 1, common_metals: 1, common_textiles: 1, basic_equipment: 1 }, recruitmentTime: 4, strength: 2 },
+  // ── Raid / Soutien ───────────────────────────────────────────────────────
+  { id: 'raid_troops',      name: 'Troupe de raid',         category: 'Raid / Soutien',    description: 'Unité mobile pour pression économique.',                      cost: { food: 4, labor_contracts: 1, basic_equipment: 1 },                                       recruitmentTime: 3, strength: 4 },
+  { id: 'hunters',          name: 'Chasseurs',              category: 'Raid / Soutien',    description: 'Unité légère de soutien et survie.',                         cost: { food: 3, labor_contracts: 1, wood: 1 },                                                  recruitmentTime: 2, strength: 3 },
+  // ── Contrôle ─────────────────────────────────────────────────────────────
+  { id: 'pikemen',          name: 'Piquiers',               category: 'Contrôle',          description: 'Unité de contrôle défensif.',                                cost: { food: 4, labor_contracts: 1, wood: 1, common_metals: 1, basic_equipment: 1 },           recruitmentTime: 3, strength: 4 },
+] as const;
+
+const PROTOTYPE_CATEGORIES = [
+  'Infanterie légère',
+  'Infanterie lourde',
+  'Distance',
+  'Technique',
+  'Raid / Soutien',
+  'Contrôle',
+] as const;
+
 export function RecruitmentPanel() {
   // V3-D5-E : trainUnit n'est plus utilisé dans ce composant (remplacé par apiStartRecruitment).
   // trainUnit reste présent dans le store pour d'éventuels autres appelants.
@@ -32,49 +132,15 @@ export function RecruitmentPanel() {
 
   if (!currentNovaImperium) return null;
 
-  const units = [
-    { id: 'warrior', name: 'Guerrier', cost: { food: 10, common_metals: 5, fracten: 8 }, recruitmentTime: 2, description: 'Unité de base au corps à corps', icon: '⚔️', strength: 4, category: 'Infanterie' },
-    { id: 'spearman', name: 'Lancier', cost: { food: 12, common_metals: 8, wood: 4 }, recruitmentTime: 2, description: 'Unité défensive contre la cavalerie', icon: '🗡️', strength: 5, category: 'Infanterie' },
-    { id: 'swordsman', name: 'Épéiste', cost: { food: 15, common_metals: 12, fracten: 10 }, recruitmentTime: 3, description: 'Guerrier amélioré avec épée', icon: '🗡️', strength: 7, category: 'Infanterie' },
-    
-    // Ranged Units - 2-3 tours
-    { id: 'archer', name: 'Archer', cost: { food: 8, wood: 10, fracten: 6 }, recruitmentTime: 2, description: 'Unité de tir à distance', icon: '🏹', strength: 3, category: 'Distance' },
-    { id: 'crossbowman', name: 'Arbalétrier', cost: { food: 12, wood: 8, common_metals: 6, fracten: 8 }, recruitmentTime: 3, description: 'Tireur d\'élite avec arbalète', icon: '🎯', strength: 5, category: 'Distance' },
-    
-    // Siege Units - 4-5 tours
-    { id: 'catapult', name: 'Catapulte', cost: { wood: 20, common_metals: 15, stone: 10, fracten: 12 }, recruitmentTime: 4, description: 'Engin de siège pour détruire les murs', icon: '🏹', strength: 8, category: 'Siège' },
-    { id: 'trebuchet', name: 'Trébuchet', cost: { wood: 25, common_metals: 20, stone: 15, fracten: 18 }, recruitmentTime: 5, description: 'Engin de siège lourd', icon: '🏰', strength: 10, category: 'Siège' },
-    
-    // Cavalry - 3-4 tours
-    { id: 'horseman', name: 'Cavalier', cost: { food: 20, common_metals: 8, fracten: 15 }, recruitmentTime: 3, description: 'Unité montée rapide', icon: '🐎', strength: 6, category: 'Cavalerie' },
-    { id: 'knight', name: 'Chevalier', cost: { food: 25, common_metals: 18, fracten: 20, rare_metals_alloys: 3 }, recruitmentTime: 4, description: 'Cavalerie lourde blindée', icon: '🛡️', strength: 9, category: 'Cavalerie' },
-    
-    // Naval Units - 3-4 tours
-    { id: 'galley', name: 'Galère', cost: { wood: 15, common_metals: 8, food: 10, fracten: 12 }, recruitmentTime: 3, description: 'Navire de guerre léger', icon: '🚤', strength: 4, category: 'Marine' },
-    { id: 'warship', name: 'Navire de Guerre', cost: { wood: 25, common_metals: 15, food: 15, fracten: 18 }, recruitmentTime: 4, description: 'Navire de combat lourd', icon: '⛵', strength: 7, category: 'Marine' },
-    
-    // Special Units - 1-3 tours
-    { id: 'scout', name: 'Éclaireur', cost: { food: 6, fracten: 4 }, recruitmentTime: 1, description: 'Unité d\'exploration rapide', icon: '🔍', strength: 2, category: 'Spécial' },
-    { id: 'settler', name: 'Colon', cost: { food: 25, wood: 15, stone: 10, common_metals: 8, fracten: 20 }, recruitmentTime: 3, description: 'Fonde de nouvelles villes', icon: '🏕️', strength: 0, category: 'Spécial' },
-    { id: 'diplomat', name: 'Diplomate', cost: { food: 10, fracten: 15, rare_metals_alloys: 2 }, recruitmentTime: 2, description: 'Négociateur pour les relations', icon: '🤝', strength: 0, category: 'Spécial' },
-    { id: 'spy', name: 'Espion', cost: { food: 12, fracten: 18, crystals: 3 }, recruitmentTime: 2, description: 'Unité d\'espionnage et sabotage', icon: '🕵️', strength: 1, category: 'Spécial' }
-  ];
-
   const getResourceIcon = (resource: string): string => {
     const icons: Record<string, string> = {
-      food: '🍞',
-      fracten: '💰',
-      wood: '🪵',
-      stone: '🪨',
-      common_metals: '⚙️',
-      rare_metals_alloys: '🥇',
-      crystals: '💠',
-      arcane_stones: '⚡',
-      leather_fur: '🦊',
-      // V3-D5-G : ressources du catalogue serveur runtime
-      common_textiles: '🧶',
-      labor_contracts: '📜',
-      basic_equipment: '🛡️',
+      food:             '🍞',
+      wood:             '🪵',
+      stone:            '🪨',
+      common_metals:    '⚙️',
+      common_textiles:  '🧶',
+      labor_contracts:  '📜',
+      basic_equipment:  '🛡️',
     };
     return icons[resource] || '❓';
   };
@@ -86,17 +152,14 @@ export function RecruitmentPanel() {
       .join(', ');
   };
 
-  // canAffordUnit : contrôle d'affichage uniquement (AP + ressources Zustand globales).
-  // NE contrôle plus la validation des ressources city_inventory — c'est le serveur
-  // qui est authoritative via POST /api/cities/:cityId/start-recruitment.
-  // Risque : les ressources Zustand (globales) diffèrent de city_inventory (serveur) —
-  // l'indicateur peut être incorrect. À réconcilier en V3-D5-F.
+  // canAffordUnit : contrôle d'affichage uniquement (PA indicatifs).
+  // Validation authoritative = serveur via POST /api/cities/:cityId/start-recruitment.
   const canAffordUnit = (unitId: string): boolean => {
-    const actionCost = getUnitRecruitmentCost(unitId);
+    const actionCost = getIndicativeActionPointCost(unitId);
     return canAffordAction(actionPoints, actionCost);
   };
 
-  // V3-D5-E : handleRecruit est maintenant serveur-authoritative.
+  // V3-D5-E : handleRecruit est serveur-authoritative.
   // Seul unitType est envoyé au serveur — pas de coût ni de durée depuis le client.
   // Le débit city_inventory se fait atomiquement côté serveur (V3-D5-C2).
   const handleRecruit = async (unitId: string, cityId: string) => {
@@ -119,7 +182,6 @@ export function RecruitmentPanel() {
         }));
       } else if (body.error === 'INSUFFICIENT_CITY_INVENTORY') {
         const missing: { resource: string; shortage: number }[] = body.missing ?? [];
-        // Construire un message lisible depuis missing[] si disponible
         const detail = missing.length > 0
           ? missing.map(m => `${m.resource} +${m.shortage}`).join(', ')
           : null;
@@ -197,8 +259,8 @@ export function RecruitmentPanel() {
           )}
 
           <div className="space-y-3">
-            {['Infanterie', 'Distance', 'Siège', 'Cavalerie', 'Marine', 'Spécial'].map(category => {
-              const categoryUnits = units.filter(u => u.category === category);
+            {PROTOTYPE_CATEGORIES.map(category => {
+              const categoryUnits = PROTOTYPE_UNITS.filter(u => u.category === category);
               return (
                 <div key={category} className="space-y-1">
                   <div className="text-xs font-bold text-amber-800 border-b border-amber-300 pb-1">
@@ -213,18 +275,19 @@ export function RecruitmentPanel() {
                       onMouseMove={handleMouseMove}
                     >
                       <div className="flex items-center space-x-2">
-                        <span className="text-sm">{unit.icon}</span>
+                        <span className="text-sm">{getUnitIcon(unit.id)}</span>
                         <div>
-                          {/* V3-D5-G : coûts serveur si disponibles, fallback local sinon */}
+                          {/* V3-D6-D : coûts serveur si disponibles, fallback local sinon */}
                           {(() => {
                             const serverEntry = serverRecruitmentCosts?.[unit.id];
                             const displayCost = serverEntry ? serverEntry.cost : unit.cost;
                             const displayDuration = serverEntry ? serverEntry.duration : unit.recruitmentTime;
+                            const apCost = getIndicativeActionPointCost(unit.id);
                             return (
                               <>
                                 <div className="text-xs font-medium">{unit.name}</div>
                                 <div className="text-xs text-amber-700">
-                                  {formatResourceCost(displayCost as Record<string, number | undefined>)} | {getUnitRecruitmentCost(unit.id)} ⚡
+                                  {formatResourceCost(displayCost as Record<string, number | undefined>)} | {apCost} ⚡
                                 </div>
                                 <div className="text-xs text-purple-600">
                                   🕐 {displayDuration} tour{displayDuration > 1 ? 's' : ''} | ⚔️ {unit.strength}
@@ -245,9 +308,8 @@ export function RecruitmentPanel() {
                         title={
                           city.currentProduction !== null ? 'Ville occupée' :
                           isRecruiting[city.id] ? 'Recrutement en cours…' :
-                          // V3-D5-F : PA indicatifs uniquement — la validation est serveur-authoritative.
-                          // canAffordUnit() (PA) n'est plus un verrou UI : on affiche l'info sans bloquer.
-                          !canAffordUnit(unit.id) ? `${getUnitRecruitmentCost(unit.id)} PA requis (indicatif)` :
+                          // PA indicatifs uniquement — validation serveur-authoritative.
+                          !canAffordUnit(unit.id) ? `${getIndicativeActionPointCost(unit.id)} PA requis (indicatif)` :
                           'Recruter cette unité'
                         }
                       >
@@ -263,6 +325,7 @@ export function RecruitmentPanel() {
         </div>
       ))}
 
+      {/* Armée Actuelle — affiche toutes les unités en DB, y compris legacy */}
       <div className="bg-amber-50 border border-amber-700 rounded p-3">
         <div className="text-sm">
           <div className="font-medium mb-2">Armée Actuelle:</div>
@@ -270,12 +333,7 @@ export function RecruitmentPanel() {
             {currentNovaImperium.units.map(unit => (
               <div key={unit.id} className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <span className="text-sm">
-                    {unit.type === 'warrior' ? '⚔️' : 
-                     unit.type === 'archer' ? '🏹' : 
-                     unit.type === 'settler' ? '🏕️' : 
-                     unit.type === 'scout' ? '🔍' : '👤'}
-                  </span>
+                  <span className="text-sm">{getUnitIcon(unit.type)}</span>
                   <div>
                     <div className="text-xs font-medium">{unit.name}</div>
                     <div className="text-xs text-amber-700">
@@ -302,26 +360,36 @@ export function RecruitmentPanel() {
             transform: 'translateY(-100%)'
           }}
         >
-          <div className="space-y-2">
-            <div className="text-sm font-medium text-yellow-300">
-              {units.find(u => u.id === hoveredUnit)?.name}
-            </div>
-            <div className="text-sm">
-              {units.find(u => u.id === hoveredUnit)?.description}
-            </div>
-            <div className="border-t border-gray-600 pt-2">
-              <div className="text-xs text-gray-300 mb-1">Statistiques:</div>
-              <div className="text-sm text-red-400">
-                Force: {units.find(u => u.id === hoveredUnit)?.strength}
+          {(() => {
+            const unit = PROTOTYPE_UNITS.find(u => u.id === hoveredUnit);
+            if (!unit) return null;
+            const apCost = getIndicativeActionPointCost(hoveredUnit);
+            return (
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-yellow-300">
+                  {getUnitIcon(unit.id)} {unit.name}
+                </div>
+                <div className="text-sm">
+                  {unit.description}
+                </div>
+                <div className="border-t border-gray-600 pt-2">
+                  <div className="text-xs text-gray-300 mb-1">Statistiques:</div>
+                  <div className="text-sm text-red-400">
+                    Force: {unit.strength}
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    Catégorie: {unit.category}
+                  </div>
+                </div>
+                <div className="border-t border-gray-600 pt-2">
+                  <div className="text-xs text-gray-300 mb-1">Points d'Action (indicatifs) :</div>
+                  <div className="text-sm text-blue-400">
+                    Requis indicatif : {apCost} PA
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="border-t border-gray-600 pt-2">
-              <div className="text-xs text-gray-300 mb-1">Points d'Action (indicatifs) :</div>
-              <div className="text-sm text-blue-400">
-                Requis indicatif : {getUnitRecruitmentCost(hoveredUnit)} PA
-              </div>
-            </div>
-          </div>
+            );
+          })()}
         </div>
       )}
     </div>
