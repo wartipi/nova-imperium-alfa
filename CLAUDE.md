@@ -2607,3 +2607,299 @@ Vérifier qu'il ne reste aucune dépendance active aux anciens IDs legacy de rec
 **V3-D7** — Calibration des coûts/durées/stats + extension de `UnitType` côté client pour inclure les 15 IDs prototype + nettoyage de `trainUnit()` legacy.
 
 **Statut V3-D6-G :** Audit post-suppression complet. Un seul cas INTERDIT trouvé et corrigé (`RecruitmentPanelZustand.tsx`). Toutes les autres occurrences legacy classées ACCEPTABLE (fallback historique ou dead code). rangers absent. scouts prototype actif. TypeScript 187 — stable. **V3-D6 entièrement complète.**
+
+---
+
+## Ressources V3-D7-A — Audit bâtiments 4 niveaux + caserne
+
+### Objectif
+Auditer le système actuel de bâtiments pour préparer la caserne à 4 niveaux qui conditionnera le recrutement des 15 unités terrestres prototype. Bloc audit seul — aucune implémentation, aucune migration, aucun changement runtime.
+
+### Fichiers inspectés
+- `shared/schema.ts` — tables `city_buildings`, `city_production`
+- `server/buildingEffects.ts` — `BUILDING_PRODUCTION`, `BUILDING_TERRAIN_PREREQS`, `BUILDING_RESOURCE_PREREQS`, `applyBuildingEffects()`
+- `server/cityService.ts` — `BUILDING_YIELDS`, `addBuilding()`, `recalculateCityEconomy()`, `setProduction()`
+- `server/routes/cities.ts` — `POST /buildings`, `POST /start-construction`, `POST /start-recruitment`
+- `server/accessPointService.ts` — seul consommateur actuel de `city_buildings.level` (warehouse capacity)
+- `client/src/components/game/ConstructionPanel.tsx` — liste `buildings[]`, `apiStartConstruction()`
+- `client/src/lib/api/citiesApi.ts` — `apiAddBuilding()`, `apiStartConstruction()`
+- `client/src/components/game/CityManagementPanel.tsx`, `MedievalHUD.tsx`, `UnifiedTerritoryPanel.tsx`, `TreasuryPanel.tsx`
+- `client/src/components/game/RecruitmentPanel.tsx` — panel actif recrutement (aucune mention barracks)
+- `client/src/lib/stores/useNovaImperium.tsx`, `client/src/lib/game/types.ts`
+- `client/src/hooks/business/useBusinessLogic.tsx`
+- DB live : `psql \d city_buildings`
+
+---
+
+### 1. Représentation actuelle des bâtiments
+
+**Table DB : `city_buildings`**
+| Colonne | Type | Notes |
+|---|---|---|
+| `id` | serial PK | |
+| `city_id` | integer FK → cities.id | ON DELETE CASCADE |
+| `building` | text | ID string du bâtiment |
+| `level` | integer DEFAULT 1 | **EXISTE mais non utilisé sauf entrepôt** |
+| `built_at` | timestamp | |
+| UNIQUE | (city_id, building) | Idempotence — ON CONFLICT DO NOTHING |
+
+**État DB actuel :** toutes les lignes ont `level=1`. Seuls bâtiments présents : `guilde_des_marchands`, `bank`, `entrepot`, `atelier_tisserand`. Aucune ligne `barracks`.
+
+**Attachement :** les bâtiments sont attachés à une **ville** (`city_id` = `cities.id`).
+
+**Côté serveur :**
+- `addBuilding(cityId, building)` — INSERT + `ON CONFLICT DO NOTHING` — niveau fixé à 1 (défaut DB), jamais passé explicitement.
+- `applyBuildingEffects(cityId, buildingId)` — incrémente les colonnes `*_per_turn` de la ville.
+- `recalculateCityEconomy(cityId)` — relit `city_buildings` et recalcule `food_per_turn + production_per_turn + fracten_per_turn` depuis `BUILDING_YIELDS`.
+
+---
+
+### 2. Support actuel des niveaux
+
+| Aspect | État |
+|---|---|
+| Champ `level` en DB | ✅ Présent (`city_buildings.level INTEGER DEFAULT 1`) |
+| Champ `tier` | ❌ Absent de `city_buildings` |
+| Logique upgrade | ❌ Absente — `ON CONFLICT DO NOTHING` ignore tout doublon |
+| Coûts par niveau | ❌ Absents — `BUILDING_YIELDS`, `BUILDING_PRODUCTION` ne varient pas selon le niveau |
+| Rendu UI par niveau | ❌ Absent — `ConstructionPanel.tsx` n'affiche pas le niveau d'un bâtiment possédé |
+| Logique serveur par niveau | ✅ Partiel — `accessPointService.ts` lit `cityBuildings.level` pour la capacité entrepôt |
+| `addBuilding()` level-aware | ❌ — passe `{ cityId, building }`, jamais `level` |
+
+**Conclusion :** le champ `level` existe et est correct (défaut 1, bien typé). La logique d'upgrade (ON CONFLICT DO UPDATE) est absente. Le système supporte structurellement les niveaux mais n'a pas le code pour les faire évoluer.
+
+---
+
+### 3. Tables DB concernées
+
+| Table | Rôle | Changement requis V3-D7-B |
+|---|---|---|
+| `city_buildings` | Stocke le bâtiment et son niveau | **Aucune migration** — `level` existe déjà |
+| `city_production` | File de production courante | Aucun changement — structure suffisante |
+| `city_inventory` | Stocks débités lors de la construction | Aucun changement |
+
+**Migration DB nécessaire : NON.** `city_buildings.level` est déjà présent avec `DEFAULT 1`. Aucune colonne manquante. Seul changement requis : logique applicative dans `addBuilding()`.
+
+---
+
+### 4. Flux de construction actuel
+
+```
+Client ConstructionPanel.tsx
+  → apiStartConstruction(cityId, building, costs, constructionTime)
+    → POST /api/cities/:cityId/start-construction
+      → [Admin] : addBuilding() + applyBuildingEffects() (instantané)
+      → [Joueur] : check terrain + check ressources + débit city_inventory
+                   + setProduction(type:'building', name:building, cost:constructionTime)
+
+Tick serveur (processTurn via GameEngine)
+  → city_production.progress += city.productionPerTurn
+  → Si progress >= cost : addBuilding(city.id, prod.productionName)
+                          + applyBuildingEffects()
+                          + clearProduction()
+```
+
+**Point critique :** `addBuilding()` reçoit le `building` comme string issue de `city_production.production_name`. Pour supporter les niveaux, il faut soit passer le niveau cible dans ce flux, soit le déduire depuis le niveau actuel du bâtiment.
+
+---
+
+### 5. Effets de bâtiments existants
+
+**`BUILDING_YIELDS`** (cityService.ts) — économie ville :
+| Bâtiment | Effet |
+|---|---|
+| `barracks` | `{ production: 1 }` — +1 production/tour |
+| `granary` | `{ food: 2 }` |
+| `market` | `{ fracten: 3 }` |
+| `palace` | `{ fracten: 1 }` |
+| `courthouse` | `{ fracten: 1 }` |
+
+**`BUILDING_PRODUCTION`** (buildingEffects.ts) — T1 matériaux :
+- `barracks` absent — ne produit aucun matériau T1.
+
+**Résultat :** `barracks` est connu du serveur (dans `BUILDING_YIELDS`) mais non constructible via `ConstructionPanel.tsx` (absent de la liste `buildings[]`). Pas de ligne en DB.
+
+---
+
+### 6. UI de construction actuelle
+
+- **`ConstructionPanel.tsx`** : liste statique `buildings[]` avec ~30 bâtiments groupés par terrain. `barracks` est absent de cette liste. Chaque entrée a `{ id, name, cost, constructionTime, requiredTerrain, ... }`. Aucun champ `level` ni `upgradeFrom`.
+- **`CityManagementPanel.tsx`** : affiche `city.buildings` (liste de strings) — pas le niveau.
+- **`MedievalHUD.tsx`** : `BUILDING_NAMES['barracks'] = { name: 'Caserne', icon: '⚔️' }` — label connu.
+- **`UnifiedTerritoryPanel.tsx`** : `BUILDING_LABELS['barracks'] = 'Caserne'` — label connu.
+- **`RecruitmentPanel.tsx`** : aucune référence à barracks, aucun gate par bâtiment.
+
+---
+
+### 7. Contraintes canoniques 4 niveaux
+
+Décision V3-D7-A : tout bâtiment Nova Imperium a exactement 4 niveaux. Aucun bâtiment simple à niveau unique ne doit être ajouté.
+
+---
+
+### 8. Caserne — proposition niveaux 1–4 et unités débloquées
+
+| Niveau | Nom suggéré | Unités débloquées |
+|---|---|---|
+| N1 | Caserne rudimentaire | militia, garrison, scouts, hunters |
+| N2 | Caserne établie | + patrollers, light_infantry, bow_infantry, pikemen |
+| N3 | Caserne entraînée | + regular_infantry, crossbow_infantry, sappers, raid_troops |
+| N4 | Caserne d'élite | + noble_infantry, shock_troops, field_engineers |
+
+Règle : les unités des niveaux inférieurs restent disponibles à chaque niveau supérieur.
+
+**Constante serveur cible (V3-D7-C) :**
+```typescript
+const BARRACKS_UNIT_UNLOCK: Record<string, number> = {
+  militia: 1, garrison: 1, scouts: 1, hunters: 1,
+  patrollers: 2, light_infantry: 2, bow_infantry: 2, pikemen: 2,
+  regular_infantry: 3, crossbow_infantry: 3, sappers: 3, raid_troops: 3,
+  noble_infantry: 4, shock_troops: 4, field_engineers: 4,
+};
+```
+
+---
+
+### 9. Point d'insertion serveur recommandé (V3-D7-C)
+
+**Localisation :** `server/routes/cities.ts` — `POST /start-recruitment`, après l'étape 3 (vérification UNIT_CATALOG), avant l'étape 4–7 (transaction atomique).
+
+**Logique à insérer :**
+```typescript
+// ── 3b. Vérification caserne ──────────────────────────────────────────────
+const requiredBarracksLevel = BARRACKS_UNIT_UNLOCK[unitType];
+if (requiredBarracksLevel !== undefined) {
+  const barracksRow = await db
+    .select({ level: cityBuildings.level })
+    .from(cityBuildings)
+    .where(and(eq(cityBuildings.cityId, cityId), eq(cityBuildings.building, 'barracks')))
+    .limit(1);
+
+  if (barracksRow.length === 0) {
+    return res.status(403).json({ error: 'BARRACKS_REQUIRED' });
+  }
+  if (barracksRow[0].level < requiredBarracksLevel) {
+    return res.status(403).json({
+      error:    'BARRACKS_LEVEL_TOO_LOW',
+      required: requiredBarracksLevel,
+      current:  barracksRow[0].level,
+    });
+  }
+}
+```
+
+**Codes erreur recommandés :**
+- `403 BARRACKS_REQUIRED` — pas de caserne du tout
+- `403 BARRACKS_LEVEL_TOO_LOW { required: N, current: M }` — niveau insuffisant
+- Justification : 403 (Forbidden) plutôt que 400 (Bad Request) car la ville ne remplit pas une condition de prérequis, pas une erreur de payload.
+
+**Avantage :** la vérification se fait AVANT la transaction — aucun débit city_inventory si la caserne manque.
+
+---
+
+### 10. Modification `addBuilding()` nécessaire pour les niveaux (V3-D7-B)
+
+**Problème :** `ON CONFLICT DO NOTHING` ignore un second `INSERT barracks` → impossible de passer de N1 à N2.
+
+**Solution recommandée :**
+```typescript
+// Nouvelle signature (V3-D7-B) :
+export async function addBuilding(
+  cityId:      number,
+  building:    string,
+  targetLevel: number = 1,
+): Promise<void> {
+  await db
+    .insert(cityBuildings)
+    .values({ cityId, building, level: targetLevel })
+    .onConflictDoUpdate({
+      target:  [cityBuildings.cityId, cityBuildings.building],
+      set:     { level: sql`GREATEST(${cityBuildings.level}, EXCLUDED.level)` },
+    });
+  await recalculateCityEconomy(cityId);
+}
+```
+
+- `GREATEST(current, new)` : idempotent et non-régressif — une construction N2 ne peut pas revenir à N1.
+- Aucune migration — le schéma `level INTEGER DEFAULT 1` est déjà correct.
+- L'appel admin `addBuilding(cityId, 'barracks')` reste valide (targetLevel=1 par défaut).
+- Le flux joueur : `start-construction` envoie le niveau cible dans le body → `setProduction(name:'barracks', cost:N)` → à la complétion, `addBuilding(cityId, 'barracks', targetLevel)`.
+
+**Alternative rejetée :** IDs distincts `barracks_1`, `barracks_2`, `barracks_3`, `barracks_4` — pollue les tables, complique la requête de vérification, rompt `BUILDING_YIELDS`.
+
+---
+
+### 11. Modification `CityDTO` nécessaire (V3-D7-B)
+
+Actuellement `buildings: string[]` dans `CityDTO` — perd le niveau. Pour V3-D7-D, l'UI a besoin du niveau.
+
+**Cible :**
+```typescript
+buildings: Array<{ id: string; level: number }>;
+// ou : buildingLevels: Record<string, number>;
+```
+
+`getCityDTO()` devra lire `{ building, level }` depuis `city_buildings` au lieu de `building` seul.
+
+---
+
+### 12. Point d'insertion UI recommandé (V3-D7-D)
+
+**`RecruitmentPanel.tsx`** :
+- Lire `barracksLevel = city.buildingLevels?.['barracks'] ?? 0`
+- Pour chaque unité de `PROTOTYPE_UNITS` : comparer `BARRACKS_UNIT_UNLOCK[unit.id]` vs `barracksLevel`
+- Si `barracksLevel === 0` : bannière "Aucune caserne — recrutement terrestre bloqué"
+- Si `barracksLevel < required` : bouton grisé + tooltip "Caserne N{required} requise (actuelle : N{barracksLevel})"
+- Si `barracksLevel >= required` : bouton actif
+
+**`ConstructionPanel.tsx`** :
+- Ajouter `barracks` (N1 à N4) dans la liste `buildings[]` avec la section "Militaire / Urbain"
+- Afficher le niveau actuel si le bâtiment existe déjà + bouton "Améliorer → N{n+1}"
+- Griser le bouton N1 si barracks N1 déjà construit, proposer N2, etc.
+
+**`CityManagementPanel.tsx`** :
+- Afficher `buildings` avec le niveau en suffixe : "Caserne Nv.2" au lieu de "Caserne"
+
+---
+
+### 13. Plan recommandé V3-D7-B à V3-D7-E
+
+| Bloc | Périmètre | Fichiers modifiés | Interdits |
+|---|---|---|---|
+| **V3-D7-B** | Caserne N1–N4 constructible | `server/cityService.ts` (addBuilding level), `server/routes/cities.ts` (POST /buildings level), `server/cityService.ts` (getCityDTO level), `client/src/components/game/ConstructionPanel.tsx` (entrées barracks), `CLAUDE.md` | Ne pas brancher recrutement — validation caserne absente |
+| **V3-D7-C** | Validation recrutement par niveau caserne | `server/routes/cities.ts` (start-recruitment check), `server/cityService.ts` (BARRACKS_UNIT_UNLOCK), `CLAUDE.md` | Ne pas modifier startRecruitmentTransaction, ne pas modifier RUNTIME_RECRUITMENT_COSTS |
+| **V3-D7-D** | UI RecruitmentPanel + ConstructionPanel par niveau | `client/src/components/game/RecruitmentPanel.tsx` (lock UI), `client/src/components/game/ConstructionPanel.tsx` (upgrade UI), `CLAUDE.md` | Ne pas modifier la logique serveur |
+| **V3-D7-E** | Tests end-to-end 4 scénarios | Aucun fichier modifié — tests manuels + DB seeds | Ne pas modifier le code |
+
+---
+
+### 14. Risques techniques
+
+| Risque | Probabilité | Mitigation |
+|---|---|---|
+| `ON CONFLICT DO NOTHING` ignore upgrade silencieusement | **Certain** si non corrigé | Changer pour `ON CONFLICT DO UPDATE GREATEST` en V3-D7-B |
+| `CityDTO.buildings: string[]` perd le niveau → RecruitmentPanel ne peut pas lire le niveau | **Certain** si non modifié | Migrer vers `Array<{id,level}>` ou `Record<string,number>` en V3-D7-B |
+| `recalculateCityEconomy` ne varie pas par niveau de caserne → BUILDING_YIELDS['barracks'] fixe | Acceptable V3-D7-B (barracks N1=production:1), à enrichir si bonus par niveau souhaité en V3-D8 | |
+| Données existantes (toutes à level=1) | Risque nul — GREATEST() garantit non-régression | |
+| `BUILDING_PRODUCTION` manque barracks → aucun T1 produit | Attendu — barracks ne produit pas de matériau, uniquement un gate de recrutement | |
+| TypeScript : `getCityDTO` change de type → `buildings` → risque de régression TS si clients supposent `string[]` | Moyen | Migrer tous les consommateurs en même temps (V3-D7-B) |
+| `ConstructionPanel.tsx` envoie `building` comme string → `addBuilding(cityId, name)` à la complétion : le niveau cible doit être encodé dans `production_name` ou un nouveau champ | Moyen | Encoder `barracks` + passer level via un champ séparé dans `city_production` ou lire le niveau actuel + 1 à la complétion |
+
+---
+
+### Confirmations
+
+- Aucun changement runtime dans ce bloc. ✅
+- Aucune migration DB appliquée. ✅
+- `server/unitCatalog.ts` non modifié. ✅
+- `RUNTIME_RECRUITMENT_COSTS` non modifié. ✅
+- `startRecruitmentTransaction` non modifié. ✅
+- `RecruitmentPanel.tsx` non modifié. ✅
+- `shared/landUnitCatalog.ts` non modifié. ✅
+- `rangers` absent. ✅
+- Unités legacy non réintroduites. ✅
+
+### Résultat TypeScript
+`npx tsc --noEmit` : **187 erreurs** — baseline inchangée. ✅
+
+**Statut V3-D7-A :** Audit complet. Aucune implémentation caserne. Aucune migration DB. Plan clair V3-D7-B à V3-D7-E documenté. `level` existe en DB. `ON CONFLICT DO NOTHING` bloque les upgrades → à corriger en V3-D7-B. `addBuilding()` + `CityDTO` + `ConstructionPanel` + `RecruitmentPanel` sont les 4 points de modification principaux identifiés.

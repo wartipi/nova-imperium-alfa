@@ -1,0 +1,372 @@
+NOVA IMPERIUM — Ressources V3-D7-A
+Audit bâtiments existants + modèle 4 niveaux pour caserne
+
+RÔLE
+Tu es l’agent technique sur le repo Nova Imperium.
+Objectif : auditer le système actuel de bâtiments pour préparer l’ajout d’une caserne à 4 niveaux, qui contrôlera le recrutement des 15 unités terrestres prototype.
+
+IMPORTANT
+
+Ce bloc est un AUDIT / PLAN TECHNIQUE.
+Ne pas implémenter la caserne dans ce bloc.
+Ne pas modifier la DB/schema.
+Ne pas modifier RecruitmentPanel.
+Ne pas modifier startRecruitmentTransaction.
+Ne pas modifier RUNTIME_RECRUITMENT_COSTS.
+Ne pas modifier server/unitCatalog.ts.
+Ne pas modifier shared/landUnitCatalog.ts.
+Ne pas modifier les coûts/durées/stats des unités.
+Ne pas modifier productionCost:number.
+Ne pas ajouter de migration.
+Ne pas ajouter de nouveau bâtiment actif.
+Ne pas brancher abilities, upkeep ou siegeWearPoints.
+Ne pas ajouter rangers.
+
+DÉCISION CANONIQUE — BÂTIMENTS
+
+Tous les bâtiments de Nova Imperium doivent avoir 4 niveaux d’évolution.
+
+Aucun bâtiment ne doit être ajouté comme bâtiment simple à niveau unique.
+
+Tout nouveau bâtiment doit être pensé sous forme :
+
+- Niveau 1
+- Niveau 2
+- Niveau 3
+- Niveau 4
+
+Chaque niveau peut :
+- débloquer des fonctions ;
+- améliorer des rendements ;
+- améliorer des capacités ;
+- débloquer des unités ;
+- changer des coûts ou limites selon le système concerné.
+
+DÉCISION CANONIQUE — CASERNE
+
+La caserne doit devenir le bâtiment qui autorise le recrutement des unités terrestres.
+
+La validation devra être serveur-authoritative dans un bloc futur.
+
+Principe final attendu :
+
+Sans caserne :
+- aucune unité terrestre ne doit être recrutée ;
+- le serveur doit refuser POST /start-recruitment ;
+- aucun débit city_inventory ;
+- aucune city_production créée ;
+- l’UI doit afficher un message ou bloquer le recrutement.
+
+Avec caserne :
+- seules les unités débloquées par le niveau de caserne peuvent être recrutées.
+
+PROPOSITION DE DÉBLOCAGE PAR NIVEAU
+
+À auditer et documenter comme cible, sans encore implémenter :
+
+Caserne niveau 1 :
+- militia
+- garrison
+- scouts
+- hunters
+
+Caserne niveau 2 :
+- patrollers
+- light_infantry
+- bow_infantry
+- pikemen
+
+Caserne niveau 3 :
+- regular_infantry
+- crossbow_infantry
+- sappers
+- raid_troops
+
+Caserne niveau 4 :
+- noble_infantry
+- shock_troops
+- field_engineers
+
+Important :
+- L’ID canonique est hunters.
+- Ne jamais utiliser rangers.
+- scout legacy singulier est interdit comme unité active.
+- scouts prototype pluriel est valide.
+
+CONTEXTE VALIDÉ
+
+V3-D6 complet :
+- Le recrutement actif utilise maintenant 15 unités prototype.
+- UNIT_CATALOG contient seulement les 15 unités prototype.
+- RUNTIME_RECRUITMENT_COSTS contient seulement les 15 coûts prototype.
+- RecruitmentPanel affiche les 15 unités prototype.
+- RecruitmentPanelZustand a été corrigé pour ne plus utiliser les legacy.
+- End-to-end militia validé.
+- Les anciennes unités legacy sont supprimées du serveur actif.
+- Fallback UI historique conservé uniquement pour éviter les crashs d’anciennes unités déjà en DB.
+- TypeScript baseline : 187 erreurs.
+
+IDS UNITÉS ACTIVES
+
+Les seules unités actives de recrutement sont :
+
+- militia
+- garrison
+- patrollers
+- scouts
+- light_infantry
+- regular_infantry
+- noble_infantry
+- shock_troops
+- bow_infantry
+- crossbow_infantry
+- sappers
+- field_engineers
+- raid_troops
+- hunters
+- pikemen
+
+À INSPECTER
+
+Lire tous les fichiers liés aux bâtiments, construction, production ville, stockage et UI :
+
+- shared/schema.ts
+- server/cityService.ts
+- server/buildingEffects.ts
+- server/economyService.ts
+- server/routes/cities.ts
+- server/playerActionService.ts
+- client/src/components/game/ConstructionPanel.tsx
+- client/src/components/game/ConstructionPanelSimple.tsx
+- client/src/components/game/CityManagementPanel.tsx
+- client/src/components/game/UnifiedTerritoryPanel.tsx
+- client/src/components/game/TileInfoPanel.tsx
+- client/src/lib/stores/useNovaImperium.tsx
+- client/src/lib/api/citiesApi.ts
+- client/src/lib/game/types.ts
+- CLAUDE.md
+
+Chercher dans tout le repo :
+
+- building
+- buildings
+- city_buildings
+- constructedBuildings
+- construction
+- buildingQueue
+- cityProduction
+- production
+- barracks
+- caserne
+- forge
+- atelier_tisserand
+- bureau_de_recrutement
+- guilde_des_marchands
+- buildingEffects
+- BUILDING_PRODUCTION
+- BUILDING_CATALOG
+- constructionCost
+- level
+- tier
+- upgrade
+- bâtiment
+- niveau
+- recruitment
+- start-recruitment
+- RecruitmentPanel
+- RecruitmentPanelZustand
+
+OBJECTIFS DE L’AUDIT
+
+1. Identifier comment les bâtiments sont représentés actuellement
+
+Déterminer :
+- s’ils sont stockés en DB ;
+- dans quelle table ;
+- sous quel format ;
+- s’il y a un champ level/tier/niveau ;
+- si les bâtiments sont attachés à une ville, une tuile, un joueur ou une faction ;
+- comment on sait qu’une ville “possède” un bâtiment ;
+- comment les bâtiments sont construits ;
+- comment ils sont affichés ;
+- comment leurs effets sont appliqués.
+
+2. Identifier si le système supporte déjà les bâtiments à niveaux
+
+Vérifier :
+- présence d’un champ level ;
+- présence d’un champ tier ;
+- upgrade existant ou non ;
+- coût par niveau existant ou non ;
+- rendu UI par niveau existant ou non ;
+- logique serveur par niveau existante ou non.
+
+3. Identifier le chemin minimal pour ajouter une caserne à 4 niveaux
+
+Produire un plan technique précis pour les blocs suivants :
+
+V3-D7-B :
+- ajouter la caserne niveaux 1–4 comme bâtiment canonique ;
+- ne pas encore brancher le recrutement si préférable.
+
+V3-D7-C :
+- brancher la validation serveur start-recruitment selon niveau de caserne.
+
+V3-D7-D :
+- brancher l’UI RecruitmentPanel selon niveau de caserne.
+
+V3-D7-E :
+- tests end-to-end sans caserne / caserne N1 / N2 / N3 / N4.
+
+4. Identifier les impacts DB
+
+Dire clairement :
+- si une migration DB sera nécessaire ;
+- si le schema actuel supporte déjà les niveaux ;
+- si une table existante peut être réutilisée ;
+- si un nouveau champ est requis ;
+- quels risques existent pour les données déjà présentes.
+
+5. Identifier les impacts UI
+
+Dire clairement :
+- quel panneau de construction devra afficher la caserne ;
+- comment montrer les 4 niveaux ;
+- comment montrer les unités débloquées par niveau ;
+- comment bloquer ou expliquer le recrutement sans caserne ;
+- si RecruitmentPanel et RecruitmentPanelZustand doivent tous deux être modifiés.
+
+6. Identifier les impacts serveur
+
+Dire clairement :
+- où ajouter la vérification “ville possède caserne niveau suffisant” ;
+- si cette vérification doit être dans startRecruitmentTransaction ou avant son appel ;
+- comment éviter tout débit si la caserne manque ;
+- quel code d’erreur retourner :
+  - 403 BARRACKS_REQUIRED ;
+  - 403 BARRACKS_LEVEL_TOO_LOW ;
+  - ou autre recommandation justifiée.
+
+CONTRAINTES DE DESIGN POUR LE PLAN
+
+Le système final doit permettre :
+
+Sans caserne :
+- aucun recrutement terrestre.
+
+Caserne niveau 1 :
+- militia
+- garrison
+- scouts
+- hunters
+
+Caserne niveau 2 :
+- toutes les unités N1 plus :
+- patrollers
+- light_infantry
+- bow_infantry
+- pikemen
+
+Caserne niveau 3 :
+- toutes les unités N1/N2 plus :
+- regular_infantry
+- crossbow_infantry
+- sappers
+- raid_troops
+
+Caserne niveau 4 :
+- toutes les unités N1/N2/N3 plus :
+- noble_infantry
+- shock_troops
+- field_engineers
+
+Le serveur doit toujours être la source d’autorité.
+
+À NE PAS FAIRE
+
+- Ne pas coder la caserne.
+- Ne pas ajouter de bâtiment dans le catalogue runtime.
+- Ne pas modifier la DB.
+- Ne pas créer de migration.
+- Ne pas modifier startRecruitmentTransaction.
+- Ne pas modifier RecruitmentPanel.
+- Ne pas modifier RecruitmentPanelZustand.
+- Ne pas modifier server/unitCatalog.ts.
+- Ne pas modifier RUNTIME_RECRUITMENT_COSTS.
+- Ne pas modifier shared/landUnitCatalog.ts.
+- Ne pas modifier les coûts/durées/stats.
+- Ne pas modifier productionCost:number.
+- Ne pas ajouter de logique de combat.
+- Ne pas brancher upkeep.
+- Ne pas brancher siegeWearPoints.
+- Ne pas ajouter rangers.
+- Ne pas réintroduire les unités legacy.
+
+VALIDATION TECHNIQUE
+
+Exécuter :
+
+npx tsc --noEmit
+
+Baseline connue :
+- 187 erreurs TypeScript préexistantes.
+
+Objectif :
+- rester à 187 erreurs.
+- Comme ce bloc est un audit, aucun changement runtime ne devrait ajouter d’erreurs.
+
+CLAUDE.md
+
+Ajouter une section :
+
+“Ressources V3-D7-A — Audit bâtiments 4 niveaux + caserne”
+
+Inclure :
+
+- objectif ;
+- fichiers inspectés ;
+- représentation actuelle des bâtiments ;
+- présence ou absence de niveaux/tier ;
+- tables DB concernées ;
+- flux de construction actuel ;
+- UI de construction actuelle ;
+- effets de bâtiments actuels ;
+- contraintes canoniques 4 niveaux ;
+- proposition caserne niveaux 1–4 ;
+- mapping unités débloquées par niveau ;
+- point d’insertion serveur recommandé ;
+- point d’insertion UI recommandé ;
+- besoin ou non de migration DB ;
+- risques ;
+- plan recommandé V3-D7-B à V3-D7-E ;
+- confirmation aucun changement runtime ;
+- résultat TypeScript.
+
+SORTIE ATTENDUE
+
+Répondre avec :
+
+1. Fichiers inspectés.
+2. Fichiers modifiés.
+3. Représentation actuelle des bâtiments.
+4. Support actuel ou non des 4 niveaux.
+5. Tables/champs DB concernés.
+6. Flux actuel de construction.
+7. Effets de bâtiments existants.
+8. UI concernée.
+9. Proposition caserne N1–N4.
+10. Mapping unités débloquées par niveau.
+11. Validation serveur recommandée.
+12. Validation UI recommandée.
+13. Besoin de migration DB : oui/non + justification.
+14. Risques techniques.
+15. Résultat TypeScript.
+16. Prochain bloc recommandé.
+
+STATUT ATTENDU
+
+Audit complet.
+Aucune implémentation caserne.
+Aucune migration DB.
+Aucun changement runtime.
+Plan clair pour ajouter une caserne à 4 niveaux et lier le recrutement au niveau de caserne.
