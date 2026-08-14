@@ -1,0 +1,425 @@
+NOVA IMPERIUM — Ressources V3-D6-F
+Suppression legacy serveur des anciennes unités runtime
+
+RÔLE
+Tu es l’agent technique sur le repo Nova Imperium.
+Objectif : retirer les anciennes unités legacy de RUNTIME_RECRUITMENT_COSTS et server/unitCatalog.ts maintenant que le recrutement prototype est validé end-to-end.
+
+IMPORTANT
+
+Ce bloc est une suppression contrôlée des anciennes unités serveur.
+Ne pas modifier shared/landUnitCatalog.ts.
+Ne pas modifier RecruitmentPanel.tsx sauf bug bloquant évident.
+Ne pas modifier startRecruitmentTransaction().
+Ne pas modifier createProducedUnit().
+Ne pas modifier tickCityProduction().
+Ne pas modifier productionCost:number.
+Ne pas modifier DB/schema.
+Ne pas modifier l’économie.
+Ne pas ajouter de nouvelles unités.
+Ne pas ajouter rangers.
+
+DÉCISION CANONIQUE
+
+Les anciennes unités runtime ne doivent PAS être conservées dans l’état final.
+
+Anciennes unités à supprimer du serveur :
+- warrior
+- spearman
+- swordsman
+- archer
+- crossbowman
+- catapult
+- trebuchet
+- horseman
+- knight
+- galley
+- warship
+- scout
+- settler
+- diplomat
+- spy
+
+Unités prototype finales à conserver :
+- militia
+- garrison
+- patrollers
+- scouts
+- light_infantry
+- regular_infantry
+- noble_infantry
+- shock_troops
+- bow_infantry
+- crossbow_infantry
+- sappers
+- field_engineers
+- raid_troops
+- hunters
+- pikemen
+
+CONTEXTE VALIDÉ
+
+V3-D6-B :
+- Les 15 unités prototype existent dans server/unitCatalog.ts.
+- createProducedUnit() peut résoudre ces IDs.
+
+V3-D6-C :
+- Les 15 unités prototype existent dans RUNTIME_RECRUITMENT_COSTS.
+- Les anciennes unités ont été marquées legacy temporaire.
+
+V3-D6-D :
+- RecruitmentPanel affiche les 15 unités prototype.
+- RecruitmentPanel ne montre plus les anciennes unités legacy.
+- handleRecruit envoie seulement { unitType }.
+- Aucun débit client-side.
+
+V3-D6-E :
+- Test end-to-end validé.
+- militia peut être recrutée, débitée, produite, créée et affichée.
+- createProducedUnit("militia") résout UNIT_CATALOG["militia"].
+- production-tick crée une unité Milice.
+- TypeScript baseline : 187 erreurs.
+- Note opérationnelle : redémarrer le workflow après modification de recruitmentService.ts ou unitCatalog.ts pour charger le nouveau code serveur.
+
+OBJECTIF DE CE BLOC
+
+Supprimer les anciennes unités legacy du serveur actif :
+
+1. Les retirer de RUNTIME_RECRUITMENT_COSTS.
+2. Les retirer de server/unitCatalog.ts.
+3. Confirmer que GET /api/cities/recruitment-costs retourne uniquement les 15 unités prototype.
+4. Confirmer que POST /api/cities/:cityId/start-recruitment refuse les anciennes unités.
+5. Confirmer que POST /api/cities/:cityId/start-recruitment accepte encore militia.
+6. Préserver l’affichage non cassant des anciennes unités déjà existantes en DB si RecruitmentPanel contient encore un fallback d’icônes legacy.
+
+À INSPECTER AVANT MODIFICATION
+
+Lire :
+
+- server/recruitmentService.ts
+- server/unitCatalog.ts
+- server/routes/cities.ts
+- server/cityService.ts
+- client/src/components/game/RecruitmentPanel.tsx
+- shared/landUnitCatalog.ts
+- CLAUDE.md
+
+Chercher :
+
+- RUNTIME_RECRUITMENT_COSTS
+- UNIT_CATALOG
+- warrior
+- spearman
+- swordsman
+- archer
+- crossbowman
+- catapult
+- trebuchet
+- horseman
+- knight
+- galley
+- warship
+- scout
+- settler
+- diplomat
+- spy
+- militia
+- hunters
+- rangers
+- createProducedUnit
+- UNIT_CATALOG[unitType]
+- getUnitIcon
+- PROTOTYPE_UNITS
+
+À FAIRE — server/recruitmentService.ts
+
+1. Supprimer entièrement les entrées legacy de RUNTIME_RECRUITMENT_COSTS :
+
+- warrior
+- spearman
+- swordsman
+- archer
+- crossbowman
+- catapult
+- trebuchet
+- horseman
+- knight
+- galley
+- warship
+- scout
+- settler
+- diplomat
+- spy
+
+2. Supprimer les commentaires “Legacy temporaire” devenus obsolètes.
+
+3. Conserver uniquement les 15 entrées prototype :
+
+- militia
+- garrison
+- patrollers
+- scouts
+- light_infantry
+- regular_infantry
+- noble_infantry
+- shock_troops
+- bow_infantry
+- crossbow_infantry
+- sappers
+- field_engineers
+- raid_troops
+- hunters
+- pikemen
+
+4. Conserver les commentaires utiles sur :
+- source des coûts : shared/landUnitCatalog.ts creationCost ;
+- durées provisoires ;
+- ressources autorisées.
+
+5. Ne pas modifier :
+- RecruitmentCostResource ;
+- RECRUITMENT_COST_RESOURCES ;
+- normalizeRecruitmentCost() ;
+- debitCityInventoryForRecruitment() ;
+- startRecruitmentTransaction().
+
+À FAIRE — server/unitCatalog.ts
+
+1. Supprimer entièrement les entrées legacy de UNIT_CATALOG :
+
+- warrior
+- spearman
+- swordsman
+- archer
+- crossbowman
+- catapult
+- trebuchet
+- horseman
+- knight
+- galley
+- warship
+- scout
+- settler
+- diplomat
+- spy
+
+2. Conserver uniquement les 15 entrées prototype :
+
+- militia
+- garrison
+- patrollers
+- scouts
+- light_infantry
+- regular_infantry
+- noble_infantry
+- shock_troops
+- bow_infantry
+- crossbow_infantry
+- sappers
+- field_engineers
+- raid_troops
+- hunters
+- pikemen
+
+3. Ne pas modifier les stats provisoires prototype sauf erreur bloquante évidente.
+
+4. Ne pas ajouter de nouvelles abilities complexes.
+Ne pas brancher upkeep.
+Ne pas brancher siegeWearPoints.
+Ne pas ajouter rangers.
+
+À FAIRE — routes / services
+
+Ne pas modifier les routes sauf si nécessaire pour corriger un commentaire.
+
+Comportement attendu après suppression :
+
+GET /api/cities/recruitment-costs :
+- doit retourner exactement les 15 unités prototype ;
+- ne doit plus retourner warrior/spearman/etc.
+
+POST /api/cities/:cityId/start-recruitment avec unitType legacy :
+- doit retourner 400.
+- raison acceptable :
+  - unité inconnue dans UNIT_CATALOG ;
+  - ou coût absent si jamais ordre de validation.
+- ne doit pas débiter city_inventory.
+- ne doit pas créer city_production.
+
+POST /api/cities/:cityId/start-recruitment avec militia :
+- doit rester fonctionnel.
+
+À FAIRE — RecruitmentPanel.tsx
+
+Ne pas modifier sauf bug bloquant.
+
+Important :
+- RecruitmentPanel ne doit déjà plus afficher les legacy depuis V3-D6-D.
+- Le fallback getUnitIcon peut conserver les anciennes icônes pour afficher des unités déjà existantes en DB.
+- Ne pas supprimer ce fallback si cela peut casser l’affichage historique.
+
+À FAIRE — CLAUDE.md
+
+Ajouter une section :
+
+“Ressources V3-D6-F — Suppression legacy serveur”
+
+Inclure :
+
+- objectif ;
+- fichiers inspectés ;
+- fichiers modifiés ;
+- liste des IDs legacy supprimés ;
+- liste des 15 IDs prototype conservés ;
+- confirmation RUNTIME_RECRUITMENT_COSTS ne contient plus les legacy ;
+- confirmation UNIT_CATALOG ne contient plus les legacy ;
+- confirmation RecruitmentPanel inchangé ou modification justifiée ;
+- confirmation anciennes unités déjà en DB restent affichables si fallback UI conservé ;
+- résultat GET /recruitment-costs après redémarrage ;
+- résultat POST legacy attendu/refusé ;
+- résultat POST militia encore fonctionnel ;
+- confirmation aucun débit legacy ;
+- confirmation productionCost:number inchangé ;
+- confirmation shared/landUnitCatalog.ts inchangé ;
+- résultat TypeScript ;
+- risques restants ;
+- prochaine étape recommandée.
+
+TESTS À EFFECTUER
+
+Important :
+Redémarrer le workflow serveur après modification de recruitmentService.ts ou unitCatalog.ts avant de tester les endpoints.
+
+1. TypeScript
+
+Exécuter :
+
+npx tsc --noEmit
+
+Baseline connue :
+- 187 erreurs TypeScript préexistantes.
+
+Objectif :
+- rester à 187 erreurs.
+
+2. GET /recruitment-costs
+
+Après redémarrage serveur, vérifier :
+
+GET /api/cities/recruitment-costs
+
+Résultat attendu :
+- exactement 15 entrées ;
+- présentes :
+  - militia
+  - garrison
+  - patrollers
+  - scouts
+  - light_infantry
+  - regular_infantry
+  - noble_infantry
+  - shock_troops
+  - bow_infantry
+  - crossbow_infantry
+  - sappers
+  - field_engineers
+  - raid_troops
+  - hunters
+  - pikemen
+- absentes :
+  - warrior
+  - spearman
+  - swordsman
+  - archer
+  - crossbowman
+  - catapult
+  - trebuchet
+  - horseman
+  - knight
+  - galley
+  - warship
+  - scout
+  - settler
+  - diplomat
+  - spy
+
+3. POST legacy refusé
+
+Tester au moins :
+
+POST /api/cities/:cityId/start-recruitment
+body:
+{ "unitType": "warrior" }
+
+Résultat attendu :
+- 400
+- aucun débit city_inventory
+- aucun city_production créé
+
+4. POST prototype accepté
+
+Tester :
+
+POST /api/cities/:cityId/start-recruitment
+body:
+{ "unitType": "militia" }
+
+Résultat attendu :
+- 200 ou 201 selon comportement actuel ;
+- ok: true ;
+- debited contient food + labor_contracts ;
+- city_production contient militia ;
+- aucun coût legacy impliqué.
+
+5. production tick minimal
+
+Si possible sans réinjecter trop de données :
+- avancer militia jusqu’à complétion ;
+- confirmer createProducedUnit("militia") fonctionne toujours.
+
+À NE PAS FAIRE
+
+- Ne pas supprimer les unités prototype.
+- Ne pas supprimer le fallback d’affichage UI des anciennes unités déjà en DB si utile.
+- Ne pas modifier shared/landUnitCatalog.ts.
+- Ne pas modifier DB/schema.
+- Ne pas modifier productionCost:number.
+- Ne pas modifier createProducedUnit().
+- Ne pas modifier tickCityProduction().
+- Ne pas modifier startRecruitmentTransaction().
+- Ne pas modifier le débit atomique.
+- Ne pas ajouter de ressources.
+- Ne pas ajouter fracten/coal/oil/herbs.
+- Ne pas ajouter rangers.
+- Ne pas ajouter naval/cavalerie/diplomatie/espionnage dans ce bloc.
+- Ne pas masquer un échec.
+
+SORTIE ATTENDUE
+
+Répondre avec :
+
+1. Fichiers inspectés.
+2. Fichiers modifiés.
+3. IDs legacy supprimés de RUNTIME_RECRUITMENT_COSTS.
+4. IDs legacy supprimés de UNIT_CATALOG.
+5. IDs prototype conservés.
+6. Résultat TypeScript.
+7. Résultat GET /recruitment-costs.
+8. Résultat POST legacy refusé.
+9. Résultat POST militia accepté.
+10. Résultat production tick si testé.
+11. Confirmation aucun débit legacy.
+12. Confirmation RecruitmentPanel inchangé ou justification.
+13. Confirmation anciennes unités déjà en DB affichables si fallback conservé.
+14. Bugs trouvés/corrections éventuelles.
+15. Risques restants.
+16. Prochaine étape recommandée.
+
+STATUT ATTENDU
+
+Le serveur ne contient plus les anciennes unités legacy.
+Le recrutement expose uniquement les 15 unités prototype.
+Le POST legacy est refusé.
+Le POST militia fonctionne encore.
+productionCost:number conservé.
+TypeScript reste à 187 erreurs.

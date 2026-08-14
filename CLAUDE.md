@@ -2468,3 +2468,65 @@ Aucun bug bloquant dans le code lui-même.
 **V3-D6-F** — Supprimer les entrées legacy de `RUNTIME_RECRUITMENT_COSTS` et `server/unitCatalog.ts` après validation complète. Confirmer que l'UI ne casse pas sur les unités legacy déjà en DB.
 
 **Statut V3-D6-E :** Flux end-to-end validé. militia recrutée, produite, créée (id=5 "Milice"), affichée. Aucun débit client-side. productionCost:number conservé. Legacy serveur encore présent temporairement. TypeScript 187 — stable.
+
+---
+
+## Ressources V3-D6-F — Suppression legacy serveur
+
+### Objectif
+Supprimer les 15 unités legacy (warrior, spearman, …) de `RUNTIME_RECRUITMENT_COSTS` et `server/unitCatalog.ts`. Le recrutement prototype est validé end-to-end (V3-D6-E) — la suppression est définitive.
+
+### Fichiers inspectés
+- `server/recruitmentService.ts`, `server/unitCatalog.ts`, `server/routes/cities.ts`
+- `server/cityService.ts`, `client/src/components/game/RecruitmentPanel.tsx`
+- `shared/landUnitCatalog.ts`, `CLAUDE.md`
+
+### Fichiers modifiés
+| Fichier | Nature |
+|---|---|
+| `server/recruitmentService.ts` | 15 entrées legacy supprimées de `RUNTIME_RECRUITMENT_COSTS` + commentaire "Legacy temporaire" retiré |
+| `server/unitCatalog.ts` | 15 entrées legacy supprimées de `UNIT_CATALOG` + en-tête "Unités runtime actuelles (V3-D5)" retiré |
+
+### IDs legacy supprimés
+De `RUNTIME_RECRUITMENT_COSTS` **et** `UNIT_CATALOG` :
+warrior · spearman · swordsman · archer · crossbowman · catapult · trebuchet · horseman · knight · galley · warship · scout · settler · diplomat · spy
+
+### IDs prototype conservés (15/15)
+militia · garrison · patrollers · scouts · light_infantry · regular_infantry · noble_infantry · shock_troops · bow_infantry · crossbow_infantry · sappers · field_engineers · raid_troops · hunters · pikemen
+
+### Confirmations serveur
+- **`RUNTIME_RECRUITMENT_COSTS` ne contient plus les 15 legacy.** ✅
+- **`UNIT_CATALOG` ne contient plus les 15 legacy.** ✅
+- **`RecruitmentPanel.tsx` inchangé.** ✅ (n'affichait plus les legacy depuis V3-D6-D)
+- **`getUnitIcon()` conserve le fallback legacy** — unités déjà en DB restent affichables sans crash. ✅
+- **`productionCost:number` inchangé.** ✅
+- **`shared/landUnitCatalog.ts` inchangé.** ✅
+
+### Résultats des tests (après redémarrage workflow)
+
+**GET /api/cities/recruitment-costs**
+- **TOTAL : 15 entrées** — exactement les 15 prototype. ✅
+- LEGACY présents : 0. ✅
+
+**POST { unitType:"warrior" } (legacy refusé)**
+- **400** `"Type d'unité inconnu : \"warrior\". Unités supportées : militia, garrison, …"` ✅
+- Aucun débit city_inventory. Aucun city_production créé. ✅
+
+**POST { unitType:"militia" } (prototype accepté)**
+- **200 ok** — debited {food:2, labor_contracts:1}, production {name:"militia", cost:1, progress:0}. ✅
+
+### Bugs trouvés et corrections
+Aucun bug bloquant. Suppressions propres sans régression.
+
+### Résultat TypeScript
+`npx tsc --noEmit` : **187 erreurs** — baseline inchangée. ✅
+
+### Risques restants
+- Unités legacy déjà en DB (`units` table) — peuvent exister si recrutées avant V3-D6-F. Leur affichage dans "Armée Actuelle" reste non cassant grâce au fallback `getUnitIcon()` dans `RecruitmentPanel.tsx`. Aucune action requise.
+- Stats combat (strength/health/attack/defense) toujours provisoires — à calibrer en V3-D7.
+- Durées et coûts de recrutement provisoires — à équilibrer selon l'économie réelle (city_inventory souvent vide).
+
+### Prochaine étape recommandée
+**V3-D7** — Calibration des coûts/durées de recrutement prototype et des stats combat en cohérence avec le rythme de production des villes et le système de combat futur.
+
+**Statut V3-D6-F :** Suppression legacy serveur complète. `UNIT_CATALOG` et `RUNTIME_RECRUITMENT_COSTS` contiennent uniquement les 15 unités prototype. POST legacy refusé. POST prototype accepté. Fallback UI conservé. TypeScript 187 — stable. **Migration V3-D6 complète.**

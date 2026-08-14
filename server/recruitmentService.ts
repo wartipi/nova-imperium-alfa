@@ -276,33 +276,6 @@ export interface RuntimeRecruitmentEntry {
 
 export const RUNTIME_RECRUITMENT_COSTS: Record<string, RuntimeRecruitmentEntry> = {
 
-  // ── Legacy temporaire — à supprimer après migration UI V3-D6-D/E/F ─────────
-  // Ces IDs (warrior, spearman, …) ne sont PAS les unités canoniques finales.
-  // Ils existent seulement pour éviter de casser RecruitmentPanel avant la
-  // migration V3-D6-D. Décision canonique : seront supprimés après validation
-  // end-to-end des unités prototype.
-  // ── Infanterie ─────────────────────────────────────────────────────────────
-  warrior:   { duration: 2, cost: { food: 2, labor_contracts: 1, basic_equipment: 1 } },
-  spearman:  { duration: 2, cost: { food: 2, wood: 1, common_metals: 1, labor_contracts: 1, basic_equipment: 1 } },
-  swordsman: { duration: 3, cost: { food: 3, common_metals: 2, labor_contracts: 1, basic_equipment: 2 } },
-  // ── Distance ───────────────────────────────────────────────────────────────
-  archer:      { duration: 2, cost: { food: 2, wood: 1, common_textiles: 1, labor_contracts: 1 } },
-  crossbowman: { duration: 3, cost: { food: 2, wood: 1, common_metals: 1, common_textiles: 1, labor_contracts: 1, basic_equipment: 1 } },
-  // ── Siège ──────────────────────────────────────────────────────────────────
-  catapult:  { duration: 4, cost: { wood: 4, common_metals: 3, stone: 2, labor_contracts: 2, basic_equipment: 2 } },
-  trebuchet: { duration: 5, cost: { wood: 5, common_metals: 4, stone: 3, labor_contracts: 3, basic_equipment: 3 } },
-  // ── Cavalerie ──────────────────────────────────────────────────────────────
-  horseman: { duration: 3, cost: { food: 4, common_metals: 2, labor_contracts: 1, basic_equipment: 1 } },
-  knight:   { duration: 4, cost: { food: 5, common_metals: 4, labor_contracts: 2, basic_equipment: 3 } },
-  // ── Marine ─────────────────────────────────────────────────────────────────
-  galley:   { duration: 3, cost: { wood: 4, common_metals: 2, food: 2, labor_contracts: 2, basic_equipment: 1 } },
-  warship:  { duration: 4, cost: { wood: 6, common_metals: 4, food: 3, labor_contracts: 3, basic_equipment: 2 } },
-  // ── Spécial ────────────────────────────────────────────────────────────────
-  scout:    { duration: 1, cost: { food: 1, labor_contracts: 1 } },
-  settler:  { duration: 3, cost: { food: 5, wood: 3, stone: 2, common_metals: 2, labor_contracts: 2 } },
-  diplomat: { duration: 2, cost: { food: 2, common_textiles: 1, labor_contracts: 2 } },
-  spy:      { duration: 2, cost: { food: 2, common_textiles: 1, labor_contracts: 2, basic_equipment: 1 } },
-
   // ── Prototype LandUnitId — source coûts : shared/landUnitCatalog.ts creationCost ───────
   // Coûts transcris depuis creationCost (clés filtrées sur RecruitmentCostResource).
   // Durées provisoires par profil — à calibrer en V3-D7.
