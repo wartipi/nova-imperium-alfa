@@ -79,16 +79,8 @@ export function CityManagementPanel({ cityId, onClose }: CityManagementPanelProp
           <div className="flex space-x-2">
             {[
               { id: 'overview', label: '📊 Vue d\'ensemble', icon: '📊' },
-              { 
-                id: 'construction', 
-                label: `🏗️ Construction ${useZustandSystems ? '(Nova)' : '(Legacy)'}`, 
-                icon: '🏗️' 
-              },
-              { 
-                id: 'recruitment', 
-                label: `⚔️ Recrutement ${useZustandSystems ? '(Nova)' : '(Legacy)'}`, 
-                icon: '⚔️' 
-              }
+              { id: 'construction', label: '🏗️ Construction', icon: '🏗️' },
+              { id: 'recruitment', label: '⚔️ Recrutement', icon: '⚔️' }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -151,11 +143,24 @@ export function CityManagementPanel({ cityId, onClose }: CityManagementPanelProp
                 <h3 className="font-bold mb-3">🏗️ Bâtiments construits</h3>
                 <div className="flex flex-wrap gap-2">
                   {city.buildings && city.buildings.length > 0 ? (
-                    city.buildings.map((building, index) => (
-                      <span key={index} className="bg-blue-200 px-3 py-1 rounded text-sm font-medium">
-                        {building}
-                      </span>
-                    ))
+                    city.buildings.map((building, index) => {
+                      const BUILDING_LABELS: Record<string, string> = {
+                        barracks: 'Caserne', granary: 'Grenier', palace: 'Palais',
+                        courthouse: 'Tribunal', university: 'Université', port: 'Port',
+                        market: 'Marché', road: 'Route', shipyard: 'Chantier naval',
+                        farm: 'Ferme', sawmill: 'Scierie', garden: 'Jardin',
+                        fortress: 'Forteresse', watchtower: 'Tour de guet',
+                        fortifications: 'Fortifications', library: 'Bibliothèque',
+                        temple: 'Temple', sanctuary: 'Sanctuaire',
+                      };
+                      const label = BUILDING_LABELS[building as string] ?? (building as string);
+                      const lvl = city.buildingLevels?.[building as string];
+                      return (
+                        <span key={index} className="bg-blue-200 px-3 py-1 rounded text-sm font-medium">
+                          {label}{lvl != null && lvl > 0 ? ` Nv.${lvl}` : ''}
+                        </span>
+                      );
+                    })
                   ) : (
                     <span className="text-gray-500">Aucun bâtiment construit</span>
                   )}
@@ -177,18 +182,7 @@ export function CityManagementPanel({ cityId, onClose }: CityManagementPanelProp
 
           {/* Construction */}
           {activeTab === 'construction' && (
-            <div className="space-y-4">
-              <div className="bg-blue-100 border border-blue-400 rounded p-3">
-                <h3 className="font-bold mb-2">🏗️ Nouveau Système de Construction (Zustand)</h3>
-                <p className="text-sm text-blue-700 mb-1">
-                  Système Nova Imperium avec 18 bâtiments organisés par terrain
-                </p>
-                <div className="text-xs text-blue-600">
-                  ✅ Migration progressive activée - Stats collaboratives en cours
-                </div>
-              </div>
-              <ConstructionPanel cityId={cityId} />
-            </div>
+            <ConstructionPanel cityId={cityId} />
           )}
 
           {/* Recrutement */}

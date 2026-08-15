@@ -1,0 +1,427 @@
+NOVA IMPERIUM — Interface V3-D8-A
+Refonte ergonomique du panneau de gestion Ville / Territoire + accès direct depuis la carte
+
+RÔLE
+Tu es l’agent technique sur le repo Nova Imperium.
+Objectif : améliorer l’ergonomie du prototype en séparant clairement la gestion des territoires et la gestion des villes, puis ajouter un accès direct à la gestion d’une ville depuis la carte.
+
+CONTEXTE
+
+Le panneau actuel mélange trop d’informations :
+- territoires ;
+- villes ;
+- colonies ;
+- panneaux de gestion ;
+- actions de ville.
+
+Résultat observé :
+- le joueur ne sait pas clairement où cliquer ;
+- les villes et territoires sont mélangés ;
+- l’accès à la gestion complète d’une ville n’est pas assez direct ;
+- le joueur devrait pouvoir cliquer une ville sur la carte et ouvrir directement sa gestion.
+
+IMPORTANT
+
+Ce bloc est UI/UX.
+Ne pas modifier la logique économique.
+Ne pas modifier le serveur sauf nécessité stricte pour consommer une donnée déjà existante.
+Ne pas créer de migration DB.
+Ne pas modifier les règles de recrutement.
+Ne pas modifier les coûts/durées/stats.
+Ne pas activer upkeep.
+Ne pas ajouter de dépendance.
+Ne pas ajouter de store.
+Ne pas faire de refactor massif.
+
+OBJECTIF GÉNÉRAL
+
+Créer une interface plus claire avec deux niveaux :
+
+1. Gestion des territoires
+2. Gestion des villes
+
+Et ajouter un accès direct :
+
+Carte → clic ville → bouton “Gérer la ville” → ouverture du panneau de gestion de cette ville précise.
+
+À INSPECTER AVANT MODIFICATION
+
+Lire :
+
+- client/src/components/game/CityManagementPanel.tsx
+- client/src/components/game/TileInfoPanel.tsx
+- client/src/components/game/GameCanvas.tsx
+- client/src/lib/game/GameEngine.ts
+- client/src/lib/game/PixelMapRenderer.ts
+- client/src/lib/stores/useNovaImperium.tsx
+- client/src/lib/game/types.ts
+- client/src/components/game/ConstructionPanel.tsx
+- client/src/components/game/RecruitmentPanel.tsx
+- client/src/components/game/HarvestPanel.tsx
+- client/src/components/game/UnifiedTerritoryPanel.tsx
+- client/src/lib/systems/UnifiedTerritorySystem.ts
+- CLAUDE.md
+
+Chercher :
+
+- CityManagementPanel
+- UnifiedTerritoryPanel
+- selectedCity
+- selectedTile
+- selectedColony
+- cityId
+- colony
+- territory
+- territoryId
+- cities
+- colonies
+- onClick
+- handleTileClick
+- openCityManagement
+- RecruitmentPanel
+- ConstructionPanel
+- HarvestPanel
+
+PROBLÈME À RÉSOUDRE
+
+Aujourd’hui, le panneau de gestion mélange les villes et les territoires.
+
+Correction attendue :
+- créer une séparation visuelle claire ;
+- permettre au joueur de choisir d’abord s’il gère un territoire ou une ville ;
+- permettre l’ouverture directe d’une ville depuis la carte ;
+- conserver les panneaux existants Construction / Recrutement / Récolte / Inventaire sans casser leur logique.
+
+STRUCTURE UI SOUHAITÉE
+
+Dans le panneau administratif principal, ajouter deux onglets principaux :
+
+[ Territoires ] [ Villes ]
+
+ONGLET TERRITOIRES
+
+Objectif :
+Vue macro.
+
+Afficher une liste de territoires ou zones contrôlées, selon les données existantes.
+
+Chaque entrée doit afficher si disponible :
+- nom du territoire ;
+- propriétaire/faction ;
+- capitale ou ville principale si disponible ;
+- nombre de villes associées si disponible ;
+- ressources principales si disponible ;
+- bouton “Voir les villes” ;
+- bouton “Centrer sur la carte” si possible.
+
+Si le concept de territoire n’est pas encore assez structuré côté données :
+- ne pas inventer de nouvelle table ;
+- utiliser les données déjà disponibles ;
+- afficher une version simple :
+  - territoire/zone ;
+  - villes liées si détectables ;
+  - sinon afficher “Données territoriales partielles”.
+
+Ne pas bloquer le bloc sur l’absence d’un modèle parfait de territoire.
+
+ONGLET VILLES
+
+Objectif :
+Vue micro.
+
+Afficher une liste propre des villes/colonies du joueur.
+
+Chaque entrée doit afficher :
+- nom de la ville ;
+- coordonnées ou position ;
+- production active si disponible ;
+- niveau de caserne si disponible ;
+- statut rapide ;
+- bouton “Gérer” ;
+- bouton “Centrer”.
+
+Quand le joueur clique “Gérer” :
+- ouvrir le détail de cette ville précise ;
+- ne pas afficher toutes les villes mélangées ;
+- passer le cityId au panneau de ville si nécessaire.
+
+DÉTAIL DE VILLE
+
+Quand une ville est sélectionnée, afficher une gestion claire avec sous-onglets ou sections :
+
+[ Vue d’ensemble ] [ Construction ] [ Recrutement ] [ Récolte / Inventaire ]
+
+Vue d’ensemble :
+- nom de ville ;
+- coordonnées ;
+- bâtiments construits ;
+- niveaux de bâtiments si disponibles ;
+- production active ;
+- inventaire résumé ;
+- boutons rapides :
+  - Construction
+  - Recrutement
+  - Récolte / Inventaire
+  - Centrer sur carte
+
+Construction :
+- réutiliser ConstructionPanel existant ;
+- ne pas casser la logique barracks N1→N4.
+
+Recrutement :
+- réutiliser RecruitmentPanel existant ;
+- doit ouvrir directement sur la ville sélectionnée ;
+- conserver bouton Recruter, coûts, durée, verrous caserne.
+
+Récolte / Inventaire :
+- réutiliser les panneaux existants si disponibles ;
+- ne pas créer de nouveau système économique.
+
+ACCÈS DIRECT DEPUIS LA CARTE
+
+Objectif :
+Quand un joueur clique sur une ville/colonie sur la carte, il doit voir une action claire :
+
+“Gérer la ville”
+
+Comportement souhaité :
+
+1. Le joueur clique une ville sur la carte.
+2. Une petite fenêtre/panneau de contexte apparaît ou le panneau existant de tuile affiche :
+   - nom de la ville ;
+   - propriétaire/faction ;
+   - caserne niveau X si disponible ;
+   - production active si disponible ;
+   - bouton “Gérer la ville”.
+3. En cliquant “Gérer la ville” :
+   - ouvrir CityManagementPanel ;
+   - sélectionner automatiquement cette ville ;
+   - afficher le détail de cette ville ;
+   - ne pas ouvrir une liste générale confuse.
+
+Si le système de clic carte existe déjà :
+- brancher l’action sur le flux existant.
+- ne pas créer un nouveau système de sélection parallèle.
+
+Si le bouton est plus simple à ajouter dans TileInfoPanel :
+- l’ajouter là.
+- documenter que l’accès direct passe par TileInfoPanel.
+
+Si le bouton est plus simple à ajouter dans popup de ville :
+- utiliser cette voie.
+- documenter.
+
+CONTRAINTES DE DONNÉES
+
+Ne pas inventer de données.
+
+Si une info n’existe pas :
+- afficher un fallback propre.
+Exemples :
+- “Territoire non défini”
+- “Aucune production active”
+- “Caserne : absente”
+- “Niveau bâtiment indisponible”
+
+Utiliser prioritairement :
+- city.id
+- city.name
+- city.x / city.y
+- city.buildings
+- city.buildingLevels
+- city.production / production active si disponible
+- city.inventory si disponible
+- faction/owner si disponible
+- selectedTile / selectedCity si déjà existant
+
+COMPORTEMENT ERGONOMIQUE ATTENDU
+
+Le joueur doit pouvoir faire ces parcours :
+
+PARCOURS A — Depuis menu administratif
+
+1. Ouvrir Gestion administrative.
+2. Cliquer onglet “Villes”.
+3. Voir seulement les villes.
+4. Cliquer “Gérer” sur une ville.
+5. Voir les sections :
+   - Vue d’ensemble
+   - Construction
+   - Recrutement
+   - Récolte / Inventaire.
+
+PARCOURS B — Depuis la carte
+
+1. Cliquer une ville sur la carte.
+2. Voir bouton “Gérer la ville”.
+3. Cliquer.
+4. Ouvrir directement la gestion de cette ville.
+
+PARCOURS C — Recrutement depuis ville
+
+1. Ouvrir ville.
+2. Cliquer sous-onglet “Recrutement”.
+3. Voir les unités de cette ville seulement.
+4. Voir coûts, durée, bouton Recruter.
+5. Verrous caserne conservés.
+
+PARCOURS D — Construction depuis ville
+
+1. Ouvrir ville.
+2. Cliquer sous-onglet “Construction”.
+3. Construire/améliorer Caserne.
+4. Après hydratation, la ville conserve buildingLevels.
+
+MICRO-REFACTOR AUTORISÉ
+
+Autorisé :
+- ajouter un state local d’onglet actif dans CityManagementPanel ;
+- ajouter selectedCityId local si nécessaire ;
+- passer cityId vers RecruitmentPanel ;
+- passer cityId vers ConstructionPanel si déjà supporté ou facilement supportable ;
+- créer de petits composants internes simples dans le même fichier si cela clarifie ;
+- ajouter des boutons UI simples ;
+- renommer des libellés pour clarté.
+
+Non autorisé :
+- créer un nouveau store global ;
+- créer un gros système de routing ;
+- déplacer massivement les composants ;
+- casser les panneaux existants ;
+- dupliquer toute la logique de recrutement/construction ;
+- modifier la DB ;
+- modifier serveur sans nécessité ;
+- ajouter des dépendances ;
+- supprimer RecruitmentPanelZustand dans ce bloc.
+
+RECRUITMENTPANELZUSTAND
+
+Ne pas supprimer maintenant.
+
+Si encore visible quelque part :
+- le marquer informatif ;
+- ou ne plus le rendre dans le chemin principal si RecruitmentPanel est maintenant le panneau actif.
+
+Documenter précisément :
+- où RecruitmentPanel est rendu ;
+- si RecruitmentPanelZustand est encore rendu quelque part.
+
+VALIDATION À FAIRE
+
+1. TypeScript
+
+npx tsc --noEmit
+
+Attendu :
+- 187 erreurs baseline.
+
+2. Test UI manuel — menu administratif
+
+Vérifier :
+- onglet Territoires visible ;
+- onglet Villes visible ;
+- liste de villes séparée ;
+- bouton Gérer visible ;
+- détail d’une ville ouvert sans mélanger toutes les villes.
+
+3. Test UI manuel — carte
+
+Vérifier :
+- clic sur ville/colonie ;
+- bouton “Gérer la ville” visible ;
+- clic ouvre la gestion de cette ville précise.
+
+4. Test non-régression recrutement
+
+Vérifier :
+- depuis une ville avec caserne, onglet Recrutement affiche le vrai RecruitmentPanel ;
+- coûts visibles ;
+- durées visibles ;
+- bouton Recruter visible ;
+- verrous caserne encore actifs.
+
+5. Test non-régression construction
+
+Vérifier :
+- onglet Construction fonctionne encore ;
+- Caserne visible ;
+- niveau caserne visible ou upgrade toujours possible.
+
+6. Console navigateur
+
+Vérifier :
+- aucune erreur runtime évidente ;
+- HMR OK.
+
+À NE PAS FAIRE
+
+- Ne pas activer upkeep.
+- Ne pas modifier coûts.
+- Ne pas modifier durées.
+- Ne pas modifier stats combat.
+- Ne pas modifier RUNTIME_RECRUITMENT_COSTS.
+- Ne pas modifier server/unitCatalog.ts.
+- Ne pas modifier shared/landUnitCatalog.ts.
+- Ne pas créer migration DB.
+- Ne pas ajouter dépendance.
+- Ne pas ajouter store.
+- Ne pas faire cleanup attached_assets.
+- Ne pas supprimer RecruitmentPanelZustand.
+- Ne pas refactor massif.
+- Ne pas toucher au système de fog.
+- Ne pas toucher au renderer PixelHD sauf nécessité stricte pour ajouter le bouton carte.
+
+CLAUDE.md
+
+Ajouter une section courte :
+
+“Interface V3-D8-A — Gestion séparée territoires/villes + accès carte”
+
+Inclure :
+- objectif ;
+- problème observé ;
+- fichiers inspectés ;
+- fichiers modifiés ;
+- structure UI finale ;
+- onglet Territoires ;
+- onglet Villes ;
+- détail de ville ;
+- chemin carte → gérer ville ;
+- confirmation RecruitmentPanel utilisé ;
+- confirmation RecruitmentPanelZustand non supprimé ;
+- non-régressions recrutement/construction ;
+- résultat TypeScript ;
+- risques restants ;
+- prochaine étape recommandée.
+
+SORTIE ATTENDUE
+
+Répondre avec :
+
+1. Fichiers inspectés.
+2. Fichiers modifiés.
+3. Nouvelle structure du panneau administratif.
+4. Fonctionnement onglet Territoires.
+5. Fonctionnement onglet Villes.
+6. Fonctionnement détail de ville.
+7. Chemin exact carte → “Gérer la ville”.
+8. Confirmation que RecruitmentPanel reste le panneau actif.
+9. Confirmation que RecruitmentPanelZustand n’est pas supprimé.
+10. Non-régression recrutement.
+11. Non-régression construction/caserne.
+12. Résultat TypeScript.
+13. Erreurs console ou absence d’erreurs console.
+14. Risques restants.
+15. Prochaine étape recommandée.
+
+STATUT ATTENDU
+
+Le joueur peut :
+- distinguer territoires et villes ;
+- ouvrir une ville depuis une liste propre ;
+- cliquer une ville sur la carte ;
+- cliquer “Gérer la ville” ;
+- gérer construction/recrutement/récolte pour cette ville précise.
+
+TypeScript reste à 187 erreurs.
+Aucune logique serveur critique modifiée.

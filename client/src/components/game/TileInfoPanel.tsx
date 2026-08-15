@@ -1,9 +1,10 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useMap } from "../../lib/stores/useMap";
 import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { usePlayer } from "../../lib/stores/usePlayer";
 import { useAuth } from "../../lib/auth/AuthContext";
 import { HexTile, City, Unit } from "../../lib/game/types";
+import { CityManagementPanel } from "./CityManagementPanel";
 import { ResourceRevealSystem } from "../../lib/systems/ResourceRevealSystem";
 import { UnifiedTerritorySystem } from "../../lib/systems/UnifiedTerritorySystem";
 import { HexPathfinding } from "../../lib/pathfinding/HexPathfinding";
@@ -88,26 +89,62 @@ function getResourceInfo(resource: string) {
 }
 
 // Composant pour les informations de colonie
-function ColonyInfoSection({ selectedHex }: { selectedHex: HexTile }) {
-  const { novaImperiums } = useNovaImperium();
+function ColonyInfoSection({
+  selectedHex,
+  onManageCity,
+}: {
+  selectedHex: HexTile;
+  onManageCity?: (cityId: string) => void;
+}) {
+  const { novaImperiums, currentNovaImperium } = useNovaImperium();
   
   // Chercher une colonie à cette position
   const colony = novaImperiums.flatMap(ni => ni.cities).find(city => city.x === selectedHex.x && city.y === selectedHex.y);
   
   if (!colony) return null;
+
+  // Le bouton "Gérer" n'est actif que si la ville appartient au joueur courant
+  const isOwnCity = currentNovaImperium?.cities.some(c => c.id === colony.id) ?? false;
+  const barracksLevel = colony.buildingLevels?.barracks ?? 0;
   
   return (
     <div className="bg-blue-50 border border-blue-700 rounded p-2 mb-3">
-      <div className="text-blue-900 font-semibold mb-2">🏘️ Colonie: {colony.name}</div>
+      <div className="flex justify-between items-start mb-2">
+        <div className="text-blue-900 font-semibold">🏘️ Colonie: {colony.displayName || colony.name}</div>
+        {isOwnCity && onManageCity && (
+          <button
+            onClick={() => onManageCity(colony.id)}
+            className="text-xs bg-amber-600 hover:bg-amber-700 text-white px-2 py-1 rounded font-medium ml-2 flex-shrink-0"
+          >
+            ⚙️ Gérer la ville
+          </button>
+        )}
+      </div>
       <div className="text-blue-800 text-sm space-y-1">
         <div>Population: {colony.population}/{colony.populationCap}</div>
-        <div>Production/tour: {colony.foodPerTurn} nourriture, {colony.productionPerTurn} production</div>
-        <div className="font-medium">Bâtiments:</div>
-        <div className="ml-2">
-          {colony.buildings.map((building, index) => (
-            <div key={index} className="text-xs">• {building}</div>
-          ))}
+        <div>Production/tour: {colony.foodPerTurn} 🌾, {colony.productionPerTurn} ⚙️</div>
+        <div>
+          🏗️ Caserne :{' '}
+          {barracksLevel > 0 ? `Nv.${barracksLevel}` : 'absente'}
         </div>
+        {colony.currentProduction && (
+          <div className="text-green-700">⚙️ En production : {colony.currentProduction.name}</div>
+        )}
+        {colony.buildings.length > 0 && (
+          <>
+            <div className="font-medium">Bâtiments ({colony.buildings.length}) :</div>
+            <div className="ml-2">
+              {colony.buildings.map((building, index) => {
+                const lvl = colony.buildingLevels?.[building];
+                return (
+                  <div key={index} className="text-xs">
+                    • {building}{lvl != null && lvl > 0 ? ` Nv.${lvl}` : ''}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -439,6 +476,8 @@ export function TileInfoPanel() {
   const { novaImperiums } = useNovaImperium();
   const { isHexExplored } = usePlayer();
   const { isAdmin, role } = useAuth();
+  // Gérer la ville depuis la carte
+  const [managedCityId, setManagedCityId] = useState<string | null>(null);
 
   if (!selectedHex) return null;
 
@@ -599,7 +638,7 @@ export function TileInfoPanel() {
       </div>
 
       {/* Colony Information */}
-      <ColonyInfoSection selectedHex={selectedHex} />
+      <ColonyInfoSection selectedHex={selectedHex} onManageCity={setManagedCityId} />
 
       {/* Territory Information */}
       <TerritoryInfoSection selectedHex={selectedHex} />
@@ -819,6 +858,14 @@ export function TileInfoPanel() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Panneau de gestion de ville déclenché depuis la carte */}
+      {managedCityId && (
+        <CityManagementPanel
+          cityId={managedCityId}
+          onClose={() => setManagedCityId(null)}
+        />
       )}
 
     </div>

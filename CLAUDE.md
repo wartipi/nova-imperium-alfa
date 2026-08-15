@@ -3407,3 +3407,93 @@ Source : `GET /api/cities/recruitment-costs` → `serverRecruitmentCosts` charg�
 **V3-D8** — Suppression de `RecruitmentPanelZustand` (dead code), libellés lisibles des bâtiments dans "Vue d'ensemble" (ex. "barracks" → "Caserne Nv.4"), et/ou calibration des stats combat des 15 unités.
 
 **Statut V3-D7-E1 :** Bouton `⚔️ Recruter` visible et lisible. Labels états clairs (Caserne Nv.X / Production en cours / Recrutement…). Coût et Durée explicitement libellés depuis serveur. Upkeep non affiché. Coûts/durées/stats serveur inchangés. TypeScript 187 — stable.
+
+---
+
+## Interface V3-D8-A — Gestion séparée territoires/villes + accès carte
+
+### Objectif
+Améliorer l'ergonomie : séparer visuellement territoires et villes dans le panneau administratif, et permettre l'ouverture directe de la gestion d'une ville depuis la carte (clic sur colonie → bouton "Gérer la ville").
+
+### Problème observé
+- Territoires et villes mélangés dans `UnifiedTerritoryPanel` sans onglet clair.
+- Pas de bouton "Gérer la ville" dans le panneau de tuile (`TileInfoPanel`).
+- Labels de bâtiments affichés en IDs bruts (ex. "barracks") dans `CityManagementPanel`.
+- Bannière "Nouveau Système de Construction (Zustand)" obsolète dans l'onglet Construction.
+
+### Fichiers inspectés
+`CityManagementPanel.tsx`, `TileInfoPanel.tsx`, `GameCanvas.tsx`, `UnifiedTerritoryPanel.tsx`, `useNovaImperium.tsx`, `types.ts`, `ConstructionPanel.tsx`, `RecruitmentPanel.tsx`, `HarvestPanel.tsx`, `CLAUDE.md`
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---|---|
+| `client/src/components/game/UnifiedTerritoryPanel.tsx` | Onglets `[🗺️ Territoires | 🏘️ Villes]` ; tab Villes : liste propre des villes avec caserne / production / Gérer / Centrer |
+| `client/src/components/game/TileInfoPanel.tsx` | Import `CityManagementPanel` ; `useState<string|null>` pour `managedCityId` ; `ColonyInfoSection` enrichie : bouton "⚙️ Gérer la ville" si ville du joueur, caserne niveau, production active, libellés bâtiments Nv.X |
+| `client/src/components/game/CityManagementPanel.tsx` | Labels onglets nettoyés (retiré "(Nova)") ; bannière construction retirée ; bâtiments Vue d'ensemble : libellé lisible + niveau (ex. "Caserne Nv.2") |
+
+### Structure UI finale
+
+**Panneau administratif (`UnifiedTerritoryPanel`) :**
+```
+[ 🗺️ Territoires ]  [ 🏘️ Villes ]
+  ↳ Onglet Territoires : contenu existant (Section A Mes villes gérables + Section B backlog claims + HarvestPanel)
+  ↳ Onglet Villes : liste de currentNovaImperium.cities → Gérer + Centrer par ville
+```
+
+**Détail de ville (`CityManagementPanel`) :**
+```
+[ 📊 Vue d'ensemble ]  [ 🏗️ Construction ]  [ ⚔️ Recrutement ]
+```
+
+### Onglet Territoires
+Contenu inchangé : Section A (villes gérables + sous-menu territoires rattachés), Section B (backlog claims), HarvestPanel, Statistiques. Onglet actif par défaut.
+
+### Onglet Villes
+Chaque ville de `currentNovaImperium.cities` affiche :
+- Nom, position `(x, y)`, faction si présente
+- Caserne : `Nv.X` ou "Absente"
+- Production active ou "Aucune"
+- Nombre de bâtiments
+- Bouton `⚙️ Gérer` → `setManagedCityId(city.id)` → `CityManagementPanel`
+- Bouton `📍 Centrer` → `gameEngine.centerCameraOnPosition(city.x, city.y)`
+
+### Détail de ville — Vue d'ensemble améliorée
+- Bâtiments affichés avec libellé lisible (`BUILDING_LABELS`) + niveau si disponible : ex. "Caserne Nv.2", "Grenier", "Forteresse"
+
+### Chemin carte → "Gérer la ville"
+1. Joueur clique une tuile avec ville (clic info via menu contextuel ou `setSelectedHex`)
+2. `TileInfoPanel` s'affiche (toujours monté dans `MedievalHUD` ligne 662)
+3. `ColonyInfoSection` détecte la ville à la position sélectionnée
+4. Si ville appartient au joueur courant (`currentNovaImperium.cities`) → bouton `⚙️ Gérer la ville` visible
+5. Clic → `setManagedCityId(colony.id)` → `CityManagementPanel` s'ouvre (modal full-screen, filtre sur cette ville)
+
+### Confirmation RecruitmentPanel utilisé
+`CityManagementPanel` → onglet Recrutement → `<RecruitmentPanel cityId={cityId} />` (filtre sur la ville ouverte, gate caserne actif, serveur-authoritative). ✅
+
+### Confirmation RecruitmentPanelZustand non supprimé
+`RecruitmentPanelZustand` est toujours présent dans le fichier. Il n'est rendu nulle part dans le chemin principal. Sa notice "Panneau informatif" (V3-D7-E1) reste en place. ✅
+
+### Non-régressions recrutement / construction
+- `ConstructionPanel` reçoit `cityId` dans `CityManagementPanel` — inchangé ✅
+- `RecruitmentPanel` reçoit `cityId` — inchangé ✅
+- Gate caserne N1/N2/N3/N4 conservé ✅
+- `RUNTIME_RECRUITMENT_COSTS` inchangé ✅
+- Serveur inchangé ✅
+
+### Résultat TypeScript
+187 erreurs — baseline inchangée ✅
+
+### Erreurs console
+Aucune erreur runtime. HMR OK sur `UnifiedTerritoryPanel`, `TileInfoPanel`, `CityManagementPanel`. ✅
+
+### Risques restants
+- `TileInfoPanel` → le bouton "Gérer la ville" s'affiche seulement si la tuile est dans `selectedHex` (nécessite d'ouvrir le panneau info via menu contextuel → Infos). Si le joueur ne sait pas cliquer droit, il ne verra pas le bouton. Documenter dans le HUD si nécessaire.
+- `ColonyInfoSection` détecte les villes de tous les `novaImperiums` mais n'affiche "Gérer" que pour les villes du joueur (`currentNovaImperium`). Les villes adverses affichent leurs infos sans bouton Gérer — comportement correct.
+- `HarvestPanel` dans UnifiedTerritoryPanel reçoit `{}` props alors qu'il demande `currentUser` — erreur TS pré-existante (baseline 187), non introduite par ce bloc.
+- `RecruitmentPanelZustand` est du dead code. À supprimer en V3-D8-B.
+
+### Prochaine étape recommandée
+**V3-D8-B** — Suppression de `RecruitmentPanelZustand` (dead code), calibration stats combat des 15 unités prototype, ou amélioration tooltip HUD pour guider vers le bouton "Gérer la ville".
+
+**Statut V3-D8-A :** Onglets Territoires/Villes séparés dans le panneau administratif. Accès direct "Gérer la ville" depuis TileInfoPanel (tuile avec colonie du joueur). Vue d'ensemble bâtiments lisible avec niveaux. Bannière obsolète retirée. RecruitmentPanel conservé et actif. TypeScript 187 — stable.

@@ -102,6 +102,8 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
   const [selectedTerritory, setSelectedTerritory] = useState<Territory | null>(null);
   const [colonyName, setColonyName] = useState('');
   const [managedCityId, setManagedCityId] = useState<string | null>(null);
+  // Onglet principal : Territoires | Villes
+  const [mainTab, setMainTab] = useState<'territoires' | 'villes'>('territoires');
   // Phase 13 — Attribution gouverneur
   const [governorAssignColonyId, setGovernorAssignColonyId] = useState<number | null>(null);
   const [governorInput, setGovernorInput] = useState('');
@@ -300,11 +302,95 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
       {AlertComponent}
 
       {/* En-tête */}
-      <div className="mb-6">
-        <h3 className="medieval-subtitle mb-4">
+      <div className="mb-4">
+        <h3 className="medieval-subtitle mb-3">
           {isAdmin ? 'Gestion Ville/Territoire (Admin)' : 'Mes Villes & Territoires'}
         </h3>
+        {/* Onglets principaux */}
+        <div className="flex gap-2">
+          {(['territoires', 'villes'] as const).map(tab => (
+            <button
+              key={tab}
+              onClick={() => setMainTab(tab)}
+              className={`px-4 py-1.5 rounded font-medium text-sm transition-colors ${
+                mainTab === tab
+                  ? 'bg-amber-700 text-white'
+                  : 'bg-amber-200 text-amber-800 hover:bg-amber-300'
+              }`}
+            >
+              {tab === 'territoires' ? '🗺️ Territoires' : '🏘️ Villes'}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {/* ═══ ONGLET VILLES ═══ */}
+      {mainTab === 'villes' && (
+        <div className="space-y-3">
+          {!currentNovaImperium || currentNovaImperium.cities.length === 0 ? (
+            <div className="parchment-section p-4 text-center text-amber-700 text-sm">
+              Aucune ville disponible. Fondez une colonie pour commencer.
+            </div>
+          ) : (
+            currentNovaImperium.cities.map(city => {
+              const barracksLevel = city.buildingLevels?.barracks ?? 0;
+              const prodName = city.currentProduction?.name ?? null;
+              return (
+                <div key={city.id} className="parchment-section p-3">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1 min-w-0">
+                      <div className="medieval-subtitle text-sm">🏘️ {city.displayName || city.name}</div>
+                      <div className="medieval-text text-xs text-amber-700">
+                        ({city.x}, {city.y})
+                        {city.factionName ? ` — 🏰 ${city.factionName}` : ''}
+                      </div>
+                      <div className="medieval-text text-xs mt-1 space-y-0.5">
+                        <div>
+                          🏗️ Caserne :{' '}
+                          {barracksLevel > 0
+                            ? `Nv.${barracksLevel}`
+                            : <span className="text-gray-500">Absente</span>}
+                        </div>
+                        <div>
+                          ⚙️ Production :{' '}
+                          {prodName
+                            ? <span className="text-green-700">{prodName}</span>
+                            : <span className="text-gray-500">Aucune</span>}
+                        </div>
+                        {city.buildings.length > 0 && (
+                          <div className="text-amber-600">
+                            🏛️ {city.buildings.length} bâtiment{city.buildings.length > 1 ? 's' : ''}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1.5 ml-2 flex-shrink-0">
+                      <button
+                        onClick={() => setManagedCityId(city.id)}
+                        className="text-xs bg-amber-600 hover:bg-amber-700 text-white px-2 py-1.5 rounded font-medium"
+                      >
+                        ⚙️ Gérer
+                      </button>
+                      <button
+                        onClick={() => {
+                          const gameEngine = (window as any).gameEngine;
+                          if (gameEngine) gameEngine.centerCameraOnPosition(city.x, city.y);
+                        }}
+                        className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1.5 rounded font-medium"
+                      >
+                        📍 Centrer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* ═══ ONGLET TERRITOIRES ═══ */}
+      {mainTab === 'territoires' && (<>
 
       {/* Aide fondation */}
       {!isAdmin && (
@@ -579,6 +665,8 @@ export function UnifiedTerritoryPanel({ onClose }: UnifiedTerritoryPanelProps) {
           🏘️ Colonies: {territories.filter(t => t.colonyId).length}
         </div>
       </div>
+
+      </>)} {/* fin onglet Territoires */}
 
       {/* Modal de fondation de colonie */}
       {showColonyModal && selectedTerritory && (
