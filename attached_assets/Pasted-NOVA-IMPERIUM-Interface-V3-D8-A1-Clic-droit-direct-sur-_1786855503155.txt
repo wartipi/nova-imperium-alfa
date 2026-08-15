@@ -1,0 +1,114 @@
+NOVA IMPERIUM — Interface V3-D8-A1
+Clic droit direct sur une ville contrôlée → ouvrir gestion de ville
+
+RÔLE
+Tu es l’agent technique sur le repo Nova Imperium.
+Objectif : ajouter un accès direct par clic droit à la gestion d’une ville appartenant au joueur.
+
+CONTEXTE
+
+Après V3-D8-A, un bouton “Gérer la ville” existe dans TileInfoPanel.
+On veut le conserver.
+
+Mais l’ergonomie souhaitée est maintenant plus directe :
+
+- clic gauche sur une ville : comportement existant / sélection / infos de case ;
+- clic droit sur une ville appartenant au joueur : ouvrir directement le menu de gestion de cette ville ;
+- clic droit ailleurs : ne rien casser.
+
+COMPORTEMENT ATTENDU
+
+1. Le joueur fait clic droit sur une ville visible sur la carte.
+2. Si la ville appartient au joueur courant :
+   - empêcher le menu contextuel du navigateur ;
+   - ouvrir directement CityManagementPanel ;
+   - sélectionner automatiquement cette ville ;
+   - afficher la gestion de cette ville précise.
+3. Si la ville ne lui appartient pas :
+   - ne pas ouvrir la gestion ;
+   - optionnel : afficher un petit message “Ville non contrôlée”.
+4. Si la case ne contient pas de ville :
+   - ne rien ouvrir ;
+   - ne pas casser le comportement existant.
+
+IMPORTANT
+
+Conserver le bouton actuel dans TileInfoPanel.
+Ne pas supprimer le bouton “Gérer la ville” déjà présent.
+Le clic droit est un raccourci supplémentaire, pas un remplacement.
+
+À INSPECTER
+
+Lire :
+
+- client/src/components/game/GameCanvas.tsx
+- client/src/components/game/TileInfoPanel.tsx
+- client/src/components/game/CityManagementPanel.tsx
+- client/src/lib/game/GameEngine.ts
+- client/src/lib/game/PixelMapRenderer.ts
+- client/src/lib/stores/useMap.tsx
+- client/src/lib/stores/useNovaImperium.tsx
+- client/src/lib/game/types.ts
+- docs/JOURNAL_NI.md
+
+Chercher :
+
+- onContextMenu
+- contextmenu
+- onMouseDown
+- onClick
+- handleCanvasClick
+- handleMouseDown
+- selectedHex
+- setSelectedHex
+- CityManagementPanel
+- cityId
+- currentNovaImperium
+- cities
+- nova:open-panel
+- activePanel
+- selectedPanel
+
+OBJECTIF 1 — Identifier le bon point d’entrée
+
+Trouver où les clics carte sont gérés actuellement.
+
+Documenter :
+- fichier ;
+- fonction ;
+- différence entre mode strategic et mode immersive si applicable ;
+- comment les coordonnées hex sont dérivées depuis la souris ;
+- comment les villes sont détectées sur la carte.
+
+OBJECTIF 2 — Ajouter clic droit sur ville
+
+Ajouter un handler de clic droit au niveau approprié.
+
+Critères :
+
+- utiliser `event.preventDefault()` pour empêcher le menu navigateur ;
+- convertir la position souris en coordonnées hex existantes ;
+- chercher une ville à ces coordonnées ;
+- vérifier que la ville appartient au joueur courant ;
+- si oui, ouvrir le panneau de gestion de cette ville.
+
+Pseudo-comportement attendu :
+
+```ts
+onContextMenu(event) {
+  event.preventDefault();
+
+  const hex = getHexFromMouse(event);
+  const city = findCityAtHex(hex.x, hex.y);
+
+  if (!city) return;
+
+  const isOwnCity = currentNovaImperium.cities.some(c => c.id === city.id);
+
+  if (!isOwnCity) {
+    // optionnel : message discret
+    return;
+  }
+
+  openCityManagement(city.id);
+}
