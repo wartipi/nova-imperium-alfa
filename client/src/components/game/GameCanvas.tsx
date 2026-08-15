@@ -540,9 +540,17 @@ export function GameCanvas() {
       !(hex.x === currentHex.x && hex.y === currentHex.y);
 
     // Nom de la ville sur cette case (si présente)
-    const { novaImperiums: nis } = useNovaImperium.getState();
+    const { novaImperiums: nis, currentNovaImperium } = useNovaImperium.getState();
     const cityAtHex = nis.flatMap((ni) => ni.cities).find((c) => c.x === hex.x && c.y === hex.y);
     const locationName = cityAtHex?.name ?? null;
+
+    // ── Clic droit sur une ville du joueur → gestion directe ─────────────────
+    if (cityAtHex && currentNovaImperium?.cities.some((c) => c.id === cityAtHex.id)) {
+      setSelectedHex(hex);
+      window.dispatchEvent(new CustomEvent('nova:manage-city', { detail: { cityId: cityAtHex.id } }));
+      console.log(`[GameCanvas] Clic droit ville propre → nova:manage-city cityId=${cityAtHex.id}`);
+      return;
+    }
 
     setTileContextMenu({
       screenX:      event.clientX,

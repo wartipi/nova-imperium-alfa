@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useMap } from "../../lib/stores/useMap";
 import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { usePlayer } from "../../lib/stores/usePlayer";
@@ -478,6 +478,16 @@ export function TileInfoPanel() {
   const { isAdmin, role } = useAuth();
   // Gérer la ville depuis la carte
   const [managedCityId, setManagedCityId] = useState<string | null>(null);
+
+  // Raccourci clic droit carte → ouvrir gestion de ville
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const cityId = (e as CustomEvent<{ cityId: string }>).detail?.cityId;
+      if (cityId) setManagedCityId(cityId);
+    };
+    window.addEventListener('nova:manage-city', handler);
+    return () => window.removeEventListener('nova:manage-city', handler);
+  }, []);
 
   if (!selectedHex) return null;
 

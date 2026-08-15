@@ -3354,3 +3354,31 @@ Aucune erreur runtime. HMR OK sur `UnifiedTerritoryPanel`, `TileInfoPanel`, `Cit
 **V3-D8-B** — Suppression de `RecruitmentPanelZustand` (dead code), calibration stats combat des 15 unités prototype, ou amélioration tooltip HUD pour guider vers le bouton "Gérer la ville".
 
 **Statut V3-D8-A :** Onglets Territoires/Villes séparés dans le panneau administratif. Accès direct "Gérer la ville" depuis TileInfoPanel (tuile avec colonie du joueur). Vue d'ensemble bâtiments lisible avec niveaux. Bannière obsolète retirée. RecruitmentPanel conservé et actif. TypeScript 187 — stable.
+
+---
+
+## Interface V3-D8-A1 — Clic droit direct sur une ville contrôlée
+
+### 15 août 2026 — V3-D8-A1
+
+- Outil utilisé : Replit AI
+- Statut : terminé
+- Résumé : Ajout d'un raccourci clic droit sur la carte pour ouvrir directement `CityManagementPanel` quand la case cliquée contient une ville appartenant au joueur courant. Comportement additionnel — le bouton "Gérer la ville" dans `TileInfoPanel` est conservé intact.
+- Fichiers modifiés :
+  - `client/src/components/game/GameCanvas.tsx` — dans `handleCanvasContextMenu`, détection de ville du joueur après le calcul de `cityAtHex`, dispatch `CustomEvent('nova:manage-city', { detail: { cityId } })` + `setSelectedHex(hex)` avant le `setTileContextMenu` ; retour anticipé si ville propre (le TileContextMenu n'est pas ouvert).
+  - `client/src/components/game/TileInfoPanel.tsx` — ajout de `useEffect` dans les imports, ajout d'un `useEffect` (avant le early return `if (!selectedHex)`) qui écoute `nova:manage-city` et appelle `setManagedCityId(cityId)`.
+- Rapport attached_assets : aucun rapport dédié demandé.
+- Tests effectués : `npx tsc --noEmit` ; HMR Vite sur les deux fichiers ; lecture de code du chemin complet.
+- Résultat des tests : 187 erreurs TypeScript — baseline inchangée. HMR sans erreur console.
+- Erreurs préexistantes : 187 (inchangées).
+- Erreurs introduites : aucune.
+- Décisions :
+  - Mécanisme retenu : `CustomEvent('nova:manage-city')` sur `window`, cohérent avec le pattern `nova:open-panel` déjà en place dans `MedievalHUD`.
+  - `setSelectedHex(hex)` est appelé en même temps que l'événement pour garantir que `TileInfoPanel` est rendu (il retourne `null` si `selectedHex` est absent).
+  - Clic droit sur une ville adverse : comportement inchangé (TileContextMenu s'ouvre normalement).
+  - Clic droit sur une case sans ville : comportement inchangé.
+  - Bouton "Gérer la ville" dans `TileInfoPanel` (`ColonyInfoSection`) : conservé intact.
+- Décisions canon impactées : Aucune — confirmé par relecture.
+- Limites restantes : validation visuelle interactive non réalisable sans second onglet authentifié en dev (un seul compte admin actif). La logique est vérifiée par lecture de code — chemin données identique à ce qui existait pour le bouton "Gérer la ville".
+- Hors scope : aucune modification hors scope. Serveur, DB, fog, routes, combat, économie non touchés.
+- Prochain bloc recommandé : V3-D8-B — suppression de `RecruitmentPanelZustand` (dead code confirmé), ou calibration stats combat des 15 unités prototype.
