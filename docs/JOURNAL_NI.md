@@ -13,6 +13,27 @@ Migré depuis CLAUDE.md le 15 août 2026. Règle : toute nouvelle entrée de bl
 
 ## Journal chronologique des blocs
 
+### 19 août 2026 — Bloc 1 — Normalisation du catalogue de compétences
+
+- Outil utilisé : Replit Agent
+- Statut : terminé
+- Résumé : `CompetenceCosts.ts` devient la source unique des 21 compétences avec identifiant, nom affiché, catégorie, description, coûts et `requiredPlayerLevel: null`. `CompetenceTree.tsx` lit directement ce catalogue, affiche également les quatre compétences occultes et ne conserve aucun prérequis compétence→compétence. Le consommateur de cartographie utilise désormais `cartographie`.
+- Fichiers modifiés :
+  - `client/src/lib/competence/CompetenceCosts.ts`
+  - `client/src/components/game/CompetenceTree.tsx`
+  - `client/src/components/game/AvatarActionMenu.tsx`
+  - `CLAUDE.md`
+- Rapport attached_assets : aucun rapport demandé.
+- Tests effectués : `npm run check`, recherche des lectures de `cartography`, `git diff --check`.
+- Résultat des tests : 186 erreurs avant le bloc ; 176 erreurs après le bloc, soit 10 de moins. Les 21 entrées canoniques et les 21 valeurs `requiredPlayerLevel: null` ont été vérifiées.
+- Erreurs préexistantes : 176 erreurs restantes, dont les deux erreurs `tileData` d'`AvatarActionMenu.tsx` présentes dans la baseline du fichier.
+- Erreurs introduites : aucune. Les quatre erreurs temporaires de typage ajoutées au catalogue ont été supprimées avant la vérification finale.
+- Décisions : aucun seuil numérique, aucun effet, aucune position, rangée, profondeur, palier, branche ou spécialisation ajoutés. `cartography` est réconcilié vers `cartographie` dans le même bloc.
+- Décisions canon impactées : source canonique des 21 compétences confirmée ; aucune décision d'effet ou d'autorité serveur modifiée.
+- Limites restantes : la page Notion fournie reste inaccessible sans connexion ; les occurrences textuelles de `cartography` dans les routes/services de cartographie et les noms de variables ne sont pas des lectures d'identifiant de compétence.
+- Hors scope : aucun fichier du fog touché ; aucun serveur, schéma, base de données, migration ou mécanisme d'autorité serveur modifié ; aucune géométrie d'arbre ajoutée.
+- Prochain bloc recommandé : validation humaine du catalogue normalisé avant tout travail de structure ou de géométrie des arbres.
+
 ### P1 — Audit intégration Pixel HD
 - **Statut :** terminé (audit seulement)
 - **Résumé :** Audit de faisabilité pour intégrer un nouveau style visuel Pixel HD sur la carte de jeu — compatibilité des terrains et cohérence géométrique avec le renderer hexagonal existant.

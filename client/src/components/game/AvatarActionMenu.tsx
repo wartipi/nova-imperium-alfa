@@ -116,8 +116,8 @@ export function AvatarActionMenu({ position, onClose }: AvatarActionMenuProps) {
       description: 'Créer une carte de votre champ de vision actuel (s\'adapte au niveau d\'exploration)',
       cost: 15,
       icon: '🗺️',
-      category: 'cartography',
-      requiredCompetence: 'cartography',
+      category: 'cartographie',
+      requiredCompetence: 'cartographie',
       requiredLevel: 1
     }
   ];
@@ -151,14 +151,14 @@ export function AvatarActionMenu({ position, onClose }: AvatarActionMenuProps) {
       });
     }
     
-    if (hasCompetenceLevel('cartography', 3)) {
+    if (hasCompetenceLevel('cartographie', 3)) {
       actions.push({
         id: 'masterwork_map',
         name: 'Carte de Maître',
         description: 'Créer une carte de qualité exceptionnelle',
         cost: 25,
         icon: '📜',
-        category: 'cartography'
+        category: 'cartographie'
       });
     }
     
@@ -287,7 +287,7 @@ export function AvatarActionMenu({ position, onClose }: AvatarActionMenuProps) {
           
           // Créer les données de tuiles basées sur le champ de vision complet du joueur
           const { getCompetenceLevel, isResourceDiscovered } = usePlayer.getState();
-          const cartographyLevel = getCompetenceLevel('cartography');
+          const cartographyLevel = getCompetenceLevel('cartographie');
           const explorationLevel = getCompetenceLevel('exploration');
           
           const cartographyTiles = Array.from(currentVision).map((hexCoord: string) => {
@@ -373,7 +373,7 @@ export function AvatarActionMenu({ position, onClose }: AvatarActionMenuProps) {
               description: `Carte de la région autour de (${avatarPosition.x},${avatarPosition.y}) - ${cartographyTiles.length} hexagones${cartographyLevel >= 2 && hasResources ? ` (${resourceCount} ressources incluses)` : ' (terrain seulement)'}`,
               ownerId: "player",
               effects: ["navigation_locale"],
-              requirements: ["cartography_level_1"],
+              requirements: ["cartographie_level_1"],
               value: cartographyTiles.length * (cartographyLevel >= 2 && hasResources ? 25 : 15),
               metadata: {
                 mapData: {
