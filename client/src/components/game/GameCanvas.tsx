@@ -11,7 +11,6 @@ import { MovementConfirmationModal } from "./MovementConfirmationModal";
 import { TileContextMenu } from "./TileContextMenu";
 import { MovementSystem } from "../../lib/movement/MovementSystem";
 import type { PathfindingResult } from "../../lib/pathfinding/HexPathfinding";
-import { getTerrainMovementCost } from "../../lib/game/TerrainCosts";
 import { CameraControls } from "./CameraControls";
 import { UnifiedTerritorySystem } from "../../lib/systems/UnifiedTerritorySystem";
 import { requestMove, fetchCurrentAction } from "../../lib/api/playerActionsApi";

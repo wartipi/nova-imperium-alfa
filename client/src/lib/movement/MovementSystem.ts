@@ -32,12 +32,14 @@ export class MovementSystem {
       return { success: false, path: [], totalCost: 0 };
     }
 
+    const explorationLevel = playerStore.explorationLevel || 0;
     const result = HexPathfinding.findPath(
       startHex.x,
       startHex.y,
       targetX,
       targetY,
-      mapData
+      mapData,
+      explorationLevel
     );
 
     // Garde 2 — chemin traverse une case non découverte (hors départ, index 0)

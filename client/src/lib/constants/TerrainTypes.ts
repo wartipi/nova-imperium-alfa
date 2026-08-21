@@ -40,30 +40,4 @@ export const TerrainHelpers = {
     return TerrainHelpers.isLandTerrain(terrain);
   },
   
-  getMovementCost: (terrain: string): number => {
-    switch (terrain) {
-      case TerrainTypes.GRASSLAND:
-      case TerrainTypes.FERTILE_LAND:
-      case TerrainTypes.OASIS:
-        return 1;
-      case TerrainTypes.FOREST:
-      case TerrainTypes.HILLS:
-      case TerrainTypes.SWAMP:
-        return 2;
-      case TerrainTypes.DESERT:
-      case TerrainTypes.WASTELAND:
-      case TerrainTypes.TUNDRA:
-        return 3;
-      case TerrainTypes.MOUNTAINS:
-      case TerrainTypes.VOLCANIC:
-        return 5;
-      case TerrainTypes.ANCIENT_RUINS:
-        return 2;
-      case TerrainTypes.SHALLOW_WATER:
-      case TerrainTypes.DEEP_WATER:
-        return Number.MAX_SAFE_INTEGER; // Not walkable
-      default:
-        return 1;
-    }
-  }
 };

@@ -7,7 +7,7 @@
 import { usePlayer } from '../stores/usePlayer';
 import { ResourceRevealSystem } from './ResourceRevealSystem';
 import { VisionSystem } from './VisionSystem';
-import { getTerrainMovementCost } from '../game/TerrainCosts';
+import { getTerrainMovementCost } from '../../../../shared/hexTerrainConfig';
 
 export interface UnifiedGameConfig {
   // Configuration du système d'exploration

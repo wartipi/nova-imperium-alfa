@@ -4,7 +4,7 @@
  */
 
 import { HexMath, type HexCoord } from '../systems/HexMath';
-import { TERRAIN_COSTS, IMPASSABLE } from '../../../../shared/hexTerrainConfig';
+import { TERRAIN_COSTS, IMPASSABLE, applyExplorationReduction } from '../../../../shared/hexTerrainConfig';
 
 export interface PathNode {
   x: number;
@@ -187,34 +187,7 @@ export class HexPathfinding {
     const baseCost = TERRAIN_COSTS[terrain] ?? IMPASSABLE;
     
     // Appliquer les réductions d'exploration par type de terrain
-    return this.applyExplorationReduction(baseCost, explorationLevel);
-  }
-
-  /**
-   * Applique les réductions de coût basées sur le niveau d'exploration
-   */
-  private static applyExplorationReduction(baseCost: number, explorationLevel: number): number {
-    // Pas de réduction pour l'eau (999) ou niveau 0-1
-    if (baseCost >= IMPASSABLE || explorationLevel <= 1) {
-      return baseCost;
-    }
-
-    // Niveau 2+ : Réduction sur terrains modérés (2-3 PA → 1-2 PA)
-    if (explorationLevel >= 2 && baseCost >= 2 && baseCost <= 3) {
-      return Math.max(1, baseCost - 1);
-    }
-
-    // Niveau 3+ : Réduction sur terrains difficiles (4-5 PA → 3-4 PA)
-    if (explorationLevel >= 3 && baseCost >= 4 && baseCost <= 5) {
-      return Math.max(1, baseCost - 1);
-    }
-
-    // Niveau 4+ : Réduction sur terrains extrêmes (8 PA → 4 PA)
-    if (explorationLevel >= 4 && baseCost >= 8) {
-      return Math.max(1, Math.floor(baseCost / 2));
-    }
-
-    return baseCost;
+    return applyExplorationReduction(baseCost, explorationLevel);
   }
 
   /**

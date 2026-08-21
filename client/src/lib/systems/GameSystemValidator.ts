@@ -6,7 +6,7 @@
 import { usePlayer } from '../stores/usePlayer';
 import { useGameState } from '../stores/useGameState';
 import { VisionSystem } from './VisionSystem';
-import { getTerrainMovementCost } from '../game/TerrainCosts';
+import { getTerrainMovementCost } from '../../../../shared/hexTerrainConfig';
 import { ResourceRevealSystem } from './ResourceRevealSystem';
 
 interface SystemValidationResult {

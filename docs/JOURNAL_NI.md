@@ -3403,3 +3403,61 @@ Aucune erreur runtime. HMR OK sur `UnifiedTerritoryPanel`, `TileInfoPanel`, `Cit
 - Limites restantes : validation visuelle interactive non réalisable sans second onglet authentifié en dev (un seul compte admin actif). La logique est vérifiée par lecture de code — chemin données identique à ce qui existait pour le bouton "Gérer la ville".
 - Hors scope : aucune modification hors scope. Serveur, DB, fog, routes, combat, économie non touchés.
 - Prochain bloc recommandé : V3-D8-B — suppression de `RecruitmentPanelZustand` (dead code confirmé), ou calibration stats combat des 15 unités prototype.
+
+---
+
+## BLOC 2a — Unification des quatre tables de coûts de terrain
+
+### 21 août 2026
+
+- Outil utilisé : Replit AI (jennycastonguay)
+- Statut : terminé
+- Résumé : Fusion des quatre sources de coûts de terrain (shared/hexTerrainConfig.ts, TerrainCosts.ts, table locale TileInfoPanel, helper TerrainTypes.getMovementCost) en une seule source canonique. Migration de applyExplorationReduction vers shared/. Correction de l'écart client/client : MovementSystem transmet désormais explorationLevel à HexPathfinding.findPath.
+
+### Barème canonique appliqué
+
+| Terrain       | Avant (shared) | Après  |
+|---------------|----------------|--------|
+| desert        | 3              | **2**  |
+| swamp         | 4              | **3**  |
+| volcano       | 8              | **8** (inchangé — annulation de la décision antérieure à 5) |
+| tundra        | 3              | **3** (inchangé) |
+
+Tous les autres terrains inchangés.
+
+### Nouvelles tranches de difficulté (getTerrainCostDescription / getTerrainDifficultyEmoji)
+
+| Coût      | Texte                        | Emoji |
+|-----------|------------------------------|-------|
+| >= 999    | Impossible (nécessite un navire) | 🚫 |
+| 1         | Facile (1 PA)                | 🟢 |
+| 2         | Modéré (2 PA)                | 🟡 |
+| 3-4       | Difficile (X PA)             | 🟠 |
+| 5-7       | Très difficile (X PA)        | 🔴 |
+| >= 8      | Extrêmement difficile (X PA) | ⚫ |
+
+### Fichiers modifiés
+
+- `shared/hexTerrainConfig.ts` — barème canonique, 999 en dur remplacés par IMPASSABLE, ajout de getTerrainMovementCost, getTerrainCostDescription, getTerrainDifficultyEmoji, applyExplorationReduction
+- `client/src/lib/game/TerrainCosts.ts` — **supprimé**
+- `client/src/components/game/TileInfoPanel.tsx` — getMovementCostInfo lit les coûts depuis shared/, conserve libellés/couleurs/difficulty locaux
+- `client/src/lib/constants/TerrainTypes.ts` — TerrainHelpers.getMovementCost supprimée (jamais appelée). isWalkable conservée.
+- `client/src/components/game/MovementConfirmationModal.tsx` — import repointe vers shared/
+- `client/src/lib/systems/UnifiedGameSystem.ts` — import repointe vers shared/
+- `client/src/lib/systems/GameSystemValidator.ts` — import repointe vers shared/
+- `client/src/lib/pathfinding/HexPathfinding.ts` — applyExplorationReduction private static supprimée, importe la version shared/
+- `client/src/components/game/GameCanvas.tsx` — import mort getTerrainMovementCost retiré (ligne 14 uniquement, fichier fog protégé — autorisation accordée pour cette seule ligne)
+- `client/src/lib/movement/MovementSystem.ts` — explorationLevel transmis à findPath (correction écart client/client)
+
+### Résultats des vérifications
+
+- npm run check avant : 176 erreurs
+- npm run check après : **176 erreurs** (baseline inchangée ✅)
+- git diff --stat : 10 fichiers, aucun hors périmètre ✅
+
+### Limites et hors scope
+
+- Le serveur (HexPathfindingServer.ts) ne reçoit toujours pas explorationLevel et débite le coût brut. Prévu dans un bloc ultérieur — non corrigé ici.
+- Les coûts de construction, faction, alliance, traité, courrier restent en dur. Bloc séparé (décision d'équilibrage non prise).
+- GameSystemValidator : assertions terrains inchangées (fertile_land, forest, mountains, eaux) — aucune ne casse avec le nouveau barème.
+- Décisions canon : aucune impactée.

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '../ui/button';
 import { usePlayer } from '../../lib/stores/usePlayer';
 import { useMap } from '../../lib/stores/useMap';
-import { getTerrainCostDescription, getTerrainDifficultyEmoji } from '../../lib/game/TerrainCosts';
+import { getTerrainCostDescription, getTerrainDifficultyEmoji } from '../../../../shared/hexTerrainConfig';
 import type { PathfindingResult } from '../../lib/pathfinding/HexPathfinding';
 
 interface MovementConfirmationModalProps {

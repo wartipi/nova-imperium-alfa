@@ -10,34 +10,33 @@ import { UnifiedTerritorySystem } from "../../lib/systems/UnifiedTerritorySystem
 import { HexPathfinding } from "../../lib/pathfinding/HexPathfinding";
 import { HexMath } from "../../lib/systems/HexMath";
 import { fetchAllTerritories, fetchAllColonies } from "../../lib/api/territoriesApi";
+import { TERRAIN_COSTS, IMPASSABLE } from '../../../../shared/hexTerrainConfig';
 
 // Fonction pour obtenir les informations de coût de déplacement
+// Les coûts sont lus depuis shared/hexTerrainConfig (source unique).
+// Les libellés, couleurs et niveaux de difficulté restent ici (présentation uniquement).
 function getMovementCostInfo(terrain: string) {
-  const terrainCosts = {
-    'fertile_land': { cost: 1, name: 'Terres fertiles', color: '#10B981', difficulty: 'Facile' },
-    'plains': { cost: 1, name: 'Plaines', color: '#86EFAC', difficulty: 'Facile' },
-    'sacred_plains': { cost: 1, name: 'Plaine sacrée', color: '#F0E68C', difficulty: 'Facile' },
-    'enchanted_meadow': { cost: 1, name: 'Prairie enchantée', color: '#50C878', difficulty: 'Facile' },
-    'forest': { cost: 2, name: 'Forêt', color: '#059669', difficulty: 'Modéré' },
-    'hills': { cost: 2, name: 'Collines', color: '#7C3AED', difficulty: 'Modéré' },
-    'wasteland': { cost: 2, name: 'Terres désolées', color: '#6B7280', difficulty: 'Modéré' },
-    'ancient_ruins': { cost: 2, name: 'Ruines anciennes', color: '#8B7355', difficulty: 'Modéré' },
-    'mountains': { cost: 5, name: 'Montagnes', color: '#9333EA', difficulty: 'Difficile' },
-    'desert': { cost: 3, name: 'Désert', color: '#F59E0B', difficulty: 'Modéré' },
-    'swamp': { cost: 4, name: 'Marécages', color: '#059669', difficulty: 'Difficile' },
-    'caves': { cost: 3, name: 'Grottes', color: '#374151', difficulty: 'Modéré' },
-    'volcano': { cost: 8, name: 'Volcan', color: '#DC2626', difficulty: 'Extrême' },
-    'tundra': { cost: 3, name: 'Toundra', color: '#0EA5E9', difficulty: 'Modéré' },
-    'shallow_water': { cost: 999, name: 'Eau peu profonde', color: '#3B82F6', difficulty: 'Bloqué' },
-    'deep_water': { cost: 999, name: 'Eau profonde', color: '#1D4ED8', difficulty: 'Bloqué' },
+  const terrainMeta: Record<string, { name: string; color: string; difficulty: string }> = {
+    'fertile_land':    { name: 'Terres fertiles',   color: '#10B981', difficulty: 'Facile' },
+    'plains':          { name: 'Plaines',            color: '#86EFAC', difficulty: 'Facile' },
+    'sacred_plains':   { name: 'Plaine sacrée',      color: '#F0E68C', difficulty: 'Facile' },
+    'enchanted_meadow':{ name: 'Prairie enchantée',  color: '#50C878', difficulty: 'Facile' },
+    'forest':          { name: 'Forêt',              color: '#059669', difficulty: 'Modéré' },
+    'hills':           { name: 'Collines',           color: '#7C3AED', difficulty: 'Modéré' },
+    'wasteland':       { name: 'Terres désolées',    color: '#6B7280', difficulty: 'Modéré' },
+    'ancient_ruins':   { name: 'Ruines anciennes',   color: '#8B7355', difficulty: 'Modéré' },
+    'desert':          { name: 'Désert',             color: '#F59E0B', difficulty: 'Modéré' },
+    'caves':           { name: 'Grottes',            color: '#374151', difficulty: 'Modéré' },
+    'tundra':          { name: 'Toundra',            color: '#0EA5E9', difficulty: 'Modéré' },
+    'swamp':           { name: 'Marécages',          color: '#059669', difficulty: 'Difficile' },
+    'mountains':       { name: 'Montagnes',          color: '#9333EA', difficulty: 'Difficile' },
+    'volcano':         { name: 'Volcan',             color: '#DC2626', difficulty: 'Extrême' },
+    'shallow_water':   { name: 'Eau peu profonde',   color: '#3B82F6', difficulty: 'Bloqué' },
+    'deep_water':      { name: 'Eau profonde',       color: '#1D4ED8', difficulty: 'Bloqué' },
   };
-  
-  return terrainCosts[terrain as keyof typeof terrainCosts] || { 
-    cost: 2, 
-    name: terrain, 
-    color: '#6B7280', 
-    difficulty: 'Inconnu' 
-  };
+  const cost = TERRAIN_COSTS[terrain] ?? IMPASSABLE;
+  const meta = terrainMeta[terrain] ?? { name: terrain, color: '#6B7280', difficulty: 'Inconnu' };
+  return { cost, ...meta };
 }
 
 // Fonction pour obtenir le symbole et nom des ressources
