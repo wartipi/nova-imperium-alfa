@@ -3461,3 +3461,45 @@ Tous les autres terrains inchangés.
 - Les coûts de construction, faction, alliance, traité, courrier restent en dur. Bloc séparé (décision d'équilibrage non prise).
 - GameSystemValidator : assertions terrains inchangées (fertile_land, forest, mountains, eaux) — aucune ne casse avec le nouveau barème.
 - Décisions canon : aucune impactée.
+
+---
+
+## BLOC 1a — Le serveur applique le rabais d'exploration au déplacement
+
+### 21 août 2026
+
+- Outil utilisé : Replit AI (jennycastonguay)
+- Statut : terminé
+- Résumé : Le serveur ignorait le niveau d'exploration du joueur lors du calcul A*. Un joueur exploration niveau ≥ 2 voyait un coût réduit dans l'interface mais se faisait débiter le coût brut. Ce bloc aligne le calcul serveur sur le calcul client en chargeant la compétence exploration depuis playerStateService et en la passant à findPath().
+
+### Fichiers modifiés
+
+- `server/pathfinding/HexPathfindingServer.ts`
+  - Import ajouté : `applyExplorationReduction` depuis `shared/hexTerrainConfig`
+  - `getTerrainCost()` : reçoit `explorationLevel: number`, applique `applyExplorationReduction(baseCost, explorationLevel)` avant de retourner le coût
+  - `findPath()` : nouveau paramètre `explorationLevel: number = 0` (défaut 0 → comportement inchangé si non fourni)
+  - Test destination bloquée (ligne 113) : coût BRUT conservé (`TERRAIN_COSTS[endTerrain] ?? IMPASSABLE`) — un terrain impassable ne devient pas franchissable quel que soit le niveau d'exploration
+  - Appel interne à `getTerrainCost` dans la boucle A* : passe `explorationLevel`
+
+- `server/routes/playerActions.ts`
+  - Import ajouté : `getPlayerState` depuis `../playerStateService`
+  - Avant l'appel à `findPath` : charge l'état du joueur, extrait le niveau de la compétence `"exploration"` (valeur 0 si absente ou état null), passe `explorationLevel` à `findPath`
+  - Cast `as unknown as { competence: string; level: number }[]` nécessaire : Drizzle type le champ JSONB en `{}`, pas en tableau typé
+
+### Résultats des vérifications
+
+- npm run check avant : 176 erreurs
+- npm run check après : **176 erreurs** (baseline inchangée ✅)
+- git diff --stat : 2 fichiers, aucun hors périmètre ✅
+- Fichiers fog (GameCanvas, PixelMapRenderer, playerPresenceService, players.ts) : non touchés ✅
+- Fichiers client : non touchés ✅
+
+### Décision prise seul (signalement obligatoire)
+
+Le cast `as unknown as T[]` a été utilisé pour contourner le type `{}` inféré par Drizzle sur la colonne JSONB `competences`. Ce n'est pas un `as any` : le type cible est explicite et correspond à l'interface `CompetenceLevel` de `playerStateService.ts`. Aucune autre option sans modifier le schéma Drizzle (hors scope).
+
+### Hors scope (blocs ultérieurs)
+
+- Débit des PA : inchangé — ce bloc ne touche qu'au calcul du coût de chemin
+- Mode admin : bypass complet décidé (un compte test en premier, puis extension) — bloc séparé
+- POST /api/player/state : non touché

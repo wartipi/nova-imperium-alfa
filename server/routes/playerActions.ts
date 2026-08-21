@@ -5,6 +5,7 @@ import type { AuthRequest } from "../middleware/auth";
 import { db } from "../db";
 import { mapTiles, playerDiscoveredTiles } from "../../shared/schema";
 import { getPlayerPosition } from "../playerPositionService";
+import { getPlayerState } from "../playerStateService";
 import { createMoveAction, getActiveAction, cancelActiveAction, msRemaining } from "../playerActionService";
 import { findPath } from "../pathfinding/HexPathfindingServer";
 import type { ActorContext } from "../types/actorContext";
@@ -92,8 +93,14 @@ router.post("/actions/move", requireAuth, async (req: AuthRequest, res) => {
       ` | zone=[${minX}..${maxX}, ${minY}..${maxY}] | tuiles=${tileMap.size}`
     );
 
+    // Niveau de compétence exploration du joueur (réduit le coût sur certains terrains)
+    const playerState = await getPlayerState(playerId);
+    const competences = (playerState?.competences ?? []) as unknown as { competence: string; level: number }[];
+    const explorationComp = competences.find(c => c.competence === "exploration");
+    const explorationLevel = explorationComp?.level ?? 0;
+
     // Pathfinding serveur
-    const result = findPath(startX, startY, destX, destY, tileMap);
+    const result = findPath(startX, startY, destX, destY, tileMap, explorationLevel);
 
     if (!result.success) {
       return res.status(422).json({

@@ -10,7 +10,7 @@
  */
 
 import type { PathStep } from "../../shared/schema";
-import { TERRAIN_COSTS, IMPASSABLE } from "../../shared/hexTerrainConfig";
+import { TERRAIN_COSTS, IMPASSABLE, applyExplorationReduction } from "../../shared/hexTerrainConfig";
 
 export interface ServerPathResult {
   success: boolean;
@@ -75,10 +75,13 @@ function getAdjacentHexes(x: number, y: number): Coord[] {
 }
 
 // ─── Coût d'entrée dans une tuile ─────────────────────────────────────────
-function getTerrainCost(worldX: number, worldY: number, tileMap: Map<string, string>): number {
+// explorationLevel : niveau de la compétence exploration du joueur (0 = aucune réduction).
+// Le coût réduit est utilisé pour l'A* ; le test de destination impassable utilise le coût brut.
+function getTerrainCost(worldX: number, worldY: number, tileMap: Map<string, string>, explorationLevel: number): number {
   const terrain = tileMap.get(`${worldX},${worldY}`);
   if (!terrain) return IMPASSABLE; // Terrain inconnu = bloqué
-  return TERRAIN_COSTS[terrain] ?? IMPASSABLE;
+  const baseCost = TERRAIN_COSTS[terrain] ?? IMPASSABLE;
+  return applyExplorationReduction(baseCost, explorationLevel);
 }
 
 // ─── Reconstruction du chemin depuis le nœud final ────────────────────────
@@ -103,7 +106,8 @@ export function findPath(
   startY: number,
   endX: number,
   endY: number,
-  tileMap: Map<string, string>
+  tileMap: Map<string, string>,
+  explorationLevel: number = 0
 ): ServerPathResult {
   // Destination hors carte ou bloquée
   const endTerrain = tileMap.get(`${endX},${endY}`);
@@ -169,7 +173,7 @@ export function findPath(
       const neighborKey = `${neighbor.x},${neighbor.y}`;
       if (closedSet.has(neighborKey)) continue;
 
-      const terrainCost = getTerrainCost(neighbor.x, neighbor.y, tileMap);
+      const terrainCost = getTerrainCost(neighbor.x, neighbor.y, tileMap, explorationLevel);
       if (terrainCost >= IMPASSABLE) continue;
 
       const neighborTerrain = tileMap.get(neighborKey) ?? "unknown";
