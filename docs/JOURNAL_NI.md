@@ -3618,3 +3618,42 @@ Paramètre `adminMode: boolean = false` ajouté à `apiCreateTreaty`. En-tête `
 ### Décision prise seul
 
 Cast `as { competence: string; level: number }[]` dans treatyService.ts : même raison que blocs 1a et 1b — Drizzle type le JSONB en `{}`.
+
+---
+
+## BLOC 3a — Renommage de ville réservé à l'admin et persisté en base
+
+### 21 août 2026
+
+- Outil utilisé : Replit AI (jennycastonguay)
+- Statut : terminé
+- Résumé : Le renommage de ville était une action de joueur (8 PA + compétence) qui faisait une mise à jour en mémoire uniquement — écrasée à la prochaine hydratation pendant que les PA étaient bel et bien débités. Ce bloc corrige les deux problèmes : la route persiste en base, et l'outil est réservé à l'administrateur (pas de coût, pas de prérequis).
+
+### Décision de conception (propriétaire du projet)
+
+Une ville ne change pas de nom une fois approuvée, sauf conquête. Le renommage n'est pas une action de joueur. Il devient un outil admin pur.
+
+### Fichiers modifiés
+
+- `server/routes/cities.ts` — Nouvelle route PATCH /:cityId/display-name : admin uniquement (403 si non-admin), cityId entier, ville existante (pas checkCityAccess — admin peut renommer n'importe quelle ville), validation nom (3-25 chars, lettres/chiffres/espaces/tirets/apostrophes), UPDATE displayName + returning().
+
+- `client/src/lib/api/citiesApi.ts` — Nouvelle fonction `apiRenameCityDisplayName(cityId: number, displayName: string): Promise<void>`. PATCH avec en-têtes auth. Lance une erreur avec le message serveur si non-OK.
+
+- `client/src/components/game/CityRenameModal.tsx` — Retiré : RENAME_COST, REQUIRED_COMPETENCE_LEVEL, spendActionPoints, addActionPoints (remboursement), vérification PA dans canRename, vérification compétence dans canRename, lignes UI PA (169) et compétence (172), mention "(8 PA)" dans le bouton (194). Conservé : vérification de propriété (canRename), validation nom côté client (interface). Ajouté : import apiRenameCityDisplayName, appel hydrateCitiesFromServer() après succès, message d'erreur depuis le serveur. Bouton : "Renommer" (sans coût). Correction nécessaire : city.id est string dans le type City, apiRenameCityDisplayName attend number — `Number(city.id)` à l'appel.
+
+- `client/src/components/game/CityManagementPanel.tsx` — Bouton ✏️ Renommer entouré de `{isAdmin && (...)}`. isAdmin et useAuth déjà présents (ligne 3 et 17), aucun import ajouté.
+
+### Résultats des vérifications
+
+- npm run check avant : 176 erreurs
+- npm run check après : **176 erreurs** (baseline inchangée ✅)
+- git diff --stat : 4 fichiers, aucun hors périmètre ✅
+- Fichiers fog : non touchés ✅
+
+### Résidu signalé (non supprimé per instructions)
+
+`renameCityDisplayName` dans `useNovaImperium.tsx` n'a plus d'appelant depuis ce bloc. À ramasser dans un bloc de nettoyage ultérieur.
+
+### Hors scope
+
+- La colonne display_name dans shared/schema.ts est marquée "non modifiable via API en Phase 6" (commentaire ligne 463) — ce commentaire est désormais obsolète mais n'a pas été modifié (correction opportuniste interdite).

@@ -58,13 +58,15 @@ export function CityManagementPanel({ cityId, onClose }: CityManagementPanelProp
         <div className="bg-amber-700 text-white p-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <h2 className="text-xl font-bold">🏘️ Gestion de {city.displayName || city.name}</h2>
-            <button
-              onClick={() => setShowRenameModal(true)}
-              className="text-amber-200 hover:text-white text-sm bg-amber-600 hover:bg-amber-500 px-3 py-1 rounded transition-colors"
-              title="Renommer la ville"
-            >
-              ✏️ Renommer
-            </button>
+            {isAdmin && (
+              <button
+                onClick={() => setShowRenameModal(true)}
+                className="text-amber-200 hover:text-white text-sm bg-amber-600 hover:bg-amber-500 px-3 py-1 rounded transition-colors"
+                title="Renommer la ville"
+              >
+                ✏️ Renommer
+              </button>
+            )}
           </div>
           <button
             onClick={onClose}

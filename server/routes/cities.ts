@@ -801,4 +801,56 @@ router.post("/:cityId/start-recruitment", requireAuth, async (req: AuthRequest, 
   }
 });
 
+// ─── PATCH /api/cities/:cityId/display-name ───────────────────────────────────
+// Administrateur uniquement — renomme une ville et persiste en base.
+// Aucune vérification de PA, aucune vérification de compétence : outil admin pur.
+// Décision de conception : une ville ne change pas de nom une fois approuvée, sauf
+// conquête. Le renommage n'est donc pas une action de joueur.
+router.patch("/:cityId/display-name", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    // 1. Admin uniquement — même patron que GET / dans server/routes/treaties.ts
+    if (req.user!.role !== 'admin') {
+      return res.status(403).json({ error: "Accès réservé à l'administration" });
+    }
+
+    // 2. cityId valide
+    const cityId = parseInt(req.params.cityId, 10);
+    if (isNaN(cityId)) {
+      return res.status(400).json({ error: "cityId doit être un entier" });
+    }
+
+    // 3. Ville existante (pas checkCityAccess : un admin peut renommer n'importe quelle ville)
+    const [city] = await db.select().from(cities).where(eq(cities.id, cityId)).limit(1);
+    if (!city) {
+      return res.status(404).json({ error: "Ville introuvable" });
+    }
+
+    // 4. Validation du nom côté serveur — même règle que le client
+    const { displayName } = req.body;
+    if (typeof displayName !== 'string') {
+      return res.status(400).json({ error: "displayName est requis (chaîne de caractères)" });
+    }
+    const cleanName = displayName.trim();
+    if (cleanName.length < 3 || cleanName.length > 25) {
+      return res.status(400).json({ error: "Le nom doit contenir entre 3 et 25 caractères" });
+    }
+    if (!/^[a-zA-Z0-9À-ÿ\s\-']+$/.test(cleanName)) {
+      return res.status(400).json({ error: "Seuls les lettres, chiffres, espaces, tirets et apostrophes sont autorisés" });
+    }
+
+    // 5. Mise à jour et retour de la ligne mise à jour
+    const [updated] = await db
+      .update(cities)
+      .set({ displayName: cleanName })
+      .where(eq(cities.id, cityId))
+      .returning();
+
+    console.log(`[PATCH /api/cities/:cityId/display-name] cityId=${cityId} → "${cleanName}" par admin=${req.user!.id}`);
+    return res.json(updated);
+  } catch (err) {
+    console.error("[PATCH /api/cities/:cityId/display-name] Erreur:", err);
+    return res.status(500).json({ error: "Impossible de renommer la ville" });
+  }
+});
+
 export default router;

@@ -232,6 +232,21 @@ export interface CityProductionTickResult {
   completedUnits: { cityId: number; cityName: string; unitId: number; unitType: string; unitName: string }[];
 }
 
+// ─── PATCH /api/cities/:cityId/display-name ───────────────────────────────────
+// Administrateur uniquement. Persiste le nom en base.
+// Après appel, recharger via hydrateCitiesFromServer() pour que l'UI reflète la DB.
+export async function apiRenameCityDisplayName(cityId: number, displayName: string): Promise<void> {
+  const res = await fetch(`/api/cities/${cityId}/display-name`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    body: JSON.stringify({ displayName }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Erreur renommage ville");
+  }
+}
+
 export async function apiProductionTick(): Promise<CityProductionTickResult> {
   const res = await fetch("/api/cities/production-tick", {
     method:  "POST",
