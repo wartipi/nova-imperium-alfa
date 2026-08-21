@@ -95,6 +95,7 @@ router.post("/claim", requireAuth, async (req: AuthRequest, res) => {
       if (currentAP < CLAIM_COST) {
         return res.status(400).json({
           error: "INSUFFICIENT_ACTION_POINTS",
+          message: `Points d'action insuffisants : ${CLAIM_COST} requis, ${currentAP} disponibles`,
           required: CLAIM_COST,
           available: currentAP,
         });

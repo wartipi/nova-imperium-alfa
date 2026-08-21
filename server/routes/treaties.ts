@@ -61,13 +61,21 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
 
     const factionIds = (targetFactionIds as unknown[]).map((id) => Number(id)).filter((n) => !isNaN(n));
 
+    // ─── Bypass admin (même logique que territories.ts / playerActions.ts) ──
+    const rawHeaderAdmin = req.headers['x-admin-mode'];
+    const headerValueAdmin = Array.isArray(rawHeaderAdmin) ? rawHeaderAdmin[0] : rawHeaderAdmin;
+    const roleAdmin = req.user!.role;
+    const adminBypass =
+      roleAdmin === 'admin' && (headerValueAdmin === undefined || headerValueAdmin === 'true');
+
     const treaty = await createTreaty(
       req.user!.id,
       title,
       type,
       terms,
       factionIds,
-      properties ?? {}
+      properties ?? {},
+      adminBypass
     );
     res.json(treaty);
   } catch (err) {

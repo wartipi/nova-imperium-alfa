@@ -132,9 +132,7 @@ export function TreatiesPanel() {
         properties = { alliance_militaire: militaryProps };
       }
 
-      await apiCreateTreaty(treatyTitle, selectedTreatyType, treatyTerms, selectedFactionIds, properties);
-
-      if (!isAdmin) spendActionPoints(treatyCost);
+      await apiCreateTreaty(treatyTitle, selectedTreatyType, treatyTerms, selectedFactionIds, properties, isAdmin);
 
       setActiveTab("overview");
       setTreatyTitle("");

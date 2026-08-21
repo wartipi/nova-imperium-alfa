@@ -3566,3 +3566,55 @@ Dans `AvatarActionMenu.tsx` bloc `claim_territory` :
 - Décision sur quel catalogue de coûts de construction est canonique (ActionPointsCosts vs ConstructionPanel) : non tranchée dans ce bloc.
 - Test fonctionnel en compte joueur ordinaire avec PA insuffisants : nécessite un second compte en dev.
 - Affichage du message d'erreur INSUFFICIENT_ACTION_POINTS : le code d'erreur brut est affiché dans l'alert. Amélioration UX prévue dans un bloc séparé si demandé.
+
+---
+
+## BLOC 1c — Le serveur vérifie et débite les PA de création de traité
+
+### 21 août 2026
+
+- Outil utilisé : Replit AI (jennycastonguay)
+- Statut : terminé
+- Résumé : Deuxième application du patron BLOC 1b. Le débit des PA pour la création de traité était entièrement côté client. Ce bloc déplace vérification et débit vers le service métier (treatyService), avec bypass admin dans la route, et retire le débit navigateur. Inclut la correction demandée du message d'erreur BLOC 1b (étape 5).
+
+### Étapes réalisées
+
+**Étape 1 — treatyService.ts : paramètre skipCostCheck**
+Ajout de `import { getPlayerState, savePlayerState }` depuis `./playerStateService`.
+Nouveau paramètre `skipCostCheck: boolean = false` à la fin de la signature de `createTreaty`.
+Vérification PA insérée après toutes les validations existantes, avant `const id = crypto.randomUUID()` : utilise `validType.cost` (déjà calculé ligne 123 pour valider le type), pas de recherche dans ACTIVE_TREATY_TYPES. Message d'erreur en français lisible (style Object.assign / status 400).
+Débit PA inséré après le bloc complet d'insertions DB (treaties + treatyFactions + treatySignatures), avant le select final. Même patron que territories.ts : Math.max(0, ...), tous les champs inchangés, cast competences.
+
+**Étape 2 — routes/treaties.ts : bypass admin**
+Dans POST /, calcul adminBypass (rôle token + X-Admin-Mode facultatif). Même logique que territories.ts et playerActions.ts. Résultat passé à createTreaty comme dernier argument.
+
+**Étape 3 — treatiesApi.ts : en-tête X-Admin-Mode**
+Paramètre `adminMode: boolean = false` ajouté à `apiCreateTreaty`. En-tête `X-Admin-Mode: String(adminMode)` ajouté. Lecture du champ `message` en priorité sur `error` dans le throw.
+
+**Étape 4 — TreatiesPanel.tsx : retrait du débit navigateur**
+`if (!isAdmin) spendActionPoints(treatyCost)` retiré. `isAdmin` passé à `apiCreateTreaty`. La vérification d'affichage (lignes 122-124) et le bouton grisé conservés — c'est de l'interface, pas une règle de jeu. Le bloc catch existant (`setError(err.message || ...)`) affiche désormais le message français du serveur sans modification.
+
+**Étape 5 — Correction message BLOC 1b (demandée explicitement)**
+`server/routes/territories.ts` : ajout du champ `message` en français (`Points d'action insuffisants : X requis, Y disponibles`) à côté du code `INSUFFICIENT_ACTION_POINTS`, de `required` et de `available`.
+`client/src/lib/api/territoriesApi.ts` : `apiClaimTerritory` lit `err.message` en priorité, repli sur `err.error`.
+
+### Fichiers modifiés
+
+- `server/treatyService.ts` — import playerStateService, param skipCostCheck, vérification PA, débit PA
+- `server/routes/treaties.ts` — calcul adminBypass, passage à createTreaty
+- `client/src/lib/api/treatiesApi.ts` — param adminMode, en-tête X-Admin-Mode, lecture message en priorité
+- `client/src/components/game/TreatiesPanel.tsx` — retrait spendActionPoints, passage isAdmin
+- `server/routes/territories.ts` — ajout champ message (étape 5)
+- `client/src/lib/api/territoriesApi.ts` — lecture err.message || err.error (étape 5)
+
+### Résultats des vérifications
+
+- npm run check avant : 176 erreurs
+- npm run check après : **176 erreurs** (baseline inchangée ✅)
+- git diff --stat : 6 fichiers, aucun hors périmètre ✅
+- Fichiers fog : non touchés ✅
+- sign et break treaty : non touchés ✅
+
+### Décision prise seul
+
+Cast `as { competence: string; level: number }[]` dans treatyService.ts : même raison que blocs 1a et 1b — Drizzle type le JSONB en `{}`.

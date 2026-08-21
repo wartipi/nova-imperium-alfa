@@ -2,6 +2,7 @@ import { eq, inArray } from "drizzle-orm";
 import { db } from "./db";
 import { treaties, treatyFactions, treatySignatures, factionMembers, factions } from "../shared/schema";
 import { ACTIVE_TREATY_TYPES } from "./treatyTypes";
+import { getPlayerState, savePlayerState } from "./playerStateService";
 import crypto from "crypto";
 
 export interface TreatyParty {
@@ -113,7 +114,8 @@ export async function createTreaty(
   type: string,
   terms: string,
   targetFactionIds: number[],
-  properties: Record<string, unknown>
+  properties: Record<string, unknown>,
+  skipCostCheck: boolean = false
 ): Promise<TreatyDTO> {
   const creatorFactionId = await getFactionIdForUser(userId);
   if (creatorFactionId === null) {
@@ -135,6 +137,18 @@ export async function createTreaty(
   }
   if (targetFactionIds.includes(creatorFactionId)) {
     throw Object.assign(new Error("Vous ne pouvez pas cibler votre propre faction"), { status: 400 });
+  }
+
+  // ─── Vérification PA (sauf bypass admin) ─────────────────────────────────
+  if (!skipCostCheck) {
+    const state = await getPlayerState(userId);
+    const currentAP = state?.actionPoints ?? 0;
+    if (currentAP < validType.cost) {
+      throw Object.assign(
+        new Error(`Points d'action insuffisants : ${validType.cost} requis, ${currentAP} disponibles`),
+        { status: 400 }
+      );
+    }
   }
 
   const id = crypto.randomUUID();
@@ -160,6 +174,26 @@ export async function createTreaty(
     factionId: creatorFactionId,
     signedBy: userId,
   });
+
+  // ─── Débit PA après insertion réussie (sauf bypass admin) ────────────────
+  if (!skipCostCheck) {
+    const state = await getPlayerState(userId);
+    if (state) {
+      await savePlayerState(userId, {
+        level:            state.level,
+        experience:       state.experience,
+        totalExperience:  state.totalExperience,
+        actionPoints:     Math.max(0, state.actionPoints - validType.cost),
+        maxActionPoints:  state.maxActionPoints,
+        competencePoints: state.competencePoints ?? 0,
+        competences:      (state.competences as { competence: string; level: number }[]) ?? [],
+      });
+      console.log(
+        `[TreatyService] PA debit create_treaty (${type}): player=${userId}` +
+        ` -${validType.cost} AP → reste ${Math.max(0, state.actionPoints - validType.cost)}/${state.maxActionPoints}`
+      );
+    }
+  }
 
   const [row] = await db.select().from(treaties).where(eq(treaties.id, id)).limit(1);
   const [dto] = await enrichTreaties([row]);

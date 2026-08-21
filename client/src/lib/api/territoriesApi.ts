@@ -93,7 +93,7 @@ export async function apiClaimTerritory(
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || "Erreur revendication territoire");
+    throw new Error(err.message || err.error || "Erreur revendication territoire");
   }
   return res.json();
 }

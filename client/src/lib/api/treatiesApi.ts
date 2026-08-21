@@ -80,16 +80,21 @@ export async function apiCreateTreaty(
   type: TreatyType,
   terms: string,
   targetFactionIds: number[],
-  properties: Record<string, unknown>
+  properties: Record<string, unknown>,
+  adminMode: boolean = false
 ): Promise<TreatyDTO> {
   const res = await fetch("/api/treaties", {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    headers: {
+      "Content-Type": "application/json",
+      "X-Admin-Mode": String(adminMode),
+      ...getAuthHeaders(),
+    },
     body: JSON.stringify({ title, type, terms, targetFactionIds, properties }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error((err as { error?: string }).error || "Erreur création traité");
+    throw new Error((err as { message?: string; error?: string }).message || (err as { error?: string }).error || "Erreur création traité");
   }
   return res.json();
 }
