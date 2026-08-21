@@ -3503,3 +3503,66 @@ Le cast `as unknown as T[]` a été utilisé pour contourner le type `{}` infér
 - Débit des PA : inchangé — ce bloc ne touche qu'au calcul du coût de chemin
 - Mode admin : bypass complet décidé (un compte test en premier, puis extension) — bloc séparé
 - POST /api/player/state : non touché
+
+---
+
+## BLOC 1b — Le serveur vérifie et débite les PA de claim_territory
+
+### 21 août 2026
+
+- Outil utilisé : Replit AI (jennycastonguay)
+- Statut : terminé
+- Résumé : Le débit des points d'action pour la revendication de territoire était entièrement côté client et contournable. Ce bloc déplace la vérification et le débit vers le serveur, avec bypass admin contrôlé par en-tête, et retire le débit navigateur.
+
+### Étapes réalisées
+
+**Étape 1 — Déplacement de la table des coûts**
+`client/src/lib/game/ActionPointsCosts.ts` déplacé vers `shared/ActionPointsCosts.ts`. Aucune valeur modifiée. Cinq imports client rebranchés (ActionPointsPanel, ConstructionPanel, ConstructionPanelSimple, CouriersPanel, RecruitmentPanel).
+
+**Étape 2 — Coût claim_territory dans shared/**
+Ajout dans `shared/ActionPointsCosts.ts` de `AVATAR_ACTION_COSTS = { claim_territory: 10 }` et de `getAvatarActionCost(actionId)`. Valeur 10 reprise de AvatarActionMenu.tsx sans modification.
+
+**Étape 3 — Serveur vérifie et débite**
+Dans `server/routes/territories.ts`, route POST /claim :
+- Bypass admin calculé avant la vérification
+- Si non-admin et PA insuffisants → 400 `INSUFFICIENT_ACTION_POINTS` + `required` + `available`
+- `claimTerritory` appelé seulement si PA suffisants
+- Débit (`savePlayerState`) seulement après que `claimTerritory` ait réussi (résultat sans `error`) — si la case est déjà prise, le joueur ne perd pas ses points
+- Patron identique à `playerActionService.ts` : `Math.max(0, state.actionPoints - CLAIM_COST)`, tous les autres champs inchangés, cast `as { competence: string; level: number }[]`
+
+**Étape 4 — Bypass admin complet**
+Serveur : rôle lu depuis le token, X-Admin-Mode facultatif. Admin sans en-tête = bypass actif. Admin avec `X-Admin-Mode: false` = traité comme joueur. Non-admin : toujours bloqué quel que soit l'en-tête.
+Client (`territoriesApi.ts`) : `apiClaimTerritory` accepte `adminMode: boolean = false`, envoie `X-Admin-Mode: String(adminMode)`. Même patron que `requestMove` dans `playerActionsApi.ts`.
+Client (`AvatarActionMenu.tsx`) : `isAdmin` passé à `apiClaimTerritory`.
+
+**Étape 5 — Retrait du débit navigateur**
+Dans `AvatarActionMenu.tsx` bloc `claim_territory` :
+- Retiré : `const claimCost = 10`, `spendActionPoints(claimCost)`, `addActionPoints(claimCost)` dans le catch
+- Conservé : `alert(err.message || ...)` — affiche désormais le code d'erreur serveur
+- Coût affiché dans le menu lu depuis `getAvatarActionCost('claim_territory')` (plus de `10` en dur)
+
+### Fichiers modifiés
+
+- `shared/ActionPointsCosts.ts` — nouveau fichier (déplacement + ajout section avatar)
+- `client/src/lib/game/ActionPointsCosts.ts` — supprimé
+- `client/src/components/game/ActionPointsPanel.tsx` — import → shared/
+- `client/src/components/game/ConstructionPanel.tsx` — import → shared/
+- `client/src/components/game/ConstructionPanelSimple.tsx` — import → shared/
+- `client/src/components/game/CouriersPanel.tsx` — import → shared/
+- `client/src/components/game/RecruitmentPanel.tsx` — import → shared/
+- `client/src/lib/api/territoriesApi.ts` — ajout param adminMode + en-tête X-Admin-Mode
+- `client/src/components/game/AvatarActionMenu.tsx` — retrait débit client, import getAvatarActionCost, isAdmin passé à apiClaimTerritory
+- `server/routes/territories.ts` — imports getPlayerState/savePlayerState/getAvatarActionCost, bypass admin, vérification PA, débit après succès
+
+### Résultats des vérifications
+
+- npm run check avant : 176 erreurs
+- npm run check après : **176 erreurs** (baseline inchangée ✅)
+- git diff --stat : 9 fichiers dans le diff + 1 nouveau fichier, aucun hors périmètre ✅
+- Fichiers fog : non touchés ✅
+
+### Hors scope
+
+- Décision sur quel catalogue de coûts de construction est canonique (ActionPointsCosts vs ConstructionPanel) : non tranchée dans ce bloc.
+- Test fonctionnel en compte joueur ordinaire avec PA insuffisants : nécessite un second compte en dev.
+- Affichage du message d'erreur INSUFFICIENT_ACTION_POINTS : le code d'erreur brut est affiché dans l'alert. Amélioration UX prévue dans un bloc séparé si demandé.

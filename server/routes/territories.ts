@@ -11,6 +11,8 @@ import {
   exploitTerritory,
 } from "../territoryService";
 import { transferColonyOwnership } from "../ownershipService";
+import { getPlayerState, savePlayerState } from "../playerStateService";
+import { getAvatarActionCost } from "../../shared/ActionPointsCosts";
 
 const router = Router();
 
@@ -77,10 +79,52 @@ router.post("/claim", requireAuth, async (req: AuthRequest, res) => {
     const playerId = req.user!.id;
     const playerName = req.user!.username;
 
+    // ─── Bypass admin (même logique que playerActions.ts lignes 160-170) ──────
+    const rawHeaderAdmin = req.headers['x-admin-mode'];
+    const headerValueAdmin = Array.isArray(rawHeaderAdmin) ? rawHeaderAdmin[0] : rawHeaderAdmin;
+    const roleAdmin = req.user!.role;
+    const adminBypass =
+      roleAdmin === 'admin' && (headerValueAdmin === undefined || headerValueAdmin === 'true');
+
+    const CLAIM_COST = getAvatarActionCost('claim_territory');
+
+    // ─── Vérification PA (sauf admin bypass) ─────────────────────────────────
+    if (!adminBypass) {
+      const state = await getPlayerState(playerId);
+      const currentAP = state?.actionPoints ?? 0;
+      if (currentAP < CLAIM_COST) {
+        return res.status(400).json({
+          error: "INSUFFICIENT_ACTION_POINTS",
+          required: CLAIM_COST,
+          available: currentAP,
+        });
+      }
+    }
+
     const result = await claimTerritory(playerId, playerName, worldX, worldY, ownerType);
 
     if ("error" in result) {
       return res.status(result.status).json({ error: result.error });
+    }
+
+    // ─── Débit PA après succès du claim (sauf admin bypass) ──────────────────
+    if (!adminBypass) {
+      const state = await getPlayerState(playerId);
+      if (state) {
+        await savePlayerState(playerId, {
+          level:            state.level,
+          experience:       state.experience,
+          totalExperience:  state.totalExperience,
+          actionPoints:     Math.max(0, state.actionPoints - CLAIM_COST),
+          maxActionPoints:  state.maxActionPoints,
+          competencePoints: state.competencePoints ?? 0,
+          competences:      (state.competences as { competence: string; level: number }[]) ?? [],
+        });
+        console.log(
+          `[Territories] PA debit claim_territory: player=${playerId}` +
+          ` -${CLAIM_COST} AP → reste ${Math.max(0, state.actionPoints - CLAIM_COST)}/${state.maxActionPoints}`
+        );
+      }
     }
 
     return res.status(201).json(result.territory);

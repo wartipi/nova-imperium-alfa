@@ -2,7 +2,7 @@ import React from 'react';
 import { usePlayer } from '../../lib/stores/usePlayer';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
-import { ACTION_COSTS, getBuildingCost, getUnitMovementCost, canAffordAction } from '../../lib/game/ActionPointsCosts';
+import { ACTION_COSTS, getBuildingCost, getUnitMovementCost, canAffordAction } from '../../../../shared/ActionPointsCosts';
 import { AP_GENERATION, getBuildingAPGeneration, getBuildingMaxAPIncrease } from '../../lib/game/ActionPointsGeneration';
 
 interface ActionPointsPanelProps {

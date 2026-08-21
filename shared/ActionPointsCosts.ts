@@ -129,3 +129,15 @@ export const getUnitRecruitmentCost = (unitType: string): number => {
 export const getUnitMovementCost = (unitType: string, distance: number): number => {
   return ACTION_COSTS.calculateMovementCost(distance, unitType);
 };
+
+// ─── Actions d'avatar ──────────────────────────────────────────────────────────
+// Coûts des actions réalisables depuis le menu avatar (AvatarActionMenu).
+// La valeur de claim_territory (10) est reprise telle quelle depuis AvatarActionMenu.tsx.
+export const AVATAR_ACTION_COSTS: Record<string, number> = {
+  claim_territory: 10,
+};
+
+// Retourne le coût en PA d'une action d'avatar à partir de son identifiant (0 si inconnu).
+export function getAvatarActionCost(actionId: string): number {
+  return AVATAR_ACTION_COSTS[actionId] ?? 0;
+}

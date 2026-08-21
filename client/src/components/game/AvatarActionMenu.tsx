@@ -7,6 +7,7 @@ import { useMap } from "../../lib/stores/useMap";
 // import { useMapState } from "../../lib/stores/useMapState"; // Pas utilisé ici
 import { Card } from "../ui/card";
 import { apiClaimTerritory } from "../../lib/api/territoriesApi";
+import { getAvatarActionCost } from "../../../../shared/ActionPointsCosts";
 import { getPlayerCurrentCity } from "../../lib/api/economyApi";
 
 function getAuthHeaders(): Record<string, string> {
@@ -128,7 +129,7 @@ export function AvatarActionMenu({ position, onClose }: AvatarActionMenuProps) {
       id: 'claim_territory',
       name: 'Revendiquer le territoire',
       description: 'Revendiquer la case actuelle de votre avatar comme territoire',
-      cost: 10,
+      cost: getAvatarActionCost('claim_territory'),
       icon: '🚩',
       category: 'territory',
     }
@@ -211,14 +212,6 @@ export function AvatarActionMenu({ position, onClose }: AvatarActionMenuProps) {
     if (!isActionAvailable(action)) return;
 
     if (action.id === 'claim_territory') {
-      const claimCost = 10;
-      if (!isAdmin) {
-        const success = spendActionPoints(claimCost);
-        if (!success) {
-          alert(`${claimCost} PA requis pour revendiquer un territoire.`);
-          return;
-        }
-      }
       try {
         const avatarPos = usePlayer.getState().avatarHexPosition;
         const { originWorldX, originWorldY } = useMap.getState();
@@ -226,11 +219,10 @@ export function AvatarActionMenu({ position, onClose }: AvatarActionMenuProps) {
         const worldY = avatarPos.y + originWorldY;
         const effectiveOwnerType: 'player' | 'faction' = playerFaction ? 'faction' : 'player';
         console.log(`[AvatarActionMenu] Claim → avatarHex=(${avatarPos.x},${avatarPos.y}) world=(${worldX},${worldY}) ownerType=${effectiveOwnerType}`);
-        await apiClaimTerritory(worldX, worldY, effectiveOwnerType);
+        await apiClaimTerritory(worldX, worldY, effectiveOwnerType, isAdmin);
         window.dispatchEvent(new CustomEvent('nova:logistic-refresh'));
         onClose();
       } catch (err: any) {
-        if (!isAdmin) usePlayer.getState().addActionPoints(claimCost);
         alert(err.message || 'Erreur lors de la revendication du territoire.');
       }
       return;

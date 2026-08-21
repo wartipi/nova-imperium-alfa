@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "../ui/button";
 import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { usePlayer } from "../../lib/stores/usePlayer";
-import { getUnitRecruitmentCost } from "../../lib/game/ActionPointsCosts";
+import { getUnitRecruitmentCost } from "../../../../shared/ActionPointsCosts";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface Message {

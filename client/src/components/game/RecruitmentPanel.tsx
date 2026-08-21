@@ -1,7 +1,7 @@
 import { useNovaImperium } from "../../lib/stores/useNovaImperium";
 import { usePlayer } from "../../lib/stores/usePlayer";
 import { Button } from "../ui/button";
-import { getUnitRecruitmentCost, canAffordAction } from "../../lib/game/ActionPointsCosts";
+import { getUnitRecruitmentCost, canAffordAction } from "../../../../shared/ActionPointsCosts";
 import { useState, useEffect } from "react";
 import { apiStartRecruitment, apiGetRecruitmentCosts } from "../../lib/api/citiesApi";
 import type { RuntimeRecruitmentCostEntry } from "../../lib/api/citiesApi";

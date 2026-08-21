@@ -3,7 +3,7 @@ import { usePlayer } from "../../lib/stores/usePlayer";
 import { useFactions } from "../../lib/stores/useFactions";
 import { useAuth } from "../../lib/auth/AuthContext";
 import { Button } from "../ui/button";
-import { getBuildingCost, canAffordAction } from "../../lib/game/ActionPointsCosts";
+import { getBuildingCost, canAffordAction } from "../../../../shared/ActionPointsCosts";
 import { getBuildingAPGeneration, getBuildingMaxAPIncrease } from "../../lib/game/ActionPointsGeneration";
 import { UnifiedTerritorySystem } from "../../lib/systems/UnifiedTerritorySystem";
 import { useMap } from "../../lib/stores/useMap";

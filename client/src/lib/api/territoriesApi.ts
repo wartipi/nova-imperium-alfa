@@ -79,11 +79,16 @@ export async function fetchAllColonies(): Promise<ColonyDTO[]> {
 export async function apiClaimTerritory(
   worldX: number,
   worldY: number,
-  ownerType: 'player' | 'faction' = 'player'
+  ownerType: 'player' | 'faction' = 'player',
+  adminMode: boolean = false
 ): Promise<TerritoryDTO> {
   const res = await fetch("/api/territories/claim", {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    headers: {
+      "Content-Type": "application/json",
+      "X-Admin-Mode": String(adminMode),
+      ...getAuthHeaders(),
+    },
     body: JSON.stringify({ worldX, worldY, ownerType }),
   });
   if (!res.ok) {
