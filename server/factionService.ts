@@ -1,6 +1,8 @@
 import { eq, sql } from "drizzle-orm";
 import { db } from "./db";
 import { factions, factionMembers } from "../shared/schema";
+import { getPlayerState, savePlayerState } from "./playerStateService";
+import { getActionCost } from "../shared/ActionPointsCosts";
 
 export interface FactionMemberDTO {
   id: string;
@@ -127,8 +129,9 @@ export async function createFaction(
     color: string;
     banner: string;
     motto: string;
-  }
-): Promise<{ faction: FactionDTO; error?: never } | { error: string; faction?: never }> {
+  },
+  skipCostCheck: boolean = false
+): Promise<{ faction: FactionDTO; error?: never } | { error: string; message?: string; faction?: never }> {
   const existingMembership = await db
     .select({ id: factionMembers.id })
     .from(factionMembers)
@@ -145,6 +148,21 @@ export async function createFaction(
 
   if (nameTaken.length > 0) {
     return { error: "NAME_TAKEN" };
+  }
+
+  // ─── Vérification des PA (après les gardes métier, avant l'insertion) ─────────
+  // Un joueur déjà membre ou choisissant un nom pris ne paie rien — la vérification
+  // vient donc après ces contrôles, conformément à l'instruction du BLOC 1e.
+  const CREATION_COST = getActionCost('create_faction');
+  if (!skipCostCheck) {
+    const state = await getPlayerState(playerId);
+    const currentAP = state?.actionPoints ?? 0;
+    if (currentAP < CREATION_COST) {
+      return {
+        error: "INSUFFICIENT_ACTION_POINTS",
+        message: `Points d'action insuffisants : il en faut ${CREATION_COST}, vous en avez ${currentAP}.`,
+      };
+    }
   }
 
   const inserted = await db
@@ -174,6 +192,22 @@ export async function createFaction(
     playerName,
     memberRole: "leader",
   });
+
+  // ─── Débit des PA après succès complet des deux insertions ───────────────────
+  if (!skipCostCheck) {
+    const state = await getPlayerState(playerId);
+    if (state) {
+      await savePlayerState(playerId, {
+        level: state.level,
+        experience: state.experience,
+        totalExperience: state.totalExperience,
+        actionPoints: Math.max(0, state.actionPoints - CREATION_COST),
+        maxActionPoints: state.maxActionPoints,
+        competencePoints: state.competencePoints,
+        competences: (state.competences as { competence: string; level: number }[]) ?? [],
+      });
+    }
+  }
 
   const faction = await getFactionById(newFaction.id);
   return { faction: faction! };

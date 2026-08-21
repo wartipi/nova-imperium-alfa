@@ -41,7 +41,9 @@ router.get("/me", requireAuth, async (req: AuthRequest, res) => {
 });
 
 // ─── POST /api/factions ───────────────────────────────────────────────────────
-// Authentifié — créer une faction
+// Authentifié — créer une faction.
+// Bypass admin : rôle admin + X-Admin-Mode absent ou 'true' → skipCostCheck.
+// X-Admin-Mode: 'false' → l'admin est traité comme joueur ordinaire.
 router.post("/", requireAuth, async (req: AuthRequest, res) => {
   try {
     const { name, description, charter, emblem, structure, type, recruitment, color, banner, motto } =
@@ -51,24 +53,40 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: "Champs obligatoires manquants" });
     }
 
-    const result = await createFaction(req.user!.id, req.user!.username, {
-      name,
-      description,
-      charter,
-      emblem,
-      structure,
-      type,
-      recruitment: recruitment || "open",
-      color: color || "#888888",
-      banner: banner || emblem,
-      motto: motto || "",
-    });
+    // ─── Calcul du bypass admin (même patron que territories.ts et treaties.ts) ──
+    const headerValue = req.headers['x-admin-mode'] as string | undefined;
+    const adminBypass =
+      req.user!.role === 'admin' && (headerValue === undefined || headerValue === 'true');
+
+    const result = await createFaction(
+      req.user!.id,
+      req.user!.username,
+      {
+        name,
+        description,
+        charter,
+        emblem,
+        structure,
+        type,
+        recruitment: recruitment || "open",
+        color: color || "#888888",
+        banner: banner || emblem,
+        motto: motto || "",
+      },
+      adminBypass
+    );
 
     if (result.error === "ALREADY_IN_FACTION") {
       return res.status(409).json({ error: "Vous appartenez déjà à une faction" });
     }
     if (result.error === "NAME_TAKEN") {
       return res.status(409).json({ error: "Ce nom de faction est déjà utilisé" });
+    }
+    if (result.error === "INSUFFICIENT_ACTION_POINTS") {
+      return res.status(400).json({
+        error: result.error,
+        message: result.message || "Points d'action insuffisants",
+      });
     }
 
     res.status(201).json(result.faction);

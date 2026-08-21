@@ -130,14 +130,16 @@ export const getUnitMovementCost = (unitType: string, distance: number): number 
   return ACTION_COSTS.calculateMovementCost(distance, unitType);
 };
 
-// ─── Actions d'avatar ──────────────────────────────────────────────────────────
-// Coûts des actions réalisables depuis le menu avatar (AvatarActionMenu).
-// La valeur de claim_territory (10) est reprise telle quelle depuis AvatarActionMenu.tsx.
-export const AVATAR_ACTION_COSTS: Record<string, number> = {
+// ─── Actions identifiées ───────────────────────────────────────────────────────
+// Table canonique partagée client/serveur des coûts PA par identifiant d'action.
+// Le nom ACTION_COSTS_BY_ID remplace AVATAR_ACTION_COSTS : toutes les actions
+// coûteuses ne sont pas des actions d'avatar (ex : création de faction).
+export const ACTION_COSTS_BY_ID: Record<string, number> = {
   claim_territory: 10,
+  create_faction: 50,
 };
 
-// Retourne le coût en PA d'une action d'avatar à partir de son identifiant (0 si inconnu).
-export function getAvatarActionCost(actionId: string): number {
-  return AVATAR_ACTION_COSTS[actionId] ?? 0;
+// Retourne le coût en PA d'une action à partir de son identifiant (0 si inconnu).
+export function getActionCost(actionId: string): number {
+  return ACTION_COSTS_BY_ID[actionId] ?? 0;
 }

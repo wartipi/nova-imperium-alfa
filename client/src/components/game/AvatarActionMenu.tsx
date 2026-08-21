@@ -7,7 +7,7 @@ import { useMap } from "../../lib/stores/useMap";
 // import { useMapState } from "../../lib/stores/useMapState"; // Pas utilisé ici
 import { Card } from "../ui/card";
 import { apiClaimTerritory } from "../../lib/api/territoriesApi";
-import { getAvatarActionCost } from "../../../../shared/ActionPointsCosts";
+import { getActionCost } from "../../../../shared/ActionPointsCosts";
 import { getPlayerCurrentCity } from "../../lib/api/economyApi";
 
 function getAuthHeaders(): Record<string, string> {
@@ -129,7 +129,7 @@ export function AvatarActionMenu({ position, onClose }: AvatarActionMenuProps) {
       id: 'claim_territory',
       name: 'Revendiquer le territoire',
       description: 'Revendiquer la case actuelle de votre avatar comme territoire',
-      cost: getAvatarActionCost('claim_territory'),
+      cost: getActionCost('claim_territory'),
       icon: '🚩',
       category: 'territory',
     }

@@ -12,7 +12,7 @@ import {
 } from "../territoryService";
 import { transferColonyOwnership } from "../ownershipService";
 import { getPlayerState, savePlayerState } from "../playerStateService";
-import { getAvatarActionCost } from "../../shared/ActionPointsCosts";
+import { getActionCost } from "../../shared/ActionPointsCosts";
 
 const router = Router();
 
@@ -86,7 +86,7 @@ router.post("/claim", requireAuth, async (req: AuthRequest, res) => {
     const adminBypass =
       roleAdmin === 'admin' && (headerValueAdmin === undefined || headerValueAdmin === 'true');
 
-    const CLAIM_COST = getAvatarActionCost('claim_territory');
+    const CLAIM_COST = getActionCost('claim_territory');
 
     // ─── Vérification PA (sauf admin bypass) ─────────────────────────────────
     if (!adminBypass) {

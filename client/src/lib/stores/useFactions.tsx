@@ -96,7 +96,7 @@ interface FactionState {
     color?: string;
     banner?: string;
     motto?: string;
-  }) => Promise<void>;
+  }, adminMode?: boolean) => Promise<void>;
 
   joinFaction: (factionId: string) => Promise<void>;
   leaveFaction: (factionId: string) => Promise<void>;
@@ -144,7 +144,7 @@ export const useFactions = create<FactionState>()(
       }
     },
 
-    createFaction: async (factionData) => {
+    createFaction: async (factionData, adminMode = false) => {
       const faction = await apiCreateFaction({
         name: factionData.name,
         description: factionData.charter,
@@ -156,7 +156,7 @@ export const useFactions = create<FactionState>()(
         color: factionData.color || "#" + Math.floor(Math.random() * 16777215).toString(16).padStart(6, "0"),
         banner: factionData.banner || factionData.emblem,
         motto: factionData.motto || "",
-      });
+      }, adminMode);
       await get().loadFactions();
       set({ playerFaction: faction.id });
     },

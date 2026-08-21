@@ -5,6 +5,7 @@ import { usePlayer } from "../../lib/stores/usePlayer";
 import { useReputation } from "../../lib/stores/useReputation";
 import { useFactions } from "../../lib/stores/useFactions";
 import { useAuth } from "../../lib/auth/AuthContext";
+import { getActionCost } from "../../../../shared/ActionPointsCosts";
 
 interface FactionCreationData {
   name: string;
@@ -18,7 +19,7 @@ interface FactionCreationData {
 
 export function FactionCreationPanel() {
   const { currentNovaImperium } = useNovaImperium();
-  const { actionPoints, spendActionPoints, playerName } = usePlayer();
+  const { actionPoints, playerName } = usePlayer();
   const { honor, gnParticipation, seasonPass, canCreateFaction } = useReputation();
   const { createFaction } = useFactions();
   const { isAdmin } = useAuth();
@@ -36,7 +37,7 @@ export function FactionCreationPanel() {
 
   if (!currentNovaImperium) return null;
 
-  const creationCost = 50; // Coût en PA pour créer une faction
+  const creationCost = getActionCost('create_faction'); // Source canonique shared/ActionPointsCosts.ts
   const canCreate = isAdmin || (canCreateFaction() && actionPoints >= creationCost);
 
   const factionTypes = {
@@ -63,32 +64,25 @@ export function FactionCreationPanel() {
     setIsLoading(true);
 
     try {
-      const success = isAdmin || spendActionPoints(creationCost);
-      if (success) {
-        if (isAdmin) {
-          console.log(`[Admin] Faction créée sans coût en PA`);
-        }
-        await createFaction({
-          ...factionData,
-          founderId: 'player',
-          founderName: playerName || 'Joueur'
-        });
-        
-        // Réinitialiser le formulaire
-        setFactionData({
-          name: '',
-          charter: '',
-          emblem: '',
-          structure: '',
-          type: 'military',
-          recruitment: 'open'
-        });
-        setShowForm(false);
-        
-        console.log(`Faction créée pour ${creationCost} PA`);
-      }
+      await createFaction({
+        ...factionData,
+        founderId: 'player',
+        founderName: playerName || 'Joueur'
+      }, isAdmin);
+
+      // Réinitialiser le formulaire
+      setFactionData({
+        name: '',
+        charter: '',
+        emblem: '',
+        structure: '',
+        type: 'military',
+        recruitment: 'open'
+      });
+      setShowForm(false);
     } catch (error) {
       console.error('Erreur lors de la création de la faction:', error);
+      alert((error as Error).message || 'Une erreur inattendue s\'est produite');
     } finally {
       setIsLoading(false);
     }

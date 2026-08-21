@@ -68,26 +68,36 @@ export async function fetchMyFaction(): Promise<PlayerFactionResponse> {
   return res.json();
 }
 
-export async function apiCreateFaction(data: {
-  name: string;
-  description: string;
-  charter: string;
-  emblem: string;
-  structure: string;
-  type: string;
-  recruitment: string;
-  color: string;
-  banner: string;
-  motto: string;
-}): Promise<FactionDTO> {
+export async function apiCreateFaction(
+  data: {
+    name: string;
+    description: string;
+    charter: string;
+    emblem: string;
+    structure: string;
+    type: string;
+    recruitment: string;
+    color: string;
+    banner: string;
+    motto: string;
+  },
+  adminMode: boolean = false
+): Promise<FactionDTO> {
+  const extraHeaders: Record<string, string> = adminMode
+    ? { 'X-Admin-Mode': 'true' }
+    : {};
   const res = await fetch("/api/factions", {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    headers: { "Content-Type": "application/json", ...getAuthHeaders(), ...extraHeaders },
     body: JSON.stringify(data),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || "Erreur création faction");
+    throw new Error(
+      (err as { message?: string; error?: string }).message ||
+      (err as { message?: string; error?: string }).error ||
+      "Erreur création faction"
+    );
   }
   return res.json();
 }
