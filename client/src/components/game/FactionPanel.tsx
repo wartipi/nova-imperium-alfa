@@ -13,7 +13,7 @@ interface FactionPanelProps {
 }
 
 export function FactionPanel({ onClose }: FactionPanelProps) {
-  const { factions, playerFaction, getFactionById, canCreateFaction, createFaction, joinFaction, leaveFaction, getAvailableQuests } = useFactions();
+  const { factions, playerFaction, getFactionById, canCreateFaction, joinFaction, leaveFaction, getAvailableQuests } = useFactions();
   const { playerName } = usePlayer();
   const { honor, getReputationLevel, canCreateFaction: canCreateFactionRep } = useReputation();
   const { currentNovaImperium } = useNovaImperium();
@@ -33,13 +33,13 @@ export function FactionPanel({ onClose }: FactionPanelProps) {
   
   const handleJoinFaction = (factionId: string) => {
     if (playerName) {
-      joinFaction(factionId, 'player', playerName);
+      joinFaction(factionId);
     }
   };
   
   const handleLeaveFaction = () => {
     if (playerFaction) {
-      leaveFaction(playerFaction, 'player');
+      leaveFaction(playerFaction);
     }
   };
   
