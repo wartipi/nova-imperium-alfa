@@ -63,7 +63,7 @@ Tu es un superviseur technique et validateur, pas un générateur automatique de
 
 - Déterminisme total : aucun `Math.random()` dans les rendus ou la logique de jeu, tout dérivé d'un hash `(x, y, seed)`
 - Convention `mapData[y][x]` ligne-major, géométrie hex odd-q identique à `GameEngine`
-- Compilation TypeScript : baseline connue de **176 erreurs préexistantes** (dernière vérification : 21 août 2026, après BLOC 3a — renommage de ville réservé à l'admin et persisté en base). Objectif : zéro régression — chaque bloc livre avec le même nombre d'erreurs qu'à son début. Aucune correction d'erreur hors scope sans instruction explicite.
+- Compilation TypeScript : baseline connue de **165 erreurs préexistantes** (dernière vérification : 22 août 2026, après NETTOYAGE-2 — retrait de six panneaux morts et du code sans appelant). Objectif : zéro régression — chaque bloc livre avec le même nombre d'erreurs qu'à son début. Aucune correction d'erreur hors scope sans instruction explicite.
 - Style de code identique à l'existant (pas de refactor cosmétique non demandé)
 - Documentation en français dans le code et les commentaires
 

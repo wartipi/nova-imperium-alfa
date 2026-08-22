@@ -18,7 +18,7 @@ import {
 type MilitarySupportLevel = "full" | "partial" | "emergency_only";
 
 export function TreatiesPanel() {
-  const { actionPoints, spendActionPoints, getCompetenceLevel } = usePlayer();
+  const { actionPoints, getCompetenceLevel } = usePlayer();
   const { isAdmin } = useAuth();
   const { factions, playerFaction } = useFactions();
 

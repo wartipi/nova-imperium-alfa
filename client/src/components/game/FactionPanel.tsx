@@ -31,15 +31,6 @@ export function FactionPanel({ onClose }: FactionPanelProps) {
     return <AlliancesPanel onClose={() => setActiveTab('overview')} />;
   }
   
-  const handleCreateFaction = () => {
-    if (newFactionName.trim() && newFactionDescription.trim() && canCreate) {
-      createFaction(newFactionName, newFactionDescription, newFactionType, 'player');
-      setNewFactionName('');
-      setNewFactionDescription('');
-      setShowCreateFaction(false);
-    }
-  };
-  
   const handleJoinFaction = (factionId: string) => {
     if (playerName) {
       joinFaction(factionId, 'player', playerName);
