@@ -38,14 +38,24 @@ interface PublicEvent {
   metadata?: Record<string, any>;
 }
 
+function getAuthHeaders(): Record<string, string> {
+  const saved = localStorage.getItem("nova_imperium_auth");
+  if (!saved) return {};
+  const { token } = JSON.parse(saved);
+  if (!token) return {};
+  return { Authorization: `Bearer ${token}` };
+}
+
 export function PublicEventsPanel() {
   const [events, setEvents] = useState<PublicEvent[]>([]);
   const [statistics, setStatistics] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'recent' | 'high-priority' | 'military'>('recent');
 
   const loadEvents = async () => {
     setIsLoading(true);
+    setError(null);
     try {
       let endpoint = '/api/public-events';
       
@@ -63,7 +73,12 @@ export function PublicEventsPanel() {
           endpoint = '/api/public-events?limit=50';
       }
 
-      const response = await fetch(endpoint);
+      const response = await fetch(endpoint, {
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) {
+        throw new Error('Erreur lors du chargement des événements');
+      }
       const data = await response.json();
       setEvents(data.map((event: any) => ({
         ...event,
@@ -71,35 +86,46 @@ export function PublicEventsPanel() {
       })));
     } catch (error) {
       console.error('Erreur lors du chargement des événements:', error);
+      setError(error instanceof Error ? error.message : 'Erreur lors du chargement des événements');
     } finally {
       setIsLoading(false);
     }
   };
 
   const loadStatistics = async () => {
+    setError(null);
     try {
-      const response = await fetch('/api/public-events/statistics');
+      const response = await fetch('/api/public-events/statistics', {
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) {
+        throw new Error('Erreur lors du chargement des statistiques');
+      }
       const data = await response.json();
       setStatistics(data);
     } catch (error) {
       console.error('Erreur lors du chargement des statistiques:', error);
+      setError(error instanceof Error ? error.message : 'Erreur lors du chargement des statistiques');
     }
   };
 
   const initializeDemoEvents = async () => {
+    setError(null);
     try {
       const response = await fetch('/api/public-events/init-demo', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ currentTurn: 20 })
       });
-      if (response.ok) {
-        loadEvents();
-        loadStatistics();
-        console.log('Événements de démonstration créés');
+      if (!response.ok) {
+        throw new Error('Erreur lors de l’initialisation des événements');
       }
+      loadEvents();
+      loadStatistics();
+      console.log('Événements de démonstration créés');
     } catch (error) {
       console.error('Erreur lors de l\'initialisation des événements:', error);
+      setError(error instanceof Error ? error.message : 'Erreur lors de l\'initialisation des événements');
     }
   };
 
@@ -165,6 +191,14 @@ export function PublicEventsPanel() {
       <div className="flex items-center justify-center h-64">
         <RefreshCw className="h-8 w-8 animate-spin text-amber-600" />
         <span className="ml-2 text-amber-800">Chargement des événements...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <span className="text-red-600">Erreur : {error}</span>
       </div>
     );
   }

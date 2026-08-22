@@ -22,8 +22,18 @@ interface WorldEvent {
   isVisible: boolean;
 }
 
+function getAuthHeaders(): Record<string, string> {
+  const saved = localStorage.getItem("nova_imperium_auth");
+  if (!saved) return {};
+  const { token } = JSON.parse(saved);
+  if (!token) return {};
+  return { Authorization: `Bearer ${token}` };
+}
+
 async function fetchPublicEvents(): Promise<WorldEvent[]> {
-  const response = await fetch('/api/public-events');
+  const response = await fetch('/api/public-events', {
+    headers: getAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error('Erreur lors de la récupération des événements');
   }
@@ -31,18 +41,21 @@ async function fetchPublicEvents(): Promise<WorldEvent[]> {
 }
 
 async function initDemoEvents(): Promise<void> {
-  await fetch('/api/public-events/init-demo', {
+  const response = await fetch('/api/public-events/init-demo', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify({ currentTurn: 5 })
   });
+  if (!response.ok) {
+    throw new Error('Erreur lors de l’initialisation des événements');
+  }
 }
 
 export function EventPanel() {
   const [filterType, setFilterType] = useState<PublicEventType | 'all'>('all');
   const [initialized, setInitialized] = useState(false);
 
-  const { data: worldEvents = [], isLoading, refetch } = useQuery<WorldEvent[]>({
+  const { data: worldEvents = [], isLoading, error, refetch } = useQuery<WorldEvent[]>({
     queryKey: ['publicEvents'],
     queryFn: fetchPublicEvents,
     staleTime: 30000,
@@ -111,6 +124,19 @@ export function EventPanel() {
         <div className="text-center">
           <h4 className="font-bold text-base mb-3">Chronique du Monde</h4>
           <div className="text-sm text-amber-600">Chargement des événements...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <div className="text-center">
+          <h4 className="font-bold text-base mb-3">Chronique du Monde</h4>
+          <div className="text-sm text-red-600">
+            Erreur lors du chargement des événements : {error instanceof Error ? error.message : "Une erreur inattendue s'est produite"}
+          </div>
         </div>
       </div>
     );
