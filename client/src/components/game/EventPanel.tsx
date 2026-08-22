@@ -67,6 +67,8 @@ export function EventPanel() {
       initDemoEvents().then(() => {
         setInitialized(true);
         refetch();
+      }).catch(() => {
+        setInitialized(true);
       });
     }
   }, [worldEvents, isLoading, initialized, refetch]);

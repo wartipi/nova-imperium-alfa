@@ -1,10 +1,12 @@
 import { Router } from 'express';
+import { requireAuth } from '../middleware/auth';
+import type { AuthRequest } from '../middleware/auth';
 import { publicEventsService } from '../publicEventsService';
 import { EventFilter } from '../../shared/publicEventsSchema';
 
 const router = Router();
 
-router.get('/', async (req, res) => {
+router.get('/', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { 
       types, 
@@ -57,7 +59,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/recent/:turn', async (req, res) => {
+router.get('/recent/:turn', requireAuth, async (req: AuthRequest, res) => {
   try {
     const currentTurn = parseInt(req.params.turn);
     const { turnsBack = '5', limit = '20' } = req.query;
@@ -75,7 +77,7 @@ router.get('/recent/:turn', async (req, res) => {
   }
 });
 
-router.get('/priority/:priority', async (req, res) => {
+router.get('/priority/:priority', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { priority } = req.params;
     const { limit } = req.query;
@@ -92,7 +94,7 @@ router.get('/priority/:priority', async (req, res) => {
   }
 });
 
-router.get('/participant/:participantId', async (req, res) => {
+router.get('/participant/:participantId', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { participantId } = req.params;
     const { limit } = req.query;
@@ -109,7 +111,7 @@ router.get('/participant/:participantId', async (req, res) => {
   }
 });
 
-router.get('/statistics', async (req, res) => {
+router.get('/statistics', requireAuth, async (req: AuthRequest, res) => {
   try {
     const stats = await publicEventsService.getEventStatistics();
     res.json(stats);
@@ -119,7 +121,7 @@ router.get('/statistics', async (req, res) => {
   }
 });
 
-router.post('/alliance', async (req, res) => {
+router.post('/alliance', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { faction1, faction2, allianceType, currentTurn, terms } = req.body;
     
@@ -138,7 +140,7 @@ router.post('/alliance', async (req, res) => {
   }
 });
 
-router.post('/campaign', async (req, res) => {
+router.post('/campaign', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { 
       isVictory, 
@@ -167,7 +169,7 @@ router.post('/campaign', async (req, res) => {
   }
 });
 
-router.post('/war-declaration', async (req, res) => {
+router.post('/war-declaration', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { aggressor, target, currentTurn, reason } = req.body;
     
@@ -185,7 +187,7 @@ router.post('/war-declaration', async (req, res) => {
   }
 });
 
-router.post('/peace-treaty', async (req, res) => {
+router.post('/peace-treaty', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { faction1, faction2, currentTurn, terms } = req.body;
     
@@ -203,7 +205,7 @@ router.post('/peace-treaty', async (req, res) => {
   }
 });
 
-router.post('/city-foundation', async (req, res) => {
+router.post('/city-foundation', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { cityName, founder, currentTurn, location } = req.body;
     
@@ -221,7 +223,7 @@ router.post('/city-foundation', async (req, res) => {
   }
 });
 
-router.post('/resource-discovery', async (req, res) => {
+router.post('/resource-discovery', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { resourceType, discoverer, currentTurn, location, quantity } = req.body;
     
@@ -240,7 +242,7 @@ router.post('/resource-discovery', async (req, res) => {
   }
 });
 
-router.post('/faction-creation', async (req, res) => {
+router.post('/faction-creation', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { factionName, founder, currentTurn, memberCount } = req.body;
     
@@ -258,7 +260,7 @@ router.post('/faction-creation', async (req, res) => {
   }
 });
 
-router.post('/init-demo', async (req, res) => {
+router.post('/init-demo', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { currentTurn = 1 } = req.body;
     await publicEventsService.initializeDemoEvents(currentTurn);
@@ -269,7 +271,7 @@ router.post('/init-demo', async (req, res) => {
   }
 });
 
-router.patch('/:eventId/visibility', async (req, res) => {
+router.patch('/:eventId/visibility', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { eventId } = req.params;
     const { isVisible } = req.body;
@@ -287,7 +289,7 @@ router.patch('/:eventId/visibility', async (req, res) => {
   }
 });
 
-router.delete('/:eventId', async (req, res) => {
+router.delete('/:eventId', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { eventId } = req.params;
     
