@@ -66,6 +66,8 @@ Tu es un superviseur technique et validateur, pas un générateur automatique de
 - Compilation TypeScript : baseline connue de **163 erreurs préexistantes** (dernière vérification : 22 août 2026, après ÉVÉNEMENTS-1 BLOC 2 — authentification requise sur les routes d'événements publics). Objectif : zéro régression — chaque bloc livre avec le même nombre d'erreurs qu'à son début. Aucune correction d'erreur hors scope sans instruction explicite.
 - Style de code identique à l'existant (pas de refactor cosmétique non demandé)
 - Documentation en français dans le code et les commentaires
+- Une règle de jeu appliquée uniquement dans le navigateur n'est pas une règle : coûts en points d'action, prérequis de compétence, valeur marchande et rareté doivent être revérifiés par le serveur ; suivre le modèle `claim_territory` — identité lue depuis le jeton, solde vérifié, débit après succès, aucun montant envoyé par le client.
+- Importé n'est pas rendu : avant de conclure qu'un composant est vivant ou mort, vérifier qu'il est réellement rendu ou appelé, pas seulement importé ; cette erreur a déjà concerné `TurnEffectsSystem` le 19 août 2026 et `PublicAnnouncementPanel` le 22 août 2026.
 
 ## Règles fermes sur les modifications
 
