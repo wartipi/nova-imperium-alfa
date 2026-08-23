@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Button } from "../ui/button";
 import { useNovaImperium } from "../../lib/stores/useNovaImperium";
-import { usePlayer } from "../../lib/stores/usePlayer";
 import { useReputation } from "../../lib/stores/useReputation";
 
 interface Alliance {
@@ -23,7 +22,6 @@ interface AlliancesPanelProps {
 
 export function AlliancesPanel({ onClose }: AlliancesPanelProps) {
   const { currentNovaImperium } = useNovaImperium();
-  const { actionPoints, spendActionPoints } = usePlayer();
   const { honor, addReputationAction } = useReputation();
   
   const [activeTab, setActiveTab] = useState<'public' | 'secret' | 'create'>('public');
@@ -38,9 +36,6 @@ export function AlliancesPanel({ onClose }: AlliancesPanelProps) {
   });
 
   if (!currentNovaImperium) return null;
-
-  const creationCost = 15; // Coût en PA pour créer une alliance
-  const canCreateAlliance = actionPoints >= creationCost;
 
   // Alliances mock pour démonstration
   const mockAlliances: Alliance[] = [
@@ -79,44 +74,39 @@ export function AlliancesPanel({ onClose }: AlliancesPanelProps) {
       return;
     }
 
-    const success = spendActionPoints(creationCost);
-    if (success) {
-      // Créer l'alliance
-      const newAlliance: Alliance = {
-        id: Date.now().toString(),
-        name: allianceData.name,
-        type: allianceData.type,
-        members: [currentNovaImperium.name, ...allianceData.members.split(',').map(m => m.trim()).filter(m => m)],
-        description: allianceData.description,
-        terms: allianceData.terms,
-        createdAt: Date.now(),
-        createdBy: currentNovaImperium.name,
-        status: 'active',
-        gnBased: allianceData.gnBased
-      };
+    // Créer l'alliance
+    const newAlliance: Alliance = {
+      id: Date.now().toString(),
+      name: allianceData.name,
+      type: allianceData.type,
+      members: [currentNovaImperium.name, ...allianceData.members.split(',').map(m => m.trim()).filter(m => m)],
+      description: allianceData.description,
+      terms: allianceData.terms,
+      createdAt: Date.now(),
+      createdBy: currentNovaImperium.name,
+      status: 'active',
+      gnBased: allianceData.gnBased
+    };
 
-      // Ajouter à la réputation
-      addReputationAction({
-        description: `Créé l'alliance "${allianceData.name}"`,
-        honorChange: allianceData.type === 'public' ? 25 : 10,
-        category: 'diplomatic',
-        witnesses: allianceData.type === 'public' ? newAlliance.members : []
-      });
+    // Ajouter à la réputation
+    addReputationAction({
+      description: `Créé l'alliance "${allianceData.name}"`,
+      honorChange: allianceData.type === 'public' ? 25 : 10,
+      category: 'diplomatic',
+      witnesses: allianceData.type === 'public' ? newAlliance.members : []
+    });
 
-      // Réinitialiser le formulaire
-      setAllianceData({
-        name: '',
-        type: 'public',
-        members: '',
-        description: '',
-        terms: '',
-        gnBased: false
-      });
-      setShowCreateForm(false);
-      setActiveTab('public');
-      
-      console.log(`Alliance créée pour ${creationCost} PA`);
-    }
+    // Réinitialiser le formulaire
+    setAllianceData({
+      name: '',
+      type: 'public',
+      members: '',
+      description: '',
+      terms: '',
+      gnBased: false
+    });
+    setShowCreateForm(false);
+    setActiveTab('public');
   };
 
   const handleBetrayAlliance = (alliance: Alliance) => {
@@ -265,7 +255,7 @@ export function AlliancesPanel({ onClose }: AlliancesPanelProps) {
       {activeTab === 'create' && (
         <div className="space-y-4">
           <div className="text-sm text-gray-600 mb-3">
-            Créez une nouvelle alliance. Coût: {creationCost} ⚡ Points d'Action
+            Système d'alliances en refonte.
           </div>
           
           <div className="space-y-3">
@@ -349,10 +339,10 @@ export function AlliancesPanel({ onClose }: AlliancesPanelProps) {
               <Button
                 size="sm"
                 onClick={handleCreateAlliance}
-                disabled={!canCreateAlliance}
+                disabled
                 className="bg-blue-600 hover:bg-blue-700"
               >
-                Créer ({creationCost} ⚡)
+                Système en refonte
               </Button>
             </div>
           </div>
