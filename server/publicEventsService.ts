@@ -4,6 +4,11 @@ import { publicEvents } from "../shared/schema";
 import type { PublicEvent, InsertPublicEvent } from "../shared/schema";
 import { EventDisplayConfig, type PublicEventType, type EventPriority } from '../shared/publicEventsSchema';
 
+// Le serveur n'a aucune notion fiable du tour courant : le numéro vient du navigateur (voir ÉCONOMIE-1).
+// Les événements sont donc datés « tour inconnu » jusqu'à ce qu'un vrai compteur existe côté serveur.
+// Une seule constante sera à changer le jour venu.
+export const UNKNOWN_TURN = 0;
+
 interface EventFilter {
   types?: string[];
   priorities?: string[];

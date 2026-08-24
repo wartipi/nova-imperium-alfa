@@ -3,6 +3,7 @@ import { db } from "./db";
 import { factions, factionMembers } from "../shared/schema";
 import { getPlayerState, savePlayerState } from "./playerStateService";
 import { getActionCost } from "../shared/ActionPointsCosts";
+import { publicEventsService, UNKNOWN_TURN } from "./publicEventsService";
 
 export interface FactionMemberDTO {
   id: string;
@@ -210,6 +211,16 @@ export async function createFaction(
   }
 
   const faction = await getFactionById(newFaction.id);
+  try {
+    await publicEventsService.createFactionCreationEvent(
+      faction!.name,
+      playerName,
+      UNKNOWN_TURN,
+      1
+    );
+  } catch (error) {
+    console.error("Erreur lors de l'annonce publique de création de faction:", error);
+  }
   return { faction: faction! };
 }
 

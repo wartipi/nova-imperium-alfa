@@ -2,6 +2,7 @@ import { eq, and, sql, inArray } from "drizzle-orm";
 import { db } from "./db";
 import { territories, colonies, cities, cityBuildings, factionMembers, factions, mapTiles } from "../shared/schema";
 import { hexDistance } from "./hexUtils";
+import { publicEventsService, UNKNOWN_TURN } from "./publicEventsService";
 
 export interface TerritoryDTO {
   id: number;
@@ -829,6 +830,17 @@ export async function foundColony(
   // Hook post-fondation V1 : recalcul managingColonyId pour tous les territoires du même owner.
   // Une nouvelle ville peut devenir gestionnaire de territoires existants si elle est plus proche.
   await recalculateManagingColoniesForOwner(ownerType, ownerPlayerId, ownerFactionId);
+
+  try {
+    await publicEventsService.createCityFoundationEvent(
+      insertedColonyDto.name,
+      insertedColonyDto.founderName,
+      UNKNOWN_TURN,
+      { x: insertedColonyDto.worldX, y: insertedColonyDto.worldY }
+    );
+  } catch (error) {
+    console.error("Erreur lors de l'annonce publique de fondation de ville:", error);
+  }
 
   return { colony: insertedColonyDto };
 }
