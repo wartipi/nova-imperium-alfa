@@ -59,16 +59,11 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
   }
 });
 
-router.get('/recent/:turn', requireAuth, async (req: AuthRequest, res) => {
+router.get('/recent', requireAuth, async (req: AuthRequest, res) => {
   try {
-    const currentTurn = parseInt(req.params.turn);
-    const { turnsBack = '5', limit = '20' } = req.query;
+    const { limit = '20' } = req.query;
     
-    const events = await publicEventsService.getRecentEvents(
-      currentTurn, 
-      parseInt(turnsBack as string),
-      parseInt(limit as string)
-    );
+    const events = await publicEventsService.getRecentEvents(parseInt(limit as string));
     
     res.json(events);
   } catch (error) {

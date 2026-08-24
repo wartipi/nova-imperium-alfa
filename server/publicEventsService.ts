@@ -9,6 +9,11 @@ import { EventDisplayConfig, type PublicEventType, type EventPriority } from '..
 // Une seule constante sera à changer le jour venu.
 export const UNKNOWN_TURN = 0;
 
+// Fenêtre de l'onglet « Récents », exprimée en heures.
+// Le serveur n'ayant aucune notion fiable du tour courant (voir ÉCONOMIE-1), « récent »
+// se mesure en temps réel à partir de l'horodatage de chaque événement.
+export const RECENT_WINDOW_HOURS = 48;
+
 interface EventFilter {
   types?: string[];
   priorities?: string[];
@@ -94,14 +99,12 @@ export class PublicEventsService {
     return limit ? events.slice(0, limit) : events;
   }
 
-  async getRecentEvents(currentTurn: number, turnsBack: number = 5, limit: number = 20): Promise<PublicEvent[]> {
-    const filter: EventFilter = {
-      turnRange: {
-        from: Math.max(1, currentTurn - turnsBack),
-        to: currentTurn
-      }
-    };
-    return this.getEvents(filter, limit);
+  async getRecentEvents(limit: number = 20): Promise<PublicEvent[]> {
+    const events = await this.getEvents();
+    const cutoff = Date.now() - RECENT_WINDOW_HOURS * 60 * 60 * 1000;
+    return events
+      .filter(event => new Date(event.timestamp).getTime() >= cutoff)
+      .slice(0, limit);
   }
 
   async getEventsByPriority(priority: EventPriority, limit?: number): Promise<PublicEvent[]> {

@@ -61,7 +61,7 @@ export function PublicEventsPanel() {
       
       switch (selectedFilter) {
         case 'recent':
-          endpoint = '/api/public-events/recent/20?turnsBack=10&limit=30';
+          endpoint = '/api/public-events/recent?limit=30';
           break;
         case 'high-priority':
           endpoint = '/api/public-events/priority/high?limit=20';
