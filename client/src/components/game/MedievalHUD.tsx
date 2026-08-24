@@ -17,7 +17,6 @@ import { useDualResourceSync } from "../../hooks/useDualResourceSync";
 import { ActivityReportPanel } from "./ActivityReportPanel";
 import { CouriersPanel } from "./CouriersPanel";
 import { TreatiesPanel } from "./TreatiesPanel";
-import { EventPanel } from "./EventPanel";
 import { PublicAnnouncementPanel } from "./PublicAnnouncementPanel";
 import { GameGuidePanel } from "./GameGuidePanel";
 import { HelpPanel } from "./HelpPanel";
@@ -43,7 +42,6 @@ type MenuSection =
   | 'activities' 
   | 'courier' 
   | 'treaties'
-  | 'events' 
   | 'announcements' 
   | 'guide' 
   | 'help'
@@ -246,7 +244,6 @@ export function MedievalHUD() {
     { id: 'treaties'   as MenuSection, label: 'TRAITÉS',                   icon: '📜' },
     { id: 'courier'    as MenuSection, label: 'COURRIER',                  icon: '✉️' },
     { id: 'activities' as MenuSection, label: "RAPPORT D'ACTIVITÉS",       icon: '📊' },
-    { id: 'events'     as MenuSection, label: 'ÉVÉNEMENT',                 icon: '🎭' },
     { id: 'announcements' as MenuSection, label: 'ANNONCE PUBLIQUE',       icon: '📢' },
     { id: 'guide'      as MenuSection, label: 'GUIDE DE JEUX',             icon: '📖' },
     { id: 'help'       as MenuSection, label: 'AIDE',                      icon: '❓' },
@@ -734,7 +731,6 @@ export function MedievalHUD() {
               {activeSection === 'activities' && <ActivityReportPanel />}
               {activeSection === 'courier' && <CouriersPanel />}
               {activeSection === 'treaties' && <TreatiesPanel />}
-              {activeSection === 'events' && <EventPanel />}
               {activeSection === 'territory' && (
                 <div className="h-full">
                   <UnifiedTerritoryPanel onClose={() => setActiveSection(null)} />
