@@ -353,10 +353,8 @@ export class PublicEventsService {
       byPriority[event.priority] = (byPriority[event.priority] || 0) + 1;
     });
 
-    const recentActivity = events.filter(e => {
-      const daysSinceEvent = (Date.now() - new Date(e.timestamp).getTime()) / (1000 * 60 * 60 * 24);
-      return daysSinceEvent <= 7;
-    }).length;
+    const cutoff = Date.now() - RECENT_WINDOW_HOURS * 60 * 60 * 1000;
+    const recentActivity = events.filter(e => new Date(e.timestamp).getTime() >= cutoff).length;
 
     return {
       total: events.length,
