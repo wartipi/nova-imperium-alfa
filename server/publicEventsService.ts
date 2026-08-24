@@ -330,48 +330,6 @@ export class PublicEventsService {
     );
   }
 
-  async initializeDemoEvents(currentTurn: number = 1): Promise<void> {
-    await this.createAllianceEvent(
-      'Royaume de Vaeloria',
-      'République de Theros',
-      'Alliance Commerciale',
-      currentTurn - 2,
-      ['Libre échange de ressources', 'Protection mutuelle des routes commerciales']
-    );
-
-    await this.createCampaignEvent(
-      true,
-      'Siège de Drakmoor',
-      'Ordre des Paladins',
-      'Clans Barbares',
-      currentTurn - 1,
-      { x: 25, y: 15, regionName: 'Montagnes de Drakmoor' },
-      { attacker: 45, defender: 120 }
-    );
-
-    await this.createCityFoundationEvent(
-      'Nova Petra',
-      'Guilde des Marchands',
-      currentTurn,
-      { x: 30, y: 20, regionName: 'Plaines Fertiles' }
-    );
-
-    await this.createResourceDiscoveryEvent(
-      'Mithril',
-      'Compagnie Minière du Nord',
-      currentTurn - 3,
-      { x: 10, y: 5, regionName: 'Pics Gelés' },
-      500
-    );
-
-    await this.createFactionCreationEvent(
-      'Confrérie des Artisans',
-      'Maître Forgeron Aldric',
-      currentTurn - 4,
-      12
-    );
-  }
-
   async getEventStatistics(): Promise<{
     total: number;
     byType: Record<string, number>;

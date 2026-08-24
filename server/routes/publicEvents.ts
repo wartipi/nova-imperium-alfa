@@ -121,19 +121,12 @@ router.get('/statistics', requireAuth, async (req: AuthRequest, res) => {
   }
 });
 
-router.post('/init-demo', requireAuth, async (req: AuthRequest, res) => {
-  try {
-    const { currentTurn = 1 } = req.body;
-    await publicEventsService.initializeDemoEvents(currentTurn);
-    res.json({ message: 'Événements de démonstration initialisés' });
-  } catch (error) {
-    console.error('Erreur lors de l\'initialisation des événements de démo:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
 router.patch('/:eventId/visibility', requireAuth, async (req: AuthRequest, res) => {
   try {
+    if (req.user!.role !== 'admin') {
+      return res.status(403).json({ error: "Accès réservé à l'administration" });
+    }
+
     const { eventId } = req.params;
     const { isVisible } = req.body;
     
@@ -152,6 +145,10 @@ router.patch('/:eventId/visibility', requireAuth, async (req: AuthRequest, res) 
 
 router.delete('/:eventId', requireAuth, async (req: AuthRequest, res) => {
   try {
+    if (req.user!.role !== 'admin') {
+      return res.status(403).json({ error: "Accès réservé à l'administration" });
+    }
+
     const { eventId } = req.params;
     
     const success = await publicEventsService.deleteEvent(eventId);

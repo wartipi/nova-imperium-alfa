@@ -109,26 +109,6 @@ export function PublicEventsPanel() {
     }
   };
 
-  const initializeDemoEvents = async () => {
-    setError(null);
-    try {
-      const response = await fetch('/api/public-events/init-demo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ currentTurn: 20 })
-      });
-      if (!response.ok) {
-        throw new Error('Erreur lors de l’initialisation des événements');
-      }
-      loadEvents();
-      loadStatistics();
-      console.log('Événements de démonstration créés');
-    } catch (error) {
-      console.error('Erreur lors de l\'initialisation des événements:', error);
-      setError(error instanceof Error ? error.message : 'Erreur lors de l\'initialisation des événements');
-    }
-  };
-
   useEffect(() => {
     loadEvents();
     loadStatistics();
@@ -209,14 +189,6 @@ export function PublicEventsPanel() {
         <h3 className="text-lg font-semibold text-amber-900">Chroniques du Royaume</h3>
         <div className="flex gap-2">
           <Button
-            onClick={initializeDemoEvents}
-            size="sm"
-            variant="outline"
-            className="border-amber-600 text-amber-700 hover:bg-amber-50"
-          >
-            Créer événements d'exemple
-          </Button>
-          <Button
             onClick={() => {
               loadEvents();
               loadStatistics();
@@ -279,13 +251,6 @@ export function PublicEventsPanel() {
                   <p className="text-muted-foreground text-center mb-4">
                     Aucun événement public n'a encore été enregistré dans les chroniques du royaume.
                   </p>
-                  <Button
-                    onClick={initializeDemoEvents}
-                    variant="outline"
-                    className="border-amber-600 text-amber-700 hover:bg-amber-50"
-                  >
-                    Créer des événements d'exemple
-                  </Button>
                 </CardContent>
               </Card>
             ) : (
