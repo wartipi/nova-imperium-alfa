@@ -1,0 +1,53 @@
+PLAN VALIDÉ — TU PEUX EFFECTUER LES MODIFICATIONS DOCUMENTAIRES
+
+Applique le plan proposé avec les précisions obligatoires suivantes :
+
+1. Modifie uniquement :
+   - CLAUDE.md
+   - docs/JOURNAL_NI.md
+
+2. Le fichier non suivi suivant est une pièce jointe temporaire :
+   attached_assets/Pasted-NOVA-IMPERIUM-BLOC-DOCUMENTAIRE-DE-R-CONCILIATION-PR-PA_1789243225683.txt
+
+   Ne pas :
+   - le modifier;
+   - le supprimer;
+   - le déplacer;
+   - l’ajouter à Git;
+   - l’inclure dans un futur commit.
+
+3. Ajoute les 13 changements postérieurs à 4328a33 dans leur ordre Git réel.
+
+4. Pour chaque entrée du journal :
+   - utiliser la date du commit;
+   - utiliser le hash exact;
+   - relever les fichiers depuis Git;
+   - distinguer le résultat implémenté de la validation réellement effectuée;
+   - ne pas inventer d’identifiant lorsque le commit n’en contient pas;
+   - signaler clairement toute réserve.
+
+5. Attribution obligatoire :
+   - signer les nouvelles entrées sous « Keven / ChatGPT »;
+   - préciser « Exécution technique : Replit Agent » lorsque pertinent;
+   - ne jamais attribuer ce travail à Jenny / Claude;
+   - ne pas utiliser uniquement une attribution neutre « Replit Agent », car il faut conserver l’identité de l’équipe qui dirige le chantier.
+
+6. Corriger CLAUDE.md conformément au plan :
+   - branche canonique NI-10.09;
+   - dernier bloc confirmé A3;
+   - dernier commit confirmé 05d62f1;
+   - retrait de P13/V3-D8-A comme état actuel;
+   - description exacte des trois contrôles du fog;
+   - P16-C confirmé par audit du code, mais validation visuelle multi-joueurs non réalisée.
+
+7. Ne modifier aucun fichier de code.
+
+Après les modifications :
+
+- affiche le diff complet de CLAUDE.md et docs/JOURNAL_NI.md;
+- affiche git status --short;
+- confirme que seuls les deux documents suivis ont été modifiés;
+- confirme que la pièce jointe demeure seulement non suivie;
+- ne crée aucun commit;
+- ne pousse rien;
+- attends notre validation.
