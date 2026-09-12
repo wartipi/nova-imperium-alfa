@@ -1,0 +1,117 @@
+NOVA IMPERIUM — BLOC DOCUMENTAIRE DE RÉCONCILIATION
+
+PRÉPARÉ PAR : Keven / ChatGPT
+
+CONTEXTE VALIDÉ
+
+- Branche canonique : NI-10.09
+- Dernier commit local et distant confirmé :
+  05d62f1 — fix: une seule definition de recent dans le babillard
+- Dernier bloc livré : A3
+- La branche était synchronisée avec origin/NI-10.09 lors du dernier audit.
+- Le code fonctionnel ne doit pas être modifié dans ce bloc.
+
+PROBLÈMES CONFIRMÉS
+
+1. CLAUDE.md présente encore P13 et V3-D8-A comme état actuel.
+2. docs/JOURNAL_NI.md s’arrête au 21 août 2026.
+3. Git contient des changements poussés jusqu’au 24 août 2026.
+4. La description de la troisième couche du fog est inexacte :
+   - GameCanvas.tsx applique le filtre avant transmission;
+   - PixelMapRenderer.ts reçoit normalement le callback de visibilité;
+   - mais PixelMapRenderer.ts ne masque pas seul les joueurs si ce callback est absent.
+5. P16-C était un audit par lecture du code.
+   - Il n’a pas été validé visuellement avec un véritable deuxième joueur.
+   - Son statut doit rester « confirmé sous réserve ».
+
+MISSION
+
+Effectue uniquement la réconciliation documentaire.
+
+ÉTAPE 1 — ANALYSE AVANT MODIFICATION
+
+1. Vérifie la branche Git active.
+2. Vérifie que l’arbre de travail est propre.
+3. Vérifie que HEAD correspond toujours à origin/NI-10.09.
+4. Analyse tous les commits suivant le dernier commit ayant modifié
+   docs/JOURNAL_NI.md.
+5. Dresse la liste exacte des blocs absents du journal.
+6. Présente ton plan de modification avant d’écrire.
+
+ÉTAPE 2 — MODIFICATIONS AUTORISÉES
+
+Modifier uniquement :
+
+- CLAUDE.md
+- docs/JOURNAL_NI.md
+
+Dans CLAUDE.md :
+
+1. Remplacer l’état obsolète P13/V3-D8-A.
+2. Indiquer comme dernier bloc confirmé :
+   A3 — Une seule définition de « récent » dans le babillard.
+3. Indiquer le commit :
+   05d62f1.
+4. Conserver NI-10.09 comme branche canonique.
+5. Corriger la description de la protection fog :
+   - trois contrôles actifs dans le chemin normal;
+   - filtrage client dans GameCanvas.tsx;
+   - filtrage serveur dans playerPresenceService.ts;
+   - garde supplémentaire dans PixelMapRenderer.ts lorsque le callback
+     isHexVisible est fourni;
+   - ne pas affirmer que PixelMapRenderer masque seul par défaut lorsque
+     le callback est absent.
+6. Indiquer correctement P16-C comme :
+   audit exécuté et confirmé par lecture de code, mais validation visuelle
+   multi-joueurs encore non réalisée.
+
+Dans docs/JOURNAL_NI.md :
+
+1. Reconstituer les entrées manquantes à partir de Git uniquement.
+2. Couvrir tous les commits postérieurs au 21 août qui représentent des
+   blocs fonctionnels documentables.
+3. Inclure au minimum, si leur présence est toujours confirmée par Git :
+   - C1;
+   - C2;
+   - A1a;
+   - A2;
+   - A3.
+4. Pour chaque entrée, indiquer :
+   - identifiant du bloc;
+   - date;
+   - commit;
+   - objectif;
+   - fichiers réellement modifiés;
+   - résultat;
+   - validation réellement effectuée;
+   - réserves éventuelles.
+5. Ne rien inventer si une information n’est pas prouvée par Git ou le code.
+6. Respecter le format existant du journal.
+7. Ajouter la signature de travail conformément à la convention existante
+   du projet, sans attribuer le travail à Claude/Jenny.
+
+INTERDICTIONS
+
+- Ne modifier aucun fichier TypeScript ou JavaScript.
+- Ne modifier aucun comportement fonctionnel.
+- Ne corriger aucun bug dans ce bloc.
+- Ne lancer aucune migration.
+- Ne modifier aucune donnée.
+- Ne regrouper aucun refactor.
+- Ne pas réécrire entièrement les documents si des modifications ciblées
+  suffisent.
+- Ne pas créer de commit avant validation du résultat.
+
+VÉRIFICATION FINALE
+
+Après modification :
+
+1. Affiche git diff -- CLAUDE.md docs/JOURNAL_NI.md.
+2. Confirme qu’aucun autre fichier n’a changé.
+3. Recherche les anciennes mentions présentant P13 ou V3-D8-A comme
+   dernier état.
+4. Vérifie que A3 et 05d62f1 sont indiqués comme dernier bloc confirmé.
+5. Vérifie que P16-C conserve sa réserve de validation multi-joueurs.
+6. Vérifie que la description du fog correspond exactement au code.
+7. Fournis un rapport synthétique.
+8. Attends notre validation avant commit et push.
