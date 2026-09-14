@@ -3915,6 +3915,19 @@ L’ancien panneau `EventPanel` et son accès dans le HUD ont été retirés ; `
 
 Aucune validation visuelle du HUD n’est prouvée par Git pour ce commit.
 
+### Champs obligatoires complémentaires
+
+- Statut : terminé — changement présent dans le commit indiqué
+- Tests effectués : aucune exécution de `npm run check`, de test automatisé ou de validation visuelle n’est attestée par Git pour ce commit
+- Résultat des tests : non disponible — aucun résultat de test n’est prouvé par Git
+- Erreurs préexistantes : non déterminables pour ce commit — aucune exécution attestée ne permet d’établir un nombre
+- Erreurs introduites : non déterminables pour ce commit — aucune exécution attestée ne permet d’établir un nombre
+- Décisions : conserver `PublicEventsPanel` comme accès unique au babillard et retirer l’accès redondant du HUD
+- Décisions canon impactées : Aucune — confirmé par relecture
+- Limites restantes : validation visuelle du HUD non attestée
+- Hors scope : aucune modification hors scope identifiée par relecture du diff Git
+- Prochain bloc recommandé : validation visuelle ciblée de l’accès unique au babillard
+
 ---
 
 ## C2 — Écritures du babillard réservées aux admins et retrait des faux événements
@@ -3944,6 +3957,19 @@ L’initialisation de démonstration et ses contrôles d’interface ont été r
 
 Aucun test HTTP avec comptes admin et non-admin n’est attesté dans Git.
 
+### Champs obligatoires complémentaires
+
+- Statut : terminé — changement présent dans le commit indiqué
+- Tests effectués : aucune exécution de `npm run check`, aucun test HTTP et aucun autre test automatisé ne sont attestés par Git pour ce commit
+- Résultat des tests : non disponible — aucun résultat de test n’est prouvé par Git
+- Erreurs préexistantes : non déterminables pour ce commit — aucune exécution attestée ne permet d’établir un nombre
+- Erreurs introduites : non déterminables pour ce commit — aucune exécution attestée ne permet d’établir un nombre
+- Décisions : réserver aux administrateurs les écritures restantes du babillard et supprimer les événements de démonstration
+- Décisions canon impactées : 8 et 9
+- Limites restantes : comportement admin/non-admin non validé par un test HTTP attesté
+- Hors scope : aucune modification hors scope identifiée par relecture du diff Git
+- Prochain bloc recommandé : validation HTTP ciblée des autorisations admin et non-admin
+
 ---
 
 ## A1a — Annonces serveur des créations de faction et fondations de ville
@@ -3971,6 +3997,19 @@ Les créations de faction et les fondations de ville produisent une annonce publ
 ### Réserve
 
 La valeur de tour reste inconnue jusqu’à l’existence d’une source serveur fiable. Aucun scénario de bout en bout n’est prouvé par Git.
+
+### Champs obligatoires complémentaires
+
+- Statut : terminé — changement présent dans le commit indiqué
+- Tests effectués : aucune exécution de `npm run check`, aucun test automatisé et aucun scénario de bout en bout ne sont attestés par Git pour ce commit
+- Résultat des tests : non disponible — aucun résultat de test n’est prouvé par Git
+- Erreurs préexistantes : non déterminables pour ce commit — aucune exécution attestée ne permet d’établir un nombre
+- Erreurs introduites : non déterminables pour ce commit — aucune exécution attestée ne permet d’établir un nombre
+- Décisions : utiliser `UNKNOWN_TURN` plutôt qu’un tour inventé et isoler l’émission publique pour qu’elle ne bloque pas l’action principale
+- Décisions canon impactées : 8
+- Limites restantes : absence de source serveur fiable pour le tour et absence de validation de bout en bout attestée
+- Hors scope : aucune modification hors scope identifiée par relecture du diff Git
+- Prochain bloc recommandé : validation de bout en bout des annonces réelles, sans inventer de numéro de tour
 
 ---
 
@@ -4000,6 +4039,19 @@ L’interface appelle `/api/public-events/recent?limit=...`, le service filtre l
 
 Le commit ne démontre pas un test automatisé des limites exactes de la fenêtre temporelle.
 
+### Champs obligatoires complémentaires
+
+- Statut : terminé — changement présent dans le commit indiqué
+- Tests effectués : aucune exécution de `npm run check` ni aucun test automatisé de la fenêtre temporelle ne sont attestés par Git pour ce commit
+- Résultat des tests : non disponible — aucun résultat de test n’est prouvé par Git
+- Erreurs préexistantes : non déterminables pour ce commit — aucune exécution attestée ne permet d’établir un nombre
+- Erreurs introduites : non déterminables pour ce commit — aucune exécution attestée ne permet d’établir un nombre
+- Décisions : définir « récent » par une fenêtre réelle de 48 heures fondée sur l’horodatage, sans dépendre d’un tour client
+- Décisions canon impactées : 8
+- Limites restantes : limites temporelles exactes non couvertes par un test attesté
+- Hors scope : aucune modification hors scope identifiée par relecture du diff Git
+- Prochain bloc recommandé : test automatisé des événements juste avant, à et juste après la limite de 48 heures
+
 ---
 
 ## A3 — Une seule définition de « récent » dans le babillard
@@ -4026,3 +4078,16 @@ Le commit ne démontre pas un test automatisé des limites exactes de la fenêtr
 ### Réserve
 
 Aucun test automatisé de frontière temporelle n’est attesté par Git.
+
+### Champs obligatoires complémentaires
+
+- Statut : terminé — changement présent dans le commit indiqué
+- Tests effectués : aucune exécution de `npm run check` ni aucun test automatisé de frontière temporelle ne sont attestés par Git pour ce commit
+- Résultat des tests : non disponible — aucun résultat de test n’est prouvé par Git
+- Erreurs préexistantes : non déterminables pour ce commit — aucune exécution attestée ne permet d’établir un nombre
+- Erreurs introduites : non déterminables pour ce commit — aucune exécution attestée ne permet d’établir un nombre
+- Décisions : utiliser `RECENT_WINDOW_HOURS` comme définition partagée de l’activité récente
+- Décisions canon impactées : Aucune — confirmé par relecture
+- Limites restantes : frontière temporelle non couverte par un test automatisé attesté
+- Hors scope : aucune modification hors scope identifiée par relecture du diff Git
+- Prochain bloc recommandé : test automatisé commun de la fenêtre de 48 heures pour la liste et les statistiques
