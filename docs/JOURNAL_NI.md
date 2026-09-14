@@ -3657,3 +3657,372 @@ Une ville ne change pas de nom une fois approuvée, sauf conquête. Le renommage
 ### Hors scope
 
 - La colonne display_name dans shared/schema.ts est marquée "non modifiable via API en Phase 6" (commentaire ligne 463) — ce commentaire est désormais obsolète mais n'a pas été modifié (correction opportuniste interdite).
+
+---
+
+## BLOC 1e — Vérification et débit serveur des PA de création de faction
+
+### 21 août 2026
+
+- Outil utilisé : Replit Agent
+- Commit : `3d38d6910bcd8e117354ddc22c5b9468fc95dae2`
+- Objectif : déplacer vers le serveur la vérification et le débit des points d’action exigés pour créer une faction.
+
+### Fichiers modifiés
+
+- `client/src/components/game/AvatarActionMenu.tsx`
+- `client/src/components/game/FactionCreationPanel.tsx`
+- `client/src/lib/api/factionsApi.ts`
+- `client/src/lib/stores/useFactions.tsx`
+- `server/factionService.ts`
+- `server/routes/factions.ts`
+- `server/routes/territories.ts`
+- `shared/ActionPointsCosts.ts`
+
+### Résultat
+
+Le coût canonique de création de faction est partagé, le client transmet la demande sans débiter localement les PA, et le serveur contrôle l’identité, le solde et le débit. Le chemin administrateur est explicitement transmis.
+
+### Validation réellement effectuée
+
+- Commit et fichiers confirmés par l’historique Git.
+- Diff du commit relu pendant la réconciliation documentaire.
+
+### Réserve
+
+Aucun résultat de commande de test ou de validation visuelle n’est prouvé par Git pour ce commit ; aucun n’est donc ajouté rétrospectivement.
+
+---
+
+## NETTOYAGE-2 — Retrait de panneaux morts et de code sans appelant
+
+### 22 août 2026
+
+- Outil utilisé : Replit Agent
+- Commit : `5ae345e4729311a3005af65816e170835501a768`
+- Objectif : supprimer six panneaux qui n’étaient plus rendus ainsi que le code devenu sans appelant.
+
+### Fichiers modifiés
+
+- `CLAUDE.md`
+- `client/src/components/game/ActionPointsPanel.tsx` (supprimé)
+- `client/src/components/game/ConstructionPanelSimple.tsx` (supprimé)
+- `client/src/components/game/ConstructionPanelZustand.tsx` (supprimé)
+- `client/src/components/game/CourierPanel.tsx` (supprimé)
+- `client/src/components/game/FactionPanel.tsx`
+- `client/src/components/game/RecruitmentPanelZustand.tsx` (supprimé)
+- `client/src/components/game/TreasuryPanelZustand.tsx` (supprimé)
+- `client/src/components/game/TreatiesPanel.tsx`
+- `client/src/lib/stores/useNovaImperium.tsx`
+
+### Résultat
+
+Les six panneaux ciblés ont été supprimés. Les références et éléments de store devenus inutilisés ont été retirés ou ajustés dans les fichiers restants.
+
+### Validation réellement effectuée
+
+- Suppressions et fichiers modifiés confirmés par Git.
+- Diff du commit relu pendant la réconciliation documentaire.
+
+### Réserve
+
+Git ne prouve pas ici une validation visuelle de tous les écrans concernés.
+
+---
+
+## Correction des appels de FactionPanel au store des factions
+
+### 22 août 2026
+
+- Outil utilisé : Replit Agent
+- Commit : `140432ba02be5e1254d8f4ac9e5ba0d385551402`
+- Objectif : corriger les appels de `FactionPanel` après le nettoyage du store des factions.
+
+### Fichier modifié
+
+- `client/src/components/game/FactionPanel.tsx`
+
+### Résultat
+
+`FactionPanel` utilise les appels exposés par le store des factions au lieu des références devenues invalides.
+
+### Validation réellement effectuée
+
+- Fichier unique et correction confirmés par le diff Git.
+
+### Réserve
+
+Le commit ne porte aucun identifiant de bloc ; aucun identifiant n’est inventé. Aucun test fonctionnel n’est attesté par Git.
+
+---
+
+## Authentification client et affichage des erreurs des panneaux d’événements
+
+### 22 août 2026
+
+- Outil utilisé : Replit Agent
+- Commit : `dca5db6dbf789083ac2634f57164ec82a3a602b7`
+- Objectif : envoyer le jeton d’authentification depuis les deux panneaux d’événements et rendre visibles leurs erreurs.
+
+### Fichiers modifiés
+
+- `CLAUDE.md`
+- `client/src/components/game/EventPanel.tsx`
+- `client/src/components/game/PublicEventsPanel.tsx`
+
+### Résultat
+
+Les requêtes des panneaux transmettent leurs informations d’authentification et les échecs ne sont plus silencieux dans l’interface.
+
+### Validation réellement effectuée
+
+- Fichiers et changements confirmés par le diff Git.
+
+### Réserve
+
+Le commit ne porte aucun identifiant de bloc ; aucun identifiant n’est inventé. Aucune validation avec une session utilisateur réelle n’est prouvée par Git.
+
+---
+
+## Authentification obligatoire sur les routes d’événements publics
+
+### 22 août 2026
+
+- Outil utilisé : Replit Agent
+- Commit : `bee0e54fd46e37ea43e180a3e0fa6f73e4036f04`
+- Objectif : exiger une session authentifiée sur les routes du babillard public.
+
+### Fichiers modifiés
+
+- `CLAUDE.md`
+- `client/src/components/game/EventPanel.tsx`
+- `server/routes/publicEvents.ts`
+
+### Résultat
+
+Les routes d’événements publics concernées passent par le contrôle d’authentification et le client concerné transmet le jeton.
+
+### Validation réellement effectuée
+
+- Présence des contrôles et fichiers touchés confirmée par le diff Git.
+
+### Réserve
+
+Le commit ne porte aucun identifiant de bloc ; aucun identifiant n’est inventé. Aucun scénario d’accès authentifié/non authentifié n’est attesté dans Git.
+
+---
+
+## Suspension de la facturation de la création d’alliance
+
+### 23 août 2026
+
+- Outil utilisé : Replit Agent
+- Commit : `4c60dde6e5797b96d57c176ce0b4c64b5c537eba`
+- Objectif : ne plus facturer la création d’alliance tant que sa refonte n’est pas réalisée.
+
+### Fichier modifié
+
+- `client/src/components/game/AlliancesPanel.tsx`
+
+### Résultat
+
+Le panneau ne débite plus de PA lors de la création d’une alliance dans ce chemin.
+
+### Validation réellement effectuée
+
+- Fichier et retrait du débit confirmés par le diff Git.
+
+### Réserve
+
+Le commit ne porte aucun identifiant de bloc ; aucun identifiant n’est inventé. La refonte de la création d’alliance reste hors de ce changement.
+
+---
+
+## Retrait des routes d’écriture d’événements publics
+
+### 23 août 2026
+
+- Outil utilisé : Replit Agent
+- Commit : `6e5d86c37288de756bc85410b927ac7fc570c4a6`
+- Objectif : retirer les sept routes d’écriture du routeur des événements publics.
+
+### Fichier modifié
+
+- `server/routes/publicEvents.ts`
+
+### Résultat
+
+Les sept routes d’écriture ciblées ont été supprimées du routeur ; les routes de lecture ont été conservées par ce commit.
+
+### Validation réellement effectuée
+
+- Suppression des routes confirmée par le diff Git.
+
+### Réserve
+
+Le commit ne porte aucun identifiant de bloc ; aucun identifiant n’est inventé. Aucun test HTTP exécuté à l’époque n’est démontrable depuis Git.
+
+---
+
+## RÈGLE-1 — Ajout de deux règles de travail durables
+
+### 23 août 2026
+
+- Outil utilisé : Replit Agent
+- Commit : `de920f5f50aa66c57cb5b1122d09fa41fb43225c`
+- Objectif : inscrire deux règles durables dans les instructions du projet.
+
+### Fichier modifié
+
+- `CLAUDE.md`
+
+### Résultat
+
+Les règles imposant la validation serveur de la logique de jeu critique et la vérification du rendu ou de l’appel réel d’un composant ont été ajoutées.
+
+### Validation réellement effectuée
+
+- Ajout documentaire confirmé par le diff Git.
+
+### Réserve
+
+Ce commit est strictement documentaire et ne constitue pas un changement fonctionnel.
+
+---
+
+## C1 — Un seul accès au babillard public
+
+### 24 août 2026
+
+- Outil utilisé : Replit Agent
+- Commit : `98827565bd235dae3d0ed1713f35ee396839e0e8`
+- Objectif : retirer le menu « ÉVÉNEMENT » redondant et conserver un seul accès au babillard public.
+
+### Fichiers modifiés
+
+- `client/src/components/game/EventPanel.tsx` (supprimé)
+- `client/src/components/game/MedievalHUD.tsx`
+
+### Résultat
+
+L’ancien panneau `EventPanel` et son accès dans le HUD ont été retirés ; `PublicEventsPanel` reste le point d’accès au babillard.
+
+### Validation réellement effectuée
+
+- Suppression et retrait du point d’accès confirmés par Git.
+
+### Réserve
+
+Aucune validation visuelle du HUD n’est prouvée par Git pour ce commit.
+
+---
+
+## C2 — Écritures du babillard réservées aux admins et retrait des faux événements
+
+### 24 août 2026
+
+- Outil utilisé : Replit Agent
+- Commit : `add9858fa47e2b38d01fe63aaff4afa72d9cf2ea`
+- Objectif : réserver les écritures restantes du babillard aux administrateurs et supprimer les événements de démonstration.
+
+### Fichiers modifiés
+
+- `client/src/components/game/PublicEventsPanel.tsx`
+- `server/publicEventsService.ts`
+- `server/routes/publicEvents.ts`
+- `server/seed.ts` (supprimé)
+
+### Résultat
+
+L’initialisation de démonstration et ses contrôles d’interface ont été retirés. Les opérations de modification de visibilité et de suppression sont protégées par le statut administrateur.
+
+### Validation réellement effectuée
+
+- Suppressions et contrôles d’administration confirmés par le diff Git.
+
+### Réserve
+
+Aucun test HTTP avec comptes admin et non-admin n’est attesté dans Git.
+
+---
+
+## A1a — Annonces serveur des créations de faction et fondations de ville
+
+### 24 août 2026
+
+- Outil utilisé : Replit Agent
+- Commit : `fcfdf2d5618e671e9f6aa7c3c5f2a99796a30fad`
+- Objectif : alimenter le babillard avec des événements réels émis après les actions serveur.
+
+### Fichiers modifiés
+
+- `server/factionService.ts`
+- `server/publicEventsService.ts`
+- `server/territoryService.ts`
+
+### Résultat
+
+Les créations de faction et les fondations de ville produisent une annonce publique. Le serveur utilise `UNKNOWN_TURN` tant qu’il ne dispose pas d’un compteur de tour fiable, et l’émission est isolée afin qu’un échec du babillard ne bloque pas l’action principale.
+
+### Validation réellement effectuée
+
+- Points d’émission, constante de tour inconnu et isolation des erreurs confirmés par le diff Git.
+
+### Réserve
+
+La valeur de tour reste inconnue jusqu’à l’existence d’une source serveur fiable. Aucun scénario de bout en bout n’est prouvé par Git.
+
+---
+
+## A2 — Fenêtre réelle de 48 heures pour l’onglet « Récents »
+
+### 24 août 2026
+
+- Outil utilisé : Replit Agent
+- Commit : `fc3388745a473510c9b0da44cca915d930b4cd99`
+- Objectif : remplacer la plage de tours de l’onglet « Récents » par une fenêtre temporelle réelle.
+
+### Fichiers modifiés
+
+- `client/src/components/game/PublicEventsPanel.tsx`
+- `server/publicEventsService.ts`
+- `server/routes/publicEvents.ts`
+
+### Résultat
+
+L’interface appelle `/api/public-events/recent?limit=...`, le service filtre les événements selon leur horodatage sur 48 heures et la route n’attend plus de numéro de tour.
+
+### Validation réellement effectuée
+
+- Route, appel client et constante `RECENT_WINDOW_HOURS = 48` confirmés par le diff Git.
+
+### Réserve
+
+Le commit ne démontre pas un test automatisé des limites exactes de la fenêtre temporelle.
+
+---
+
+## A3 — Une seule définition de « récent » dans le babillard
+
+### 24 août 2026
+
+- Outil utilisé : Replit Agent
+- Commit : `05d62f1959f158fb682e75cf50907176db6cafb1`
+- Objectif : aligner la statistique `recentActivity` sur la même définition de 48 heures que l’onglet « Récents ».
+
+### Fichier modifié
+
+- `server/publicEventsService.ts`
+
+### Résultat
+
+`getEventStatistics()` réutilise `RECENT_WINDOW_HOURS` pour calculer l’activité récente ; l’ancienne fenêtre distincte de sept jours est supprimée.
+
+### Validation réellement effectuée
+
+- Calcul partagé et suppression de la fenêtre de sept jours confirmés par le diff Git.
+- Ce commit est le dernier bloc fonctionnel confirmé et poussé sur `origin/NI-10.09`.
+
+### Réserve
+
+Aucun test automatisé de frontière temporelle n’est attesté par Git.
